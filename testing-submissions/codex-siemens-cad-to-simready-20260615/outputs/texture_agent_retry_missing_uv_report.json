@@ -1,0 +1,24 @@
+{
+  "actions": {
+    "backend": "python",
+    "fixed_interpolation": 0,
+    "generated": 0,
+    "normalized": 0
+  },
+  "input_usd": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd",
+  "meshes": [],
+  "policy": "generate_missing",
+  "prepared_usd": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd",
+  "projection": "box",
+  "schema_version": "texture-agent-uv-report.v1",
+  "summary": {
+    "indexed": 0,
+    "invalid": 0,
+    "missing": 0,
+    "non_finite": 0,
+    "out_of_range": 0,
+    "repairable": 0,
+    "total_meshes": 0,
+    "valid": 0
+  }
+}

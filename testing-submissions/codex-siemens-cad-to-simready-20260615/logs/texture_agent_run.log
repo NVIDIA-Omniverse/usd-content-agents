@@ -1,0 +1,638 @@
+17:40:00 [DEBUG] faiss.loader: Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+17:40:00 [INFO] faiss.loader: Loading faiss with AVX2 support.
+17:40:00 [INFO] faiss.loader: Successfully loaded faiss with AVX2 support.
+17:40:01 [INFO] texture_agent.config.unified_config: Loaded config: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_siemens_a5e52945329.yaml
+17:40:01 [INFO] texture_agent.config.unified_config:   Project: siemens_a5e52945329_texture_agent
+17:40:01 [INFO] texture_agent.config.unified_config:   Input: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_material.usd
+17:40:01 [INFO] texture_agent.config.unified_config:   Working dir: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738
+17:40:01 [INFO] texture_agent.workflows.factory: Running texture pipeline (7 steps)
+17:40:01 [INFO] texture_agent.workflows.factory: [1/7] PrepareUVs
+17:40:01 [INFO] texture_agent.tasks.prepare_uvs: Preparing UVs for /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_material.usd (backend=python, policy=generate_missing, projection=box)
+17:40:06 [INFO] texture_agent.tasks.prepare_uvs: No UV fixes needed
+17:40:07 [INFO] texture_agent.workflows.factory: [1/7] PrepareUVs complete
+17:40:07 [INFO] texture_agent.workflows.factory: [2/7] DiscoverMaterials
+17:40:07 [INFO] texture_agent.tasks.discover_materials: Discovering materials in /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_material.usd
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Car_Paint_Jet_Black (base_color=(0.0020000000949949026, 0.0020000000949949026, 0.0020000000949949026), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Copper (base_color=(0.9549999833106995, 0.6370000243186951, 0.5379999876022339), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Black (base_color=(0.01940763182938099, 0.01940763182938099, 0.01940763182938099), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Dark_Blue (base_color=(0.018131744116544724, 0.041638296097517014, 0.25319695472717285), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Dark_Gray (base_color=(0.09462916851043701, 0.0946282222867012, 0.0946282222867012), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Green (base_color=(0.007875408977270126, 0.21994882822036743, 0.007875408977270126), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Ivory (base_color=(0.5140664577484131, 0.4861992299556732, 0.41151610016822815), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Silver (base_color=(0.972000002861023, 0.9599999785423279, 0.9150000214576721), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Stainless_Steel_Brushed (base_color=(0.6299999952316284, 0.6299999952316284, 0.6299999952316284), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered material: Steel_Painted_Dark_Gray (base_color=(0.07800000160932541, 0.07800000160932541, 0.07800000160932541), has_texture=False, bound_prims=0)
+17:40:07 [INFO] texture_agent.functions.material_discovery: Discovered 10 materials total
+17:40:07 [INFO] texture_agent.tasks.discover_materials: Discovered 10 materials:
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Car_Paint_Jet_Black            base_color=(0.00, 0.00, 0.00) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Copper                         base_color=(0.95, 0.64, 0.54) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Plastic_Black                  base_color=(0.02, 0.02, 0.02) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Plastic_Dark_Blue              base_color=(0.02, 0.04, 0.25) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Plastic_Dark_Gray              base_color=(0.09, 0.09, 0.09) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Plastic_Green                  base_color=(0.01, 0.22, 0.01) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Plastic_Ivory                  base_color=(0.51, 0.49, 0.41) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Silver                         base_color=(0.97, 0.96, 0.92) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Stainless_Steel_Brushed        base_color=(0.63, 0.63, 0.63) texture=no prims=0
+17:40:07 [INFO] texture_agent.tasks.discover_materials:   Steel_Painted_Dark_Gray        base_color=(0.08, 0.08, 0.08) texture=no prims=0
+17:40:07 [INFO] texture_agent.workflows.factory: [2/7] DiscoverMaterials complete
+17:40:07 [INFO] texture_agent.workflows.factory: [3/7] GeneratePrompts
+17:40:07 [INFO] texture_agent.tasks.generate_prompts: All 10 materials have explicit prompts -- skipping LLM
+17:40:07 [INFO] texture_agent.tasks.generate_prompts: Expanded to 10 texture units (mode=per_material)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Car_Paint_Jet_Black                      prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Copper                                   prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Black                            prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Dark_Blue                        prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Dark_Gray                        prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Green                            prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Ivory                            prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Silver                                   prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Stainless_Steel_Brushed                  prim=(all)
+17:40:07 [INFO] texture_agent.tasks.generate_prompts:   Steel_Painted_Dark_Gray                  prim=(all)
+17:40:07 [INFO] texture_agent.workflows.factory: [3/7] GeneratePrompts complete
+17:40:07 [INFO] texture_agent.workflows.factory: [4/7] GenerateTextures
+17:40:07 [INFO] texture_agent.functions.texture_generation: Initializing image gen model: backend=nim, model=black-forest-labs/flux_2-klein-4b, base_url=(default)
+17:40:07 [INFO] texture_agent.tasks.generate_textures: Generating 10 PBR texture sets with image_gen (nim) (simple_image_gen, workers=1)
+17:40:07 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-11554cd349c1 (engine=image_gen (nim), strength=0.55)
+17:40:07 [WARNING] texture_agent.functions.texture_generation: Backend nim does not support image conditioning; normal and roughness maps will be generated from text only for this run.
+17:40:07 [DEBUG] PIL.Image: Importing PngImagePlugin
+17:40:07 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:07 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:09 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:09 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:10 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:10 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:12 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:12 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:13 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:13 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:14 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:40:14 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:40:14 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:19 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:40:19 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:23 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:40:23 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:27 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Car_Paint_Jet_Black/Car_Paint_Jet_Black_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Car_Paint_Jet_Black/Car_Paint_Jet_Black_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Car_Paint_Jet_Black/Car_Paint_Jet_Black_orm.png
+17:40:27 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-3550304f1083 (engine=image_gen (nim), strength=0.70)
+17:40:27 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:27 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:28 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:28 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:29 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:29 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:30 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:30 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:31 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:31 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:32 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:40:32 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:40:32 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:36 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:40:36 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:40 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:40:40 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:44 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Copper/Copper_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Copper/Copper_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Copper/Copper_orm.png
+17:40:44 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-e59af980f503 (engine=image_gen (nim), strength=0.65)
+17:40:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:40:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:40:49 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:40:49 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:40:49 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:53 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:40:53 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:40:56 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:40:56 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:00 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Black/Plastic_Black_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Black/Plastic_Black_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Black/Plastic_Black_orm.png
+17:41:00 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-7109da3766ac (engine=image_gen (nim), strength=0.65)
+17:41:00 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:00 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:01 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:01 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:03 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:03 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:04 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:04 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:05 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:05 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:06 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:41:06 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:41:06 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:10 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:41:10 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:14 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:41:14 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:17 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Dark_Blue/Plastic_Dark_Blue_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Dark_Blue/Plastic_Dark_Blue_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Dark_Blue/Plastic_Dark_Blue_orm.png
+17:41:17 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-b0941f0db7d0 (engine=image_gen (nim), strength=0.65)
+17:41:17 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:17 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:19 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:19 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:20 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:20 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:23 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:41:23 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:41:23 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:27 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:41:27 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:30 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:41:30 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:34 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Dark_Gray/Plastic_Dark_Gray_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Dark_Gray/Plastic_Dark_Gray_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Plastic_Dark_Gray/Plastic_Dark_Gray_orm.png
+17:41:34 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-7288853bfa19 (engine=image_gen (nim), strength=0.75)
+17:41:34 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:34 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:35 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:35 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:37 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:37 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:38 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:38 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:39 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:39 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:40 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:41:40 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:41:40 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:40 [ERROR] texture_agent.functions.texture_generation: Texture variation job vj-7288853bfa19 failed
+Traceback (most recent call last):
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 472, in generate
+    textures = self._engine.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 315, in generate
+    albedo_img = self._generate_image(model, albedo_prompt, size, ref_images)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 249, in _generate_image
+    image = model.generate(prompt, images=ref_images)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/world_understanding/functions/models/image_generation_models.py", line 804, in generate
+    raise ValueError("Empty base64 in NIM image generation response")
+ValueError: Empty base64 in NIM image generation response
+17:41:40 [ERROR] texture_agent.tasks.generate_textures: Failed to generate textures for Plastic_Green
+Traceback (most recent call last):
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/tasks/generate_textures.py", line 336, in _run_simple_image_gen
+    k, textures = future.result()
+                  ^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/tasks/generate_textures.py", line 324, in _gen
+    raise RuntimeError(
+RuntimeError: Generation failed for Plastic_Green: Empty base64 in NIM image generation response
+17:41:40 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-479f79cf376b (engine=image_gen (nim), strength=0.65)
+17:41:40 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:40 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:46 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:41:46 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:41:46 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:49 [ERROR] texture_agent.functions.texture_generation: Texture variation job vj-479f79cf376b failed
+Traceback (most recent call last):
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 472, in generate
+    textures = self._engine.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 315, in generate
+    albedo_img = self._generate_image(model, albedo_prompt, size, ref_images)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 249, in _generate_image
+    image = model.generate(prompt, images=ref_images)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/world_understanding/functions/models/image_generation_models.py", line 804, in generate
+    raise ValueError("Empty base64 in NIM image generation response")
+ValueError: Empty base64 in NIM image generation response
+17:41:49 [ERROR] texture_agent.tasks.generate_textures: Failed to generate textures for Plastic_Ivory
+Traceback (most recent call last):
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/tasks/generate_textures.py", line 336, in _run_simple_image_gen
+    k, textures = future.result()
+                  ^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/tasks/generate_textures.py", line 324, in _gen
+    raise RuntimeError(
+RuntimeError: Generation failed for Plastic_Ivory: Empty base64 in NIM image generation response
+17:41:49 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-28b8e46a15a5 (engine=image_gen (nim), strength=0.65)
+17:41:49 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:49 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:51 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:51 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:53 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:53 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:54 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:41:54 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:41:55 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:41:55 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:41:55 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:41:58 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:41:58 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:02 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:42:02 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:06 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Silver/Silver_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Silver/Silver_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Silver/Silver_orm.png
+17:42:06 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-9ac9c5ac23b3 (engine=image_gen (nim), strength=0.70)
+17:42:06 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:06 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:07 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:07 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:08 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:08 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:09 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:09 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:12 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:42:12 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:42:12 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:15 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:42:15 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:19 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:42:19 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:23 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Stainless_Steel_Brushed/Stainless_Steel_Brushed_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Stainless_Steel_Brushed/Stainless_Steel_Brushed_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Stainless_Steel_Brushed/Stainless_Steel_Brushed_orm.png
+17:42:23 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-325e20c86007 (engine=image_gen (nim), strength=0.60)
+17:42:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:24 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:24 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:25 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:25 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:26 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:26 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:28 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:28 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:42:29 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:42:29 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:42:29 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:32 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:42:32 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:37 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:42:37 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:42:40 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Steel_Painted_Dark_Gray/Steel_Painted_Dark_Gray_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Steel_Painted_Dark_Gray/Steel_Painted_Dark_Gray_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/generated/Steel_Painted_Dark_Gray/Steel_Painted_Dark_Gray_orm.png
+17:42:40 [WARNING] texture_agent.tasks.generate_textures: Texture generation completed with 2/10 failures via image_gen (nim) (below threshold 100%)
+17:42:40 [INFO] texture_agent.tasks.generate_textures: Generated 8 PBR texture sets
+17:42:40 [INFO] texture_agent.workflows.factory: [4/7] GenerateTextures complete
+17:42:40 [INFO] texture_agent.workflows.factory: [5/7] BlendTextures
+17:42:40 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:40 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:41 [INFO] texture_agent.tasks.blend_textures: Blended Car_Paint_Jet_Black: albedo + normal + orm (opacity=0.55) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:41 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:42 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:42 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:42 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:42 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:43 [INFO] texture_agent.tasks.blend_textures: Blended Copper: albedo + normal + orm (opacity=0.70) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:43 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:44 [INFO] texture_agent.tasks.blend_textures: Blended Plastic_Black: albedo + normal + orm (opacity=0.65) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:44 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:45 [INFO] texture_agent.tasks.blend_textures: Blended Plastic_Dark_Blue: albedo + normal + orm (opacity=0.65) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:46 [INFO] texture_agent.tasks.blend_textures: Blended Plastic_Dark_Gray: albedo + normal + orm (opacity=0.65) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:47 [INFO] texture_agent.tasks.blend_textures: Blended Silver: albedo + normal + orm (opacity=0.65) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:47 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:48 [INFO] texture_agent.tasks.blend_textures: Blended Stainless_Steel_Brushed: albedo + normal + orm (opacity=0.70) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:48 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:49 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:49 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:49 [INFO] texture_agent.tasks.blend_textures: Blended Steel_Painted_Dark_Gray: albedo + normal + orm (opacity=0.60) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures
+17:42:49 [INFO] texture_agent.tasks.blend_textures: Blended 8 PBR texture sets (0 failures across 8 attempts)
+17:42:49 [INFO] texture_agent.workflows.factory: [5/7] BlendTextures complete
+17:42:49 [INFO] texture_agent.workflows.factory: [6/7] ApplyTextures
+17:42:49 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:49 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:50 [INFO] texture_agent.tasks.apply_textures: Applied textures to Car_Paint_Jet_Black (direct)
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:50 [INFO] texture_agent.tasks.apply_textures: Applied textures to Copper (direct)
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:50 [INFO] texture_agent.tasks.apply_textures: Applied textures to Plastic_Black (direct)
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:50 [INFO] texture_agent.tasks.apply_textures: Applied textures to Plastic_Dark_Blue (direct)
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:50 [INFO] texture_agent.tasks.apply_textures: Applied textures to Plastic_Dark_Gray (direct)
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:50 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:51 [INFO] texture_agent.tasks.apply_textures: Applied textures to Silver (direct)
+17:42:51 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:51 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:51 [INFO] texture_agent.tasks.apply_textures: Applied textures to Stainless_Steel_Brushed (direct)
+17:42:51 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:42:51 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:42:51 [INFO] texture_agent.tasks.apply_textures: Applied textures to Steel_Painted_Dark_Gray (direct)
+17:42:51 [INFO] texture_agent.tasks.apply_textures: Applied PBR textures to 8 units, saved to /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+17:42:52 [INFO] texture_agent.workflows.factory: [6/7] ApplyTextures complete
+17:42:52 [INFO] texture_agent.workflows.factory: [7/7] RenderOutput
+17:42:52 [INFO] texture_agent.tasks.render: Rendering /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+17:43:03 [INFO] world_understanding.functions.graphics.render_remote: Found 0 local MDL assets and 32 local texture files to bundle
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Car_Paint_Jet_Black_albedo.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Car_Paint_Jet_Black_metalness.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Car_Paint_Jet_Black_normal.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Car_Paint_Jet_Black_roughness.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Copper_albedo.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Copper_metalness.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Copper_normal.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Copper_roughness.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Black_albedo.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Black_metalness.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Black_normal.png
+17:43:03 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Black_roughness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Blue_albedo.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Blue_metalness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Blue_normal.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Blue_roughness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Gray_albedo.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Gray_metalness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Gray_normal.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Plastic_Dark_Gray_roughness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Silver_albedo.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Silver_metalness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Silver_normal.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Silver_roughness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Stainless_Steel_Brushed_albedo.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Stainless_Steel_Brushed_metalness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Stainless_Steel_Brushed_normal.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Stainless_Steel_Brushed_roughness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_albedo.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Steel_Painted_Dark_Gray_albedo.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_metalness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Steel_Painted_Dark_Gray_metalness.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_normal.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Steel_Painted_Dark_Gray_normal.png
+17:43:04 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_roughness.png -> /tmp/remote_bundle_jlrzykkg/bundle/textures/Steel_Painted_Dark_Gray_roughness.png
+17:43:28 [INFO] world_understanding.functions.graphics.render_remote: Updated 10 OpenPBR material fallback(s) for remote render export
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_albedo.png -> textures/Car_Paint_Jet_Black_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_metalness.png -> textures/Car_Paint_Jet_Black_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_normal.png -> textures/Car_Paint_Jet_Black_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_roughness.png -> textures/Car_Paint_Jet_Black_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_albedo.png -> textures/Car_Paint_Jet_Black_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_metalness.png -> textures/Car_Paint_Jet_Black_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_roughness.png -> textures/Car_Paint_Jet_Black_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_normal.png -> textures/Car_Paint_Jet_Black_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_albedo.png -> textures/Copper_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_metalness.png -> textures/Copper_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_normal.png -> textures/Copper_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_roughness.png -> textures/Copper_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_albedo.png -> textures/Copper_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_metalness.png -> textures/Copper_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_roughness.png -> textures/Copper_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Copper_normal.png -> textures/Copper_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_albedo.png -> textures/Plastic_Black_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_metalness.png -> textures/Plastic_Black_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_normal.png -> textures/Plastic_Black_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_roughness.png -> textures/Plastic_Black_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_albedo.png -> textures/Plastic_Black_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_metalness.png -> textures/Plastic_Black_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_roughness.png -> textures/Plastic_Black_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Black_normal.png -> textures/Plastic_Black_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_albedo.png -> textures/Plastic_Dark_Blue_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_metalness.png -> textures/Plastic_Dark_Blue_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_normal.png -> textures/Plastic_Dark_Blue_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_roughness.png -> textures/Plastic_Dark_Blue_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_albedo.png -> textures/Plastic_Dark_Blue_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_metalness.png -> textures/Plastic_Dark_Blue_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_roughness.png -> textures/Plastic_Dark_Blue_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_normal.png -> textures/Plastic_Dark_Blue_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_albedo.png -> textures/Plastic_Dark_Gray_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_metalness.png -> textures/Plastic_Dark_Gray_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_normal.png -> textures/Plastic_Dark_Gray_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_roughness.png -> textures/Plastic_Dark_Gray_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_albedo.png -> textures/Plastic_Dark_Gray_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_metalness.png -> textures/Plastic_Dark_Gray_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_roughness.png -> textures/Plastic_Dark_Gray_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_normal.png -> textures/Plastic_Dark_Gray_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_albedo.png -> textures/Silver_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_metalness.png -> textures/Silver_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_normal.png -> textures/Silver_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_roughness.png -> textures/Silver_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_albedo.png -> textures/Silver_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_metalness.png -> textures/Silver_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_roughness.png -> textures/Silver_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Silver_normal.png -> textures/Silver_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_albedo.png -> textures/Stainless_Steel_Brushed_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_metalness.png -> textures/Stainless_Steel_Brushed_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_normal.png -> textures/Stainless_Steel_Brushed_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_roughness.png -> textures/Stainless_Steel_Brushed_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_albedo.png -> textures/Stainless_Steel_Brushed_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_metalness.png -> textures/Stainless_Steel_Brushed_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_roughness.png -> textures/Stainless_Steel_Brushed_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_normal.png -> textures/Stainless_Steel_Brushed_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_albedo.png -> textures/Steel_Painted_Dark_Gray_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_metalness.png -> textures/Steel_Painted_Dark_Gray_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_normal.png -> textures/Steel_Painted_Dark_Gray_normal.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_roughness.png -> textures/Steel_Painted_Dark_Gray_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_albedo.png -> textures/Steel_Painted_Dark_Gray_albedo.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_metalness.png -> textures/Steel_Painted_Dark_Gray_metalness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_roughness.png -> textures/Steel_Painted_Dark_Gray_roughness.png
+17:43:46 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_normal.png -> textures/Steel_Painted_Dark_Gray_normal.png
+17:43:46 [INFO] world_understanding.functions.graphics.render_remote: Updated 64 asset paths to relative paths
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: stage.usda
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_metalness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_normal.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_albedo.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_roughness.png
+17:44:15 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_metalness.png
+17:44:15 [INFO] world_understanding.functions.graphics.render_remote: Created asset bundle: /tmp/remote_bundle_jlrzykkg/bundle.zip (119281.3 KB)
+17:44:16 [INFO] world_understanding.utils.usd.stage: Created data URI from /tmp/remote_bundle_jlrzykkg/bundle.zip (size: 122144019 bytes, extension: .zip)
+17:44:16 [INFO] world_understanding.functions.graphics.render_remote: Created data URI for MDL/texture asset bundle
+17:44:16 [INFO] world_understanding.functions.graphics.render_remote: Rendering camera /Cameras/TextureAgentFinal with frames 0 from data:application/zip;name=bundle.zip;base64,UEsDBBQAAAAIAHuNzlwCnGeXFZ3BBUtjAyEKAAAAc3RhZ2UudXNkYey9
+17:44:17 [DEBUG] urllib3.connectionpool: Starting new HTTP connection (1): 172.17.128.1:8012
+17:44:21 [DEBUG] urllib3.connectionpool: http://172.17.128.1:8012 "POST /render HTTP/1.1" 200 3033
+17:44:21 [INFO] world_understanding.functions.graphics.render_remote: Remote render request completed in 4.41s
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 2142
+17:44:21 [INFO] world_understanding.functions.graphics.render_remote: Successfully rendered 1 frames for camera /Cameras/TextureAgentFinal
+17:44:21 [INFO] texture_agent.tasks.render:   Saved render: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/renders/render_0_0_0.png
+17:44:21 [INFO] texture_agent.tasks.render: Rendered 1 images
+17:44:21 [INFO] texture_agent.workflows.factory: [7/7] RenderOutput complete
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:21 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:44:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:44:23 [INFO] texture_agent.workflows.factory: Wrote artifact manifest: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/artifacts_manifest.json
+17:44:23 [INFO] texture_agent.workflows.factory: Pipeline complete
+
+Pipeline complete!
+Output USD files:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+Rendered images:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/renders/render_0_0_0.png
+Artifact manifest:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/artifacts_manifest.json

@@ -1,0 +1,55 @@
+name: content-agents
+
+agents:
+  material:
+    enabled: true
+    host_port: 8100
+  physics:
+    enabled: true
+    host_port: 8200
+  texture:
+    enabled: true
+    host_port: 8300
+
+dependencies:
+  render:
+    enabled: true
+    provider: external
+    endpoint: http://172.17.128.1:8012
+  vlm:
+    enabled: false
+    provider: external
+    endpoint: ""
+    backend: nim
+    model: qwen/qwen3.5-397b-a17b
+  llm:
+    enabled: false
+    provider: external
+    endpoint: ""
+    backend: nim
+    model: qwen/qwen3.5-32b-instruct
+  image_gen:
+    enabled: false
+    provider: external
+    endpoint: ""
+    backend: openai
+    model: black-forest-labs/flux.2-klein-4b
+    api_key: <REDACTED>
+  embeddings:
+    enabled: false
+    provider: external
+    endpoint: ""
+    backend: nim
+    model: nvidia/llama-nemotron-embed-vl-1b-v2
+    api_key: <REDACTED>
+
+runtime:
+  max_active_sessions:
+    material: 1
+    physics: 1
+    texture: 4
+  render_concurrency: 1
+
+brev:
+  enabled: false
+  instances: {}

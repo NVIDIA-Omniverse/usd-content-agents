@@ -1,0 +1,58 @@
+## testing
+ M apps/material_agent/material_agent/tasks/config_predict.py
+ M apps/material_agent/material_agent/tasks/reporting.py
+ M apps/ovrtx_rendering_api/Dockerfile
+ M apps/texture_agent/texture_agent/functions/material_discovery.py
+ M apps/texture_agent/texture_agent/functions/texture_generation.py
+ M apps/texture_agent/texture_agent/tasks/generate_textures.py
+ M world_understanding/agentic/usd_tasks/prim_traversal.py
+?? .env
+?? apps/material_agent/material_agent/__pycache__/
+?? apps/material_agent/material_agent/api/__pycache__/
+?? apps/material_agent/material_agent/config/__pycache__/
+?? apps/material_agent/material_agent/functions/__pycache__/
+?? apps/material_agent/material_agent/scene/__pycache__/
+?? apps/material_agent/material_agent/tasks/__pycache__/
+?? apps/material_agent/material_agent/workflows/__pycache__/
+?? apps/texture_agent/texture_agent/__pycache__/
+?? apps/texture_agent/texture_agent/api/__pycache__/
+?? apps/texture_agent/texture_agent/config/__pycache__/
+?? apps/texture_agent/texture_agent/functions/__pycache__/
+?? apps/texture_agent/texture_agent/tasks/__pycache__/
+?? apps/texture_agent/texture_agent/workflows/__pycache__/
+?? deploy/collection/.collection.generated.env
+?? testing-submissions/
+?? uv.lock
+?? world_understanding/__pycache__/
+?? world_understanding/agentic/__pycache__/
+?? world_understanding/agentic/agents/__pycache__/
+?? world_understanding/agentic/cli/__pycache__/
+?? world_understanding/agentic/config/__pycache__/
+?? world_understanding/agentic/dataset/__pycache__/
+?? world_understanding/agentic/domain_tasks/__pycache__/
+?? world_understanding/agentic/usd_tasks/__pycache__/
+?? world_understanding/agentic/utils/__pycache__/
+?? world_understanding/config/__pycache__/
+?? world_understanding/functions/__pycache__/
+?? world_understanding/functions/classification/__pycache__/
+?? world_understanding/functions/cv/__pycache__/
+?? world_understanding/functions/graphics/__pycache__/
+?? world_understanding/functions/knowledge/__pycache__/
+?? world_understanding/functions/models/__pycache__/
+?? world_understanding/functions/models/backends/__pycache__/
+?? world_understanding/functions/models/backends/public/__pycache__/
+?? world_understanding/functions/nlp/__pycache__/
+?? world_understanding/functions/optimization/__pycache__/
+?? world_understanding/functions/physics/__pycache__/
+?? world_understanding/nat/__pycache__/
+?? world_understanding/registry/__pycache__/
+?? world_understanding/telemetry/__pycache__/
+?? world_understanding/telemetry/exporters/__pycache__/
+?? world_understanding/tools/__pycache__/
+?? world_understanding/tools/cv/__pycache__/
+?? world_understanding/tools/graphics/__pycache__/
+?? world_understanding/tools/knowledge/__pycache__/
+?? world_understanding/tools/nlp/__pycache__/
+?? world_understanding/utils/__pycache__/
+?? world_understanding/utils/io/__pycache__/
+?? world_understanding/utils/usd/__pycache__/

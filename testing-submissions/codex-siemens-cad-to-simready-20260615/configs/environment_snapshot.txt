@@ -1,0 +1,11 @@
+Environment snapshot
+Generated: 2026-06-15
+Linux NV-MJ0HJM8G 6.6.114.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Mon Dec  1 20:46:23 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+Distributor ID:	Ubuntu
+Description:	Ubuntu 22.04.5 LTS
+Release:	22.04
+Codename:	jammy
+Python 3.12.13
+Docker version 29.5.3, build d1c06ef
+Docker Compose version v5.1.4
+NVIDIA RTX 6000 Ada Generation, 581.42

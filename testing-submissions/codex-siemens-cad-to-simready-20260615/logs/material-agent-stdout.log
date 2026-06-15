@@ -1,0 +1,143 @@
+{
+  "agent": "material-agent",
+  "artifacts": [],
+  "asset_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd",
+  "attempts": [],
+  "base_url": "http://localhost:8100",
+  "checks": [
+    {
+      "message": "Preflight manifest: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/00_preflight/cad-to-simready-preflight.json; material status: ready",
+      "name": "preflight_material-agent-client_ready",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Asset path exists",
+      "name": "asset_exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Asset uses a supported USD extension",
+      "name": "supported_usd_extension",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Disabled Material Agent optimize_usd and kept skip_instances=false for instance/prototype-only USD topology",
+      "name": "material_instance_traversal_enabled",
+      "passed": true,
+      "severity": "info"
+    },
+    {
+      "message": "Using Content Agents service http://localhost:8100",
+      "name": "base_url_available",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Resolved base URL from env_base_url",
+      "name": "base_url_from_env_base_url",
+      "passed": true,
+      "severity": "info"
+    },
+    {
+      "message": "No external USD dependencies detected for upload",
+      "name": "upload_asset_single_file",
+      "passed": true,
+      "severity": "info"
+    },
+    {
+      "message": "Started Content Agents session 3a0c11a3-f5b9-4c11-84d7-75330917f87b",
+      "name": "session_started",
+      "passed": true,
+      "severity": "info"
+    },
+    {
+      "message": "Timed out waiting for Content Agents session 3a0c11a3-f5b9-4c11-84d7-75330917f87b",
+      "name": "service_pipeline_completed",
+      "passed": false,
+      "severity": "error"
+    }
+  ],
+  "command": [
+    "python3",
+    "/mnt/c/Users/abrasic/.codex/plugins/cache/openai-curated-remote/nvidia/1.0.2/skills/omniverse-cad-to-simready/references/content-agents/scripts/content_agent_client.py",
+    "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd",
+    "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/04_assignment/material",
+    "--base-url",
+    "http://localhost:8100",
+    "--token",
+    "<redacted>",
+    "--prompt",
+    "This Siemens Energy FSC electronics assembly appears to be a PCB/control module associated with Fixed Series Capacitor / FACTS power transmission equipment. Match the provided reference photos closely. Use green satin FR-4 PCB material with white silkscreen, subtle copper traces, exposed tin/silver solder pads, and many small dark IC packages. Make black terminal connectors matte ribbed plastic. Make large cylindrical capacitors glossy black with reflective silver aluminum tops. Make relays white plastic, resistors light gray ceramic, blue capacitors/components glossy blue, and metal rails/brackets/screws brushed or plated silver metal with mild wear. The surrounding mounting/test fixture should be dark charcoal composite or coated metal with subtle texture, scuffs, dust, and screw holes. For physics, treat the asset as a rigid electronics module/fixture assembly. Prefer simplified rigid colliders or convex decomposition around major board, connector, capacitor, rail, bracket, and fastener geometry. Use moderate friction for plastic/composite and higher density for metal parts. Confidence is medium-low for exact product identity; material appearance should follow the reference images over any unsupported catalog assumptions. ",
+    "--no-optimize-usd"
+  ],
+  "errors": [
+    "Timed out waiting for Content Agents session 3a0c11a3-f5b9-4c11-84d7-75330917f87b"
+  ],
+  "material_optimizer": {
+    "auto_disabled_optimizer": true,
+    "auto_reasons": [
+      "instance_only_geometry"
+    ],
+    "default_optimize_usd": true,
+    "optimize_usd": false,
+    "requested_optimize_usd": null,
+    "skip_existing_materials": false,
+    "skip_instances": false,
+    "skip_prototypes": false
+  },
+  "material_output_cleanup": null,
+  "material_upload_info": {
+    "cleared_unresolved_service_asset_paths": 0,
+    "path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd",
+    "staged": false,
+    "stripped_mdl_source_assets": 0,
+    "warning": null
+  },
+  "next_step": "physics-agent-client",
+  "operation": "service_pipeline",
+  "output_directory": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/04_assignment/material",
+  "output_usd_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/04_assignment/material/A5E52945329_P5Z00052019_material.usd",
+  "passed": false,
+  "physics_optimizer": null,
+  "physics_upload_info": null,
+  "prompt": "This Siemens Energy FSC electronics assembly appears to be a PCB/control module associated with Fixed Series Capacitor / FACTS power transmission equipment. Match the provided reference photos closely. Use green satin FR-4 PCB material with white silkscreen, subtle copper traces, exposed tin/silver solder pads, and many small dark IC packages. Make black terminal connectors matte ribbed plastic. Make large cylindrical capacitors glossy black with reflective silver aluminum tops. Make relays white plastic, resistors light gray ceramic, blue capacitors/components glossy blue, and metal rails/brackets/screws brushed or plated silver metal with mild wear. The surrounding mounting/test fixture should be dark charcoal composite or coated metal with subtle texture, scuffs, dust, and screw holes. For physics, treat the asset as a rigid electronics module/fixture assembly. Prefer simplified rigid colliders or convex decomposition around major board, connector, capacitor, rail, bracket, and fastener geometry. Use moderate friction for plastic/composite and higher density for metal parts. Confidence is medium-low for exact product identity; material appearance should follow the reference images over any unsupported catalog assumptions. ",
+  "service_results": null,
+  "service_status": null,
+  "session_id": "3a0c11a3-f5b9-4c11-84d7-75330917f87b",
+  "skill": "material-agent-client",
+  "status": "FAIL",
+  "tool": "NVIDIA Omniverse Content Agents service API",
+  "upload_asset_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd",
+  "upload_dependency_count": 0,
+  "upload_info": {
+    "asset_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd",
+    "dependency_assets": [],
+    "dependency_count": 0,
+    "dependency_layers": [],
+    "inspection_error": null,
+    "package_size_bytes": null,
+    "packaging": "none",
+    "path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd",
+    "unresolved_paths": []
+  },
+  "upload_packaging": "none",
+  "usd_topology": {
+    "component_topology_reasons": [
+      "instances_or_prototypes"
+    ],
+    "default_prim_path": "/A5E52945329_P5Z00052019",
+    "geom_subset_count": 0,
+    "has_composed_component_topology": true,
+    "inspected": true,
+    "instance_count": 1285,
+    "instance_proxy_count": 0,
+    "mesh_count": 0,
+    "mesh_with_geom_subset_count": 0,
+    "prototype_count": 1285,
+    "reason": null
+  },
+  "warnings": []
+}

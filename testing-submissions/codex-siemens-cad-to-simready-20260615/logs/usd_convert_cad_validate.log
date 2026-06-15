@@ -1,0 +1,88 @@
+2026-06-14T02:42:07Z [Info] [carb] Logging to file: /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/logs/Kit/kit/110.1/kit_20260613_214207.log
+2026-06-14T02:42:07Z [0ms] [Warning] [omni.kit.app.plugin] No crash reporter present, dumps uploading isn't available.
+[0.136s] [ext: omni.kit.pipapi-0.0.0] startup
+[0.361s] [ext: omni.kit.pip_archive-0.0.0] startup
+[0.361s] [ext: omni.kit.async_engine-0.0.3] startup
+[0.365s] [ext: omni.client.lib-1.1.1] startup
+[0.440s] [ext: omni.kit.registry.nucleus-0.0.0] startup
+[0.476s] [ext: omni.client-1.3.0] startup
+[0.569s] [ext: omni.usd.config-1.0.7] startup
+2026-06-14T02:42:07Z [474ms] [Warning] [omni.usd_config.extension] Enable omni.materialx.libs extension to use MaterialX
+[0.582s] [ext: omni.usd.libs-1.0.3] startup
+[0.893s] [ext: omni.usd.schema.audio-0.0.1] startup
+[1.193s] [ext: omni.assets.plugins-0.0.0] startup
+[1.202s] [ext: carb.audio-0.1.0] startup
+[1.214s] [ext: omni.graph.exec-0.9.6] startup
+[1.215s] [ext: omni.kit.actions.core-1.0.0] startup
+[1.221s] [ext: omni.kit.audiodeviceenum-1.0.2] startup
+[1.227s] [ext: omni.kit.commands-1.5.0] startup
+[1.240s] [ext: omni.kit.exec.core-0.13.5] startup
+[1.247s] [ext: omni.kit.usd_undo-0.1.8] startup
+[1.248s] [ext: omni.timeline-1.1.0] startup
+[1.254s] [ext: omni.usd_resolver-1.0.0] startup
+[1.266s] [ext: omni.usd.core-1.8.3] startup
+2026-06-14T02:42:08Z [1,171ms] [Warning] [carb] Potential plugin preload failed: /home/abrasic/.local/share/ov/data/exts/v2/omni.usd.core-66929d79b8bacd69/bin/libomni.usd.so
+[1.278s] [ext: omni.usd-1.15.2] startup
+2026-06-14T02:42:08Z [1,176ms] [Warning] [carb] Potential plugin preload failed: /home/abrasic/.local/share/ov/data/exts/v2/omni.usd-9bebc837fc733acc/bin/libomni.usd.cppcommands.plugin.so
+[1.321s] [ext: omni.scene.optimizer.core-110.1.0] startup
+[1.461s] [ext: omni.usdex.libs-2.2.2] startup
+[1.481s] [ext: omni.kit.converter.common-510.1.3] startup
+[1.499s] [ext: omni.kit.converter.hoops_core-511.3.0] startup
+ [OK] Environment ready.
+2026-06-14T02:42:08Z [653ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libosdCPU.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [655ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_pxOsd.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [656ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_geomUtil.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [661ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hd.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [662ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdar.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [672ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [679ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdsi.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [705ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdMtlx.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [707ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libosdGPU.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [714ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdSt.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [721ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdx.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [724ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdImagingGL.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [728ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdGp.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [729ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libMaterialXRenderHw.so. Error: libXt.so.6: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [731ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libMaterialXRenderGlsl.so. Error: libXt.so.6: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [734ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdBakeMtlx.so. Error: libXt.so.6: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [745ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdSkelImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [748ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdProcImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [751ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdAppUtils.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [754ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdVolImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [771ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdRiPxrImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:08Z [1,171ms] [Error] [carb] [Plugin: libomni.usd.so] Could not load the dynamic library from /home/abrasic/.local/share/ov/data/exts/v2/omni.usd.core-66929d79b8bacd69/bin/libomni.usd.so. Error: libusd_hd.so: cannot open shared object file: No such file or directory (Additional information may be available by running the process with the LD_DEBUG environment variable set)
+2026-06-14T02:42:08Z [1,171ms] [Error] [omni.ext.plugin] [ext: omni.usd.core-1.8.3] failed to load native plugin: /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.core-1.8.3+6312fa25.lx64.r/bin/libomni.usd.so
+2026-06-14T02:42:08Z [1,176ms] [Error] [carb] [Plugin: libomni.usd.cppcommands.plugin.so] Could not load the dynamic library from /home/abrasic/.local/share/ov/data/exts/v2/omni.usd-9bebc837fc733acc/bin/libomni.usd.cppcommands.plugin.so. Error: libomni.usd.so: cannot open shared object file: No such file or directory (Additional information may be available by running the process with the LD_DEBUG environment variable set)
+2026-06-14T02:42:08Z [1,176ms] [Error] [omni.ext.plugin] [ext: omni.usd-1.15.2] failed to load native plugin: /home/abrasic/.local/share/ov/data/exts/v2/omni.usd-9bebc837fc733acc/bin/libomni.usd.cppcommands.plugin.so
+2026-06-14T02:42:08Z [1,182ms] [Error] [omni.ext._impl.custom_importer] Failed to import python module omni.usd. Error: libomni.usd.so: cannot open shared object file: No such file or directory. Traceback:
+Traceback (most recent call last):
+  File "/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kernel/py/omni/ext/_impl/custom_importer.py", line 107, in import_module
+    return importlib.import_module(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd-1.15.2+6312fa25.lx64.r.cp312/omni/usd/__init__.py", line 43, in <module>
+    from ._impl import *
+  File "/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd-1.15.2+6312fa25.lx64.r.cp312/omni/usd/_impl/__init__.py", line 9, in <module>
+    from .._usd import *
+ImportError: libomni.usd.so: cannot open shared object file: No such file or directory
+
+2026-06-14T02:42:08Z [1,182ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'omni.usd' in '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd-1.15.2+6312fa25.lx64.r.cp312' failed to load.
+
+At:
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kernel/py/omni/ext/_impl/_internal.py(240): startup
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kernel/py/omni/ext/_impl/_internal.py(366): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kit_app.py(119): startup
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/src/usd_convert_cad/kit_runtime.py(63): start_kit
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/setup/validate_env.py(49): main
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/setup/validate_env.py(74): <module>
+
+2026-06-14T02:42:08Z [1,182ms] [Error] [omni.ext.plugin] [ext: omni.usd-1.15.2] Failed to startup python extension.

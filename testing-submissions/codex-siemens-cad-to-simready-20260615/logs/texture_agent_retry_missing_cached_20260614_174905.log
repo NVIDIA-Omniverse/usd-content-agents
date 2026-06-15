@@ -1,0 +1,272 @@
+17:49:08 [DEBUG] faiss.loader: Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+17:49:08 [INFO] faiss.loader: Loading faiss with AVX2 support.
+17:49:08 [INFO] faiss.loader: Successfully loaded faiss with AVX2 support.
+17:49:08 [INFO] texture_agent.config.unified_config: Loaded config: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_siemens_a5e52945329_retry_missing.yaml
+17:49:08 [INFO] texture_agent.config.unified_config:   Project: siemens_a5e52945329_texture_agent_retry_missing
+17:49:08 [INFO] texture_agent.config.unified_config:   Input: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+17:49:08 [INFO] texture_agent.config.unified_config:   Working dir: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing
+17:49:08 [INFO] texture_agent.workflows.factory: Running texture pipeline (7 steps)
+17:49:08 [INFO] texture_agent.workflows.factory: [1/7] PrepareUVs
+17:49:08 [INFO] texture_agent.tasks.prepare_uvs: Preparing UVs for /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd (backend=python, policy=generate_missing, projection=box)
+17:49:14 [INFO] texture_agent.tasks.prepare_uvs: No UV fixes needed
+17:49:14 [INFO] texture_agent.workflows.factory: [1/7] PrepareUVs complete
+17:49:14 [INFO] texture_agent.workflows.factory: [2/7] DiscoverMaterials
+17:49:14 [INFO] texture_agent.tasks.discover_materials: Discovering materials in /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+17:49:14 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Green (base_color=(0.007875408977270126, 0.21994882822036743, 0.007875408977270126), has_texture=False, bound_prims=0)
+17:49:14 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Ivory (base_color=(0.5140664577484131, 0.4861992299556732, 0.41151610016822815), has_texture=False, bound_prims=0)
+17:49:14 [INFO] texture_agent.functions.material_discovery: Discovered 2 materials total
+17:49:14 [INFO] texture_agent.tasks.discover_materials: Discovered 2 materials:
+17:49:14 [INFO] texture_agent.tasks.discover_materials:   Plastic_Green                  base_color=(0.01, 0.22, 0.01) texture=no prims=0
+17:49:14 [INFO] texture_agent.tasks.discover_materials:   Plastic_Ivory                  base_color=(0.51, 0.49, 0.41) texture=no prims=0
+17:49:14 [INFO] texture_agent.workflows.factory: [2/7] DiscoverMaterials complete
+17:49:14 [INFO] texture_agent.workflows.factory: [3/7] GeneratePrompts
+17:49:14 [INFO] texture_agent.tasks.generate_prompts: All 2 materials have explicit prompts -- skipping LLM
+17:49:14 [INFO] texture_agent.tasks.generate_prompts: Expanded to 2 texture units (mode=per_material)
+17:49:14 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Green                            prim=(all)
+17:49:14 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Ivory                            prim=(all)
+17:49:14 [INFO] texture_agent.workflows.factory: [3/7] GeneratePrompts complete
+17:49:14 [INFO] texture_agent.workflows.factory: [4/7] GenerateTextures
+17:49:15 [INFO] texture_agent.tasks.generate_textures: Skipping Plastic_Green (already generated)
+17:49:15 [INFO] texture_agent.tasks.generate_textures: Skipping Plastic_Ivory (already generated)
+17:49:15 [INFO] texture_agent.tasks.generate_textures: No textures to generate
+17:49:15 [INFO] texture_agent.workflows.factory: [4/7] GenerateTextures complete
+17:49:15 [INFO] texture_agent.workflows.factory: [5/7] BlendTextures
+17:49:15 [DEBUG] PIL.Image: Importing PngImagePlugin
+17:49:15 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:15 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:15 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:15 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:15 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:15 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:16 [INFO] texture_agent.tasks.blend_textures: Blended Plastic_Green: albedo + normal + orm (opacity=0.75) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures
+17:49:16 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:16 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:16 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:16 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:16 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:16 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:17 [INFO] texture_agent.tasks.blend_textures: Blended Plastic_Ivory: albedo + normal + orm (opacity=0.65) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures
+17:49:17 [INFO] texture_agent.tasks.blend_textures: Blended 2 PBR texture sets (0 failures across 2 attempts)
+17:49:17 [INFO] texture_agent.workflows.factory: [5/7] BlendTextures complete
+17:49:17 [INFO] texture_agent.workflows.factory: [6/7] ApplyTextures
+17:49:17 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:17 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:17 [INFO] texture_agent.tasks.apply_textures: Applied textures to Plastic_Green (direct)
+17:49:17 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:49:17 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:49:17 [INFO] texture_agent.tasks.apply_textures: Applied textures to Plastic_Ivory (direct)
+17:49:17 [INFO] texture_agent.tasks.apply_textures: Applied PBR textures to 2 units, saved to /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd
+17:49:18 [INFO] texture_agent.workflows.factory: [6/7] ApplyTextures complete
+17:49:18 [INFO] texture_agent.workflows.factory: [7/7] RenderOutput
+17:49:18 [INFO] texture_agent.tasks.render: Rendering /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd
+17:49:29 [INFO] world_understanding.functions.graphics.render_remote: Found 0 local MDL assets and 40 local texture files to bundle
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Car_Paint_Jet_Black_albedo.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Car_Paint_Jet_Black_metalness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Car_Paint_Jet_Black_normal.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Car_Paint_Jet_Black_roughness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Copper_albedo.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Copper_metalness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Copper_normal.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Copper_roughness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Black_albedo.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Black_metalness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Black_normal.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Black_roughness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Blue_albedo.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Blue_metalness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Blue_normal.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Blue_roughness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Gray_albedo.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Gray_metalness.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Gray_normal.png
+17:49:29 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Dark_Gray_roughness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Green_albedo.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Green_metalness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Green_normal.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Green_roughness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Ivory_albedo.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Ivory_metalness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Ivory_normal.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Plastic_Ivory_roughness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Silver_albedo.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Silver_metalness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Silver_normal.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Silver_roughness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Stainless_Steel_Brushed_albedo.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Stainless_Steel_Brushed_metalness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Stainless_Steel_Brushed_normal.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Stainless_Steel_Brushed_roughness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_albedo.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Steel_Painted_Dark_Gray_albedo.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_metalness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Steel_Painted_Dark_Gray_metalness.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_normal.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Steel_Painted_Dark_Gray_normal.png
+17:49:30 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_roughness.png -> /tmp/remote_bundle_b_mtx06x/bundle/textures/Steel_Painted_Dark_Gray_roughness.png
+17:49:54 [INFO] world_understanding.functions.graphics.render_remote: Updated 10 OpenPBR material fallback(s) for remote render export
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_albedo.png -> textures/Car_Paint_Jet_Black_albedo.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_metalness.png -> textures/Car_Paint_Jet_Black_metalness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_normal.png -> textures/Car_Paint_Jet_Black_normal.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_roughness.png -> textures/Car_Paint_Jet_Black_roughness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_albedo.png -> textures/Car_Paint_Jet_Black_albedo.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_metalness.png -> textures/Car_Paint_Jet_Black_metalness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_roughness.png -> textures/Car_Paint_Jet_Black_roughness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Car_Paint_Jet_Black_normal.png -> textures/Car_Paint_Jet_Black_normal.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_albedo.png -> textures/Copper_albedo.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_metalness.png -> textures/Copper_metalness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_normal.png -> textures/Copper_normal.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_roughness.png -> textures/Copper_roughness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_albedo.png -> textures/Copper_albedo.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_metalness.png -> textures/Copper_metalness.png
+17:50:11 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_roughness.png -> textures/Copper_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Copper_normal.png -> textures/Copper_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_albedo.png -> textures/Plastic_Black_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_metalness.png -> textures/Plastic_Black_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_normal.png -> textures/Plastic_Black_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_roughness.png -> textures/Plastic_Black_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_albedo.png -> textures/Plastic_Black_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_metalness.png -> textures/Plastic_Black_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_roughness.png -> textures/Plastic_Black_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Black_normal.png -> textures/Plastic_Black_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_albedo.png -> textures/Plastic_Dark_Blue_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_metalness.png -> textures/Plastic_Dark_Blue_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_normal.png -> textures/Plastic_Dark_Blue_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_roughness.png -> textures/Plastic_Dark_Blue_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_albedo.png -> textures/Plastic_Dark_Blue_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_metalness.png -> textures/Plastic_Dark_Blue_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_roughness.png -> textures/Plastic_Dark_Blue_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Blue_normal.png -> textures/Plastic_Dark_Blue_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_albedo.png -> textures/Plastic_Dark_Gray_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_metalness.png -> textures/Plastic_Dark_Gray_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_normal.png -> textures/Plastic_Dark_Gray_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_roughness.png -> textures/Plastic_Dark_Gray_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_albedo.png -> textures/Plastic_Dark_Gray_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_metalness.png -> textures/Plastic_Dark_Gray_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_roughness.png -> textures/Plastic_Dark_Gray_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Dark_Gray_normal.png -> textures/Plastic_Dark_Gray_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_albedo.png -> textures/Plastic_Green_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_metalness.png -> textures/Plastic_Green_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_normal.png -> textures/Plastic_Green_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_roughness.png -> textures/Plastic_Green_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_albedo.png -> textures/Plastic_Green_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_metalness.png -> textures/Plastic_Green_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_roughness.png -> textures/Plastic_Green_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_normal.png -> textures/Plastic_Green_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png -> textures/Plastic_Ivory_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_metalness.png -> textures/Plastic_Ivory_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png -> textures/Plastic_Ivory_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_roughness.png -> textures/Plastic_Ivory_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png -> textures/Plastic_Ivory_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_metalness.png -> textures/Plastic_Ivory_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_roughness.png -> textures/Plastic_Ivory_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png -> textures/Plastic_Ivory_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_albedo.png -> textures/Silver_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_metalness.png -> textures/Silver_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_normal.png -> textures/Silver_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_roughness.png -> textures/Silver_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_albedo.png -> textures/Silver_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_metalness.png -> textures/Silver_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_roughness.png -> textures/Silver_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Silver_normal.png -> textures/Silver_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_albedo.png -> textures/Stainless_Steel_Brushed_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_metalness.png -> textures/Stainless_Steel_Brushed_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_normal.png -> textures/Stainless_Steel_Brushed_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_roughness.png -> textures/Stainless_Steel_Brushed_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_albedo.png -> textures/Stainless_Steel_Brushed_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_metalness.png -> textures/Stainless_Steel_Brushed_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_roughness.png -> textures/Stainless_Steel_Brushed_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Stainless_Steel_Brushed_normal.png -> textures/Stainless_Steel_Brushed_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_albedo.png -> textures/Steel_Painted_Dark_Gray_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_metalness.png -> textures/Steel_Painted_Dark_Gray_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_normal.png -> textures/Steel_Painted_Dark_Gray_normal.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_roughness.png -> textures/Steel_Painted_Dark_Gray_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_albedo.png -> textures/Steel_Painted_Dark_Gray_albedo.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_metalness.png -> textures/Steel_Painted_Dark_Gray_metalness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_roughness.png -> textures/Steel_Painted_Dark_Gray_roughness.png
+17:50:12 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Steel_Painted_Dark_Gray_normal.png -> textures/Steel_Painted_Dark_Gray_normal.png
+17:50:12 [INFO] world_understanding.functions.graphics.render_remote: Updated 80 asset paths to relative paths
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: stage.usda
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_albedo.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Green_normal.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_normal.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_normal.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_normal.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_roughness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_albedo.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_albedo.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_roughness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_roughness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_roughness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Green_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_metalness.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_normal.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_normal.png
+17:50:40 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_roughness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_normal.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Green_roughness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_metalness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_metalness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_roughness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_roughness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Steel_Painted_Dark_Gray_normal.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Green_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Car_Paint_Jet_Black_roughness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Black_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Blue_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Copper_normal.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Stainless_Steel_Brushed_normal.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_albedo.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Dark_Gray_roughness.png
+17:50:41 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Silver_metalness.png
+17:50:41 [INFO] world_understanding.functions.graphics.render_remote: Created asset bundle: /tmp/remote_bundle_b_mtx06x/bundle.zip (124807.0 KB)
+17:50:42 [INFO] world_understanding.utils.usd.stage: Created data URI from /tmp/remote_bundle_b_mtx06x/bundle.zip (size: 127802335 bytes, extension: .zip)
+17:50:42 [INFO] world_understanding.functions.graphics.render_remote: Created data URI for MDL/texture asset bundle
+17:50:42 [INFO] world_understanding.functions.graphics.render_remote: Rendering camera /Cameras/TextureAgentFinal with frames 0 from data:application/zip;name=bundle.zip;base64,UEsDBBQAAAAIAEmOzlyK81T2AJjBBTJmAyEKAAAAc3RhZ2UudXNkYey9
+17:50:43 [DEBUG] urllib3.connectionpool: Starting new HTTP connection (1): 172.17.128.1:8012
+17:50:45 [DEBUG] urllib3.connectionpool: http://172.17.128.1:8012 "POST /render HTTP/1.1" 200 3033
+17:50:45 [INFO] world_understanding.functions.graphics.render_remote: Remote render request completed in 3.24s
+17:50:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 2142
+17:50:45 [INFO] world_understanding.functions.graphics.render_remote: Successfully rendered 1 frames for camera /Cameras/TextureAgentFinal
+17:50:45 [INFO] texture_agent.tasks.render:   Saved render: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/renders/render_0_0_0.png
+17:50:45 [INFO] texture_agent.tasks.render: Rendered 1 images
+17:50:45 [INFO] texture_agent.workflows.factory: [7/7] RenderOutput complete
+17:50:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:45 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:50:46 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:50:46 [INFO] texture_agent.workflows.factory: Wrote artifact manifest: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/artifacts_manifest.json
+17:50:46 [INFO] texture_agent.workflows.factory: Pipeline complete
+
+Pipeline complete!
+Output USD files:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd
+Rendered images:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/renders/render_0_0_0.png
+Artifact manifest:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/artifacts_manifest.json

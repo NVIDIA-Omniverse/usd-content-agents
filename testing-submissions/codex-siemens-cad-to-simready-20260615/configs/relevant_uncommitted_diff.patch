@@ -1,0 +1,387 @@
+diff --git a/apps/material_agent/material_agent/tasks/config_predict.py b/apps/material_agent/material_agent/tasks/config_predict.py
+index c4d53e2..f0963e7 100644
+--- a/apps/material_agent/material_agent/tasks/config_predict.py
++++ b/apps/material_agent/material_agent/tasks/config_predict.py
+@@ -113,6 +113,8 @@ class PredictConfigTask(Task):
+         context["llm_config"] = llm_config
+         context["max_workers"] = config.get("max_workers", 64)
+         context["prediction_batch_size"] = config.get("prediction_batch_size", 1)
++        context["stream_predictions"] = config.get("stream_predictions", True)
++        context["resume"] = config.get("resume", False)
+         allow_empty_predictions = config.get("allow_empty_predictions", False)
+         if not isinstance(allow_empty_predictions, bool):
+             raise ValueError(
+@@ -183,6 +185,8 @@ class PredictConfigTask(Task):
+         # Extract report compression configuration if present
+         report_config = config.get("report", {})
+         if isinstance(report_config, dict):
++            if report_config.get("enabled") is False:
++                context["skip_prediction_report"] = True
+             if "image_max_size" in report_config:
+                 context["report_image_max_size"] = report_config["image_max_size"]
+             if "image_format" in report_config:
+diff --git a/apps/material_agent/material_agent/tasks/reporting.py b/apps/material_agent/material_agent/tasks/reporting.py
+index 840cf72..ed3fe45 100644
+--- a/apps/material_agent/material_agent/tasks/reporting.py
++++ b/apps/material_agent/material_agent/tasks/reporting.py
+@@ -266,6 +266,20 @@ class GeneratePredictionReportTask(BaseReportTask):
+         output_dir = Path(context.get("output_dir", "."))
+         output_dir.mkdir(parents=True, exist_ok=True)
+ 
++        if context.get("skip_prediction_report"):
++            html_file = output_dir / "prediction_report.html"
++            html_file.write_text(
++                "<!doctype html><html><body>"
++                "<h1>Prediction Report Skipped</h1>"
++                f"<p>Predictions: {len(predictions)}</p>"
++                f"<p>Failed predictions: {len(failed)}</p>"
++                "</body></html>",
++                encoding="utf-8",
++            )
++            context["html_report_path"] = str(html_file)
++            listener.info(f"Prediction report skipped by configuration: {html_file}")
++            return context
++
+         # Get and validate image processing options
+         image_max_size = (
+             context.get("report_image_max_size")
+diff --git a/apps/ovrtx_rendering_api/Dockerfile b/apps/ovrtx_rendering_api/Dockerfile
+index 010f56d..f687f81 100644
+--- a/apps/ovrtx_rendering_api/Dockerfile
++++ b/apps/ovrtx_rendering_api/Dockerfile
+@@ -33,8 +33,11 @@ RUN apt-get update && apt-get upgrade -y \
+     curl \
+     ca-certificates \
+     libgl1 \
++    libnvidia-gl-580 \
++    libopengl0 \
+     libglib2.0-0 \
+     libvulkan1 \
++    vulkan-tools \
+     tini \
+     xvfb \
+     && apt-get clean \
+diff --git a/apps/texture_agent/texture_agent/functions/material_discovery.py b/apps/texture_agent/texture_agent/functions/material_discovery.py
+index e399287..ecfb65d 100644
+--- a/apps/texture_agent/texture_agent/functions/material_discovery.py
++++ b/apps/texture_agent/texture_agent/functions/material_discovery.py
+@@ -299,6 +299,10 @@ def _find_bound_prims(stage: Usd.Stage, material_path: str) -> list[str]:
+     for prim in stage.Traverse():
+         if not prim.IsA(UsdGeom.Gprim):
+             continue
++        direct_binding = prim.GetRelationship("material:binding")
++        if direct_binding and material_path in {str(t) for t in direct_binding.GetTargets()}:
++            bound.append(str(prim.GetPath()))
++            continue
+         binding_api = UsdShade.MaterialBindingAPI(prim)
+         mat, _ = binding_api.ComputeBoundMaterial()
+         if mat and str(mat.GetPath()) == material_path:
+@@ -402,6 +406,9 @@ class PrimTextureUnit:
+     opacity: float
+     """Blend opacity."""
+ 
++    reference_image_uris: list[str] = field(default_factory=list)
++    """Optional style/material reference images for this texture unit."""
++
+     seed: int | None = None
+     """Seed for reproducibility. Different seeds per prim yield unique textures."""
+ 
+@@ -473,6 +480,12 @@ def expand_to_prim_units(
+ 
+                 prompt = override.get("prompt", base_prompt)
+                 opacity = override.get("opacity", base_opacity)
++                reference_image_uris = (
++                    override.get("reference_image_uris")
++                    or spec.get("reference_image_uris")
++                    or spec.get("reference_images")
++                    or []
++                )
+                 seed = _stable_hash(prim_path)
+ 
+                 units.append(
+@@ -482,6 +495,7 @@ def expand_to_prim_units(
+                         key=key,
+                         prompt=prompt,
+                         opacity=opacity,
++                        reference_image_uris=list(reference_image_uris),
+                         seed=seed,
+                     )
+                 )
+@@ -494,6 +508,11 @@ def expand_to_prim_units(
+                     key=mat.name,
+                     prompt=base_prompt,
+                     opacity=base_opacity,
++                    reference_image_uris=list(
++                        spec.get("reference_image_uris")
++                        or spec.get("reference_images")
++                        or []
++                    ),
+                 )
+             )
+ 
+diff --git a/apps/texture_agent/texture_agent/functions/texture_generation.py b/apps/texture_agent/texture_agent/functions/texture_generation.py
+index 8609c7e..382d401 100644
+--- a/apps/texture_agent/texture_agent/functions/texture_generation.py
++++ b/apps/texture_agent/texture_agent/functions/texture_generation.py
+@@ -15,6 +15,7 @@ import logging
+ import os
+ import tempfile
+ import threading
++import time
+ import uuid
+ from abc import ABC, abstractmethod
+ from dataclasses import dataclass, field
+@@ -246,7 +247,23 @@ class ImageGenEngine(BaseTextureEngine):
+         ref_images: list[Image.Image] | None = None,
+     ) -> Image.Image:
+         """Generate a single image and resize to target."""
+-        image = model.generate(prompt, images=ref_images)
++        last_exc: Exception | None = None
++        for attempt in range(1, 4):
++            try:
++                image = model.generate(prompt, images=ref_images)
++                break
++            except Exception as exc:
++                last_exc = exc
++                if attempt == 3:
++                    raise
++                logger.warning(
++                    "Image generation attempt %d/3 failed; retrying: %s",
++                    attempt,
++                    exc,
++                )
++                time.sleep(2 * attempt)
++        else:
++            raise RuntimeError("Image generation failed") from last_exc
+         if image.size != size:
+             image = image.resize(size, Image.Resampling.LANCZOS)
+         return image
+diff --git a/apps/texture_agent/texture_agent/tasks/generate_textures.py b/apps/texture_agent/texture_agent/tasks/generate_textures.py
+index b1de09f..ef01879 100644
+--- a/apps/texture_agent/texture_agent/tasks/generate_textures.py
++++ b/apps/texture_agent/texture_agent/tasks/generate_textures.py
+@@ -310,7 +310,10 @@ class GenerateTexturesTask(Task):
+         def _gen(unit: PrimTextureUnit) -> tuple[str, GeneratedTextures]:
+             status = client.generate(
+                 source_asset_uri=context.get("usd_path", ""),
+-                conditioning=Conditioning(text_prompt=unit.prompt),
++                conditioning=Conditioning(
++                    text_prompt=unit.prompt,
++                    reference_image_uris=unit.reference_image_uris,
++                ),
+                 config=TextureVariationConfig(
+                     strength=unit.opacity,
+                     variant_name=unit.key,
+@@ -376,7 +379,10 @@ class GenerateTexturesTask(Task):
+         def _gen_one(unit: PrimTextureUnit) -> tuple[str, GeneratedTextures]:
+             status = client.generate(
+                 source_asset_uri=context.get("usd_path", ""),
+-                conditioning=Conditioning(text_prompt=unit.prompt),
++                conditioning=Conditioning(
++                    text_prompt=unit.prompt,
++                    reference_image_uris=unit.reference_image_uris,
++                ),
+                 config=TextureVariationConfig(
+                     strength=unit.opacity,
+                     variant_name=unit.key,
+diff --git a/world_understanding/agentic/usd_tasks/prim_traversal.py b/world_understanding/agentic/usd_tasks/prim_traversal.py
+index 21aac86..dad2973 100644
+--- a/world_understanding/agentic/usd_tasks/prim_traversal.py
++++ b/world_understanding/agentic/usd_tasks/prim_traversal.py
+@@ -506,6 +506,20 @@ class USDPrimTraversalAndRenderingTask(Task):
+         sensor_modes = context.get("sensor_rendering_modes", [])
+         image_height = context.get("image_height", 512)
+ 
++        if not prims_to_render:
++            return self._finish_rendering_without_new_prims(
++                prim_data,
++                total_images,
++                output_dir,
++                object_store,
++                context,
++                listener,
++                rgb_modes=rgb_modes,
++                sensor_modes=sensor_modes,
++                rendering_modes=rendering_modes,
++                rendering_config=rendering_config,
++            )
++
+         prepared_stages = self._prepare_stages(
+             stage,
+             prims_to_render,
+@@ -767,6 +781,154 @@ class USDPrimTraversalAndRenderingTask(Task):
+ 
+         return context
+ 
++    def _finish_rendering_without_new_prims(
++        self,
++        prim_data: list[dict[str, Any]],
++        total_images: int,
++        output_dir: Path,
++        object_store,
++        context: dict[str, Any],
++        listener,
++        *,
++        rgb_modes: list[str],
++        sensor_modes: list[str],
++        rendering_modes: list[str],
++        rendering_config,
++    ) -> dict[str, Any]:
++        listener.info(
++            "All selected prims already have existing renders; skipping stage "
++            "preparation/rendering."
++        )
++        self._check_existing_render_sample(
++            prim_data,
++            output_dir,
++            rgb_modes=rgb_modes,
++            sensor_modes=sensor_modes,
++            listener=listener,
++            context=context,
++        )
++        if total_images == 0:
++            raise RuntimeError(
++                "Rendering produced 0 images. Check NVCF render function availability and logs above."
++            )
++
++        context["rendered_prims"] = []
++        context["prim_data"] = prim_data
++        context["total_images_rendered"] = total_images
++        context["output_dir"] = str(output_dir)
++
++        object_store.set("prim_data", prim_data)
++
++        listener.info("USD rendering complete:")
++        listener.info("  Prims rendered: 0")
++        listener.info(f"  Total images: {total_images}")
++
++        try:
++            listener.event(
++                "rendering.all_completed",
++                {
++                    "total_prims": 0,
++                    "total_images": total_images,
++                    "skipped_prims": len(prim_data),
++                    "rendering_modes": rendering_modes,
++                    "num_views": len(rendering_config.camera_ordering),
++                    "failed_batches": len(context.get("failed_batches", [])),
++                },
++            )
++        except Exception as e:
++            logger.warning(f"Failed to emit overall rendering event: {e}")
++
++        return context
++
++    def _check_existing_render_sample(
++        self,
++        prim_data: list[dict[str, Any]],
++        output_dir: Path,
++        *,
++        rgb_modes: list[str],
++        sensor_modes: list[str],
++        listener,
++        context: dict[str, Any],
++    ) -> None:
++        """Validate a deterministic sample when resume has no new renders."""
++        candidates = self._dataset_render_candidates(
++            prim_data,
++            output_dir,
++            rgb_modes=rgb_modes,
++            sensor_modes=sensor_modes,
++        )
++        if not candidates:
++            listener.warning(
++                "No existing render candidates found during resume validation."
++            )
++            return
++
++        configured_sample_size = int(
++            context.get("resume_existing_render_blank_check_sample_size", 256)
++        )
++        sample_size = max(1, min(configured_sample_size, len(candidates)))
++        if len(candidates) <= sample_size:
++            sampled_candidates = candidates
++        else:
++            step = len(candidates) / sample_size
++            sampled_candidates = [
++                candidates[min(int(index * step), len(candidates) - 1)]
++                for index in range(sample_size)
++            ]
++
++        blank_renders: list[dict[str, Any]] = []
++        for candidate in sampled_candidates:
++            renderer_stats = candidate.get("stats")
++            if candidate.get("blank_render") and isinstance(renderer_stats, dict):
++                if renderer_stats.get("blank", True):
++                    blank_renders.append({**candidate, "stats": renderer_stats})
++                continue
++
++            image_path = Path(candidate["path"])
++            try:
++                stats = analyze_image_blankness(image_path)
++            except Exception as exc:
++                listener.warning(
++                    f"Could not inspect existing render output for blankness "
++                    f"({image_path}): {exc}"
++                )
++                blank_renders.append(
++                    {
++                        **candidate,
++                        "analysis_error": str(exc),
++                        "stats": {
++                            "blank": True,
++                            "reason": "analysis_error",
++                        },
++                    }
++                )
++                continue
++            if stats.blank:
++                blank_renders.append({**candidate, "stats": stats.to_dict()})
++
++        context["existing_render_sample_checked_count"] = len(sampled_candidates)
++        context["existing_render_sample_total_candidates"] = len(candidates)
++        listener.info(
++            "Existing render sample validation complete: checked "
++            f"{len(sampled_candidates)} of {len(candidates)} RGB render(s)."
++        )
++
++        if not blank_renders:
++            return
++
++        context["blank_renders"] = blank_renders
++        context["blank_render_checked_count"] = len(sampled_candidates)
++
++        threshold = float(context.get("blank_render_failure_threshold", 0.5))
++        ratio = len(blank_renders) / len(sampled_candidates)
++        message = _blank_dataset_render_message(
++            len(blank_renders), len(sampled_candidates)
++        )
++        if ratio > threshold:
++            raise RuntimeError(message)
++
++        listener.warning(message)
++
+     def _check_blank_dataset_renders(
+         self,
+         prim_data: list[dict[str, Any]],
+@@ -1598,6 +1760,20 @@ class USDPrimTraversalAndRenderingTask(Task):
+         sensor_modes = context.get("sensor_rendering_modes", [])
+         image_height = context.get("image_height", 512)
+ 
++        if not prims_to_render:
++            return self._finish_rendering_without_new_prims(
++                prim_data,
++                total_images,
++                output_dir,
++                object_store,
++                context,
++                listener,
++                rgb_modes=rgb_modes,
++                sensor_modes=sensor_modes,
++                rendering_modes=rendering_modes,
++                rendering_config=rendering_config,
++            )
++
+         prepared_stages = await asyncio.to_thread(
+             self._prepare_stages,
+             stage,

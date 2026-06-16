@@ -1,0 +1,10 @@
+Asset manifest for Siemens A5E52945329 CAD-to-SimReady agent test
+Generated: 2026-06-16
+
+Raw CAD and full customer geometry outputs were not copied into this Git submission because they are large customer/proprietary assets.
+CAD path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/A5E52945329_P5Z00052019.jt
+CAD size: 114231789 bytes
+Reference image directory: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/References/A5E52945329
+Reference image count: 5
+Final output directory: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test
+Final output directory size: 1.2G

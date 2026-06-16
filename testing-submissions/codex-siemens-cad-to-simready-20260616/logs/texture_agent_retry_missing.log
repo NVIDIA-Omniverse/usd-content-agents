@@ -1,0 +1,177 @@
+17:45:59 [DEBUG] faiss.loader: Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+17:45:59 [INFO] faiss.loader: Loading faiss with AVX2 support.
+17:45:59 [INFO] faiss.loader: Successfully loaded faiss with AVX2 support.
+17:45:59 [INFO] texture_agent.config.unified_config: Loaded config: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_siemens_a5e52945329_retry_missing.yaml
+17:45:59 [INFO] texture_agent.config.unified_config:   Project: siemens_a5e52945329_texture_agent_retry_missing
+17:45:59 [INFO] texture_agent.config.unified_config:   Input: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+17:45:59 [INFO] texture_agent.config.unified_config:   Working dir: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing
+17:45:59 [INFO] texture_agent.workflows.factory: Running texture pipeline (7 steps)
+17:45:59 [INFO] texture_agent.workflows.factory: [1/7] PrepareUVs
+17:45:59 [INFO] texture_agent.tasks.prepare_uvs: Preparing UVs for /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd (backend=python, policy=generate_missing, projection=box)
+17:46:05 [INFO] texture_agent.tasks.prepare_uvs: No UV fixes needed
+17:46:06 [INFO] texture_agent.workflows.factory: [1/7] PrepareUVs complete
+17:46:06 [INFO] texture_agent.workflows.factory: [2/7] DiscoverMaterials
+17:46:06 [INFO] texture_agent.tasks.discover_materials: Discovering materials in /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd
+17:46:06 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Green (base_color=(0.007875408977270126, 0.21994882822036743, 0.007875408977270126), has_texture=False, bound_prims=0)
+17:46:06 [INFO] texture_agent.functions.material_discovery: Discovered material: Plastic_Ivory (base_color=(0.5140664577484131, 0.4861992299556732, 0.41151610016822815), has_texture=False, bound_prims=0)
+17:46:06 [INFO] texture_agent.functions.material_discovery: Discovered 2 materials total
+17:46:06 [INFO] texture_agent.tasks.discover_materials: Discovered 2 materials:
+17:46:06 [INFO] texture_agent.tasks.discover_materials:   Plastic_Green                  base_color=(0.01, 0.22, 0.01) texture=no prims=0
+17:46:06 [INFO] texture_agent.tasks.discover_materials:   Plastic_Ivory                  base_color=(0.51, 0.49, 0.41) texture=no prims=0
+17:46:06 [INFO] texture_agent.workflows.factory: [2/7] DiscoverMaterials complete
+17:46:06 [INFO] texture_agent.workflows.factory: [3/7] GeneratePrompts
+17:46:06 [INFO] texture_agent.tasks.generate_prompts: All 2 materials have explicit prompts -- skipping LLM
+17:46:06 [INFO] texture_agent.tasks.generate_prompts: Expanded to 2 texture units (mode=per_material)
+17:46:06 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Green                            prim=(all)
+17:46:06 [INFO] texture_agent.tasks.generate_prompts:   Plastic_Ivory                            prim=(all)
+17:46:06 [INFO] texture_agent.workflows.factory: [3/7] GeneratePrompts complete
+17:46:06 [INFO] texture_agent.workflows.factory: [4/7] GenerateTextures
+17:46:06 [INFO] texture_agent.functions.texture_generation: Initializing image gen model: backend=nim, model=black-forest-labs/flux_2-klein-4b, base_url=(default)
+17:46:06 [INFO] texture_agent.tasks.generate_textures: Generating 2 PBR texture sets with image_gen (nim) (simple_image_gen, workers=1)
+17:46:06 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-e1e78ed0ea75 (engine=image_gen (nim), strength=0.75)
+17:46:06 [WARNING] texture_agent.functions.texture_generation: Backend nim does not support image conditioning; normal and roughness maps will be generated from text only for this run.
+17:46:06 [DEBUG] PIL.Image: Importing PngImagePlugin
+17:46:06 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:06 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:07 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:07 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:09 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:09 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:10 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:10 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:12 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:46:12 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:46:12 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:46:12 [WARNING] texture_agent.functions.texture_generation: Image generation attempt 1/3 failed; retrying: Empty base64 in NIM image generation response
+17:46:14 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:46:14 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:46:15 [WARNING] texture_agent.functions.texture_generation: Image generation attempt 2/3 failed; retrying: Empty base64 in NIM image generation response
+17:46:19 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:46:19 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:46:19 [ERROR] texture_agent.functions.texture_generation: Texture variation job vj-e1e78ed0ea75 failed
+Traceback (most recent call last):
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 489, in generate
+    textures = self._engine.generate(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 332, in generate
+    albedo_img = self._generate_image(model, albedo_prompt, size, ref_images)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/functions/texture_generation.py", line 253, in _generate_image
+    image = model.generate(prompt, images=ref_images)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/world_understanding/functions/models/image_generation_models.py", line 804, in generate
+    raise ValueError("Empty base64 in NIM image generation response")
+ValueError: Empty base64 in NIM image generation response
+17:46:19 [INFO] texture_agent.functions.texture_generation: Starting texture variation job vj-25f02f1f60e4 (engine=image_gen (nim), strength=0.65)
+17:46:19 [ERROR] texture_agent.tasks.generate_textures: Failed to generate textures for Plastic_Green
+Traceback (most recent call last):
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/tasks/generate_textures.py", line 336, in _run_simple_image_gen
+    k, textures = future.result()
+                  ^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/src/content-agents/apps/texture_agent/texture_agent/tasks/generate_textures.py", line 324, in _gen
+    raise RuntimeError(
+RuntimeError: Generation failed for Plastic_Green: Empty base64 in NIM image generation response
+17:46:19 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:19 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:20 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:20 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:22 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:23 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:24 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:24 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 8192
+17:46:25 [INFO] texture_agent.functions.texture_generation: Generating albedo texture (size=(1024, 1024))
+17:46:25 [WARNING] world_understanding.functions.models.image_generation_models: NIMImageGenerationModel does not support image conditioning. The provided images will be ignored.
+17:46:25 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:46:29 [INFO] texture_agent.functions.texture_generation: Generating normal map
+17:46:29 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:46:33 [INFO] texture_agent.functions.texture_generation: Generating roughness map
+17:46:33 [INFO] world_understanding.functions.models.image_generation_models: Calling NIM image generation: model=black-forest-labs/flux_2-klein-4b
+17:46:37 [INFO] texture_agent.functions.texture_generation: Generated PBR set: albedo=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Ivory/Plastic_Ivory_albedo.png, normal=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Ivory/Plastic_Ivory_normal.png, orm=/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Ivory/Plastic_Ivory_orm.png
+17:46:37 [WARNING] texture_agent.tasks.generate_textures: Texture generation completed with 1/2 failures via image_gen (nim) (below threshold 100%)
+17:46:37 [INFO] texture_agent.tasks.generate_textures: Generated 1 PBR texture sets
+17:46:37 [INFO] texture_agent.workflows.factory: [4/7] GenerateTextures complete
+17:46:37 [INFO] texture_agent.workflows.factory: [5/7] BlendTextures
+17:46:37 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:37 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:46:38 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:38 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:46:38 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:38 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:46:38 [INFO] texture_agent.tasks.blend_textures: Blended Plastic_Ivory: albedo + normal + orm (opacity=0.65) -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures
+17:46:38 [INFO] texture_agent.tasks.blend_textures: Blended 1 PBR texture sets (0 failures across 1 attempts)
+17:46:38 [INFO] texture_agent.workflows.factory: [5/7] BlendTextures complete
+17:46:38 [INFO] texture_agent.workflows.factory: [6/7] ApplyTextures
+17:46:39 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:46:39 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:46:39 [INFO] texture_agent.tasks.apply_textures: Applied textures to Plastic_Ivory (direct)
+17:46:39 [INFO] texture_agent.tasks.apply_textures: Applied PBR textures to 1 units, saved to /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd
+17:46:40 [INFO] texture_agent.workflows.factory: [6/7] ApplyTextures complete
+17:46:40 [INFO] texture_agent.workflows.factory: [7/7] RenderOutput
+17:46:40 [INFO] texture_agent.tasks.render: Rendering /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd
+17:46:50 [INFO] world_understanding.functions.graphics.render_remote: Found 0 local MDL assets and 4 local texture files to bundle
+17:46:50 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png -> /tmp/remote_bundle_5koqzwf4/bundle/textures/Plastic_Ivory_albedo.png
+17:46:50 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_metalness.png -> /tmp/remote_bundle_5koqzwf4/bundle/textures/Plastic_Ivory_metalness.png
+17:46:50 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png -> /tmp/remote_bundle_5koqzwf4/bundle/textures/Plastic_Ivory_normal.png
+17:46:50 [DEBUG] world_understanding.functions.graphics.render_remote: Copied texture: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_roughness.png -> /tmp/remote_bundle_5koqzwf4/bundle/textures/Plastic_Ivory_roughness.png
+17:47:16 [INFO] world_understanding.functions.graphics.render_remote: Updated 10 OpenPBR material fallback(s) for remote render export
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png -> textures/Plastic_Ivory_albedo.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_metalness.png -> textures/Plastic_Ivory_metalness.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png -> textures/Plastic_Ivory_normal.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_roughness.png -> textures/Plastic_Ivory_roughness.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png -> textures/Plastic_Ivory_albedo.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_metalness.png -> textures/Plastic_Ivory_metalness.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_roughness.png -> textures/Plastic_Ivory_roughness.png
+17:47:36 [DEBUG] world_understanding.functions.graphics.render_remote: Updated texture path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png -> textures/Plastic_Ivory_normal.png
+17:47:36 [INFO] world_understanding.functions.graphics.render_remote: Updated 8 asset paths to relative paths
+17:48:06 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: stage.usda
+17:48:06 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_metalness.png
+17:48:06 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_normal.png
+17:48:06 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_roughness.png
+17:48:06 [DEBUG] world_understanding.functions.graphics.render_remote: Added to ZIP: textures/Plastic_Ivory_albedo.png
+17:48:06 [INFO] world_understanding.functions.graphics.render_remote: Created asset bundle: /tmp/remote_bundle_5koqzwf4/bundle.zip (97382.2 KB)
+17:48:07 [INFO] world_understanding.utils.usd.stage: Created data URI from /tmp/remote_bundle_5koqzwf4/bundle.zip (size: 99719371 bytes, extension: .zip)
+17:48:07 [INFO] world_understanding.functions.graphics.render_remote: Created data URI for MDL/texture asset bundle
+17:48:07 [INFO] world_understanding.functions.graphics.render_remote: Rendering camera /Cameras/TextureAgentFinal with frames 0 from data:application/zip;name=bundle.zip;base64,UEsDBBQAAAAIAPaNzlyv2A3Ih6jBBfiFAyEKAAAAc3RhZ2UudXNkYey9
+17:48:07 [DEBUG] urllib3.connectionpool: Starting new HTTP connection (1): 172.17.128.1:8012
+17:48:11 [DEBUG] urllib3.connectionpool: http://172.17.128.1:8012 "POST /render HTTP/1.1" 200 3033
+17:48:11 [INFO] world_understanding.functions.graphics.render_remote: Remote render request completed in 3.85s
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 2142
+17:48:11 [INFO] world_understanding.functions.graphics.render_remote: Successfully rendered 1 frames for camera /Cameras/TextureAgentFinal
+17:48:11 [INFO] texture_agent.tasks.render:   Saved render: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/renders/render_0_0_0.png
+17:48:11 [INFO] texture_agent.tasks.render: Rendered 1 images
+17:48:11 [INFO] texture_agent.workflows.factory: [7/7] RenderOutput complete
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IHDR' 16 13
+17:48:11 [DEBUG] PIL.PngImagePlugin: STREAM b'IDAT' 41 65536
+17:48:11 [INFO] texture_agent.workflows.factory: Wrote artifact manifest: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/artifacts_manifest.json
+17:48:11 [INFO] texture_agent.workflows.factory: Pipeline complete
+
+Pipeline complete!
+Output USD files:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd
+Rendered images:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/renders/render_0_0_0.png
+Artifact manifest:
+  /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/artifacts_manifest.json

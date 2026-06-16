@@ -1,0 +1,205 @@
+2026-06-14T02:42:09Z [Info] [carb] Logging to file: /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/logs/Kit/kit/110.1/kit_20260613_214209.log
+2026-06-14T02:42:09Z [0ms] [Warning] [omni.kit.app.plugin] No crash reporter present, dumps uploading isn't available.
+[0.040s] [ext: omni.kit.pipapi-0.0.0] startup
+[0.105s] [ext: omni.kit.pip_archive-0.0.0] startup
+[0.105s] [ext: omni.kit.async_engine-0.0.3] startup
+[0.107s] [ext: omni.client.lib-1.1.1] startup
+[0.124s] [ext: omni.kit.registry.nucleus-0.0.0] startup
+[0.139s] [ext: omni.client-1.3.0] startup
+[0.208s] [ext: omni.usd.config-1.0.7] startup
+2026-06-14T02:42:09Z [182ms] [Warning] [omni.usd_config.extension] Enable omni.materialx.libs extension to use MaterialX
+[0.213s] [ext: omni.usd.libs-1.0.3] startup
+2026-06-14T02:42:09Z [212ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libosdCPU.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [214ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_pxOsd.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [215ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_geomUtil.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [216ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hd.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [217ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdar.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [220ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [222ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdsi.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [229ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdMtlx.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [230ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libosdGPU.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [233ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdSt.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [235ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdx.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [237ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdImagingGL.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [239ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_hdGp.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [239ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libMaterialXRenderHw.so. Error: libXt.so.6: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [240ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libMaterialXRenderGlsl.so. Error: libXt.so.6: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [242ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdBakeMtlx.so. Error: libXt.so.6: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [246ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdSkelImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [248ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdProcImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [251ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdAppUtils.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [253ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdVolImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+2026-06-14T02:42:09Z [258ms] [Error] [omni.ext.plugin] Could not load the dynamic library from /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/libusd_usdRiPxrImaging.so. Error: libgomp.so.1: cannot open shared object file: No such file or directory (note that this may be caused by a dependent library)
+[0.293s] [ext: omni.usd.schema.audio-0.0.1] startup
+[0.414s] [ext: omni.assets.plugins-0.0.0] startup
+[0.416s] [ext: carb.audio-0.1.0] startup
+[0.421s] [ext: omni.graph.exec-0.9.6] startup
+[0.421s] [ext: omni.kit.actions.core-1.0.0] startup
+[0.423s] [ext: omni.kit.audiodeviceenum-1.0.2] startup
+[0.424s] [ext: omni.kit.commands-1.5.0] startup
+[0.428s] [ext: omni.kit.exec.core-0.13.5] startup
+[0.430s] [ext: omni.kit.usd_undo-0.1.8] startup
+[0.431s] [ext: omni.timeline-1.1.0] startup
+[0.433s] [ext: omni.usd_resolver-1.0.0] startup
+[0.437s] [ext: omni.usd.core-1.8.3] startup
+2026-06-14T02:42:09Z [407ms] [Error] [carb] [Plugin: libomni.usd.so] Could not load the dynamic library from /home/abrasic/.local/share/ov/data/exts/v2/omni.usd.core-66929d79b8bacd69/bin/libomni.usd.so. Error: libusd_hd.so: cannot open shared object file: No such file or directory (Additional information may be available by running the process with the LD_DEBUG environment variable set)
+2026-06-14T02:42:09Z [408ms] [Warning] [carb] Potential plugin preload failed: /home/abrasic/.local/share/ov/data/exts/v2/omni.usd.core-66929d79b8bacd69/bin/libomni.usd.so
+2026-06-14T02:42:09Z [408ms] [Error] [omni.ext.plugin] [ext: omni.usd.core-1.8.3] failed to load native plugin: /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.core-1.8.3+6312fa25.lx64.r/bin/libomni.usd.so
+[0.439s] [ext: omni.usd-1.15.2] startup
+2026-06-14T02:42:09Z [409ms] [Error] [carb] [Plugin: libomni.usd.cppcommands.plugin.so] Could not load the dynamic library from /home/abrasic/.local/share/ov/data/exts/v2/omni.usd-9bebc837fc733acc/bin/libomni.usd.cppcommands.plugin.so. Error: libomni.usd.so: cannot open shared object file: No such file or directory (Additional information may be available by running the process with the LD_DEBUG environment variable set)
+2026-06-14T02:42:09Z [410ms] [Warning] [carb] Potential plugin preload failed: /home/abrasic/.local/share/ov/data/exts/v2/omni.usd-9bebc837fc733acc/bin/libomni.usd.cppcommands.plugin.so
+2026-06-14T02:42:09Z [410ms] [Error] [omni.ext.plugin] [ext: omni.usd-1.15.2] failed to load native plugin: /home/abrasic/.local/share/ov/data/exts/v2/omni.usd-9bebc837fc733acc/bin/libomni.usd.cppcommands.plugin.so
+2026-06-14T02:42:09Z [413ms] [Error] [omni.ext._impl.custom_importer] Failed to import python module omni.usd. Error: libomni.usd.so: cannot open shared object file: No such file or directory. Traceback:
+Traceback (most recent call last):
+  File "/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kernel/py/omni/ext/_impl/custom_importer.py", line 107, in import_module
+    return importlib.import_module(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/abrasic/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd-1.15.2+6312fa25.lx64.r.cp312/omni/usd/__init__.py", line 43, in <module>
+    from ._impl import *
+  File "/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd-1.15.2+6312fa25.lx64.r.cp312/omni/usd/_impl/__init__.py", line 9, in <module>
+    from .._usd import *
+ImportError: libomni.usd.so: cannot open shared object file: No such file or directory
+
+2026-06-14T02:42:09Z [413ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'omni.usd' in '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd-1.15.2+6312fa25.lx64.r.cp312' failed to load.
+
+At:
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kernel/py/omni/ext/_impl/_internal.py(240): startup
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kernel/py/omni/ext/_impl/_internal.py(366): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/kit_app.py(119): startup
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/src/usd_convert_cad/kit_runtime.py(63): start_kit
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/src/usd_convert_cad/converter.py(197): convert_file
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/src/usd_convert_cad/cli.py(99): main
+  /home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/app/run_conversion.py(19): <module>
+
+2026-06-14T02:42:09Z [413ms] [Error] [omni.ext.plugin] [ext: omni.usd-1.15.2] Failed to startup python extension.
+[0.476s] [ext: omni.scene.optimizer.core-110.1.0] startup
+[0.521s] [ext: omni.usdex.libs-2.2.2] startup
+[0.528s] [ext: omni.kit.converter.common-510.1.3] startup
+[0.534s] [ext: omni.kit.converter.hoops_core-511.3.0] startup
+[omni.converter.hoops_log]*status*HOOPS Converter version: 10.6.0
+[omni.converter.hoops_log]*status*HOOPS Converter build: 10.6.0+v10-6-0.4076.ea1d1149.gl
+[omni.converter.hoops_log]*status*Parameters:
+[omni.converter.hoops_log]*status*  accurateSurfaceCurvatures: true
+[omni.converter.hoops_log]*status*  accurateTessellation: false
+[omni.converter.hoops_log]*status*  compositionStyle: 0
+[omni.converter.hoops_log]*status*  convertCurves: false
+[omni.converter.hoops_log]*status*  convertMetadata: false
+[omni.converter.hoops_log]*status*  convertPhysicsData: false
+[omni.converter.hoops_log]*status*  dedup: true
+[omni.converter.hoops_log]*status*  filterStyle: 1
+[omni.converter.hoops_log]*status*  globalXforms: false
+[omni.converter.hoops_log]*status*  instancingStyle: 2
+[omni.converter.hoops_log]*status*  materialType: 1
+[omni.converter.hoops_log]*status*  omitHiddenOnLoad: true
+[omni.converter.hoops_log]*status*  physicsAccuracyLevel: 0.99
+[omni.converter.hoops_log]*status*  physicsUseGeometryOnRiBRep: false
+[omni.converter.hoops_log]*status*  reportProgress: true
+[omni.converter.hoops_log]*status*  reportProgressFreq: 4
+[omni.converter.hoops_log]*status*  tessLOD: 2
+[omni.converter.hoops_log]*status*  upAxis: 0
+[omni.converter.hoops_log]*status*  useMaterials: true
+[omni.converter.hoops_log]*status*  useNormals: true
+[omni.converter.hoops_log]*status*  viewLayerName: 
+[omni.converter.hoops_log]*status*Input file: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/A5E52945329_P5Z00052019.jt
+[omni.converter.hoops_log]*status*Output info: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd
+[omni.converter.hoops_progress]*step*1:2*prog*0.0*Begin Reading CAD model...
+[omni.converter.hoops_progress]*step*1:2*prog*100.0*Completed Reading CAD model...
+[omni.converter.hoops_progress]*step*2:2*prog*0.0*Begin Writing to USD...
+[omni.converter.hoops_log]*status*Modeler Unit Info:
+[omni.converter.hoops_log]*status*  depth = 0
+[omni.converter.hoops_log]*status*  modeler = kA3DModellerJt
+[omni.converter.hoops_log]*status*  unit from CAD = Yes
+[omni.converter.hoops_log]*status*  mm / unit = 1.000000
+[omni.converter.hoops_log]*status*  usd scale = mmpu / 10.0 = 0.100000
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usd/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdHydra/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdRi/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdMedia/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdVol/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdSemantics/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdUI/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdMtlx/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.schema.audio-0.0.1+6312fa25.lx64.r.cp312/plugins/omniAudioSchema/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdPhysics/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdGeom/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdLux/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdProc/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdSkel/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdRender/resources/generatedSchema.usda' for read
+OmniUsdResolver: Opening filesystem asset '/home/abrasic/.physical-ai-skill-hub/upstreams/usd-convert-cad/.venv/lib/python3.12/site-packages/omni/data/Kit/kit/110.1/exts/3/omni.usd.libs-1.0.3+6312fa25.lx64.r.cp312/bin/usd/usdShade/resources/generatedSchema.usda' for read
+[omni.converter.hoops_progress]*step*2:2*prog*0.073930*/A5E52945329_P5Z00052019/P5Z00040937/tn__BOARD16_tA7
+[omni.converter.hoops_progress]*step*2:2*prog*0.147860*/A5E52945329_P5Z00052019/P5Z00040937/tn__Conductor1_dF
+[omni.converter.hoops_progress]*step*2:2*prog*0.221790*/A5E52945329_P5Z00052019/P5Z00040937/tn__Conductor6_dF
+[omni.converter.hoops_progress]*step*2:2*prog*1.035019*/A5E52945329_P5Z00052019/P5Z00040937/C1313
+[omni.converter.hoops_progress]*step*2:2*prog*6.505831*/A5E52945329_P5Z00052019/P5Z00040937/C1522
+[omni.converter.hoops_progress]*step*2:2*prog*13.381319*/A5E52945329_P5Z00052019/P5Z00040937/R1322
+[omni.converter.hoops_progress]*step*2:2*prog*18.630393*/A5E52945329_P5Z00052019/P5Z00040937/R1917
+[omni.converter.hoops_progress]*step*2:2*prog*24.175189*/A5E52945329_P5Z00052019/P5Z00040937/R2116
+[omni.converter.hoops_progress]*step*2:2*prog*30.163568*/A5E52945329_P5Z00052019/P5Z00040937/V718
+[omni.converter.hoops_progress]*step*2:2*prog*35.486573*/A5E52945329_P5Z00052019/P5Z00040937/V1910
+[omni.converter.hoops_progress]*step*2:2*prog*39.848480*/A5E52945329_P5Z00052019/P5Z00040937/C1610
+[omni.converter.hoops_progress]*step*2:2*prog*46.206513*/A5E52945329_P5Z00052019/P5Z00040937/R526
+[omni.converter.hoops_progress]*step*2:2*prog*52.194804*/A5E52945329_P5Z00052019/P5Z00040937/R1032
+[omni.converter.hoops_progress]*step*2:2*prog*57.961160*/A5E52945329_P5Z00052019/P5Z00040937/R1429
+[omni.converter.hoops_progress]*step*2:2*prog*63.136095*/A5E52945329_P5Z00052019/P5Z00040937/C518
+[omni.converter.hoops_progress]*step*2:2*prog*67.941391*/A5E52945329_P5Z00052019/P5Z00040937/C2410
+[omni.converter.hoops_progress]*step*2:2*prog*72.746688*/A5E52945329_P5Z00052019/P5Z00040937/C927
+[omni.converter.hoops_progress]*step*2:2*prog*77.256274*/A5E52945329_P5Z00052019/P5Z00040937/V410
+[omni.converter.hoops_progress]*step*2:2*prog*81.691933*/A5E52945329_P5Z00052019/P5Z00040937/R2428
+[omni.converter.hoops_progress]*step*2:2*prog*86.497229*/A5E52945329_P5Z00052019/P5Z00040937/R2826
+[omni.converter.hoops_progress]*step*2:2*prog*91.006815*/A5E52945329_P5Z00052019/P5Z00040937/P1310
+[omni.converter.hoops_log]*status*Result:
+[omni.converter.hoops_log]*status*  Total Meshes in USD = 4283
+[omni.converter.hoops_log]*status*  Total Triangles in USD = 2296174
+[omni.converter.hoops_log]*status*  Total Curves in USD = 0
+
+[omni.converter.hoops_progress]*step*2:2*prog*100.0*Completed Writing to USD...
+Exporting "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd"
+OmniUsdResolver: Opening filesystem asset '/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd' for write
+OmniUsdResolver: Opening filesystem asset '/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd' for read
+[omni.converter.hoops_progress]*end*0*
+[omni.converter.hoops_log]*status*CAD File Read
+[omni.converter.hoops_log]*status*  Start Time: 2026-06-13 21:42:13
+[omni.converter.hoops_log]*status*  End Time: 2026-06-13 21:42:44
+[omni.converter.hoops_log]*status*  Duration: 30.316 seconds
+[omni.converter.hoops_log]*status*Conversion to USD
+[omni.converter.hoops_log]*status*  Start Time: 2026-06-13 21:42:44
+[omni.converter.hoops_log]*status*  End Time: 2026-06-13 21:42:54
+[omni.converter.hoops_log]*status*  Duration: 10.425 seconds
+[omni.converter.hoops_log]*status*Hierarchy Authoring
+[omni.converter.hoops_log]*status*  Duration: 4.450 seconds
+[omni.converter.hoops_log]*status*Geometry Authoring
+[omni.converter.hoops_log]*status*  Duration: 5.627 seconds
+[omni.converter.hoops_log]*status*Material Authoring
+[omni.converter.hoops_log]*status*  Duration: 0.009 seconds
+[omni.converter.hoops_log]*status*Instancing Authoring
+[omni.converter.hoops_log]*status*  Start Time: 2026-06-13 21:42:54
+[omni.converter.hoops_log]*status*  End Time: 2026-06-13 21:42:54
+[omni.converter.hoops_log]*status*  Duration: 0.172 seconds
+[omni.converter.hoops_log]*status*USD Disk Write
+[omni.converter.hoops_log]*status*  Start Time: 2026-06-13 21:42:54
+[omni.converter.hoops_log]*status*  End Time: 2026-06-13 21:42:55
+[omni.converter.hoops_log]*status*  Duration: 1.213 seconds
+[omni.converter.hoops_log]*status*Overall Time
+[omni.converter.hoops_log]*status*  Start Time: 2026-06-13 21:42:13
+[omni.converter.hoops_log]*status*  End Time: 2026-06-13 21:42:55
+[omni.converter.hoops_log]*status*  Duration: 42.648 seconds
+OmniUsdResolver: Opening filesystem asset '/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd' for read
+Executed deletePrims (0s)
+Executed generateProjectionUVs (0.552s)
+OmniUsdResolver: Opening filesystem asset '/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd' for write
+OmniUsdResolver: Opening filesystem asset '/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd' for read
+[omni.converter.hoops_progress]*end*0*
+[OK] /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/A5E52945329_P5Z00052019.jt -> /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019.usd
+Report: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/pipeline/02_conversion/A5E52945329_P5Z00052019_usd_convert_cad_status.json
+2026-06-14T02:42:58Z [49,233ms] [Warning] [carb] Recursive unloadAllPlugins() detected!

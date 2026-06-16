@@ -1,0 +1,73 @@
+project:
+  name: "siemens_a5e52945329_texture_agent_retry_missing"
+  session_id: "texture_retry_missing_20260614_1745"
+  working_dir: "texture_agent_run_20260614_1738_retry_missing"
+
+input:
+  usd_path: "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd"
+  prim_paths:
+  - "/A5E52945329_P5Z00052019/Looks/Plastic_Green"
+  - "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory"
+
+texture:
+  backend: "simple_image_gen"
+  uv_policy: "generate_missing"
+  uv_projection: "box"
+  uv_normalize_out_of_range: false
+  image_gen:
+    backend: nim
+    model: black-forest-labs/flux_2-klein-4b
+  size: 1024
+  workers: 1
+
+material_textures:
+  Plastic_Green:
+    prompt: "green FR4 printed circuit board solder mask texture matching the Siemens reference photos, subtle fiberglass weave, pale white silkscreen strokes, small copper and gold pad accents, fine circuit trace hints, photorealistic seamless PBR albedo texture, flat top-down material sample, no readable text"
+    opacity: 0.75
+    reference_image_uris: &reference_images
+    - "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/References/A5E52945329/T-U2106000039_T-U2106000027_a5e54287561_2026-03-26T113554525937Z.png"
+    - "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/References/A5E52945329/T-U3306000011_T-U3306000004_a5e54287561_2026-05-07T081456533399Z.png"
+    - "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/References/A5E52945329/T-U3306000022_T-U3306000021_a5e54287561_2026-05-07T081905128212Z.png"
+    - "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/References/A5E52945329/T-U3306000040_T-U3306000032_a5e54287561_2026-04-30T134456942968Z.png"
+    - "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/References/A5E52945329/T-U5076000801_T-U5076000802_a5e54287561_2026-05-27T164944374754Z.png"
+  Plastic_Ivory:
+    prompt: "warm ivory ceramic SMD capacitor and resistor body texture, slightly rough ceramic surface, tiny speckles and manufacturing variation, photorealistic seamless PBR albedo texture, electronics component surface, no logos, no readable text"
+    opacity: 0.65
+    reference_image_uris: *reference_images
+
+auto_prompt:
+  enabled: false
+
+variations:
+  count: 1
+
+steps:
+  prepare_uvs:
+    enabled: true
+  discover_materials:
+    enabled: true
+  generate_prompts:
+    enabled: true
+  render_previews:
+    enabled: false
+    backend: "remote"
+    image_width: 512
+    image_height: 512
+  generate_textures:
+    enabled: true
+    max_workers: 1
+    skip_existing: true
+  blend_textures:
+    enabled: true
+    default_opacity: 0.70
+    output_size: 1024
+  apply_textures:
+    enabled: true
+  render:
+    enabled: true
+    backend: "remote"
+    image_width: 512
+    image_height: 512
+    camera_direction: "+x+y+z"
+    camera_margin: 1.0
+    focus_cameras: false

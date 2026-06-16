@@ -1,0 +1,40 @@
+project:
+  name: "siemens_a5e52945329_texture_discovery"
+  session_id: "texture_discovery_20260614"
+  working_dir: "texture_agent_discovery"
+
+input:
+  usd_path: "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_material.usd"
+
+texture:
+  backend: "simple_image_gen"
+  uv_policy: "generate_missing"
+  uv_projection: "box"
+  uv_normalize_out_of_range: false
+  image_gen:
+    backend: nim
+    model: black-forest-labs/flux_2-klein-4b
+  size: 512
+  workers: 1
+
+material_textures: {}
+
+auto_prompt:
+  enabled: false
+
+variations:
+  count: 1
+
+steps:
+  discover_materials:
+    enabled: true
+  render_previews:
+    enabled: false
+  generate_textures:
+    enabled: false
+  blend_textures:
+    enabled: false
+  apply_textures:
+    enabled: false
+  render:
+    enabled: false

@@ -1,0 +1,24 @@
+Current user prompt that triggered this submission:
+
+Run agent-testing-feedback skill
+
+Contextual workflow prompts used for the actual Content Agents test:
+
+1. User:
+I would like to run the Omniverse-cad-to-simready workflow on this CAD file: D:\Customer_Files\Siemens\Jun_1_Tests\JT_3D_Product\A5E52945329_P5Z00052019.jt
+
+Please convert this to USD and apply materials and textures according to the reference images located in this directory: D:\Customer_Files\Siemens\Jun_1_Tests\References\A5E52945329
+
+Make the USD materials and textures as close to photorealistic as possible.  Place the final converted USD in D:\Customer_Files\Siemens\Jun_1_Tests\JT_3D_Product\Jun_13_Material_Conversion_Test
+
+If you need anything along the way, please prompt me for input.
+
+2. User:
+Please run the Texture Agent on the output of the Material Agent located here:  D:/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_material.usd
+
+Use the same reference imagery uploaded previously.
+
+Provide a status update every 20 mins, with a sanity check of an image generation that confirms that actual changes are being applied as opposed to blank render outputs.
+
+3. User:
+the file at D:/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_textured.usd appears to only be 134kb, and has an empty reference when opened.  Was this the final converted file with textures applied?  Can we confirm that the Texture Agent successfully completed and applied the textures on top of the appropriate materials?

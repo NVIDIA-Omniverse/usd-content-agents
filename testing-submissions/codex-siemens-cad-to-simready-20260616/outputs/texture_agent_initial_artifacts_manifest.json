@@ -1,0 +1,1022 @@
+{
+  "backend": {
+    "backend": "simple_image_gen",
+    "conditioning_support": null,
+    "custom_parameters": {},
+    "endpoint": null,
+    "endpoint_type": "nim",
+    "model": "black-forest-labs/flux_2-klein-4b",
+    "seed": null,
+    "texture_size": 1024
+  },
+  "input": {
+    "config": {
+      "auto_prompt": {
+        "enabled": false
+      },
+      "project_name": "siemens_a5e52945329_texture_agent",
+      "session_id": "texture_run_20260614_1738",
+      "steps": {
+        "apply_textures": {
+          "enabled": true
+        },
+        "blend_textures": {
+          "default_opacity": 0.7,
+          "enabled": true,
+          "output_size": 1024
+        },
+        "discover_materials": {
+          "enabled": true
+        },
+        "generate_prompts": {
+          "enabled": true
+        },
+        "generate_textures": {
+          "enabled": true,
+          "max_workers": 1,
+          "skip_existing": true
+        },
+        "prepare_uvs": {
+          "enabled": true
+        },
+        "render": {
+          "backend": "remote",
+          "camera_direction": "+x+y+z",
+          "camera_margin": 1.0,
+          "enabled": true,
+          "focus_cameras": false,
+          "image_height": 512,
+          "image_width": 512
+        },
+        "render_previews": {
+          "backend": "remote",
+          "enabled": false,
+          "image_height": 512,
+          "image_width": 512
+        }
+      },
+      "texture": {
+        "backend": "simple_image_gen",
+        "image_gen": {
+          "backend": "nim",
+          "model": "black-forest-labs/flux_2-klein-4b"
+        },
+        "model": null,
+        "size": 1024,
+        "uv_normalize_out_of_range": false,
+        "uv_policy": "generate_missing",
+        "uv_projection": "box",
+        "workers": 1
+      }
+    },
+    "current_usd": {
+      "exists": true,
+      "path": "A5E52945329_P5Z00052019_material.usd",
+      "size_bytes": 133030
+    },
+    "requested_material_scope": [
+      "Car_Paint_Jet_Black",
+      "Copper",
+      "Plastic_Black",
+      "Plastic_Dark_Blue",
+      "Plastic_Dark_Gray",
+      "Plastic_Green",
+      "Plastic_Ivory",
+      "Silver",
+      "Stainless_Steel_Brushed",
+      "Steel_Painted_Dark_Gray"
+    ],
+    "requested_prim_scope": [
+      "/A5E52945329_P5Z00052019/Looks/Car_Paint_Jet_Black",
+      "/A5E52945329_P5Z00052019/Looks/Copper",
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Black",
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Blue",
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Gray",
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+      "/A5E52945329_P5Z00052019/Looks/Silver",
+      "/A5E52945329_P5Z00052019/Looks/Stainless_Steel_Brushed",
+      "/A5E52945329_P5Z00052019/Looks/Steel_Painted_Dark_Gray"
+    ],
+    "usd": {
+      "exists": true,
+      "path": "A5E52945329_P5Z00052019_material.usd",
+      "size_bytes": 133030
+    }
+  },
+  "materials": {
+    "auto_prompt_additions": {},
+    "discovered": [
+      {
+        "base_color": [
+          0.0020000000949949026,
+          0.0020000000949949026,
+          0.0020000000949949026
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.25,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Car_Paint_Jet_Black",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Car_Paint_Jet_Black",
+        "specular_roughness": 0.30000001192092896
+      },
+      {
+        "base_color": [
+          0.9549999833106995,
+          0.6370000243186951,
+          0.5379999876022339
+        ],
+        "base_color_texture": null,
+        "base_metalness": 1.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Copper",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Copper",
+        "specular_roughness": 0.20000000298023224
+      },
+      {
+        "base_color": [
+          0.01940763182938099,
+          0.01940763182938099,
+          0.01940763182938099
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Black",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Black",
+        "specular_roughness": 0.15000000596046448
+      },
+      {
+        "base_color": [
+          0.018131744116544724,
+          0.041638296097517014,
+          0.25319695472717285
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Dark_Blue",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Blue",
+        "specular_roughness": 0.30000001192092896
+      },
+      {
+        "base_color": [
+          0.09462916851043701,
+          0.0946282222867012,
+          0.0946282222867012
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Dark_Gray",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Gray",
+        "specular_roughness": 0.15000000596046448
+      },
+      {
+        "base_color": [
+          0.007875408977270126,
+          0.21994882822036743,
+          0.007875408977270126
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Green",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+        "specular_roughness": 0.25
+      },
+      {
+        "base_color": [
+          0.5140664577484131,
+          0.4861992299556732,
+          0.41151610016822815
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Ivory",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+        "specular_roughness": 0.0
+      },
+      {
+        "base_color": [
+          0.972000002861023,
+          0.9599999785423279,
+          0.9150000214576721
+        ],
+        "base_color_texture": null,
+        "base_metalness": 1.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Silver",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Silver",
+        "specular_roughness": 0.20000000298023224
+      },
+      {
+        "base_color": [
+          0.6299999952316284,
+          0.6299999952316284,
+          0.6299999952316284
+        ],
+        "base_color_texture": null,
+        "base_metalness": 1.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Stainless_Steel_Brushed",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Stainless_Steel_Brushed",
+        "specular_roughness": 0.4000000059604645
+      },
+      {
+        "base_color": [
+          0.07800000160932541,
+          0.07800000160932541,
+          0.07800000160932541
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Steel_Painted_Dark_Gray",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Steel_Painted_Dark_Gray",
+        "specular_roughness": 0.20000000298023224
+      }
+    ],
+    "selected": [
+      {
+        "key": "Car_Paint_Jet_Black",
+        "material_name": "Car_Paint_Jet_Black",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Car_Paint_Jet_Black",
+        "opacity": 0.55,
+        "prim_path": "",
+        "prompt": "glossy jet black coated electronics component surface, subtle clearcoat reflections, very fine micro-scratches, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Copper",
+        "material_name": "Copper",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Copper",
+        "opacity": 0.7,
+        "prim_path": "",
+        "prompt": "clean copper and gold plated PCB contact texture, fine circuit trace lines and solder pad variation, warm metallic orange gold color, subtle tarnish only, photorealistic seamless PBR albedo texture, electronics macro surface, no labels",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Black",
+        "material_name": "Plastic_Black",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Black",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "matte black molded electronics plastic and IC package texture, very fine pebbled grain, subtle edge wear and manufacturing variation, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Dark_Blue",
+        "material_name": "Plastic_Dark_Blue",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Blue",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "deep blue molded plastic terminal block surface, satin finish, fine injection molded grain, subtle dust and edge highlights, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Dark_Gray",
+        "material_name": "Plastic_Dark_Gray",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Gray",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "dark gray molded electronics connector plastic, satin matte surface, fine granular plastic texture, subtle scuffs and molded variation, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Green",
+        "material_name": "Plastic_Green",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+        "opacity": 0.75,
+        "prim_path": "",
+        "prompt": "green FR4 printed circuit board solder mask texture matching the Siemens reference photos, subtle fiberglass weave, pale white silkscreen strokes, small copper and gold pad accents, fine circuit trace hints, photorealistic seamless PBR albedo texture, flat top-down material sample, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Ivory",
+        "material_name": "Plastic_Ivory",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "warm ivory ceramic SMD capacitor and resistor body texture, slightly rough ceramic surface, tiny speckles and manufacturing variation, photorealistic seamless PBR albedo texture, electronics component surface, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Silver",
+        "material_name": "Silver",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Silver",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "silver tin plated electronic contacts and solder metal texture, clean bright metallic surface, tiny scratches, solder sheen, soft anisotropic variation, photorealistic seamless PBR albedo texture, no labels",
+        "seed": null
+      },
+      {
+        "key": "Stainless_Steel_Brushed",
+        "material_name": "Stainless_Steel_Brushed",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Stainless_Steel_Brushed",
+        "opacity": 0.7,
+        "prim_path": "",
+        "prompt": "brushed stainless steel capacitor can texture, vertical fine brushing, cylindrical metal sheen, subtle dents and soft reflections, photorealistic seamless PBR albedo texture, no labels",
+        "seed": null
+      },
+      {
+        "key": "Steel_Painted_Dark_Gray",
+        "material_name": "Steel_Painted_Dark_Gray",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Steel_Painted_Dark_Gray",
+        "opacity": 0.6,
+        "prim_path": "",
+        "prompt": "dark gray painted metal electronics housing texture, fine powder coat surface, subtle wear and dust, satin finish, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      }
+    ]
+  },
+  "outputs": {
+    "output_usd": [
+      {
+        "exists": true,
+        "path": "texture_agent_run_20260614_1738/output/textured_output.usd",
+        "size_bytes": 135582
+      }
+    ],
+    "output_usdz": null,
+    "portability": {
+      "diagnostics": [],
+      "missing_texture_paths": [],
+      "non_relative_texture_paths": [],
+      "portable": true,
+      "texture_reference_count": 64
+    }
+  },
+  "prepared": {
+    "prepared_usd": {
+      "exists": true,
+      "path": "A5E52945329_P5Z00052019_material.usd",
+      "size_bytes": 133030
+    },
+    "uv_actions": {
+      "backend": "python",
+      "fixed_interpolation": 0,
+      "generated": 0,
+      "normalized": 0,
+      "uv_report_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/prepared/uv_report.json"
+    },
+    "uv_report": {
+      "exists": true,
+      "path": "texture_agent_run_20260614_1738/prepared/uv_report.json",
+      "size_bytes": 704
+    },
+    "uv_summary": {
+      "indexed": 0,
+      "invalid": 0,
+      "missing": 0,
+      "non_finite": 0,
+      "out_of_range": 0,
+      "repairable": 0,
+      "total_meshes": 0,
+      "valid": 0
+    }
+  },
+  "prompts": {
+    "prompt_source": "material_textures",
+    "units": [
+      {
+        "key": "Car_Paint_Jet_Black",
+        "material_name": "Car_Paint_Jet_Black",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Car_Paint_Jet_Black",
+        "opacity": 0.55,
+        "prim_path": "",
+        "prompt": "glossy jet black coated electronics component surface, subtle clearcoat reflections, very fine micro-scratches, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Copper",
+        "material_name": "Copper",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Copper",
+        "opacity": 0.7,
+        "prim_path": "",
+        "prompt": "clean copper and gold plated PCB contact texture, fine circuit trace lines and solder pad variation, warm metallic orange gold color, subtle tarnish only, photorealistic seamless PBR albedo texture, electronics macro surface, no labels",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Black",
+        "material_name": "Plastic_Black",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Black",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "matte black molded electronics plastic and IC package texture, very fine pebbled grain, subtle edge wear and manufacturing variation, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Dark_Blue",
+        "material_name": "Plastic_Dark_Blue",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Blue",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "deep blue molded plastic terminal block surface, satin finish, fine injection molded grain, subtle dust and edge highlights, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Dark_Gray",
+        "material_name": "Plastic_Dark_Gray",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Dark_Gray",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "dark gray molded electronics connector plastic, satin matte surface, fine granular plastic texture, subtle scuffs and molded variation, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Green",
+        "material_name": "Plastic_Green",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+        "opacity": 0.75,
+        "prim_path": "",
+        "prompt": "green FR4 printed circuit board solder mask texture matching the Siemens reference photos, subtle fiberglass weave, pale white silkscreen strokes, small copper and gold pad accents, fine circuit trace hints, photorealistic seamless PBR albedo texture, flat top-down material sample, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Ivory",
+        "material_name": "Plastic_Ivory",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "warm ivory ceramic SMD capacitor and resistor body texture, slightly rough ceramic surface, tiny speckles and manufacturing variation, photorealistic seamless PBR albedo texture, electronics component surface, no logos, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Silver",
+        "material_name": "Silver",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Silver",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "silver tin plated electronic contacts and solder metal texture, clean bright metallic surface, tiny scratches, solder sheen, soft anisotropic variation, photorealistic seamless PBR albedo texture, no labels",
+        "seed": null
+      },
+      {
+        "key": "Stainless_Steel_Brushed",
+        "material_name": "Stainless_Steel_Brushed",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Stainless_Steel_Brushed",
+        "opacity": 0.7,
+        "prim_path": "",
+        "prompt": "brushed stainless steel capacitor can texture, vertical fine brushing, cylindrical metal sheen, subtle dents and soft reflections, photorealistic seamless PBR albedo texture, no labels",
+        "seed": null
+      },
+      {
+        "key": "Steel_Painted_Dark_Gray",
+        "material_name": "Steel_Painted_Dark_Gray",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Steel_Painted_Dark_Gray",
+        "opacity": 0.6,
+        "prim_path": "",
+        "prompt": "dark gray painted metal electronics housing texture, fine powder coat surface, subtle wear and dust, satin finish, photorealistic seamless PBR albedo texture, no logos, no readable text",
+        "seed": null
+      }
+    ]
+  },
+  "renders": {
+    "diagnostics": [
+      {
+        "camera_path": "/Cameras/TextureAgentFinal",
+        "code": "RENDER_NO_CAMERA",
+        "details": {},
+        "message": "Output USD has no authored camera; added a default final render camera at /Cameras/TextureAgentFinal.",
+        "recommended_action": "Author a camera in the source USD or set steps.render.camera_paths for deterministic final renders.",
+        "schema_version": "texture-agent-diagnostic.v1",
+        "severity": "warning",
+        "stage": "render",
+        "usd_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738/output/textured_output.usd"
+      }
+    ],
+    "final": [
+      {
+        "exists": true,
+        "path": "texture_agent_run_20260614_1738/renders/render_0_0_0.png",
+        "size_bytes": 2198
+      }
+    ],
+    "render_available": true
+  },
+  "schema_version": "texture-agent-artifacts.v1",
+  "status": {
+    "diagnostics": [],
+    "duration_seconds": null,
+    "errors": {
+      "blend_textures": [],
+      "generate_textures": [
+        {
+          "material": "Plastic_Green",
+          "message": "Generation failed for Plastic_Green: Empty base64 in NIM image generation response",
+          "status": null,
+          "type": "RuntimeError"
+        },
+        {
+          "material": "Plastic_Ivory",
+          "message": "Generation failed for Plastic_Ivory: Empty base64 in NIM image generation response",
+          "status": null,
+          "type": "RuntimeError"
+        }
+      ],
+      "package": []
+    },
+    "service_urls": {},
+    "state": "completed",
+    "timings": {},
+    "warnings": []
+  },
+  "textures": {
+    "blend_errors": [],
+    "blended": {
+      "Car_Paint_Jet_Black": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_albedo.png",
+          "size_bytes": 609932,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_normal.png",
+          "size_bytes": 744869,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Car_Paint_Jet_Black_orm.png",
+          "size_bytes": 742374,
+          "width": 1024
+        }
+      },
+      "Copper": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Copper_albedo.png",
+          "size_bytes": 2049159,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Copper_normal.png",
+          "size_bytes": 1568755,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Copper_orm.png",
+          "size_bytes": 1161240,
+          "width": 1024
+        }
+      },
+      "Plastic_Black": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Black_albedo.png",
+          "size_bytes": 1825885,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Black_normal.png",
+          "size_bytes": 2322409,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Black_orm.png",
+          "size_bytes": 938962,
+          "width": 1024
+        }
+      },
+      "Plastic_Dark_Blue": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_albedo.png",
+          "size_bytes": 1568249,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_normal.png",
+          "size_bytes": 1443066,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Dark_Blue_orm.png",
+          "size_bytes": 865311,
+          "width": 1024
+        }
+      },
+      "Plastic_Dark_Gray": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_albedo.png",
+          "size_bytes": 1505822,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_normal.png",
+          "size_bytes": 1745234,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Plastic_Dark_Gray_orm.png",
+          "size_bytes": 1017423,
+          "width": 1024
+        }
+      },
+      "Silver": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Silver_albedo.png",
+          "size_bytes": 893011,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Silver_normal.png",
+          "size_bytes": 648655,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Silver_orm.png",
+          "size_bytes": 599478,
+          "width": 1024
+        }
+      },
+      "Stainless_Steel_Brushed": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_albedo.png",
+          "size_bytes": 1023727,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_normal.png",
+          "size_bytes": 703246,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Stainless_Steel_Brushed_orm.png",
+          "size_bytes": 626259,
+          "width": 1024
+        }
+      },
+      "Steel_Painted_Dark_Gray": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_albedo.png",
+          "size_bytes": 1117531,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_normal.png",
+          "size_bytes": 1094940,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/textures/Steel_Painted_Dark_Gray_orm.png",
+          "size_bytes": 773270,
+          "width": 1024
+        }
+      }
+    },
+    "blended_count": 8,
+    "generated": {
+      "Car_Paint_Jet_Black": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Car_Paint_Jet_Black/Car_Paint_Jet_Black_albedo.png",
+          "size_bytes": 522187,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Car_Paint_Jet_Black/Car_Paint_Jet_Black_normal.png",
+          "size_bytes": 744869,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Car_Paint_Jet_Black/Car_Paint_Jet_Black_orm.png",
+          "size_bytes": 879595,
+          "width": 1024
+        }
+      },
+      "Copper": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Copper/Copper_albedo.png",
+          "size_bytes": 2139243,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Copper/Copper_normal.png",
+          "size_bytes": 1568755,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Copper/Copper_orm.png",
+          "size_bytes": 1236942,
+          "width": 1024
+        }
+      },
+      "Plastic_Black": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Black/Plastic_Black_albedo.png",
+          "size_bytes": 1468733,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Black/Plastic_Black_normal.png",
+          "size_bytes": 2322409,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Black/Plastic_Black_orm.png",
+          "size_bytes": 1033643,
+          "width": 1024
+        }
+      },
+      "Plastic_Dark_Blue": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Dark_Blue/Plastic_Dark_Blue_albedo.png",
+          "size_bytes": 1414971,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Dark_Blue/Plastic_Dark_Blue_normal.png",
+          "size_bytes": 1443066,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Dark_Blue/Plastic_Dark_Blue_orm.png",
+          "size_bytes": 959052,
+          "width": 1024
+        }
+      },
+      "Plastic_Dark_Gray": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Dark_Gray/Plastic_Dark_Gray_albedo.png",
+          "size_bytes": 1236489,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Dark_Gray/Plastic_Dark_Gray_normal.png",
+          "size_bytes": 1745234,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Plastic_Dark_Gray/Plastic_Dark_Gray_orm.png",
+          "size_bytes": 1109110,
+          "width": 1024
+        }
+      },
+      "Silver": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Silver/Silver_albedo.png",
+          "size_bytes": 743343,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Silver/Silver_normal.png",
+          "size_bytes": 648655,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Silver/Silver_orm.png",
+          "size_bytes": 684576,
+          "width": 1024
+        }
+      },
+      "Stainless_Steel_Brushed": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Stainless_Steel_Brushed/Stainless_Steel_Brushed_albedo.png",
+          "size_bytes": 734371,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Stainless_Steel_Brushed/Stainless_Steel_Brushed_normal.png",
+          "size_bytes": 703246,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Stainless_Steel_Brushed/Stainless_Steel_Brushed_orm.png",
+          "size_bytes": 698908,
+          "width": 1024
+        }
+      },
+      "Steel_Painted_Dark_Gray": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Steel_Painted_Dark_Gray/Steel_Painted_Dark_Gray_albedo.png",
+          "size_bytes": 963679,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Steel_Painted_Dark_Gray/Steel_Painted_Dark_Gray_normal.png",
+          "size_bytes": 1094940,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738/generated/Steel_Painted_Dark_Gray/Steel_Painted_Dark_Gray_orm.png",
+          "size_bytes": 888516,
+          "width": 1024
+        }
+      }
+    },
+    "generated_count": 8,
+    "generation_errors": [
+      {
+        "material": "Plastic_Green",
+        "message": "Generation failed for Plastic_Green: Empty base64 in NIM image generation response",
+        "status": null,
+        "type": "RuntimeError"
+      },
+      {
+        "material": "Plastic_Ivory",
+        "message": "Generation failed for Plastic_Ivory: Empty base64 in NIM image generation response",
+        "status": null,
+        "type": "RuntimeError"
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+Final USD validation after Windows-portability fix
+Generated: 2026-06-16
+
+A5E52945329_P5Z00052019_textured.usd
+  path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_textured.usd
+  size_bytes: 157033
+  sublayers: ['pipeline/04_assignment/material/local_lit_cli_run_20260614_100300/input/A5E52945329_P5Z00052019_lit_material_input.usd']
+  wsl_or_windows_abs_strings: 0
+  meshes: 4283
+  materials: 2835
+  texture_attrs: 40
+  unique_texture_paths: 40
+  absolute_texture_paths: 0
+  missing_texture_refs: 0
+
+A5E52945329_P5Z00052019_textured_flat.usd
+  path: /mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/A5E52945329_P5Z00052019_textured_flat.usd
+  size_bytes: 53917755
+  sublayers: []
+  wsl_or_windows_abs_strings: 0
+  meshes: 8566
+  materials: 5592
+  texture_attrs: 40
+  unique_texture_paths: 40
+  absolute_texture_paths: 0
+  missing_texture_refs: 0
+
+texture_png_count: 50

@@ -1,0 +1,376 @@
+{
+  "backend": {
+    "backend": "simple_image_gen",
+    "conditioning_support": null,
+    "custom_parameters": {},
+    "endpoint": null,
+    "endpoint_type": "nim",
+    "model": "black-forest-labs/flux_2-klein-4b",
+    "seed": null,
+    "texture_size": 1024
+  },
+  "input": {
+    "config": {
+      "auto_prompt": {
+        "enabled": false
+      },
+      "project_name": "siemens_a5e52945329_texture_agent_retry_missing",
+      "session_id": "texture_retry_missing_20260614_1745",
+      "steps": {
+        "apply_textures": {
+          "enabled": true
+        },
+        "blend_textures": {
+          "default_opacity": 0.7,
+          "enabled": true,
+          "output_size": 1024
+        },
+        "discover_materials": {
+          "enabled": true
+        },
+        "generate_prompts": {
+          "enabled": true
+        },
+        "generate_textures": {
+          "enabled": true,
+          "max_workers": 1,
+          "skip_existing": true
+        },
+        "prepare_uvs": {
+          "enabled": true
+        },
+        "render": {
+          "backend": "remote",
+          "camera_direction": "+x+y+z",
+          "camera_margin": 1.0,
+          "enabled": true,
+          "focus_cameras": false,
+          "image_height": 512,
+          "image_width": 512
+        },
+        "render_previews": {
+          "backend": "remote",
+          "enabled": false,
+          "image_height": 512,
+          "image_width": 512
+        }
+      },
+      "texture": {
+        "backend": "simple_image_gen",
+        "image_gen": {
+          "backend": "nim",
+          "model": "black-forest-labs/flux_2-klein-4b"
+        },
+        "model": null,
+        "size": 1024,
+        "uv_normalize_out_of_range": false,
+        "uv_policy": "generate_missing",
+        "uv_projection": "box",
+        "workers": 1
+      }
+    },
+    "current_usd": {
+      "exists": true,
+      "path": "texture_agent_run_20260614_1738/output/textured_output.usd",
+      "size_bytes": 135582
+    },
+    "requested_material_scope": [
+      "Plastic_Green",
+      "Plastic_Ivory"
+    ],
+    "requested_prim_scope": [
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+      "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory"
+    ],
+    "usd": {
+      "exists": true,
+      "path": "texture_agent_run_20260614_1738/output/textured_output.usd",
+      "size_bytes": 135582
+    }
+  },
+  "materials": {
+    "auto_prompt_additions": {},
+    "discovered": [
+      {
+        "base_color": [
+          0.007875408977270126,
+          0.21994882822036743,
+          0.007875408977270126
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Green",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+        "specular_roughness": 0.25
+      },
+      {
+        "base_color": [
+          0.5140664577484131,
+          0.4861992299556732,
+          0.41151610016822815
+        ],
+        "base_color_texture": null,
+        "base_metalness": 0.0,
+        "bound_prim_paths": [],
+        "has_existing_texture": false,
+        "name": "Plastic_Ivory",
+        "prim_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+        "specular_roughness": 0.0
+      }
+    ],
+    "selected": [
+      {
+        "key": "Plastic_Green",
+        "material_name": "Plastic_Green",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+        "opacity": 0.75,
+        "prim_path": "",
+        "prompt": "green FR4 printed circuit board solder mask texture matching the Siemens reference photos, subtle fiberglass weave, pale white silkscreen strokes, small copper and gold pad accents, fine circuit trace hints, photorealistic seamless PBR albedo texture, flat top-down material sample, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Ivory",
+        "material_name": "Plastic_Ivory",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "warm ivory ceramic SMD capacitor and resistor body texture, slightly rough ceramic surface, tiny speckles and manufacturing variation, photorealistic seamless PBR albedo texture, electronics component surface, no logos, no readable text",
+        "seed": null
+      }
+    ]
+  },
+  "outputs": {
+    "output_usd": [
+      {
+        "exists": true,
+        "path": "texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd",
+        "size_bytes": 135619
+      }
+    ],
+    "output_usdz": null,
+    "portability": {
+      "diagnostics": [],
+      "missing_texture_paths": [],
+      "non_relative_texture_paths": [],
+      "portable": true,
+      "texture_reference_count": 80
+    }
+  },
+  "prepared": {
+    "prepared_usd": {
+      "exists": true,
+      "path": "texture_agent_run_20260614_1738/output/textured_output.usd",
+      "size_bytes": 135582
+    },
+    "uv_actions": {
+      "backend": "python",
+      "fixed_interpolation": 0,
+      "generated": 0,
+      "normalized": 0,
+      "uv_report_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/prepared/uv_report.json"
+    },
+    "uv_report": {
+      "exists": true,
+      "path": "texture_agent_run_20260614_1738_retry_missing/prepared/uv_report.json",
+      "size_bytes": 748
+    },
+    "uv_summary": {
+      "indexed": 0,
+      "invalid": 0,
+      "missing": 0,
+      "non_finite": 0,
+      "out_of_range": 0,
+      "repairable": 0,
+      "total_meshes": 0,
+      "valid": 0
+    }
+  },
+  "prompts": {
+    "prompt_source": "material_textures",
+    "units": [
+      {
+        "key": "Plastic_Green",
+        "material_name": "Plastic_Green",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Green",
+        "opacity": 0.75,
+        "prim_path": "",
+        "prompt": "green FR4 printed circuit board solder mask texture matching the Siemens reference photos, subtle fiberglass weave, pale white silkscreen strokes, small copper and gold pad accents, fine circuit trace hints, photorealistic seamless PBR albedo texture, flat top-down material sample, no readable text",
+        "seed": null
+      },
+      {
+        "key": "Plastic_Ivory",
+        "material_name": "Plastic_Ivory",
+        "material_path": "/A5E52945329_P5Z00052019/Looks/Plastic_Ivory",
+        "opacity": 0.65,
+        "prim_path": "",
+        "prompt": "warm ivory ceramic SMD capacitor and resistor body texture, slightly rough ceramic surface, tiny speckles and manufacturing variation, photorealistic seamless PBR albedo texture, electronics component surface, no logos, no readable text",
+        "seed": null
+      }
+    ]
+  },
+  "renders": {
+    "diagnostics": [
+      {
+        "camera_path": "/Cameras/TextureAgentFinal",
+        "code": "RENDER_NO_CAMERA",
+        "details": {},
+        "message": "Output USD has no authored camera; added a default final render camera at /Cameras/TextureAgentFinal.",
+        "recommended_action": "Author a camera in the source USD or set steps.render.camera_paths for deterministic final renders.",
+        "schema_version": "texture-agent-diagnostic.v1",
+        "severity": "warning",
+        "stage": "render",
+        "usd_path": "/mnt/d/Customer_Files/Siemens/Jun_1_Tests/JT_3D_Product/Jun_13_Material_Conversion_Test/texture_agent_run_20260614_1738_retry_missing/output/textured_output.usd"
+      }
+    ],
+    "final": [
+      {
+        "exists": true,
+        "path": "texture_agent_run_20260614_1738_retry_missing/renders/render_0_0_0.png",
+        "size_bytes": 2198
+      }
+    ],
+    "render_available": true
+  },
+  "schema_version": "texture-agent-artifacts.v1",
+  "status": {
+    "diagnostics": [],
+    "duration_seconds": null,
+    "errors": {
+      "blend_textures": [],
+      "generate_textures": [],
+      "package": []
+    },
+    "service_urls": {},
+    "state": "completed",
+    "timings": {},
+    "warnings": []
+  },
+  "textures": {
+    "blend_errors": [],
+    "blended": {
+      "Plastic_Green": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_albedo.png",
+          "size_bytes": 1231742,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_normal.png",
+          "size_bytes": 576018,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Green_orm.png",
+          "size_bytes": 970013,
+          "width": 1024
+        }
+      },
+      "Plastic_Ivory": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_albedo.png",
+          "size_bytes": 1390527,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_normal.png",
+          "size_bytes": 1223630,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/textures/Plastic_Ivory_orm.png",
+          "size_bytes": 749758,
+          "width": 1024
+        }
+      }
+    },
+    "blended_count": 2,
+    "generated": {
+      "Plastic_Green": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Green/Plastic_Green_albedo.png",
+          "size_bytes": 1306690,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Green/Plastic_Green_normal.png",
+          "size_bytes": 576018,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Green/Plastic_Green_orm.png",
+          "size_bytes": 1033128,
+          "width": 1024
+        }
+      },
+      "Plastic_Ivory": {
+        "albedo": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Ivory/Plastic_Ivory_albedo.png",
+          "size_bytes": 1179254,
+          "width": 1024
+        },
+        "normal": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Ivory/Plastic_Ivory_normal.png",
+          "size_bytes": 1223630,
+          "width": 1024
+        },
+        "orm": {
+          "exists": true,
+          "height": 1024,
+          "mode": "RGB",
+          "nonblank": true,
+          "path": "texture_agent_run_20260614_1738_retry_missing/generated/Plastic_Ivory/Plastic_Ivory_orm.png",
+          "size_bytes": 849374,
+          "width": 1024
+        }
+      }
+    },
+    "generated_count": 2,
+    "generation_errors": []
+  }
+}

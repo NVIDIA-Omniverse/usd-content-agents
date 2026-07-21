@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for ``service.sanitization``.
 
-Covers the two leak surfaces from NVBugs 6127703 / 6127945:
+Covers two public response leak surfaces:
 
 - NVCF function-invocation URLs (``https://<id>.invocation.api.nvcf.nvidia.com/...``)
   embedded in error messages by ``str(httpx.HTTPStatusError)``.

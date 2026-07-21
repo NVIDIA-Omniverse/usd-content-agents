@@ -15,13 +15,18 @@ from world_understanding.utils.credentials import (
     is_local_base_url,
 )
 
+from texture_agent.config.rendering_backends import validate_texture_rendering_steps
 from texture_agent.config.schema import DEFAULTS, STEP_ORDER, STEP_OUTPUT_DIRS
+from texture_agent.functions.detail_policy import normalize_detail_policy
 
 logger = logging.getLogger(__name__)
 
 
 def load_config(
-    config_path: str | Path, session_id: str | None = None
+    config_path: str | Path,
+    session_id: str | None = None,
+    *,
+    config_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Load and validate a texture pipeline config file.
 
@@ -39,13 +44,17 @@ def load_config(
     config_path = Path(config_path).resolve()
     config_dir = config_path.parent
 
-    with open(config_path, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+    if config_data is None:
+        with open(config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
 
-    if not isinstance(config, dict):
-        raise ValueError(
-            f"Config file must contain a YAML mapping, got {type(config).__name__}: {config_path}"
-        )
+        if not isinstance(config, dict):
+            raise ValueError(
+                "Config file must contain a YAML mapping, "
+                f"got {type(config).__name__}: {config_path}"
+            )
+    else:
+        config = config_data
 
     # Project defaults
     project = config.setdefault("project", {})
@@ -75,6 +84,14 @@ def load_config(
     texture = config.setdefault("texture", {})
     for key, val in DEFAULTS["texture"].items():
         texture.setdefault(key, val)
+    texture["detail_policy"] = normalize_detail_policy(
+        texture.get("detail_policy"),
+        config_key="texture.detail_policy",
+    )
+    _validate_material_detail_policies(
+        config.get("material_textures"),
+        default_policy=texture["detail_policy"],
+    )
     apply_runtime_endpoint_overrides(config)
 
     # Apply defaults for variations
@@ -94,6 +111,11 @@ def load_config(
         defaults = DEFAULTS["steps"].get(step_name, {})
         for key, val in defaults.items():
             step_cfg.setdefault(key, val)
+
+    # Rendering selectors are validated before the working directory tree is
+    # created. This keeps typos and recognized-but-unsupported backends from
+    # leaving partial output state behind.
+    validate_texture_rendering_steps(steps)
 
     # Validate required fields
     if not input_cfg.get("usd_path"):
@@ -124,6 +146,7 @@ def apply_runtime_endpoint_overrides(config: dict[str, Any]) -> None:
         "model": _env_value("TA_IMAGE_GEN_MODEL"),
         "base_url": _env_value("TA_IMAGE_GEN_BASE_URL"),
         "api_key": _env_value("TA_IMAGE_GEN_API_KEY"),
+        "api_key_env": _env_value("TA_IMAGE_GEN_API_KEY_ENV"),
     }
     if any(image_gen_overrides.values()):
         texture = config.setdefault("texture", {})
@@ -143,12 +166,23 @@ def apply_runtime_endpoint_overrides(config: dict[str, Any]) -> None:
         elif backend_changed:
             image_gen.pop("base_url", None)
         resolved_base_url = image_gen.get("base_url")
-        _apply_endpoint_api_key_override(
-            image_gen,
-            api_key=image_gen_overrides["api_key"],
-            endpoint_changed=endpoint_changed,
-            resolved_base_url=resolved_base_url,
-        )
+        api_key_env = image_gen_overrides["api_key_env"]
+        if api_key_env:
+            _apply_endpoint_api_key_override(
+                image_gen,
+                api_key=None,
+                endpoint_changed=endpoint_changed,
+                resolved_base_url=resolved_base_url,
+            )
+            image_gen["api_key_env"] = api_key_env
+            image_gen.pop("api_key", None)
+        else:
+            _apply_endpoint_api_key_override(
+                image_gen,
+                api_key=image_gen_overrides["api_key"],
+                endpoint_changed=endpoint_changed,
+                resolved_base_url=resolved_base_url,
+            )
 
     llm_base_url = _env_value("TA_LLM_BASE_URL") or _env_value("TA_LLM_NIM_BASE_URL")
     llm_overrides = {
@@ -156,6 +190,7 @@ def apply_runtime_endpoint_overrides(config: dict[str, Any]) -> None:
         "model": _env_value("TA_LLM_MODEL"),
         "base_url": llm_base_url,
         "api_key": _env_value("TA_LLM_API_KEY"),
+        "api_key_env": _env_value("TA_LLM_API_KEY_ENV"),
         "nim_api_key": _env_value("TA_NIM_API_KEY"),
     }
     if any(llm_overrides.values()):
@@ -177,14 +212,64 @@ def apply_runtime_endpoint_overrides(config: dict[str, Any]) -> None:
             llm.pop("base_url", None)
         resolved_base_url = llm.get("base_url")
         api_key = llm_overrides["api_key"]
-        if not api_key and _uses_nim_llm_credentials(llm):
-            api_key = llm_overrides["nim_api_key"]
-        _apply_endpoint_api_key_override(
-            llm,
-            api_key=api_key,
-            endpoint_changed=endpoint_changed,
-            resolved_base_url=resolved_base_url,
-        )
+        api_key_env = llm_overrides["api_key_env"]
+        if api_key_env:
+            _apply_endpoint_api_key_override(
+                llm,
+                api_key=None,
+                endpoint_changed=endpoint_changed,
+                resolved_base_url=resolved_base_url,
+            )
+            llm["api_key_env"] = api_key_env
+            llm.pop("api_key", None)
+        else:
+            if not api_key and _uses_nim_llm_credentials(llm):
+                api_key = llm_overrides["nim_api_key"]
+            _apply_endpoint_api_key_override(
+                llm,
+                api_key=api_key,
+                endpoint_changed=endpoint_changed,
+                resolved_base_url=resolved_base_url,
+            )
+
+
+def _validate_material_detail_policies(
+    material_textures: Any,
+    *,
+    default_policy: str,
+) -> None:
+    """Normalize detail_policy fields in material texture config, if present."""
+    if material_textures is None:
+        return
+    if not isinstance(material_textures, dict):
+        return
+    for material_name, spec in material_textures.items():
+        if not isinstance(spec, dict):
+            continue
+        key = f"material_textures.{material_name}.detail_policy"
+        material_policy = default_policy
+        if "detail_policy" in spec:
+            material_policy = normalize_detail_policy(
+                spec.get("detail_policy"),
+                config_key=key,
+                default=default_policy,
+            )
+            spec["detail_policy"] = material_policy
+        per_prim = spec.get("per_prim")
+        if not isinstance(per_prim, dict):
+            continue
+        for prim_path, override in per_prim.items():
+            if not isinstance(override, dict):
+                continue
+            if "detail_policy" in override:
+                override["detail_policy"] = normalize_detail_policy(
+                    override.get("detail_policy"),
+                    config_key=(
+                        f"material_textures.{material_name}.per_prim."
+                        f"{prim_path}.detail_policy"
+                    ),
+                    default=material_policy,
+                )
 
 
 def _env_value(name: str) -> str | None:
@@ -223,10 +308,12 @@ def _apply_endpoint_api_key_override(
     """Update endpoint-scoped API keys after runtime endpoint overrides."""
     if api_key:
         section["api_key"] = api_key
+        section.pop("api_key_env", None)
         return
 
     if endpoint_changed:
         section.pop("api_key", None)
+        section.pop("api_key_env", None)
 
     if (
         isinstance(resolved_base_url, str)
@@ -257,6 +344,7 @@ def config_to_context(config: dict[str, Any]) -> dict[str, Any]:
         "render_preview_config": config["steps"].get("render_previews", {}),
         "render_config": config["steps"].get("render", {}),
         "auto_prompt_config": config.get("auto_prompt", {}),
+        "planning_config": config.get("planning", {}),
         "variations_config": config.get("variations", {}),
         "steps": config.get("steps", {}),
         "config": config,

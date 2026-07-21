@@ -1,0 +1,59 @@
+[project]
+name = "content-agent-workflows"
+version = "0.1.0"
+description = "Reusable workflow contracts for agentic asset workflows"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "content-workbench",
+    "content-workbench-agent-client",
+    "filelock>=3.20.3",
+    "physics-agent",
+    "pillow>=12.1.1,<13.0.0",
+    "pydantic>=2.11,<3.0.0",
+    "PyYAML>=6.0,<7",
+    "requests>=2.32,<3",
+    "world-understanding",
+]
+
+[project.scripts]
+content-workflow-convert-to-usd = "content_agent_workflows.convert_to_usd.cli:main"
+content-workflow-convert-to-usd-preflight = "content_agent_workflows.convert_to_usd.preflight:main"
+content-workflow-scene-decompose = "content_agent_workflows.scene_decomposition.cli:main"
+content-workflow-large-scene = "content_agent_workflows.large_scene.cli:main"
+content-workflow-simready-author-collision-filters = "content_agent_workflows.simready.collision_filter_plan:main"
+content-workflow-simready-conform-profile = "content_agent_workflows.simready.conform_profile:main"
+content-workflow-simready-generate-grasp-plan = "content_agent_workflows.simready.grasp_plan_generator:main"
+content-workflow-simready-physics-profile-plan = "content_agent_workflows.simready.physics_profile_plan:main"
+content-workflow-simready-preflight = "content_agent_workflows.simready.preflight:main"
+content-workflow-simready-validate-profile = "content_agent_workflows.simready.validate_profile:main"
+
+[tool.uv.sources]
+content-workbench = { path = "../content_workbench", editable = true }
+content-workbench-agent-client = { path = "../content_workbench_agent_client", editable = true }
+physics-agent = { path = "../../../apps/physics_agent", editable = true }
+world-understanding = { path = "../../..", editable = true }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "ruff>=0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["content_agent_workflows"]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.32.0"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]

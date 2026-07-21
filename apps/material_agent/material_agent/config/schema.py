@@ -29,10 +29,8 @@ from material_agent.api.defaults import (
     DEFAULT_JUDGE_BACKEND,
     DEFAULT_JUDGE_MAX_TOKENS,
     DEFAULT_JUDGE_MODEL,
-    DEFAULT_JUDGE_REASONING_EFFORT,
     DEFAULT_JUDGE_TEMPERATURE,
     DEFAULT_VLM_BACKEND,
-    DEFAULT_VLM_LLMGATEWAY_CONFIG,
     DEFAULT_VLM_MAX_TOKENS,
     DEFAULT_VLM_MODEL,
     DEFAULT_VLM_REASONING_EFFORT,
@@ -46,6 +44,7 @@ STEP_OUTPUT_DIRS = {
     "render_preview": "preview",
     "identify_asset": "identification",
     "generate_reference_image": "generated_refs",
+    "generate_material_library": "generated_material_library",
     "build_dataset_usd": "dataset/usd",
     "build_dataset_pdf_vectorstore": "vectorstore",
     "build_dataset_prepare_dataset": "dataset",
@@ -53,6 +52,7 @@ STEP_OUTPUT_DIRS = {
     "predict": "predictions",
     "expand_cluster_predictions": "predictions",
     "benchmark": "predictions",
+    "create_materials": "created_materials",
     "evaluate": "evaluation",
     "refine": "iterations",
     "restore_usd": "restored",
@@ -67,6 +67,7 @@ STEP_ORDER = [
     "render_preview",
     "identify_asset",
     "generate_reference_image",
+    "generate_material_library",
     "build_dataset_usd",
     "build_dataset_pdf_vectorstore",
     "build_dataset_prepare_dataset",
@@ -76,6 +77,7 @@ STEP_ORDER = [
     "benchmark",
     "validate_predictions",  # Validate/repair VLM predictions against material library
     "harmonize_predictions",  # Resolve conflicts for instanced parts
+    "create_materials",  # Create run-local materials before restore/apply
     "restore_usd",  # Restore predictions before applying materials
     "apply",
     "evaluate",
@@ -126,6 +128,7 @@ def get_default_config() -> dict[str, Any]:
             # Only include it if you want to override the default
             "layer_only": False,
             "flatten_output": True,
+            "material_profile": "auto",
         },
         "materials": {
             "library_path": None,
@@ -148,7 +151,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
     Returns:
         Dictionary with default step configuration
     """
-    defaults = {
+    defaults: dict[str, dict[str, Any]] = {
         "build_dataset_usd": {
             "enabled": True,
             "renderer": {
@@ -229,7 +232,6 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
                 "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
             },
             "llm": {},  # Optional LLM for response parsing
@@ -275,7 +277,6 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
                 "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
             },
             "llm": {},
@@ -284,8 +285,6 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_JUDGE_MODEL,
                 "temperature": DEFAULT_JUDGE_TEMPERATURE,
                 "max_tokens": DEFAULT_JUDGE_MAX_TOKENS,
-                "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
-                "reasoning_effort": DEFAULT_JUDGE_REASONING_EFFORT,
             },
             "max_workers": 64,
             "allow_empty_predictions": False,
@@ -362,6 +361,41 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "prompt": "",
             "num_images": 1,
             "reference_images": [],
+        },
+        "generate_material_library": {
+            "enabled": False,
+            "material_generation_plan_path": None,
+            "material_generation_plan": None,
+            "vlm": {
+                "backend": DEFAULT_VLM_BACKEND,
+                "model": DEFAULT_VLM_MODEL,
+                "temperature": DEFAULT_VLM_TEMPERATURE,
+                "max_tokens": DEFAULT_VLM_MAX_TOKENS,
+                "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+            },
+            "texture_generation": {
+                "texture_size": 1024,
+                "backend": None,
+                "model": None,
+                "base_url": None,
+                "api_key": None,
+                "api_key_env_var": None,
+                "seed": None,
+                "color_correct_albedo": True,
+                "albedo_color_correction_strength": 1.0,
+            },
+            "write_material_generation_plan": True,
+            "include_generation_metadata": True,
+            "reference_images": [],
+            "material_guidance": "",
+        },
+        "create_materials": {
+            "enabled": False,
+            "backend": "fake",
+            "fake_behavior": "success",
+            "creation_requests": [],
+            "fail_on_error": True,
+            "overwrite": False,
         },
         "identify_asset": {
             "enabled": False,

@@ -7,20 +7,24 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from PIL import Image
 
-logger = logging.getLogger(__name__)
+from world_understanding.functions.graphics.rendering import RenderingBackend
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    create_rendering_backend,
+    validate_rendering_backend_name,
+)
 
-RendererName = Literal["nvcf", "ovrtx", "warp"]
+logger = logging.getLogger(__name__)
 
 
 def render_time_sampled_usd(
     time_sampled_usd: Path | str,
     output_dir: Path | str,
     *,
-    renderer: RendererName = "ovrtx",
+    renderer: str = "ovrtx",
     frames: str | None = None,
     fps: int | None = None,
     cameras: list[str] | None = None,
@@ -48,10 +52,12 @@ def render_time_sampled_usd(
       until native OVRTX 0.3 sampling is validated), visibility (replayed via
       per-frame static overlay layers around an historical OvRTX 0.2.0
       visibility crash until 0.3 GPU validation proves native visibility
-      safe), and time-sampled camera transforms. NVCF inherits this when backed
-      by the same OvRTX service path.
+      safe), and time-sampled camera transforms. The remote backend inherits
+      this when backed by the same OvRTX service path.
     * **Warp** — preview-quality only; mesh geometry is sampled at the
       first frame and not re-evaluated per timecode.
+    * **Mock** — deterministic CPU-only per-frame images for tests and
+      simulation. These are not production visual evidence.
 
     Anything *outside* the channels listed above (e.g. animated
     `points`/topology, animated UsdShade materials, animated lights,
@@ -60,6 +66,8 @@ def render_time_sampled_usd(
     time samples. Rigid-body simulation evidence — translating bodies
     plus camera motion — is the intended primary use case.
     """
+
+    renderer = validate_rendering_backend_name(renderer)
 
     usd_path = Path(time_sampled_usd)
     if not usd_path.exists():
@@ -80,17 +88,17 @@ def render_time_sampled_usd(
     _validate_frame_caps(frame_list, fps_value, max_duration_seconds)
     frames_arg = _format_frames(frame_list)
 
-    # NVCF's remote frame parser only accepts ``"N"`` and ``"start:end"``
+    # The remote frame parser only accepts ``"N"`` and ``"start:end"``
     # (see render_remote.render_single_camera_from_url). A sparse spec
     # like ``"0,5,10"`` would raise ``int(...)`` mid-request and produce
     # an opaque error — surface a precise message up front so callers
     # can switch renderer or expand the selection.
-    if renderer == "nvcf" and "," in frames_arg:
+    if renderer == "remote" and "," in frames_arg:
         raise ValueError(
-            f"renderer='nvcf' does not support sparse frame selections "
+            f"renderer='remote' does not support sparse frame selections "
             f"(got {frames_arg!r}). Use a contiguous range "
             "(e.g. '0:10'), a single frame, or switch to "
-            "renderer='ovrtx'/'warp'."
+            "renderer='ovrtx'/'warp'/'mock'."
         )
 
     # Override only the in-memory stage metadata. The source USD file is not
@@ -267,20 +275,9 @@ def _format_frames(frame_list: list[int]) -> str:
     return ",".join(str(frame) for frame in ordered)
 
 
-def _make_backend(renderer: RendererName) -> Any:
-    from world_understanding.functions.graphics.rendering import (
-        NVCFRenderingBackend,
-        OvRTXRenderingBackend,
-        WarpRenderingBackend,
-    )
-
-    if renderer == "nvcf":
-        return NVCFRenderingBackend()
-    if renderer == "ovrtx":
-        return OvRTXRenderingBackend()
-    if renderer == "warp":
-        return WarpRenderingBackend()
-    raise ValueError(f"Unsupported renderer: {renderer!r}")
+def _make_backend(renderer: str) -> RenderingBackend:
+    """Delegate time-sampled rendering to the canonical backend factory."""
+    return create_rendering_backend(renderer)
 
 
 def _save_rendered_images(
@@ -357,7 +354,7 @@ def _maybe_write_mp4(
     png_paths: list[Path], output_path: Path, fps_value: float
 ) -> None:
     try:
-        import imageio.v3 as iio  # type: ignore[import-not-found]
+        import imageio.v3 as iio  # type: ignore[import-not-found,unused-ignore]
         import numpy as np
     except ImportError:
         logger.info("imageio is unavailable; skipping mp4 creation")

@@ -3,8 +3,8 @@
 Repository: `NVIDIA-Omniverse/content-agents`
 
 Content Agents provides OpenUSD/USD workflow agents for VLM-based material
-assignment, physics property classification, AI texture generation, and
-Validation Agent research-preview workflows.
+assignment, physics property classification, joint and articulation authoring,
+AI texture generation, and validation workflows.
 
 ## Product Workflows
 
@@ -12,8 +12,9 @@ Validation Agent research-preview workflows.
 |---|---|---|---|
 | Material Agent | `apps/material_agent/README.md` | `material-agent run apps/material_agent/configs/unified_example.yaml` | `apps/material_agent_service/README.md` |
 | Physics Agent | `apps/physics_agent/README.md` | `physics-agent run apps/physics_agent/configs/lightbulb.yaml` | `apps/physics_agent_service/README.md` |
+| Joint Agent (0.5 Research Preview) | `apps/joint_agent/README.md` | `joint-agent run apps/joint_agent/configs/byoa_joint_rigger.yaml --dry-run` | `apps/joint_agent_service/README.md` |
 | Texture Agent | `apps/texture_agent/README.md` | `texture-agent run apps/texture_agent/configs/texture_example.yaml` | `apps/texture_agent_service/README.md` |
-| Validation Agent (Research Preview) | `apps/validation_agent/README.md` | `validation-agent run apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml` | CLI/Python contracts only in release 0.4 |
+| Validation Agent (Research Preview) | `apps/validation_agent/README.md` | `validation-agent run apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml` | CLI/Python contracts only in release 0.5 |
 
 ## Setup
 
@@ -24,7 +25,7 @@ For local CLI mode:
 ```bash
 uv venv --python=3.12
 source .venv/bin/activate
-uv pip install -e . -e apps/material_agent -e apps/physics_agent -e apps/texture_agent -e apps/validation_agent
+uv pip install -e . -e apps/material_agent -e apps/physics_agent -e apps/joint_agent -e apps/texture_agent -e apps/validation_agent
 ./scripts/fetch_build_resources.sh
 ```
 
@@ -34,6 +35,7 @@ environment file:
 ```bash
 docker compose --env-file .env -f apps/material_agent_service/docker-compose.yml up --build
 docker compose --env-file .env -f apps/physics_agent_service/docker-compose.yml up --build
+docker compose --env-file .env -f apps/joint_agent_service/docker-compose.yml up --build
 docker compose --env-file .env -f apps/texture_agent_service/docker-compose.yml up --build
 ```
 
@@ -61,24 +63,40 @@ Public VLM backends:
 - Short machine-readable index: `llms.txt`
 - Full machine-readable index: `llms-full.txt`
 
-Start coding agents from the repo root. Keep API keys in `.env`; do not print,
-commit, or paste secrets into chat.
+Start coding agents from the repo root for repo-level workflows. Start Agentic
+Workflow agents from `agentic/` so they discover the isolated preview skills.
+Keep API keys in `.env`; do not print, commit, or paste secrets into chat.
 
 ## Public Skill Inventory
 
-Canonical skills live under `.agents/skills/`. `.codex/skills/` and
-`.claude/skills/` mirror the same content for agents that expect tool-specific
-skill directories.
+Canonical repo-root skills live under `.agents/skills/`; start repo-level
+workflows from the repository root. Agentic Workflow preview skills live under
+`agentic/.agents/skills/`; start those agents from `agentic/` for both batch
+launches and interactive workflows. `.codex/skills/` and `.claude/skills/`
+mirror the same content for agents that expect tool-specific skill directories.
 
 | Task | Canonical skill | Codex mirror | Claude mirror |
 |---|---|---|---|
 | Quick local POC | `.agents/skills/quickstart` | `.codex/skills/quickstart` | `.claude/skills/quickstart` |
+| Agentic Workbench | `agentic/.agents/skills/content-workbench` | `agentic/.codex/skills/content-workbench` | `agentic/.claude/skills/content-workbench` |
+| Agentic batch launcher | `agentic/.agents/skills/content-workflow-cli` | `agentic/.codex/skills/content-workflow-cli` | `agentic/.claude/skills/content-workflow-cli` |
+| Agentic convert to USD | `agentic/.agents/skills/content-workflow-convert-to-usd` | `agentic/.codex/skills/content-workflow-convert-to-usd` | `agentic/.claude/skills/content-workflow-convert-to-usd` |
+| Agentic material workflow | `agentic/.agents/skills/content-workflow-material` | `agentic/.codex/skills/content-workflow-material` | `agentic/.claude/skills/content-workflow-material` |
+| Agentic physics workflow | `agentic/.agents/skills/content-workflow-physics` | `agentic/.codex/skills/content-workflow-physics` | `agentic/.claude/skills/content-workflow-physics` |
+| Agentic SimReady workflow | `agentic/.agents/skills/content-workflow-simready` | `agentic/.codex/skills/content-workflow-simready` | `agentic/.claude/skills/content-workflow-simready` |
+| Agentic large-scene coordinator | `agentic/.agents/skills/content-workflow-large-scene` | `agentic/.codex/skills/content-workflow-large-scene` | `agentic/.claude/skills/content-workflow-large-scene` |
+| Agentic scene decomposition | `agentic/.agents/skills/content-workflow-scene-decomposition` | `agentic/.codex/skills/content-workflow-scene-decomposition` | `agentic/.claude/skills/content-workflow-scene-decomposition` |
+| Agentic asset-task processing | `agentic/.agents/skills/content-workflow-asset-task-processing` | `agentic/.codex/skills/content-workflow-asset-task-processing` | `agentic/.claude/skills/content-workflow-asset-task-processing` |
+| Agentic scene collection | `agentic/.agents/skills/content-workflow-scene-collection` | `agentic/.codex/skills/content-workflow-scene-collection` | `agentic/.claude/skills/content-workflow-scene-collection` |
 | Material CLI | `.agents/skills/material-agent-cli` | `.codex/skills/material-agent-cli` | `.claude/skills/material-agent-cli` |
 | Material service client | `.agents/skills/material-agent-client` | `.codex/skills/material-agent-client` | `.claude/skills/material-agent-client` |
 | Material Docker deploy | `.agents/skills/deploy-material-agent-docker` | `.codex/skills/deploy-material-agent-docker` | `.claude/skills/deploy-material-agent-docker` |
 | Physics CLI | `.agents/skills/physics-agent-cli` | `.codex/skills/physics-agent-cli` | `.claude/skills/physics-agent-cli` |
 | Physics service client | `.agents/skills/physics-agent-client` | `.codex/skills/physics-agent-client` | `.claude/skills/physics-agent-client` |
 | Physics Docker deploy | `.agents/skills/deploy-physics-agent-docker` | `.codex/skills/deploy-physics-agent-docker` | `.claude/skills/deploy-physics-agent-docker` |
+| Joint CLI (0.5 Research Preview) | `.agents/skills/joint-agent-cli` | `.codex/skills/joint-agent-cli` | `.claude/skills/joint-agent-cli` |
+| Joint service client | `.agents/skills/joint-agent-client` | `.codex/skills/joint-agent-client` | `.claude/skills/joint-agent-client` |
+| Joint Gate 3 validation | `.agents/skills/joint-agent-validation` | `.codex/skills/joint-agent-validation` | `.claude/skills/joint-agent-validation` |
 | Texture CLI | `.agents/skills/texture-agent-cli` | `.codex/skills/texture-agent-cli` | `.claude/skills/texture-agent-cli` |
 | Texture service client | `.agents/skills/texture-agent-client` | `.codex/skills/texture-agent-client` | `.claude/skills/texture-agent-client` |
 | Texture Docker deploy | `.agents/skills/deploy-texture-agent-docker` | `.codex/skills/deploy-texture-agent-docker` | `.claude/skills/deploy-texture-agent-docker` |
@@ -122,6 +140,9 @@ uv pip install -e ".[dev]"
   output directory, with a CI-oriented verdict and per-template statuses.
 - Physics Agent CLI writes prediction artifacts and reports generated physics
   results for the configured asset.
+- Joint Agent CLI writes Stage 2 candidates and an `owned_core` USDZ for an
+  accepted joint graph. Gate 3A/B provide separate static validation evidence,
+  not dynamic simulation proof.
 - Texture Agent CLI writes generated texture artifacts, a textured USD/USDZ,
   and `artifacts_manifest.json` under the configured working directory.
 - REST services expose FastAPI endpoints and return session status/results for

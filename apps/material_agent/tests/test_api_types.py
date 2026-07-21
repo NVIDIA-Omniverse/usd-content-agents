@@ -116,16 +116,25 @@ class TestAssignmentStats:
         assert stats.materials_applied == 0
         assert stats.total_prims == 0
         assert stats.failed == 0
+        assert stats.bound_prim_ids == []
+        assert stats.unbound_prim_ids == []
 
     def test_assignment_stats_with_values(self):
         """Test AssignmentStats with custom values."""
         stats = AssignmentStats(
-            materials_created=10, materials_applied=8, total_prims=15, failed=2
+            materials_created=10,
+            materials_applied=8,
+            total_prims=15,
+            failed=2,
+            bound_prim_ids=["/Root/A"],
+            unbound_prim_ids=["/Root/B"],
         )
         assert stats.materials_created == 10
         assert stats.materials_applied == 8
         assert stats.total_prims == 15
         assert stats.failed == 2
+        assert stats.bound_prim_ids == ["/Root/A"]
+        assert stats.unbound_prim_ids == ["/Root/B"]
 
 
 class TestDownloadStats:

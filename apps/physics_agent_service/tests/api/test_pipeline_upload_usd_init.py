@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Regression tests for NVBug 6128078 / OMPE-91903.
+"""Regression tests for persisted upload-session initialization.
 
 ``POST /pipeline/upload-usd`` previously created a session, wrote the
 uploaded USD to disk, and returned ``status: "ready"`` in the HTTP
@@ -234,6 +234,12 @@ class TestUploadUsdInit:
 
         from ...service.routers import pipeline_router
 
+        monkeypatch.setattr(
+            pipeline_router.config,
+            "s3_allowed_buckets",
+            "example-bucket",
+        )
+
         def _fake_download(s3_uri: str, session_dir: Path) -> Path:
             ext = Path(s3_uri).suffix.lower() or ".usd"
             local_path = session_dir / "input" / f"scene{ext}"
@@ -245,7 +251,7 @@ class TestUploadUsdInit:
 
         upload_r = await client.post(
             "/pipeline/upload-usd",
-            data={"s3_uri": "s3://omni-genai-dev-bucket/path/Astronaut.usdz"},
+            data={"s3_uri": "s3://example-bucket/path/Astronaut.usdz"},
         )
         assert upload_r.status_code == 201, upload_r.text
         sid = upload_r.json()["session_id"]
@@ -256,5 +262,5 @@ class TestUploadUsdInit:
             f"S3 branch recorded local filename instead of S3 object basename: "
             f"{cfg['original_filename']!r}"
         )
-        assert cfg["s3_uri"] == "s3://omni-genai-dev-bucket/path/Astronaut.usdz"
+        assert cfg["s3_uri"] == "s3://example-bucket/path/Astronaut.usdz"
         assert cfg["has_usd_upload"] is True

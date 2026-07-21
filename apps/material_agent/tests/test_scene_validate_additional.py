@@ -18,6 +18,7 @@ from material_agent.scene.validate import (
     _check_topology_and_instances,
     _count_predictions,
     _validate_payload_group,
+    format_asset_report,
     validate_asset,
     validate_scene,
     validate_scene_outputs,
@@ -164,6 +165,20 @@ class TestValidateAssetAdditional:
         assert report.has_predictions is True
         assert any("simulate mode" in warning for warning in report.warnings)
 
+    def test_simulate_asset_without_state_warns_for_empty_predictions(
+        self, tmp_path: Path
+    ) -> None:
+        working_dir = tmp_path / ".asset"
+        working_dir.mkdir()
+        (working_dir / ".simulate").touch()
+        _write_predictions(working_dir, lines=[""])
+
+        report = validate_asset(working_dir)
+
+        assert report.status == "completed"
+        assert report.predictions_count == 0
+        assert any("0 entries" in warning for warning in report.warnings)
+
     def test_reports_cannot_open_output_layer(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
@@ -302,6 +317,28 @@ class TestCheckTopologyAndInstances:
 
         assert any("Could not check topology" in warning for warning in report.warnings)
 
+    def test_missing_input_usd_skips_topology_checks(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        output_path = tmp_path / "output.usd"
+        output_path.touch()
+        config_path = tmp_path / "asset.yaml"
+        config_path.write_text(
+            yaml.safe_dump({"input": {"usd_path": "missing_input.usd"}})
+        )
+        report = AssetReport(name="asset")
+
+        monkeypatch.setattr(
+            validate_mod,
+            "check_topology_match",
+            lambda *_args: (_ for _ in ()).throw(AssertionError("not called")),
+        )
+
+        _check_topology_and_instances(config_path, output_path, report)
+
+        assert report.warnings == []
+        assert report.errors == []
+
 
 class TestValidatePayloadGroup:
     def test_completed_payload_without_predictions_or_output_reports_problems(
@@ -384,6 +421,87 @@ class TestValidateScene:
         report = validate_scene(scene_config)
 
         assert report.errors == []
+
+    def test_rejects_non_mapping_scene_config(self, tmp_path: Path) -> None:
+        scene_config = tmp_path / "scene.yaml"
+        scene_config.write_text("- not\n- a\n- mapping\n")
+
+        report = validate_scene(scene_config)
+
+        assert any("YAML mapping" in error for error in report.errors)
+
+    def test_non_mapping_project_uses_default_scene_manifest(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        scene_config = tmp_path / "scene.yaml"
+        scene_config.write_text(yaml.safe_dump({"project": "not-a-mapping"}))
+        captured: dict[str, Path] = {}
+
+        def _fake_validate_scene_outputs(
+            *,
+            manifest_path: Path,
+            working_dir: Path | None = None,
+            composed_scene_path: Path | None = None,
+            verbose: bool = False,
+        ) -> validate_mod.SceneReport:
+            captured["manifest_path"] = manifest_path
+            captured["working_dir"] = working_dir or Path()
+            assert composed_scene_path is None
+            assert verbose is False
+            return validate_mod.SceneReport()
+
+        monkeypatch.setattr(
+            validate_mod, "validate_scene_outputs", _fake_validate_scene_outputs
+        )
+
+        report = validate_scene(scene_config)
+
+        assert report.errors == []
+        assert captured["manifest_path"] == tmp_path / ".scene_scene" / "manifest.json"
+        assert captured["working_dir"] == tmp_path / ".scene_scene"
+
+    def test_validate_scene_outputs_resolves_relative_config_from_manifest_dir(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        manifest_dir = tmp_path / "scene_work"
+        manifest_dir.mkdir()
+        config_path = manifest_dir / "configs" / "asset.yaml"
+        config_path.parent.mkdir()
+        config_path.write_text("project: {}\n")
+        manifest_path = manifest_dir / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "sub_assets": [
+                        {
+                            "id": "asset-a",
+                            "name": "AssetA",
+                            "config_path": "configs/asset.yaml",
+                            "working_dir": "asset_work",
+                            "status": "completed",
+                        }
+                    ],
+                    "instance_groups": [],
+                    "payload_groups": [],
+                }
+            )
+        )
+        captured: list[Path] = []
+
+        def _fake_validate_asset(
+            working_dir: Path, _verbose: bool = False
+        ) -> AssetReport:
+            captured.append(working_dir)
+            assert _verbose is False
+            return AssetReport(name="AssetA", status="completed")
+
+        monkeypatch.setattr(validate_mod, "validate_asset", _fake_validate_asset)
+
+        report = validate_scene_outputs(manifest_path=manifest_path)
+
+        assert report.errors == []
+        assert captured == [(manifest_dir / "configs" / "asset_work").resolve()]
+        assert [asset.name for asset in report.assets] == ["AssetA"]
 
     def test_validate_scene_outputs_uses_manifest_working_dir_and_composed_path(
         self, tmp_path: Path
@@ -759,3 +877,16 @@ class TestValidateScene:
             "Could not validate composed scene" in warning
             for warning in report.warnings
         )
+
+
+class TestFormatAssetReportAdditional:
+    def test_verbose_success_report_includes_warnings(self) -> None:
+        report = AssetReport(
+            name="asset",
+            status="completed",
+            warnings=["predictions were simulated"],
+        )
+
+        lines = format_asset_report(report, verbose=True)
+
+        assert any("WARN:  predictions were simulated" in line for line in lines)

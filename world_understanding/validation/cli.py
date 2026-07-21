@@ -38,6 +38,9 @@ from world_understanding.validation.models import (
     ValidationVerdict,
     aggregate_validation_verdict,
 )
+from world_understanding.validation.rendering_backend_contract import (
+    normalize_validation_rendering_backend,
+)
 from world_understanding.validation.scaffold_compat import (
     validation_result_from_scaffold_result,
 )
@@ -377,6 +380,11 @@ def run_validation_request(
         _validate_requested_templates(request.requested_templates)
         base_dir = Path(config_base_dir).expanduser().resolve(strict=False)
         resolved_output_dir = Path(output_dir).expanduser().resolve(strict=False)
+
+        # Validate and normalize the policy before creating or replacing run
+        # artifacts so selector conflicts cannot leave a mixed artifact set.
+        scaffold_policy = _scaffold_policy_from_request(request, base_dir=base_dir)
+
         resolved_output_dir.mkdir(parents=True, exist_ok=True)
 
         request_artifact_path = resolved_output_dir / REQUEST_ARTIFACT_NAME
@@ -397,7 +405,7 @@ def run_validation_request(
             base_dir=base_dir,
             focus_prim_paths=request.focus.prim_paths,
             requested_templates=request.requested_templates,
-            policy=_scaffold_policy_from_request(request, base_dir=base_dir),
+            policy=scaffold_policy,
             dry_run=dry_run,
             metadata=_scaffold_metadata_from_request(request),
         )
@@ -586,7 +594,18 @@ def _scaffold_policy_from_request(
     if base_dir is not None:
         policy = _resolve_policy_path_fields(policy, base_dir=Path(base_dir))
     if request.render.backend is not None:
-        policy.setdefault("render_backend", request.render.backend)
+        legacy_backend = policy.get("render_backend")
+        if legacy_backend is not None and (
+            normalize_validation_rendering_backend(legacy_backend)
+            != normalize_validation_rendering_backend(request.render.backend)
+        ):
+            raise ValidationCliError(
+                "Conflicting rendering backends: render.backend is "
+                f"{request.render.backend!r}, but legacy policy.render_backend is "
+                f"{legacy_backend!r}. Remove policy.render_backend or make the values "
+                "match."
+            )
+        policy["render_backend"] = request.render.backend
     if request.render.views is not None:
         policy.setdefault(
             "expected_cameras",

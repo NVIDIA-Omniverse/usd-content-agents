@@ -5,6 +5,9 @@
 
 This example demonstrates the simplest way to use Material Agent APIs
 using convenience functions with minimal parameters.
+
+Replace every ``path/to/...`` placeholder with a configuration you authored
+for that individual API. The pipeline example uses the shipped public config.
 """
 
 from pathlib import Path
@@ -22,7 +25,7 @@ def example_minimal_benchmark():
     print("=" * 70)
 
     # Just pass the config - that's it!
-    result = benchmark(Path("configs/benchmark_azure.yaml"))
+    result = benchmark(Path("path/to/benchmark_config.yaml"))
 
     if result.success:
         print(f"✓ FCS: {result.metrics.functional_correctness_score}")
@@ -39,7 +42,7 @@ def example_minimal_pipeline():
 
     # Run complete pipeline with defaults
     # Note: No need to specify output paths - auto-derived from session ID!
-    result = pipeline(Path("configs/unified_ladder.yaml"))
+    result = pipeline(Path("apps/material_agent/configs/unified_example.yaml"))
 
     if result.success:
         print(f"✓ Completed {len(result.completed_steps)} steps")
@@ -62,7 +65,7 @@ def example_minimal_with_overrides():
 
     # Pass config + any optional kwargs you need
     result = benchmark(
-        Path("configs/benchmark_azure.yaml"),
+        Path("path/to/benchmark_config.yaml"),
         verbose=True,  # Optional
         resume=True,  # Optional
     )
@@ -81,7 +84,7 @@ def example_minimal_dict_config():
 
     # Build config programmatically
     config = {
-        "model": {"service": "azure", "name": "gpt-4o"},
+        "model": {"service": "azure", "name": "example-vlm-model"},
         "dataset_path": "data/benchmark_dataset.jsonl",
         "output_dir": "output/",
     }

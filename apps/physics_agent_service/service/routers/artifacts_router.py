@@ -7,11 +7,23 @@ import json
 import logging
 import tempfile
 import zipfile
+from itertools import chain
 from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    OpenArtifactFile,
+    iter_open_regular_files,
+    open_confined_directory,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.held_file_response import HeldFileResponse
 
 from ..session.manager import SessionManager
 
@@ -94,9 +106,17 @@ async def _serve_artifact(
 ) -> FileResponse | StreamingResponse:
     """Serve an artifact from local disk or store (S3)."""
     # Try local path first (fast path for the executing instance)
-    local_path = await manager.get_artifact_path(session_id, artifact_type)
-    if local_path:
-        return FileResponse(local_path, media_type=media_type, filename=filename)
+    local_artifact = await manager.get_local_artifact_stream(
+        session_id,
+        artifact_type,
+    )
+    if local_artifact is not None:
+        artifact, _ = local_artifact
+        return HeldFileResponse(
+            artifact,
+            media_type=media_type,
+            filename=filename,
+        )
 
     # Fall back to store (S3 — works cross-instance)
     stream = await manager.get_artifact_stream(session_id, artifact_type)
@@ -199,6 +219,55 @@ def _write_local_output_usd_bundle(output_path: Path) -> Path | None:
         raise
 
     return zip_path
+
+
+def _write_open_output_usd_bundle(
+    storage_root: Path,
+    session_id: str,
+    output_artifact: OpenArtifactFile,
+    relative_key: str,
+) -> Path | None:
+    """Bundle one held output and safely traversed sidecars, if any exist."""
+
+    output_name = PurePosixPath(relative_key).name
+    sidecar_name = f"{PurePosixPath(relative_key).stem}_assets"
+    sidecar_prefix = (
+        f"{session_id}/{PurePosixPath(relative_key).parent.as_posix()}/{sidecar_name}/"
+    )
+    with open_confined_directory(storage_root) as root_descriptor:
+        sidecars = iter_open_regular_files(
+            root_descriptor,
+            prefix=sidecar_prefix,
+        )
+        try:
+            first_sidecar = next(sidecars, None)
+            if first_sidecar is None:
+                return None
+
+            zip_path = _new_temp_zip_path()
+            try:
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
+                    archive.writestr(
+                        _archive_name_for_output_file(output_name),
+                        output_artifact.stream.read(),
+                    )
+                    for sidecar in chain((first_sidecar,), sidecars):
+                        sidecar_relative = PurePosixPath(
+                            sidecar.relative_key.removeprefix(sidecar_prefix)
+                        )
+                        archive.writestr(
+                            _archive_name_for_sidecar(
+                                sidecar_name,
+                                sidecar_relative,
+                            ),
+                            sidecar.stream.read(),
+                        )
+            except Exception:
+                _cleanup_temp_file(zip_path)
+                raise
+            return zip_path
+        finally:
+            sidecars.close()
 
 
 def _store_output_sidecar_prefix(output_key: str) -> str:
@@ -322,13 +391,25 @@ async def view_prediction_report(session_id: str):
                 session_dir, predictions_path, dataset_path
             )
             logger.info(f"Report generated on-demand for {session_id[:8]}")
-        except Exception as e:
-            logger.error(f"Failed to generate report for {session_id[:8]}: {e}")
-            raise HTTPException(
-                status_code=500, detail=f"Report generation failed: {str(e)}"
+        except Exception:
+            log_durable_failure(
+                logger,
+                "physics_prediction_report_publication_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
             )
+            raise HTTPException(
+                status_code=500,
+                detail="Report generation failed",
+            ) from None
 
-    return FileResponse(report_path, media_type="text/html")
+    report_artifact = await manager.open_local_artifact_key(
+        session_id,
+        "cache/predictions/report.html",
+    )
+    if report_artifact is None:
+        raise HTTPException(status_code=404, detail="Prediction report not available")
+    return HeldFileResponse(report_artifact, media_type="text/html")
 
 
 @router.get("/{session_id}/dataset")
@@ -373,19 +454,35 @@ async def download_output_usd(session_id: str) -> Response:
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
-    local_path = await manager.get_artifact_path(session_id, "output_usd")
-    if local_path:
-        bundle_path = _write_local_output_usd_bundle(local_path)
-        if bundle_path:
-            return _zip_file_response(
-                bundle_path,
-                _output_usd_bundle_filename(local_path.name),
+    local_output = await manager.get_local_artifact_stream(session_id, "output_usd")
+    if local_output is not None:
+        output_artifact, relative_key = local_output
+        filename = PurePosixPath(relative_key).name
+        try:
+            try:
+                bundle_path = _write_open_output_usd_bundle(
+                    manager.storage_path,
+                    session_id,
+                    output_artifact,
+                    relative_key,
+                )
+            except ArtifactPathError:
+                logger.warning("Ignoring unsafe local output USD sidecar tree")
+                bundle_path = None
+            if bundle_path:
+                output_artifact.stream.close()
+                return _zip_file_response(
+                    bundle_path,
+                    _output_usd_bundle_filename(filename),
+                )
+            return HeldFileResponse(
+                output_artifact,
+                media_type=_usd_media_type(filename),
+                filename=filename,
             )
-        return FileResponse(
-            local_path,
-            media_type=_usd_media_type(local_path),
-            filename=local_path.name,
-        )
+        except BaseException:
+            output_artifact.stream.close()
+            raise
 
     keys = await manager.list_artifact_keys(session_id, "output_usd")
     if keys:

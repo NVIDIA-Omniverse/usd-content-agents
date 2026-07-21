@@ -25,7 +25,9 @@ import pytest
 import yaml
 
 from physics_agent.tasks.iterative_physics_refinement import (
+    IterationRecord,
     IterativePhysicsRefinementTask,
+    _compact_refine_history,
 )
 from physics_agent.tuning.types import (
     Scenario,
@@ -55,6 +57,22 @@ def _scenario_yaml_dict(metric: str = "settle_distance") -> dict[str, Any]:
         "target": {"drop_height_m": 0.5, "duration_s": 2.0, "gravity": -9.81},
         "parameters": [
             {"name": "restitution", "min": 0.4, "max": 0.95},
+            {"name": "mass_scale", "min": 0.5, "max": 2.0},
+        ],
+    }
+
+
+def _freeform_scenario_yaml_dict() -> dict[str, Any]:
+    return {
+        "name": "freeform",
+        "metric": "judge_score",
+        "target": {
+            "description": "realistic generated rollout",
+            "duration_s": 2.0,
+            "observations": ["the object behaves realistically"],
+        },
+        "parameters": [
+            {"name": "restitution", "min": 0.0, "max": 1.0},
             {"name": "mass_scale", "min": 0.5, "max": 2.0},
         ],
     }
@@ -94,6 +112,10 @@ def _make_tune_output(
     )
 
 
+def _json_payload_from_prompt(prompt: str) -> dict[str, Any]:
+    return json.loads(prompt[prompt.index("{") :])
+
+
 # ---------------------------------------------------------------------------
 # Fake run_tune that records calls and returns canned outputs
 # ---------------------------------------------------------------------------
@@ -131,6 +153,12 @@ class _FakeRunTune:
 def _write_initial_yaml(tmp_path: Path) -> Path:
     p = tmp_path / "scenario.yaml"
     p.write_text(yaml.safe_dump(_scenario_yaml_dict()), encoding="utf-8")
+    return p
+
+
+def _write_freeform_initial_yaml(tmp_path: Path) -> Path:
+    p = tmp_path / "scenario.yaml"
+    p.write_text(yaml.safe_dump(_freeform_scenario_yaml_dict()), encoding="utf-8")
     return p
 
 
@@ -176,15 +204,37 @@ def test_constructor_rejects_zero_iterations(tmp_path: Path) -> None:
         )
 
 
+def test_constructor_rejects_negative_history_window(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        IterativePhysicsRefinementTask(
+            user_prompt="bouncy",
+            initial_scenario=_scenario_yaml_dict(),
+            physics_usd=tmp_path / "fake.usda",
+            output_dir=tmp_path / "out",
+            history_window=-1,
+            run_tune_callable=_FakeRunTune(),
+        )
+
+
 def test_approve_at_first_iteration_short_circuits(tmp_path: Path) -> None:
     """Score >= threshold → judge returns approve → loop exits after 1 iter,
     refine is NOT called, final/ is populated."""
     initial = _write_initial_yaml(tmp_path)
+    worse_recording = tmp_path / "worse-recording.usd"
+    worse_recording.write_bytes(b"must not be selected")
     fake = _FakeRunTune(
         [
             _make_tune_output(
                 tmp_path / "out" / "iter_1",
-                history=[_trial(0, 0.0, settle_distance=0.0)],  # perfect → approve
+                history=[
+                    _trial(0, 0.0, settle_distance=0.0),  # perfect → approve
+                    _trial(
+                        1,
+                        0.1,
+                        settle_distance=0.1,
+                        recording_usd=str(worse_recording),
+                    ),
+                ],
                 best_score=0.0,
                 best_params={"restitution": 0.9, "mass_scale": 1.0},
             )
@@ -211,6 +261,10 @@ def test_approve_at_first_iteration_short_circuits(tmp_path: Path) -> None:
     assert final_dir.exists()
     assert (final_dir / "scenario.yaml").exists()
     assert (final_dir / "judge_result.json").exists()
+    assert result.final_recording_usd is None
+    assert result.final_recording_error == (
+        "winning trial did not persist recording_usd"
+    )
 
 
 def test_continue_then_approve_runs_refine_between(
@@ -316,6 +370,302 @@ def test_continue_then_approve_runs_refine_between(
     # refine_result.json captured for iter_1.
     refine_path = tmp_path / "out" / "iter_1" / "refine_result.json"
     assert refine_path.exists()
+
+
+def test_compact_prior_history_written_and_passed_to_judge_and_refiner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each iteration writes prior loop memory, and prompts receive only the
+    compact recent rows plus the best-so-far row when it falls outside the
+    recent window.
+    """
+    initial = _write_initial_yaml(tmp_path)
+    out_dir = tmp_path / "out"
+    fake_runner = _FakeRunTune(
+        [
+            _make_tune_output(
+                out_dir / "iter_1",
+                history=[_trial(0, 0.0, settle_distance=0.0)],
+                best_score=0.0,
+                best_params={"restitution": 0.9, "mass_scale": 1.0},
+            ),
+            _make_tune_output(
+                out_dir / "iter_2",
+                history=[_trial(0, 0.2, settle_distance=0.2)],
+                best_score=0.2,
+                best_params={"restitution": 0.8, "mass_scale": 1.0},
+            ),
+            _make_tune_output(
+                out_dir / "iter_3",
+                history=[_trial(0, 0.0, settle_distance=0.0)],
+                best_score=0.0,
+                best_params={"restitution": 0.95, "mass_scale": 1.0},
+            ),
+        ]
+    )
+
+    refine_prompts: list[str] = []
+
+    def fake_refine_chat(
+        chat_model: Any, prompt: str, *, system_prompt: str | None = None
+    ) -> dict[str, Any]:
+        refine_prompts.append(prompt)
+        return {
+            "response": json.dumps(
+                {
+                    "scenario": _scenario_yaml_dict(),
+                    "reasoning": "keep scenario for test",
+                }
+            )
+        }
+
+    class StubJudgeVLM:
+        def __init__(self) -> None:
+            self.scores = iter((0.6, 0.1, 1.0))
+            self.prompts: list[str] = []
+
+        def generate_with_image_caption_pairs(self, **kwargs: Any) -> str:
+            self.prompts.append(str(kwargs["final_prompt"]))
+            score = next(self.scores)
+            return json.dumps(
+                {
+                    "score": score,
+                    "decision": "approve" if score >= 1.0 else "continue",
+                    "reasoning": f"stubbed judge score {score}",
+                }
+            )
+
+    monkeypatch.setattr(
+        "physics_agent.tasks.scenario_refine.generate_chat_response",
+        fake_refine_chat,
+    )
+    judge_vlm = StubJudgeVLM()
+    task = IterativePhysicsRefinementTask(
+        user_prompt="make it bouncy",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=out_dir,
+        max_iterations=3,
+        history_window=1,
+        score_threshold=0.99,
+        chat_model=object(),
+        vlm_model=judge_vlm,
+        run_tune_callable=fake_runner,
+    )
+
+    result = task.run({})
+
+    assert result.termination_reason == "approved"
+    assert len(result.iterations) == 3
+    assert (
+        json.loads((out_dir / "iter_1" / "prior_refine_history.json").read_text()) == []
+    )
+
+    iter_2_history = json.loads(
+        (out_dir / "iter_2" / "prior_refine_history.json").read_text()
+    )
+    assert [row["iteration"] for row in iter_2_history] == [1]
+    assert iter_2_history[0]["parameter_bounds"]["restitution"] == [0.4, 0.95]
+
+    iter_3_history = json.loads(
+        (out_dir / "iter_3" / "prior_refine_history.json").read_text()
+    )
+    assert [row["iteration"] for row in iter_3_history] == [1, 2]
+    assert iter_3_history[0]["best_so_far"] is True
+    assert iter_3_history[1]["best_so_far"] is False
+
+    judge_iter_3_payload = json.loads(
+        judge_vlm.prompts[2][judge_vlm.prompts[2].index("{") :]
+    )
+    assert [
+        row["iteration"] for row in judge_iter_3_payload["prior_refine_history"]
+    ] == [
+        1,
+        2,
+    ]
+
+    refine_iter_2_payload = json.loads(
+        refine_prompts[1][refine_prompts[1].index("{") :]
+    )
+    assert [
+        row["iteration"] for row in refine_iter_2_payload["prior_refine_history"]
+    ] == [1]
+
+    summary = json.loads((out_dir / "refine_summary.json").read_text(encoding="utf-8"))
+    assert summary["compact_history"][0]["iteration"] == 3
+    assert summary["compact_history"][0]["best_so_far"] is True
+
+
+def test_history_window_zero_disables_prompt_history_but_keeps_summary_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    initial = _write_initial_yaml(tmp_path)
+    out_dir = tmp_path / "out"
+    fake_runner = _FakeRunTune(
+        [
+            _make_tune_output(
+                out_dir / "iter_1",
+                history=[_trial(0, 0.0, settle_distance=0.0)],
+                best_score=0.0,
+                best_params={"restitution": 0.9, "mass_scale": 1.0},
+            ),
+            _make_tune_output(
+                out_dir / "iter_2",
+                history=[_trial(0, 0.2, settle_distance=0.2)],
+                best_score=0.2,
+                best_params={"restitution": 0.8, "mass_scale": 1.0},
+            ),
+            _make_tune_output(
+                out_dir / "iter_3",
+                history=[_trial(0, 0.0, settle_distance=0.0)],
+                best_score=0.0,
+                best_params={"restitution": 0.95, "mass_scale": 1.0},
+            ),
+        ]
+    )
+
+    refine_prompts: list[str] = []
+
+    def fake_refine_chat(
+        chat_model: Any, prompt: str, *, system_prompt: str | None = None
+    ) -> dict[str, Any]:
+        refine_prompts.append(prompt)
+        return {
+            "response": json.dumps(
+                {
+                    "scenario": _scenario_yaml_dict(),
+                    "reasoning": "keep scenario for test",
+                }
+            )
+        }
+
+    class StubJudgeVLM:
+        def __init__(self) -> None:
+            self.scores = iter((0.9, 0.5, 0.4))
+            self.prompts: list[str] = []
+
+        def generate_with_image_caption_pairs(self, **kwargs: Any) -> str:
+            self.prompts.append(str(kwargs["final_prompt"]))
+            score = next(self.scores)
+            return json.dumps(
+                {
+                    "score": score,
+                    "decision": "approve" if score >= 1.0 else "continue",
+                    "reasoning": f"stubbed judge score {score}",
+                }
+            )
+
+    monkeypatch.setattr(
+        "physics_agent.tasks.scenario_refine.generate_chat_response",
+        fake_refine_chat,
+    )
+    judge_vlm = StubJudgeVLM()
+    task = IterativePhysicsRefinementTask(
+        user_prompt="make it bouncy",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=out_dir,
+        max_iterations=3,
+        history_window=0,
+        score_threshold=0.99,
+        chat_model=object(),
+        vlm_model=judge_vlm,
+        run_tune_callable=fake_runner,
+    )
+
+    result = task.run({})
+
+    assert result.termination_reason == "max_iterations"
+    assert len(result.iterations) == 3
+    for iteration in (1, 2, 3):
+        prior_path = out_dir / f"iter_{iteration}" / "prior_refine_history.json"
+        assert json.loads(prior_path.read_text(encoding="utf-8")) == []
+
+    for prompt in judge_vlm.prompts:
+        payload = _json_payload_from_prompt(prompt)
+        assert payload["prior_refine_history"] == []
+    for prompt in refine_prompts:
+        payload = _json_payload_from_prompt(prompt)
+        assert payload["prior_refine_history"] == []
+
+    summary = json.loads((out_dir / "refine_summary.json").read_text(encoding="utf-8"))
+    assert [row["iteration"] for row in summary["compact_history"]] == [1]
+    assert summary["compact_history"][0]["judge_score"] == pytest.approx(
+        result.iterations[0].judge_score
+    )
+    assert summary["compact_history"][0]["best_so_far"] is True
+
+
+def test_compact_history_does_not_mark_best_when_judge_scores_are_non_finite(
+    tmp_path: Path,
+) -> None:
+    scenario_path = _write_initial_yaml(tmp_path)
+
+    def record(iteration: int, judge_score: float) -> IterationRecord:
+        iter_dir = tmp_path / f"iter_{iteration}"
+        iter_dir.mkdir()
+        return IterationRecord(
+            iteration=iteration,
+            iteration_dir=iter_dir,
+            scenario_yaml_path=scenario_path,
+            tune_output_dir=iter_dir,
+            best_params={"restitution": 0.7},
+            best_score=0.0,
+            n_trials=1,
+            judge_decision="continue",
+            judge_score=judge_score,
+            judge_reasoning="degraded",
+            judge_llm_unavailable=True,
+            refine_llm_unavailable=True,
+            refine_reasoning="",
+            metric_name="settle_distance",
+            metric_value=0.0,
+        )
+
+    rows = _compact_refine_history(
+        [record(1, float("nan")), record(2, float("inf"))],
+        history_window=2,
+    )
+
+    assert [row["iteration"] for row in rows] == [1, 2]
+    assert [row["best_so_far"] for row in rows] == [False, False]
+
+
+def test_compact_history_treats_zero_judge_score_as_finite(
+    tmp_path: Path,
+) -> None:
+    scenario_path = _write_initial_yaml(tmp_path)
+
+    def record(iteration: int, judge_score: float) -> IterationRecord:
+        iter_dir = tmp_path / f"iter_{iteration}"
+        iter_dir.mkdir()
+        return IterationRecord(
+            iteration=iteration,
+            iteration_dir=iter_dir,
+            scenario_yaml_path=scenario_path,
+            tune_output_dir=iter_dir,
+            best_params={"restitution": 0.7},
+            best_score=0.0,
+            n_trials=1,
+            judge_decision="continue",
+            judge_score=judge_score,
+            judge_reasoning="zero score is still finite",
+            judge_llm_unavailable=False,
+            refine_llm_unavailable=False,
+            refine_reasoning="",
+            metric_name="settle_distance",
+            metric_value=0.0,
+        )
+
+    rows = _compact_refine_history(
+        [record(1, -0.01), record(2, 0.0)],
+        history_window=2,
+    )
+
+    assert [row["iteration"] for row in rows] == [1, 2]
+    assert [row["best_so_far"] for row in rows] == [False, True]
 
 
 def test_max_iterations_terminates_loop(tmp_path: Path) -> None:
@@ -442,8 +792,10 @@ def test_error_summary_is_strict_json(tmp_path: Path) -> None:
     barewords) even when the error path stores best_score=inf."""
     initial = _write_initial_yaml(tmp_path)
 
+    sentinel = "physics-refine-api-key-sentinel"
+
     def raise_tune(_params: TuneInput) -> TuneOutput:
-        raise RuntimeError("boom")
+        raise RuntimeError(f"provider rejected api_key={sentinel}")
 
     fake = _FakeRunTune([raise_tune])
     task = IterativePhysicsRefinementTask(
@@ -456,7 +808,10 @@ def test_error_summary_is_strict_json(tmp_path: Path) -> None:
         chat_model=None,
         run_tune_callable=fake,
     )
-    task.run({})
+    from world_understanding.agentic.events import CollectingEventListener
+
+    listener = CollectingEventListener()
+    result = task.run({"event_listener": listener})
     summary_path = tmp_path / "out" / "refine_summary.json"
     assert summary_path.exists()
     raw = summary_path.read_text(encoding="utf-8")
@@ -464,7 +819,10 @@ def test_error_summary_is_strict_json(tmp_path: Path) -> None:
     parsed = json.loads(raw)
     assert parsed["termination_reason"] == "error"
     assert parsed["iterations"][0]["best_score"] is None
-    assert parsed["iterations"][0]["error"] == "boom"
+    assert parsed["iterations"][0]["error"] == "Tune execution failed before judge."
+    assert result.iterations[0].error == "Tune execution failed before judge."
+    published = raw + repr(listener.logs) + repr(listener.events)
+    assert sentinel not in published
     # The bareword "Infinity" must not appear anywhere in the file.
     assert "Infinity" not in raw
     assert "NaN" not in raw
@@ -552,7 +910,7 @@ def test_per_iteration_seed_is_offset_to_avoid_artifact_collisions(
     """Each iteration's tune call must run with a seed offset so the
     drop_settle backend's ``.tune_scenes/trial_seed_<seed>/`` directories
     are disjoint across iterations. Otherwise iter_2's tune would
-    overwrite iter_1's per-trial recording.usda / trajectory.jsonl
+    overwrite iter_1's per-trial recording.usd / trajectory.jsonl
     files that iter_1's history.jsonl still references."""
     initial = _write_initial_yaml(tmp_path)
 
@@ -733,6 +1091,9 @@ def test_visual_judge_uses_rendered_best_trial_frames(
     result = task.run({})
 
     assert result.termination_reason == "approved"
+    assert result.final_recording_usd is not None
+    assert result.final_recording_usd == tmp_path / "out" / "final" / "recording.usd"
+    assert result.final_recording_usd.is_file()
     judge_result_path = tmp_path / "out" / "iter_1" / "judge_result.json"
     payload = json.loads(judge_result_path.read_text(encoding="utf-8"))
     assert payload["extra"]["judge_modality"] == "vlm"
@@ -754,6 +1115,7 @@ def test_visual_judge_uses_rendered_best_trial_frames(
         frame,
     )
     assert render_kwargs["max_duration_seconds"] == 3.0
+    assert render_kwargs["make_mp4"] is False
 
 
 def test_no_visual_evidence_keeps_render_but_judge_gets_no_images(
@@ -829,6 +1191,137 @@ def test_no_visual_evidence_keeps_render_but_judge_gets_no_images(
     assert payload["extra"]["reference_image_count"] == 0
     assert payload["extra"]["generated_image_count"] == 0
     assert payload["extra"]["visual_evidence"] is None
+
+
+def test_generated_visual_judge_renders_when_artifact_render_disabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class StubVLM:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def generate_with_image_caption_pairs(self, **kwargs: Any) -> str:
+            self.calls.append(kwargs)
+            return (
+                '{"score": 1.0, "decision": "approve", '
+                '"reasoning": "generated motion looks realistic"}'
+            )
+
+    initial = _write_freeform_initial_yaml(tmp_path)
+    recording = tmp_path / "recording.usda"
+    recording.write_text("#usda 1.0\n", encoding="utf-8")
+    frame = tmp_path / "frame_0001__t250.png"
+    frame.write_bytes(b"rendered frame")
+    render_calls: list[dict[str, Any]] = []
+
+    def fake_render(*_args: Any, **kwargs: Any) -> list[Path]:
+        render_calls.append(kwargs)
+        return [frame]
+
+    monkeypatch.setattr(
+        "world_understanding.functions.graphics.render_time_sampled_usd",
+        fake_render,
+    )
+    fake = _FakeRunTune(
+        [
+            _make_tune_output(
+                tmp_path / "out" / "iter_1",
+                history=[
+                    _trial(0, 0.0, settle_distance=0.0, recording_usda=str(recording))
+                ],
+                best_score=0.0,
+                best_params={"restitution": 0.1, "mass_scale": 1.0},
+            )
+        ]
+    )
+    vlm = StubVLM()
+    task = IterativePhysicsRefinementTask(
+        user_prompt="judge generated realism",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=tmp_path / "out",
+        max_iterations=1,
+        score_threshold=0.7,
+        chat_model=None,
+        vlm_model=vlm,
+        run_tune_callable=fake,
+        render_winning_trial=False,
+        visual_evidence_enabled=True,
+    )
+
+    result = task.run({})
+
+    assert result.termination_reason == "approved"
+    assert len(render_calls) == 1
+    assert len(vlm.calls) == 1
+    assert vlm.calls[0]["image_caption_pairs"] == [
+        ("Generated Physics Output - Frame 1 (t=0.250s):", frame)
+    ]
+    payload = json.loads(
+        (tmp_path / "out" / "iter_1" / "judge_result.json").read_text(encoding="utf-8")
+    )
+    assert payload["extra"]["reference_image_count"] == 0
+    assert payload["extra"]["generated_image_count"] == 1
+    evidence = payload["extra"]["visual_evidence"]
+    assert evidence["reference_images"] == []
+    assert evidence["generated_images"][0]["path"] == str(frame)
+
+
+def test_generated_visual_judge_preserves_render_error_without_reference(
+    tmp_path: Path,
+) -> None:
+    class StubVLM:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def generate_with_image_caption_pairs(self, **kwargs: Any) -> str:
+            self.calls.append(kwargs)
+            return (
+                '{"score": 1.0, "decision": "approve", '
+                '"reasoning": "should not judge text-only"}'
+            )
+
+    initial = _write_freeform_initial_yaml(tmp_path)
+    fake = _FakeRunTune(
+        [
+            _make_tune_output(
+                tmp_path / "out" / "iter_1",
+                history=[_trial(0, 0.0, settle_distance=0.0)],
+                best_score=0.0,
+                best_params={"restitution": 0.1, "mass_scale": 1.0},
+            )
+        ]
+    )
+    vlm = StubVLM()
+    task = IterativePhysicsRefinementTask(
+        user_prompt="judge generated realism",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=tmp_path / "out",
+        max_iterations=1,
+        score_threshold=0.7,
+        chat_model=None,
+        vlm_model=vlm,
+        run_tune_callable=fake,
+        render_winning_trial=False,
+        visual_evidence_enabled=True,
+    )
+
+    result = task.run({})
+
+    assert result.termination_reason == "error"
+    assert len(vlm.calls) == 0
+    assert result.iterations[0].error is not None
+    assert "Judge VLM unavailable" in result.iterations[0].error
+    payload = json.loads(
+        (tmp_path / "out" / "iter_1" / "judge_result.json").read_text(encoding="utf-8")
+    )
+    assert payload["llm_unavailable"] is True
+    evidence = payload["extra"]["visual_evidence"]
+    assert evidence["reference_images"] == []
+    assert evidence["generated_images"] == []
+    assert evidence["generated_error"] is not None
 
 
 def test_text_only_judge_still_runs_when_optional_render_missing(

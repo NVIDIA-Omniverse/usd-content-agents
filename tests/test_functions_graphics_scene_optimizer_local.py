@@ -373,6 +373,22 @@ class TestOptimizeUsdLocalSubprocess:
             input_path.touch()
             optimize_usd_local(input_path, tmp_path / "output.usd")
 
+    def test_subprocess_timeout_raises_runtime_error(self, env_setup, tmp_path):
+        """TimeoutExpired from the worker is converted to a RuntimeError."""
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=["worker"], timeout=3),
+        ):
+            with pytest.raises(RuntimeError, match="timed out after 3s"):
+                optimize_usd_local(
+                    input_path,
+                    tmp_path / "output.usd",
+                    optimization_config={"timeout": 3},
+                )
+
     def test_worker_sys_path_excludes_parent_site_packages(self, tmp_path):
         """Real subprocess: worker ``sys.path`` excludes parent venv's site-packages.
 

@@ -1,6 +1,6 @@
 ---
 name: quickstart
-description: Start one NVIDIA Content Agents REST service locally with Docker Compose. Use when the user asks for /quickstart, local POC setup, or single-service Material, Physics, and Texture startup.
+description: Start one NVIDIA Content Agents REST service locally with Docker Compose. Use when the user asks for /quickstart, local POC setup, or single-service Material, Physics, Joint, or Texture startup.
 version: "0.1.0"
 author: NVIDIA Content Agents
 tags:
@@ -22,7 +22,7 @@ compatibility: Requires Docker daemon, Docker Compose v2.24+, curl, and repo-roo
 
 - Use when the user asks for `/quickstart` or help starting a local
   Content Agents proof of concept.
-- Use when the user wants exactly one Material, Physics, or Texture REST
+- Use when the user wants exactly one Material, Physics, Joint, or Texture REST
   service from this repository's compose files.
 - Use when the user needs a safe preflight, startup, health-check, and
   follow-up-command handoff for a local service.
@@ -34,9 +34,9 @@ It is a thin wrapper over the existing per-agent Docker Compose files; do
 not create a new compose stack for this workflow. Material Agent is the
 recommended first POC.
 
-- Start one target at a time: `material`, `physics`, or `texture`.
-- Use `deploy-collection` when the user wants to run Material, Physics, and
-  Texture together or configure shared dependency endpoints.
+- Start one target at a time: `material`, `physics`, `joint`, or `texture`.
+- Use `deploy-collection` when the user wants to run Material, Physics, Joint,
+  and Texture together or configure shared dependency endpoints.
 - Use the service-specific deploy skills for local NIM sidecars, image-gen
   sidecars, embedding sidecars, multi-GPU layouts, or deliberate port changes.
 
@@ -55,8 +55,8 @@ recommended first POC.
 
 ## Instructions
 
-1. Infer the target from the user request, or ask for `material`, `physics`, or
-   `texture` when unclear.
+1. Infer the target from the user request, or ask for `material`, `physics`,
+   `joint`, or `texture` when unclear.
 2. Check prerequisites and create `.env` from `.env_example` only when the
    template exists.
 3. Run the preflight commands and stop before startup when Docker, Compose,
@@ -78,6 +78,8 @@ recommended first POC.
 - Docker Compose v2.24+.
 - Repo-root `.env` with the provider key for the selected backend. The default
   public backend usually needs `NVIDIA_API_KEY`.
+- Joint also needs `RENDER_ENDPOINT`; its public Compose path uses remote
+  rendering and does not require a local render GPU.
 - Material and Physics require an RTX-capable NVIDIA render GPU plus NVIDIA
   Container Toolkit because their compose files start OVRTX.
 - Recommended render-GPU capacity: Material is a 48 GB-class target and
@@ -85,7 +87,7 @@ recommended first POC.
   cards, may still be valid for small-scene POCs; warn the user and ask before
   proceeding rather than blocking solely on VRAM.
 - A100, H100, H200, and V100 are model-serving GPUs, not render-GPU targets for
-  this quickstart. Texture can run CPU-only with hosted backends.
+  this quickstart. Joint and Texture can run CPU-only with hosted dependencies.
 
 If `.env` is missing, create it only when the template exists:
 
@@ -154,7 +156,7 @@ else
   echo "CONTAINER_TOOLKIT=skipped"
 fi
 
-echo "RUNNING_CONTAINERS=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^(material-agent-service|physics-agent-service|texture-agent-service|ovrtx-rendering-api|physics-ovrtx-rendering-api|ovrtx_rendering_api-ovrtx-rendering-api-1|vlm-nim|llm-nim|image-gen-nim)$' | paste -sd ',' -)"
+echo "RUNNING_CONTAINERS=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^(material-agent-service|physics-agent-service|joint-agent-service|texture-agent-service|ovrtx-rendering-api|physics-ovrtx-rendering-api|ovrtx_rendering_api-ovrtx-rendering-api-1|vlm-nim|llm-nim|image-gen-nim)$' | paste -sd ',' -)"
 ```
 
 Stop before startup when Docker or Compose is not ready. For Material or
@@ -175,12 +177,13 @@ report the existing-stack state.
 |---|---|---|---|---|
 | Material | `docker compose --env-file .env -f apps/material_agent_service/docker-compose.yml` | `http://localhost:8000` | `http://localhost:8000/health` | `http://localhost:8000/docs` |
 | Physics | `docker compose --env-file .env -f apps/physics_agent_service/docker-compose.yml` | `http://localhost:8000` | `http://localhost:8000/health` | `http://localhost:8000/docs` |
+| Joint (0.5 Research Preview) | `docker compose --env-file .env -f apps/joint_agent_service/docker-compose.yml` | `http://localhost:8000` | `http://localhost:8000/health` | `http://localhost:8000/docs` |
 | Texture | `docker compose --env-file .env -f apps/texture_agent_service/docker-compose.yml` | `http://localhost:8001` | `http://localhost:8001/health` | `http://localhost:8001/docs` |
 
 Infer the target from the user request. If unclear, ask:
 
 ```text
-Which agent should I start: material (recommended), physics, or texture?
+Which agent should I start: material (recommended), physics, joint, or texture?
 ```
 
 ## Start
@@ -323,7 +326,8 @@ docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.con
 | `DOCKER=missing_or_unreachable` | Docker is not installed, not running, or not reachable by the current user. | Stop and ask the user to start Docker or fix daemon access before retrying. |
 | `COMPOSE=too_old` or `COMPOSE=legacy_v1` | Docker Compose is older than v2.24 or only legacy `docker-compose` is installed. | Ask the user to install Docker Compose v2.24+ and rerun preflight. |
 | `ENV_FILE=created` or `ENV_FILE=missing` | The repo-root `.env` still needs provider credentials. | Stop startup, tell the user to edit `.env`, then rerun this skill. |
-| Material or Physics reports no GPU/toolkit | The selected target needs the local render stack from Prerequisites. | Stop startup and explain that Texture can run CPU-only with hosted backends. |
+| Material or Physics reports no GPU/toolkit | The selected target needs the local render stack from Prerequisites. | Stop startup and explain that Joint or Texture can run CPU-only with hosted dependencies. |
+| Joint cannot render | `RENDER_ENDPOINT` is missing or unavailable. | Set a reachable remote renderer endpoint in the repo-root `.env`, then retry. |
 | Material or Physics reports low or unknown VRAM | Small-scene POCs may work, but the target is below recommended capacity. | Warn the user and ask before continuing; do not block solely on VRAM. |
 | Service health stays unhealthy after the short check | The service is still building, warming, or a dependency is misconfigured. | Report the current state and show `<PREFIX> ps`, `curl -fsS <HEALTH_URL>`, and `<PREFIX> logs --no-color --tail=80`. |
 | OVRTX is not immediately healthy | OVRTX can warm up after the service process starts. | Report `OVRTX_HEALTH=warming` and provide the logs command unless logs show a clear failure. |

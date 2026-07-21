@@ -1,0 +1,96 @@
+[project]
+name = "joint-agent-service"
+dynamic = ["version"]
+description = "FastAPI service for Joint Agent - VLM-based articulated body and joint classification for USD files"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+
+dependencies = [
+    # FastAPI and web framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.9",  # For file uploads
+    "sse-starlette>=2.1.0",  # Server-Sent Events for progress streaming
+
+    # Data validation
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.0",
+
+    # Async support
+    "aiofiles>=24.1.0",
+
+    # Configuration
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+
+    # Joint Agent 0.5 service API floor.
+    "joint-agent>=0.5.0",
+    "world-understanding>=0.5.0",
+
+    # aioboto3 13.3.0 pins aiobotocore 2.16.0, whose botocore floor (1.35.74)
+    # models PutObject.IfNoneMatch and DeleteObject.IfMatch for atomic run claims.
+    "aioboto3>=13.3.0",
+    "cachetools>=5.0.0",
+
+    # other
+    "httpx>=0.27.0",
+    "requests>=2.33.0",  # Used by client/client.py, client/client_v2.py, and tests/test_integration.py
+    "setuptools>=80.9.0",
+    "pillow>=10.1.0",
+]
+
+[tool.uv.sources]
+world-understanding = { path = "../..", editable = true }
+joint-agent = { path = "../joint_agent", editable = true }
+
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "pytest-asyncio>=1.3.0,<2",
+    "httpx>=0.27.0",  # For testing FastAPI
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+
+[project.scripts]
+joint-agent-service = "service.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["service*", "client*",]
+
+[tool.hatch.build.targets.wheel]
+ignore-vcs = true
+packages = ["service", "client"]
+
+[build-system]
+requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.5.0"
+from-file = { source = "../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]  # Line too long (Black handles this)
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false

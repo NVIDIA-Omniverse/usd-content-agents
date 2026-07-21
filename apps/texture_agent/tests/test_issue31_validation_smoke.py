@@ -131,11 +131,20 @@ def test_issue31_cli_ladder_smoke_uses_fake_backend_and_strict_scope(
     # The primary ladder fixture has four materials; strict scope textures one.
     assert len(materials) == 4
 
+    texture_plan = json.loads(
+        (working_dir / "texture_plan.json").read_text(encoding="utf-8")
+    )
+    selected_unit_ids = {unit["unit_id"] for unit in texture_plan["selected_units"]}
+    assert len(selected_unit_ids) == 1
+    texture_unit_id = next(iter(selected_unit_ids))
     generated_dir = working_dir / "generated"
-    assert (generated_dir / "Aluminum_Matte_albedo.png").exists()
-    assert not (generated_dir / "Aluminum_Brushed_albedo.png").exists()
+    generated_albedo_ids = {
+        path.name.removesuffix("_albedo.png")
+        for path in generated_dir.glob("*_albedo.png")
+    }
+    assert generated_albedo_ids == selected_unit_ids
 
-    albedo_path = working_dir / "textures" / "Aluminum_Matte_albedo.png"
+    albedo_path = working_dir / "textures" / f"{texture_unit_id}_albedo.png"
     with Image.open(albedo_path) as image:
         assert image.size == (16, 16)
         assert image.getbbox() is not None

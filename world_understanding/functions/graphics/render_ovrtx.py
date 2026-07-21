@@ -22,7 +22,6 @@ import logging
 import os
 import re
 import selectors
-import shlex
 import shutil
 import subprocess
 import sys
@@ -31,6 +30,7 @@ import threading
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlparse
@@ -39,9 +39,13 @@ import numpy as np
 from filelock import FileLock, Timeout
 from PIL import Image
 
+from world_understanding.functions.graphics.material_targets import (
+    normalize_render_material_target,
+    preview_fallbacks_enabled_for_material_target,
+)
 from world_understanding.utils.image_blankness import analyze_image_blankness
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Usd
 
 logger = logging.getLogger(__name__)
@@ -176,7 +180,8 @@ _OVRTX_PROVISION_LOCK_TIMEOUT_SECONDS = _OVRTX_PROVISION_LOCK_TIMEOUT_S
 # Cached path to the ovrtx venv Python executable
 _ovrtx_python: str | None = None
 _ovrtx_python_cache: dict[Path, str] = {}
-_verified_ovrtx_python_cache: set[Path] = set()
+_verified_ovrtx_python_cache: set[tuple[Path, str]] = set()
+_verified_managed_ovrtx_python_cache: set[Path] = set()
 
 # Number of ``renderer.step(delta_time=0)`` iterations per frame. OVRtx's
 # path tracer accumulates samples across successive step() calls when
@@ -198,6 +203,48 @@ DEFAULT_NUM_SENSOR_UPDATES = 32
 # ground-truth mode. rt2 is available as an override for callers that
 # want real-time-path-tracing speed, but pt is the quality-parity target.
 DEFAULT_RENDER_MODE = "rt2"
+
+# Bound the lifetime of the native renderer process. ``reset_stage()`` clears
+# USD scene state, but it does not guarantee that OVRTX/Vulkan allocations are
+# returned to the operating system. A long-lived service therefore recycles
+# the isolated process before the next render after either guard trips. The
+# count guard is deterministic and portable; the RSS guard catches a single
+# unusually expensive scene on Linux. Set either environment variable to 0 to
+# disable that guard.
+OVRTX_DAEMON_MAX_RENDERS_ENV = "OVRTX_DAEMON_MAX_RENDERS"
+OVRTX_DAEMON_MAX_RSS_BYTES_ENV = "OVRTX_DAEMON_MAX_RSS_BYTES"
+DEFAULT_OVRTX_DAEMON_MAX_RENDERS = 64
+DEFAULT_OVRTX_DAEMON_MAX_RSS_BYTES = 24 * 1024 * 1024 * 1024
+
+
+def _parse_nonnegative_int_env(name: str, default: int) -> int:
+    """Return a non-negative integer environment setting."""
+    raw_value = os.environ.get(name)
+    if raw_value is None or raw_value == "":
+        return default
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a non-negative integer") from exc
+    if value < 0:
+        raise ValueError(f"{name} must be a non-negative integer")
+    return value
+
+
+def _linux_process_rss_bytes(
+    pid: int, *, proc_root: Path = Path("/proc")
+) -> int | None:
+    """Return Linux resident bytes for ``pid``, or ``None`` when unavailable."""
+    try:
+        fields = (proc_root / str(pid) / "statm").read_text(encoding="utf-8").split()
+        resident_pages = int(fields[1])
+        page_size = int(os.sysconf("SC_PAGE_SIZE"))
+    except (IndexError, OSError, ValueError):
+        return None
+    if resident_pages < 0 or page_size <= 0:
+        return None
+    return resident_pages * page_size
+
 
 # Map the short mode tokens accepted on the wire (kit-gen-ai-service's
 # ``RenderMode`` enum values) to the ``omni:rtx:rendermode`` token the
@@ -503,13 +550,10 @@ def _map_sensor_to_render_var(sensor_name: str) -> str | None:
 
 # Pre-built ovrtx from NVIDIA PyPI (includes native libovrtx-dynamic.so).
 _OVRTX_VERSION = "0.3.0.312915"
-_OVRTX_PACKAGE = f"ovrtx=={_OVRTX_VERSION}"
-_OVRTX_INDEX_URL = "https://pypi.nvidia.com"
-# These pins intentionally differ from the app environment. OVRTX runs in an
-# isolated daemon/worker Python and currently needs a known-good dependency set.
-_OVRTX_RUNTIME_REQUIREMENTS_FILE = Path(__file__).with_name(
-    "ovrtx_runtime_requirements.txt"
-)
+# This PEP 751 lock is the only install source for the isolated worker. Its
+# exact wheel URLs and SHA-256 digests keep provisioning independent of package
+# index state and of the main application's OpenUSD environment.
+_OVRTX_RUNTIME_LOCK_FILE = Path(__file__).with_name("pylock.ovrtx-runtime.toml")
 _OVRTX_BUNDLED_PYTHON_LIBRARY_GLOB = "libpython*.so*"
 _OVRTX_PROBE_PREFIX = "WU_OVRTX_VERSION="
 
@@ -570,27 +614,22 @@ def _ovrtx_target_fallback_site_dir(venv_dir: Path) -> Path:
     return venv_dir / "lib" / "python" / "site-packages"
 
 
-def _ovrtx_runtime_requirements_args() -> list[str]:
-    """Return pip args for the scanned OVRTX runtime requirement pins."""
-    return ["-r", str(_OVRTX_RUNTIME_REQUIREMENTS_FILE)]
+def _ovrtx_runtime_lock_args(lock_file: Path | None = None) -> list[str]:
+    """Return fail-closed ``uv pip install`` args for the reviewed lock."""
+    lock_file = lock_file or _OVRTX_RUNTIME_LOCK_FILE
+    return [
+        "--require-hashes",
+        "--no-deps",
+        "-r",
+        str(lock_file),
+        "--no-config",
+        "--no-sources",
+    ]
 
 
-def _ovrtx_index_args() -> list[str]:
-    """Return index args for the private OVRTX wheel install."""
-    index_url = os.environ.get("WU_OVRTX_INDEX_URL")
-    if index_url is None:
-        index_url = _OVRTX_INDEX_URL
-
-    index_url = index_url.strip()
-    if not index_url:
-        logger.warning(
-            "WU_OVRTX_INDEX_URL is empty; installing %s without an explicit "
-            "--index-url. Ensure pip/uv global index configuration can resolve "
-            "the private OVRTX wheel.",
-            _OVRTX_PACKAGE,
-        )
-        return []
-    return ["--index-url", index_url]
+def _ovrtx_runtime_lock_digest() -> str:
+    """Return the SHA-256 identity of the complete managed runtime lock."""
+    return hashlib.sha256(_OVRTX_RUNTIME_LOCK_FILE.read_bytes()).hexdigest()
 
 
 def _ovrtx_auto_provision_enabled() -> bool:
@@ -606,41 +645,79 @@ def _clear_ovrtx_runtime_state() -> None:
 
 
 def _cached_ovrtx_python_ready(python_path: str, venv_dir: Path) -> bool:
-    """Return True when a cached runtime has been verified for this OVRTX build."""
+    """Return True when a cached runtime matches the complete reviewed lock."""
     if not os.path.exists(python_path):
         return False
     cache_key = _ovrtx_runtime_cache_key(venv_dir)
-    if cache_key in _verified_ovrtx_python_cache:
+    verified_key = (cache_key, _ovrtx_runtime_lock_digest())
+    is_verified = verified_key in _verified_ovrtx_python_cache
+    was_managed = cache_key in _verified_managed_ovrtx_python_cache
+    is_managed = _is_managed_ovrtx_runtime_dir(venv_dir)
+    if is_managed:
+        # Once ownership is observed, keep it stable across marker races so a
+        # managed runtime cannot fall back to the unmanaged trust path.
+        _verified_managed_ovrtx_python_cache.add(cache_key)
+    if is_verified and not was_managed and not is_managed:
         return True
-    marker_path = venv_dir.expanduser() / _OVRTX_MANAGED_MARKER
-    if not marker_path.exists():
+    if not _ovrtx_managed_marker_matches_runtime_lock(venv_dir):
         return False
-    version = _read_ovrtx_managed_marker_version(marker_path)
-    if version is None:
-        logger.info("Existing OVRTX managed marker lacks version; probing runtime")
-        return False
-    if version != _OVRTX_VERSION:
-        return False
+    if is_verified:
+        _verified_managed_ovrtx_python_cache.add(cache_key)
+        return True
     return not _ovrtx_bundled_python_libraries(venv_dir)
+
+
+def _read_ovrtx_managed_marker(marker_path: Path) -> dict[str, str]:
+    """Return line-based key/value fields from a managed runtime marker."""
+    try:
+        marker = marker_path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    fields: dict[str, str] = {}
+    for line in marker.splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key.strip() and value.strip():
+            fields[key.strip()] = value.strip()
+    return fields
 
 
 def _read_ovrtx_managed_marker_version(marker_path: Path) -> str | None:
     """Return the version recorded in a managed runtime marker, if present."""
-    try:
-        marker = marker_path.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    for line in marker.splitlines():
-        key, separator, value = line.partition("=")
-        if separator and key.strip() == "ovrtx_version":
-            return value.strip() or None
-    return None
+    return _read_ovrtx_managed_marker(marker_path).get("ovrtx_version")
 
 
-def _remember_verified_ovrtx_python(cache_key: Path, python_path: str) -> None:
+def _ovrtx_managed_marker_matches_runtime_lock(
+    venv_dir: Path, runtime_lock_digest: str | None = None
+) -> bool:
+    """Return whether a managed marker identifies the complete current lock."""
+    expanded_venv_dir = venv_dir.expanduser()
+    if (expanded_venv_dir / _OVRTX_PROVISIONING_MARKER).exists():
+        return False
+    if runtime_lock_digest is None:
+        runtime_lock_digest = _ovrtx_runtime_lock_digest()
+    marker = _read_ovrtx_managed_marker(expanded_venv_dir / _OVRTX_MANAGED_MARKER)
+    return (
+        marker.get("ovrtx_version") == _OVRTX_VERSION
+        and marker.get("runtime_lock_sha256") == runtime_lock_digest
+    )
+
+
+def _remember_verified_ovrtx_python(
+    cache_key: Path,
+    python_path: str,
+    runtime_lock_digest: str | None = None,
+) -> None:
     """Record a runtime that was validated or completed by this process."""
     _ovrtx_python_cache[cache_key] = python_path
-    _verified_ovrtx_python_cache.add(cache_key)
+    verified_key = (
+        cache_key,
+        runtime_lock_digest or _ovrtx_runtime_lock_digest(),
+    )
+    _verified_ovrtx_python_cache.add(verified_key)
+    if _is_managed_ovrtx_runtime_dir(cache_key):
+        _verified_managed_ovrtx_python_cache.add(cache_key)
+    else:
+        _verified_managed_ovrtx_python_cache.discard(cache_key)
 
 
 def _write_ovrtx_provisioning_marker(venv_dir: Path) -> None:
@@ -650,13 +727,17 @@ def _write_ovrtx_provisioning_marker(venv_dir: Path) -> None:
     )
 
 
-def _write_ovrtx_managed_marker(venv_dir: Path) -> None:
+def _write_ovrtx_managed_marker(
+    venv_dir: Path, runtime_lock_digest: str | None = None
+) -> None:
     """Atomically mark the managed runtime ready for cache fast-path reads."""
+    runtime_lock_digest = runtime_lock_digest or _ovrtx_runtime_lock_digest()
     marker_path = venv_dir / _OVRTX_MANAGED_MARKER
     marker_tmp = venv_dir / f"{_OVRTX_MANAGED_MARKER}.tmp.{os.getpid()}"
     marker_tmp.write_text(
         "Created by world_understanding.functions.graphics.render_ovrtx\n"
-        f"ovrtx_version={_OVRTX_VERSION}\n",
+        f"ovrtx_version={_OVRTX_VERSION}\n"
+        f"runtime_lock_sha256={runtime_lock_digest}\n",
         encoding="utf-8",
     )
     os.replace(marker_tmp, marker_path)
@@ -666,13 +747,13 @@ def _write_ovrtx_managed_marker(venv_dir: Path) -> None:
         pass
 
 
-def _try_backfill_ovrtx_managed_marker(venv_dir: Path) -> None:
-    """Best-effort marker upgrade for already verified managed runtimes."""
+def _try_refresh_ovrtx_managed_marker(venv_dir: Path, runtime_lock_digest: str) -> None:
+    """Best-effort marker refresh for already verified managed runtimes."""
     try:
-        _write_ovrtx_managed_marker(venv_dir)
+        _write_ovrtx_managed_marker(venv_dir, runtime_lock_digest)
     except OSError as exc:
         logger.info(
-            "Could not update OVRTX managed marker at %s after version match; "
+            "Could not refresh OVRTX managed marker at %s after version match; "
             "continuing with verified runtime: %s",
             venv_dir / _OVRTX_MANAGED_MARKER,
             exc,
@@ -686,6 +767,7 @@ def _is_managed_ovrtx_runtime_dir(venv_dir: Path) -> bool:
     default_resolved = _ovrtx_runtime_cache_key(_DEFAULT_OVRTX_VENV_DIR)
     return (
         resolved == default_resolved
+        or resolved in _verified_managed_ovrtx_python_cache
         or (expanded_venv_dir / _OVRTX_MANAGED_MARKER).exists()
         or (expanded_venv_dir / _OVRTX_PROVISIONING_MARKER).exists()
     )
@@ -715,7 +797,29 @@ def _probe_existing_ovrtx_python_before_lock(
 def _remove_ovrtx_venv(venv_dir: Path) -> None:
     """Clear cached state and remove a rejected or partial OVRTX environment."""
     _clear_ovrtx_runtime_state()
+    cache_key = _ovrtx_runtime_cache_key(venv_dir)
+    was_managed = _is_managed_ovrtx_runtime_dir(venv_dir)
+    _ovrtx_python_cache.pop(cache_key, None)
+    _verified_ovrtx_python_cache.difference_update(
+        {key for key in _verified_ovrtx_python_cache if key[0] == cache_key}
+    )
     shutil.rmtree(venv_dir, ignore_errors=True)
+    if venv_dir.exists() or venv_dir.is_symlink():
+        if was_managed:
+            _verified_managed_ovrtx_python_cache.add(cache_key)
+            try:
+                _write_ovrtx_provisioning_marker(venv_dir)
+            except OSError as exc:
+                logger.warning(
+                    "Could not persist the failed-removal marker at %s: %s",
+                    venv_dir,
+                    exc,
+                )
+        raise RuntimeError(
+            f"OVRTX runtime at {venv_dir} could not be completely removed; "
+            "refusing to provision into a partial environment"
+        )
+    _verified_managed_ovrtx_python_cache.discard(cache_key)
 
 
 def _parse_ovrtx_probe_stdout(stdout: str) -> str | None:
@@ -804,8 +908,6 @@ def _get_ovrtx_python(venv_dir: Path | None = None) -> str:
 
     cached_python = _ovrtx_python_cache.get(cache_key)
     if cached_python and _cached_ovrtx_python_ready(cached_python, venv_dir):
-        if cache_key in _verified_ovrtx_python_cache:
-            return cached_python
         return cached_python
 
     if _cached_ovrtx_python_ready(python_str, venv_dir):
@@ -909,40 +1011,138 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
                 return _ovrtx_python
 
     if python_path.exists():
-        # Reuse only venvs with the exact target ovrtx build. This prevents
-        # stale auto-provisioned or prebuilt 0.2 venvs from masking a 0.3 bump.
-        try:
-            version = _probe_ovrtx_version(python_path, venv_dir)
-            if version == _OVRTX_VERSION:
-                _ovrtx_python = str(python_path)
-                if _is_managed_ovrtx_runtime_dir(venv_dir):
-                    _remove_ovrtx_bundled_python_libraries(venv_dir)
-                    _try_backfill_ovrtx_managed_marker(venv_dir)
-                _remember_verified_ovrtx_python(cache_key, _ovrtx_python)
-                return _ovrtx_python
+        managed_runtime = _is_managed_ovrtx_runtime_dir(venv_dir)
+        if managed_runtime:
+            # Preserve ownership even if the marker is removed while this
+            # validation pass is in flight. Removal and later validation must
+            # not reinterpret a runtime we already recognized as managed.
+            _verified_managed_ovrtx_python_cache.add(cache_key)
+        validated_runtime_lock_digest = (
+            _ovrtx_runtime_lock_digest() if managed_runtime else None
+        )
+        managed_marker_matches = bool(
+            managed_runtime
+            and validated_runtime_lock_digest is not None
+            and _ovrtx_managed_marker_matches_runtime_lock(
+                venv_dir, validated_runtime_lock_digest
+            )
+        )
+        if managed_runtime and not managed_marker_matches:
             if not _ovrtx_auto_provision_enabled():
                 _clear_ovrtx_runtime_state()
                 raise RuntimeError(
-                    "Existing ovrtx venv at "
-                    f"{venv_dir} has version {version!r}, expected "
-                    f"{_OVRTX_VERSION!r}, and WU_OVRTX_AUTO_PROVISION is disabled"
+                    "Existing managed ovrtx venv at "
+                    f"{venv_dir} does not match the current runtime lock, and "
+                    "WU_OVRTX_AUTO_PROVISION is disabled"
                 )
             logger.warning(
-                "Existing ovrtx venv has version %r, expected %s; recreating: %s",
-                version,
-                _OVRTX_VERSION,
+                "Existing managed ovrtx venv does not match the current runtime "
+                "lock; recreating: %s",
                 venv_dir,
             )
-        except subprocess.TimeoutExpired as exc:
-            if not _ovrtx_auto_provision_enabled():
+        else:
+            # Unmanaged runtimes cannot carry our lock marker, so retain the
+            # historical exact-OVRTX-version probe without deleting them solely
+            # because their dependency set is externally managed.
+            try:
+                version = _probe_ovrtx_version(python_path, venv_dir)
+                if version == _OVRTX_VERSION:
+                    if not managed_runtime:
+                        _ovrtx_python = str(python_path)
+                        _remember_verified_ovrtx_python(cache_key, _ovrtx_python)
+                        return _ovrtx_python
+
+                    assert validated_runtime_lock_digest is not None
+                    runtime_identity_changed = (
+                        _ovrtx_runtime_lock_digest() != validated_runtime_lock_digest
+                        or not _ovrtx_managed_marker_matches_runtime_lock(
+                            venv_dir, validated_runtime_lock_digest
+                        )
+                    )
+                    if not runtime_identity_changed:
+                        _remove_ovrtx_bundled_python_libraries(venv_dir)
+                        runtime_identity_changed = (
+                            _ovrtx_runtime_lock_digest()
+                            != validated_runtime_lock_digest
+                            or not _ovrtx_managed_marker_matches_runtime_lock(
+                                venv_dir, validated_runtime_lock_digest
+                            )
+                        )
+                    if not runtime_identity_changed:
+                        _try_refresh_ovrtx_managed_marker(
+                            venv_dir, validated_runtime_lock_digest
+                        )
+                        runtime_identity_changed = (
+                            _ovrtx_runtime_lock_digest()
+                            != validated_runtime_lock_digest
+                            or not _ovrtx_managed_marker_matches_runtime_lock(
+                                venv_dir, validated_runtime_lock_digest
+                            )
+                        )
+
+                    if runtime_identity_changed:
+                        if not _ovrtx_auto_provision_enabled():
+                            _clear_ovrtx_runtime_state()
+                            raise RuntimeError(
+                                "Existing managed ovrtx venv runtime identity "
+                                f"changed while validating {venv_dir}, and "
+                                "WU_OVRTX_AUTO_PROVISION is disabled"
+                            )
+                        logger.warning(
+                            "OVRTX runtime identity changed while validating an "
+                            "existing managed venv; recreating: %s",
+                            venv_dir,
+                        )
+                    else:
+                        _ovrtx_python = str(python_path)
+                        _remember_verified_ovrtx_python(
+                            cache_key,
+                            _ovrtx_python,
+                            validated_runtime_lock_digest,
+                        )
+                        return _ovrtx_python
+                else:
+                    if not _ovrtx_auto_provision_enabled():
+                        _clear_ovrtx_runtime_state()
+                        raise RuntimeError(
+                            "Existing ovrtx venv at "
+                            f"{venv_dir} has version {version!r}, expected "
+                            f"{_OVRTX_VERSION!r}, and "
+                            "WU_OVRTX_AUTO_PROVISION is disabled"
+                        )
+                    logger.warning(
+                        "Existing ovrtx venv has version %r, expected %s; "
+                        "recreating: %s",
+                        version,
+                        _OVRTX_VERSION,
+                        venv_dir,
+                    )
+            except subprocess.TimeoutExpired as exc:
                 _clear_ovrtx_runtime_state()
-                raise RuntimeError(
-                    "Existing ovrtx venv import probe timed out at "
-                    f"{venv_dir} and WU_OVRTX_AUTO_PROVISION is disabled"
-                ) from exc
-            logger.warning("ovrtx import probe timed out, recreating venv")
-        except OSError as exc:
-            logger.warning("ovrtx import probe could not launch: %s", exc)
+                if not managed_runtime:
+                    raise RuntimeError(
+                        "Existing unmanaged ovrtx runtime import probe timed out "
+                        f"at {venv_dir}; refusing to replace it"
+                    ) from exc
+                if not _ovrtx_auto_provision_enabled():
+                    raise RuntimeError(
+                        "Existing ovrtx venv import probe timed out at "
+                        f"{venv_dir} and WU_OVRTX_AUTO_PROVISION is disabled"
+                    ) from exc
+                logger.warning("ovrtx import probe timed out, recreating venv")
+            except OSError as exc:
+                _clear_ovrtx_runtime_state()
+                if not managed_runtime:
+                    raise RuntimeError(
+                        "Existing unmanaged ovrtx runtime import probe could not "
+                        f"launch at {venv_dir}; refusing to replace it"
+                    ) from exc
+                if not _ovrtx_auto_provision_enabled():
+                    raise RuntimeError(
+                        "Existing managed ovrtx runtime import probe could not "
+                        "launch and WU_OVRTX_AUTO_PROVISION is disabled"
+                    ) from exc
+                logger.warning("ovrtx import probe could not launch: %s", exc)
 
         _remove_ovrtx_venv(venv_dir)
     elif python_path.is_symlink():
@@ -955,6 +1155,16 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
             )
         logger.warning(
             "Existing ovrtx Python symlink is broken, recreating: %s", python_path
+        )
+        _remove_ovrtx_venv(venv_dir)
+    elif (
+        venv_dir.exists()
+        and _is_managed_ovrtx_runtime_dir(venv_dir)
+        and _ovrtx_auto_provision_enabled()
+    ):
+        logger.warning(
+            "Existing managed ovrtx runtime is incomplete; recreating: %s",
+            venv_dir,
         )
         _remove_ovrtx_venv(venv_dir)
 
@@ -979,7 +1189,25 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
             if os.path.exists(_candidate):
                 uv_bin = _candidate
                 break
-    if uv_bin:
+    if uv_bin is None:
+        _remove_ovrtx_venv(venv_dir)
+        raise RuntimeError(
+            "OVRTX auto-provisioning requires the uv executable so the "
+            f"hash-locked PEP 751 profile can be enforced: {_OVRTX_RUNTIME_LOCK_FILE}"
+        )
+
+    lock_snapshot_path: Path | None = None
+    provisioned_lock_digest = ""
+    try:
+        runtime_lock = _OVRTX_RUNTIME_LOCK_FILE.read_bytes()
+        provisioned_lock_digest = hashlib.sha256(runtime_lock).hexdigest()
+        with tempfile.NamedTemporaryFile(
+            prefix="pylock.wu-ovrtx-runtime-",
+            suffix=".toml",
+            delete=False,
+        ) as lock_snapshot:
+            lock_snapshot.write(runtime_lock)
+            lock_snapshot_path = type(_OVRTX_RUNTIME_LOCK_FILE)(lock_snapshot.name)
         _run_checked(
             [
                 uv_bin,
@@ -998,119 +1226,16 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
                 "install",
                 "--python",
                 str(python_path),
-                *_ovrtx_index_args(),
-                "--no-deps",
-                _OVRTX_PACKAGE,
+                *_ovrtx_runtime_lock_args(lock_snapshot_path),
             ],
-            "uv pip install ovrtx",
+            "locked OVRTX runtime install",
         )
-        try:
-            _run_checked(
-                [
-                    uv_bin,
-                    "pip",
-                    "install",
-                    "--python",
-                    str(python_path),
-                    *_ovrtx_runtime_requirements_args(),
-                ],
-                "uv pip install ovrtx runtime deps",
-            )
-        except Exception:
-            _remove_ovrtx_venv(venv_dir)
-            raise
-    elif os.name == "nt":
-        # On Windows, create a real stdlib venv so subprocess launch uses
-        # Scripts/python.exe rather than a POSIX shell wrapper.
-        logger.info("uv not found, using stdlib venv fallback")
-        _run_checked(
-            [sys.executable, "-m", "venv", str(venv_dir)],
-            "stdlib venv creation",
-        )
-        _run_checked(
-            [
-                str(python_path),
-                "-m",
-                "pip",
-                "install",
-                *_ovrtx_index_args(),
-                "--no-deps",
-                _OVRTX_PACKAGE,
-            ],
-            "pip install ovrtx",
-        )
-        try:
-            _run_checked(
-                [
-                    str(python_path),
-                    "-m",
-                    "pip",
-                    "install",
-                    *_ovrtx_runtime_requirements_args(),
-                ],
-                "pip install ovrtx runtime deps",
-            )
-        except Exception:
-            _remove_ovrtx_venv(venv_dir)
-            raise
-    else:
-        # Fallback: install packages into a target directory using the
-        # current Python's pip.  This avoids venv creation entirely which
-        # is fragile on minimal cloud images (missing ensurepip, mismatched
-        # libpython, etc.).  We create a thin wrapper script so the rest of
-        # the code can still invoke ``venv_dir / "bin" / "python"``.
-        logger.info("uv not found, using pip --target fallback")
-        site_dir = _ovrtx_target_fallback_site_dir(venv_dir)
-        site_dir.mkdir(parents=True, exist_ok=True)
-
-        _run_checked(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--target",
-                str(site_dir),
-                *_ovrtx_index_args(),
-                "--no-deps",
-                _OVRTX_PACKAGE,
-            ],
-            "pip install --target ovrtx",
-        )
-        try:
-            _run_checked(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--target",
-                    str(site_dir),
-                    *_ovrtx_runtime_requirements_args(),
-                ],
-                "pip install --target ovrtx runtime deps",
-            )
-        except Exception:
-            _remove_ovrtx_venv(venv_dir)
-            raise
-
-        # Create a wrapper so venv_dir/bin/python launches the system Python
-        # with only the --target directory on PYTHONPATH. ``-S`` keeps the
-        # app's system site-packages out of this fallback process.
-        bin_dir = venv_dir / "bin"
-        bin_dir.mkdir(parents=True, exist_ok=True)
-        wrapper = bin_dir / "python"
-        real_python = shlex.quote(sys.executable)
-        wrapper.write_text(
-            "#!/bin/sh\n"
-            f"export PYTHONPATH={shlex.quote(str(site_dir))}\n"
-            f'exec {real_python} -S "$@"\n'
-        )
-        wrapper.chmod(0o755)
-        (venv_dir / "pyvenv.cfg").write_text(
-            f"home = {os.path.dirname(sys.executable)}\n"
-            "include-system-site-packages = false\n"
-        )
+    except Exception:
+        _remove_ovrtx_venv(venv_dir)
+        raise
+    finally:
+        if lock_snapshot_path is not None:
+            lock_snapshot_path.unlink(missing_ok=True)
 
     if not python_path.exists():
         raise RuntimeError(f"Failed to create ovrtx venv at {venv_dir}")
@@ -1125,7 +1250,7 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
             try:
                 expected.symlink_to(d, target_is_directory=True)
                 logger.info("Created MaterialX library symlink: %s -> %s", expected, d)
-            except OSError:
+            except OSError:  # pragma: no cover - Windows symlink fallback
                 if os.name != "nt":
                     raise
                 shutil.copytree(d, expected, dirs_exist_ok=True)
@@ -1150,10 +1275,23 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
             f"{version!r} does not match expected {_OVRTX_VERSION!r}"
         )
 
-    _write_ovrtx_managed_marker(venv_dir)
+    if _ovrtx_runtime_lock_digest() != provisioned_lock_digest:
+        _remove_ovrtx_venv(venv_dir)
+        raise RuntimeError(
+            "OVRTX runtime lock changed during provisioning; retry with the "
+            "current lock"
+        )
+
+    _write_ovrtx_managed_marker(venv_dir, provisioned_lock_digest)
+    if _ovrtx_runtime_lock_digest() != provisioned_lock_digest:
+        _remove_ovrtx_venv(venv_dir)
+        raise RuntimeError(
+            "OVRTX runtime lock changed while marking the provisioned runtime; "
+            "retry with the current lock"
+        )
 
     _ovrtx_python = str(python_path)
-    _remember_verified_ovrtx_python(cache_key, _ovrtx_python)
+    _remember_verified_ovrtx_python(cache_key, _ovrtx_python, provisioned_lock_digest)
     logger.info("OvRTX venv ready: %s", _ovrtx_python)
     return _ovrtx_python
 
@@ -1171,15 +1309,19 @@ def _copy_exported_relative_assets(
     stage: "Usd.Stage",
     export_dir: Path,
     base_dir: str | Path | None = None,
+    exported_stage_path: str | Path | None = None,
 ) -> int:
-    """Copy local relative texture assets next to an exported render stage.
+    """Copy local texture assets next to an exported render stage.
 
     ``render_all_cameras`` exports the caller's stage into an OVRTX IPC temp
-    directory before the isolated daemon opens it. Relative texture paths in
-    that exported layer are interpreted relative to the new temp directory, not
-    the original stage directory, so extracted ZIP/USDZ bundles lose their
-    textures unless we mirror those files here.
+    directory before the isolated daemon opens it. Texture paths in that
+    exported layer are interpreted from the new temp directory, not the
+    original stage directory, so extracted ZIP/USDZ bundles and prepared stages
+    with host-absolute texture refs lose their textures unless we mirror those
+    files here and rewrite the exported layer to the mirrored paths.
     """
+    from pxr import Sdf
+
     from world_understanding.utils.usd.material import get_local_texture_file_assets
 
     if base_dir is not None:
@@ -1191,7 +1333,46 @@ def _copy_exported_relative_assets(
         else:
             resolved_base_dir = Path.cwd()
 
+    relative_source_by_path: dict[str, Path] = {}
+
+    def digest_relative_path(source: Path) -> Path:
+        digest = hashlib.sha256(str(source.resolve()).encode("utf-8")).hexdigest()[:12]
+        return Path("textures") / f"{source.stem}_{digest}{source.suffix}"
+
+    def localized_relative_path(asset_path: str, source: Path) -> Path:
+        resolved_source = source.resolve()
+        authored_path = _local_asset_path(asset_path)
+        if not authored_path.is_absolute():
+            clean_parts = [
+                part for part in authored_path.parts if part not in ("", ".")
+            ]
+            if clean_parts and ".." not in clean_parts:
+                candidate = Path(*clean_parts)
+                candidate_key = candidate.as_posix()
+                existing_source = relative_source_by_path.get(candidate_key)
+                if existing_source is None or existing_source == resolved_source:
+                    relative_source_by_path[candidate_key] = resolved_source
+                    return candidate
+
+        candidate = digest_relative_path(source)
+        relative_source_by_path[candidate.as_posix()] = resolved_source
+        return candidate
+
+    def resolved_texture_path(asset_path: str) -> str | None:
+        if not asset_path or _is_remote_asset_path(asset_path):  # pragma: no cover
+            return None
+        path = _local_asset_path(asset_path)
+        if not path.is_absolute():
+            path = resolved_base_dir / path
+        try:
+            resolved = path.resolve()
+        except (OSError, RuntimeError):
+            return None
+        return str(resolved) if resolved.is_file() else None
+
     copied = 0
+    localized_by_resolved: dict[str, str] = {}
+    localized_by_attr: dict[tuple[str, str], str] = {}
     for asset in get_local_texture_file_assets(stage, base_dir=resolved_base_dir):
         if not asset.get("is_local") or not asset.get("resolved_path"):
             continue
@@ -1204,21 +1385,71 @@ def _copy_exported_relative_assets(
         if not source.is_file():
             continue
 
-        path = _local_asset_path(asset_path)
-        if path.is_absolute():
-            # Absolute texture paths remain valid after export.
-            continue
-        if any(part in ("", ".", "..") for part in path.parts):
-            logger.warning("Skipping unsafe relative texture path: %s", asset_path)
-            continue
-
-        destination = export_dir / path
+        relative_path = localized_relative_path(asset_path, source)
+        destination = export_dir / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.resolve() == source.resolve():
-            continue
+        if destination.resolve() != source.resolve():
+            shutil.copy2(source, destination)
+            copied += 1
 
-        shutil.copy2(source, destination)
-        copied += 1
+        rel_path_string = relative_path.as_posix()
+        resolved_source = str(source.resolve())
+        localized_by_resolved[resolved_source] = rel_path_string
+        localized_by_attr[(str(asset["prim_path"]), str(asset["attr_name"]))] = (
+            rel_path_string
+        )
+
+    if exported_stage_path is None or not localized_by_resolved:
+        return copied
+
+    layer = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+    if layer is None:
+        logger.warning(
+            "Could not reopen exported OVRTX stage for texture path localization: %s",
+            exported_stage_path,
+        )
+        return copied
+
+    updated = 0
+
+    def update_prim_spec(prim_spec: Any) -> None:
+        nonlocal updated
+        prim_path = str(prim_spec.path)
+        for attr_name in list(prim_spec.attributes.keys()):
+            attr_spec = prim_spec.attributes[attr_name]
+            value = attr_spec.default
+            if not isinstance(value, Sdf.AssetPath):
+                continue
+            asset_path = value.path if hasattr(value, "path") else str(value)
+            if not asset_path or _is_remote_asset_path(asset_path):
+                continue
+
+            new_path = localized_by_attr.get((prim_path, attr_name))
+            if new_path is None:
+                resolved = resolved_texture_path(asset_path)
+                new_path = (
+                    localized_by_resolved.get(resolved)
+                    if resolved is not None
+                    else None
+                )
+            if new_path is None or asset_path == new_path:
+                continue
+
+            attr_spec.default = Sdf.AssetPath(new_path)
+            updated += 1
+
+        for child in prim_spec.nameChildren:
+            update_prim_spec(child)
+
+    for prim in layer.rootPrims:
+        update_prim_spec(prim)
+
+    if updated:
+        layer.Save()
+        logger.info(
+            "Localized %d exported OVRTX texture asset path(s) to render temp paths",
+            updated,
+        )
 
     return copied
 
@@ -1263,12 +1494,14 @@ def main():
     visibility_schedule = params.get("visibility_schedule", {})
     visibility_updates = params.get("visibility_updates")
     frame_usd_paths = params.get("frame_usd_paths", {})
+    material_target = params.get("material_target", "auto")
     log_level = params.get("log_level", "warn")
 
     import logging
     _LOG_MAP = {"error": logging.ERROR, "warn": logging.WARNING,
                 "info": logging.INFO, "debug": logging.DEBUG}
     logging.basicConfig(level=_LOG_MAP.get(log_level, logging.WARNING))
+    logging.debug("Render material target: %s", material_target)
 
     import ovrtx
     import numpy as np
@@ -1488,6 +1721,8 @@ def main():
             visibility_schedule = request.get("visibility_schedule", {})
             visibility_updates = request.get("visibility_updates")
             frame_usd_paths = request.get("frame_usd_paths", {})
+            material_target = request.get("material_target", "auto")
+            logging.debug("Render material target: %s", material_target)
 
             all_product_paths = set(product_paths)
 
@@ -1593,6 +1828,17 @@ def main():
                 json.dumps({"status": "error", "error": traceback.format_exc()[-2000:]}) + "\n"
             )
             sys.stdout.flush()
+        finally:
+            # Drop the final native result/mapping wrappers before the next
+            # stage reset. Process recycling remains the hard memory bound,
+            # but retaining the last result while idle delays normal OVRTX
+            # cleanup unnecessarily.
+            all_products = None
+            product = None
+            frame = None
+            var = None
+            pixels = None
+            sarr = None
 
     # Clean shutdown
     del renderer
@@ -1633,6 +1879,19 @@ class _OvRTXDaemon:
         self._render_timeout_s = float(
             os.environ.get("OVRTX_DAEMON_RENDER_TIMEOUT", "1800")
         )
+        self._max_completed_renders = _parse_nonnegative_int_env(
+            OVRTX_DAEMON_MAX_RENDERS_ENV,
+            DEFAULT_OVRTX_DAEMON_MAX_RENDERS,
+        )
+        self._max_rss_bytes = _parse_nonnegative_int_env(
+            OVRTX_DAEMON_MAX_RSS_BYTES_ENV,
+            DEFAULT_OVRTX_DAEMON_MAX_RSS_BYTES,
+        )
+        self._completed_renders = 0
+        self._last_rss_bytes: int | None = None
+        self._recycle_count = 0
+        self._last_recycle_reason: str | None = None
+        self._pending_recycle_reason: str | None = None
         atexit.register(self.shutdown)
 
     # ------------------------------------------------------------------
@@ -1648,6 +1907,27 @@ class _OvRTXDaemon:
             if self._is_running():
                 return
             self._start()
+            # A render-limit recycle may have stopped the old process and then
+            # failed while starting its replacement. Production callers invoke
+            # ensure_running() before render(), so acknowledge that pending
+            # recycle here once the later replacement reaches ready.
+            self._record_successful_pending_recycle()
+
+    def lifecycle_snapshot(self) -> dict[str, int | str | None]:
+        """Return non-blocking process lifecycle diagnostics for service health."""
+        process = self._process
+        pid = process.pid if process is not None and process.poll() is None else None
+        rss_bytes = _linux_process_rss_bytes(pid) if pid is not None else None
+        if rss_bytes is None:
+            rss_bytes = self._last_rss_bytes
+        return {
+            "daemon_pid": pid,
+            "daemon_completed_renders": self._completed_renders,
+            "daemon_rss_bytes": rss_bytes,
+            "daemon_recycle_count": self._recycle_count,
+            "daemon_last_recycle_reason": self._last_recycle_reason,
+            "daemon_pending_recycle_reason": self._recycle_reason(rss_bytes),
+        }
 
     def _start(self) -> None:
         """Launch the daemon subprocess and wait for its *ready* signal."""
@@ -1685,10 +1965,21 @@ class _OvRTXDaemon:
         ready_line = self._read_stdout_line(self._start_timeout_s, "startup")
         if not ready_line:
             rc = self._process.wait(timeout=10)
+            self._process = None
+            self._stdout_buffer = b""
             raise RuntimeError(f"OvRTX daemon exited during init (exit code {rc})")
-        msg = json.loads(ready_line)
+        try:
+            msg = json.loads(ready_line)
+        except json.JSONDecodeError as exc:
+            self._kill_process()
+            raise RuntimeError("OvRTX daemon returned invalid startup JSON") from exc
         if msg.get("status") != "ready":
+            self._kill_process()
             raise RuntimeError(f"OvRTX daemon unexpected init msg: {msg}")
+        # Do not clear lifecycle state until the replacement process has
+        # actually reached the ready protocol state.
+        self._completed_renders = 0
+        self._last_rss_bytes = _linux_process_rss_bytes(self._process.pid)
         logger.info("OvRTX daemon ready (pid %d)", self._process.pid)
 
     def _drain_stderr(self) -> None:
@@ -1702,6 +1993,46 @@ class _OvRTXDaemon:
     # Render
     # ------------------------------------------------------------------
 
+    def _recycle_reason(self, rss_bytes: int | None = None) -> str | None:
+        # Once a guard has tripped, retain its reason until a replacement has
+        # reached ready. This prevents a later RSS sample from rewriting the
+        # reason associated with the recycle.
+        if self._pending_recycle_reason is not None:
+            return self._pending_recycle_reason
+        if (
+            self._max_rss_bytes > 0
+            and rss_bytes is not None
+            and rss_bytes >= self._max_rss_bytes
+        ):
+            return "rss_limit"
+        if (
+            self._max_completed_renders > 0
+            and self._completed_renders >= self._max_completed_renders
+        ):
+            return "completed_render_limit"
+        return None
+
+    def _record_successful_pending_recycle(self) -> None:
+        reason = self._pending_recycle_reason
+        if reason is None:
+            return
+        self._recycle_count += 1
+        self._last_recycle_reason = reason
+        self._pending_recycle_reason = None
+
+    def _recycle_before_render(self, reason: str) -> None:
+        logger.warning(
+            "Recycling OvRTX daemon before render "
+            "(reason=%s, completed_renders=%d, rss_bytes=%s)",
+            reason,
+            self._completed_renders,
+            self._last_rss_bytes,
+        )
+        self._pending_recycle_reason = reason
+        self._shutdown_locked()
+        self._start()
+        self._record_successful_pending_recycle()
+
     def render(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         """Send a render request and return the manifest.
 
@@ -1712,6 +2043,19 @@ class _OvRTXDaemon:
             if not self._is_running():
                 logger.warning("OvRTX daemon not running — restarting")
                 self._start()
+                self._record_successful_pending_recycle()
+
+            # Sample the child immediately before dispatch while the daemon
+            # lock is held. The post-render sample normally trips the guard,
+            # while this sample also catches allocations that settle or grow
+            # after the previous response was written.
+            assert self._process is not None
+            current_rss_bytes = _linux_process_rss_bytes(self._process.pid)
+            if current_rss_bytes is not None:
+                self._last_rss_bytes = current_rss_bytes
+            recycle_reason = self._recycle_reason(self._last_rss_bytes)
+            if recycle_reason is not None:
+                self._recycle_before_render(recycle_reason)
 
             assert self._process is not None
             assert self._process.stdin is not None
@@ -1723,7 +2067,7 @@ class _OvRTXDaemon:
                 self._process.stdin.flush()
             except (BrokenPipeError, OSError) as exc:
                 rc = self._process.poll()
-                self._process = None
+                self._kill_process()
                 raise RuntimeError(
                     f"OvRTX daemon pipe failed before render response (exit code {rc})"
                 ) from exc
@@ -1731,9 +2075,15 @@ class _OvRTXDaemon:
             response_line = self._read_stdout_line(self._render_timeout_s, "render")
             if not response_line:
                 rc = self._process.poll() if self._process is not None else None
-                self._process = None
+                self._kill_process()
                 raise RuntimeError(f"OvRTX daemon died during render (exit code {rc})")
             response = json.loads(response_line)
+            self._completed_renders += 1
+            self._last_rss_bytes = _linux_process_rss_bytes(self._process.pid)
+            if self._pending_recycle_reason is None:
+                self._pending_recycle_reason = self._recycle_reason(
+                    self._last_rss_bytes
+                )
 
         if response.get("status") == "error":
             raise RuntimeError(f"OvRTX daemon render error: {response.get('error')}")
@@ -1824,31 +2174,55 @@ class _OvRTXDaemon:
     # Shutdown
     # ------------------------------------------------------------------
 
+    def _shutdown_locked(self) -> None:
+        """Stop the current daemon while the caller owns ``self._lock``."""
+        if not self._is_running():
+            self._process = None
+            self._stdout_buffer = b""
+            return
+        assert self._process is not None
+        assert self._process.stdin is not None
+        try:
+            self._process.stdin.write(json.dumps({"command": "shutdown"}) + "\n")
+            self._process.stdin.flush()
+            self._process.wait(timeout=10)
+        except (BrokenPipeError, OSError):
+            self._kill_process()
+        except subprocess.TimeoutExpired:
+            self._process.kill()
+            self._process.wait(timeout=5)
+        finally:
+            logger.info("OvRTX daemon shut down")
+            self._process = None
+            self._stdout_buffer = b""
+
     def shutdown(self) -> None:
         """Gracefully shut down the daemon subprocess."""
         with self._lock:
-            if not self._is_running():
-                self._process = None
-                return
-            assert self._process is not None
-            assert self._process.stdin is not None
-            try:
-                self._process.stdin.write(json.dumps({"command": "shutdown"}) + "\n")
-                self._process.stdin.flush()
-                self._process.wait(timeout=10)
-            except (BrokenPipeError, OSError):
-                pass
-            except subprocess.TimeoutExpired:
-                self._process.kill()
-                self._process.wait(timeout=5)
-            finally:
-                logger.info("OvRTX daemon shut down")
-                self._process = None
+            self._shutdown_locked()
 
 
-# Default latlong HDRI packaged with ovrtx. Keep this as a path computation
-# instead of ``import ovrtx``: importing ovrtx in the main process can collide
-# with the app's OpenUSD provider, so ovrtx lives in an isolated venv.
+def _world_understanding_resource_path(*parts: str) -> Path:
+    """Return a filesystem path for a bundled world_understanding resource."""
+    resource = importlib_resources.files("world_understanding").joinpath(*parts)
+    try:
+        return Path(resource)
+    except TypeError:
+        return Path(str(resource))
+
+
+# Default latlong HDRI bundled with world-understanding for OVRTX light
+# injection. Keep this repo-owned rather than reaching into the isolated OVRTX
+# runtime so the default rig is stable across renderer package layouts.
+_BUNDLED_DEFAULT_HDRI_FILENAME = "studio.exr"
+_BUNDLED_DEFAULT_HDRI_PATH = _world_understanding_resource_path(
+    "data",
+    "env_maps",
+    _BUNDLED_DEFAULT_HDRI_FILENAME,
+)
+
+# OVRTX-packaged StinsonBeach HDRI path helpers are retained for compatibility
+# with explicit operator overrides and tests that classify packaged OVRTX assets.
 _OVRTX_DEFAULT_HDRI_FILENAME = "StinsonBeach.hdr"
 _OVRTX_DEFAULT_HDRI_RELATIVE_PATH = (
     Path("ovrtx")
@@ -1860,11 +2234,10 @@ _OVRTX_DEFAULT_HDRI_RELATIVE_PATH = (
     / "textures"
     / _OVRTX_DEFAULT_HDRI_FILENAME
 )
-_BUNDLED_LEGACY_HDRI_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "data"
-    / "env_maps"
-    / "SmartMaterials_Environment_with_Lights.exr"
+_BUNDLED_LEGACY_HDRI_PATH = _world_understanding_resource_path(
+    "data",
+    "env_maps",
+    "SmartMaterials_Environment_with_Lights.exr",
 )
 _OVRTX_MOVED_HDRI_NEGATIVE_CACHE_SECONDS = 60.0
 _OVRTX_MOVED_HDRI_CACHE: dict[Path, tuple[float, tuple[Path, ...]]] = {}
@@ -2040,15 +2413,28 @@ def _default_ovrtx_hdri_path(
     return str(fallback_path)
 
 
-# Best-effort import-time hint for compatibility with existing introspection
-# tests/callers. It may point at a not-yet-provisioned runtime on first import;
-# render paths should call ``_resolve_default_hdri(..., require_exists=True)``.
-_DEFAULT_HDRI_PATH = _default_ovrtx_hdri_path()
+def _default_bundled_hdri_path(*, require_exists: bool = False) -> str:
+    """Return the repo-bundled default HDRI path.
+
+    Non-strict calls are import-time compatibility hints only. Render paths use
+    ``require_exists=True`` so explicit ``WU_OVRTX_DEFAULT_HDRI`` overrides can
+    still rescue stripped redistributions that omit the bundled EXR.
+    """
+    if require_exists and not _BUNDLED_DEFAULT_HDRI_PATH.is_file():
+        raise RuntimeError(
+            "Default OVRTX HDRI studio.exr was not found in "
+            f"{_BUNDLED_DEFAULT_HDRI_PATH.parent}. Set WU_OVRTX_DEFAULT_HDRI "
+            "to an explicit HDRI path or restore the bundled env map asset."
+        )
+    return str(_BUNDLED_DEFAULT_HDRI_PATH)
 
 
-def _resolve_default_hdri(
-    venv_dir: Path | None = None, *, require_exists: bool = False
-) -> str:
+# Import-time hint for compatibility with existing introspection callers. Keep
+# non-strict; render-time helpers validate the file before authoring it.
+_DEFAULT_HDRI_PATH = _default_bundled_hdri_path()
+
+
+def _resolve_default_hdri(*, require_exists: bool = False) -> str:
     """Return the HDRI asset path/URL to use for default DomeLight binding."""
     override = os.environ.get("WU_OVRTX_DEFAULT_HDRI", "").strip()
     if override:
@@ -2073,7 +2459,7 @@ def _resolve_default_hdri(
                 f"{override}. Set it to an existing file path or a remote asset URL."
             )
         return override
-    return _default_ovrtx_hdri_path(venv_dir, require_exists=require_exists)
+    return _default_bundled_hdri_path(require_exists=require_exists)
 
 
 def _ovrtx_site_dir_env_for_python(
@@ -2093,10 +2479,8 @@ def _ovrtx_site_dir_env_for_python(
         return None
 
 
-# DomeLight ``intensity`` multiplier applied to the HDRI texture.
-# OVRTX 0.2.0 renders the old SmartMaterials EXR default with effectively
-# zero radiance; the packaged StinsonBeach HDRI needs this intensity to light
-# first-run, lightless assets reliably.
+# DomeLight ``intensity`` multiplier applied to the HDRI texture. OVRTX needs
+# the studio HDRI amplified to light first-run, lightless assets reliably.
 _DEFAULT_HDRI_INTENSITY = 600.0
 _CUSTOM_HDRI_DEFAULT_INTENSITY = 1.0
 
@@ -2118,6 +2502,16 @@ def _is_bundled_legacy_hdri(hdri_asset: str | None) -> bool:
     return _paths_equal(
         _local_asset_path(hdri_asset).expanduser(),
         _BUNDLED_LEGACY_HDRI_PATH.expanduser(),
+    )
+
+
+def _is_bundled_default_hdri(hdri_asset: str | None) -> bool:
+    """True when ``hdri_asset`` is the repo-bundled active default HDRI."""
+    if not hdri_asset or not _is_local_asset_path(hdri_asset):
+        return False
+    return _paths_equal(
+        _local_asset_path(hdri_asset).expanduser(),
+        _BUNDLED_DEFAULT_HDRI_PATH.expanduser(),
     )
 
 
@@ -2158,15 +2552,18 @@ def _resolve_default_hdri_intensity(
     """Return the ``DomeLight.intensity`` to use for the default HDRI dome.
 
     Reads ``WU_OVRTX_DEFAULT_HDRI_INTENSITY`` env var (float); falls back
-    to 600.0 for the ovrtx-packaged StinsonBeach HDRI. Explicit HDRI
-    overrides, even when they share the same basename, and explicitly
-    selected bundled legacy EXR assets keep the historical 1.0 fallback
-    unless the operator sets ``WU_OVRTX_DEFAULT_HDRI_INTENSITY``.
+    to 600.0 for the bundled studio HDRI and compatibility OVRTX-packaged
+    StinsonBeach HDRI paths. Explicit HDRI overrides, even when they share
+    the same basename, and explicitly selected bundled legacy EXR assets
+    keep the historical 1.0 fallback unless the operator sets
+    ``WU_OVRTX_DEFAULT_HDRI_INTENSITY``.
     """
     val = os.environ.get("WU_OVRTX_DEFAULT_HDRI_INTENSITY", "").strip()
     hdri_override = os.environ.get("WU_OVRTX_DEFAULT_HDRI", "").strip()
     effective_hdri_asset = hdri_asset if hdri_asset is not None else hdri_override
-    if _is_ovrtx_packaged_default_hdri(effective_hdri_asset, venv_dir):
+    if _is_bundled_default_hdri(
+        effective_hdri_asset
+    ) or _is_ovrtx_packaged_default_hdri(effective_hdri_asset, venv_dir):
         fallback_intensity = _DEFAULT_HDRI_INTENSITY
     elif _is_bundled_legacy_hdri(effective_hdri_asset):
         fallback_intensity = _CUSTOM_HDRI_DEFAULT_INTENSITY
@@ -2244,6 +2641,23 @@ def "OvRTXDefaultLights" (
 """
 
 
+def build_default_hdri_lights_usda(
+    *,
+    intensity: float | None = None,
+    require_exists: bool = True,
+    venv_dir: Path | None = None,
+) -> str:
+    """Return the default HDRI DomeLight USDA overlay used by OvRTX rendering."""
+    hdri = _resolve_default_hdri(require_exists=require_exists)
+    hdri_venv_dir = venv_dir.expanduser() if venv_dir is not None else None
+    resolved_intensity = (
+        _resolve_default_hdri_intensity(hdri, hdri_venv_dir)
+        if intensity is None
+        else float(intensity)
+    )
+    return _build_default_lights_usda(hdri, resolved_intensity)
+
+
 def _ensure_lights(stage: "Usd.Stage", venv_dir: Path | None = None) -> None:
     """Add a default HDRI DomeLight to the stage if none are present.
 
@@ -2251,13 +2665,13 @@ def _ensure_lights(stage: "Usd.Stage", venv_dir: Path | None = None) -> None:
     (tests, CLIs). The daemon pipeline in ``render_all_cameras`` uses
     ``_build_default_lights_usda`` as a sublayer overlay instead -
     see the helper's docstring for why. Direct stage mutation validates the
-    default HDRI before authoring it. If the packaged default is absent,
-    this provisions the isolated OVRTX runtime before retrying strict
-    resolution.
+    default HDRI before authoring it.
 
     Args:
         stage: USD stage to check/modify (in-place).
-        venv_dir: OVRTX runtime root to search for the packaged default HDRI.
+        venv_dir: OVRTX runtime root used only for compatibility intensity
+            classification of explicit packaged-HDRI paths; it does not choose
+            the active bundled default HDRI.
     """
     from pxr import Sdf, UsdLux
 
@@ -2265,19 +2679,7 @@ def _ensure_lights(stage: "Usd.Stage", venv_dir: Path | None = None) -> None:
         return
 
     hdri_venv_dir = venv_dir.expanduser() if venv_dir is not None else None
-    if not os.environ.get("WU_OVRTX_DEFAULT_HDRI", "").strip():
-        try:
-            hdri = _resolve_default_hdri(hdri_venv_dir, require_exists=True)
-        except RuntimeError:
-            ovrtx_python = _get_ovrtx_python(venv_dir=hdri_venv_dir)
-            hdri_venv_dir = (
-                hdri_venv_dir
-                if hdri_venv_dir is not None
-                else _ovrtx_venv_dir_from_python_path(ovrtx_python)
-            )
-            hdri = _resolve_default_hdri(hdri_venv_dir, require_exists=True)
-    else:
-        hdri = _resolve_default_hdri(hdri_venv_dir, require_exists=True)
+    hdri = _resolve_default_hdri(require_exists=True)
     intensity = _resolve_default_hdri_intensity(hdri, hdri_venv_dir)
     hdri = _portable_stage_hdri_asset(stage, hdri)
     logger.info("No lights in stage - adding HDRI DomeLight (%s)", hdri)
@@ -2312,6 +2714,7 @@ def render_all_cameras(
     *,
     rtx_pt_samples_per_pixel: int | None = None,
     rtx_rt_accumulation_limit: int | None = None,
+    material_target: str | None = "auto",
 ) -> dict[str, Any]:
     """Render multiple cameras from a USD stage using OvRTX.
 
@@ -2387,6 +2790,10 @@ def render_all_cameras(
             proves the native attribute affects convergence. Unsupported with
             the persistent daemon to avoid silently misleading production
             callers.
+        material_target: Explicit material target. ``auto`` preserves
+            authored/native material outputs, ``preview_surface`` requests the
+            OVRTX PreviewSurface fallback overlay explicitly, and
+            ``openpbr_materialx`` preserves native OpenPBR/MaterialX output.
 
     Returns:
         Dict matching RenderingBackend.render() contract with keys:
@@ -2464,7 +2871,7 @@ def render_all_cameras(
         default_lights_layer_path: str | None = None
         if not _stage_has_lights(stage):
             default_lights_layer_path = os.path.join(tmp_dir, "default_lights.usda")
-            default_hdri = _resolve_default_hdri(active_venv_path, require_exists=True)
+            default_hdri = _resolve_default_hdri(require_exists=True)
             with open(default_lights_layer_path, "w", encoding="utf-8") as f:
                 f.write(
                     _build_default_lights_usda(
@@ -2495,7 +2902,9 @@ def render_all_cameras(
             () if native_visibility_probe else stage.Traverse()
         )
         for prim in visibility_prims:
-            if prim.IsInstanceProxy():
+            if (
+                prim.IsInstanceProxy()
+            ):  # pragma: no cover - stage.Traverse skips proxies
                 proxy_path = str(prim.GetPath())
                 instance_root = prim
                 while instance_root and not instance_root.IsInstance():
@@ -2508,7 +2917,7 @@ def render_all_cameras(
                     deinstanced_prim_paths.append(instance_root_path)
                     deinstanced_prim_path_set.add(instance_root_path)
                 prim = stage.GetPrimAtPath(proxy_path)
-                if not prim or prim.IsInstanceProxy():
+                if not prim or prim.IsInstanceProxy():  # pragma: no cover
                     continue
             vis_attr = _UsdGeom.Imageable(prim).GetVisibilityAttr()
             if not vis_attr or vis_attr.GetNumTimeSamples() == 0:
@@ -2607,27 +3016,35 @@ def render_all_cameras(
         t_export = time.time()
         if not root_layer.Export(tmp_usd_path):
             raise RuntimeError("Failed to export USD stage to temp file")
-        from world_understanding.utils.usd.material import (
-            write_ovrtx_preview_fallback_overlay_for_materialx_openpbr,
-        )
-
         material_fallback_layer_path = os.path.join(
             tmp_dir,
             "ovrtx_material_fallbacks.usda",
         )
-        preview_fallbacks = write_ovrtx_preview_fallback_overlay_for_materialx_openpbr(
-            stage,
-            material_fallback_layer_path,
-        )
-        if preview_fallbacks:
-            logger.info(
-                "Updated %d OpenPBR material fallback(s) for OVRTX export",
-                preview_fallbacks,
+        preview_fallbacks = 0
+        effective_material_target = normalize_render_material_target(material_target)
+        if preview_fallbacks_enabled_for_material_target(effective_material_target):
+            from world_understanding.utils.usd.material import (
+                write_ovrtx_preview_fallback_overlay_for_materialx_openpbr,
             )
+
+            preview_fallbacks = (
+                write_ovrtx_preview_fallback_overlay_for_materialx_openpbr(
+                    stage,
+                    material_fallback_layer_path,
+                )
+            )
+            if preview_fallbacks:
+                logger.info(
+                    "Updated %d OpenPBR material fallback(s) for OVRTX export",
+                    preview_fallbacks,
+                )
+        # This synchronous localization must finish before the daemon render call
+        # below; the daemon only opens the exported stage inside ``render``.
         copied_assets = _copy_exported_relative_assets(
             stage,
             Path(tmp_dir),
             base_dir=base_dir,
+            exported_stage_path=tmp_usd_path,
         )
         if copied_assets:
             logger.info(
@@ -2708,6 +3125,7 @@ def render_all_cameras(
             "num_sensor_updates": num_sensor_updates,
             "visibility_updates": visibility_updates,
             "frame_usd_paths": frame_usd_paths,
+            "material_target": effective_material_target,
             "log_level": log_level,
         }
 
@@ -2875,7 +3293,7 @@ def render_all_cameras(
                 prim = stage.GetPrimAtPath(prim_path)
                 if not prim:
                     continue
-                if prim.IsInstanceProxy():
+                if prim.IsInstanceProxy():  # pragma: no cover
                     continue
                 if prim.IsInstance():
                     prim.SetInstanceable(False)
@@ -3326,7 +3744,7 @@ def _main(argv: list[str] | None = None) -> int:
         return 0
 
     parser.error("no action requested")
-    return 2
+    return 2  # pragma: no cover - argparse.error exits before returning
 
 
 if __name__ == "__main__":

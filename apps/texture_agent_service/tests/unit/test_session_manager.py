@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import pytest
 
 from ...service.session import manager as manager_module
 from ...service.session.manager import SessionManager
-from ...service.storage import METADATA_KEY, LocalSessionStore
+from ...service.storage import METADATA_KEY, WORKER_RESERVATION_KEY, LocalSessionStore
 
 
 def test_create_session_and_progress_lifecycle(tmp_path: Path) -> None:
@@ -36,7 +37,14 @@ def test_create_session_and_progress_lifecycle(tmp_path: Path) -> None:
     )
     metadata = manager.get_session_metadata("session-1")
     assert metadata["current_step"]["name"] == "generate_textures"
-    assert metadata["overall_progress"]["current_step"] == 5
+    assert metadata["overall_progress"]["current_step"] == 6
+    manager.update_step_progress(
+        "session-1",
+        "generate_textures",
+        {"current": 2, "total": 2, "percent": 100, "message": "done"},
+    )
+    metadata = manager.get_session_metadata("session-1")
+    assert metadata["current_step"]["progress"]["percent"] == 100
 
     manager.mark_step_completed("session-1", "generate_textures", {"textures": 2})
     metadata = manager.get_session_metadata("session-1")
@@ -44,6 +52,20 @@ def test_create_session_and_progress_lifecycle(tmp_path: Path) -> None:
     assert metadata["overall_progress"]["percent"] == 75
     assert metadata["completed_steps"][0]["stats"] == {"textures": 2}
     assert "generate_textures" in metadata["timings"]
+
+    direct_metadata = {
+        "current_step": {
+            "name": "custom_step",
+            "display_name": "Custom Step",
+            "started_at": datetime.now(UTC).isoformat(),
+        },
+        "overall_progress": {"current_step": 0, "percent": 12},
+    }
+    completed = manager._apply_step_completed(direct_metadata, "custom_step")
+    assert completed is not None
+    assert completed["completed_steps"][0]["name"] == "custom_step"
+    assert completed["timings"]["custom_step"] >= 0
+    assert manager._apply_step_completed(direct_metadata, "missing") is None
 
 
 def test_default_local_metadata_writes_do_not_rewrite_through_store(
@@ -444,3 +466,153 @@ def test_pid_exists_falls_back_to_signal_when_proc_entry_is_hidden(
 
     assert SessionManager._pid_exists(1234) is True
     assert calls == [(1234, 0)]
+
+
+def test_process_and_marker_helper_edges(monkeypatch) -> None:
+    assert SessionManager._pid_exists(os.getpid()) is True
+
+    monkeypatch.setattr(
+        manager_module.Path,
+        "read_text",
+        lambda self, encoding="utf-8": (_ for _ in ()).throw(OSError("missing")),
+    )
+    assert SessionManager._process_start_ticks(999_999) is None
+
+    monkeypatch.setattr(
+        manager_module.Path,
+        "read_text",
+        lambda self, encoding="utf-8": "malformed",
+    )
+    assert SessionManager._process_start_ticks(1) is None
+
+    monkeypatch.setattr(
+        manager_module.Path,
+        "read_text",
+        lambda self, encoding="utf-8": "1 (python) S " + " ".join(["0"] * 19),
+    )
+    assert SessionManager._process_start_ticks(1) == "0"
+
+    monkeypatch.setattr(SessionManager, "_current_boot_id", lambda: "boot-b")
+    assert not SessionManager._stalled_owner_is_live(
+        {"pid": 1, "boot_id": "boot-a", "process_start_ticks": "1"}
+    )
+    monkeypatch.setattr(SessionManager, "_current_boot_id", lambda: None)
+    monkeypatch.setattr(SessionManager, "_process_start_ticks", lambda pid: "2")
+    assert not SessionManager._stalled_owner_is_live(
+        {"pid": 1, "process_start_ticks": "1"}
+    )
+    monkeypatch.setattr(SessionManager, "_process_start_ticks", lambda pid: None)
+    monkeypatch.setattr(SessionManager, "_pid_exists", lambda pid: False)
+    assert not SessionManager._stalled_owner_is_live({"pid": 1})
+    assert not SessionManager._stalled_owner_is_live({"pid": "bad"})
+    assert not SessionManager._stalled_owner_is_live({"pid": 0})
+
+    assert SessionManager._parse_metadata_datetime(None) is None
+    assert SessionManager._parse_metadata_datetime("not-a-date") is None
+    assert SessionManager._parse_metadata_datetime("2026-01-01T00:00:00").tzinfo == UTC
+    assert SessionManager._latest_timestamp("not-a-date") is None
+    assert SessionManager._remote_worker_metadata_is_stale(
+        {"ttl_expires_at": "2020-01-01T00:00:00+00:00"},
+        datetime.now(UTC),
+    )
+
+
+def test_shared_reservation_and_cleanup_lock_edges(tmp_path: Path) -> None:
+    class FlakyUpdateStore(LocalSessionStore):
+        def __init__(self, root_dir: str) -> None:
+            super().__init__(root_dir)
+            self.fail_heartbeat = False
+
+        def update_json(self, session_id: str, key: str, updater):
+            if self.fail_heartbeat:
+                raise OSError("update failed")
+            return super().update_json(session_id, key, updater)
+
+    shared_store = FlakyUpdateStore(str(tmp_path / "shared"))
+    manager = SessionManager(tmp_path / "pod", ttl_hours=1, store=shared_store)
+    session_id = "shared-edges"
+    manager.create_session(session_id)
+
+    manager.update_session(session_id, {"status": "running"})
+    assert manager._write_shared_worker_reservation(session_id) is None
+
+    metadata = manager.get_session_metadata(session_id)
+    assert metadata is not None
+    metadata["status"] = "running"
+    metadata["updated_at"] = (datetime.now(UTC) - timedelta(hours=3)).isoformat()
+    shared_store.put_json(session_id, METADATA_KEY, metadata)
+    owner_token = manager._write_shared_worker_reservation(session_id)
+    assert owner_token is not None
+    manager._clear_shared_worker_reservation(session_id)
+    assert shared_store.get_json(session_id, WORKER_RESERVATION_KEY) is None
+
+    assert manager.heartbeat_worker(session_id, owner_token=None) is False
+    shared_store.put_json(
+        session_id,
+        WORKER_RESERVATION_KEY,
+        {"owner_token": "owner-a", "updated_at": "2026-01-01T00:00:00+00:00"},
+    )
+    assert manager.heartbeat_worker(session_id, owner_token="owner-b") is False
+    shared_store.fail_heartbeat = True
+    assert manager.heartbeat_worker(session_id, owner_token="owner-a") is False
+    shared_store.fail_heartbeat = False
+
+    shared_store.put_json(
+        "_maintenance",
+        "cleanup.lock",
+        {
+            "created_at": (datetime.now(UTC) - timedelta(hours=3)).isoformat(),
+            "updated_at": (datetime.now(UTC) - timedelta(hours=3)).isoformat(),
+        },
+    )
+    cleanup_owner = manager._acquire_shared_cleanup_lock()
+    assert cleanup_owner is not None
+    assert manager._heartbeat_shared_cleanup_lock(cleanup_owner) is True
+    assert manager._heartbeat_shared_cleanup_lock("wrong-owner") is False
+
+
+def test_invalid_and_remote_event_log_edges(tmp_path: Path) -> None:
+    manager = SessionManager(tmp_path)
+    assert manager.delete_session("../bad") is False
+    assert manager.delete_session("missing") is False
+    manager.clear_worker_stalled("../bad")
+    assert manager.is_worker_stalled("../bad") is False
+    assert manager.is_cancelled("../bad") is False
+    manager.clear_cancellation("../bad")
+    assert manager.store_key_exists("../bad", "metadata.json") is False
+    assert manager.get_event_log("missing") == []
+
+    manager.create_session("preview-missing-list")
+    metadata = manager.get_session_metadata("preview-missing-list")
+    assert metadata is not None
+    metadata.pop("preview_images", None)
+    manager._save_metadata("preview-missing-list", metadata)
+    manager.add_preview_image("preview-missing-list", "preview.png")
+    assert manager.get_session_metadata("preview-missing-list")["preview_images"] == [
+        "preview.png"
+    ]
+
+    manager.create_session("sync-missing-dir")
+    manager.delete_session("sync-missing-dir")
+    assert manager.sync_to_store("sync-missing-dir") == 0
+
+    file_path = tmp_path / "source-file.txt"
+    file_path.write_text("payload", encoding="utf-8")
+    manager.put_file_to_store("preview-missing-list", "cache/file.txt", str(file_path))
+    assert manager.store_key_exists("preview-missing-list", "cache/file.txt") is True
+
+    ordered = SessionManager._merge_event_logs(
+        [{"timestamp": "bad-date", "state": "fallback"}],
+        [{"timestamp": "2026-01-01T00:00:00", "state": "naive"}],
+    )
+    assert [event["state"] for event in ordered] == ["naive", "fallback"]
+
+    shared_store = LocalSessionStore(str(tmp_path / "shared"))
+    shared_manager = SessionManager(tmp_path / "pod", ttl_hours=1, store=shared_store)
+    sid = "remote-event-only"
+    shared_store.init_session(sid)
+    shared_store.put_json(sid, METADATA_KEY, {"session_id": sid, "status": "running"})
+    shared_manager.append_event(sid, {"step": "render", "state": "running"})
+
+    assert shared_store.get_event_log(sid) == [{"step": "render", "state": "running"}]
+    assert shared_manager.open_store_stream(sid, "missing.bin") is None

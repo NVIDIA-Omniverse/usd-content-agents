@@ -28,7 +28,7 @@ target:
   duration_s: 2.0
   gravity: -9.81
   # Recording cadence; bounded at 60 by issue #50. Drives how dense the
-  # per-trial recording.usda time samples are.
+  # per-trial recording.usd time samples are.
   sample_fps: 30
   # Camera directions authored on the scene USD for VLM / human
   # review. Default is a single tilted corner view ("+x+y+z") that
@@ -49,11 +49,15 @@ target:
   # "off" | "end_of_tune" | "always".
   vlm_check: "off"
   # Optional video rendering for visual inspection — independent of
-  # vlm_check. When on, each trial's recording.usda is rendered to a
+  # vlm_check. When on, each trial's recording.usd is rendered to a
   # PNG sequence + mp4 under <trial_dir>/render/ so you can eyeball
   # what the optimizer is doing without paying for VLM tokens.
   # "off" | "end_of_tune" | "always".
   record_video: "off"
+  # Shared renderer name for inspection videos: remote, ovrtx (default),
+  # warp, or mock. Mock is deterministic test evidence, not production
+  # visual evidence.
+  # video_renderer: "ovrtx"
   # Optional render-quality knobs for the inspection video. Defaults
   # are tuned for fast iteration: 512² with 32 progressive samples in
   # ``rt2`` (real-time-path-tracing) mode. Bump to ``pt`` × 1024² × 500

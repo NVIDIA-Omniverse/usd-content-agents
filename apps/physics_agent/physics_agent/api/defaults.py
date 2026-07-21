@@ -6,22 +6,17 @@ This module defines all default values and constants used across the Physics Age
 Having everything in one place ensures consistency across CLI, API, and workflows.
 """
 
+import logging
 import os
 from typing import Any
 
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    validate_rendering_backend_name,
+)
+from world_understanding.utils.credentials import format_env_reference
+from world_understanding.utils.environment import parse_float_env, parse_int_env
 
-def _env_float(name: str, default: float) -> float:
-    try:
-        return float(os.environ.get(name, str(default)))
-    except (TypeError, ValueError):
-        return default
-
-
-def _env_int(name: str, default: int) -> int:
-    try:
-        return int(os.environ.get(name, str(default)))
-    except (TypeError, ValueError):
-        return default
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -70,30 +65,44 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 
 DEFAULT_VLM_BACKEND = os.environ.get("PA_VLM_BACKEND", "nim")
 DEFAULT_VLM_MODEL = os.environ.get("PA_VLM_MODEL", "qwen/qwen3.5-397b-a17b")
-DEFAULT_VLM_TEMPERATURE = float(os.environ.get("PA_VLM_TEMPERATURE", "1.0"))
-DEFAULT_VLM_MAX_TOKENS = int(os.environ.get("PA_VLM_MAX_TOKENS", "24576"))
+DEFAULT_VLM_TEMPERATURE = parse_float_env(
+    "PA_VLM_TEMPERATURE", 1.0, minimum=0.0, maximum=2.0, logger=logger
+)
+DEFAULT_VLM_MAX_TOKENS = parse_int_env(
+    "PA_VLM_MAX_TOKENS", 24576, minimum=1, logger=logger
+)
 DEFAULT_VLM_REASONING_EFFORT = os.environ.get(
     "PA_VLM_REASONING_EFFORT", "high"
 )  # for reasoning-capable models (e.g. gpt-5)
-DEFAULT_VLM_MAX_WORKERS = int(os.environ.get("PA_VLM_MAX_WORKERS", "64"))
+# Bound per-pipeline inference concurrency to avoid accidental resource exhaustion.
+DEFAULT_VLM_MAX_WORKERS = parse_int_env(
+    "PA_VLM_MAX_WORKERS", 64, minimum=1, maximum=256, logger=logger
+)
+DEFAULT_VLM_BASE_URL = os.environ.get("PA_VLM_BASE_URL") or None
+DEFAULT_VLM_API_KEY = os.environ.get("PA_VLM_API_KEY") or None
+DEFAULT_VLM_API_KEY_ENV = os.environ.get("PA_VLM_API_KEY_ENV") or None
 
 # Judge-specific invoke defaults. Keep this separate from the VLM construction
 # token budget so visual judging can use the same compact critique contract as
 # material-agent while the base VLM remains configured for larger tasks.
-DEFAULT_JUDGE_TEMPERATURE = _env_float("PA_JUDGE_TEMPERATURE", 0.0)
-DEFAULT_JUDGE_MAX_TOKENS = _env_int("PA_JUDGE_MAX_TOKENS", 2048)
+DEFAULT_JUDGE_TEMPERATURE = parse_float_env(
+    "PA_JUDGE_TEMPERATURE", 0.0, minimum=0.0, maximum=2.0, logger=logger
+)
+DEFAULT_JUDGE_MAX_TOKENS = parse_int_env(
+    "PA_JUDGE_MAX_TOKENS", 2048, minimum=1, logger=logger
+)
 
-# LLMGateway configuration for GPT-5
-DEFAULT_VLM_LLMGATEWAY_CONFIG = {
-    "cred_fields": [
-        "token_url",
-        "client_id",
-        "client_secret",
-        "scope",
-    ],
-    "env_prefix": "AZURE_LLM_GATEWAY_main_",
-    "cred_file_url": None,
-}
+
+def _vlm_endpoint_config() -> dict[str, str]:
+    config: dict[str, str] = {}
+    if DEFAULT_VLM_BASE_URL:
+        config["base_url"] = DEFAULT_VLM_BASE_URL
+    if DEFAULT_VLM_API_KEY_ENV:
+        config["api_key_env"] = format_env_reference(DEFAULT_VLM_API_KEY_ENV)
+    elif DEFAULT_VLM_API_KEY:
+        config["api_key_env"] = format_env_reference("PA_VLM_API_KEY")
+    return config
+
 
 # ============================================================================
 # Prediction Defaults
@@ -105,8 +114,8 @@ PREDICT_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
         "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+        **_vlm_endpoint_config(),
     },
     # No separate parser LLM by default. Predict falls back to llm = vlm
     # unless the caller explicitly configures a dedicated llm backend/model.
@@ -130,8 +139,9 @@ IDENTIFY_ASSET_DEFAULTS: dict[str, Any] = {
     "vlm": {
         "backend": DEFAULT_VLM_BACKEND,
         "model": DEFAULT_VLM_MODEL,
-        "temperature": 0.3,
+        "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": 4096,
+        **_vlm_endpoint_config(),
     },
     "prompts": {
         "system": (
@@ -348,7 +358,8 @@ def build_default_pipeline_config(
         working_dir: Working directory for intermediate artifacts.
         user_prompt: Optional user prompt override.  When *None* the
             ``DEFAULT_USER_PROMPT`` is used.
-        render_backend: Rendering backend to use ("warp", "ovrtx", "remote").
+        render_backend: Rendering backend to use ("remote", "warp", "ovrtx",
+            or "mock").
             When *None*, uses ``DEFAULT_RENDER_BACKEND``.
         optimize_usd: Enable the Scene Optimizer step.  When ``True``,
             ``restore_usd`` is also enabled to map predictions back to
@@ -363,13 +374,7 @@ def build_default_pipeline_config(
     Returns:
         Full pipeline configuration dictionary ready for ``execute_pipeline_async``.
     """
-    _VALID_BACKENDS = {"warp", "ovrtx", "remote"}
-    backend = render_backend or DEFAULT_RENDER_BACKEND
-    if backend not in _VALID_BACKENDS:
-        raise ValueError(
-            f"Invalid render_backend '{backend}'. "
-            f"Must be one of: {', '.join(sorted(_VALID_BACKENDS))}"
-        )
+    backend = validate_rendering_backend_name(render_backend or DEFAULT_RENDER_BACKEND)
 
     config: dict[str, Any] = {
         "project": {
@@ -460,8 +465,9 @@ def build_default_pipeline_config(
                 "vlm": {
                     "backend": DEFAULT_VLM_BACKEND,
                     "model": DEFAULT_VLM_MODEL,
-                    "temperature": 0.3,
-                    "max_tokens": 4096,
+                    "temperature": DEFAULT_VLM_TEMPERATURE,
+                    "max_tokens": DEFAULT_VLM_MAX_TOKENS,
+                    **_vlm_endpoint_config(),
                 },
                 "max_workers": DEFAULT_VLM_MAX_WORKERS,
                 "output_key": "classification",
@@ -516,9 +522,9 @@ def apply_defaults(config: dict[str, Any], defaults: dict[str, Any]) -> dict[str
         Config with defaults applied
 
     Example:
-        >>> user_config = {"vlm": {"model": "gpt-4o"}}
+        >>> user_config = {"vlm": {"model": "example-vlm-model"}}
         >>> full_config = apply_defaults(user_config, PREDICT_DEFAULTS)
-        >>> # Result: {"vlm": {"model": "gpt-4o", "backend": "nim", ...}}
+        >>> # Result: {"vlm": {"model": "example-vlm-model", "backend": "nim", ...}}
     """
     result = config.copy()
 
@@ -546,7 +552,7 @@ def get_predict_config_with_defaults(
         Complete configuration with defaults
 
     Example:
-        >>> minimal = {"vlm": {"model": "gpt-4o"}, "dataset": "data.jsonl"}
+        >>> minimal = {"vlm": {"model": "example-vlm-model"}, "dataset": "data.jsonl"}
         >>> full = get_predict_config_with_defaults(minimal)
         >>> # VLM backend, temperature, etc. auto-filled
     """

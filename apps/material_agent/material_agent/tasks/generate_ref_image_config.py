@@ -10,21 +10,30 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from world_understanding.agentic.config import log_config_source
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
+
+from material_agent.tasks.config_loader import load_config_from_context
 
 logger = logging.getLogger(__name__)
 
 
 class GenerateRefImageConfigTask(Task):
-    """Load generate-reference-image configuration from a YAML file.
+    """Load generate-reference-image configuration.
 
-    Same pattern as ``RenderPreviewConfigTask``: read the temp YAML
-    written by the unified pipeline executor and populate context keys
-    consumed by ``GenerateReferenceImageTask``.
+    Same pattern as ``RenderPreviewConfigTask``: load the in-memory step
+    config (or standalone YAML) and populate downstream context keys.
 
     Input context keys:
-        - config_path: Path to the YAML configuration file (required)
+        - config_dict: In-memory step configuration (preferred)
+        - config_path: YAML path or relative-path anchor
 
     Output context keys:
         - rendered_preview_paths: list[str] — preview images
@@ -40,24 +49,11 @@ class GenerateRefImageConfigTask(Task):
         self.description = "Load generate-reference-image configuration"
 
     def run(self, context: dict[str, Any], object_store=None) -> dict[str, Any]:
-        import yaml
-
         listener = get_listener(context, logger_name=__name__)
-
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path is required in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(
-            f"Loading generate-reference-image configuration from {config_path}"
+        config, config_path = load_config_from_context(
+            context, missing_path_message="config_path is required in context"
         )
-
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        log_config_source(context, listener.info, label="generate-reference-image")
 
         # ── Preview paths ─────────────────────────────────────────────
         preview_paths = config.get("rendered_preview_paths", [])
@@ -89,10 +85,16 @@ class GenerateRefImageConfigTask(Task):
         if output_dir:
             output_dir = Path(output_dir)
             if not output_dir.is_absolute():
-                output_dir = (config_path.parent / output_dir).resolve()
+                output_dir = resolve_path_with_safe_diagnostics(
+                    config_path.parent / output_dir,
+                    label="generated-reference output directory",
+                )
         else:
             output_dir = config_path.parent / "generated_refs"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            output_dir,
+            label="generated-reference output directory",
+        )
 
         # ── Number of images ──────────────────────────────────────────
         # Only pass through if explicitly > 1 in config.
@@ -111,10 +113,19 @@ class GenerateRefImageConfigTask(Task):
         listener.info(f"  Preview images: {len(preview_paths)}")
         if reference_images:
             listener.info(f"  Reference images: {len(reference_images)}")
-        listener.info(f"  Backend: {image_gen_config.get('backend', 'gemini')}")
-        listener.info(f"  Model: {image_gen_config.get('model', '(default)')}")
-        listener.info(f"  Prompt: {prompt[:80]}{'...' if len(prompt) > 80 else ''}")
-        listener.info(f"  Output: {output_dir}")
+        listener.info(
+            "  Backend: "
+            f"{redact_sensitive_config(image_gen_config.get('backend', 'gemini'))}"
+        )
+        listener.info(
+            "  Model: "
+            f"{redact_sensitive_config(image_gen_config.get('model', '(default)'))}"
+        )
+        safe_prompt = str(redact_sensitive_config(prompt))
+        listener.info(
+            f"  Prompt: {safe_prompt[:80]}{'...' if len(safe_prompt) > 80 else ''}"
+        )
+        listener.info(f"  Output: {redact_sensitive_path(output_dir)}")
         num_display = num_images or "auto (match preview count)"
         listener.info(f"  Num images: {num_display}")
 

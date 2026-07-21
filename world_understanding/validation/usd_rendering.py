@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 import re
 import shutil
@@ -21,19 +20,35 @@ from world_understanding.functions.graphics.render_valid_adapter import (
 from world_understanding.functions.graphics.render_validation import (
     RENDER_MISSING_OUTPUT,
 )
+from world_understanding.rendering_backend_contract import (
+    RENDERING_BACKEND_NAMES,
+    UnknownRenderingBackendError,
+    UnsupportedRenderingBackendError,
+    validate_rendering_backend_for_surface,
+)
 from world_understanding.utils.nvcf_utils import get_base_url
 from world_understanding.utils.usd.stage import prepare_stage_for_render
+from world_understanding.validation.json_normalization import (
+    StructuredJsonNormalizer,
+)
+from world_understanding.validation.rendering_backend_contract import (
+    SUPPORTED_RENDER_BACKENDS,
+    VALIDATION_RENDERING_BACKEND_NAMES,
+    normalize_validation_rendering_backend,
+)
 
 RuntimeRenderStatus = Literal["completed", "failed", "unavailable", "skipped"]
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_RUNTIME_RENDER_VIEWS: tuple[str, ...] = ("+x+y+z",)
-SUPPORTED_RENDER_BACKENDS: frozenset[str] = frozenset({"remote", "ovrtx"})
-_RENDERING_BACKEND_MODULE = "world_understanding.functions.graphics.rendering"
+_VALIDATION_RENDERING_SURFACE = "Validation Agent in-run USD rendering"
 _SIDE_VIEW_DIRECTIONS: frozenset[str] = frozenset({"+x", "-x", "+y", "-y", "+z", "-z"})
 _ASSET_KEY_STEM_CHARS = 16
 _ASSET_KEY_DIGEST_CHARS = 8
+_INVALID_RENDER_BACKEND_LABEL = "invalid"
+_JSON_NORMALIZER = StructuredJsonNormalizer(unsupported_value_policy="stringify")
+_json_value = _JSON_NORMALIZER.value
 _VIEW_GROUP_ALIASES: dict[str, tuple[str, ...]] = {
     "fixed_6": ("+x", "-x", "+y", "-y", "+z", "-z"),
 }
@@ -68,19 +83,12 @@ def render_usd_visual_evidence(
         and metadata such as view and image counts.
     """
 
-    backend_name = _normalized_render_backend(policy)
-    if backend_name not in SUPPORTED_RENDER_BACKENDS:
-        return _unavailable_result(
-            backend=backend_name,
-            message=(
-                "Validation Agent in-run USD rendering currently supports "
-                "remote REST rendering and local OVRTX rendering only."
-            ),
-            details={
-                "render_backend": backend_name,
-                "supported_render_backends": sorted(SUPPORTED_RENDER_BACKENDS),
-            },
-        )
+    backend_selection = _validation_render_backend_selection(
+        _normalized_render_backend(policy)
+    )
+    if isinstance(backend_selection, dict):
+        return backend_selection
+    backend_name = backend_selection
 
     width = _optional_int(policy, "render_image_width", 1024)
     height = _optional_int(policy, "render_image_height", width)
@@ -361,6 +369,14 @@ def _create_render_backend(
     backend_name: str,
     policy: Mapping[str, Any],
 ) -> Any | dict[str, Any]:
+    # The primary path validates before opening the stage; keep this guard because
+    # direct helper callers must receive the same structured failure contract.
+    backend_selection = _validation_render_backend_selection(backend_name)
+    if isinstance(backend_selection, dict):
+        return backend_selection
+    backend_name = backend_selection
+
+    backend_config: dict[str, Any] = {}
     if backend_name == "remote":
         base_url = _optional_string(policy, "render_base_url")
         try:
@@ -378,107 +394,115 @@ def _create_render_backend(
                     "required_env": ["RENDER_ENDPOINT", "NVCF_RENDER_FUNCTION_ID"],
                 },
             )
-
-        backend_class = _load_rendering_backend_class(
-            "RemoteRenderingBackend",
-            backend_name=backend_name,
-            unavailable_message=(
-                "Remote rendering backend dependencies are required for "
-                "Validation Agent in-run rendering."
-            ),
-        )
-        if isinstance(backend_class, dict):
-            return backend_class
-        try:
-            return backend_class(base_url=resolved_base_url)
-        except Exception as exc:
-            logger.warning(
-                "Remote rendering backend is unavailable for %s: %s",
-                resolved_base_url,
-                exc,
-                exc_info=True,
-            )
-            return _unavailable_result(
-                backend=backend_name,
-                message=f"Remote rendering backend is unavailable: {exc}",
-                details={"exception_type": type(exc).__name__},
-            )
+        backend_config["base_url"] = resolved_base_url
 
     if backend_name == "ovrtx":
-        backend_class = _load_rendering_backend_class(
-            "OvRTXRenderingBackend",
-            backend_name=backend_name,
-            unavailable_message=(
-                "OVRTX rendering backend dependencies are required for "
-                "Validation Agent in-run rendering."
-            ),
-        )
-        if isinstance(backend_class, dict):
-            return backend_class
-
-        try:
-            return backend_class(
-                log_level=_optional_stripped_string(
+        backend_config.update(
+            {
+                "log_level": _optional_stripped_string(
                     policy,
                     "render_ovrtx_log_level",
                     "warn",
                 ),
-                num_sensor_updates=_optional_int(
+                "num_sensor_updates": _optional_int(
                     policy,
                     "render_ovrtx_num_sensor_updates",
                     32,
                 ),
-                render_mode=_optional_stripped_string(
+                "render_mode": _optional_stripped_string(
                     policy,
                     "render_ovrtx_mode",
                     "rt2",
                 ),
-            )
-        except Exception as exc:
-            logger.warning(
-                "OVRTX rendering backend is unavailable: %s",
-                exc,
-                exc_info=True,
-            )
-            return _unavailable_result(
-                backend=backend_name,
-                message=f"OVRTX rendering backend is unavailable: {exc}",
-                details={"exception_type": type(exc).__name__},
-            )
+            }
+        )
 
-    # Safety net for direct helper calls; render_usd_visual_evidence validates
-    # backend_name against SUPPORTED_RENDER_BACKENDS before calling this helper.
-    return _unavailable_result(
-        backend=backend_name,
-        message="Unsupported render backend.",
-        details={
-            "render_backend": backend_name,
-            "supported_render_backends": sorted(SUPPORTED_RENDER_BACKENDS),
-        },
+    backend_label = "Remote" if backend_name == "remote" else "OVRTX"
+    try:
+        return _create_rendering_backend_from_factory(backend_name, backend_config)
+    except (ImportError, AttributeError) as exc:
+        return _unavailable_result(
+            backend=backend_name,
+            message=(
+                f"{backend_label} rendering backend dependencies are required for "
+                "Validation Agent in-run rendering."
+            ),
+            details={"exception_type": type(exc).__name__},
+        )
+    except Exception as exc:
+        logger.warning(
+            "%s rendering backend is unavailable: %s",
+            backend_label,
+            exc,
+            exc_info=True,
+        )
+        return _unavailable_result(
+            backend=backend_name,
+            message=f"{backend_label} rendering backend is unavailable: {exc}",
+            details={"exception_type": type(exc).__name__},
+        )
+
+
+def _create_rendering_backend_from_factory(
+    backend_name: str,
+    config: Mapping[str, Any],
+) -> Any:
+    """Load the renderer factory only when runtime USD rendering is attempted."""
+    from world_understanding.functions.graphics.rendering_backend_factory import (
+        create_rendering_backend,
     )
 
+    return create_rendering_backend(backend_name, config)
 
-def _load_rendering_backend_class(
-    class_name: str,
-    *,
-    backend_name: str,
-    unavailable_message: str,
-) -> Any | dict[str, Any]:
+
+def _validation_render_backend_selection(
+    backend_value: Any,
+) -> str | dict[str, Any]:
     try:
-        rendering_module = importlib.import_module(_RENDERING_BACKEND_MODULE)
-        return getattr(rendering_module, class_name)
-    except ImportError as exc:
-        return _unavailable_result(
-            backend=backend_name,
-            message=unavailable_message,
-            details={"exception_type": type(exc).__name__},
+        return validate_rendering_backend_for_surface(
+            backend_value,
+            SUPPORTED_RENDER_BACKENDS,
+            surface=_VALIDATION_RENDERING_SURFACE,
         )
-    except AttributeError as exc:
-        return _unavailable_result(
-            backend=backend_name,
-            message=unavailable_message,
-            details={"exception_type": type(exc).__name__},
+    except UnknownRenderingBackendError as exc:
+        message = (
+            str(exc)
+            if isinstance(backend_value, str)
+            else "Invalid rendering backend selector; expected a string value."
         )
+        return _failed_result(
+            backend=_render_backend_label(backend_value),
+            code="render.backend_unknown",
+            message=message,
+            details={
+                "reason": "unknown_backend",
+                "render_backend": _json_value(backend_value),
+                "render_backend_type": type(backend_value).__name__,
+                "canonical_render_backends": list(RENDERING_BACKEND_NAMES),
+                "supported_render_backends": list(VALIDATION_RENDERING_BACKEND_NAMES),
+            },
+        )
+    except UnsupportedRenderingBackendError as exc:
+        return _unavailable_result(
+            backend=_render_backend_label(backend_value),
+            message=str(exc),
+            details={
+                "reason": "unsupported_by_validation",
+                "render_backend": _json_value(backend_value),
+                "canonical_render_backends": list(RENDERING_BACKEND_NAMES),
+                "supported_render_backends": list(VALIDATION_RENDERING_BACKEND_NAMES),
+            },
+        )
+
+
+def _render_backend_label(backend_value: Any) -> str | None:
+    if backend_value is None:
+        return None
+    return (
+        backend_value
+        if isinstance(backend_value, str)
+        else _INVALID_RENDER_BACKEND_LABEL
+    )
 
 
 def _unavailable_result(
@@ -495,6 +519,33 @@ def _unavailable_result(
     )
     return {
         "status": "unavailable",
+        "backend": backend,
+        "image_paths": [],
+        "render_response": None,
+        "render_output_dir": None,
+        "issues": [issue],
+        "metadata": {
+            "backend": backend,
+            "base_url_configured": False,
+        },
+    }
+
+
+def _failed_result(
+    *,
+    backend: str | None,
+    code: str,
+    message: str,
+    details: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    issue = _runtime_issue(
+        code=code,
+        severity="fail",
+        message=message,
+        details=dict(details or {}),
+    )
+    return {
+        "status": "failed",
         "backend": backend,
         "image_paths": [],
         "render_response": None,
@@ -916,14 +967,11 @@ def _optional_stripped_string(
     return value.strip() if value and value.strip() else default
 
 
-def _normalized_render_backend(policy: Mapping[str, Any]) -> str:
-    raw_backend_name = _optional_string(policy, "render_backend")
-    if raw_backend_name is None:
-        return "remote"
-    backend_name = raw_backend_name.strip().lower()
-    if not backend_name:
+def _normalized_render_backend(policy: Mapping[str, Any]) -> Any:
+    raw_backend_name = policy.get("render_backend")
+    backend_name = normalize_validation_rendering_backend(raw_backend_name)
+    if isinstance(raw_backend_name, str) and not raw_backend_name.strip():
         logger.info("Blank render_backend value defaults to remote")
-        return "remote"
     if backend_name != raw_backend_name:
         logger.debug(
             "Normalized render_backend value from %r to %r",

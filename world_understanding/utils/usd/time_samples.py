@@ -28,7 +28,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Usd
 
 # Pose layout: 7 floats = [px, py, pz, qx, qy, qz, qw]. Matches ovphysx

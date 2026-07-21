@@ -10,20 +10,31 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from world_understanding.agentic.config import log_config_source
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    path_exists_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
+
+from material_agent.tasks.config_loader import load_config_from_context
 
 logger = logging.getLogger(__name__)
 
 
 class RenderPreviewConfigTask(Task):
-    """Load render-preview configuration from a YAML file.
+    """Load render-preview configuration.
 
     Mirrors ``RenderConfigTask`` but targets the ``render_preview`` step,
     which uses :class:`RenderScenePreviewTask` from the shared library.
 
     Input context keys:
-        - config_path: Path to the YAML configuration file (required)
+        - config_dict: In-memory step configuration (preferred)
+        - config_path: YAML path or relative-path anchor
 
     Output context keys:
         - usd_path: Path to the USD file to render
@@ -45,22 +56,11 @@ class RenderPreviewConfigTask(Task):
         Returns:
             Updated context with render preview configuration
         """
-        import yaml
-
         listener = get_listener(context, logger_name=__name__)
-
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path is required in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(f"Loading render-preview configuration from {config_path}")
-
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        config, config_path = load_config_from_context(
+            context, missing_path_message="config_path is required in context"
+        )
+        log_config_source(context, listener.info, label="render-preview")
 
         # The config is already extracted by the unified pipeline executor
         # so it's a flat dict with all keys at the top level.
@@ -70,19 +70,33 @@ class RenderPreviewConfigTask(Task):
 
         usd_path = Path(usd_path)
         if not usd_path.is_absolute():
-            usd_path = (config_path.parent / usd_path).resolve()
+            usd_path = resolve_path_with_safe_diagnostics(
+                config_path.parent / usd_path,
+                label="render-preview USD path",
+            )
 
-        if not usd_path.exists():
-            raise FileNotFoundError(f"USD file not found: {usd_path}")
+        if not path_exists_with_safe_diagnostics(
+            usd_path,
+            label="render-preview USD path",
+        ):
+            raise FileNotFoundError(
+                f"USD file not found: {redact_sensitive_path(usd_path)}"
+            )
 
         output_dir = config.get("output_dir")
         if output_dir:
             output_dir = Path(output_dir)
             if not output_dir.is_absolute():
-                output_dir = (config_path.parent / output_dir).resolve()
+                output_dir = resolve_path_with_safe_diagnostics(
+                    config_path.parent / output_dir,
+                    label="render-preview output directory",
+                )
         else:
             output_dir = usd_path.parent / "preview"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            output_dir,
+            label="render-preview output directory",
+        )
 
         # Build render_config dict for RenderScenePreviewTask
         render_config: dict[str, Any] = {
@@ -96,10 +110,12 @@ class RenderPreviewConfigTask(Task):
             "use_lights": config.get("use_lights", True),
             "flatten_before_render": config.get("flatten_before_render", False),
         }
+        if "material_target" in config:
+            render_config["material_target"] = config["material_target"]
 
-        listener.info(f"  USD: {usd_path}")
-        listener.info(f"  Output: {output_dir}")
-        listener.info(f"  Backend: {render_config['backend']}")
+        listener.info(f"  USD: {redact_sensitive_path(usd_path)}")
+        listener.info(f"  Output: {redact_sensitive_path(output_dir)}")
+        listener.info(f"  Backend: {redact_sensitive_config(render_config['backend'])}")
         listener.info(
             f"  Size: {render_config['image_width']}x{render_config['image_height']}"
         )

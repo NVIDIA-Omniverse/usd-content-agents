@@ -25,6 +25,36 @@ def test_preview_filename_uses_new_hash_for_new_sessions() -> None:
     )
 
 
+def test_preview_resolution_prefers_existing_preferred_and_handles_missing_dir(
+    tmp_path: Path,
+) -> None:
+    preview_dir = tmp_path / "preview"
+    preferred = preview_filename_for_render_path("World/mesh_I3_prim_only.png")
+    assert (
+        find_existing_preview_filename(preview_dir, "World/mesh_I3_prim_only.png")
+        is None
+    )
+    assert (
+        resolve_preview_filename(preview_dir, "World/mesh_I3_prim_only.png")
+        == preferred
+    )
+
+    preview_dir.mkdir()
+    (preview_dir / preferred).write_bytes(b"png")
+
+    assert (
+        find_existing_preview_filename(preview_dir, "World/mesh_I3_prim_only.png")
+        == preferred
+    )
+
+    empty_preview_dir = tmp_path / "empty-preview"
+    empty_preview_dir.mkdir()
+    assert (
+        find_existing_preview_filename(empty_preview_dir, "World/mesh_I3_prim_only.png")
+        is None
+    )
+
+
 def test_preview_resolution_prefers_existing_legacy_filename(tmp_path: Path) -> None:
     preview_dir = tmp_path / "preview"
     preview_dir.mkdir()

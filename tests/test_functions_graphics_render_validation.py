@@ -486,3 +486,177 @@ def test_metadata_records_sensors_failures_and_ovrtx_visibility_issue() -> None:
         "time-sampled visibility failed while rendering frame 0"
     ]
     assert _issue_codes(result) == [OVRTX_TIME_SAMPLE_VISIBILITY_FAILED]
+
+
+def test_image_below_minimum_dimensions_reports_missing_output(tmp_path: Path) -> None:
+    image_path = _save_image(
+        tmp_path / "too_small.png",
+        PILImage.new("RGB", (1, 2), (255, 0, 0)),
+    )
+
+    result = validate_image_artifact(image_path, min_width=2, min_height=3)
+
+    assert _issue_codes(result) == [RENDER_MISSING_OUTPUT, RENDER_BLANK_IMAGE]
+    assert result.issues[0].details == {
+        "width": 1,
+        "height": 2,
+        "min_width": 2,
+        "min_height": 3,
+    }
+
+
+def test_image_analysis_sampling_stride_is_recorded(tmp_path: Path) -> None:
+    image_path = _save_image(
+        tmp_path / "sampled.png",
+        PILImage.new("RGB", (10, 10), (120, 120, 120)),
+    )
+
+    result = validate_image_artifact(image_path, max_analysis_pixels=10)
+
+    assert result.metrics["sampled_pixels"] == 10
+
+
+def test_duplicate_frames_single_frame_passes() -> None:
+    result = detect_duplicate_frames([_normal_image()])
+
+    assert result.passed
+    assert result.pairs == []
+    assert result.issues == []
+
+
+def test_render_response_reports_non_mapping_entry_and_empty_results() -> None:
+    malformed_entry = validate_render_response({"results": [object()]})
+    empty_results = validate_render_response({"results": []})
+
+    assert _issue_codes(malformed_entry) == [
+        RENDER_MALFORMED_RESPONSE,
+        RENDER_MALFORMED_RESPONSE,
+    ]
+    assert malformed_entry.issues[0].subject == "results[0]"
+    assert _issue_codes(empty_results) == [RENDER_MALFORMED_RESPONSE]
+    assert "does not contain any camera" in empty_results.issues[0].message
+
+
+def test_render_response_top_level_sequence_is_supported() -> None:
+    result = validate_render_response(
+        [{"camera": "/Camera", "images": [object()]}],
+        expected_cameras=["/Camera"],
+    )
+
+    assert result.passed
+    assert result.metadata.cameras == ["/Camera"]
+
+
+def test_render_response_reports_missing_and_duplicate_camera_entries() -> None:
+    response = {
+        "results": [
+            {"images": [object()]},
+            {"camera": "/Camera", "images": [object()]},
+            {"camera": "/Camera", "images": [object()]},
+        ]
+    }
+
+    result = validate_render_response(response)
+
+    assert _issue_codes(result) == [
+        RENDER_MALFORMED_RESPONSE,
+        RENDER_MALFORMED_RESPONSE,
+    ]
+    assert result.issues[0].subject == "results[0]"
+    assert result.issues[1].subject == "/Camera"
+
+
+def test_render_response_image_entry_edge_shapes() -> None:
+    no_image_key = validate_render_response({"results": [{"camera": "/Camera"}]})
+    scalar_images = validate_render_response(
+        {"results": [{"camera": "/Camera", "images": "single.png"}]}
+    )
+    empty_images = validate_render_response(
+        {"results": [{"camera": "/Camera", "images": []}]}
+    )
+    none_image = validate_render_response(
+        {"results": [{"camera": "/Camera", "images": [None]}]}
+    )
+    none_then_output = validate_render_response(
+        {
+            "results": [
+                {
+                    "camera": "/Camera",
+                    "images": None,
+                    "output_paths": ["camera.png"],
+                }
+            ]
+        }
+    )
+
+    assert _issue_codes(no_image_key) == [RENDER_MISSING_OUTPUT]
+    assert _issue_codes(scalar_images) == [RENDER_MALFORMED_RESPONSE]
+    assert _issue_codes(empty_images) == [RENDER_MISSING_OUTPUT]
+    assert _issue_codes(none_image) == [RENDER_MISSING_OUTPUT]
+    assert none_image.issues[0].details["image_index"] == 0
+    assert none_then_output.passed
+    assert none_then_output.metadata.output_paths == ["camera.png"]
+
+
+def test_render_response_infers_missing_frames_from_metadata_counts() -> None:
+    without_expected_frames = validate_render_response(
+        {
+            "results": [
+                {
+                    "camera": "/Camera",
+                    "frames": [0, 1],
+                    "images": ["frame_0.png"],
+                }
+            ]
+        }
+    )
+    without_rendered_frames = validate_render_response(
+        {"results": [{"camera": "/Camera", "images": ["frame_0.png"]}]},
+        expected_frames=[0, 1],
+    )
+
+    assert _issue_codes(without_expected_frames) == [RENDER_MISSING_OUTPUT]
+    assert without_expected_frames.issues[0].details["missing_frames"] == [1]
+    assert _issue_codes(without_rendered_frames) == [RENDER_MISSING_OUTPUT]
+    assert without_rendered_frames.issues[0].details["missing_frames"] == [1]
+
+
+def test_render_response_metadata_coerces_scalar_and_mapping_fields() -> None:
+    metadata = extract_render_response_metadata(
+        {
+            "cameras": "TopCamera",
+            "frames": 3,
+            "sensors": ["depth", "normal"],
+            "failures": "top failure",
+            "errors": {"worker": "boom"},
+            "results": [
+                {
+                    "camera_path": "/CameraA",
+                    "frame_ids": [{"frame": 1}],
+                    "sensors": 7,
+                    "images": "inline.png",
+                    "failures": ["list failure", 4],
+                },
+                {
+                    "camera_name": "/CameraB",
+                    "frames": object(),
+                    "image_files": ["out.png"],
+                    "failures": 5,
+                },
+            ],
+        }
+    )
+
+    assert metadata.cameras == ["TopCamera", "/CameraA", "/CameraB"]
+    assert metadata.frames[0] == 3
+    assert metadata.frames[1] == "{'frame': 1}"
+    assert len(metadata.frames) == 3
+    assert metadata.sensors == ["depth", "normal", "7"]
+    assert metadata.output_paths == ["out.png"]
+    assert metadata.failures == [
+        "top failure",
+        "worker: boom",
+        "list failure",
+        "4",
+        "5",
+    ]

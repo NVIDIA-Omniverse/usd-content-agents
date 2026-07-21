@@ -8,8 +8,14 @@ authors = [
     {name = "Omniverse GenAI Team"},
 ]
 dependencies = [
-    "world-understanding>=0.2.0",
+    "pydantic>=2.11,<3.0.0",
+    "world-understanding>=0.5.0",
+    "texture-gen-service-common>=0.5.0",
 ]
+
+[tool.uv.sources]
+world-understanding = { path = "../..", editable = true }
+texture-gen-service-common = { path = "../texture_gen_service_common", editable = true }
 
 [build-system]
 requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
@@ -19,7 +25,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -27,7 +33,7 @@ source = "uv-dynamic-versioning"
 
 [project.optional-dependencies]
 dev = [
-    "world-understanding[dev]>=0.2.0",
+    "world-understanding[dev]>=0.5.0",
 ]
 all = [
     "texture-agent[dev]",

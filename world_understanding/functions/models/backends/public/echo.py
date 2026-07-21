@@ -17,4 +17,4 @@ def create_echo_chat(prefix: str = "Echo: ", **kwargs: Any) -> BaseChatModel:
     return EchoChatModel(prefix=prefix)
 
 
-register_chat_backend("echo", create_echo_chat)
+register_chat_backend("echo", create_echo_chat, requires_api_key=False)

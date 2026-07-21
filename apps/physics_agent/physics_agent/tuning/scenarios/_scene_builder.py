@@ -35,6 +35,7 @@ API even when the simulator was driven in stage units internally.
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -198,17 +199,26 @@ def _ground_plane_root_for_body(stage: Usd.Stage, body_prim: Usd.Prim) -> str:
 
 
 def _stage_default_body_prim(stage: Usd.Stage) -> Usd.Prim:
-    """Find the rigid body prim — defaults to the first prim with
-    ``UsdPhysics.RigidBodyAPI`` applied. Raises if none present."""
+    """Find the rigid body prim to drive for single-body tune scenes.
+
+    Tune v1 assumes the patched physics USD is already clean single-body
+    input. Preserve the historical traversal-order contract: the first
+    authored rigid body is the one the simulator, recorder, and metrics
+    drive. Multi-body or nested-body inputs should be normalized upstream
+    or selected explicitly by future scenario metadata rather than guessed
+    here.
+    """
     from pxr import UsdPhysics  # type: ignore[import-untyped]
 
-    for prim in stage.Traverse():
-        if prim.HasAPI(UsdPhysics.RigidBodyAPI):
-            return prim
-    raise ValueError(
-        "no prim with UsdPhysics.RigidBodyAPI found in the patched physics "
-        "USD; apply_physics must run before tune"
-    )
+    rigid_bodies = [
+        prim for prim in stage.Traverse() if prim.HasAPI(UsdPhysics.RigidBodyAPI)
+    ]
+    if not rigid_bodies:
+        raise ValueError(
+            "no prim with UsdPhysics.RigidBodyAPI found in the patched physics "
+            "USD; apply_physics must run before tune"
+        )
+    return rigid_bodies[0]
 
 
 def _bbox_size_stage_units(prim: Usd.Prim) -> tuple[float, float, float]:
@@ -241,6 +251,149 @@ def _bbox_minmax_stage_units(
         (float(bmin[0]), float(bmin[1]), float(bmin[2])),
         (float(bmax[0]), float(bmax[1]), float(bmax[2])),
     )
+
+
+def _bbox_minmax_pose_local_stage_units(
+    prim: Usd.Prim,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Bbox min/max in the selected body's unposed local frame.
+
+    Freeform ground-clearance scoring rotates these bbox corners by the
+    recorded body pose. The values therefore must not already include the
+    selected body's authored translate/rotate/scale pose ops, otherwise a
+    transformed asset gets rotated or scaled twice. Descendant transforms stay
+    included because they are part of the shape under the selected body.
+    """
+    from pxr import Usd, UsdGeom, UsdPhysics  # type: ignore[import-untyped]
+
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+    combined = _combined_relative_bound_values(
+        prim,
+        _acceptance_bound_prims(prim, UsdGeom, UsdPhysics),
+        cache,
+    )
+    if combined is None:
+        box_range = cache.ComputeUntransformedBound(prim).ComputeAlignedRange()
+        if box_range.IsEmpty():
+            return _bbox_minmax_stage_units(prim)
+        bmin = box_range.GetMin()
+        bmax = box_range.GetMax()
+        combined = [
+            float(bmin[0]),
+            float(bmin[1]),
+            float(bmin[2]),
+            float(bmax[0]),
+            float(bmax[1]),
+            float(bmax[2]),
+        ]
+    if not all(math.isfinite(v) for v in combined):
+        return _bbox_minmax_stage_units(prim)
+    return (
+        (combined[0], combined[1], combined[2]),
+        (combined[3], combined[4], combined[5]),
+    )
+
+
+def _combined_relative_bound_values(
+    body_prim: Usd.Prim,
+    measurement_prims: list[Any],
+    cache: Any,
+) -> list[float] | None:
+    combined: list[float] | None = None
+    for measurement_prim in measurement_prims:
+        if measurement_prim == body_prim:
+            bbox = cache.ComputeUntransformedBound(measurement_prim)
+        else:
+            bbox = cache.ComputeRelativeBound(measurement_prim, body_prim)
+        box_range = bbox.ComputeAlignedRange()
+        if box_range.IsEmpty():
+            continue
+        bmin = box_range.GetMin()
+        bmax = box_range.GetMax()
+        values = [
+            float(bmin[0]),
+            float(bmin[1]),
+            float(bmin[2]),
+            float(bmax[0]),
+            float(bmax[1]),
+            float(bmax[2]),
+        ]
+        if not all(math.isfinite(v) for v in values):
+            continue
+        if combined is None:
+            combined = values
+        else:
+            combined = [
+                min(combined[0], values[0]),
+                min(combined[1], values[1]),
+                min(combined[2], values[2]),
+                max(combined[3], values[3]),
+                max(combined[4], values[4]),
+                max(combined[5], values[5]),
+            ]
+    return combined
+
+
+def _acceptance_bound_prims(prim: Usd.Prim, UsdGeom: Any, UsdPhysics: Any) -> list[Any]:
+    body_path = str(prim.GetPath())
+    colliders: list[Any] = []
+    visible_shape_prims: list[Any] = []
+    stage = prim.GetStage()
+    for candidate in stage.Traverse():
+        candidate_path = str(candidate.GetPath())
+        if candidate_path != body_path and not candidate_path.startswith(
+            f"{body_path}/"
+        ):
+            continue
+        if candidate.HasAPI(UsdPhysics.CollisionAPI):
+            enabled = UsdPhysics.CollisionAPI(candidate).GetCollisionEnabledAttr().Get()
+            if enabled is not False:
+                colliders.append(candidate)
+            continue
+        if candidate.IsA(UsdGeom.Boundable) and not _is_helper_or_hidden_shape(
+            candidate, UsdGeom
+        ):
+            visible_shape_prims.append(candidate)
+    return colliders or visible_shape_prims or [prim]
+
+
+def _is_helper_or_hidden_shape(prim: Usd.Prim, UsdGeom: Any) -> bool:
+    name = prim.GetName().lower()
+    if any(
+        token in name
+        for token in ("bbox", "bounding", "bounds", "helper", "guide", "debug")
+    ):
+        return True
+    if prim.IsA(UsdGeom.Imageable):
+        imageable = UsdGeom.Imageable(prim)
+        if imageable.ComputeVisibility() == UsdGeom.Tokens.invisible:
+            return True
+        if imageable.ComputePurpose() == UsdGeom.Tokens.guide:
+            return True
+    return False
+
+
+def _body_pose_scale(prim: Usd.Prim) -> tuple[float, float, float]:
+    """Return effective scale from the selected body to stage space."""
+
+    from pxr import Usd, UsdGeom  # type: ignore[import-untyped]
+
+    if not prim.IsA(UsdGeom.Xformable):
+        return (1.0, 1.0, 1.0)
+    matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(
+        Usd.TimeCode.Default()
+    )
+    scale = []
+    for row in range(3):
+        axis_scale = math.sqrt(
+            float(matrix[row][0]) ** 2
+            + float(matrix[row][1]) ** 2
+            + float(matrix[row][2]) ** 2
+        )
+        scale.append(axis_scale)
+    if not all(math.isfinite(value) and value > 0.0 for value in scale):
+        return (1.0, 1.0, 1.0)
+    return (scale[0], scale[1], scale[2])
 
 
 def _bbox_size_meters(prim: Usd.Prim) -> tuple[float, float, float]:
@@ -705,6 +858,10 @@ def build_drop_settle_scene(
     # the bottom lands exactly at drop_h regardless of origin convention.
     bbox_size_stage = _bbox_size_stage_units(body_prim)
     bbox_min_stage, _bbox_max_stage = _bbox_minmax_stage_units(body_prim)
+    bbox_min_local_tuple, bbox_max_local_tuple = _bbox_minmax_pose_local_stage_units(
+        body_prim
+    )
+    bbox_local_stage_scale = [float(v) for v in _body_pose_scale(body_prim)]
     bbox_size_m = tuple(s * mpu for s in bbox_size_stage)
     bbox_height_stage = bbox_size_stage[up_idx]
     bbox_height_m = bbox_size_m[up_idx]
@@ -729,6 +886,8 @@ def build_drop_settle_scene(
     # bug kimbyn flagged 2026-05-12 that pushed pre-translated assets
     # below the ground plane).
     current_translation_stage = _get_body_translation(body_prim)
+    bbox_min_local_stage = [float(v) for v in bbox_min_local_tuple]
+    bbox_max_local_stage = [float(v) for v in bbox_max_local_tuple]
     delta_axis_stage = drop_h_stage - bbox_min_stage[up_idx]
     new_translation_stage = list(current_translation_stage)
     new_translation_stage[up_idx] = current_translation_stage[up_idx] + delta_axis_stage
@@ -816,6 +975,12 @@ def build_drop_settle_scene(
         "world_up": world_up_stage,
         "drop_height_m_resolved": drop_h_m,
         "bbox_size_m": list(bbox_size_m),
+        "bbox_min_local_stage": bbox_min_local_stage,
+        "bbox_max_local_stage": bbox_max_local_stage,
+        "bbox_local_stage_scale": bbox_local_stage_scale,
+        "bbox_local_stage_space": "pose_local",
+        "meters_per_unit": mpu,
+        "gravity_magnitude_m_per_s2": abs(float(gravity)),
         "camera_paths": camera_paths,
     }
 
@@ -880,6 +1045,13 @@ def build_freeform_scene(
     bbox_min_stage, _bbox_max_stage = _bbox_minmax_stage_units(body_prim)
     bbox_size_m = tuple(s * mpu for s in bbox_size_stage)
     bbox_height_stage = max(bbox_size_stage[up_idx], 1e-6)
+    current_translation_stage = _get_body_translation(body_prim)
+    bbox_min_local_tuple, bbox_max_local_tuple = _bbox_minmax_pose_local_stage_units(
+        body_prim
+    )
+    bbox_min_local_stage = [float(v) for v in bbox_min_local_tuple]
+    bbox_max_local_stage = [float(v) for v in bbox_max_local_tuple]
+    bbox_local_stage_scale = [float(v) for v in _body_pose_scale(body_prim)]
 
     gravity = float(target.get("gravity", -9.81))
     surface = target.get("surface") or {}
@@ -897,7 +1069,6 @@ def build_freeform_scene(
         # pre-existing translate, so the gap-closing delta is ADDED to
         # the current translate (kimbyn 2026-05-12 — replacing the op
         # outright placed pre-translated assets below the ground).
-        current_translation_stage = _get_body_translation(body_prim)
         delta_axis_stage = bbox_height_stage - bbox_min_stage[up_idx]
         new_translation_stage = list(current_translation_stage)
         new_translation_stage[up_idx] = (
@@ -956,8 +1127,14 @@ def build_freeform_scene(
         "rest_position": list(pos_stage),
         "world_up": world_up_stage,
         "bbox_size_m": list(bbox_size_m),
+        "bbox_min_local_stage": bbox_min_local_stage,
+        "bbox_max_local_stage": bbox_max_local_stage,
+        "bbox_local_stage_scale": bbox_local_stage_scale,
+        "bbox_local_stage_space": "pose_local",
+        "meters_per_unit": mpu,
         "camera_paths": camera_paths,
         "gravity": gravity,
+        "gravity_magnitude_m_per_s2": abs(float(gravity)),
         "ground_friction": friction,
     }
 

@@ -8,8 +8,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
+import world_understanding.cli as cli
 from world_understanding.cli import app
 
 runner = CliRunner()
@@ -133,6 +135,74 @@ def test_wu_image_gen_openai_custom_base_url_does_not_forward_hosted_key(
     assert mock_create.call_count == 0
 
 
+def test_wu_image_gen_openai_resolved_key_model_and_conditioning_image(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, tmp_output_path: Path
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    conditioning = tmp_path / "conditioning.png"
+    conditioning.write_bytes(b"\x89PNG")
+    fake = _stub_image_model()
+    fake.generate.return_value.save = lambda path: Path(path).write_bytes(b"\x89PNG")
+
+    with patch(
+        "world_understanding.functions.models.image_generation_models."
+        "create_image_generation_model",
+        return_value=fake,
+    ) as mock_create:
+        result = runner.invoke(
+            app,
+            [
+                "image-gen",
+                "test prompt",
+                "--backend",
+                "openai",
+                "--model",
+                "gpt-image-1",
+                "--image",
+                str(conditioning),
+                "--output",
+                str(tmp_output_path),
+                "--verbose",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    kwargs = mock_create.call_args.kwargs
+    assert kwargs["model"] == "gpt-image-1"
+    assert kwargs["api_key"] == "sk-test"
+    fake.generate.assert_called_once_with(
+        prompt="test prompt",
+        images=[str(conditioning)],
+    )
+
+
+def test_wu_image_gen_missing_conditioning_image_errors(
+    tmp_path: Path, tmp_output_path: Path
+) -> None:
+    fake = _stub_image_model()
+    with patch(
+        "world_understanding.functions.models.image_generation_models."
+        "create_image_generation_model",
+        return_value=fake,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "image-gen",
+                "test prompt",
+                "--backend",
+                "gemini",
+                "--image",
+                str(tmp_path / "missing.png"),
+                "--output",
+                str(tmp_output_path),
+            ],
+        )
+
+    assert result.exit_code != 0
+    assert "Conditioning image not found" in result.output
+
+
 def test_wu_image_gen_nim_local_base_url_injects_no_auth_placeholder(
     monkeypatch: pytest.MonkeyPatch, tmp_output_path: Path
 ) -> None:
@@ -167,6 +237,54 @@ def test_wu_image_gen_nim_local_base_url_injects_no_auth_placeholder(
     assert kwargs["api_key"] == "not-used"
 
 
+def test_wu_image_gen_nim_resolved_key_and_no_key_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_output_path: Path
+) -> None:
+    fake = _stub_image_model()
+    fake.generate.return_value.save = lambda path: Path(path).write_bytes(b"\x89PNG")
+    with (
+        patch(
+            "world_understanding.utils.credentials.get_nim_api_key_for_base_url",
+            return_value="nim-key",
+        ),
+        patch(
+            "world_understanding.functions.models.image_generation_models."
+            "create_image_generation_model",
+            return_value=fake,
+        ) as mock_create,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "image-gen",
+                "test prompt",
+                "--backend",
+                "nim",
+                "--output",
+                str(tmp_output_path),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_create.call_args.kwargs["api_key"] == "nim-key"
+
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    monkeypatch.delenv("MA_NIM_API_KEY", raising=False)
+    result = runner.invoke(
+        app,
+        [
+            "image-gen",
+            "test prompt",
+            "--backend",
+            "nim",
+            "--output",
+            str(tmp_output_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "NVIDIA_API_KEY" in result.output
+
+
 def test_wu_image_gen_nim_custom_base_url_does_not_forward_hosted_key(
     monkeypatch: pytest.MonkeyPatch, tmp_output_path: Path
 ) -> None:
@@ -195,3 +313,73 @@ def test_wu_image_gen_nim_custom_base_url_does_not_forward_hosted_key(
 
     assert result.exit_code != 0
     assert mock_create.call_count == 0
+
+
+def test_wu_image_gen_plugin_backend_uses_registered_credential_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_output_path: Path
+) -> None:
+    from world_understanding.functions.models.backends import registry
+    from world_understanding.utils import credentials
+
+    backend = "test-image-provider"
+    monkeypatch.setattr(registry, "_image_gen_backends", {backend: object()})
+    monkeypatch.setattr(
+        registry,
+        "_image_gen_backend_requires_api_key",
+        {backend: True},
+    )
+    monkeypatch.setattr(
+        credentials,
+        "API_KEY_ENV_VAR_MAP",
+        {backend: ("TEST_IMAGE_PROVIDER_KEY",)},
+    )
+    monkeypatch.delenv("TEST_IMAGE_PROVIDER_KEY", raising=False)
+
+    with pytest.raises(typer.Exit):
+        cli.image_gen(
+            "test prompt",
+            output=str(tmp_output_path),
+            images=None,
+            backend=backend,
+            model=None,
+            base_url=None,
+            verbose=False,
+        )
+
+    monkeypatch.setenv("TEST_IMAGE_PROVIDER_KEY", "provider-key")
+    fake = _stub_image_model()
+    fake.generate.return_value.save = lambda path: Path(path).write_bytes(b"\x89PNG")
+    with patch(
+        "world_understanding.functions.models.image_generation_models."
+        "create_image_generation_model",
+        return_value=fake,
+    ) as mock_create:
+        cli.image_gen(
+            "test prompt",
+            output=str(tmp_output_path),
+            images=None,
+            backend=backend,
+            model=None,
+            base_url=None,
+            verbose=False,
+        )
+
+    assert mock_create.call_args.kwargs["api_key"] == "provider-key"
+
+    registry._image_gen_backend_requires_api_key[backend] = False
+    with patch(
+        "world_understanding.functions.models.image_generation_models."
+        "create_image_generation_model",
+        return_value=fake,
+    ) as mock_create:
+        cli.image_gen(
+            "test prompt",
+            output=str(tmp_output_path),
+            images=None,
+            backend=backend,
+            model=None,
+            base_url=None,
+            verbose=False,
+        )
+
+    assert "api_key" not in mock_create.call_args.kwargs

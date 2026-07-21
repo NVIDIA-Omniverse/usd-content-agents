@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 import material_agent.tasks.config_iterative_apply as iterative_mod
+from material_agent.materials import FALLBACK_MATERIAL_NAME
 from material_agent.tasks.config_iterative_apply import IterativeApplyConfigTask
 
 
@@ -91,14 +92,16 @@ class TestIterativeApplyConfigTask:
 
         context = IterativeApplyConfigTask().run({"config_path": str(config_path)})
 
-        assert context["input_usd_path"] == "input.usd"
-        assert context["output_usd_path"] == "output.usd"
-        assert context["final_output_usd_path"] == "output.usd"
-        assert context["dataset_path"] == "dataset.jsonl"
+        assert context["input_usd_path"] == str((tmp_path / "input.usd").resolve())
+        assert context["output_usd_path"] == str((tmp_path / "output.usd").resolve())
+        assert context["final_output_usd_path"] == str(
+            (tmp_path / "output.usd").resolve()
+        )
+        assert context["dataset_path"] == str((tmp_path / "dataset.jsonl").resolve())
         assert context["max_iterations"] == 7
         assert context["save_intermediate"] is False
-        assert context["intermediate_output_dir"] == "iters"
-        assert context["iterations_dir"] == "iters"
+        assert context["intermediate_output_dir"] == str((tmp_path / "iters").resolve())
+        assert context["iterations_dir"] == str((tmp_path / "iters").resolve())
         assert context["vlm_config"]["model"] == "custom-vlm"
         assert context["vlm_config"]["backend"]  # default injected
         assert context["llm_config"]["model"] == "custom-llm"
@@ -120,7 +123,7 @@ class TestIterativeApplyConfigTask:
         assert context["render_enabled"] is True
         assert context["render_config"] == {"enabled": True, "backend": "remote"}
         assert context["judge_config"]["vlm"]["model"] == "judge-vlm"
-        assert context["reference_images"] == ["ref.png"]
+        assert context["reference_images"] == [str((tmp_path / "ref.png").resolve())]
         assert context["config"]["vlm"]["model"] == "custom-vlm"
         assert context["config"]["llm"]["model"] == "custom-llm"
         assert context["config"]["vlm_judge"]["model"] == "judge-vlm"
@@ -199,8 +202,10 @@ class TestIterativeApplyConfigTask:
 
         assert context["max_iterations"] == 4
         assert context["save_intermediate"] is True
-        assert context["intermediate_output_dir"] == "legacy-iters"
-        assert context["iterations_dir"] == "legacy-iters"
+        assert context["intermediate_output_dir"] == str(
+            (tmp_path / "legacy-iters").resolve()
+        )
+        assert context["iterations_dir"] == str((tmp_path / "legacy-iters").resolve())
         assert context["system_prompt"] == "Prompt from file"
         assert context["config"]["system_prompt"] == "Prompt from file"
         assert context["materials_mapping"]["material_library_path"] == str(
@@ -238,6 +243,81 @@ class TestIterativeApplyConfigTask:
         assert "vlm_judge" not in context["config"]
         assert listener.warning.call_count >= 2
 
+    def test_preserves_file_and_dict_anchor_semantics_from_another_cwd(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        _patch_listener(monkeypatch)
+        config_dir = tmp_path / "source"
+        config_dir.mkdir()
+        prompt_path = config_dir / "prompts" / "system.txt"
+        prompt_path.parent.mkdir()
+        prompt_path.write_text("anchored refine prompt", encoding="utf-8")
+        absolute_reference = tmp_path / "absolute-reference.png"
+        source = {
+            "input_usd_path": "assets/input.usda",
+            "output_usd_path": "outputs/final.usda",
+            "dataset": "dataset/data.jsonl",
+            "iteration": {"intermediate_dir": "iterations"},
+            "predict": {"system_prompt_file": "prompts/system.txt"},
+            "judge": {
+                "reference_images": [
+                    "references/front.png",
+                    str(absolute_reference),
+                ]
+            },
+        }
+        config_path = _write_yaml(config_dir / "refine.yaml", source)
+        unrelated_cwd = tmp_path / "cwd"
+        unrelated_cwd.mkdir()
+        monkeypatch.chdir(unrelated_cwd)
+
+        file_context = IterativeApplyConfigTask().run({"config_path": str(config_path)})
+        dict_context = IterativeApplyConfigTask().run(
+            {
+                "config_dict": source,
+                "config_path": str(config_path),
+            }
+        )
+
+        expected = {
+            "input_usd_path": str((config_dir / "assets/input.usda").resolve()),
+            "output_usd_path": str((config_dir / "outputs/final.usda").resolve()),
+            "dataset_path": str((config_dir / "dataset/data.jsonl").resolve()),
+            "iterations_dir": str((config_dir / "iterations").resolve()),
+            "reference_images": [
+                str((config_dir / "references/front.png").resolve()),
+                str(absolute_reference),
+            ],
+        }
+        for context in (file_context, dict_context):
+            assert context["input_usd_path"] == expected["input_usd_path"]
+            assert context["output_usd_path"] == expected["output_usd_path"]
+            assert context["final_output_usd_path"] == expected["output_usd_path"]
+            assert context["dataset_path"] == expected["dataset_path"]
+            assert context["intermediate_output_dir"] == expected["iterations_dir"]
+            assert context["iterations_dir"] == expected["iterations_dir"]
+            assert context["system_prompt"] == "anchored refine prompt"
+            assert context["reference_images"] == expected["reference_images"]
+            assert context["config"]["predict"]["system_prompt_file"] == str(
+                prompt_path.resolve()
+            )
+
+        assert source == {
+            "input_usd_path": "assets/input.usda",
+            "output_usd_path": "outputs/final.usda",
+            "dataset": "dataset/data.jsonl",
+            "iteration": {"intermediate_dir": "iterations"},
+            "predict": {"system_prompt_file": "prompts/system.txt"},
+            "judge": {
+                "reference_images": [
+                    "references/front.png",
+                    str(absolute_reference),
+                ]
+            },
+        }
+
     def test_load_materials_mapping_inline_and_edge_cases(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
@@ -249,6 +329,19 @@ class TestIterativeApplyConfigTask:
         assert (
             task._load_materials_mapping(
                 {"materials": {"entries": []}}, config_path, listener
+            )
+            == {}
+        )
+        assert (
+            task._load_materials_mapping(
+                {
+                    "materials": {
+                        "library_path": None,
+                        "entries": [{"name": "Steel", "binding": "/Looks/Steel"}],
+                    }
+                },
+                config_path,
+                listener,
             )
             == {}
         )
@@ -270,4 +363,5 @@ class TestIterativeApplyConfigTask:
         assert mapping == {
             "material_library_path": str(tmp_path / "library.usd"),
             "Steel": "/Looks/Steel",
+            FALLBACK_MATERIAL_NAME: "/World/Looks/Fallback_Neutral_Gray_Matte_Plastic",
         }

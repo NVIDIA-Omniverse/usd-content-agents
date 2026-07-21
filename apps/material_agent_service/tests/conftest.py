@@ -256,6 +256,8 @@ def _stub_executor(
         config_dict: dict,
         session_manager: SessionManager,
         user_email: str = "",
+        coverage_policy: str = "allow_partial",
+        regeneration_claim: Any | None = None,
     ):
         """Deterministic stub executor.
 
@@ -271,7 +273,16 @@ def _stub_executor(
             session_dir = manager.get_session_dir(session_id)
 
             # Mark session as running
-            await manager.update_session(session_id, {"status": "running"})
+            if regeneration_claim is None:
+                await manager.update_session(session_id, {"status": "running"})
+            else:
+                updated = await manager.update_session_for_claim(
+                    session_id,
+                    regeneration_claim,
+                    {"status": "running"},
+                )
+                if not updated:
+                    raise asyncio.CancelledError("Regeneration claim was superseded")
 
             # Create cache directories for artifacts
             ds = session_dir / "cache" / "dataset"
@@ -302,10 +313,13 @@ def _stub_executor(
             # Create dataset artifacts
             prims_file = ds / "prims.jsonl"
             dataset_file = ds / "dataset.jsonl"
+            usd_dataset_dir = ds / "usd"
+            usd_dataset_dir.mkdir(parents=True, exist_ok=True)
 
             with prims_file.open("w") as f:
                 for i in range(10):
                     f.write(json.dumps({"prim_path": f"/p{i}", "type": "Mesh"}) + "\n")
+            (usd_dataset_dir / "prims.jsonl").write_text(prims_file.read_text())
 
             with dataset_file.open("w") as f:
                 for i in range(10):
@@ -448,51 +462,147 @@ def _stub_executor(
                 await manager.mark_step_completed(session_id, "apply")
 
             # Finalize session metadata
-            await manager.update_session(
-                session_id,
-                {
-                    "status": "completed",
-                    "results": {
-                        "prims_processed": 10,
-                        "predictions_made": 10,
-                        "materials_applied": 3 if apply_enabled else 0,
-                        "cluster_prims_ran": has_cluster_prims,
-                        "cluster_total_prims": 10 if has_cluster_prims else 0,
-                        "cluster_count": 5 if has_cluster_prims else 0,
-                        "cluster_representative_count": 5 if has_cluster_prims else 0,
-                        "cluster_reduction_percent": 50.0 if has_cluster_prims else 0.0,
-                        "cluster_multi_member_count": 5 if has_cluster_prims else 0,
-                        "cluster_singleton_count": 0,
-                    },
-                    "completed_at": "1970-01-01T00:00:01Z",
-                    "can_cancel": False,
-                    "timings_breakdown": {
-                        "preparation_seconds": 0.1,
-                        "rendering_total_seconds": 0.1,
-                        "rendering_per_prim_seconds": 0.01,
-                        "prediction_total_seconds": 0.1,
-                        "prediction_per_prim_seconds": 0.01,
-                        "apply_seconds": 0.1,
-                        "total_seconds": 0.3,
-                    },
+            completed_steps = [
+                "build_dataset_usd",
+                "build_dataset_prepare_dataset",
+                "predict",
+            ]
+            step_outputs = {
+                "build_dataset_usd": {
+                    "output_dir": str(usd_dataset_dir),
+                    "usd_dataset_dir": str(usd_dataset_dir),
+                    "num_prims": 10,
+                    "num_images": 10,
                 },
+                "build_dataset_prepare_dataset": {
+                    "dataset_path": str(ds),
+                    "dataset_jsonl_path": str(dataset_file),
+                    "num_entries": 10,
+                },
+                "predict": {"predictions_path": str(preds / "predictions.jsonl")},
+            }
+            if apply_enabled:
+                completed_steps.append("apply")
+                step_outputs["apply"] = {
+                    "output_usd_path": str(out / "scene_with_materials.usd")
+                }
+            if has_cluster_prims:
+                completed_steps.insert(2, "cluster_prims")
+                step_outputs["cluster_prims"] = {
+                    "cluster_map_path": str(clusters / "cluster_map.jsonl"),
+                    "dataset_representatives_path": str(
+                        clusters / "dataset_representatives.jsonl"
+                    ),
+                    "cluster_summary_path": str(clusters / "cluster_summary.json"),
+                    "cluster_report_path": (
+                        str(clusters / "cluster_report.html")
+                        if (clusters / "cluster_report.html").exists()
+                        else None
+                    ),
+                }
+            (session_dir / "cache" / ".pipeline_state.json").write_text(
+                json.dumps(
+                    {
+                        "completed_steps": completed_steps,
+                        "failed_steps": [],
+                        "step_errors": {},
+                        "step_outputs": step_outputs,
+                    }
+                )
             )
+            artifact_validity = {
+                "raw_predictions": True,
+                "prediction_report": False,
+                "restored_predictions": False,
+                "applied_output_usd": apply_enabled,
+                "rendered_output_usd": False,
+                "final_render": False,
+                "cluster_map": has_cluster_prims,
+                "cluster_report": has_cluster_prims
+                and (clusters / "cluster_report.html").exists(),
+                "cluster_summary": has_cluster_prims,
+                "cluster_representatives": has_cluster_prims,
+                "previews": False,
+            }
+            terminal_updates = {
+                "status": "completed",
+                "coverage": None,
+                "results": {
+                    "prims_processed": 10,
+                    "predictions_made": 10,
+                    "materials_applied": 3 if apply_enabled else 0,
+                    "cluster_prims_ran": has_cluster_prims,
+                    "cluster_total_prims": 10 if has_cluster_prims else 0,
+                    "cluster_count": 5 if has_cluster_prims else 0,
+                    "cluster_representative_count": 5 if has_cluster_prims else 0,
+                    "cluster_reduction_percent": 50.0 if has_cluster_prims else 0.0,
+                    "cluster_multi_member_count": 5 if has_cluster_prims else 0,
+                    "cluster_singleton_count": 0,
+                },
+                "completed_at": "1970-01-01T00:00:01Z",
+                "can_cancel": False,
+                "artifact_validity": artifact_validity,
+                "timings_breakdown": {
+                    "preparation_seconds": 0.1,
+                    "rendering_total_seconds": 0.1,
+                    "rendering_per_prim_seconds": 0.01,
+                    "prediction_total_seconds": 0.1,
+                    "prediction_per_prim_seconds": 0.01,
+                    "apply_seconds": 0.1,
+                    "total_seconds": 0.3,
+                },
+            }
+            if regeneration_claim is None:
+                await manager.update_session(session_id, terminal_updates)
+            else:
+                from ..service.workers.executor import _promote_current_run_artifacts
+
+                artifact_map: dict[str, str] = {}
+                await _promote_current_run_artifacts(
+                    manager,
+                    session_id,
+                    session_dir,
+                    completed_steps,
+                    step_outputs,
+                    regeneration_claim=regeneration_claim,
+                    artifact_map=artifact_map,
+                )
+                finalized = await manager.finalize_regeneration_claim(
+                    session_id,
+                    regeneration_claim,
+                    updates=terminal_updates,
+                    artifact_map=artifact_map,
+                )
+                if not finalized:
+                    raise asyncio.CancelledError("Regeneration claim was superseded")
 
         except asyncio.CancelledError:
             # Session was cancelled
-            await manager.update_session(session_id, {"status": "cancelled"})
+            if regeneration_claim is None:
+                await manager.update_session(session_id, {"status": "cancelled"})
+            else:
+                await manager.finalize_regeneration_claim(
+                    session_id,
+                    regeneration_claim,
+                    updates={"status": "cancelled", "can_cancel": False},
+                )
             raise
 
         except Exception as e:
             # Session failed
-            await manager.update_session(
-                session_id,
-                {
-                    "status": "failed",
-                    "error": str(e),
-                    "failed_step": "unknown",
-                },
-            )
+            failure_updates = {
+                "status": "failed",
+                "error": str(e),
+                "failed_step": "unknown",
+            }
+            if regeneration_claim is None:
+                await manager.update_session(session_id, failure_updates)
+            else:
+                await manager.finalize_regeneration_claim(
+                    session_id,
+                    regeneration_claim,
+                    updates=failure_updates,
+                )
             raise
 
         finally:

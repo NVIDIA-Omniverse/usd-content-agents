@@ -34,8 +34,11 @@ apps/material_agent_service/web/dist/
 # leak into images. Explicit re-includes for the reference templates that
 # are intended to ship in the repo/image.
 .env*
+**/.env*
 !.env_example
+!**/.env_example
 !.env_example_public
+!**/.env_example_public
 
 # Local credentials and package-manager auth files
 .aws/
@@ -55,11 +58,18 @@ id_ed25519
 
 # Virtual environments
 .venv
+.venvs/
+**/.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+**/env/
+**/venv/
+**/ENV/
+**/env.bak/
+**/venv.bak/
 
 # IDE files
 .vscode/
@@ -71,15 +81,23 @@ venv.bak/
 
 # Test and coverage files
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
 .tox/
 .mypy_cache/
 .ruff_cache/
+**/.ruff_cache/
+**/__pycache__/
 
 # Session data (will be mounted as volume)
 apps/material_agent_service/sessions/
+apps/joint_agent_service/sessions/
 apps/material_agent_service/combined_service_files.py
+
+# Generated artifacts and local external installs
+**/output/
+.external/
 
 # Documentation
 docs/
@@ -102,6 +120,8 @@ apps/material_agent_service/docker-compose.yml
 apps/*_agent_service/Dockerfile
 apps/*_agent_service/Dockerfile.ci
 apps/*_agent_service/docker-compose*.yml
+apps/*_agent_service/internal/Dockerfile*
+apps/*_agent_service/internal/docker-compose*.yml
 
 # Log files
 *.log

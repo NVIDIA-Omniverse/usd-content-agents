@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+services:
+  texture-gen-step1x:
+    build:
+      context: ../..
+      dockerfile: apps/texture_gen_step1x_service/Dockerfile
+    image: texture-gen-step1x-service:local
+    ports:
+      - "${TEXTURE_STEP1X_PORT:-8000}:8000"
+    environment:
+      TEXTURE_STEP1X_RUNTIME_DIR: /opt/texture-editing
+      TEXTURE_STEP1X_EDIT_SCRIPT: /opt/texture-editing/edit_texture.py
+      TEXTURE_STEP1X_PYTHON: "${TEXTURE_STEP1X_PYTHON:-}"
+      TEXTURE_STEP1X_MODEL_DIR: "${TEXTURE_STEP1X_MODEL_DIR:-}"
+      TEXTURE_STEP1X_CACHE_DIR: /work/texture_sessions/cache
+      TEXTURE_OUTPUT_DIR: /work/texture_sessions/texture_gen_step1x_outputs
+      TEXTURE_STEP1X_MAX_WORKERS: "${TEXTURE_STEP1X_MAX_WORKERS:-1}"
+      TEXTURE_STEP1X_SKIP_MA: "${TEXTURE_STEP1X_SKIP_MA:-true}"
+      TEXTURE_STEP1X_REQUIRE_UPSCALER: "${TEXTURE_STEP1X_REQUIRE_UPSCALER:-false}"
+      TEXTURE_STEP1X_VALIDATE_ASSETS: "${TEXTURE_STEP1X_VALIDATE_ASSETS:-true}"
+      TEXTURE_STEP1X_REQUIRED_EXECUTABLES: "${TEXTURE_STEP1X_REQUIRED_EXECUTABLES:-uv}"
+      TEXTURE_STEP1X_TIMEOUT_SEC: "${TEXTURE_STEP1X_TIMEOUT_SEC:-3600}"
+      TEXTURE_UPSCALER_BACKEND: "${TEXTURE_UPSCALER_BACKEND:-swin2sr}"
+      TEXTURE_SWIN2SR_DEVICE: "${TEXTURE_SWIN2SR_DEVICE:-auto}"
+      TEXTURE_SWIN2SR_TILE_SIZE: "${TEXTURE_SWIN2SR_TILE_SIZE:-512}"
+      TEXTURE_SWIN2SR_TILE_OVERLAP: "${TEXTURE_SWIN2SR_TILE_OVERLAP:-16}"
+      TEXTURE_REALESRGAN_VK_ICD: "${TEXTURE_REALESRGAN_VK_ICD:-/etc/vulkan/icd.d/nvidia_icd.json}"
+      TEXTURE_REALESRGAN_GPU_ID: "${TEXTURE_REALESRGAN_GPU_ID:-0}"
+      TEXTURE_REALESRGAN_ALLOW_LLVMPIPE_FALLBACK: "${TEXTURE_REALESRGAN_ALLOW_LLVMPIPE_FALLBACK:-false}"
+      TEXTURE_STEP1X_LD_LIBRARY_PATH: "${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}"
+      LD_LIBRARY_PATH: "${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}"
+      TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS: "${TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS:-true}"
+      NVIDIA_DRIVER_CAPABILITIES: "${NVIDIA_DRIVER_CAPABILITIES:-compute,utility,graphics}"
+      NVIDIA_VISIBLE_DEVICES: "${TEXTURE_STEP1X_GPU_DEVICE:-0}"
+    volumes:
+      - "${TEXTURE_STEP1X_HOST_RUNTIME:?set TEXTURE_STEP1X_HOST_RUNTIME to your Step1X runtime path}:/opt/texture-editing:ro"
+      - "${TEXTURE_SHARED_HOST_ROOT:-/tmp/texture_gen_shared}:/work"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${TEXTURE_STEP1X_GPU_DEVICE:-0}"]
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "/healthcheck.py"]
+      interval: 30s
+      timeout: ${TEXTURE_STEP1X_HEALTHCHECK_TIMEOUT:-180s}
+      retries: 12
+      start_period: 120s

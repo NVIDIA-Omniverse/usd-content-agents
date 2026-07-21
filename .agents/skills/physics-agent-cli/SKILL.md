@@ -1,7 +1,7 @@
 ---
 name: physics-agent-cli
-description: Run the Physics Agent CLI for VLM-based physics property classification of 3D assets. Use when the user wants to run the physics-agent CLI directly, classify asset components, identify asset type, build datasets from USD files, predict component material/type/physics properties, or author simulation-ready USD physics schemas.
-version: "0.1.0"
+description: Run the Physics Agent CLI for VLM-based physics property classification, tuning, and refine-loop workflows for 3D assets. Use when the user wants to run the physics-agent CLI directly, classify asset components, identify asset type, build datasets from USD files, predict component material/type/physics properties, author simulation-ready USD physics schemas, tune authored physics parameters, or run iterative refine.
+version: "0.1.2"
 author: NVIDIA Content Agents
 tags:
   - content-agents
@@ -14,7 +14,7 @@ tools:
   - Filesystem
   - Python
   - wu
-compatibility: Requires the physics-agent CLI, a repo Python environment, provider credentials for the selected VLM backend, a render endpoint for remote rendering configs, and a scene optimizer endpoint or local scene optimizer when optimize_usd is enabled.
+compatibility: Requires Linux, a Linux container, or WSL2; the physics-agent CLI; a repo Python environment; provider credentials for the selected VLM backend; a render endpoint for remote rendering configs; and a scene optimizer endpoint or local scene optimizer when optimize_usd is enabled.
 ---
 
 # Physics Agent CLI
@@ -31,13 +31,23 @@ schemas into a simulation-ready output USD.
   material schemas from VLM predictions.
 - Use when the user needs the instanced-USD/deinstance path for writable
   physics authoring.
-- Use service or Docker deploy skills instead when the user wants to operate
-  the REST service rather than the local CLI.
+
+Route requests outside the local CLI to the exact sibling skill:
+
+| User intent | Required sibling skill |
+|---|---|
+| Call an already-running Physics Agent REST API, monitor its sessions, or download service artifacts | `physics-agent-client` |
+| Build, start, stop, or configure the local Physics Agent Docker Compose service | `deploy-physics-agent-docker` |
+| Provision Brev-hosted render/VLM dependencies or run the Brev hybrid Physics Agent workflow | `deploy-physics-agent-brev` |
+| Assign or refine visual/PBR materials rather than physical properties | `material-agent-cli` |
 
 ## Limitations
 
 - Keep secrets out of chat and commits. Tell the user to set provider keys in
   their local environment or repo-root `.env`; never ask them to paste keys.
+- Official runtime targets are Linux, Linux containers, and WSL2. Native
+  Windows shell execution is not supported; direct the user to WSL2 or Linux,
+  not to a sibling skill that does not support the requested runtime.
 - Config paths such as `input.usd_path` resolve relative to the config file,
   not the current shell directory.
 - Instanced USD descendants are instance proxies and cannot be authored on
@@ -76,17 +86,37 @@ schemas into a simulation-ready output USD.
    `steps.optimize_usd.scene_optimizer_settings` and keep `restore_usd`
    enabled.
 5. Run a dry run before a new or heavily edited config.
-6. Run the full pipeline, or use `--only`, `--skip`, and `--resume` to control
-   execution.
-7. Report predictions, restored predictions, and physics USD artifacts from
+6. Run the full pipeline in the foreground, or use `--only`, `--skip`, and
+   `--resume` to control execution.
+7. Wait for the command to reach a terminal outcome before returning.
+8. Report the command, config, session, terminal outcome, and artifacts using
    the output format.
 
 ```bash
-# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# Run from Linux, a Linux container, or WSL2.
 source .venv/bin/activate
 physics-agent run apps/physics_agent/configs/lightbulb.yaml --dry-run
 physics-agent run apps/physics_agent/configs/lightbulb.yaml
 ```
+
+### Required Execution Lifecycle
+
+- Treat every required `physics-agent` invocation, including `run`, `predict`,
+  `tune`, `refine`, and dataset commands, as foreground work. Wait for the
+  process to exit before reporting completion or returning from a one-shot or
+  headless agent run.
+- Do not append `&`, use `nohup`, create an ordinary detached shell job, or
+  return while the required process is still tied to the current execution
+  session. Session teardown can kill that process before it produces results.
+- Do not promise to resume, poll, or wake up later through a mechanism that was
+  not actually created or cannot fire after the current agent run ends.
+- The only exception is a durable external monitor or handoff that the
+  execution surface actually provides and that survives session teardown.
+  Before returning, report its job or monitor ID, owner, log location, and
+  exact status command. A local PID or shell job is not a durable handoff.
+- If the foreground run cannot finish and no durable external monitor exists,
+  report that constraint and the exact foreground command instead of starting
+  work that will be abandoned.
 
 ### Primary Command
 
@@ -308,21 +338,14 @@ If the instanced asset also needs separate component classification from one
 combined mesh, enable both `enable_deinstance: true` and
 `enable_split_meshes: true`.
 
-### REST API Optimization Flags
+### Service Boundary
 
-When using `physics-agent-service`, the equivalent service flow exposes the
-same optimization path as multipart fields on `POST /pipeline`:
-
-```bash
-curl -X POST "$BASE_URL/pipeline" \
-  -F "session_id=$SESSION_ID" \
-  -F "optimize_usd=true" \
-  -F "enable_deinstance=true"
-```
-
-Use `enable_split=true` for disjoint pieces inside one mesh and
-`enable_deduplicate=true` for repeated identical geometry. At least one
-optimizer operation must be enabled when `optimize_usd=true`.
+This skill runs the local CLI. Do not construct REST requests or manage service
+containers from it. Use `physics-agent-client` for `/pipeline`, `/predict`,
+`/tune`, and `/refine` requests; use `deploy-physics-agent-docker` or
+`deploy-physics-agent-brev` for the matching deployment workflow. A local CLI
+config may consume remote render or optimizer endpoints without becoming a
+service-client or deployment workflow.
 
 ### Config Authoring
 
@@ -339,11 +362,11 @@ explicitly asks to change them.
 
 ## Output Format
 
-Report these items after a run or handoff:
+Report these items for every execution path:
 
 - Command executed and whether it was full pipeline, `--only`, `--skip`,
   `--resume`, or `--dry-run`.
-- Config path and session ID.
+- Config path and session ID, when created.
 - Working directory, usually `.<session_id>/` next to the config unless
   `project.working_dir` overrides it.
 - Key artifacts when present:
@@ -361,6 +384,22 @@ Report these items after a run or handoff:
     `refine_summary.json`.
 - Any missing credentials, service endpoints, optimizer failures, empty
   predictions, tuning/refinement failures, or instance-proxy authoring errors.
+
+### Foreground Terminal Run
+
+- Report the Physics Agent CLI terminal outcome (`completed`, `failed`, or
+  `interrupted`) and its exit code. A started process or partial log is not
+  evidence of completion.
+
+### Durable External Handoff
+
+- Report the handoff-creation command's terminal outcome and exit code. These
+  describe only whether handoff creation succeeded, not the external Physics
+  Agent job's eventual outcome.
+- Report the real external job ID and, when distinct, the monitor ID, plus the
+  owner, log location, exact status command, and currently observed external
+  job status. Label that status as non-terminal unless the external monitor
+  itself supplies terminal evidence.
 
 ## Troubleshooting
 

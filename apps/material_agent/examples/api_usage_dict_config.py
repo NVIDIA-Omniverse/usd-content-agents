@@ -7,8 +7,6 @@ This example demonstrates how to use the Material Agent API with
 dynamically generated configuration dictionaries instead of YAML files.
 """
 
-import os
-
 from material_agent.api import (
     BenchmarkInput,
     PipelineInput,
@@ -27,14 +25,14 @@ def example_benchmark_with_dict_config():
     config = {
         "model": {
             "service": "azure",
-            "name": "gpt-4o",
-            "deployment": "gpt-4o-deployment",
-            "api_key": os.getenv("AZURE_API_KEY", "${AZURE_API_KEY}"),
+            "name": "example-vlm-model",
+            "deployment": "example-vlm-model-deployment",
+            "api_key_env": "${AZURE_API_KEY}",
         },
         "judge": {
             "service": "azure",
-            "name": "gpt-4o",
-            "deployment": "gpt-4o-deployment",
+            "name": "example-vlm-model",
+            "deployment": "example-vlm-model-deployment",
         },
         "dataset_path": "data/benchmark_dataset.jsonl",
         "output_dir": "output/benchmark_results",
@@ -61,7 +59,7 @@ def example_multi_model_benchmark():
     print("Example 2: Multi-model benchmark with dynamic configs")
     print("=" * 70)
 
-    models = ["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet"]
+    models = ["example-vlm-model", "example-vlm-model-small", "claude-3-5-sonnet"]
     results = {}
 
     for model_name in models:
@@ -122,7 +120,7 @@ def example_pipeline_with_dict_config():
                 "enabled": True,
                 "model": {
                     "service": "azure",
-                    "name": "gpt-4o",
+                    "name": "example-vlm-model",
                 },
             },
             "apply": {

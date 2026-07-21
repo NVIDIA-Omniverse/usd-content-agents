@@ -6,10 +6,17 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from world_understanding.agentic.config import (
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    redact_sensitive_config,
+    resolve_path_with_safe_diagnostics,
+)
 from world_understanding.utils.object_store import ObjectStore
 
 from .defaults import USD_RENDERING_DEFAULTS
@@ -19,22 +26,35 @@ logger = logging.getLogger(__name__)
 
 def _positive_int(value: Any, field_name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise ValueError(f"{field_name} must be a positive integer, got {value!r}")
+        raise ValueError(
+            f"{field_name} must be a positive integer, got {type(value).__name__}"
+        )
+    return int(value)
+
+
+def _strict_bool(value: Any, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a boolean, got {type(value).__name__}")
     return value
 
 
 class USDDataPrepConfigTask(Task):
     """Load and validate USD data preparation configuration from YAML."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name = "USDDataPrepConfig"
         self.description = "Load and validate USD data preparation configuration"
 
-    def run(self, context: dict[str, Any], object_store: ObjectStore) -> dict[str, Any]:
+    def run(
+        self,
+        context: dict[str, Any],
+        object_store: ObjectStore | None = None,
+    ) -> dict[str, Any]:
         """Load configuration and populate context for USD data preparation.
 
         Expected context inputs:
             - config_path: Path to YAML configuration file
+            - config_dict: Inline configuration dictionary
             - source_override: Optional USD path override
             - output_dir_override: Optional output directory override
             - prim_filters: Optional filters for prim selection
@@ -59,16 +79,33 @@ class USDDataPrepConfigTask(Task):
         # Get event listener (or logger fallback)
         listener = get_listener(context, logger_name=__name__)
 
-        config_path = Path(context["config_path"])  # Required from CLI
-        listener.info(f"Loading USD configuration from {config_path}")
+        config_path_value = context.get("config_path")
+        missing_config_file = False
+        if context.get("config_dict") is None and config_path_value:
+            try:
+                missing_config_file = not Path(config_path_value).exists()
+            except OSError:
+                # The shared loader will normalize the actual read failure.
+                pass
 
-        # Load YAML configuration
-        if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
-                config = yaml.safe_load(f)
-        else:
-            listener.warning(f"Config file {config_path} not found, using defaults")
-            config = {}
+        config, config_path = load_config_mapping_from_context(
+            context,
+            default_config_path=Path.cwd() / "config_dict.yaml",
+            allow_empty=True,
+            allow_missing_file=True,
+            missing_path_message="Either config_path or config_dict must be provided",
+            parse_error_message=("Invalid USD data preparation YAML: {config_path}"),
+            config_dict_non_mapping_message=(
+                "config_dict must be a dictionary when provided"
+            ),
+            file_non_mapping_message=(
+                "USD data preparation config must be a mapping at the "
+                "document root: {config_path}"
+            ),
+        )
+        log_config_source(context, listener.info, label="USD")
+        if missing_config_file:
+            listener.warning("Configuration file not found; using defaults")
 
         # Get USD path (from override or config)
         source_override = context.get("source_override")
@@ -76,8 +113,13 @@ class USDDataPrepConfigTask(Task):
             # Command-line overrides are relative to current directory
             usd_path = Path(source_override)
             if not usd_path.is_absolute():
-                usd_path = usd_path.resolve()
-            listener.info(f"Using USD path override: {usd_path}")
+                usd_path = resolve_path_with_safe_diagnostics(
+                    usd_path,
+                    label="USD source override",
+                )
+            listener.info(
+                f"Using USD path override: {redact_sensitive_config(usd_path)}"
+            )
         elif config.get("usd_path"):
             usd_path = Path(config["usd_path"])
             # Config paths are relative to config file location
@@ -98,8 +140,14 @@ class USDDataPrepConfigTask(Task):
             # Command-line overrides are relative to current directory
             output_dir = Path(output_dir_override)
             if not output_dir.is_absolute():
-                output_dir = output_dir.resolve()
-            listener.info(f"Using output directory override: {output_dir}")
+                output_dir = resolve_path_with_safe_diagnostics(
+                    output_dir,
+                    label="USD output directory override",
+                )
+            listener.info(
+                "Using output directory override: "
+                f"{redact_sensitive_config(output_dir)}"
+            )
         elif config.get("output_dir"):
             output_dir = Path(config["output_dir"])
             # Config paths are relative to config file location
@@ -116,8 +164,14 @@ class USDDataPrepConfigTask(Task):
         # directly in output_dir, not in a subdirectory
 
         # Create output directories
-        context["render_output_dir"].mkdir(parents=True, exist_ok=True)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            context["render_output_dir"],
+            label="USD render output directory",
+        )
+        create_directory_with_safe_diagnostics(
+            output_dir,
+            label="USD dataset output directory",
+        )
 
         # Get prim filters
         context["prim_filters"] = config.get(
@@ -168,6 +222,16 @@ class USDDataPrepConfigTask(Task):
             "export_usd_model", context.get("export_usd_model", True)
         )
 
+        for evidence_policy_key in (
+            "fail_on_blank_dataset_renders",
+            "fail_on_missing_prim_images",
+        ):
+            if evidence_policy_key in config:
+                context[evidence_policy_key] = _strict_bool(
+                    config[evidence_policy_key],
+                    evidence_policy_key,
+                )
+
         # Get skip existing flag (for resuming renders)
         # Check both "resume" (unified pipeline) and "skip_existing" (direct usage)
         # They mean the same thing: skip already rendered prims
@@ -187,7 +251,10 @@ class USDDataPrepConfigTask(Task):
         context["skip_existing_materials"] = skip_existing_materials
 
         # Get batch size for rendering efficiency
-        context["batch_size"] = config.get("batch_size", context.get("batch_size", 10))
+        context["batch_size"] = _positive_int(
+            config.get("batch_size", context.get("batch_size", 10)),
+            "batch_size",
+        )
 
         # Get async render request concurrency. This is separate from num_workers:
         # num_workers controls local task/thread parallelism, while this limits
@@ -211,14 +278,23 @@ class USDDataPrepConfigTask(Task):
         # Get renderer configuration - merge with defaults
         # Check context first (for unified pipeline), then config file
         renderer_config_override = context.get("renderer", config.get("renderer", {}))
+        if not isinstance(renderer_config_override, dict):
+            raise ValueError("renderer must be a mapping when provided")
         context["renderer_config"] = {
             **USD_RENDERING_DEFAULTS,  # Start with centralized defaults
             **renderer_config_override,  # Override with user config or context
         }
+        for dimension_key in ("image_width", "image_height"):
+            context["renderer_config"][dimension_key] = _positive_int(
+                context["renderer_config"][dimension_key],
+                f"renderer.{dimension_key}",
+            )
 
         listener.info("USD configuration loaded:")
-        listener.info(f"  USD path: {context['usd_path']}")
-        listener.info(f"  Output directory: {context['output_dir']}")
+        listener.info(f"  USD path: {redact_sensitive_config(context['usd_path'])}")
+        listener.info(
+            f"  Output directory: {redact_sensitive_config(context['output_dir'])}"
+        )
         listener.info(f"  Extract metadata: {context['extract_metadata']}")
         listener.info(
             f"  Extract display color: {context.get('extract_display_color', False)}"
@@ -227,15 +303,23 @@ class USDDataPrepConfigTask(Task):
             f"  Extract material bindings: {context['extract_material_bindings']}"
         )
         listener.info(f"  Extract hierarchy: {context['extract_hierarchy']}")
-        listener.info(f"  Build USD model: {context['build_usd_model']}")
-        listener.info(f"  Export USD model: {context['export_usd_model']}")
+        listener.info(
+            f"  Build USD model: {redact_sensitive_config(context['build_usd_model'])}"
+        )
+        listener.info(
+            "  Export USD model: "
+            f"{redact_sensitive_config(context['export_usd_model'])}"
+        )
         listener.info(f"  Skip existing: {context['skip_existing']}")
         listener.info(f"  Batch size: {context['batch_size']}")
         listener.info(
             f"  Max concurrent requests: {context['max_concurrent_requests']}"
         )
         listener.info(f"  Number of workers: {context['num_workers']}")
-        listener.info(f"  Renderer backend: {context['renderer_config']['backend']}")
+        listener.info(
+            "  Renderer backend: "
+            f"{redact_sensitive_config(context['renderer_config']['backend'])}"
+        )
         camera_type = context["renderer_config"].get("camera_view_type", "corner")
         listener.info(f"  Camera view type: {camera_type}")
 

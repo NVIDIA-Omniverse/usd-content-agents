@@ -14,6 +14,9 @@ from world_understanding.validation.cli import (
     run_validation_cli_command,
     run_validation_inputs_cli_command,
 )
+from world_understanding.validation.rendering_backend_contract import (
+    VALIDATION_RENDERING_BACKEND_NAMES,
+)
 
 from .utils import get_version
 
@@ -245,7 +248,10 @@ def validate(
         str | None,
         typer.Option(
             "--render-backend",
-            help="Render backend to place in the generated validation request",
+            help=(
+                "Runtime render backend to place in the generated validation request: "
+                f"{', '.join(VALIDATION_RENDERING_BACKEND_NAMES)}"
+            ),
         ),
     ] = None,
     render_views: Annotated[

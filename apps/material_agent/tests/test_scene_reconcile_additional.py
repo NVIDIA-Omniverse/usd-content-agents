@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 import sys
 from pathlib import Path
@@ -16,6 +17,7 @@ import material_agent.scene.reconcile as reconcile
 from material_agent.scene.reconcile import (
     _gather_predictions,
     _llm_reconcile,
+    _remap_predictions_file,
     apply_remapping,
     reconcile_predictions,
 )
@@ -39,6 +41,7 @@ def test_gather_predictions_uses_best_file_and_skips_bad_rows(tmp_path: Path) ->
     restored_path.write_text(
         json.dumps({"id": "/restored", "materials": {"material": "Steel"}})
         + "\n"
+        + "\n"
         + "{bad json}\n"
     )
 
@@ -53,6 +56,11 @@ def test_gather_predictions_uses_best_file_and_skips_bad_rows(tmp_path: Path) ->
                 status="failed", working_dir=str(tmp_path / "ignored"), name="Ignored"
             ),
             SimpleNamespace(status="completed", working_dir=None, name="NoDir"),
+            SimpleNamespace(
+                status="completed",
+                working_dir=str(tmp_path / "missing_predictions"),
+                name="MissingPredictions",
+            ),
         ],
         payload_groups=[],
     )
@@ -162,11 +170,20 @@ def test_apply_remapping_updates_sub_assets_and_payloads(tmp_path: Path) -> None
                 status="completed", working_dir=str(asset_dir), name="AssetA"
             ),
             SimpleNamespace(
+                status="completed",
+                working_dir=str(tmp_path / "asset_without_predictions"),
+                name="NoPredictions",
+            ),
+            SimpleNamespace(
                 status="failed", working_dir=str(tmp_path / "ignored"), name="Ignored"
             ),
         ],
         payload_groups=[
             SimpleNamespace(status="completed", config_path=str(payload_config)),
+            SimpleNamespace(
+                status="completed",
+                config_path=str(tmp_path / "configs" / "empty_payload.yaml"),
+            ),
             SimpleNamespace(status="completed", config_path=None),
             SimpleNamespace(status="failed", config_path=str(tmp_path / "skip.yaml")),
         ],
@@ -269,3 +286,47 @@ def test_llm_reconcile_builds_prompt_and_parses_response(
     assert llm.messages is not None
     assert "orange_group" in llm.messages[1].content
     assert "Valid materials in the library" in llm.messages[1].content
+
+
+def test_llm_reconcile_skips_missing_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeLLM:
+        def invoke(self, _messages: list[object]) -> object:
+            return SimpleNamespace(
+                content='{"remap": {"Car Paint Orange": "Steel Painted Orange"}}'
+            )
+
+    _install_llm_modules(
+        monkeypatch,
+        llm_factory=lambda config: FakeLLM(),
+    )
+    original_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object):
+        if name == "dotenv":
+            raise ImportError("no dotenv")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    assert _llm_reconcile(
+        {
+            "orange_group": {
+                "materials": {"Car Paint Orange": 2, "Steel Painted Orange": 3},
+                "asset_count": 1,
+            }
+        },
+        {"backend": "mock", "model": "fake"},
+    ) == {"Car Paint Orange": "Steel Painted Orange"}
+
+
+def test_remap_predictions_file_keeps_blank_and_invalid_lines(tmp_path: Path) -> None:
+    pred_file = tmp_path / "predictions.jsonl"
+    pred_file.write_text(
+        json.dumps({"id": "/a", "materials": {"material": "Old"}})
+        + "\n\n"
+        + "{not-json}\n"
+    )
+
+    assert _remap_predictions_file(pred_file, {"Old": "New"}) == 1
+    assert pred_file.read_text().splitlines()[1] == ""
+    assert pred_file.read_text().splitlines()[2] == "{not-json}"

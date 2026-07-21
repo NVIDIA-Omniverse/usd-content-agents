@@ -52,8 +52,20 @@ from pathlib import Path
 from typing import Any
 
 from physics_agent.api.types import APIResult
+from physics_agent.tuning.visual_evidence import (
+    DEFAULT_JUDGE_GENERATED_FRAMES,
+    DEFAULT_JUDGE_REFERENCE_FRAMES,
+    DEFAULT_REFERENCE_VIDEO_FRAMES,
+    validate_visual_frame_count,
+)
 
 logger = logging.getLogger(__name__)
+
+_MAX_REFINE_TRIALS = 1000
+_MAX_REFINE_ITERATIONS = 12
+_REFINE_FAILURE_MESSAGE = "Physics refinement failed"
+_REFINE_ITERATION_FAILURE_MESSAGE = "Physics refinement iteration failed"
+_FINAL_RECORDING_FAILURE_MESSAGE = "Final recording could not be published"
 
 
 @dataclass(kw_only=True)
@@ -97,6 +109,15 @@ class RefineInput:
     reference_video_descriptions: list[str] | None = None
     """Optional descriptions parallel to ``reference_videos``."""
 
+    reference_video_frames: int = DEFAULT_REFERENCE_VIDEO_FRAMES
+    """Number of frames to extract from each reference video for visual judging."""
+
+    judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES
+    """Max reference images/video frames to send to the VLM judge."""
+
+    judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES
+    """Max generated render frames to send to the VLM judge."""
+
     engine: str = "ovphysx"
     """Simulation backend (passed through to ``run_tune`` each iteration)."""
 
@@ -113,9 +134,15 @@ class RefineInput:
     """Hard cap on (tune → judge → refine) iterations. The loop exits
     earlier when the judge returns ``approve``."""
 
+    history_window: int = 20
+    """Number of prior outer-loop iteration summaries to pass to the judge
+    and scenario refiner. The best-so-far row is retained when it falls
+    outside this recent window. Set ``0`` to disable prompt history; the final
+    ``refine_summary.json`` still includes a compact audit row."""
+
     score_threshold: float = 0.7
     """Combined-score threshold above which the judge approves (loop
-    terminates). Lower threshold = stricter approval requirement."""
+    terminates). Higher threshold = stricter approval requirement."""
 
     judge_max_tokens: int | None = None
     """Optional max output tokens for the judge response.
@@ -140,15 +167,12 @@ class RefineInput:
     """When set, every iteration's ``scenario.target.record_video`` is
     overwritten to this value, overriding both the initial YAML and any
     LLM-refined value. The CLI default is ``"off"`` so per-trial render
-    cost is avoided and the post-tune winning-trial render produces one
-    mp4 per iteration. Pass ``None`` to honor the YAML / refine flow
-    instead."""
+    cost is avoided. Pass ``None`` to honor the YAML / refine flow instead."""
 
-    render_winning_trial: bool = True
-    """Post-tune render of the best trial's recording.usda into
-    ``iter_N/render/``. Requires the optional ``render_time_sampled_usd``
-    helper from PR #66; absent cleanly logs a warning and skips the
-    render without aborting the iteration."""
+    render_winning_trial: bool = False
+    """Post-tune render of the best trial's recording.usd into
+    ``iter_N/render/`` as PNG judge evidence. Refine never encodes MP4;
+    the time-sampled recording USD is its portable motion artifact."""
 
     visual_evidence_enabled: bool = True
     """Whether generated/reference media should be sent to the VLM judge.
@@ -160,6 +184,11 @@ class RefineInput:
     Mirrors the tune runner's safeguard so a hung NIM / ChatNVIDIA call
     cannot wedge the refine loop. Set ``0`` (or any non-positive value)
     to disable."""
+
+    cancel_event: Any = None
+    """Optional Event-like object with ``is_set()`` used for cooperative
+    cancellation. The refine loop polls it between expensive phases and
+    forwards it into each underlying tune iteration."""
 
     event_listener: Any = None
     """Optional :class:`world_understanding.agentic.events.EventListener`.
@@ -174,8 +203,43 @@ class RefineInput:
             raise ValueError("user_prompt must be a non-empty string")
         if self.max_iterations < 1:
             raise ValueError(f"max_iterations must be >= 1, got {self.max_iterations}")
+        if self.max_iterations > _MAX_REFINE_ITERATIONS:
+            raise ValueError(
+                f"max_iterations must be <= {_MAX_REFINE_ITERATIONS}, "
+                f"got {self.max_iterations}"
+            )
+        if self.history_window < 0:
+            raise ValueError(f"history_window must be >= 0, got {self.history_window}")
         if self.max_trials < 1:
             raise ValueError(f"max_trials must be >= 1, got {self.max_trials}")
+        if self.max_trials > _MAX_REFINE_TRIALS:
+            raise ValueError(
+                f"max_trials must be <= {_MAX_REFINE_TRIALS}, got {self.max_trials}"
+            )
+        try:
+            score_threshold = float(self.score_threshold)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "score_threshold must be finite and between 0 and 1, "
+                f"got {self.score_threshold}"
+            ) from exc
+        if not math.isfinite(score_threshold) or not (0.0 <= score_threshold <= 1.0):
+            raise ValueError(
+                "score_threshold must be finite and between 0 and 1, "
+                f"got {self.score_threshold}"
+            )
+        self.score_threshold = score_threshold
+        try:
+            timeout_seconds = float(self.llm_timeout_seconds)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"llm_timeout_seconds must be finite, got {self.llm_timeout_seconds}"
+            ) from exc
+        if not math.isfinite(timeout_seconds):
+            raise ValueError(
+                f"llm_timeout_seconds must be finite, got {self.llm_timeout_seconds}"
+            )
+        self.llm_timeout_seconds = timeout_seconds
         if self.judge_max_tokens is not None and self.judge_max_tokens < 1:
             raise ValueError(
                 f"judge_max_tokens must be >= 1, got {self.judge_max_tokens}"
@@ -187,6 +251,24 @@ class RefineInput:
                     "judge_temperature must be finite and >= 0, "
                     f"got {self.judge_temperature}"
                 )
+        self.reference_video_frames = validate_visual_frame_count(
+            "reference_video_frames",
+            self.reference_video_frames,
+        )
+        self.judge_reference_frames = validate_visual_frame_count(
+            "judge_reference_frames",
+            self.judge_reference_frames,
+        )
+        self.judge_generated_frames = validate_visual_frame_count(
+            "judge_generated_frames",
+            self.judge_generated_frames,
+        )
+        if self.cancel_event is not None and not callable(
+            getattr(self.cancel_event, "is_set", None)
+        ):
+            raise TypeError(
+                "cancel_event must be an Event-like object with an is_set() method"
+            )
         # ``scenario`` may be a Path or dict; only normalize when Path-like.
         if isinstance(self.scenario, str):
             self.scenario = Path(self.scenario)
@@ -262,7 +344,12 @@ class IterationSummary:
 
 @dataclass
 class RefineOutput(APIResult):
-    """Output from the physics refine API."""
+    """Output from the physics refine API.
+
+    The compact prior-history audit payload is persisted in
+    ``output_dir/refine_summary.json`` as ``compact_history``; this public result
+    keeps only the lighter per-iteration summaries.
+    """
 
     output_dir: Path | None = None
     """Resolved root output directory (same as the input)."""
@@ -279,6 +366,12 @@ class RefineOutput(APIResult):
 
     final_dir: Path | None = None
     """Snapshot directory containing the winning iteration's artifacts."""
+
+    final_recording_usd: Path | None = None
+    """Flattened time-sampled recording for the strict winning trial."""
+
+    final_recording_error: str | None = None
+    """Why the winning recording could not be published, when unavailable."""
 
     termination_reason: str = "unknown"
     """One of ``"approved"``, ``"max_iterations"``, ``"cancelled"``,
@@ -317,7 +410,7 @@ def _build_iteration_summary(record: Any) -> IterationSummary:
         metric_name=str(record.metric_name),
         metric_value=_finite_or_none(record.metric_value),
         cancelled=bool(record.cancelled),
-        error=record.error,
+        error=_REFINE_ITERATION_FAILURE_MESSAGE if record.error else None,
     )
 
 
@@ -360,6 +453,7 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
         max_trials=params.max_trials,
         seed=params.seed,
         max_iterations=params.max_iterations,
+        history_window=params.history_window,
         score_threshold=params.score_threshold,
         judge_max_tokens=params.judge_max_tokens,
         judge_temperature=params.judge_temperature,
@@ -369,10 +463,14 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
         reference_videos=params.reference_videos,
         reference_descriptions=params.reference_descriptions,
         reference_video_descriptions=params.reference_video_descriptions,
+        reference_video_frames=params.reference_video_frames,
+        judge_reference_frames=params.judge_reference_frames,
+        judge_generated_frames=params.judge_generated_frames,
         force_record_video=params.force_record_video,
         render_winning_trial=params.render_winning_trial,
         visual_evidence_enabled=params.visual_evidence_enabled,
         llm_timeout_seconds=params.llm_timeout_seconds,
+        cancel_event=params.cancel_event,
     )
 
     ctx: dict[str, Any] = {}
@@ -381,13 +479,12 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
 
     try:
         result = await asyncio.to_thread(task.run, ctx)
-    except Exception as exc:  # pragma: no cover — defensive
-        logger.error("Refine loop raised: %s", exc, exc_info=True)
+    except Exception:  # pragma: no cover — defensive
+        logger.error(_REFINE_FAILURE_MESSAGE)
         return RefineOutput(
             success=False,
-            error=str(exc),
+            error=_REFINE_FAILURE_MESSAGE,
             output_dir=params.output_dir,
-            user_prompt=str(params.user_prompt),
             termination_reason="error",
         )
 
@@ -403,9 +500,9 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
     success = not cancelled_or_errored
     error_msg: str | None = None
     if cancelled_or_errored:
-        first_err = next((rec.error for rec in result.iterations if rec.error), None)
-        error_msg = first_err or f"Refine terminated: {termination_reason}"
+        error_msg = _REFINE_FAILURE_MESSAGE
 
+    raw_final_recording = getattr(result, "final_recording_usd", None)
     return RefineOutput(
         success=success,
         error=error_msg,
@@ -414,6 +511,14 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
         iteration_count=len(iteration_summaries),
         final_iteration=int(result.final_iteration),
         final_dir=Path(result.final_dir) if result.final_dir else None,
+        final_recording_usd=(
+            Path(raw_final_recording) if raw_final_recording else None
+        ),
+        final_recording_error=(
+            _FINAL_RECORDING_FAILURE_MESSAGE
+            if getattr(result, "final_recording_error", None)
+            else None
+        ),
         termination_reason=termination_reason,
         final_judge_score=final_judge_score,
         user_prompt=str(result.user_prompt),

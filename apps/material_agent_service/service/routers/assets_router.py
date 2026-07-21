@@ -7,8 +7,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse, Response
+from world_understanding.utils.held_file_response import HeldFileResponse
 
+from ..artifact_lineage import artifact_is_valid
 from ..models.responses import PreviewImage, PreviewList
+from ..runtime.bus import get_event_bus
 from ..session.manager import SessionManager
 
 logger = logging.getLogger(__name__)
@@ -39,6 +42,14 @@ def set_session_manager(manager: SessionManager) -> None:
     """Set the global session manager instance."""
     global session_manager
     session_manager = manager
+
+
+async def _live_preview_snapshot(session_id: str) -> dict | None:
+    """Return current-run preview evidence while the local pipeline is active."""
+    snapshot = await get_event_bus().get_fenced_snapshot(session_id)
+    if snapshot and snapshot.get("status") in {"pending", "running", "cancelling"}:
+        return snapshot
+    return None
 
 
 def _get_generated_reference_entry(
@@ -83,28 +94,77 @@ async def _serve_file_with_fallback(
         suffix = local_path.suffix.lower()
         media_type = CONTENT_TYPES.get(suffix, "application/octet-stream")
 
+    metadata_snapshot = await manager.get_session_metadata_versioned(session_id)
+    metadata = metadata_snapshot.value
+    if metadata is None or metadata_snapshot.version is None:
+        return None
+    run_scoped = key.startswith(("cache/preview/", "preview/"))
+    if run_scoped and not artifact_is_valid(metadata, "previews"):
+        return None
+
+    def resolve_store_key(current_metadata: dict) -> str | None:
+        return (
+            manager.resolve_published_artifact_key(
+                current_metadata,
+                key,
+                legacy_key=key,
+            )
+            if run_scoped
+            else key
+        )
+
+    store_key = resolve_store_key(metadata)
+    if store_key is None:
+        return None
+
+    async def publication_is_still_current() -> bool:
+        if not run_scoped:
+            return True
+        current = await manager.get_session_metadata_versioned(session_id)
+        if current.value is None or current.version is None:
+            return False
+        return artifact_is_valid(current.value, "previews") and (
+            resolve_store_key(current.value) == store_key
+        )
+
     # 1. Try presigned URL (redirect)
-    url = await manager.make_public_url(session_id, key)
-    if url:
+    url = await manager.make_public_url(session_id, store_key)
+    if url and await publication_is_still_current():
         return RedirectResponse(url, status_code=302)
 
     # 2. Try reading from store (streaming response)
-    data = await manager.read_from_store(session_id, key)
-    if data is not None:
+    data = await manager.read_from_store(session_id, store_key)
+    if data is not None and await publication_is_still_current():
         headers = {}
         if filename:
             headers["Content-Disposition"] = f'attachment; filename="{filename}"'
         return Response(content=data, media_type=media_type, headers=headers)
 
     # 3. Fallback to local file
-    if local_path.exists():
-        return FileResponse(
-            local_path,
-            media_type=media_type,
-            filename=filename,
-        )
-
-    return None
+    if run_scoped and (
+        manager.store.kind != "local"
+        or (metadata and metadata.get("published_artifacts") is not None)
+    ):
+        return None
+    local_artifact = await manager.open_local_artifact(session_id, local_path)
+    if local_artifact is None:
+        return None
+    if run_scoped:
+        try:
+            local_data = local_artifact.stream.read()
+        finally:
+            local_artifact.stream.close()
+        if not await publication_is_still_current():
+            return None
+        headers = {}
+        if filename:
+            headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return Response(content=local_data, media_type=media_type, headers=headers)
+    return HeldFileResponse(
+        local_artifact,
+        media_type=media_type,
+        filename=filename,
+    )
 
 
 @router.api_route("/{session_id}/input-render", methods=["GET", "HEAD"])
@@ -144,8 +204,7 @@ async def get_input_render(session_id: str):
 
     metadata = await manager.get_session_metadata(session_id)
     if metadata and metadata.get("preview_render_status") == "failed":
-        detail = metadata.get("preview_render_error") or "Input render failed"
-        raise HTTPException(status_code=424, detail=detail)
+        raise HTTPException(status_code=424, detail="Input preview render failed")
 
     # Check if it's still rendering
     temp_config = session_dir / ".input_render_config.yaml"
@@ -262,7 +321,42 @@ async def get_preview_image(session_id: str, image_name: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    metadata = await manager.get_session_metadata(session_id)
+    persisted_preview = bool(
+        artifact_is_valid(metadata, "previews")
+        and metadata
+        and image_name in (metadata.get("preview_images") or [])
+    )
+    live_snapshot = await _live_preview_snapshot(session_id)
+    live_preview = bool(
+        live_snapshot and image_name in (live_snapshot.get("preview_images") or [])
+    )
+    if not persisted_preview and not live_preview:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Preview image not found: {image_name}",
+        )
     session_dir = manager.get_session_dir(session_id)
+
+    if live_preview:
+        # The EventBus name belongs to the in-flight local generation. Prefer
+        # its exact bytes over any prior immutable publication with the same
+        # logical filename.
+        for live_path in (
+            session_dir / "cache" / "preview" / image_name,
+            session_dir / "preview" / image_name,
+        ):
+            if live_path.is_file():
+                try:
+                    live_data = live_path.read_bytes()
+                except OSError:
+                    continue
+                confirmed_snapshot = await _live_preview_snapshot(session_id)
+                if confirmed_snapshot and image_name in (
+                    confirmed_snapshot.get("preview_images") or []
+                ):
+                    return Response(content=live_data, media_type="image/png")
+                break
 
     # Try cache/preview/ first (new event-driven path)
     response = await _serve_file_with_fallback(
@@ -306,15 +400,28 @@ async def list_preview_images(session_id: str) -> PreviewList:
     metadata = await manager.get_session_metadata(session_id)
     if not metadata:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    preview_images = metadata.get("preview_images", [])
+    live_snapshot = await _live_preview_snapshot(session_id)
+    live_preview_images = list((live_snapshot or {}).get("preview_images") or [])
+    persisted_preview_images = (
+        list(metadata.get("preview_images") or [])
+        if artifact_is_valid(metadata, "previews")
+        else []
+    )
+    preview_images = list(
+        dict.fromkeys([*persisted_preview_images, *live_preview_images])
+    )
+    if not preview_images and not artifact_is_valid(metadata, "previews"):
+        raise HTTPException(
+            status_code=404,
+            detail="Preview images are not available for the current pipeline run",
+        )
 
     previews = [
         PreviewImage(
             name=img,
             url=f"/assets/{session_id}/preview/{img}",
             prim_path=None,  # Could extract from filename if needed
-            created_at=metadata["updated_at"],  # Approximate
+            created_at=(live_snapshot or metadata)["updated_at"],  # Approximate
         )
         for img in preview_images
     ]
@@ -396,8 +503,9 @@ async def list_reference_images(session_id: str):
 async def get_reference_pdf(session_id: str, pdf_name: str):
     """Get a reference PDF uploaded for this session.
 
-    Reference PDFs are stored in input/reference_pdfs/ and converted to images
-    during the prepare_dataset step for VLM processing.
+    Reference PDFs are stored in input/reference_pdfs/ and converted to page
+    images during the prepare_dataset step as specification evidence. The page
+    images remain outside visual-model media.
 
     Args:
         session_id: Session identifier

@@ -12,6 +12,7 @@ from PIL import ImageDraw
 from world_understanding.tools.cv.find_similar_color import (
     FindSimilarColorInput,
     FindSimilarColorOutput,
+    _display_color_match_results,
     find_similar_color_tool,
 )
 
@@ -132,6 +133,43 @@ class TestFindSimilarColorOutput:
         assert output.pixel_count == 1550
         assert output.total_pixels == 10000
         # No message field in the output model
+
+
+class RecordingConsole:
+    """Minimal console double that records print calls."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def print(self, *args, **kwargs) -> None:
+        self.calls.append((args, kwargs))
+
+
+def test_display_color_match_results_renders_summary_and_closest_colors() -> None:
+    console = RecordingConsole()
+
+    _display_color_match_results(
+        {
+            "target_color_hex": "#ff0000",
+            "target_color_rgb": [255, 0, 0],
+            "contains_color": True,
+            "matching_percentage": 12.345,
+            "closest_colors": [
+                {"hex": "#ff0000", "rgb": [255, 0, 0], "percentage": 0.5},
+                {"hex": "#00ff00", "rgb": [0, 255, 0], "percentage": 0.25},
+            ],
+        },
+        console,
+        indent="  ",
+    )
+
+    rendered = "\n".join(str(call[0][0]) for call in console.calls)
+    assert "Color Match Results" in rendered
+    assert "Target Color: #ff0000 RGB(255, 0, 0)" in rendered
+    assert "Status: [green]" in rendered
+    assert "Found[/green]" in rendered
+    assert "#00ff00 RGB(0, 255, 0) - 25.0%" in rendered
+    assert any(kwargs.get("style") == "on #ff0000" for _, kwargs in console.calls)
 
 
 class TestFindSimilarColorTool:

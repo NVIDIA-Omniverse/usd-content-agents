@@ -39,7 +39,13 @@ Health check including GPU initialization state.
   "service": "ovrtx-rendering-api",
   "version": "0.1.0",
   "renderer": "ovrtx",
-  "gpu_initialized": true
+  "gpu_initialized": true,
+  "daemon_pid": 123,
+  "daemon_completed_renders": 12,
+  "daemon_rss_bytes": 8589934592,
+  "daemon_recycle_count": 1,
+  "daemon_last_recycle_reason": "completed_render_limit",
+  "daemon_pending_recycle_reason": null
 }
 ```
 
@@ -156,6 +162,7 @@ The response structure is `images[frame_number][camera_path][sensor_name] = base
 | `camera_parameters` | [`CameraParameters`](#cameraparameters) | `{width: 1024, height: 1024}` | Per-camera image resolution. |
 | `sensors` | `list[str] \| null` | `null` (= `rgb` only) | Sensor outputs, e.g. `["rgb", "depth", "instance_id"]`. |
 | `apply_background_mask` | bool | `false` | If `true`, apply dome-light background masking. |
+| `material_target` | `"auto" \| "display_color" \| "preview_surface" \| "openpbr_materialx" \| "omnipbr_mdl" \| null` | `null` | Explicit render material target. `auto` preserves authored/native materials; use `preview_surface` only to request render-export PreviewSurface fallbacks. |
 
 ### `FrameRange`
 
@@ -190,6 +197,12 @@ The response structure is `images[frame_number][camera_path][sensor_name] = base
 | `gpu_initialized` | bool | Single-worker readiness, or at least one ready worker in dispatcher mode. |
 | `renderer_initialized` | bool | Renderer initialization state. |
 | `daemon_running` | bool | OVRTX daemon process state. |
+| `daemon_pid` | `int \| null` | Current isolated renderer process ID. |
+| `daemon_completed_renders` | `int \| null` | Render commands completed by the current daemon generation. |
+| `daemon_rss_bytes` | `int \| null` | Current or last observed daemon resident memory in bytes. |
+| `daemon_recycle_count` | `int \| null` | Successful bounded-lifetime recycles since service startup. |
+| `daemon_last_recycle_reason` | `string \| null` | Most recent successful recycle reason: `completed_render_limit` or `rss_limit`. |
+| `daemon_pending_recycle_reason` | `string \| null` | Guard that will recycle the daemon before the next render. |
 | `ready_workers` | `int \| null` | Dispatcher mode only: ready worker count. |
 | `total_workers` | `int \| null` | Dispatcher mode only: configured worker count. |
 | `workers` | `list[object] \| null` | Dispatcher mode only: per-worker health and queue state. |
@@ -206,3 +219,18 @@ Common error cases:
 - Camera path does not exist on the stage
 - GPU initialization failure (check `/health` — `gpu_initialized` will be `false`)
 - OVRTX daemon crash (container will self-restart; client should retry)
+
+## Daemon lifetime configuration
+
+The native OVRTX/Vulkan process is deliberately persistent to amortize GPU
+startup, but it is recycled before the next render after either configured
+guard trips. Recycling is single-flight and never kills an active render.
+
+| Variable | Default | Description |
+|---|---:|---|
+| `OVRTX_DAEMON_MAX_RENDERS` | `64` | Completed commands allowed in one daemon generation; `0` disables. |
+| `OVRTX_DAEMON_MAX_RSS_BYTES` | `25769803776` | Resident-byte threshold (24 GiB); `0` disables. RSS inspection is Linux-only, with the count guard providing the portable bound. |
+
+The request after a threshold is recorded incurs one cold start. Raise a guard
+only when measured scene requirements justify the additional retained memory;
+disable guards only for controlled diagnostics.

@@ -1,0 +1,49 @@
+[project]
+name = "content-workbench"
+version = "0.1.0"
+description = "Local scene and asset state service for agentic asset workflows"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "pydantic>=2.11,<3.0.0",
+    "numpy>=2.3,<3.0.0",
+    "pillow>=12.1.1,<13.0.0",
+    "physics-agent",
+    "world-understanding",
+    "usd-exchange>=2.2.2,<3; platform_system == 'Linux' and platform_machine == 'aarch64' and python_version < '3.13'",
+    "usd-core>=24.11; platform_system != 'Linux' or platform_machine != 'aarch64' or python_version >= '3.13'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27",
+    "pytest>=9.0.3,<10",
+    "ruff>=0.12",
+]
+
+[project.scripts]
+content-workbench = "content_workbench.main:main"
+
+[tool.uv.sources]
+world-understanding = { path = "../../..", editable = true }
+physics-agent = { path = "../../../apps/physics_agent", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["content_workbench"]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]

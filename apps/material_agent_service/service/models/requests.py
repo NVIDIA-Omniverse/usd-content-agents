@@ -3,6 +3,7 @@
 """Request models for Material Agent Service API."""
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -62,7 +63,10 @@ class PipelineRequest(BaseModel):
 class RegenerateRequest(BaseModel):
     """Request to regenerate specific steps from cache."""
 
-    steps: list[PipelineStep] = Field(description="Steps to re-run from cache")
+    steps: list[PipelineStep] = Field(
+        min_length=1,
+        description="Steps to re-run from cache",
+    )
 
     # Can override user prompt for regeneration
     user_prompt: str | None = Field(
@@ -75,5 +79,13 @@ class RegenerateRequest(BaseModel):
         description=(
             "Output only a material binding layer instead of a full USD. "
             "When true, preserves original scene structure."
+        ),
+    )
+    coverage_policy: Literal["strict", "allow_partial"] | None = Field(
+        default=None,
+        description=(
+            "Coverage qualification policy. strict fails closed when target prims "
+            "lack usable predictions or bindings; allow_partial preserves a "
+            "completed result with explicit partial readiness."
         ),
     )

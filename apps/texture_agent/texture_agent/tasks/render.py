@@ -9,10 +9,26 @@ from pathlib import Path
 from typing import Any
 
 from world_understanding.agentic.tasks import Task
+from world_understanding.rendering_backend_contract import (
+    RemoteRenderingSlotTimeoutError,
+)
+
+from texture_agent.config.rendering_backends import (
+    DEFAULT_TEXTURE_RENDERING_BACKEND,
+    has_production_visual_evidence,
+    validate_texture_rendering_backend,
+)
+from texture_agent.tasks.render_results import render_result_items
 
 logger = logging.getLogger(__name__)
 
 _DIAGNOSTIC_SCHEMA_VERSION = "texture-agent-diagnostic.v1"
+_DEFAULT_RENDER_SLOT_TIMEOUT_SEC = 300.0
+
+
+def _render_result_items(results: Any) -> list[dict[str, Any]]:
+    """Normalize renderer results using the final-render diagnostic contract."""
+    return render_result_items(results, producer="render_all_cameras")
 
 
 def _diagnostic(
@@ -41,25 +57,6 @@ def _diagnostic(
     return diagnostic
 
 
-def _render_result_items(results: Any) -> list[dict[str, Any]]:
-    """Return per-camera renderer results from supported renderer shapes."""
-    if isinstance(results, dict):
-        items = results.get("results")
-        if isinstance(items, list) and all(isinstance(item, dict) for item in items):
-            return items
-        raise ValueError(
-            "render_all_cameras returned a dict without a list-valued 'results' key"
-        )
-
-    if isinstance(results, list) and all(isinstance(item, dict) for item in results):
-        return results
-
-    raise TypeError(
-        "render_all_cameras returned unsupported result shape "
-        f"{type(results).__name__}; expected dict['results'] or list[dict]"
-    )
-
-
 def _as_path_list(value: Any) -> list[str]:
     if value is None:
         return []
@@ -86,6 +83,66 @@ def _config_bool(value: Any, *, default: bool) -> bool:
     return bool(value)
 
 
+def _config_float(value: Any, *, default: float) -> float:
+    if value is None:
+        return default
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0.0 else default
+
+
+def _render_slot_timeout_seconds(config: dict[str, Any]) -> float:
+    return _config_float(
+        config.get(
+            "render_slot_timeout_sec",
+            config.get("global_render_slot_timeout_sec"),
+        ),
+        default=_DEFAULT_RENDER_SLOT_TIMEOUT_SEC,
+    )
+
+
+def _render_request_timeout_seconds(config: dict[str, Any]) -> int:
+    return int(
+        _config_float(
+            config.get(
+                "timeout_sec",
+                config.get(
+                    "render_timeout_sec",
+                    config.get("request_timeout_sec", config.get("timeout")),
+                ),
+            ),
+            default=3600.0,
+        )
+    )
+
+
+def _normalize_render_image_for_save(img: Any, config: dict[str, Any]) -> Any:
+    """Return the final render image to persist as evidence.
+
+    OVRTX can return RGBA images with a constant non-opaque alpha channel even
+    for ordinary beauty renders. Persisting that alpha makes screenshots look
+    dark or transparent depending on the viewer background, so final Texture
+    Agent evidence defaults to opaque RGB output. Callers can opt back into raw
+    alpha with ``steps.render.preserve_alpha: true``.
+    """
+    if _config_bool(
+        config.get("preserve_alpha", config.get("preserve_render_alpha")),
+        default=False,
+    ):
+        return img
+
+    if getattr(img, "mode", None) in {"RGBA", "LA"} or "transparency" in getattr(
+        img,
+        "info",
+        {},
+    ):
+        return img.convert("RGB")
+
+    return img
+
+
 def _focus_cameras_enabled(config: dict[str, Any]) -> bool:
     if "focus_cameras" in config:
         return _config_bool(config.get("focus_cameras"), default=True)
@@ -98,6 +155,35 @@ def _stage_camera_paths(stage: Any) -> list[str]:
     return [
         str(prim.GetPath()) for prim in stage.Traverse() if prim.IsA(UsdGeom.Camera)
     ]
+
+
+def _stage_has_lights(stage: Any) -> bool:
+    from pxr import UsdLux
+
+    return any(prim.HasAPI(UsdLux.LightAPI) for prim in stage.Traverse())
+
+
+def _add_default_lights(stage: Any, config: dict[str, Any]) -> bool:
+    if not _config_bool(config.get("add_default_lights"), default=True):
+        return False
+    if _stage_has_lights(stage):
+        return False
+
+    from pxr import Gf, UsdGeom, UsdLux
+
+    dome_intensity = float(config.get("dome_light_intensity", 500.0))
+    distant_intensity = float(config.get("distant_light_intensity", 3000.0))
+
+    dome = UsdLux.DomeLight.Define(stage, "/TextureAgentRenderLights/DomeLight")
+    dome.GetIntensityAttr().Set(dome_intensity)
+
+    distant = UsdLux.DistantLight.Define(
+        stage,
+        "/TextureAgentRenderLights/DistantLight",
+    )
+    distant.GetIntensityAttr().Set(distant_intensity)
+    UsdGeom.Xformable(distant).AddRotateXYZOp().Set(Gf.Vec3f(315, 45, 0))
+    return True
 
 
 def _selected_prim_paths(context: dict[str, Any], config: dict[str, Any]) -> list[str]:
@@ -313,13 +399,44 @@ class RenderOutputTask(Task):
         output_usd_paths: list[str] = context.get("output_usd_paths", [])
         config: dict[str, Any] = context.get("render_config", {})
         working_dir = Path(context["working_dir"])
+        backend_type = validate_texture_rendering_backend(
+            config.get("backend", DEFAULT_TEXTURE_RENDERING_BACKEND),
+            step_name="render",
+        )
         diagnostics: list[dict[str, Any]] = []
+        evidence_classification = (
+            "mock_placeholder" if backend_type == "mock" else "renderer_output"
+        )
         render_stats: dict[str, Any] = {
+            "backend": backend_type,
+            "evidence_classification": evidence_classification,
+            "production_visual_evidence": False,
             "camera_paths": [],
             "focus_cameras": [],
             "renders_count": 0,
             "render_available": False,
+            "texture_detail_display_color_bakes": 0,
+            "texture_detail_package_texture_localizations": 0,
+            "texture_detail_uv_texture_fallbacks": 0,
+            "textured_preview_fallbacks": 0,
         }
+
+        if backend_type == "mock":
+            diagnostics.append(
+                _diagnostic(
+                    "RENDER_MOCK_PLACEHOLDER",
+                    (
+                        "Mock rendering produces deterministic placeholder images, "
+                        "not production visual evidence."
+                    ),
+                    severity="warning",
+                    recommended_action=(
+                        "Use the remote or ovrtx backend for production visual "
+                        "inspection of generated textures."
+                    ),
+                    details={"backend": backend_type},
+                )
+            )
 
         if not output_usd_paths:
             logger.info("No output USDs to render")
@@ -332,15 +449,26 @@ class RenderOutputTask(Task):
         image_width = config.get("image_width", 1024)
         image_height = config.get("image_height", image_width)
 
+        from world_understanding.functions.graphics.rendering_backend_factory import (
+            create_rendering_backend,
+        )
+
+        backend_config = {
+            **config,
+            "timeout": _render_request_timeout_seconds(config),
+        }
+        rendering_backend = create_rendering_backend(backend_type, backend_config)
+        logger.info("Using %s rendering backend for final output", backend_type)
+
         out_dir = working_dir / "renders"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         from pxr import Usd
-        from world_understanding.functions.graphics.render_remote import (
-            render_all_cameras,
-        )
         from world_understanding.utils.usd.material import (
+            add_ovrtx_preview_fallbacks_for_texture_file_materials,
+            bake_texture_file_materials_to_display_color_for_render,
             convert_custom_mdl_to_builtin,
+            localize_package_texture_assets_for_render,
         )
 
         rendered: list[str] = []
@@ -385,10 +513,74 @@ class RenderOutputTask(Task):
                     logger.warning("Failed to open stage: %s", usd_path)
                     continue
 
-                # Flatten for remote rendering.
+                # Flatten so every backend receives resolved composition arcs.
                 flat_layer = stage.Flatten()
                 flat_stage = Usd.Stage.Open(flat_layer)
                 convert_custom_mdl_to_builtin(flat_stage)
+                localized_package_textures = localize_package_texture_assets_for_render(
+                    flat_stage,
+                    working_dir / "render_assets" / f"output_{output_index}",
+                )
+                render_stats["texture_detail_package_texture_localizations"] += (
+                    localized_package_textures
+                )
+                if localized_package_textures:
+                    logger.info(
+                        "Localized %d USDZ package texture reference(s) for OVRTX",
+                        localized_package_textures,
+                    )
+                preserve_mdl_surface = _config_bool(
+                    config.get("preserve_mdl_surface"),
+                    default=True,
+                )
+                display_color_bakes = 0
+                if not preserve_mdl_surface:
+                    display_color_bakes = (
+                        bake_texture_file_materials_to_display_color_for_render(
+                            flat_stage,
+                        )
+                    )
+                render_stats["texture_detail_display_color_bakes"] += (
+                    display_color_bakes
+                )
+                if display_color_bakes:
+                    logger.info(
+                        "Baked %d textured mesh(es) to displayColor for OVRTX",
+                        display_color_bakes,
+                    )
+
+                textured_fallbacks = (
+                    add_ovrtx_preview_fallbacks_for_texture_file_materials(
+                        flat_stage,
+                        override_existing_surface=True,
+                        connect_diffuse_texture=preserve_mdl_surface,
+                        diffuse_color_primvar=(
+                            "displayColor"
+                            if display_color_bakes and not preserve_mdl_surface
+                            else None
+                        ),
+                        skip_connected_mdl_surface=preserve_mdl_surface,
+                    )
+                )
+                render_stats["textured_preview_fallbacks"] += textured_fallbacks
+                if preserve_mdl_surface:
+                    render_stats["texture_detail_uv_texture_fallbacks"] += (
+                        textured_fallbacks
+                    )
+                    fallback_label = "UsdUVTexture"
+                elif display_color_bakes:
+                    fallback_label = "displayColor"
+                else:
+                    fallback_label = "solid-color"
+                if textured_fallbacks:
+                    logger.info(
+                        "Added %d %s UsdPreviewSurface fallback(s) for OVRTX",
+                        textured_fallbacks,
+                        fallback_label,
+                    )
+
+                if _add_default_lights(flat_stage, config):
+                    logger.info("Added default Texture Agent final render lights")
 
                 camera_paths = _configured_camera_paths(config)
                 if not camera_paths:
@@ -425,12 +617,53 @@ class RenderOutputTask(Task):
                 diagnostics.extend(focus_diagnostics)
                 _extend_unique(render_stats["camera_paths"], camera_paths)
 
-                results = render_all_cameras(
-                    stage=flat_stage,
-                    image_width=image_width,
-                    image_height=image_height,
-                    cameras=camera_paths,
-                )
+                render_slot_timeout = _render_slot_timeout_seconds(config)
+                try:
+                    results = rendering_backend.render(
+                        stage=flat_stage,
+                        image_width=image_width,
+                        image_height=image_height,
+                        cameras=camera_paths,
+                        base_dir=Path(usd_path).parent,
+                        render_slot_timeout_sec=render_slot_timeout,
+                    )
+                except RemoteRenderingSlotTimeoutError as exc:
+                    diagnostics.append(
+                        _diagnostic(
+                            "RENDER_GLOBAL_SLOT_TIMEOUT",
+                            f"Timed out waiting for global render slot: {exc}",
+                            usd_path=str(usd_path),
+                            recommended_action=(
+                                "Increase render_slot_timeout_sec, reduce "
+                                "concurrent render jobs, or raise the global "
+                                "remote render concurrency limit."
+                            ),
+                            details={"timeout_seconds": render_slot_timeout},
+                        )
+                    )
+                    logger.error("Timed out waiting for render slot for %s", usd_path)
+                    continue
+                except TimeoutError as exc:
+                    diagnostics.append(
+                        _diagnostic(
+                            "RENDER_BACKEND_TIMEOUT",
+                            f"{backend_type} rendering timed out: {exc}",
+                            usd_path=str(usd_path),
+                            recommended_action=(
+                                "Inspect the selected renderer logs and increase "
+                                "its startup, request, or render deadline when "
+                                "the workload is expected to take longer."
+                            ),
+                            details={
+                                "backend": backend_type,
+                                "exception_type": type(exc).__name__,
+                            },
+                        )
+                    )
+                    logger.error(
+                        "%s rendering timed out for %s", backend_type, usd_path
+                    )
+                    continue
 
                 try:
                     render_items = _render_result_items(results)
@@ -494,7 +727,9 @@ class RenderOutputTask(Task):
                     for j, img in enumerate(images):
                         out_name = f"render_{output_index}_{i}_{j}.png"
                         out_path = out_dir / out_name
-                        img.save(str(out_path))
+                        _normalize_render_image_for_save(img, config).save(
+                            str(out_path)
+                        )
                         rendered.append(str(out_path))
                         logger.info("  Saved render: %s", out_path)
 
@@ -517,6 +752,10 @@ class RenderOutputTask(Task):
         context["rendered_image_paths"] = rendered
         render_stats["renders_count"] = len(rendered)
         render_stats["render_available"] = bool(rendered)
+        render_stats["production_visual_evidence"] = has_production_visual_evidence(
+            backend_type,
+            render_count=len(rendered),
+        )
         context["render_stats"] = render_stats
         context["render_diagnostics"] = diagnostics
         context["render_errors"] = [

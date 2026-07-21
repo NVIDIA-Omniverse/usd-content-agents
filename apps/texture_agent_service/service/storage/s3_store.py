@@ -86,7 +86,9 @@ class S3SessionStore(SessionStore):
         self._endpoint_url = endpoint_url
         self._access_key_id = access_key_id
         self._secret_access_key = secret_access_key
-        self._session_token = session_token
+        self._session_token = session_token.strip() if session_token else None
+        if not self._session_token:
+            self._session_token = None
         self._use_path_style = use_path_style
         self._create_bucket_if_missing = create_bucket_if_missing
         self.presign_by_default = presign_by_default
@@ -840,7 +842,7 @@ class S3SessionStore(SessionStore):
             if not file_path.is_file():
                 continue
             rel_path = str(file_path.relative_to(local_dir))
-            if not self._prefix_matches(rel_path, prefix):
+            if not self._prefix_matches(rel_path, prefix):  # pragma: no cover
                 continue
             content_type, _ = mimetypes.guess_type(str(file_path))
             extra: dict[str, Any] = {}
@@ -891,7 +893,7 @@ class S3SessionStore(SessionStore):
             for obj in page.get("Contents", []):
                 s3_key = obj["Key"]
                 rel_path = s3_key[len(base) :].lstrip("/")
-                if not self._prefix_matches(rel_path, prefix):
+                if not self._prefix_matches(rel_path, prefix):  # pragma: no cover
                     continue
                 local_path = local_dir / rel_path
                 resolved_local_path = local_path.resolve()

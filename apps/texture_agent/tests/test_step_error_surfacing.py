@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for per-unit error surfacing and failure-rate threshold gating.
 
-Covers the gaps fixed for NVBugs 6126254 / OMPE-91706:
+Covers the public failure-surfacing gaps:
 
   * ``_classify_unit_failure`` extracts HTTP status codes from both wrapped
     ``HTTPError`` causes and from the message text used by per-unit
@@ -182,6 +182,22 @@ class TestRaiseIfAboveThreshold:
 
         # 75% failure rate ≥ 0.5 threshold → raise.
         with pytest.raises(RuntimeError, match=r"failure rate 75% >= threshold 50%"):
+            generate_textures_task._raise_if_above_threshold(
+                attempted, fresh, errors, backend_label="nim", failure_threshold=0.5
+            )
+
+    def test_counts_duplicate_error_records_once_per_failed_unit(self) -> None:
+        attempted = [_unit("A"), _unit("B")]
+        fresh = {"A": GeneratedTextures(albedo="/tmp/a.png", normal="", orm="")}
+        errors = [
+            {"material": "B", "type": "RuntimeError", "status": 500, "message": "b"},
+            {"material": "B", "type": "HTTPError", "status": 502, "message": "b2"},
+        ]
+
+        generate_textures_task._raise_if_above_threshold(
+            attempted, fresh, errors, backend_label="nim", failure_threshold=1.0
+        )
+        with pytest.raises(RuntimeError, match="1/2 texture generation requests"):
             generate_textures_task._raise_if_above_threshold(
                 attempted, fresh, errors, backend_label="nim", failure_threshold=0.5
             )

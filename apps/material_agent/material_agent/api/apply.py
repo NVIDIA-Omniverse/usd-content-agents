@@ -8,9 +8,43 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+    retain_safe_result_text,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
+
+from material_agent.api.diagnostics import (
+    diagnostic_path,
+    normalize_required_config,
+)
 from material_agent.api.types import APIResult, AssignmentStats, DownloadStats
 
 logger = logging.getLogger(__name__)
+
+_APPLY_FAILURE_MESSAGE = "Material apply failed"
+
+
+def _projected_int(mapping: dict[str, Any], key: str) -> int:
+    value = mapping.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _projected_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if type(item) is str]
+
+
+def _projected_mapping(value: Any) -> dict[str, Any] | None:
+    return value if isinstance(value, dict) else None
+
+
+def _projected_mapping_list(value: Any) -> list[dict[str, Any]] | None:
+    if not isinstance(value, list):
+        return None
+    return [item for item in value if isinstance(item, dict)]
 
 
 @dataclass
@@ -37,14 +71,7 @@ class ApplyInput:
 
     def __post_init__(self):
         """Validate inputs."""
-        # Handle config as either Path or dict
-        if isinstance(self.config, dict):
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
 
         if self.input_usd_override:
             self.input_usd_override = Path(self.input_usd_override)
@@ -56,8 +83,8 @@ class ApplyInput:
             self.output_usd_override = Path(self.output_usd_override)
 
 
-@dataclass
-class ApplyOutput(APIResult):
+@dataclass(repr=False)
+class ApplyOutput(SecretSafeReprMixin, APIResult):
     """Output results from apply API."""
 
     output_usd_path: Path | None = None
@@ -65,6 +92,10 @@ class ApplyOutput(APIResult):
     matched_materials: dict[str, list[Any]] | None = None
     resolved_materials: dict[str, str] | None = None
     materials_applied: dict[str, Any] | None = None
+    material_profile_result: dict[str, Any] | None = None
+    resolved_material_profile: str | None = None
+    material_profile_warnings: list[dict[str, Any]] | None = None
+    material_profile_errors: list[dict[str, Any]] | None = None
     assignment_stats: AssignmentStats | None = None
     download_stats: DownloadStats | None = None
     rendered_image_paths: list[Path] | None = None
@@ -89,14 +120,23 @@ async def arun_apply(params: ApplyInput) -> ApplyOutput:
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        logger.info("Configuration file: %s", diagnostic_path(params.config))
 
     if params.input_usd_override:
-        logger.info(f"Input USD override: {params.input_usd_override}")
+        logger.info(
+            "Input USD override: %s",
+            diagnostic_path(params.input_usd_override),
+        )
     if params.predictions_override:
-        logger.info(f"Predictions override: {params.predictions_override}")
+        logger.info(
+            "Predictions override: %s",
+            diagnostic_path(params.predictions_override),
+        )
     if params.output_usd_override:
-        logger.info(f"Output USD override: {params.output_usd_override}")
+        logger.info(
+            "Output USD override: %s",
+            diagnostic_path(params.output_usd_override),
+        )
 
     try:
         # Import the pipeline API to reuse logic
@@ -118,67 +158,143 @@ async def arun_apply(params: ApplyInput) -> ApplyOutput:
 
         if pipeline_result.success:
             # Extract apply-specific results
-            apply_result = pipeline_result.step_results.get("apply", {})
+            runtime_apply_result = pipeline_result.step_results.get("apply", {})
+            if not isinstance(runtime_apply_result, dict):
+                raise ValueError("Apply pipeline returned invalid result metadata")
+            apply_result = project_result_metadata(runtime_apply_result)
 
             # Convert assignment stats
-            assignment_stats_dict = apply_result.get("assignment_stats", {})
+            assignment_stats_dict = (
+                _projected_mapping(apply_result.get("assignment_stats")) or {}
+            )
             assignment_stats = (
                 AssignmentStats(
-                    materials_created=assignment_stats_dict.get("materials_created", 0),
-                    materials_applied=assignment_stats_dict.get("materials_applied", 0),
-                    total_prims=assignment_stats_dict.get("total_prims", 0),
-                    failed=assignment_stats_dict.get("failed", 0),
+                    materials_created=_projected_int(
+                        assignment_stats_dict, "materials_created"
+                    ),
+                    materials_applied=_projected_int(
+                        assignment_stats_dict, "materials_applied"
+                    ),
+                    total_prims=_projected_int(assignment_stats_dict, "total_prims"),
+                    failed=_projected_int(assignment_stats_dict, "failed"),
+                    bound_prim_ids=_projected_string_list(
+                        assignment_stats_dict.get("bound_prim_ids")
+                    ),
+                    unbound_prim_ids=_projected_string_list(
+                        assignment_stats_dict.get("unbound_prim_ids")
+                    ),
                 )
                 if assignment_stats_dict
                 else None
             )
 
             # Convert download stats
-            download_stats_dict = apply_result.get("download_stats", {})
+            download_stats_dict = (
+                _projected_mapping(apply_result.get("download_stats")) or {}
+            )
             download_stats = (
                 DownloadStats(
-                    found_local=download_stats_dict.get("found_local", 0),
-                    downloaded=download_stats_dict.get("downloaded", 0),
-                    failed=download_stats_dict.get("failed", 0),
-                    skipped=download_stats_dict.get("skipped", 0),
+                    found_local=_projected_int(download_stats_dict, "found_local"),
+                    downloaded=_projected_int(download_stats_dict, "downloaded"),
+                    failed=_projected_int(download_stats_dict, "failed"),
+                    skipped=_projected_int(download_stats_dict, "skipped"),
                 )
                 if download_stats_dict
                 else None
             )
 
             # Convert rendered images to Paths
-            rendered_images = apply_result.get("rendered_image_paths", [])
             rendered_image_paths = (
-                [Path(p) for p in rendered_images] if rendered_images else None
+                [
+                    safe_path
+                    for value in runtime_apply_result.get("rendered_image_paths", [])
+                    if (safe_path := retain_safe_result_path(value)) is not None
+                ]
+                if isinstance(runtime_apply_result.get("rendered_image_paths"), list)
+                else None
+            )
+            if not rendered_image_paths:
+                rendered_image_paths = None
+
+            unique_materials = (
+                _projected_string_list(apply_result.get("unique_materials"))
+                if isinstance(apply_result.get("unique_materials"), list)
+                else None
+            )
+            matched_materials_data = _projected_mapping(
+                apply_result.get("matched_materials")
+            )
+            matched_materials = (
+                {
+                    key: value
+                    for key, value in matched_materials_data.items()
+                    if type(key) is str and isinstance(value, list)
+                }
+                if matched_materials_data is not None
+                else None
+            )
+            resolved_materials_data = _projected_mapping(
+                apply_result.get("resolved_materials")
+            )
+            resolved_materials = (
+                {
+                    key: value
+                    for key, value in resolved_materials_data.items()
+                    if type(key) is str and type(value) is str
+                }
+                if resolved_materials_data is not None
+                else None
             )
 
             return ApplyOutput(
                 success=True,
-                output_usd_path=Path(apply_result["output_usd_path"])
-                if apply_result.get("output_usd_path")
-                else None,
-                unique_materials=apply_result.get("unique_materials"),
-                matched_materials=apply_result.get("matched_materials"),
-                resolved_materials=apply_result.get("resolved_materials"),
-                materials_applied=apply_result.get("materials_applied"),
+                output_usd_path=retain_safe_result_path(
+                    runtime_apply_result.get("output_usd_path")
+                ),
+                unique_materials=unique_materials,
+                matched_materials=matched_materials,
+                resolved_materials=resolved_materials,
+                materials_applied=_projected_mapping(
+                    apply_result.get("materials_applied")
+                ),
+                material_profile_result=_projected_mapping(
+                    apply_result.get("material_profile_result")
+                ),
+                resolved_material_profile=retain_safe_result_text(
+                    apply_result.get("resolved_material_profile")
+                ),
+                material_profile_warnings=_projected_mapping_list(
+                    apply_result.get("material_profile_warnings")
+                ),
+                material_profile_errors=_projected_mapping_list(
+                    apply_result.get("material_profile_errors")
+                ),
                 assignment_stats=assignment_stats,
                 download_stats=download_stats,
                 rendered_image_paths=rendered_image_paths,
-                rendering_skipped=apply_result.get("rendering_skipped", True),
-                layer_only=apply_result.get("layer_only", False),
+                rendering_skipped=(
+                    apply_result.get("rendering_skipped")
+                    if isinstance(apply_result.get("rendering_skipped"), bool)
+                    else True
+                ),
+                layer_only=(
+                    apply_result.get("layer_only")
+                    if isinstance(apply_result.get("layer_only"), bool)
+                    else False
+                ),
                 raw_result=apply_result,
             )
         else:
             return ApplyOutput(
                 success=False,
-                error=pipeline_result.error,
+                error=_APPLY_FAILURE_MESSAGE,
             )
 
-    except Exception as e:
-        logger.error(f"Error running apply: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_APPLY_FAILURE_MESSAGE)
         return ApplyOutput(
             success=False,
-            error=str(e),
+            error=_APPLY_FAILURE_MESSAGE,
         )
 
 

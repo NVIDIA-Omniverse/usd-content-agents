@@ -10,6 +10,7 @@ output images.
 import base64
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -28,8 +29,6 @@ logger = logging.getLogger(__name__)
 
 # Default configurations
 _DEFAULT_GEMINI_MODEL = "gemini-3-pro-image-preview"
-_DEFAULT_NVIDIA_INFERENCE_MODEL = "gcp/google/gemini-3-pro-image-preview"
-_DEFAULT_NVIDIA_INFERENCE_BASE_URL = "https://inference-api.nvidia.com"
 _DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1"
 _DEFAULT_NIM_IMAGE_MODEL = "black-forest-labs/flux_2-klein-4b"
 _DEFAULT_NIM_IMAGE_BASE_URL = "https://ai.api.nvidia.com/v1/genai"
@@ -212,18 +211,18 @@ class GeminiImageGenerationModel(BaseImageGenerationModel):
                 pil_img = self._load_image(img)
                 contents.append(pil_img)
 
+        request_kwargs = self._normalize_generate_content_kwargs(kwargs)
+
         # Call Gemini API
         response = self.client.models.generate_content(
             model=self._model_name,
             contents=contents,  # type: ignore[arg-type]
-            **kwargs,
+            **request_kwargs,
         )
 
-        # Extract generated image from response
-        if response.candidates:
-            for part in response.candidates[0].content.parts:  # type: ignore[union-attr]
-                if part.inline_data is not None:
-                    return PILImage.open(BytesIO(part.inline_data.data))  # type: ignore[arg-type]
+        image = self._extract_inline_image(response)
+        if image is not None:
+            return image
 
         raise ValueError("No image generated in response")
 
@@ -272,20 +271,65 @@ class GeminiImageGenerationModel(BaseImageGenerationModel):
         # Add final prompt
         contents.append(final_prompt)
 
+        request_kwargs = self._normalize_generate_content_kwargs(kwargs)
+
         # Call Gemini API
         response = self.client.models.generate_content(
             model=self._model_name,
             contents=contents,  # type: ignore[arg-type]
-            **kwargs,
+            **request_kwargs,
         )
 
-        # Extract generated image from response
-        if response.candidates:
-            for part in response.candidates[0].content.parts:  # type: ignore[union-attr]
-                if part.inline_data is not None:
-                    return PILImage.open(BytesIO(part.inline_data.data))  # type: ignore[arg-type]
+        image = self._extract_inline_image(response)
+        if image is not None:
+            return image
 
         raise ValueError("No image generated in response")
+
+    @staticmethod
+    def _normalize_generate_content_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Translate common chat-style kwargs to google-genai config kwargs."""
+        normalized = dict(kwargs)
+        raw_config = normalized.pop("config", None)
+        if raw_config is None:
+            raw_config = {}
+        config_is_mapping = isinstance(raw_config, Mapping)
+        config = dict(raw_config) if config_is_mapping else raw_config
+
+        def set_config_default(key: str, value: Any) -> None:
+            if config_is_mapping:
+                config.setdefault(key, value)
+            elif getattr(config, key, None) is None:
+                setattr(config, key, value)
+
+        max_tokens = normalized.pop("max_tokens", None)
+        max_completion_tokens = normalized.pop("max_completion_tokens", None)
+        max_output_tokens = (
+            max_tokens if max_tokens is not None else max_completion_tokens
+        )
+        if max_output_tokens is not None:
+            set_config_default("max_output_tokens", max_output_tokens)
+
+        for key in ("temperature", "top_p", "top_k", "candidate_count"):
+            if key not in normalized:
+                continue
+            value = normalized.pop(key)
+            set_config_default(key, value)
+
+        if (config_is_mapping and config) or (not config_is_mapping and raw_config):
+            normalized["config"] = config
+        return normalized
+
+    @staticmethod
+    def _extract_inline_image(response: Any) -> PILImage.Image | None:
+        """Extract the first inline image from a google-genai response."""
+        for candidate in getattr(response, "candidates", []) or []:
+            content = getattr(candidate, "content", None)
+            for part in getattr(content, "parts", None) or []:
+                inline_data = getattr(part, "inline_data", None)
+                if inline_data is not None:
+                    return PILImage.open(BytesIO(inline_data.data))  # type: ignore[arg-type]
+        return None
 
     @property
     def model_name(self) -> str:
@@ -298,14 +342,10 @@ class GeminiImageGenerationModel(BaseImageGenerationModel):
         return "gemini"
 
 
-class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
-    """Image generation via NVIDIA Inference API (OpenAI-compatible).
+class OpenAICompatibleChatImageGenerationModel(BaseImageGenerationModel):
+    """Image generation through an OpenAI-compatible chat endpoint.
 
-    Uses the same ``https://inference-api.nvidia.com`` endpoint as the VLM
-    backend but targets image-generation-capable models such as
-    ``gcp/google/gemini-3-pro-image-preview``.
-
-    The model is called via OpenAI ``chat.completions.create``.  Input images
+    The model is called via OpenAI ``chat.completions.create``. Input images
     are sent as ``image_url`` content parts (base64 data URIs) and the
     generated image is extracted from the assistant response content parts.
     """
@@ -314,36 +354,37 @@ class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
         self,
         api_key: str | None = None,
         model: str | None = None,
-        base_url: str = _DEFAULT_NVIDIA_INFERENCE_BASE_URL,
+        base_url: str = "",
         timeout: float = _DEFAULT_TIMEOUT_SECONDS,
+        backend_name: str = "openai_compatible",
         **kwargs: Any,
     ) -> None:
-        """Initialise the NVIDIA Inference image generation model.
+        """Initialise the OpenAI-compatible image generation model.
 
         Args:
-            api_key: NVIDIA Inference API key.  Falls back to the
-                ``INFERENCE_NVIDIA_API_KEY`` environment variable.
-            model: Model identifier (default: ``gcp/google/gemini-3-pro-image-preview``).
+            api_key: Endpoint-scoped API key.
+            model: Model identifier.
             base_url: API base URL.
             timeout: Request timeout in seconds.
             **kwargs: Reserved for future options.
         """
+        if not base_url:
+            raise ValueError(
+                "base_url is required for OpenAICompatibleChatImageGenerationModel"
+            )
         try:
             from openai import OpenAI
         except ImportError as e:
             raise ImportError(
-                "openai is required for NvidiaInferenceImageGenerationModel. "
+                "openai is required for OpenAICompatibleChatImageGenerationModel. "
                 "Install with: pip install openai"
             ) from e
 
-        api_key = get_env_api_key_for_backend("nvidia_inference", api_key)
         if not api_key:
-            raise ValueError(
-                "API key is required. Provide via api_key parameter or "
-                "INFERENCE_NVIDIA_API_KEY environment variable."
-            )
+            raise ValueError("An endpoint-scoped api_key is required")
 
-        self._model_name = model or _DEFAULT_NVIDIA_INFERENCE_MODEL
+        self._model_name = model or _DEFAULT_GEMINI_MODEL
+        self._backend_name = backend_name
         self._base_url = base_url
         self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
 
@@ -407,7 +448,7 @@ class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
 
     @property
     def backend_name(self) -> str:
-        return "nvidia_inference"
+        return self._backend_name
 
     # ------------------------------------------------------------------
     # Internals
@@ -458,36 +499,24 @@ class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
                 request_kwargs[key] = value
 
         logger.info(
-            "Calling nvidia_inference image generation: model=%s",
+            "Calling OpenAI-compatible image generation: model=%s",
             self._model_name,
         )
         response = self.client.chat.completions.create(**request_kwargs)
 
-        # Extract image from response content parts.
-        # The OpenAI-compatible endpoint may return images in several ways:
-        #   1. message.content as a string with a data-URI
-        #   2. message.content as a list of content parts
-        #      - {"type": "image_url", "image_url": {"url": "data:..."}}
-        #   3. message.images as a separate list (NVIDIA Inference API)
-        #      - [{"type": "image_url", "image_url": {"url": "data:..."}}]
+        # Extract image from response content parts. OpenAI-compatible gateways
+        # preserve image responses in a few shapes depending on SDK/schema
+        # support, including Gemini-style inlineData parts in model_extra.
         message = response.choices[0].message
         raw_content = message.content
 
         # Case 1: content is a list of parts (structured response)
-        if isinstance(raw_content, list):
-            for part in raw_content:
-                img = self._try_extract_image_from_part(part)
-                if img is not None:
-                    return img
+        img = self._try_extract_image_from_part(raw_content)
+        if img is not None:
+            return img
 
-        # Case 2: content is a string – may contain a base64 data URI
-        if isinstance(raw_content, str):
-            img = self._try_decode_data_uri(raw_content)
-            if img is not None:
-                return img
-
-        # Case 3: images in a separate "images" field on the message
-        # (NVIDIA Inference API returns images here instead of in content)
+        # Case 2: images in a separate "images" field on the message
+        # (some OpenAI-compatible gateways return images here instead of content)
         raw_msg = response.choices[0].message
         images_list = getattr(raw_msg, "images", None)
         # Also check model_extra for fields the SDK doesn't recognise
@@ -498,6 +527,15 @@ class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
                 img = self._try_extract_image_from_part(part)
                 if img is not None:
                     return img
+
+        # Case 3: full Gemini-style response content in SDK overflow fields.
+        for extra in (
+            getattr(raw_msg, "model_extra", None),
+            getattr(response, "model_extra", None),
+        ):
+            img = self._try_extract_image_from_part(extra)
+            if img is not None:
+                return img
 
         # Log the raw response for debugging
         logger.warning(
@@ -517,19 +555,137 @@ class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
     @staticmethod
     def _try_extract_image_from_part(part: Any) -> PILImage.Image | None:
         """Try to extract a PIL Image from a single content part."""
+        if part is None:
+            return None
+
+        if isinstance(part, str):
+            return (
+                OpenAICompatibleChatImageGenerationModel._try_decode_data_uri(part)
+                or OpenAICompatibleChatImageGenerationModel._try_extract_image_from_json_string(
+                    part
+                )
+            )
+
+        if isinstance(part, list | tuple):
+            for item in part:
+                img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                    item
+                )
+                if img is not None:
+                    return img
+            return None
+
         if isinstance(part, dict):
             # {"type": "image_url", "image_url": {"url": "data:image/...;base64,..."}}
-            if part.get("type") == "image_url":
-                url = part.get("image_url", {}).get("url", "")
-                if url:
-                    return NvidiaInferenceImageGenerationModel._try_decode_data_uri(url)
+            image_url = part.get("image_url")
+            if part.get("type") == "image_url" and image_url:
+                img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                    image_url
+                )
+                if img is not None:
+                    return img
+
+            for key in ("url", "data_uri"):
+                value = part.get(key)
+                if isinstance(value, str):
+                    img = OpenAICompatibleChatImageGenerationModel._try_decode_data_uri(
+                        value
+                    )
+                    if img is not None:
+                        return img
+
+            for key in ("inline_data", "inlineData", "image", "source"):
+                img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                    part.get(key)
+                )
+                if img is not None:
+                    return img
+
+            mime_type = part.get("mime_type") or part.get("mimeType")
+            if isinstance(mime_type, str) and mime_type.startswith("image/"):
+                for key in ("data", "base64", "b64_json"):
+                    img = OpenAICompatibleChatImageGenerationModel._try_decode_image_payload(
+                        part.get(key)
+                    )
+                    if img is not None:
+                        return img
+
+            for key in ("b64_json", "base64"):
+                img = (
+                    OpenAICompatibleChatImageGenerationModel._try_decode_image_payload(
+                        part.get(key)
+                    )
+                )
+                if img is not None:
+                    return img
+
+            for value in part.values():
+                img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                    value
+                )
+                if img is not None:
+                    return img
+            return None
+
         # OpenAI SDK may return typed objects with attributes
         if hasattr(part, "type") and getattr(part, "type", None) == "image_url":
             image_url_obj = getattr(part, "image_url", None)
             if image_url_obj:
-                url = getattr(image_url_obj, "url", "")
-                if url:
-                    return NvidiaInferenceImageGenerationModel._try_decode_data_uri(url)
+                img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                    image_url_obj
+                )
+                if img is not None:
+                    return img
+
+        if hasattr(part, "model_dump"):
+            try:
+                dumped = part.model_dump()
+            except Exception:
+                dumped = None
+            if isinstance(dumped, dict):
+                img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                    dumped
+                )
+                if img is not None:
+                    return img
+
+        for attr in ("url", "data_uri"):
+            value = getattr(part, attr, None)
+            if isinstance(value, str):
+                img = OpenAICompatibleChatImageGenerationModel._try_decode_data_uri(
+                    value
+                )
+                if img is not None:
+                    return img
+
+        for attr in (
+            "inline_data",
+            "inlineData",
+            "image_url",
+            "image",
+            "images",
+            "parts",
+            "content",
+            "model_extra",
+        ):
+            if not hasattr(part, attr):
+                continue
+            img = OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+                getattr(part, attr)
+            )
+            if img is not None:
+                return img
+
+        mime_type = getattr(part, "mime_type", None) or getattr(part, "mimeType", None)
+        if isinstance(mime_type, str) and mime_type.startswith("image/"):
+            for attr in ("data", "base64", "b64_json"):
+                img = (
+                    OpenAICompatibleChatImageGenerationModel._try_decode_image_payload(
+                        getattr(part, attr, None)
+                    )
+                )
+                if img is not None:
+                    return img
         return None
 
     @staticmethod
@@ -537,10 +693,54 @@ class NvidiaInferenceImageGenerationModel(BaseImageGenerationModel):
         """Decode a ``data:image/...;base64,...`` URI to a PIL Image."""
         if "base64," in text:
             b64_data = text.split("base64,", 1)[1].strip()
+            return OpenAICompatibleChatImageGenerationModel._try_decode_image_payload(
+                b64_data
+            )
+        return None
+
+    @staticmethod
+    def _try_extract_image_from_json_string(text: str) -> PILImage.Image | None:
+        """Decode image content when a gateway serializes parts as JSON text."""
+        stripped = text.strip()
+        if not stripped or stripped[0] not in "[{":
+            return None
+        try:
+            import json
+
+            parsed = json.loads(stripped)
+        except Exception:
+            return None
+        return OpenAICompatibleChatImageGenerationModel._try_extract_image_from_part(
+            parsed
+        )
+
+    @staticmethod
+    def _try_decode_image_payload(payload: Any) -> PILImage.Image | None:
+        """Decode raw image bytes or base64 text into a loaded PIL image."""
+        if payload is None:
+            return None
+        candidates: list[bytes] = []
+        if isinstance(payload, bytes):
+            candidates.append(payload)
             try:
-                return PILImage.open(BytesIO(base64.b64decode(b64_data)))
+                candidates.append(base64.b64decode(payload))
+            except Exception:
+                pass
+        elif isinstance(payload, str):
+            try:
+                candidates.append(base64.b64decode(payload.strip()))
             except Exception:
                 return None
+        else:
+            return None
+
+        for raw in candidates:
+            try:
+                image = PILImage.open(BytesIO(raw))
+                image.load()
+                return image
+            except Exception:
+                continue
         return None
 
 
@@ -853,9 +1053,8 @@ def create_image_generation_model(
 ) -> BaseImageGenerationModel:
     """Create an image generation model for the specified backend.
 
-    Available backends depend on the installation. Public backends (gemini,
-    openai, nim) are always available. Additional internal backends are available
-    only when ``world_understanding_internal`` is installed.
+    Available backends depend on the installation. Public providers are always
+    available and optional packages contribute factories through entry points.
 
     Args:
         backend: Backend name (use ``list_image_gen_backends()`` to see available)

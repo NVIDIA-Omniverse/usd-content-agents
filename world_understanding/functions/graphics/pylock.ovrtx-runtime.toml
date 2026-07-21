@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Reviewed lock for the isolated Linux x86_64 and aarch64 OVRTX worker. OVRTX
+# is installed with no dependencies; NumPy and Pillow are explicit compatibility
+# pins.
+lock-version = "1.0"
+created-by = "world-understanding release tooling"
+requires-python = ">=3.12,<3.13"
+
+[[packages]]
+name = "numpy"
+version = "2.2.6"
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8c/3d/1e1db36cfd41f895d266b103df00ca5b3cbe965184df824dec5c08c6b803/numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", size = 16527618, hashes = { sha256 = "fd83c01228a688733f1ded5201c678f0c53ecc1006ffbc404db9f7a899ac6249" } },
+    { url = "https://files.pythonhosted.org/packages/f8/35/8c80729f1ff76b3921d5c9487c7ac3de9b2a103b1cd05e905b3090513510/numpy-2.2.6-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", size = 14018462, hashes = { sha256 = "f2618db89be1b4e05f7a1a847a9c1c0abd63e63a1607d892dd54668dd92faf87" } },
+]
+
+[[packages]]
+name = "ovrtx"
+version = "0.3.0.312915"
+wheels = [
+    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_x86_64.whl", hashes = { sha256 = "a6b2b3c357f6487451c8d71e96cc4f83156c08fd9747d10e1b65f3866bed4b8f" } },
+    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_aarch64.whl", size = 1954997099, hashes = { sha256 = "958d254cebeb271ac397f5b760ff5def84a02d04b23f610c31d456c7c8e871af" } },
+]
+
+[[packages]]
+name = "pillow"
+version = "12.3.0"
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/21/a35af28dcc61f37ed850a2d64c65c701321dfbf25085e469d5559360cbbf/pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", size = 6940830, hashes = { sha256 = "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91" } },
+    { url = "https://files.pythonhosted.org/packages/25/27/ac8f99618ffd3dde21db0f4d4b1d2ab00c0880595bfd17df103f7f39fd0c/pillow-12.3.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", size = 6266838, hashes = { sha256 = "d9c7f76c0673154f044e9d78c8655fb4213f6ca31a836df48b40fe5d187717b9" } },
+]

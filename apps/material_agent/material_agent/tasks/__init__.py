@@ -31,12 +31,17 @@ from material_agent.tasks.config_predict import PredictConfigTask
 from material_agent.tasks.config_prepare_dataset import PrepareDatasetConfigTask
 from material_agent.tasks.dataset import DatasetLoadingTask
 from material_agent.tasks.evaluation import EvaluationTask
+from material_agent.tasks.generate_material_library import GenerateMaterialLibraryTask
+from material_agent.tasks.generate_material_library_config import (
+    GenerateMaterialLibraryConfigTask,
+)
 from material_agent.tasks.generate_ref_image_config import GenerateRefImageConfigTask
 from material_agent.tasks.identify_materials import IdentifyUniqueMaterialsTask
 from material_agent.tasks.inference import VLMInferenceTask
 from material_agent.tasks.iteration import IterationTask
 from material_agent.tasks.iterative_completion import IterativeApplyCompletionTask
 from material_agent.tasks.judge import JudgeTask
+from material_agent.tasks.material_creation_policy import MaterialDecisionPolicyTask
 from material_agent.tasks.material_retrieval import MaterialRetrievalTask
 from material_agent.tasks.predictions import SavePredictionsTask
 from material_agent.tasks.prepare_dataset import PrepareDatasetTask
@@ -48,14 +53,12 @@ from material_agent.tasks.reporting import (
     GeneratePredictionReportTask,
 )
 from material_agent.tasks.resolve_materials import ResolveMaterialFilesTask
+from material_agent.tasks.self_evaluation import SelfEvaluationTask
 from material_agent.tasks.unified_pipeline_executor import UnifiedPipelineExecutorTask
+from material_agent.tasks.visual_grounding import VisualGroundingTask
 
 __all__ = [
     "ApplyCompletionTask",
-    "ClusterPrimsConfigTask",
-    "ClusterPrimsTask",
-    "ExpandClusterPredictionsConfigTask",
-    "ExpandClusterPredictionsTask",
     "ApplyConfigTask",
     "ApplyMaterialsToUSDTask",
     "BenchmarkConfigTask",
@@ -68,6 +71,8 @@ __all__ = [
     "ExpandClusterPredictionsConfigTask",
     "GenerateConfigTask",
     "GenerateEvaluationReportTask",
+    "GenerateMaterialLibraryConfigTask",
+    "GenerateMaterialLibraryTask",
     "GeneratePredictionReportTask",
     "GenerateRefImageConfigTask",
     "IdentifyUniqueMaterialsTask",
@@ -75,6 +80,7 @@ __all__ = [
     "IterativeApplyCompletionTask",
     "IterativeApplyConfigTask",
     "JudgeTask",
+    "MaterialDecisionPolicyTask",
     "MaterialRetrievalTask",
     "ModelProvisioningTask",
     "OptimizeUSDConfigTask",
@@ -91,6 +97,8 @@ __all__ = [
     "RestoreUSDConfigTask",
     "RestoreUSDTask",
     "SavePredictionsTask",
+    "SelfEvaluationTask",
     "UnifiedPipelineExecutorTask",
+    "VisualGroundingTask",
     "VLMInferenceTask",
 ]

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from pxr import Sdf
 
@@ -117,3 +117,100 @@ def test_copy_usd_with_updated_paths_drops_unsafe_references_and_payloads(
     assert "https://metadata.example.invalid" not in exported
     assert "file:///etc/shadow" not in exported
     assert "outside_ref" not in exported
+
+
+def test_iterative_completion_run_copies_final_outputs(tmp_path: Path) -> None:
+    iter_dir = tmp_path / "iterations" / "iteration_1"
+    final_iteration_output = _create_empty_layer(iter_dir / "iteration_output.usda")
+    flattened = _create_empty_layer(iter_dir / "iteration_output_render_flat.usd")
+    renders_dir = iter_dir / "renders"
+    renders_dir.mkdir()
+    (renders_dir / "view.png").write_bytes(b"png")
+    final_output = tmp_path / "final" / "asset.usda"
+    stale_renders = final_output.parent / "renders"
+    stale_renders.mkdir(parents=True)
+    (stale_renders / "old.png").write_bytes(b"old")
+    listener = MagicMock()
+
+    context = {
+        "iteration_count": 1,
+        "termination_reason": "approved",
+        "final_iteration": {
+            "judge_score": 4.0,
+            "materials_applied_count": 2,
+            "prims_with_materials": 3,
+        },
+        "all_iteration_outputs": [str(final_iteration_output)],
+        "final_output_usd_path": str(final_output),
+    }
+
+    with patch(
+        "material_agent.tasks.iterative_completion.get_listener",
+        return_value=listener,
+    ):
+        result = IterativeApplyCompletionTask().run(context)
+
+    assert result["iterative_apply_complete"] is True
+    assert result["final_output_path"] == str(final_output)
+    assert result["summary"] == {
+        "iteration_count": 1,
+        "termination_reason": "approved",
+        "final_score": 4.0,
+        "final_materials_applied": 2,
+        "final_prims_with_materials": 3,
+        "all_iteration_outputs": [str(final_iteration_output)],
+        "final_output_path": str(final_output),
+    }
+    assert final_output.exists()
+    assert (final_output.parent / "asset_render_flat.usd").read_bytes() == (
+        flattened.read_bytes()
+    )
+    assert (final_output.parent / "renders" / "view.png").read_bytes() == b"png"
+    assert not (final_output.parent / "renders" / "old.png").exists()
+
+
+def test_iterative_completion_run_handles_missing_or_implicit_final_output(
+    tmp_path: Path,
+) -> None:
+    listener = MagicMock()
+    missing_output = tmp_path / "missing.usda"
+    final_output = tmp_path / "final.usda"
+
+    with patch(
+        "material_agent.tasks.iterative_completion.get_listener",
+        return_value=listener,
+    ):
+        missing_result = IterativeApplyCompletionTask().run(
+            {
+                "iteration_count": 1,
+                "all_iteration_outputs": [str(missing_output)],
+                "final_output_usd_path": str(final_output),
+            }
+        )
+        implicit_result = IterativeApplyCompletionTask().run(
+            {
+                "iteration_count": 1,
+                "all_iteration_outputs": [str(missing_output)],
+            }
+        )
+
+    assert missing_result["final_output_path"] == str(missing_output)
+    assert implicit_result["final_output_path"] == str(missing_output)
+    assert listener.warning.call_args.args[0].startswith(
+        "Final iteration output not found"
+    )
+
+
+def test_iterative_completion_sanitize_empty_asset_path() -> None:
+    listener = MagicMock()
+    assert (
+        IterativeApplyCompletionTask()._sanitize_layer_asset_path(
+            "",
+            Path("/source"),
+            Path("/dest"),
+            listener,
+            "asset path",
+        )
+        == ""
+    )
+    listener.warning.assert_not_called()

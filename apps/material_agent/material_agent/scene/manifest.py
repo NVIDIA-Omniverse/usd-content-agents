@@ -37,6 +37,9 @@ class SubAsset:
     # Processing state (updated by each step)
     extracted_usd: str | None = None
     config_path: str | None = None
+    # Value-free paths for credentials omitted from the generated config.
+    # Runtime values must be rehydrated from the current source scene config.
+    config_credential_paths: list[str] = field(default_factory=list)
     working_dir: str | None = None
     predictions_path: str | None = None
     material_layer_path: str | None = None
@@ -86,6 +89,8 @@ class PayloadGroup:
 
     # Processing state (updated by each step)
     config_path: str | None = None
+    # Value-free paths for credentials omitted from the generated config.
+    config_credential_paths: list[str] = field(default_factory=list)
     working_dir: str | None = None
     predictions_path: str | None = None
     material_layer_path: str | None = None

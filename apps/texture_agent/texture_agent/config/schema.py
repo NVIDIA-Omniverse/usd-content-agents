@@ -2,10 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Configuration schema for the texture agent pipeline."""
 
+from texture_agent.config.rendering_backends import (
+    DEFAULT_TEXTURE_RENDERING_BACKEND,
+)
+
 # Step execution order
 STEP_ORDER = [
     "prepare_uvs",
     "discover_materials",
+    "plan_textures",
     "generate_prompts",
     "render_previews",
     "generate_textures",
@@ -30,11 +35,18 @@ STEP_OUTPUT_DIRS = {
 DEFAULTS = {
     "texture": {
         "backend": "simple_image_gen",
+        "detail_policy": "default",
         "model": None,
         "size": 1024,
         "uv_policy": "generate_missing",
+        "uv_scope": "stage",
+        "uv_generation_mode": "projection",
         "uv_projection": "box",
         "uv_normalize_out_of_range": False,
+        "uv_rebake_source_albedo": False,
+        "uv_rebake_size": None,
+        "uv_atlas_distortion_threshold": 3.0,
+        "uv_atlas_enable_packing": True,
     },
     "variations": {
         "count": 1,
@@ -45,10 +57,11 @@ DEFAULTS = {
     "steps": {
         "prepare_uvs": {"enabled": True},
         "discover_materials": {"enabled": True},
+        "plan_textures": {"enabled": True},
         "generate_prompts": {"enabled": True},
         "render_previews": {
             "enabled": True,
-            "backend": "remote",
+            "backend": DEFAULT_TEXTURE_RENDERING_BACKEND,
             "image_width": 512,
             "image_height": 512,
         },
@@ -65,7 +78,7 @@ DEFAULTS = {
         "apply_textures": {"enabled": True},
         "render": {
             "enabled": True,
-            "backend": "remote",
+            "backend": DEFAULT_TEXTURE_RENDERING_BACKEND,
             "image_width": 1024,
             "image_height": 1024,
         },

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agentic Content Authoring Demo"
+  short_description: "Create polished content authoring workflow demos"
+  default_prompt: "Use $content-workflow-cli-demo to create a polished artifact-backed demo video for an agentic content authoring workflow."

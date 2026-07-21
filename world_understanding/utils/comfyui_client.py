@@ -158,7 +158,7 @@ class ComfyUIClient:
             Dict mapping node_id to PIL Image objects
         """
         # Upload images if needed
-        for key, value in inputs.items():
+        for key, value in list(inputs.items()):
             if key.endswith("_image") and isinstance(value, str | Path):
                 # This is an image input, upload it
                 filename, subfolder, img_type = self.upload_image(value)

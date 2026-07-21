@@ -55,6 +55,24 @@ The container health check now waits for `/health` to report
 `gpu_initialized=true`, so a fresh `docker run` may stay in `starting` state
 for several minutes before it becomes healthy.
 
+### Service Configuration
+
+General service knobs are available for both single-worker and dispatcher mode:
+
+| Variable | Default | Description |
+|---|---:|---|
+| `OVRTX_ZIP_MAX_UNCOMPRESSED_BYTES` | `2147483648` | Maximum uncompressed ZIP bundle size accepted by the service. Raise only for trusted large-scene deployments. |
+| `OVRTX_DAEMON_MAX_RENDERS` | `64` | Recycle the isolated renderer process before the next request after this many completed render commands. `0` disables the count guard. |
+| `OVRTX_DAEMON_MAX_RSS_BYTES` | `25769803776` | Recycle the isolated renderer process before the next request after its RSS reaches this many bytes (24 GiB by default). `0` disables the RSS guard; unsupported platforms continue to use the count guard. |
+
+The renderer remains single-flight. Recycling happens under the same render
+lock and never interrupts an in-flight request: the request that crosses a
+limit completes normally, then the following request pays the cold-start cost
+for a fresh daemon. The count guard gives every deployment a deterministic
+bound; the RSS guard catches one unusually expensive scene sooner. `/health`
+reports the current daemon PID, completed-render count, RSS, recycle count, and
+last/pending recycle reasons so operators can tune the thresholds from evidence.
+
 The image runs as the non-root `renderer` user (`10001:10001`). Application
 code and the prebuilt OVRTX virtual environment remain root-owned; runtime
 state is limited to `/tmp` and the renderer user's home/cache directory,
@@ -121,6 +139,12 @@ In dispatcher mode, `/health` includes aggregate and per-worker capacity:
 {
   "status": "healthy",
   "gpu_initialized": true,
+  "daemon_pid": 123,
+  "daemon_completed_renders": 12,
+  "daemon_rss_bytes": 8589934592,
+  "daemon_recycle_count": 1,
+  "daemon_last_recycle_reason": "completed_render_limit",
+  "daemon_pending_recycle_reason": null,
   "ready_workers": 2,
   "total_workers": 2,
   "workers": [

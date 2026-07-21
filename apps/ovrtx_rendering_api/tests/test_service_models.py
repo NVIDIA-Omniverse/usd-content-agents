@@ -87,6 +87,29 @@ class TestRenderMode:
             RenderSettings(render_mode="PathTracing")
 
 
+class TestMaterialTarget:
+    @pytest.mark.parametrize(
+        "target",
+        [
+            "auto",
+            "display_color",
+            "preview_surface",
+            "openpbr_materialx",
+            "omnipbr_mdl",
+        ],
+    )
+    def test_accepts_each_supported_target(self, target):
+        rs = RenderSettings(material_target=target)
+        assert rs.material_target == target
+
+    def test_default_is_none_so_backend_default_wins(self):
+        assert RenderSettings().material_target is None
+
+    def test_rejects_unknown_target(self):
+        with pytest.raises(ValidationError):
+            RenderSettings(material_target="silent_preview_fallback")
+
+
 class TestRenderSettingsDefaults:
     def test_defaults(self):
         rs = RenderSettings()
@@ -99,6 +122,7 @@ class TestRenderSettingsDefaults:
         assert rs.apply_background_mask is False
         assert rs.num_sensor_updates is None
         assert rs.render_mode is None
+        assert rs.material_target is None
 
     def test_num_sensor_updates_rejects_zero(self):
         with pytest.raises(ValidationError):

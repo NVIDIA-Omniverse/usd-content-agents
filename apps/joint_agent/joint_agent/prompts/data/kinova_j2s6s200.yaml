@@ -1,0 +1,52 @@
+# Kinova Jaco2 j2s6s200 — 6-DOF service arm with characteristic curved arm
+# segments. Distinct from UR-style arms by its rounded, organic geometry.
+
+robot_id: kinova_j2s6s200
+aliases:
+  - jaco2
+  - j2s6s200
+  - "kinova_jaco"
+  - "kinova_jaco2"
+  - "kinova j2s6s200"
+filename_aliases:
+  - j2s6s200
+  - "kinova_j2s6s200"
+description: "Kinova Jaco2 j2s6s200 — 6-DOF service arm, curved-link morphology"
+topology: serial_chain
+num_dofs: 6
+component_names:
+  - base
+  - shoulder
+  - upper_arm
+  - forearm
+  - wrist_1
+  - wrist_2
+  - end_effector
+visual_cues:
+  base: >-
+    Cylindrical base pedestal at the bottom of the chain.
+  shoulder: >-
+    First revolute housing above the base, rotating about the vertical axis.
+  upper_arm: >-
+    Long curved arm segment forming the upper arm; characteristic rounded
+    cross-section unlike a straight UR-style tube.
+  forearm: >-
+    Second long curved segment forming the forearm; visually similar to
+    upper_arm but positioned further along the chain.
+  wrist_1: >-
+    First wrist housing transitioning the arm into the wrist cluster.
+  wrist_2: >-
+    Middle wrist housing oriented at 90° to wrist_1.
+  end_effector: >-
+    Final wrist link carrying the end-effector mounting interface and all
+    gripper or finger geometry.
+tiebreakers:
+  - >-
+    The two long curved segments (upper_arm, forearm) are easily confused;
+    chain position is the deciding factor — closer to base is upper_arm.
+  - >-
+    Wrist cluster (wrist_1, wrist_2, end_effector) sits at the end of the
+    chain; the one with the mounting interface for the gripper is
+    end_effector.
+completeness_required: true
+self_check: true

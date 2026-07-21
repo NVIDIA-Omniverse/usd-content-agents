@@ -1,0 +1,4 @@
+# Treat this existing CRLF router as valid in Git whitespace checks.
+apps/material_agent_service/service/routers/sessions_router.py whitespace=cr-at-eol
+# Treat this historical CRLF integration script as valid in Git whitespace checks.
+apps/material_agent/tests/test_concurrency_integration.py whitespace=cr-at-eol

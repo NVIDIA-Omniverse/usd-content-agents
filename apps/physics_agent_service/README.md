@@ -12,6 +12,18 @@ Requires **Docker Compose v2.24+** (for `env_file: required: false` support).
 # the repo root via env_file.
 echo 'NVIDIA_API_KEY=your_key' > .env
 
+# Choose one Scene Optimizer backend before starting the stack.
+#
+# Local bundle, used by the default `optimize_usd` path:
+./scripts/fetch_build_resources.sh
+#
+# Remote NVCF optimizer instead of the local bundle:
+# cat >> .env <<'EOF'
+# NGC_API_KEY=your_ngc_key
+# NVCF_OPTIMIZER_FUNCTION_ID=your_optimizer_function_id
+# # or OPTIMIZER_ENDPOINT=https://...
+# EOF
+
 # Build and run (pulls in OVRTX rendering as a sidecar). `--env-file .env`
 # is required so that any `${VAR}` overrides in compose (e.g.
 # `PA_VLM_BACKEND=openai`) read from the repo-root `.env`. Without it,
@@ -23,6 +35,12 @@ docker compose --env-file .env \
 
 # Service available at http://localhost:8000
 ```
+
+`scripts/fetch_build_resources.sh` selects the Scene Optimizer Core package for
+the host architecture when available. If the default package is not usable for
+your platform, set `SO_CORE_URL` to an explicit Scene Optimizer Core zip, or skip
+the local fetch and use a remote NVCF optimizer through `NGC_API_KEY` plus
+`NVCF_OPTIMIZER_FUNCTION_ID` / `OPTIMIZER_ENDPOINT`.
 
 To run with a local Cosmos VLM NIM sidecar on a second GPU:
 
@@ -74,9 +92,14 @@ uvicorn service.main:app --reload --port 8000
 - **Brev deployment planning:** [`docs/brev.md`](docs/brev.md).
 - **OpenAPI spec:** [`openapi.yaml`](openapi.yaml).
 
-The pipeline endpoints (`POST /pipeline`, `GET /pipeline/{id}/status`, etc.) accept a USD file — either uploaded directly or referenced by S3 URI — then run the multi-step classification pipeline (optimize, identify asset, render, build dataset, predict, apply physics). Stream real-time progress over SSE at `GET /pipeline/{id}/events`.
+The pipeline endpoints (`POST /pipeline`, `GET /pipeline/{id}/status`, etc.) accept a USD file — uploaded directly, referenced by S3 URI, or already staged in an existing session — then run the multi-step classification pipeline (optimize, identify asset, render, build dataset, predict, apply physics). `POST /pipeline` requires at least one source and resolves multiple source fields with `session_id > s3_uri > usd_file` precedence. Stream real-time progress over SSE at `GET /pipeline/{id}/events`.
 
-The tune endpoints (`POST /tune`, `GET /tune/{id}/status`, `GET /tune/{id}/results`, `GET /tune/{id}/events`, `POST /tune/{id}/cancel`, `GET /tune/{id}/artifacts/{name}`) run BoTorch-first physics parameter tuning against a simulation-ready USD authored by `apply_physics`. The tune session reuses the same session manager / job registry / SSE / artifact storage infrastructure as `/pipeline`. Production tuning requires the optional `tuning` extra (`uv pip install -e "apps/physics_agent[tuning]"`); without it the API surfaces an actionable install-hint error. See [`../physics_agent/docs/tuning.md`](../physics_agent/docs/tuning.md) for tuning architecture and extension points. The service currently exposes single-shot `/tune`; iterative refine is available through the Physics Agent CLI/Python API and does not yet have a first-class `/refine` REST route.
+The tune endpoints (`POST /tune`, `GET /tune/{id}/status`, `GET /tune/{id}/results`, `GET /tune/{id}/events`, `POST /tune/{id}/cancel`, `GET /tune/{id}/artifacts/{name}`) run BoTorch-first physics parameter tuning against a simulation-ready USD authored by `apply_physics`. The refine endpoints (`POST /refine`, `GET /refine/{id}/status`, `GET /refine/{id}/results`, `GET /refine/{id}/events`, `POST /refine/{id}/cancel`, `GET /refine/{id}/artifacts/{name}`) run the iterative tune-judge-scenario-refine loop. Both reuse the same session manager / job registry / SSE / artifact storage infrastructure as `/pipeline`. Production tuning/refine images require the optional `tuning` extra (`uv pip install -e "apps/physics_agent[tuning]"`) and an OvPhysX daemon venv; `Dockerfile` and `Dockerfile.ci` provision those for deployment images. Internal NVIDIA inference backend registration is supplied by the staged optional backend wheel or internal package in internal builds. The `/refine` worker builds server-side judge/refiner models from deployment configuration; clients do not submit model provider credentials through this route. See [`../physics_agent/docs/tuning.md`](../physics_agent/docs/tuning.md) for tuning architecture and extension points.
+
+Deployment images support Linux `amd64` and `arm64` with reviewed,
+architecture-specific tuning and OvPhysX locks. `GET /health` reports
+`tuning_extra_available` and `ovphysx_runtime_available`; both should be `true`
+for the default BoTorch + OvPhysX tuning path.
 
 ## Python Client
 
@@ -103,14 +126,45 @@ Service configuration is loaded from environment variables at startup. Key setti
 | `GOOGLE_API_KEY` | Required if using `gemini` backend |
 | `PA_VLM_BACKEND` | Default: `nim` |
 | `PA_VLM_MODEL` | Default: `qwen/qwen3.5-397b-a17b` |
+| `PA_TUNE_BACKEND` | Optional `/tune` prompt interpreter backend override; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` |
+| `PA_TUNE_MODEL` | Optional `/tune` prompt interpreter model override; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` |
+| `PA_REFINE_BACKEND` | Optional `/refine` judge/refiner backend override; falls back to `PA_VLM_BACKEND` |
+| `PA_REFINE_MODEL` | Optional `/refine` judge/refiner model override; falls back to `PA_VLM_MODEL` or the deployment default |
 | `PA_VLM_NIM_BASE_URL` | Optional local/custom NIM endpoint for physics VLM calls |
 | `PA_LLM_NIM_BASE_URL` | Optional local/custom NIM endpoint for physics LLM calls |
 | `PA_NIM_API_KEY` | Endpoint-scoped NIM key, or `not-used` for a no-auth local sidecar |
+| `NGC_API_KEY` | Required when using an NVCF Scene Optimizer backend |
+| `NVCF_OPTIMIZER_FUNCTION_ID` | Optional remote NVCF Scene Optimizer function ID for `optimize_usd` |
+| `OPTIMIZER_ENDPOINT` | Optional remote optimizer endpoint URL for `optimize_usd` |
 | `PA_RENDER_BACKEND` | Default: `remote` (resolves via `RENDER_ENDPOINT`) |
 | `RENDER_ENDPOINT` | URL of OVRTX rendering API or compatible service |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap; local OVRTX compose defaults to `1` |
 | `PA_SESSION_STORAGE_PATH` | Where session directories are written |
 | `PA_MAX_UPLOAD_SIZE_MB` | Max USD upload size (default: 500) |
+| `PA_S3_ALLOWED_BUCKETS` | Exact bucket names allowed for client-supplied `s3_uri` inputs, separated by commas or whitespace; empty/unset rejects all S3 URI inputs |
+
+`PA_S3_ALLOWED_BUCKETS` is an application request-authorization policy for the
+`pipeline`, `predict`, `tune`, and `refine` routes. Entries are bucket names
+only, not `s3://` URIs, wildcards, or key prefixes; this release does not add
+application-level key-prefix restrictions. A missing allowlist or a bucket
+that is not an exact match returns the same generic HTTP `403` before any
+`HeadObject` or download. File uploads and existing-session inputs are
+unaffected.
+
+Before upgrading a deployment whose clients use `s3_uri`, set the allowlist or
+migrate those clients to file uploads or existing-session inputs. Leaving it
+unset intentionally changes all S3 URI requests to `403`; restart the service
+after changing the setting.
+The Helm chart exposes the same setting as `s3AllowedBuckets`.
+
+Use a dedicated intake bucket because every key in an allowed bucket is in
+application scope. Restrict the service IAM role to only the required bucket
+and prefixes as defense in depth; IAM scoping is not a substitute for the
+allowlist.
+
+For the public Docker deployment, configure these backend variables with one
+of the documented public providers and pass credentials through the provider's
+environment variable or an endpoint-scoped `PA_NIM_API_KEY`.
 
 ## Architecture
 

@@ -19,7 +19,8 @@ supported path for the user's goal:
    ```bash
    uv venv --python=3.12
    source .venv/bin/activate
-   uv pip install -e . -e apps/material_agent -e apps/physics_agent -e apps/texture_agent
+   uv pip install -e . -e apps/material_agent -e apps/physics_agent \
+     -e apps/joint_agent -e apps/texture_agent -e apps/validation_agent
    ./scripts/fetch_build_resources.sh
    ```
 
@@ -39,24 +40,37 @@ supported path for the user's goal:
 - `apps/material_agent_service/` - Material Agent REST service and client.
 - `apps/physics_agent/` - Physics Agent CLI and configs.
 - `apps/physics_agent_service/` - Physics Agent REST service and client.
+- `apps/joint_agent/` - Joint Agent Research Preview CLI and configs.
+- `apps/joint_agent_service/` - Joint Agent Research Preview REST service and client.
 - `apps/texture_agent/` - Texture Agent CLI and configs.
 - `apps/texture_agent_service/` - Texture Agent REST service and client.
+- `apps/validation_agent/` - Validation Agent Research Preview CLI and configs.
 - `apps/ovrtx_rendering_api/` - shared OVRTX rendering API sidecar.
+- `agentic/` - Agentic Workflow preview workspace for Content Workbench and
+  `content-workflow-cli`.
 - `.agents/skills/` - canonical checked-in agent skills.
 - `.claude/skills/` and `.codex/skills/` - compatibility mirrors of the
   canonical skill tree.
 
 ## Agent Skills
 
-Start agents from the repo root so they can discover the checked-in skills.
+Start repo-level workflows from the repo root. For Agentic Workflow preview
+sessions, start the agent from `agentic/` so it discovers the isolated preview
+skills.
 
 | Workflow | Codex skill | Claude skill | First command |
 |---|---|---|---|
+| Agentic Workflow preview | `agentic/.codex/skills/content-workflow-material` | `agentic/.claude/skills/content-workflow-material` | `content-workflow-cli materials assign --usd ../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd --reference-image ../apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg --reference-image ../apps/material_agent/data/examples/ladder/sources/images/ladder_reference_2.jpeg --materials-yaml ../apps/material_agent/data/materials/material_libs_default/materials.yaml --output-dir runs/content-workflow-cli/ladder-codex` |
+| Agentic batch launcher | `agentic/.codex/skills/content-workflow-cli` | `agentic/.claude/skills/content-workflow-cli` | `content-workflow-cli materials assign --usd path/to/asset.usd --materials-yaml path/to/materials.yaml` |
 | Material CLI | `.codex/skills/material-agent-cli` | `.claude/skills/material-agent-cli` | `material-agent run apps/material_agent/configs/unified_example.yaml` |
 | Physics CLI | `.codex/skills/physics-agent-cli` | `.claude/skills/physics-agent-cli` | `physics-agent run apps/physics_agent/configs/lightbulb.yaml` |
+| Joint CLI (Research Preview) | `.codex/skills/joint-agent-cli` | `.claude/skills/joint-agent-cli` | `joint-agent run apps/joint_agent/configs/byoa_joint_rigger.yaml --dry-run` |
+| Joint Gate 3 validation | `.codex/skills/joint-agent-validation` | `.claude/skills/joint-agent-validation` | Validate a published Joint Agent USD/USDZ with Gate 3A and Gate 3B. |
 | Texture CLI | `.codex/skills/texture-agent-cli` | `.claude/skills/texture-agent-cli` | `texture-agent run apps/texture_agent/configs/texture_example.yaml` |
+| Validation CLI (Research Preview) | `.codex/skills/validation-agent-cli` | `.claude/skills/validation-agent-cli` | `validation-agent run apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml` |
 | Material service | `.codex/skills/deploy-material-agent-docker` | `.claude/skills/deploy-material-agent-docker` | `docker compose --env-file .env -f apps/material_agent_service/docker-compose.yml up --build` |
 | Physics service | `.codex/skills/deploy-physics-agent-docker` | `.claude/skills/deploy-physics-agent-docker` | `docker compose --env-file .env -f apps/physics_agent_service/docker-compose.yml up --build` |
+| Joint service/client | `.codex/skills/joint-agent-client` | `.claude/skills/joint-agent-client` | `docker compose --env-file .env -f apps/joint_agent_service/docker-compose.yml up --build` |
 | Texture service | `.codex/skills/deploy-texture-agent-docker` | `.claude/skills/deploy-texture-agent-docker` | `docker compose --env-file .env -f apps/texture_agent_service/docker-compose.yml up --build` |
 | Full collection | `.codex/skills/deploy-collection` | `.claude/skills/deploy-collection` | `./deploy/collection/deploy.py plan && ./deploy/collection/deploy.py up` |
 | USD utilities | `.codex/skills/flatten-usd`, `.codex/skills/print-usd`, `.codex/skills/render-usd` | `.claude/skills/flatten-usd`, `.claude/skills/print-usd`, `.claude/skills/render-usd` | Inspect, flatten, or render USD assets. |

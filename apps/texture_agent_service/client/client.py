@@ -7,11 +7,17 @@ import json
 import os
 import time
 from collections.abc import Generator
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import requests
+
+TRANSIENT_STATUS_CODES = {502, 503, 504}
+STATUS_POLL_TIMEOUT_SECONDS = 30
+MAX_TRANSIENT_STATUS_ERRORS = 5
+TRANSIENT_STATUS_RETRY_SECONDS = 5
 
 
 @dataclass(frozen=True)
@@ -102,6 +108,26 @@ class TextureAgentClient:
         material_textures: dict[str, Any] | None = None,
         user_prompt: str | None = None,
         auto_prompt_enabled: bool | None = None,
+        texture_backend: str | None = None,
+        texture_endpoint: str | None = None,
+        backend_engine: str | None = None,
+        backend_custom_parameters: dict[str, Any] | None = None,
+        detail_policy: str | None = None,
+        reference_image_uris: list[str] | None = None,
+        reference_image_path: str | None = None,
+        turntable_video_uri: str | None = None,
+        multiview_image_uris: list[str] | None = None,
+        seed: int | None = None,
+        strength: float | None = None,
+        strict_scope: bool | None = None,
+        uv_policy: str | None = None,
+        uv_scope: str | None = None,
+        uv_backend: str | None = None,
+        uv_projection: str | None = None,
+        uv_overwrite_existing: bool | None = None,
+        uv_rebake_source_albedo: bool | None = None,
+        uv_rebake_size: int | None = None,
+        uv_normalize_out_of_range: bool | None = None,
     ) -> str:
         """Start the pipeline.
 
@@ -113,22 +139,31 @@ class TextureAgentClient:
             user_prompt: Aesthetic direction for auto-prompt generation
             auto_prompt_enabled: Set False for strict material_textures scope.
                 None preserves the service default.
+            texture_backend: Optional texture backend override, e.g. "service".
+            texture_endpoint: Optional texture variation backend endpoint.
+            backend_engine: Optional backend engine/model route hint.
+            backend_custom_parameters: Optional backend custom parameter object.
+            detail_policy: Optional texture detail policy, e.g. "surface_only".
+            reference_image_uris: Optional global reference image URI list.
+            reference_image_path: Optional global reference image upload path.
+            turntable_video_uri: Optional global turntable video URI.
+            multiview_image_uris: Optional global multi-view image URI list.
+            seed: Optional texture backend seed.
+            strength: Optional texture edit strength.
+            strict_scope: Optional selected-scope enforcement flag.
+            uv_policy: Optional UV preparation policy override.
+            uv_scope: Optional UV projection scope override.
+            uv_backend: Optional UV preparation backend override.
+            uv_projection: Optional UV projection mode override.
+            uv_overwrite_existing: Optional existing UV overwrite override.
+            uv_rebake_source_albedo: Optional scoped source texture rebake override.
+            uv_rebake_size: Optional scoped source texture rebake resolution.
+            uv_normalize_out_of_range: Optional out-of-range UV normalization override.
 
         Returns the session_id of the started run.
         """
         url = f"{self.base_url}/pipeline"
         files: list[tuple[str, tuple[str, object, str]]] = []
-        file_handles: list = []
-
-        if usd_path:
-            uf = open(usd_path, "rb")
-            file_handles.append(uf)
-            files.append(
-                (
-                    "usd_file",
-                    (Path(usd_path).name, uf, "application/octet-stream"),
-                )
-            )
 
         data: dict[str, str] = {}
         if session_id:
@@ -141,8 +176,72 @@ class TextureAgentClient:
             data["user_prompt"] = user_prompt
         if auto_prompt_enabled is not None:
             data["auto_prompt_enabled"] = "true" if auto_prompt_enabled else "false"
+        if texture_backend:
+            data["texture_backend"] = texture_backend
+        if texture_endpoint:
+            data["texture_endpoint"] = texture_endpoint
+        if backend_engine:
+            data["backend_engine"] = backend_engine
+        if backend_custom_parameters:
+            data["backend_custom_parameters_json"] = json.dumps(
+                backend_custom_parameters
+            )
+        if detail_policy:
+            data["detail_policy"] = detail_policy
+        if reference_image_uris:
+            data["reference_image_uris_json"] = json.dumps(reference_image_uris)
+        if turntable_video_uri:
+            data["turntable_video_uri"] = turntable_video_uri
+        if multiview_image_uris:
+            data["multiview_image_uris_json"] = json.dumps(multiview_image_uris)
+        if seed is not None:
+            data["seed"] = str(seed)
+        if strength is not None:
+            data["strength"] = str(strength)
+        if strict_scope is not None:
+            data["strict_scope"] = "true" if strict_scope else "false"
+        if uv_policy:
+            data["uv_policy"] = uv_policy
+        if uv_scope:
+            data["uv_scope"] = uv_scope
+        if uv_backend:
+            data["uv_backend"] = uv_backend
+        if uv_projection:
+            data["uv_projection"] = uv_projection
+        if uv_overwrite_existing is not None:
+            data["uv_overwrite_existing"] = "true" if uv_overwrite_existing else "false"
+        if uv_rebake_source_albedo is not None:
+            data["uv_rebake_source_albedo"] = (
+                "true" if uv_rebake_source_albedo else "false"
+            )
+        if uv_rebake_size is not None:
+            data["uv_rebake_size"] = str(uv_rebake_size)
+        if uv_normalize_out_of_range is not None:
+            data["uv_normalize_out_of_range"] = (
+                "true" if uv_normalize_out_of_range else "false"
+            )
 
-        try:
+        with ExitStack() as stack:
+            if usd_path:
+                uf = stack.enter_context(open(usd_path, "rb"))
+                files.append(
+                    (
+                        "usd_file",
+                        (Path(usd_path).name, uf, "application/octet-stream"),
+                    )
+                )
+            if reference_image_path:
+                rf = stack.enter_context(open(reference_image_path, "rb"))
+                files.append(
+                    (
+                        "reference_image_file",
+                        (
+                            Path(reference_image_path).name,
+                            rf,
+                            "application/octet-stream",
+                        ),
+                    )
+                )
             response = self._http.post(
                 url,
                 data=data or None,
@@ -152,18 +251,13 @@ class TextureAgentClient:
             response.raise_for_status()
             result = response.json()
             return result["session_id"]
-        finally:
-            for fh in file_handles:
-                try:
-                    fh.close()
-                except Exception:
-                    pass
 
     def regenerate(
         self,
         session_id: str,
         steps: list[str],
         material_textures: dict[str, Any] | None = None,
+        texture_unit_ids: list[str] | None = None,
     ) -> dict:
         """Re-run specific pipeline steps.
 
@@ -171,11 +265,15 @@ class TextureAgentClient:
             session_id: Session to regenerate
             steps: List of step names to re-run
             material_textures: Optional material config override
+            texture_unit_ids: Exact approved plan-unit IDs to regenerate. Omit
+                to regenerate all approved units.
         """
         url = f"{self.base_url}/pipeline/{session_id}/regenerate"
         body: dict[str, Any] = {"steps": steps}
         if material_textures:
             body["material_textures"] = material_textures
+        if texture_unit_ids is not None:
+            body["texture_unit_ids"] = texture_unit_ids
         resp = self._http.post(url, json=body, timeout=self.timeout_seconds)
         resp.raise_for_status()
         return resp.json()
@@ -256,9 +354,46 @@ class TextureAgentClient:
 
     def get_status(self, session_id: str) -> dict:
         url = f"{self.base_url}/pipeline/{session_id}/status"
-        resp = self._http.get(url, timeout=self.timeout_seconds)
+        resp = self._http.get(
+            url,
+            timeout=min(self.timeout_seconds, STATUS_POLL_TIMEOUT_SECONDS),
+        )
         resp.raise_for_status()
         return resp.json()
+
+    @staticmethod
+    def _is_transient_status_error(exc: Exception) -> bool:
+        if isinstance(exc, requests.Timeout | requests.ConnectionError):
+            return True
+        if not isinstance(exc, requests.HTTPError):
+            return False
+        response = exc.response
+        return response is not None and response.status_code in TRANSIENT_STATUS_CODES
+
+    def _get_status_with_transient_retries(
+        self,
+        session_id: str,
+        *,
+        print_stream: bool,
+    ) -> dict:
+        transient_errors = 0
+        while True:
+            try:
+                return self.get_status(session_id)
+            except Exception as exc:
+                if (
+                    transient_errors < MAX_TRANSIENT_STATUS_ERRORS
+                    and self._is_transient_status_error(exc)
+                ):
+                    transient_errors += 1
+                    if print_stream:
+                        print(
+                            f"Transient status poll error ({exc}); retrying...",
+                            flush=True,
+                        )
+                    time.sleep(TRANSIENT_STATUS_RETRY_SECONDS)
+                    continue
+                raise
 
     def get_results(self, session_id: str) -> dict:
         url = f"{self.base_url}/pipeline/{session_id}/results"
@@ -377,6 +512,28 @@ class TextureAgentClient:
         resp.raise_for_status()
         return resp.json()
 
+    @staticmethod
+    def _current_step_name(current_step: Any) -> str:
+        if current_step is None or current_step == "":
+            return "none"
+        if isinstance(current_step, dict):
+            return str(
+                current_step.get("name")
+                or current_step.get("step")
+                or current_step.get("display_name")
+                or "unknown"
+            )
+        return str(current_step)
+
+    @staticmethod
+    def _current_step_message(current_step: Any) -> str:
+        if not isinstance(current_step, dict):
+            return ""
+        progress = current_step.get("progress")
+        if not isinstance(progress, dict):
+            return ""
+        return str(progress.get("message") or "")
+
     # -------- Convenience workflow
     def run_and_monitor(
         self,
@@ -385,10 +542,32 @@ class TextureAgentClient:
         material_textures: dict[str, Any] | None = None,
         user_prompt: str | None = None,
         auto_prompt_enabled: bool | None = None,
+        texture_backend: str | None = None,
+        texture_endpoint: str | None = None,
+        backend_engine: str | None = None,
+        backend_custom_parameters: dict[str, Any] | None = None,
+        detail_policy: str | None = None,
+        reference_image_uris: list[str] | None = None,
+        reference_image_path: str | None = None,
+        turntable_video_uri: str | None = None,
+        multiview_image_uris: list[str] | None = None,
+        seed: int | None = None,
+        strength: float | None = None,
+        strict_scope: bool | None = None,
+        uv_policy: str | None = None,
+        uv_scope: str | None = None,
+        uv_backend: str | None = None,
+        uv_projection: str | None = None,
+        uv_overwrite_existing: bool | None = None,
+        uv_rebake_source_albedo: bool | None = None,
+        uv_rebake_size: int | None = None,
+        uv_normalize_out_of_range: bool | None = None,
         upload_first: bool = False,
         print_stream: bool = True,
         reconnect_attempts: int = 3,
         reconnect_backoff_seconds: float = 2.0,
+        max_polls: int = 300,
+        max_stale_pending_polls: int = 0,
     ) -> tuple[str, dict | None]:
         """High-level helper that starts the pipeline and monitors it.
 
@@ -399,15 +578,66 @@ class TextureAgentClient:
             user_prompt: Aesthetic direction for auto-prompt generation.
             auto_prompt_enabled: Set False for strict material_textures scope.
                 None preserves the service default.
+            texture_backend: Optional texture backend override, e.g. "service".
+            texture_endpoint: Optional texture variation backend endpoint.
+            backend_engine: Optional backend engine/model route hint.
+            backend_custom_parameters: Optional backend custom parameter object.
+            detail_policy: Optional texture detail policy, e.g. "surface_only".
+            reference_image_uris: Optional global reference image URI list.
+            reference_image_path: Optional global reference image upload path.
+            turntable_video_uri: Optional global turntable video URI.
+            multiview_image_uris: Optional global multi-view image URI list.
+            seed: Optional texture backend seed.
+            strength: Optional texture edit strength.
+            strict_scope: Optional selected-scope enforcement flag.
+            uv_policy: Optional UV preparation policy override.
+            uv_scope: Optional UV projection scope override.
+            uv_backend: Optional UV preparation backend override.
+            uv_projection: Optional UV projection mode override.
+            uv_overwrite_existing: Optional existing UV overwrite override.
+            uv_rebake_source_albedo: Optional scoped source texture rebake override.
+            uv_rebake_size: Optional scoped source texture rebake resolution.
+            uv_normalize_out_of_range: Optional out-of-range UV normalization override.
             upload_first: If True, upload USD first via /upload-usd.
             print_stream: Print progress updates to stdout.
             reconnect_attempts: Number of SSE reconnect attempts.
             reconnect_backoff_seconds: Seconds between reconnect attempts.
+            max_polls: Maximum number of 2-second status polls after SSE fallback.
+            max_stale_pending_polls: Stop polling after this many unchanged pending
+                or startup polls with no real pipeline step. Set 0 to disable the
+                guard.
 
         Returns (session_id, status_dict_or_none).
         """
         if not usd_path and not s3_uri:
             raise ValueError("Either usd_path or s3_uri must be provided")
+        if max_polls <= 0:
+            raise ValueError("max_polls must be positive")
+        if max_stale_pending_polls < 0:
+            raise ValueError("max_stale_pending_polls must be non-negative")
+
+        projection_kwargs = {
+            "texture_backend": texture_backend,
+            "texture_endpoint": texture_endpoint,
+            "backend_engine": backend_engine,
+            "backend_custom_parameters": backend_custom_parameters,
+            "detail_policy": detail_policy,
+            "reference_image_uris": reference_image_uris,
+            "reference_image_path": reference_image_path,
+            "turntable_video_uri": turntable_video_uri,
+            "multiview_image_uris": multiview_image_uris,
+            "seed": seed,
+            "strength": strength,
+            "strict_scope": strict_scope,
+            "uv_policy": uv_policy,
+            "uv_scope": uv_scope,
+            "uv_backend": uv_backend,
+            "uv_projection": uv_projection,
+            "uv_overwrite_existing": uv_overwrite_existing,
+            "uv_rebake_source_albedo": uv_rebake_source_albedo,
+            "uv_rebake_size": uv_rebake_size,
+            "uv_normalize_out_of_range": uv_normalize_out_of_range,
+        }
 
         if s3_uri:
             session_id = self.upload_usd(s3_uri=s3_uri)
@@ -421,6 +651,7 @@ class TextureAgentClient:
                 material_textures=material_textures,
                 user_prompt=user_prompt,
                 auto_prompt_enabled=auto_prompt_enabled,
+                **projection_kwargs,
             )
         elif upload_first:
             session_id = self.upload_usd(usd_path)
@@ -431,6 +662,7 @@ class TextureAgentClient:
                 material_textures=material_textures,
                 user_prompt=user_prompt,
                 auto_prompt_enabled=auto_prompt_enabled,
+                **projection_kwargs,
             )
         else:
             session_id = self.start_pipeline(
@@ -438,77 +670,153 @@ class TextureAgentClient:
                 material_textures=material_textures,
                 user_prompt=user_prompt,
                 auto_prompt_enabled=auto_prompt_enabled,
+                **projection_kwargs,
             )
 
         if print_stream:
             print(f"Started session: {session_id}", flush=True)
 
-        # Try SSE; if it fails, fall back to polling.
-        attempts_left = reconnect_attempts
+        last_status: dict | None = None
+
         saw_done = False
-        while attempts_left >= 0 and not saw_done:
-            try:
-                for msg in self.stream_events(session_id):
-                    if msg.event == "ping":
-                        continue
-                    if msg.event == "progress":
-                        try:
-                            payload = msg.json()
-                        except Exception:
-                            payload = {"raw": msg.data}
+        if max_stale_pending_polls > 0:
+            if print_stream:
+                print(
+                    "Using bounded status polling; skipping SSE stream.",
+                    flush=True,
+                )
+        else:
+            # Try SSE; if it fails, fall back to polling. Bounded CI runs skip
+            # SSE because keepalive pings can otherwise keep this loop alive
+            # forever while startup is stale.
+            attempts_left = reconnect_attempts
+            while attempts_left >= 0 and not saw_done:
+                try:
+                    for msg in self.stream_events(session_id):
+                        if msg.event == "ping":
+                            continue
+                        if msg.event == "progress":
+                            try:
+                                payload = msg.json()
+                            except Exception:
+                                payload = {"raw": msg.data}
+                            if print_stream:
+                                step = payload.get("step")
+                                state = payload.get("state")
+                                overall = payload.get("overall_percent")
+                                message = payload.get("message")
+                                print(
+                                    f"[{step}] {state} overall={overall}% {message or ''}".rstrip(),
+                                    flush=True,
+                                )
+                        elif msg.event == "done":
+                            try:
+                                done_payload = msg.json()
+                            except Exception:
+                                done_payload = {}
+                            final_state = done_payload.get("final_state")
+                            if isinstance(final_state, str):
+                                last_status = {**done_payload, "status": final_state}
+                            saw_done = True
+                            break
+                    if not saw_done:
+                        break
+                except Exception as e:
+                    if attempts_left == 0:
                         if print_stream:
-                            step = payload.get("step")
-                            state = payload.get("state")
-                            overall = payload.get("overall_percent")
-                            message = payload.get("message")
                             print(
-                                f"[{step}] {state} overall={overall}% {message or ''}".rstrip(),
+                                f"SSE failed, falling back to polling: {e}",
                                 flush=True,
                             )
-                    elif msg.event == "done":
-                        saw_done = True
                         break
-                if not saw_done:
-                    break
-            except Exception as e:
-                if attempts_left == 0:
                     if print_stream:
                         print(
-                            f"SSE failed, falling back to polling: {e}",
+                            f"SSE error ({e}), retrying in {reconnect_backoff_seconds}s...",
                             flush=True,
                         )
-                    break
-                if print_stream:
-                    print(
-                        f"SSE error ({e}), retrying in {reconnect_backoff_seconds}s...",
-                        flush=True,
-                    )
-                time.sleep(reconnect_backoff_seconds)
-                attempts_left -= 1
+                    time.sleep(reconnect_backoff_seconds)
+                    attempts_left -= 1
 
         if not saw_done:
             if print_stream:
                 print("Polling status...", flush=True)
-            max_polls = 300  # 10 minutes at 2s intervals
+            stale_pending_polls = 0
+            last_pending_signature: tuple[str, str, str, str, str] | None = None
             for _ in range(max_polls):
-                status = self.get_status(session_id)
+                status = self._get_status_with_transient_retries(
+                    session_id,
+                    print_stream=print_stream,
+                )
+                last_status = status
                 st = status.get("status")
+                overall = status.get("overall_percent") or status.get("progress")
+                if overall is None and isinstance(status.get("overall_progress"), dict):
+                    overall = status["overall_progress"].get("percent")
+                if overall is None:
+                    overall = "-"
+                current_step = status.get("current_step") or status.get("currentStep")
+                current_step_name = self._current_step_name(current_step)
+                current_step_message = self._current_step_message(current_step)
+                completed_steps = (
+                    status.get("completed_steps") or status.get("completedSteps") or []
+                )
+                if isinstance(completed_steps, list):
+                    completed_summary = str(len(completed_steps))
+                else:
+                    completed_summary = str(completed_steps)
                 if print_stream:
-                    overall = (
-                        status.get("overall_percent") or status.get("progress") or "-"
+                    print(
+                        "status="
+                        f"{st} overall={overall} current_step={current_step_name} "
+                        f"completed_steps={completed_summary}",
+                        flush=True,
                     )
-                    print(f"status={st} overall={overall}", flush=True)
                 if st in {"completed", "failed", "cancelled"}:
                     break
+                stale_startup_state = completed_summary == "0" and (
+                    (st == "pending" and current_step_name == "none")
+                    or (st == "running" and current_step_name == "pipeline_startup")
+                )
+                if max_stale_pending_polls > 0 and stale_startup_state:
+                    pending_signature = (
+                        str(st),
+                        str(overall),
+                        current_step_name,
+                        current_step_message,
+                        str(completed_summary),
+                    )
+                    if pending_signature == last_pending_signature:
+                        stale_pending_polls += 1
+                    else:
+                        last_pending_signature = pending_signature
+                        stale_pending_polls = 1
+                    if stale_pending_polls >= max_stale_pending_polls:
+                        if print_stream:
+                            print(
+                                "No pipeline progress after "
+                                f"{stale_pending_polls} unchanged polls; "
+                                f"leaving session {st} for caller.",
+                                flush=True,
+                            )
+                        break
+                else:
+                    last_pending_signature = None
+                    stale_pending_polls = 0
                 time.sleep(2)
             else:
                 if print_stream:
-                    print("Timed out waiting for pipeline completion", flush=True)
+                    print(
+                        f"Timed out waiting for pipeline completion after {max_polls} polls",
+                        flush=True,
+                    )
 
         try:
-            status = self.get_status(session_id)
+            status = self._get_status_with_transient_retries(
+                session_id,
+                print_stream=print_stream,
+            )
         except Exception:
-            status = None
+            status = last_status
         return session_id, status
 
 
@@ -543,6 +851,39 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--detail-policy",
+        choices=("default", "surface_only"),
+        default=None,
+        help=(
+            "Texture detail policy. Use surface_only for AOI/CAD assets where "
+            "semantic details already exist as geometry."
+        ),
+    )
+    parser.add_argument(
+        "--texture-backend",
+        default=None,
+        help=(
+            "Texture backend override, for example service or simple_image_gen. "
+            "Canonical sidecar deployments route simple_image_gen to the simple "
+            "Texture Variation API sidecar."
+        ),
+    )
+    parser.add_argument(
+        "--texture-endpoint",
+        default=None,
+        help="Texture Variation API endpoint override for service-backed requests.",
+    )
+    parser.add_argument(
+        "--backend-engine",
+        default=None,
+        help="Texture Variation API engine/model route hint.",
+    )
+    parser.add_argument(
+        "--uv-scope",
+        default=None,
+        help="UV projection scope override, for example stage or target_prims.",
+    )
+    parser.add_argument(
         "--upload-first",
         action="store_true",
         help="Upload USD via /upload-usd before starting pipeline",
@@ -551,6 +892,44 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--quiet",
         action="store_true",
         help="Do not print streaming updates",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=600,
+        help="HTTP request timeout in seconds",
+    )
+    parser.add_argument(
+        "--reconnect-attempts",
+        type=int,
+        default=3,
+        help="Number of SSE reconnect attempts before polling fallback",
+    )
+    parser.add_argument(
+        "--reconnect-backoff-seconds",
+        type=float,
+        default=2.0,
+        help="Seconds to wait between SSE reconnect attempts",
+    )
+    parser.add_argument(
+        "--max-polls",
+        type=int,
+        default=300,
+        help="Maximum number of 2-second status polls after SSE fallback",
+    )
+    parser.add_argument(
+        "--max-stale-pending-polls",
+        type=int,
+        default=0,
+        help=(
+            "Stop status polling after this many unchanged pending/startup polls "
+            "with no real pipeline step; 0 disables the guard"
+        ),
+    )
+    parser.add_argument(
+        "--status-output",
+        default=None,
+        help="Optional path to write the final pipeline status JSON",
     )
 
     # USD source: local file or S3 URI
@@ -568,7 +947,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
-    client = TextureAgentClient(base_url=args.base_url, token=args.token)
+    client = TextureAgentClient(
+        base_url=args.base_url,
+        timeout_seconds=args.timeout_seconds,
+        token=args.token,
+    )
 
     material_textures = None
     if args.material_textures:
@@ -580,13 +963,43 @@ def main(argv: list[str] | None = None) -> int:
         material_textures=material_textures,
         user_prompt=args.user_prompt,
         auto_prompt_enabled=False if args.disable_auto_prompt else None,
+        detail_policy=args.detail_policy,
+        texture_backend=args.texture_backend,
+        texture_endpoint=args.texture_endpoint,
+        backend_engine=args.backend_engine,
+        uv_scope=args.uv_scope,
         upload_first=args.upload_first,
         print_stream=not args.quiet,
+        reconnect_attempts=args.reconnect_attempts,
+        reconnect_backoff_seconds=args.reconnect_backoff_seconds,
+        max_polls=args.max_polls,
+        max_stale_pending_polls=args.max_stale_pending_polls,
     )
 
     print(f"\nSession: {session_id}")
+    status_text = "unknown"
     if status is not None:
-        print(f"Pipeline status: {status['status']}")
+        status_text = str(status.get("status", "unknown"))
+        print(f"Pipeline status: {status_text}")
+        if args.status_output:
+            status_path = Path(args.status_output)
+            status_path.parent.mkdir(parents=True, exist_ok=True)
+            status_path.write_text(
+                json.dumps(status, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            print(f"Status JSON: {status_path}")
+        if status_text == "failed":
+            failed_step = status.get("failed_step")
+            error = status.get("error")
+            failed_step_stats = status.get("failed_step_stats")
+            if failed_step:
+                print(f"Failed step: {failed_step}")
+            if error:
+                print(f"Error: {error}")
+            if failed_step_stats:
+                print("Failed step stats:")
+                print(json.dumps(failed_step_stats, indent=2, sort_keys=True))
         print("\nArtifacts:")
         print(f"- Pipeline Status:  {client.base_url}/pipeline/{session_id}/status")
         print(f"- Materials JSON:   {client.base_url}/artifacts/{session_id}/materials")
@@ -594,8 +1007,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"- Output USDZ:      {client.base_url}/artifacts/{session_id}/output")
         print(f"- Renders ZIP:      {client.base_url}/artifacts/{session_id}/renders")
     else:
+        if args.status_output:
+            status_path = Path(args.status_output)
+            status_path.parent.mkdir(parents=True, exist_ok=True)
+            status_path.write_text(
+                json.dumps(
+                    {"session_id": session_id, "status": None},
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            print(f"Status JSON: {status_path}")
         print("No results available yet.")
-    return 0
+    return 0 if status_text == "completed" else 1
 
 
 if __name__ == "__main__":

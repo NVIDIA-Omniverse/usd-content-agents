@@ -8,6 +8,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, NoReturn
 
 import numpy as np
 import pytest
@@ -21,7 +22,11 @@ import texture_agent.tasks.generate_textures as generate_textures_task
 import texture_agent.tasks.prepare_uvs as prepare_uvs_task
 import texture_agent.tasks.render as render_task
 import texture_agent.tasks.render_previews as render_previews_task
-from texture_agent.functions.material_discovery import MaterialInfo, PrimTextureUnit
+from texture_agent.functions.material_discovery import (
+    EffectiveMaterialDiscovery,
+    MaterialInfo,
+    PrimTextureUnit,
+)
 from texture_agent.functions.texture_generation import GeneratedTextures
 
 pytest.importorskip("pxr")
@@ -91,6 +96,38 @@ def _write_quad_usd(
     if uvs is not None:
         st = UsdGeom.PrimvarsAPI(mesh.GetPrim()).CreatePrimvar(
             "st", Sdf.ValueTypeNames.TexCoord2fArray, interpolation
+        )
+        st.Set(Vt.Vec2fArray([Gf.Vec2f(float(u), float(v)) for u, v in uvs]))
+    stage.GetRootLayer().Save()
+    return path
+
+
+def _write_two_quad_usd(
+    path: Path,
+    *,
+    target_uvs: list[tuple[float, float]],
+    other_uvs: list[tuple[float, float]],
+) -> Path:
+    from pxr import Gf, Sdf, Usd, UsdGeom, Vt
+
+    stage = Usd.Stage.CreateNew(str(path))
+    for prim_path, uvs in {
+        "/World/TargetMesh": target_uvs,
+        "/World/OtherMesh": other_uvs,
+    }.items():
+        mesh = UsdGeom.Mesh.Define(stage, prim_path)
+        mesh.GetPointsAttr().Set(
+            [
+                Gf.Vec3f(0, 0, 0),
+                Gf.Vec3f(1, 0, 0),
+                Gf.Vec3f(1, 1, 0),
+                Gf.Vec3f(0, 1, 0),
+            ]
+        )
+        mesh.GetFaceVertexCountsAttr().Set([4])
+        mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+        st = UsdGeom.PrimvarsAPI(mesh.GetPrim()).CreatePrimvar(
+            "st", Sdf.ValueTypeNames.TexCoord2fArray, "faceVarying"
         )
         st.Set(Vt.Vec2fArray([Gf.Vec2f(float(u), float(v)) for u, v in uvs]))
     stage.GetRootLayer().Save()
@@ -222,10 +259,17 @@ def test_load_cached_blended_textures_uses_complete_texture_sets(
 def test_discover_materials_task_persists_summary(tmp_path: Path, monkeypatch) -> None:
     task = discover_materials_task.DiscoverMaterialsTask()
     materials = [_material("Steel", bound_prim_paths=["/Root/A", "/Root/B"])]
+    discovery = EffectiveMaterialDiscovery(
+        authored_materials=tuple(materials),
+        effective_materials=tuple(materials),
+        renderable_prim_paths=("/Root/A", "/Root/B"),
+        renderable_subset_paths=(),
+        skipped_materials=(),
+    )
     monkeypatch.setattr(
         discover_materials_task,
-        "discover_materials_from_file",
-        lambda usd_path, prim_paths=None: materials,
+        "discover_effective_materials_from_file",
+        lambda usd_path, **kwargs: discovery,
     )
 
     context = {
@@ -236,6 +280,13 @@ def test_discover_materials_task_persists_summary(tmp_path: Path, monkeypatch) -
     result = task.run(context)
 
     assert result["discovered_materials"] == materials
+    assert result["effective_materials"] == materials
+    assert result["material_discovery_counts"] == {
+        "authored_material_count": 1,
+        "renderable_prim_count": 2,
+        "renderable_subset_count": 0,
+        "effective_bound_material_count": 1,
+    }
     summary_path = tmp_path / "discovery" / "materials.json"
     assert summary_path.exists()
     assert "Steel" in summary_path.read_text(encoding="utf-8")
@@ -268,21 +319,25 @@ def test_generate_prompts_task_uses_fallback_when_llm_missing(
             "Steel": {"prompt": "fallback steel", "opacity": default_opacity}
         },
     )
+
+    def fake_expand_to_prim_units(materials, material_textures, mode, **kwargs):
+        captured["mode"] = mode
+        captured["kwargs"] = kwargs
+        captured["units"] = [
+            PrimTextureUnit(
+                prim_path="",
+                material_info=materials[0],
+                key="Steel",
+                prompt=material_textures["Steel"]["prompt"],
+                opacity=material_textures["Steel"]["opacity"],
+            )
+        ]
+        return captured["units"]
+
     monkeypatch.setattr(
         generate_prompts_task,
         "expand_to_prim_units",
-        lambda materials, material_textures, mode: captured.setdefault(
-            "units",
-            [
-                PrimTextureUnit(
-                    prim_path="",
-                    material_info=materials[0],
-                    key="Steel",
-                    prompt=material_textures["Steel"]["prompt"],
-                    opacity=material_textures["Steel"]["opacity"],
-                )
-            ],
-        ),
+        fake_expand_to_prim_units,
     )
 
     result = task.run(
@@ -294,15 +349,175 @@ def test_generate_prompts_task_uses_fallback_when_llm_missing(
                 "user_prompt": "aged",
                 "default_opacity": 0.65,
             },
-            "texture_config": {"mode": "per_material"},
+            "texture_config": {
+                "mode": "per_material",
+                "detail_policy": "surface_only",
+            },
             "working_dir": str(tmp_path),
         }
     )
 
+    assert captured["mode"] == "per_material"
+    assert captured["kwargs"]["default_detail_policy"] == "surface_only"
     assert result["material_textures"]["Steel"]["prompt"] == "fallback steel"
     assert result["auto_prompt_additions"]["Steel"]["prompt"] == "fallback steel"
     assert result["prim_texture_units"][0].prompt == "fallback steel"
     assert (tmp_path / "prompts" / "material_prompts.json").exists()
+
+
+def test_generate_prompts_task_rejects_unbounded_auto_prompt_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+
+    import world_understanding.functions.models.chat_models as chat_models
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("LLM should not be created after limit rejection")
+
+    monkeypatch.setattr(chat_models, "create_chat_model_from_config", fail_if_called)
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Auto-prompt would select 11 discovered materials, exceeding "
+            "auto_prompt.max_generated_materials=2"
+        ),
+    ):
+        task.run(
+            {
+                "discovered_materials": [
+                    _material(f"Material_{index}") for index in range(11)
+                ],
+                "material_textures": {},
+                "auto_prompt_config": {
+                    "enabled": True,
+                    "user_prompt": "aged",
+                    "max_generated_materials": 2,
+                },
+                "texture_config": {"mode": "per_material"},
+                "working_dir": str(tmp_path),
+            }
+        )
+
+
+def test_generate_prompts_task_rejects_boolean_auto_prompt_limit(
+    tmp_path: Path,
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+
+    with pytest.raises(
+        ValueError,
+        match="auto_prompt.max_generated_materials must be an integer",
+    ):
+        task.run(
+            {
+                "discovered_materials": [_material("Paint")],
+                "material_textures": {},
+                "auto_prompt_config": {
+                    "enabled": True,
+                    "user_prompt": "aged",
+                    "max_generated_materials": True,
+                },
+                "texture_config": {"mode": "per_material"},
+                "working_dir": str(tmp_path),
+            }
+        )
+
+
+def test_generate_prompts_material_sample_label_falls_back_to_name() -> None:
+    material = _material("Paint", prim_path="")
+
+    assert generate_prompts_task._material_sample_label(material) == "Paint"
+
+
+def test_generate_prompts_task_accepts_auto_prompt_limit_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+
+    import world_understanding.functions.models.chat_models as chat_models
+
+    monkeypatch.setattr(
+        chat_models, "create_chat_model_from_config", lambda *args, **kwargs: None
+    )
+
+    result = task.run(
+        {
+            "discovered_materials": [
+                _material(f"Material_{index}") for index in range(64)
+            ],
+            "material_textures": {},
+            "auto_prompt_config": {
+                "enabled": True,
+                "user_prompt": "aged",
+                "max_generated_materials": 64,
+            },
+            "texture_config": {
+                "mode": "per_material",
+                "max_texture_units": 64,
+            },
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert len(result["material_textures"]) == 64
+    assert len(result["auto_prompt_additions"]) == 64
+    assert len(result["prim_texture_units"]) == 64
+
+
+def test_generate_prompts_task_rejects_expanded_texture_unit_fanout(
+    tmp_path: Path,
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+    bound_prim_paths = [f"/Root/Panel_{index:02d}" for index in range(11)]
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Texture generation would create 11 expanded texture units, exceeding "
+            "texture.max_texture_units=2"
+        ),
+    ) as exc_info:
+        task.run(
+            {
+                "discovered_materials": [
+                    _material(
+                        "Paint",
+                        bound_prim_paths=bound_prim_paths,
+                    )
+                ],
+                "material_textures": {
+                    "Paint": {"prompt": "slightly worn green paint", "opacity": 0.8}
+                },
+                "auto_prompt_config": {"enabled": False},
+                "texture_config": {"mode": "per_prim", "max_texture_units": 2},
+                "working_dir": str(tmp_path),
+            }
+        )
+    assert "Paint__Panel_09, ..." in str(exc_info.value)
+
+
+def test_generate_prompts_task_rejects_boolean_texture_unit_limit(
+    tmp_path: Path,
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+
+    with pytest.raises(
+        ValueError,
+        match="texture.max_texture_units must be an integer",
+    ):
+        task.run(
+            {
+                "discovered_materials": [_material("Paint")],
+                "material_textures": {
+                    "Paint": {"prompt": "slightly worn green paint", "opacity": 0.8}
+                },
+                "auto_prompt_config": {"enabled": False},
+                "texture_config": {"mode": "per_material", "max_texture_units": True},
+                "working_dir": str(tmp_path),
+            }
+        )
 
 
 def test_generate_prompts_task_skips_missing_materials_when_auto_prompt_disabled(
@@ -324,6 +539,215 @@ def test_generate_prompts_task_skips_missing_materials_when_auto_prompt_disabled
     assert "Copper" not in result["material_textures"]
     assert result["auto_prompt_additions"] == {}
     assert [unit.key for unit in result["prim_texture_units"]] == ["Steel"]
+
+
+def test_generate_prompts_task_skips_llm_when_every_material_has_prompt(
+    tmp_path: Path,
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+    result = task.run(
+        {
+            "discovered_materials": [_material("Steel")],
+            "material_textures": {"Steel": {"prompt": "brushed", "opacity": 0.5}},
+            "auto_prompt_config": {"enabled": True},
+            "texture_config": {"mode": "per_material"},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert result["auto_prompt_additions"] == {}
+    assert result["prim_texture_units"][0].prompt == "brushed"
+
+
+def test_generate_prompts_resume_loads_cache_with_explicit_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    (prompts_dir / "material_prompts.json").write_text(
+        json.dumps(
+            {
+                "Steel": {"prompt": "cached steel", "opacity": 0.4},
+                "Copper": {"prompt": "cached copper", "opacity": 0.6},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    import world_understanding.functions.models.chat_models as chat_models
+
+    def forbid_prompt_backend(*_args: Any, **_kwargs: Any) -> NoReturn:
+        raise AssertionError("resumed prompt cache must avoid the LLM backend")
+
+    monkeypatch.setattr(
+        chat_models,
+        "create_chat_model_from_config",
+        forbid_prompt_backend,
+    )
+
+    result = generate_prompts_task.GeneratePromptsTask().run(
+        {
+            "discovered_materials": [_material("Steel"), _material("Copper")],
+            "material_textures": {
+                "Steel": {"prompt": "explicit steel", "opacity": 0.9}
+            },
+            "auto_prompt_config": {"enabled": True},
+            "texture_config": {"mode": "per_material"},
+            "working_dir": str(tmp_path),
+            "resume": True,
+        }
+    )
+
+    units = {unit.key: unit for unit in result["prim_texture_units"]}
+    assert units["Steel"].prompt == "explicit steel"
+    assert units["Steel"].opacity == 0.9
+    assert units["Copper"].prompt == "cached copper"
+    assert units["Copper"].opacity == 0.6
+    assert result["auto_prompt_additions"] == {}
+
+
+def test_cached_apply_missing_prompt_fails_without_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import world_understanding.functions.models.chat_models as chat_models
+
+    provider_calls: list[bool] = []
+    monkeypatch.setattr(
+        chat_models,
+        "create_chat_model_from_config",
+        lambda *_args, **_kwargs: provider_calls.append(True),
+    )
+
+    with pytest.raises(RuntimeError, match="Cached apply requires prompt specs"):
+        generate_prompts_task.GeneratePromptsTask().run(
+            {
+                "discovered_materials": [_material("Steel")],
+                "material_textures": {},
+                "auto_prompt_config": {"enabled": True},
+                "texture_config": {"mode": "per_material"},
+                "working_dir": str(tmp_path),
+                "cached_apply_only": True,
+                "resume": True,
+            }
+        )
+
+    assert provider_calls == []
+
+
+def test_legacy_cached_apply_allows_explicit_subset_without_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import world_understanding.functions.models.chat_models as chat_models
+
+    provider_calls: list[bool] = []
+    monkeypatch.setattr(
+        chat_models,
+        "create_chat_model_from_config",
+        lambda *_args, **_kwargs: provider_calls.append(True),
+    )
+
+    result = generate_prompts_task.GeneratePromptsTask().run(
+        {
+            "discovered_materials": [_material("Steel"), _material("Copper")],
+            "material_textures": {"Steel": {"prompt": "brushed steel", "opacity": 0.8}},
+            "auto_prompt_config": {"enabled": False},
+            "texture_config": {"mode": "per_material"},
+            "working_dir": str(tmp_path),
+            "cached_apply_only": True,
+            "resume": True,
+        }
+    )
+
+    assert [unit.key for unit in result["prim_texture_units"]] == ["Steel"]
+    assert provider_calls == []
+
+
+def test_cached_apply_plan_mismatch_fails_instead_of_returning_zero_units(
+    tmp_path: Path,
+) -> None:
+    from texture_agent.tasks.plan_textures import PlanTexturesTask
+
+    material = _material("Steel")
+    planned = PlanTexturesTask().run(
+        {
+            "usd_path": str(tmp_path / "input.usd"),
+            "working_dir": str(tmp_path),
+            "texture_config": {"backend": "simple_image_gen", "size": 1024},
+            "planning_config": {},
+            "material_textures": {"Steel": {"prompt": "brushed steel", "opacity": 0.8}},
+            "auto_prompt_config": {"enabled": False},
+            "discovered_materials": [material],
+            "steps": {"generate_textures": {"max_workers": 1}},
+            "config": {"input": {}},
+        }
+    )
+
+    planned.update(
+        {
+            "discovered_materials": [],
+            "cached_apply_only": True,
+            "resume": True,
+        }
+    )
+    with pytest.raises(ValueError, match="has no matching runtime unit"):
+        generate_prompts_task.GeneratePromptsTask().run(planned)
+
+
+def test_generate_prompts_task_uses_llm_when_available(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = generate_prompts_task.GeneratePromptsTask()
+
+    import world_understanding.functions.models.chat_models as chat_models
+
+    monkeypatch.setattr(
+        chat_models,
+        "create_chat_model_from_config",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        generate_prompts_task,
+        "generate_texture_prompts",
+        lambda **kwargs: {"Steel": {"prompt": "llm brushed steel", "opacity": 0.9}},
+    )
+
+    result = task.run(
+        {
+            "discovered_materials": [_material("Steel")],
+            "material_textures": {},
+            "auto_prompt_config": {"enabled": True},
+            "texture_config": {"mode": "per_material"},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert result["auto_prompt_additions"]["Steel"]["prompt"] == "llm brushed steel"
+
+
+def test_blend_textures_task_records_unknown_generated_key(tmp_path: Path) -> None:
+    task = blend_textures_task.BlendTexturesTask()
+
+    with pytest.raises(RuntimeError, match="1/1 blend operations failed"):
+        task.run(
+            {
+                "prim_texture_units": [],
+                "generated_textures": {
+                    "Unknown": GeneratedTextures(albedo="", normal="", orm="")
+                },
+                "blend_config": {"output_size": 16},
+                "working_dir": str(tmp_path),
+            }
+        )
+
+
+def test_pipeline_executor_reexport_imports() -> None:
+    import texture_agent.tasks.pipeline_executor as pipeline_executor
+
+    assert pipeline_executor.__all__ == ["run_pipeline"]
 
 
 def test_prepare_uvs_task_leaves_input_when_no_fixes(
@@ -805,6 +1229,103 @@ def test_prepare_uvs_force_projection_replaces_existing_uvs(tmp_path: Path) -> N
     assert not np.allclose(updated, np.array(original_uvs))
 
 
+def test_prepare_uvs_target_scope_replaces_only_material_texture_prims(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdGeom
+
+    task = prepare_uvs_task.PrepareUVsTask()
+    target_uvs = [(0.2, 0.2)] * 4
+    other_uvs = [(0.8, 0.8)] * 4
+    usd_path = _write_two_quad_usd(
+        tmp_path / "two_meshes.usda",
+        target_uvs=target_uvs,
+        other_uvs=other_uvs,
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(usd_path),
+            "working_dir": str(tmp_path / "work"),
+            "texture_config": {
+                "uv_policy": "force_projection",
+                "uv_projection": "box",
+                "uv_scope": "target_prims",
+            },
+            "material_textures": {
+                "Body": {
+                    "prompt": "blue body",
+                    "prim_paths": ["/World/TargetMesh"],
+                }
+            },
+        }
+    )
+
+    assert result["usd_path"].endswith("prepared_input.usd")
+    assert result["uv_preparation"]["generated"] == 1
+    assert result["uv_preparation"]["uv_scope"] == "target_prims"
+    assert result["uv_preparation"]["target_prim_paths"] == ["/World/TargetMesh"]
+
+    stage = Usd.Stage.Open(result["usd_path"])
+    updated_target = np.array(
+        UsdGeom.PrimvarsAPI(stage.GetPrimAtPath("/World/TargetMesh"))
+        .GetPrimvar("st")
+        .Get()
+    )
+    updated_other = np.array(
+        UsdGeom.PrimvarsAPI(stage.GetPrimAtPath("/World/OtherMesh"))
+        .GetPrimvar("st")
+        .Get()
+    )
+    assert not np.allclose(updated_target, np.array(target_uvs))
+    np.testing.assert_allclose(updated_other, np.array(other_uvs))
+
+    uv_report = json.loads(
+        Path(result["uv_preparation"]["uv_report_path"]).read_text(encoding="utf-8")
+    )
+    assert uv_report["actions"]["target_prim_paths"] == ["/World/TargetMesh"]
+
+
+def test_prepare_uvs_target_scope_ignores_unrelated_invalid_uvs(
+    tmp_path: Path,
+) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+    target_uvs = [(0.2, 0.2)] * 4
+    other_uvs = [(np.nan, 0.8)] * 4
+    usd_path = _write_two_quad_usd(
+        tmp_path / "two_meshes.usda",
+        target_uvs=target_uvs,
+        other_uvs=other_uvs,
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(usd_path),
+            "working_dir": str(tmp_path / "work"),
+            "texture_config": {
+                "uv_policy": "force_projection",
+                "uv_projection": "box",
+                "uv_scope": "target_prims",
+            },
+            "material_textures": {
+                "Body": {
+                    "prompt": "blue body",
+                    "prim_paths": ["/World/TargetMesh"],
+                }
+            },
+        }
+    )
+
+    assert result["usd_path"].endswith("prepared_input.usd")
+    assert result["uv_preparation"]["generated"] == 1
+    report = json.loads(
+        Path(result["uv_preparation"]["uv_report_path"]).read_text(encoding="utf-8")
+    )
+    mesh_statuses = {mesh["prim_path"]: mesh["status"] for mesh in report["meshes"]}
+    assert mesh_statuses["/World/TargetMesh"] == "valid"
+    assert mesh_statuses["/World/OtherMesh"] == "invalid"
+
+
 def test_prepare_uvs_python_cube_projection_logs_box_fallback(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -940,6 +1461,249 @@ def test_prepare_uvs_scene_optimizer_success_sets_prepared_output(
     assert report["actions"]["so_result"]["status"] == "completed"
 
 
+def test_prepare_uvs_scene_optimizer_atlas_success_sets_prepared_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+    usd_path = _write_quad_usd(tmp_path / "input.usda")
+    so_call = {}
+
+    def fake_generate_atlas_uvs(input_path, output_path, **kwargs):
+        so_call.update(
+            {
+                "input_path": input_path,
+                "output_path": output_path,
+                **kwargs,
+            }
+        )
+        _write_quad_usd(
+            Path(output_path),
+            uvs=[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)],
+        )
+        return {"meshes_with_uvs": 1, "status": "completed"}
+
+    monkeypatch.setattr(
+        prepare_uvs_task,
+        "generate_projection_uvs",
+        lambda *args, **kwargs: pytest.fail("Projection UVs should not run"),
+    )
+    monkeypatch.setattr(prepare_uvs_task, "generate_atlas_uvs", fake_generate_atlas_uvs)
+
+    context = {
+        "usd_path": str(usd_path),
+        "working_dir": str(tmp_path / "work"),
+        "texture_config": {
+            "uv_backend": "scene_optimizer",
+            "uv_policy": "generate_missing",
+            "uv_generation_mode": "atlas",
+            "uv_overwrite_existing": False,
+            "uv_atlas_distortion_threshold": 2.25,
+            "uv_atlas_enable_packing": False,
+        },
+    }
+
+    result = task.run(context)
+
+    assert result["usd_path"].endswith("prepared_input.usd")
+    assert result["uv_preparation"]["backend"] == "scene_optimizer"
+    assert result["uv_preparation"]["generation_mode"] == "atlas"
+    assert result["uv_preparation"]["generated"] == 1
+    assert so_call["overwrite_existing"] is False
+    assert so_call["distortion_threshold"] == 2.25
+    assert so_call["enable_atlas_packing"] is False
+    report = json.loads(
+        Path(result["uv_preparation"]["uv_report_path"]).read_text(encoding="utf-8")
+    )
+    assert report["actions"]["generation_mode"] == "atlas"
+    assert report["actions"]["so_result"]["status"] == "completed"
+
+
+def test_prepare_uvs_scene_optimizer_scoped_paths_are_passed_to_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+    usd_path = _write_two_quad_usd(
+        tmp_path / "two_meshes.usda",
+        target_uvs=[(0.2, 0.2)] * 4,
+        other_uvs=[(0.8, 0.8)] * 4,
+    )
+    so_call = {}
+
+    def fake_generate_projection_uvs(input_path, output_path, **kwargs):
+        so_call.update(kwargs)
+        _write_two_quad_usd(
+            Path(output_path),
+            target_uvs=[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)],
+            other_uvs=[(0.8, 0.8)] * 4,
+        )
+        return {"meshes_with_uvs": 1, "status": "completed"}
+
+    monkeypatch.setattr(
+        prepare_uvs_task, "generate_projection_uvs", fake_generate_projection_uvs
+    )
+    fix_calls = []
+    normalize_calls = []
+
+    def fake_fix_uv_interpolation(stage, **kwargs):
+        fix_calls.append(kwargs)
+        return 0
+
+    def fake_normalize_uvs(stage, **kwargs):
+        normalize_calls.append(kwargs)
+        return 0
+
+    monkeypatch.setattr(
+        prepare_uvs_task, "fix_uv_interpolation", fake_fix_uv_interpolation
+    )
+    monkeypatch.setattr(prepare_uvs_task, "normalize_uvs", fake_normalize_uvs)
+
+    result = task.run(
+        {
+            "usd_path": str(usd_path),
+            "working_dir": str(tmp_path / "work"),
+            "texture_config": {
+                "uv_backend": "scene_optimizer",
+                "uv_policy": "generate_missing",
+                "uv_scope": "target_prims",
+                "uv_normalize_out_of_range": True,
+            },
+            "material_textures": {
+                "Body": {
+                    "prompt": "blue body",
+                    "prim_paths": ["/World/TargetMesh"],
+                }
+            },
+        }
+    )
+
+    assert so_call["paths"] == ["/World/TargetMesh"]
+    assert fix_calls == [{"target_prim_paths": ("/World/TargetMesh",)}]
+    assert normalize_calls == [{"target_prim_paths": ("/World/TargetMesh",)}]
+    assert result["uv_preparation"]["backend"] == "scene_optimizer"
+    assert result["uv_preparation"]["uv_scope"] == "target_prims"
+    assert result["uv_preparation"]["target_prim_paths"] == ["/World/TargetMesh"]
+
+
+def test_prepare_uvs_atlas_requires_scene_optimizer_backend(tmp_path: Path) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+    usd_path = _write_quad_usd(tmp_path / "input.usda")
+
+    with pytest.raises(ValueError, match="requires texture.uv_backend"):
+        task.run(
+            {
+                "usd_path": str(usd_path),
+                "working_dir": str(tmp_path / "work"),
+                "texture_config": {"uv_generation_mode": "atlas"},
+            }
+        )
+
+
+def test_prepare_uvs_invalid_uv_generation_mode_raises(tmp_path: Path) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+    usd_path = _write_quad_usd(tmp_path / "input.usda")
+
+    with pytest.raises(ValueError, match="Invalid UV generation mode"):
+        task.run(
+            {
+                "usd_path": str(usd_path),
+                "working_dir": str(tmp_path / "work"),
+                "texture_config": {
+                    "uv_backend": "scene_optimizer",
+                    "uv_generation_mode": "bogus",
+                },
+            }
+        )
+
+
+def test_prepare_uvs_scene_optimizer_atlas_ignores_projection_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+    usd_path = _write_quad_usd(tmp_path / "input.usda")
+
+    def fake_generate_atlas_uvs(input_path, output_path, **kwargs):
+        _write_quad_usd(
+            Path(output_path),
+            uvs=[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)],
+        )
+        return {"meshes_with_uvs": 1, "status": "completed"}
+
+    monkeypatch.setattr(prepare_uvs_task, "generate_atlas_uvs", fake_generate_atlas_uvs)
+
+    result = task.run(
+        {
+            "usd_path": str(usd_path),
+            "working_dir": str(tmp_path / "work"),
+            "texture_config": {
+                "uv_backend": "scene_optimizer",
+                "uv_policy": "generate_missing",
+                "uv_generation_mode": "atlas",
+                "uv_projection": "not-a-projection",
+            },
+        }
+    )
+
+    report = json.loads(
+        Path(result["uv_preparation"]["uv_report_path"]).read_text(encoding="utf-8")
+    )
+    assert result["uv_preparation"]["generation_mode"] == "atlas"
+    assert "projection" not in result["uv_preparation"]
+    assert report["projection"] == "atlas"
+
+
+def test_prepare_uvs_scene_optimizer_atlas_fallback_records_source(
+    monkeypatch, tmp_path: Path
+) -> None:
+    task = prepare_uvs_task.PrepareUVsTask()
+
+    class FakeLayer:
+        def Export(self, path: str) -> None:
+            Path(path).write_text("#usda 1.0\n", encoding="utf-8")
+
+    class FakeStage:
+        def Flatten(self):
+            return object()
+
+        def GetRootLayer(self):
+            return FakeLayer()
+
+    monkeypatch.setattr(prepare_uvs_task.Usd.Stage, "Open", lambda value: FakeStage())
+    monkeypatch.setattr(
+        prepare_uvs_task,
+        "generate_atlas_uvs",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("atlas missing")),
+    )
+    monkeypatch.setattr(
+        prepare_uvs_task, "generate_uvs_for_stage", lambda stage, mode, **kwargs: 1
+    )
+    monkeypatch.setattr(prepare_uvs_task, "fix_uv_interpolation", lambda stage: 0)
+    monkeypatch.setattr(prepare_uvs_task, "normalize_uvs", lambda stage: 0)
+    monkeypatch.setattr(
+        prepare_uvs_task,
+        "inspect_uvs_for_stage",
+        lambda stage: {
+            "schema_version": "texture-agent-uv-report.v1",
+            "summary": {},
+            "meshes": [],
+        },
+    )
+
+    result = task.run(
+        {
+            "usd_path": "/tmp/original.usd",
+            "working_dir": str(tmp_path),
+            "texture_config": {
+                "uv_backend": "scene_optimizer",
+                "uv_generation_mode": "atlas",
+            },
+        }
+    )
+
+    assert result["uv_preparation"]["backend"] == "python"
+    assert result["uv_preparation"]["fallback_from"]["backend"] == "scene_optimizer"
+    assert result["uv_preparation"]["fallback_from"]["generation_mode"] == "atlas"
+
+
 def test_generate_textures_task_reuses_existing_outputs(tmp_path: Path) -> None:
     task = generate_textures_task.GenerateTexturesTask()
     out_dir = tmp_path / "generated"
@@ -999,6 +1763,40 @@ def test_localize_textures_copies_accessible_file_uri(tmp_path: Path) -> None:
     assert Path(result.albedo).exists()
     assert result.normal == ""
     assert result.orm == ""
+
+
+def test_author_unit_source_usd_deinstances_material_graph(tmp_path: Path) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    prepared_usd = tmp_path / "prepared.usda"
+    output_usd = tmp_path / "unit_source.usda"
+    source_albedo = Path(_save_png(tmp_path / "new_albedo.png", (10, 20, 30)))
+    stage = Usd.Stage.CreateNew(str(prepared_usd))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Steel")
+    material.GetPrim().SetInstanceable(True)
+    shader = UsdShade.Shader.Define(stage, "/Root/Looks/Steel/base_color_texture")
+    shader.CreateIdAttr("UsdUVTexture")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("old_albedo.png")
+    )
+    shader.GetPrim().SetInstanceable(True)
+    stage.GetRootLayer().Save()
+
+    generate_textures_task._author_unit_source_usd(
+        prepared_usd=prepared_usd,
+        output_usd=output_usd,
+        material_path="/Root/Looks/Steel",
+        texture_paths={"albedo": source_albedo},
+    )
+
+    output_stage = Usd.Stage.Open(str(output_usd))
+    output_material = output_stage.GetPrimAtPath("/Root/Looks/Steel")
+    output_shader = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Steel/base_color_texture")
+    )
+    assert output_material.IsInstanceable() is False
+    assert output_shader.GetPrim().IsInstanceable() is False
+    assert output_shader.GetInput("file").Get().path == str(source_albedo.resolve())
 
 
 def test_blend_textures_task_creates_outputs(tmp_path: Path) -> None:
@@ -1143,6 +1941,79 @@ def test_apply_textures_task_applies_per_material(tmp_path: Path) -> None:
     assert _resolve_output_ref(moved_output, moved_ref).is_file()
 
 
+def test_apply_textures_task_localizes_unedited_material_texture_refs(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    source_dir = tmp_path / "source_package"
+    source_textures = source_dir / "textures"
+    source_textures.mkdir(parents=True)
+    shared_albedo = Path(
+        _save_png(source_textures / "shared_trim_albedo.png", (220, 180, 20))
+    )
+    input_usd = source_dir / "input.usda"
+
+    task = apply_textures_task.ApplyTexturesTask()
+    stage = Usd.Stage.CreateNew(str(input_usd))
+    UsdShade.Material.Define(stage, "/Root/Looks/Steel")
+    untouched = UsdShade.Material.Define(stage, "/Root/Looks/Untouched")
+    untouched.GetPrim().SetInstanceable(True)
+    untouched.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(str(shared_albedo)))
+    texture = UsdShade.Shader.Define(stage, "/Root/Looks/Untouched/Image_Texture")
+    texture.CreateIdAttr("UsdUVTexture")
+    texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(str(shared_albedo))
+    )
+    stage.GetRootLayer().Save()
+
+    working_dir = tmp_path / "run"
+    generated_dir = working_dir / "textures"
+    generated_dir.mkdir(parents=True)
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(generated_dir / "Steel_albedo.png", (20, 90, 180)),
+        normal=_save_png(generated_dir / "Steel_normal.png", (128, 128, 255)),
+        orm=_save_png(generated_dir / "Steel_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(input_usd),
+            "blended_textures": {"Steel": blended},
+            "prim_texture_units": [_unit("Steel")],
+            "working_dir": str(working_dir),
+        }
+    )
+
+    output_path = Path(result["output_usd_paths"][0])
+    output_stage = Usd.Stage.Open(str(output_path))
+    untouched_prim = output_stage.GetPrimAtPath("/Root/Looks/Untouched")
+    material_ref = (
+        untouched_prim.GetAttribute("inputs:base_color_texture_file").Get().path
+    )
+    shader_ref = (
+        UsdShade.Shader(
+            output_stage.GetPrimAtPath("/Root/Looks/Untouched/Image_Texture")
+        )
+        .GetInput("file")
+        .Get()
+        .path
+    )
+
+    assert material_ref == "../textures/shared_trim_albedo.png"
+    assert shader_ref == "../textures/shared_trim_albedo.png"
+    assert untouched_prim.IsInstanceable() is False
+    assert _resolve_output_ref(output_path, material_ref).is_file()
+    assert result["output_portability"]["portable"] is True
+    assert sorted(result["apply_textures_stats"]["stage_texture_refs_localized"]) == [
+        "/Root/Looks/Untouched/Image_Texture:inputs:file",
+        "/Root/Looks/Untouched:inputs:base_color_texture_file",
+    ]
+
+
 def test_apply_textures_task_preserves_typed_material_parent(tmp_path: Path) -> None:
     from pxr import Sdf, Usd, UsdGeom, UsdShade
 
@@ -1185,9 +2056,9 @@ def test_apply_textures_task_preserves_typed_material_parent(tmp_path: Path) -> 
 
 
 def test_apply_textures_task_overrides_prebaked_mdl_inputs(tmp_path: Path) -> None:
-    """Reproduces NVBugs 6127229 / OMPE-91783: SimReady MDL materials have
-    pre-baked Nucleus texture inputs (e.g. inputs:normalmap_texture) that the
-    agent must overwrite with the freshly generated local textures, otherwise
+    """SimReady MDL materials can have pre-baked Nucleus texture inputs
+    (e.g. inputs:normalmap_texture) that the agent must overwrite with freshly
+    generated local textures, otherwise
     the output USD silently keeps the original references and renders broken
     once the bundle is downloaded outside Omniverse.
     """
@@ -1257,6 +2128,791 @@ def test_apply_textures_task_overrides_prebaked_mdl_inputs(tmp_path: Path) -> No
     stats = result["apply_textures_stats"]
     assert stats["mdl_inputs_overridden"] >= 3
     assert any("opacity_texture" in entry for entry in stats["mdl_inputs_cleared"])
+
+
+def test_apply_textures_task_overrides_usd_preview_texture_nodes(
+    tmp_path: Path,
+) -> None:
+    """Existing UsdPreviewSurface graphs must render generated textures.
+
+    SimReady materials can carry both OmniPBR MDL and UsdPreviewSurface shader
+    graphs. If the renderer cannot resolve OmniPBR, it falls back to preview
+    shaders; those preview texture nodes must point at the generated maps too.
+    """
+    from pxr import Sdf, Usd, UsdShade
+
+    task = apply_textures_task.ApplyTexturesTask()
+    stage = Usd.Stage.CreateNew(str(tmp_path / "input.usda"))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Preview")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+
+    albedo = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/AlbedoTexture")
+    albedo.CreateIdAttr("UsdUVTexture")
+    albedo.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_albedo.png")
+    )
+    albedo_rgb = albedo.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+        albedo_rgb
+    )
+
+    roughness = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/RoughnessTexture")
+    roughness.CreateIdAttr("UsdUVTexture")
+    roughness.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_roughness.png")
+    )
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        roughness.CreateOutput("r", Sdf.ValueTypeNames.Float)
+    )
+    metalness = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/MetalnessTexture")
+    metalness.CreateIdAttr("UsdUVTexture")
+    metalness.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_metalness.png")
+    )
+    preview.CreateInput("metallic", Sdf.ValueTypeNames.Float).ConnectToSource(
+        metalness.CreateOutput("r", Sdf.ValueTypeNames.Float)
+    )
+
+    normal = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/NormalTexture")
+    normal.CreateIdAttr("UsdUVTexture")
+    normal.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_normal.png")
+    )
+    preview.CreateInput("normal", Sdf.ValueTypeNames.Normal3f).ConnectToSource(
+        normal.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+    )
+
+    occlusion = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/OcclusionTexture")
+    occlusion.CreateIdAttr("UsdUVTexture")
+    occlusion.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_orm.png")
+    )
+    preview.CreateInput("occlusion", Sdf.ValueTypeNames.Float).ConnectToSource(
+        occlusion.CreateOutput("r", Sdf.ValueTypeNames.Float)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(textures_dir / "Plastic_albedo.png", (200, 50, 50)),
+        normal=_save_png(textures_dir / "Plastic_normal.png", (128, 128, 255)),
+        orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(tmp_path / "input.usda"),
+            "blended_textures": {"Plastic": blended},
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    out_albedo = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/AlbedoTexture")
+    )
+    out_roughness = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/RoughnessTexture")
+    )
+    out_metalness = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/MetalnessTexture")
+    )
+    out_normal = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/NormalTexture")
+    )
+    out_occlusion = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/OcclusionTexture")
+    )
+
+    assert out_albedo.GetInput("file").Get().path.endswith("Plastic_albedo.png")
+    assert out_roughness.GetInput("file").Get().path.endswith("Plastic_roughness.png")
+    assert out_metalness.GetInput("file").Get().path.endswith("Plastic_metalness.png")
+    assert out_normal.GetInput("file").Get().path.endswith("Plastic_normal.png")
+    assert out_occlusion.GetInput("file").Get().path.endswith("Plastic_orm.png")
+    out_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Preview")
+    )
+    for input_name, expected_node in {
+        "diffuseColor": "AlbedoTexture",
+        "roughness": "RoughnessTexture",
+        "metallic": "MetalnessTexture",
+        "normal": "NormalTexture",
+        "occlusion": "OcclusionTexture",
+    }.items():
+        source = out_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetName() == expected_node
+    assert not output_stage.GetPrimAtPath(
+        "/Root/Looks/Plastic/TextureAgentSTReader"
+    ).IsValid()
+    stats = result["apply_textures_stats"]
+    assert len(stats["preview_texture_inputs_overridden"]) == 5
+
+
+def test_apply_textures_task_authors_constant_preview_surface_texture_graph(
+    tmp_path: Path,
+) -> None:
+    """Persist a renderable graph for backend-neutral blended texture maps."""
+    from pxr import Gf, Sdf, Usd, UsdShade
+
+    task = apply_textures_task.ApplyTexturesTask()
+    input_path = tmp_path / "input.usda"
+    stage = Usd.Stage.CreateNew(str(input_path))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Surface")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(0.1, 0.2, 0.3)
+    )
+    preview.CreateInput("normal", Sdf.ValueTypeNames.Normal3f).Set(
+        Gf.Vec3f(0.0, 0.0, 1.0)
+    )
+    preview.CreateInput("occlusion", Sdf.ValueTypeNames.Float).Set(1.0)
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.7)
+    preview.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.1)
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(textures_dir / "Plastic_albedo.png", (200, 50, 50)),
+        normal=_save_png(textures_dir / "Plastic_normal.png", (128, 128, 255)),
+        orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(input_path),
+            "blended_textures": {"Plastic": blended},
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    # Reopen the exported artifact so the assertions cover persisted package
+    # content rather than only the in-memory edit target.
+    output_path = Path(result["output_usd_paths"][0])
+    output_stage = Usd.Stage.Open(str(output_path))
+    output_material = UsdShade.Material(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic")
+    )
+    surface_sources, _ = output_material.GetSurfaceOutput().GetConnectedSources()
+    assert len(surface_sources) == 1
+    assert surface_sources[0].source.GetPrim().GetPath() == Sdf.Path(
+        "/Root/Looks/Plastic/Surface"
+    )
+
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Surface")
+    )
+    expected = {
+        "diffuseColor": (
+            "TextureAgentAlbedoTexture",
+            "Plastic_albedo.png",
+            "rgb",
+            "sRGB",
+        ),
+        "normal": (
+            "TextureAgentNormalTexture",
+            "Plastic_normal.png",
+            "rgb",
+            "raw",
+        ),
+        "occlusion": (
+            "TextureAgentORMTexture",
+            "Plastic_orm.png",
+            "r",
+            "raw",
+        ),
+        "roughness": (
+            "TextureAgentRoughnessTexture",
+            "Plastic_roughness.png",
+            "r",
+            "raw",
+        ),
+        "metallic": (
+            "TextureAgentMetalnessTexture",
+            "Plastic_metalness.png",
+            "r",
+            "raw",
+        ),
+    }
+    for input_name, (
+        expected_node,
+        expected_file,
+        expected_output,
+        expected_color_space,
+    ) in expected.items():
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        texture = UsdShade.Shader(source[0].GetPrim())
+        assert texture.GetPrim().GetName() == expected_node
+        assert texture.GetIdAttr().Get() == "UsdUVTexture"
+        assert source[1] == expected_output
+        assert texture.GetInput("file").Get().path.endswith(expected_file)
+        assert texture.GetInput("sourceColorSpace").Get() == expected_color_space
+        st_source = texture.GetInput("st").GetConnectedSource()
+        assert st_source is not None
+        st_reader = UsdShade.Shader(st_source[0].GetPrim())
+        assert st_reader.GetPrim().GetName() == "TextureAgentSTReader"
+        assert st_reader.GetIdAttr().Get() == "UsdPrimvarReader_float2"
+        assert st_reader.GetInput("varname").Get() == "st"
+
+    normal = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/TextureAgentNormalTexture")
+    )
+    assert tuple(normal.GetInput("scale").Get()) == (2.0, 2.0, 2.0, 2.0)
+    assert tuple(normal.GetInput("bias").Get()) == (-1.0, -1.0, -1.0, 0.0)
+    assert result["output_portability"]["portable"] is True
+    assert len(
+        result["apply_textures_stats"]["preview_texture_inputs_overridden"]
+    ) == len(expected)
+
+
+def test_apply_textures_task_constant_preview_authors_only_available_maps(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    input_path = tmp_path / "input.usda"
+    stage = Usd.Stage.CreateNew(str(input_path))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Surface")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set((0.1, 0.2, 0.3))
+    preview.CreateInput("normal", Sdf.ValueTypeNames.Normal3f).Set((0.0, 0.0, 1.0))
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.7)
+    preview.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.1)
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    result = apply_textures_task.ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_path),
+            "blended_textures": {
+                "Plastic": apply_textures_task.BlendedTextures(
+                    albedo=_save_png(
+                        textures_dir / "Plastic_albedo.png", (200, 50, 50)
+                    ),
+                    normal="",
+                    orm="",
+                )
+            },
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Surface")
+    )
+    albedo_source = output_preview.GetInput("diffuseColor").GetConnectedSource()
+    assert albedo_source is not None
+    assert albedo_source[0].GetPrim().GetName() == "TextureAgentAlbedoTexture"
+    for input_name in ("normal", "roughness", "metallic"):
+        assert output_preview.GetInput(input_name).GetConnectedSource() is None
+    for node_name in (
+        "TextureAgentNormalTexture",
+        "TextureAgentORMTexture",
+        "TextureAgentRoughnessTexture",
+        "TextureAgentMetalnessTexture",
+    ):
+        assert not output_stage.GetPrimAtPath(
+            f"/Root/Looks/Plastic/{node_name}"
+        ).IsValid()
+    assert result["apply_textures_stats"]["preview_texture_inputs_overridden"] == [
+        "/Root/Looks/Plastic/TextureAgentAlbedoTexture:file"
+    ]
+
+
+def test_apply_textures_task_fills_partial_preview_graph_without_replacing_existing_node(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    input_path = tmp_path / "input.usda"
+    stage = Usd.Stage.CreateNew(str(input_path))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Surface")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set((0.1, 0.2, 0.3))
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+
+    existing_roughness = UsdShade.Shader.Define(
+        stage, "/Root/Looks/Plastic/ExistingRoughnessTexture"
+    )
+    existing_roughness.CreateIdAttr("UsdUVTexture")
+    existing_roughness.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_roughness.png")
+    )
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        existing_roughness.CreateOutput("r", Sdf.ValueTypeNames.Float)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    result = apply_textures_task.ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_path),
+            "blended_textures": {
+                "Plastic": apply_textures_task.BlendedTextures(
+                    albedo=_save_png(
+                        textures_dir / "Plastic_albedo.png", (200, 50, 50)
+                    ),
+                    normal=_save_png(
+                        textures_dir / "Plastic_normal.png", (128, 128, 255)
+                    ),
+                    orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+                )
+            },
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Surface")
+    )
+
+    diffuse_source = output_preview.GetInput("diffuseColor").GetConnectedSource()
+    assert diffuse_source is not None
+    assert diffuse_source[0].GetPrim().GetName() == "TextureAgentAlbedoTexture"
+
+    roughness_source = output_preview.GetInput("roughness").GetConnectedSource()
+    assert roughness_source is not None
+    assert roughness_source[0].GetPrim().GetPath() == Sdf.Path(
+        "/Root/Looks/Plastic/ExistingRoughnessTexture"
+    )
+    output_roughness = UsdShade.Shader(roughness_source[0].GetPrim())
+    assert (
+        output_roughness.GetInput("file").Get().path.endswith("Plastic_roughness.png")
+    )
+    assert not output_stage.GetPrimAtPath(
+        "/Root/Looks/Plastic/TextureAgentRoughnessTexture"
+    ).IsValid()
+
+
+def test_apply_textures_task_enriches_albedo_only_preview_graph_on_rerun(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    input_path = tmp_path / "input.usda"
+    stage = Usd.Stage.CreateNew(str(input_path))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Surface")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set((0.1, 0.2, 0.3))
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+    stage.GetRootLayer().Save()
+
+    first_working_dir = tmp_path / "first"
+    first_textures_dir = first_working_dir / "textures"
+    first_textures_dir.mkdir(parents=True)
+    first_result = apply_textures_task.ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_path),
+            "blended_textures": {
+                "Plastic": apply_textures_task.BlendedTextures(
+                    albedo=_save_png(
+                        first_textures_dir / "Plastic_initial_albedo.png",
+                        (200, 50, 50),
+                    ),
+                    normal="",
+                    orm="",
+                )
+            },
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(first_working_dir),
+        }
+    )
+
+    first_output_path = Path(first_result["output_usd_paths"][0])
+    first_output_stage = Usd.Stage.Open(str(first_output_path))
+    first_albedo = UsdShade.Shader(
+        first_output_stage.GetPrimAtPath(
+            "/Root/Looks/Plastic/TextureAgentAlbedoTexture"
+        )
+    )
+    assert first_albedo.GetPrim().IsValid()
+    first_albedo.GetPrim().CreateAttribute(
+        "test:preservationMarker", Sdf.ValueTypeNames.String
+    ).Set("first-pass")
+    first_output_stage.GetRootLayer().Save()
+
+    second_working_dir = tmp_path / "second"
+    second_textures_dir = second_working_dir / "textures"
+    second_textures_dir.mkdir(parents=True)
+    second_result = apply_textures_task.ApplyTexturesTask().run(
+        {
+            "usd_path": str(first_output_path),
+            "blended_textures": {
+                "Plastic": apply_textures_task.BlendedTextures(
+                    albedo=_save_png(
+                        second_textures_dir / "Plastic_enriched_albedo.png",
+                        (50, 200, 50),
+                    ),
+                    normal=_save_png(
+                        second_textures_dir / "Plastic_normal.png",
+                        (128, 128, 255),
+                    ),
+                    orm=_save_png(
+                        second_textures_dir / "Plastic_orm.png", (255, 64, 32)
+                    ),
+                )
+            },
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(second_working_dir),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(second_result["output_usd_paths"][0])
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Surface")
+    )
+    expected_nodes = {
+        "diffuseColor": "TextureAgentAlbedoTexture",
+        "normal": "TextureAgentNormalTexture",
+        "occlusion": "TextureAgentORMTexture",
+        "roughness": "TextureAgentRoughnessTexture",
+        "metallic": "TextureAgentMetalnessTexture",
+    }
+    for input_name, expected_node in expected_nodes.items():
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetName() == expected_node
+
+    output_albedo = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/TextureAgentAlbedoTexture")
+    )
+    assert (
+        output_albedo.GetPrim().GetAttribute("test:preservationMarker").Get()
+        == "first-pass"
+    )
+    assert (
+        output_albedo.GetInput("file")
+        .Get()
+        .path.endswith("Plastic_enriched_albedo.png")
+    )
+
+
+def test_apply_textures_task_keeps_shared_usd_preview_orm_node(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    task = apply_textures_task.ApplyTexturesTask()
+    stage = Usd.Stage.CreateNew(str(tmp_path / "input.usda"))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Preview")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+
+    orm = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/OrmTexture")
+    orm.CreateIdAttr("UsdUVTexture")
+    orm.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_orm.png")
+    )
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        orm.CreateOutput("g", Sdf.ValueTypeNames.Float)
+    )
+    preview.CreateInput("metallic", Sdf.ValueTypeNames.Float).ConnectToSource(
+        orm.CreateOutput("b", Sdf.ValueTypeNames.Float)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(textures_dir / "Plastic_albedo.png", (200, 50, 50)),
+        normal=_save_png(textures_dir / "Plastic_normal.png", (128, 128, 255)),
+        orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(tmp_path / "input.usda"),
+            "blended_textures": {"Plastic": blended},
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    out_orm = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/OrmTexture")
+    )
+
+    assert out_orm.GetInput("file").Get().path.endswith("Plastic_orm.png")
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Preview")
+    )
+    for input_name, expected_node, expected_output in (
+        ("roughness", "OrmTexture", "g"),
+        ("metallic", "OrmTexture", "b"),
+        ("diffuseColor", "TextureAgentAlbedoTexture", "rgb"),
+        ("normal", "TextureAgentNormalTexture", "rgb"),
+        ("occlusion", "TextureAgentORMTexture", "r"),
+    ):
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetName() == expected_node
+        assert source[1] == expected_output
+    for node_name in ("TextureAgentRoughnessTexture", "TextureAgentMetalnessTexture"):
+        assert not output_stage.GetPrimAtPath(
+            f"/Root/Looks/Plastic/{node_name}"
+        ).IsValid()
+    stats = result["apply_textures_stats"]
+    assert set(stats["preview_texture_inputs_overridden"]) == {
+        "/Root/Looks/Plastic/OrmTexture:file",
+        "/Root/Looks/Plastic/TextureAgentAlbedoTexture:file",
+        "/Root/Looks/Plastic/TextureAgentNormalTexture:file",
+        "/Root/Looks/Plastic/TextureAgentORMTexture:file",
+    }
+
+
+def test_apply_textures_task_skips_shared_usd_preview_scalar_node_without_swizzles(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    task = apply_textures_task.ApplyTexturesTask()
+    stage = Usd.Stage.CreateNew(str(tmp_path / "input.usda"))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Preview")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+
+    shared = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/SharedScalar")
+    shared.CreateIdAttr("UsdUVTexture")
+    shared.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_shared_scalar.png")
+    )
+    scalar_r = shared.CreateOutput("r", Sdf.ValueTypeNames.Float)
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(scalar_r)
+    preview.CreateInput("metallic", Sdf.ValueTypeNames.Float).ConnectToSource(scalar_r)
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(textures_dir / "Plastic_albedo.png", (200, 50, 50)),
+        normal=_save_png(textures_dir / "Plastic_normal.png", (128, 128, 255)),
+        orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(tmp_path / "input.usda"),
+            "blended_textures": {"Plastic": blended},
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    out_shared = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/SharedScalar")
+    )
+
+    assert out_shared.GetInput("file").Get().path.endswith("original_shared_scalar.png")
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Preview")
+    )
+    for input_name in ("roughness", "metallic"):
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetPath() == Sdf.Path(
+            "/Root/Looks/Plastic/SharedScalar"
+        )
+        assert source[1] == "r"
+    for input_name, expected_node in {
+        "diffuseColor": "TextureAgentAlbedoTexture",
+        "normal": "TextureAgentNormalTexture",
+        "occlusion": "TextureAgentORMTexture",
+    }.items():
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetName() == expected_node
+    assert set(result["apply_textures_stats"]["preview_texture_inputs_overridden"]) == {
+        "/Root/Looks/Plastic/TextureAgentAlbedoTexture:file",
+        "/Root/Looks/Plastic/TextureAgentNormalTexture:file",
+        "/Root/Looks/Plastic/TextureAgentORMTexture:file",
+    }
+
+
+def test_apply_textures_task_skips_shared_usd_preview_mixed_channel_node(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    task = apply_textures_task.ApplyTexturesTask()
+    stage = Usd.Stage.CreateNew(str(tmp_path / "input.usda"))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Preview")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+
+    shared = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/SharedMixed")
+    shared.CreateIdAttr("UsdUVTexture")
+    shared.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_shared_mixed.png")
+    )
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+        shared.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+    )
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        shared.CreateOutput("r", Sdf.ValueTypeNames.Float)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(textures_dir / "Plastic_albedo.png", (200, 50, 50)),
+        normal=_save_png(textures_dir / "Plastic_normal.png", (128, 128, 255)),
+        orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(tmp_path / "input.usda"),
+            "blended_textures": {"Plastic": blended},
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    out_shared = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/SharedMixed")
+    )
+
+    assert out_shared.GetInput("file").Get().path.endswith("original_shared_mixed.png")
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Preview")
+    )
+    for input_name, expected_output in (("diffuseColor", "rgb"), ("roughness", "r")):
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetPath() == Sdf.Path(
+            "/Root/Looks/Plastic/SharedMixed"
+        )
+        assert source[1] == expected_output
+    for input_name, expected_node in {
+        "normal": "TextureAgentNormalTexture",
+        "occlusion": "TextureAgentORMTexture",
+        "metallic": "TextureAgentMetalnessTexture",
+    }.items():
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetName() == expected_node
+    assert set(result["apply_textures_stats"]["preview_texture_inputs_overridden"]) == {
+        "/Root/Looks/Plastic/TextureAgentNormalTexture:file",
+        "/Root/Looks/Plastic/TextureAgentORMTexture:file",
+        "/Root/Looks/Plastic/TextureAgentMetalnessTexture:file",
+    }
+
+
+def test_apply_textures_task_skips_external_usd_preview_texture_nodes(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    task = apply_textures_task.ApplyTexturesTask()
+    stage = Usd.Stage.CreateNew(str(tmp_path / "input.usda"))
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Preview")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+
+    shared = UsdShade.Shader.Define(stage, "/Root/Shared/SharedOrmTexture")
+    shared.CreateIdAttr("UsdUVTexture")
+    shared.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("./textures/original_shared_orm.png")
+    )
+    preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        shared.CreateOutput("g", Sdf.ValueTypeNames.Float)
+    )
+    preview.CreateInput("metallic", Sdf.ValueTypeNames.Float).ConnectToSource(
+        shared.CreateOutput("b", Sdf.ValueTypeNames.Float)
+    )
+    stage.GetRootLayer().Save()
+
+    textures_dir = tmp_path / "textures"
+    textures_dir.mkdir()
+    blended = apply_textures_task.BlendedTextures(
+        albedo=_save_png(textures_dir / "Plastic_albedo.png", (200, 50, 50)),
+        normal=_save_png(textures_dir / "Plastic_normal.png", (128, 128, 255)),
+        orm=_save_png(textures_dir / "Plastic_orm.png", (255, 64, 32)),
+    )
+
+    result = task.run(
+        {
+            "usd_path": str(tmp_path / "input.usda"),
+            "blended_textures": {"Plastic": blended},
+            "prim_texture_units": [_unit("Plastic")],
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output_stage = Usd.Stage.Open(result["output_usd_paths"][0])
+    out_shared = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Shared/SharedOrmTexture")
+    )
+
+    assert out_shared.GetInput("file").Get().path.endswith("original_shared_orm.png")
+    output_preview = UsdShade.Shader(
+        output_stage.GetPrimAtPath("/Root/Looks/Plastic/Preview")
+    )
+    for input_name, expected_output in (("roughness", "g"), ("metallic", "b")):
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetPath() == Sdf.Path(
+            "/Root/Shared/SharedOrmTexture"
+        )
+        assert source[1] == expected_output
+    for input_name, expected_node in {
+        "diffuseColor": "TextureAgentAlbedoTexture",
+        "normal": "TextureAgentNormalTexture",
+        "occlusion": "TextureAgentORMTexture",
+    }.items():
+        source = output_preview.GetInput(input_name).GetConnectedSource()
+        assert source is not None
+        assert source[0].GetPrim().GetName() == expected_node
+    assert set(result["apply_textures_stats"]["preview_texture_inputs_overridden"]) == {
+        "/Root/Looks/Plastic/TextureAgentAlbedoTexture:file",
+        "/Root/Looks/Plastic/TextureAgentNormalTexture:file",
+        "/Root/Looks/Plastic/TextureAgentORMTexture:file",
+    }
 
 
 def test_apply_textures_task_localizes_local_unmapped_mdl_inputs(
@@ -1437,9 +3093,9 @@ def test_is_unbundleable_asset_path_classification(path: str, unbundleable: bool
 def test_apply_textures_task_refuses_localize_outside_usd_directory(
     tmp_path: Path,
 ) -> None:
-    """Security regression for OMPE-91783: a malicious USD must not be able to
-    use unmapped MDL `*_texture` inputs to copy host files outside the upload
-    directory into the bundle textures dir, where they'd be exposed via the
+    """A malicious USD must not be able to use unmapped MDL `*_texture`
+    inputs to copy host files outside the upload directory into the bundle
+    textures dir, where they'd be exposed via the
     artifact download endpoint. Codex round-4 caught this CVE-class issue.
     """
     from pxr import Sdf, Usd, UsdShade
@@ -2051,12 +3707,67 @@ def test_render_output_task_handles_empty_outputs(tmp_path: Path) -> None:
     result = task.run({"output_usd_paths": [], "working_dir": str(tmp_path)})
 
     assert result["rendered_image_paths"] == []
+    assert result["render_stats"]["render_available"] is False
+    assert result["render_stats"]["production_visual_evidence"] is False
+
+
+def test_render_output_task_reports_global_slot_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from contextlib import contextmanager
+
+    from pxr import Usd, UsdGeom
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Cube.Define(stage, "/Root/Cube")
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+    import world_understanding.functions.graphics.render_remote_async as render_async
+    import world_understanding.utils.usd.material as usd_material
+
+    captured: dict[str, float | None] = {}
+
+    @contextmanager
+    def timeout_slot(*, timeout_seconds: float | None = None):
+        captured["timeout_seconds"] = timeout_seconds
+        raise render_async.RemoteRenderingSlotTimeoutError("test slot timeout")
+        yield 0.0
+
+    def unexpected_render_all_cameras(**kwargs):
+        raise AssertionError("render should not start after slot timeout")
+
+    monkeypatch.setattr(
+        usd_material, "convert_custom_mdl_to_builtin", lambda stage: None
+    )
+    monkeypatch.setattr(render_async, "global_remote_render_slot", timeout_slot)
+    monkeypatch.setattr(
+        render_nvcf, "render_all_cameras", unexpected_render_all_cameras
+    )
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {
+                "image_width": 64,
+                "render_slot_timeout_sec": 0.25,
+            },
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert result["rendered_image_paths"] == []
+    assert captured["timeout_seconds"] == 0.25
+    assert result["render_errors"][0]["code"] == "RENDER_GLOBAL_SLOT_TIMEOUT"
 
 
 def test_render_output_task_adds_fallback_camera_and_saves_images(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from pxr import Usd, UsdGeom
+    from pxr import Usd, UsdGeom, UsdLux
 
     task = render_task.RenderOutputTask()
     usd_path = tmp_path / "output.usda"
@@ -2071,6 +3782,10 @@ def test_render_output_task_adds_fallback_camera_and_saves_images(
 
     def fake_render_all_cameras(**kwargs):
         captured.update(kwargs)
+        render_stage = kwargs["stage"]
+        captured["has_default_lights"] = any(
+            prim.HasAPI(UsdLux.LightAPI) for prim in render_stage.Traverse()
+        )
         return {
             "results": [
                 {
@@ -2089,7 +3804,7 @@ def test_render_output_task_adds_fallback_camera_and_saves_images(
     result = task.run(
         {
             "output_usd_paths": [str(usd_path)],
-            "render_config": {"image_width": 64},
+            "render_config": {"image_width": 64, "timeout_sec": 123},
             "working_dir": str(tmp_path),
         }
     )
@@ -2097,11 +3812,509 @@ def test_render_output_task_adds_fallback_camera_and_saves_images(
     assert len(result["rendered_image_paths"]) == 1
     assert Path(result["rendered_image_paths"][0]).exists()
     assert captured["cameras"] == ["/Cameras/TextureAgentFinal"]
+    assert captured["timeout"] == 123
+    assert captured["has_default_lights"] is True
     assert result["render_stats"]["render_available"] is True
     assert any(
         item["code"] == "RENDER_NO_CAMERA" and item["severity"] == "warning"
         for item in result["render_diagnostics"]
     )
+
+
+def test_render_output_task_saves_opaque_rgb_evidence(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pxr import Usd, UsdGeom
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Cube.Define(stage, "/Root/Cube")
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+    import world_understanding.utils.usd.material as usd_material
+
+    def fake_render_all_cameras(**kwargs):
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "status": "success",
+                    "images": [Image.new("RGBA", (4, 4), (20, 40, 60, 32))],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        usd_material, "convert_custom_mdl_to_builtin", lambda stage: None
+    )
+    monkeypatch.setattr(render_nvcf, "render_all_cameras", fake_render_all_cameras)
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {"image_width": 64},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    rendered = Image.open(result["rendered_image_paths"][0])
+    assert rendered.mode == "RGB"
+    assert rendered.getpixel((0, 0)) == (20, 40, 60)
+
+
+def test_render_output_task_adds_textured_preview_fallback(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, Vt
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    (tmp_path / "textures").mkdir()
+    texture_path = _save_png(tmp_path / "textures" / "Paint_albedo.png", (240, 190, 40))
+
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Camera.Define(stage, "/Camera")
+    mesh = UsdGeom.Mesh.Define(stage, "/Root/Mesh")
+    mesh.GetPointsAttr().Set(
+        [
+            Gf.Vec3f(0, 0, 0),
+            Gf.Vec3f(1, 0, 0),
+            Gf.Vec3f(1, 1, 0),
+            Gf.Vec3f(0, 1, 0),
+        ]
+    )
+    mesh.GetFaceVertexCountsAttr().Set([4])
+    mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2, 3])
+    st = UsdGeom.PrimvarsAPI(mesh.GetPrim()).CreatePrimvar(
+        "st",
+        Sdf.ValueTypeNames.TexCoord2fArray,
+        "faceVarying",
+    )
+    st.Set(
+        Vt.Vec2fArray(
+            [
+                Gf.Vec2f(0, 0),
+                Gf.Vec2f(1, 0),
+                Gf.Vec2f(1, 1),
+                Gf.Vec2f(0, 1),
+            ],
+        ),
+    )
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Paint")
+    material.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(str(texture_path)))
+    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+
+    captured = {}
+
+    def fake_render_all_cameras(**kwargs):
+        render_stage = kwargs["stage"]
+        render_material = UsdShade.Material(
+            render_stage.GetPrimAtPath("/Root/Looks/Paint"),
+        )
+        surface = render_material.GetSurfaceOutput()
+        sources, _ = surface.GetConnectedSources()
+        preview = UsdShade.Shader(sources[0].source.GetPrim())
+        diffuse_sources, _ = preview.GetInput("diffuseColor").GetConnectedSources()
+        display_color = UsdGeom.PrimvarsAPI(
+            render_stage.GetPrimAtPath("/Root/Mesh"),
+        ).GetPrimvar("displayColor")
+        albedo = UsdShade.Shader(diffuse_sources[0].source.GetPrim())
+        captured["preview_id"] = preview.GetIdAttr().Get()
+        captured["diffuse_sources"] = diffuse_sources
+        captured["albedo_id"] = albedo.GetIdAttr().Get()
+        captured["albedo_file"] = albedo.GetInput("file").Get().path
+        captured["has_display_color"] = bool(display_color and display_color.HasValue())
+        captured["max_workers"] = kwargs["max_workers"]
+        captured["base_dir"] = kwargs["base_dir"]
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "status": "success",
+                    "images": [Image.new("RGB", (4, 4), (240, 190, 40))],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(render_nvcf, "render_all_cameras", fake_render_all_cameras)
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {"image_width": 64},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert len(result["rendered_image_paths"]) == 1
+    assert captured["preview_id"] == "UsdPreviewSurface"
+    assert captured["diffuse_sources"]
+    assert captured["albedo_id"] == "UsdUVTexture"
+    assert captured["albedo_file"] == str(texture_path)
+    assert captured["has_display_color"] is False
+    assert captured["max_workers"] == 1
+    assert captured["base_dir"] == tmp_path
+    assert result["render_stats"]["texture_detail_display_color_bakes"] == 0
+    assert result["render_stats"]["texture_detail_uv_texture_fallbacks"] == 1
+
+    original_stage = Usd.Stage.Open(str(usd_path))
+    original_display_color = UsdGeom.PrimvarsAPI(
+        original_stage.GetPrimAtPath("/Root/Mesh"),
+    ).GetPrimvar("displayColor")
+    assert not original_display_color.HasValue()
+
+
+def test_render_output_task_overrides_existing_preview_texture_graph(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    (tmp_path / "textures").mkdir()
+    texture_path = _save_png(
+        tmp_path / "textures" / "Plastic_albedo.png", (210, 160, 20)
+    )
+    original_texture_path = _save_png(
+        tmp_path / "textures" / "original_albedo.png", (20, 60, 210)
+    )
+
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Camera.Define(stage, "/Camera")
+    cube = UsdGeom.Cube.Define(stage, "/Root/Cube")
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    material.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(str(texture_path)))
+    preview = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/Preview")
+    preview.CreateIdAttr("UsdPreviewSurface")
+    material.CreateSurfaceOutput().ConnectToSource(
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    )
+    albedo = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/AlbedoTexture")
+    albedo.CreateIdAttr("UsdUVTexture")
+    albedo.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(str(original_texture_path))
+    )
+    preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+        albedo.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+    )
+    UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(material)
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+
+    captured = {}
+
+    def fake_render_all_cameras(**kwargs):
+        render_stage = kwargs["stage"]
+        render_material = UsdShade.Material(
+            render_stage.GetPrimAtPath("/Root/Looks/Plastic"),
+        )
+        surface = render_material.GetSurfaceOutput()
+        sources, _ = surface.GetConnectedSources()
+        fallback = UsdShade.Shader(sources[0].source.GetPrim())
+        diffuse_sources, _ = fallback.GetInput("diffuseColor").GetConnectedSources()
+        albedo = UsdShade.Shader(diffuse_sources[0].source.GetPrim())
+        captured["surface_source_name"] = sources[0].source.GetPrim().GetName()
+        captured["preview_id"] = fallback.GetIdAttr().Get()
+        captured["diffuse_sources"] = diffuse_sources
+        captured["albedo_source_name"] = diffuse_sources[0].source.GetPrim().GetName()
+        captured["albedo_id"] = albedo.GetIdAttr().Get()
+        captured["albedo_file"] = albedo.GetInput("file").Get().path
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "status": "success",
+                    "images": [Image.new("RGB", (4, 4), (210, 160, 20))],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(render_nvcf, "render_all_cameras", fake_render_all_cameras)
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {"image_width": 64},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert len(result["rendered_image_paths"]) == 1
+    assert captured["surface_source_name"] == "OVRTXPreviewSurface"
+    assert captured["preview_id"] == "UsdPreviewSurface"
+    assert captured["diffuse_sources"]
+    assert captured["albedo_source_name"] == "OVRTXPreviewAlbedoTexture"
+    assert captured["albedo_id"] == "UsdUVTexture"
+    assert captured["albedo_file"] == str(texture_path)
+    assert result["render_stats"]["texture_detail_display_color_bakes"] == 0
+    assert result["render_stats"]["texture_detail_uv_texture_fallbacks"] == 1
+
+
+def test_render_output_task_preserves_connected_mdl_surface(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    (tmp_path / "textures").mkdir()
+    texture_path = _save_png(tmp_path / "textures" / "Metal_albedo.png", (90, 80, 70))
+
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Camera.Define(stage, "/Camera")
+    cube = UsdGeom.Cube.Define(stage, "/Root/Cube")
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Metal")
+    material.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(str(texture_path)))
+    mdl_shader = UsdShade.Shader.Define(stage, "/Root/Looks/Metal/MdlShader")
+    mdl_shader.CreateIdAttr("OmniPBR")
+    mdl_shader.CreateInput("diffuse_texture", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(str(texture_path))
+    )
+    material.CreateSurfaceOutput("mdl").ConnectToSource(
+        mdl_shader.CreateOutput("out", Sdf.ValueTypeNames.Token)
+    )
+    UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(material)
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+    import world_understanding.utils.usd.material as usd_material
+
+    captured = {}
+
+    def fake_render_all_cameras(**kwargs):
+        render_stage = kwargs["stage"]
+        render_material = UsdShade.Material(
+            render_stage.GetPrimAtPath("/Root/Looks/Metal"),
+        )
+        universal_surface = render_material.GetSurfaceOutput()
+        mdl_surface = render_material.GetSurfaceOutput("mdl")
+        universal_sources, _ = universal_surface.GetConnectedSources()
+        mdl_sources, _ = mdl_surface.GetConnectedSources()
+        captured["universal_sources"] = universal_sources
+        captured["mdl_source_name"] = mdl_sources[0].source.GetPrim().GetName()
+        captured["base_dir"] = kwargs["base_dir"]
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "status": "success",
+                    "images": [Image.new("RGB", (4, 4), (90, 80, 70))],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        usd_material, "convert_custom_mdl_to_builtin", lambda stage: None
+    )
+    monkeypatch.setattr(render_nvcf, "render_all_cameras", fake_render_all_cameras)
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {"image_width": 64},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert len(result["rendered_image_paths"]) == 1
+    assert captured["universal_sources"] == []
+    assert captured["mdl_source_name"] == "MdlShader"
+    assert captured["base_dir"] == tmp_path
+    assert result["render_stats"]["texture_detail_display_color_bakes"] == 0
+    assert result["render_stats"]["texture_detail_uv_texture_fallbacks"] == 0
+
+
+def test_render_output_task_overrides_stale_connected_mdl_texture(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    (tmp_path / "textures").mkdir()
+    texture_path = _save_png(
+        tmp_path / "textures" / "generated_bucket_albedo.png",
+        (180, 90, 40),
+    )
+    stale_texture_path = _save_png(
+        tmp_path / "textures" / "source_bucket_albedo.png",
+        (20, 30, 40),
+    )
+
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Camera.Define(stage, "/Camera")
+    cube = UsdGeom.Cube.Define(stage, "/Root/Cube")
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Bucket")
+    material.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(str(texture_path)))
+    mdl_shader = UsdShade.Shader.Define(stage, "/Root/Looks/Bucket/MdlShader")
+    mdl_shader.CreateIdAttr("OmniPBR")
+    mdl_shader.CreateInput("diffuse_texture", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(str(stale_texture_path))
+    )
+    material.CreateSurfaceOutput("mdl").ConnectToSource(
+        mdl_shader.CreateOutput("out", Sdf.ValueTypeNames.Token)
+    )
+    UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(material)
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+    import world_understanding.utils.usd.material as usd_material
+
+    captured = {}
+
+    def fake_render_all_cameras(**kwargs):
+        render_stage = kwargs["stage"]
+        render_material = UsdShade.Material(
+            render_stage.GetPrimAtPath("/Root/Looks/Bucket"),
+        )
+        universal_surface = render_material.GetSurfaceOutput()
+        mdl_surface = render_material.GetSurfaceOutput("mdl")
+        universal_sources, _ = universal_surface.GetConnectedSources()
+        mdl_sources, _ = mdl_surface.GetConnectedSources()
+        preview = UsdShade.Shader(universal_sources[0].source.GetPrim())
+        diffuse_sources, _ = preview.GetInput("diffuseColor").GetConnectedSources()
+        albedo = UsdShade.Shader(diffuse_sources[0].source.GetPrim())
+        captured["universal_source_name"] = preview.GetPrim().GetName()
+        captured["preview_id"] = preview.GetIdAttr().Get()
+        captured["albedo_file"] = albedo.GetInput("file").Get().path
+        captured["mdl_source_name"] = mdl_sources[0].source.GetPrim().GetName()
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "status": "success",
+                    "images": [Image.new("RGB", (4, 4), (180, 90, 40))],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        usd_material, "convert_custom_mdl_to_builtin", lambda stage: None
+    )
+    monkeypatch.setattr(render_nvcf, "render_all_cameras", fake_render_all_cameras)
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {"image_width": 64},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert len(result["rendered_image_paths"]) == 1
+    assert captured["universal_source_name"] == "OVRTXPreviewSurface"
+    assert captured["preview_id"] == "UsdPreviewSurface"
+    assert captured["albedo_file"] == str(texture_path)
+    assert captured["mdl_source_name"] == "MdlShader"
+    assert result["render_stats"]["texture_detail_display_color_bakes"] == 0
+    assert result["render_stats"]["texture_detail_uv_texture_fallbacks"] == 1
+
+
+def test_render_output_task_adds_preview_for_textureless_custom_mdl(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
+
+    task = render_task.RenderOutputTask()
+    usd_path = tmp_path / "output.usda"
+    (tmp_path / "textures").mkdir()
+    texture_path = _save_png(
+        tmp_path / "textures" / "Plastic_albedo.png", (20, 80, 210)
+    )
+
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Camera.Define(stage, "/Camera")
+    cube = UsdGeom.Cube.Define(stage, "/Root/Cube")
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Plastic")
+    material.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(str(texture_path)))
+    mdl_shader = UsdShade.Shader.Define(stage, "/Root/Looks/Plastic/MdlShader")
+    mdl_shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset", Sdf.ValueTypeNames.Asset
+    ).Set(Sdf.AssetPath("./materials/Plastic.mdl"))
+    mdl_shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset:subIdentifier", Sdf.ValueTypeNames.Token
+    ).Set("Plastic")
+    mdl_shader.CreateInput("diffuse_tint", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(1.0, 0.61, 0.0)
+    )
+    # An authored but unset texture input is not enough for OVRTX to render
+    # generated maps through the custom MDL; the preview fallback is still
+    # required.
+    mdl_shader.CreateInput("diffuse_texture", Sdf.ValueTypeNames.Asset)
+    material.CreateSurfaceOutput("mdl").ConnectToSource(
+        mdl_shader.CreateOutput("out", Sdf.ValueTypeNames.Token)
+    )
+    UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(material)
+    stage.GetRootLayer().Save()
+
+    import world_understanding.functions.graphics.render_remote as render_nvcf
+    import world_understanding.utils.usd.material as usd_material
+
+    captured = {}
+
+    def fake_render_all_cameras(**kwargs):
+        render_stage = kwargs["stage"]
+        render_material = UsdShade.Material(
+            render_stage.GetPrimAtPath("/Root/Looks/Plastic"),
+        )
+        universal_surface = render_material.GetSurfaceOutput()
+        universal_sources, _ = universal_surface.GetConnectedSources()
+        preview = UsdShade.Shader(universal_sources[0].source.GetPrim())
+        diffuse_sources, _ = preview.GetInput("diffuseColor").GetConnectedSources()
+        albedo = UsdShade.Shader(diffuse_sources[0].source.GetPrim())
+        captured["universal_source_name"] = preview.GetPrim().GetName()
+        captured["preview_id"] = preview.GetIdAttr().Get()
+        captured["albedo_file"] = albedo.GetInput("file").Get().path
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "status": "success",
+                    "images": [Image.new("RGB", (4, 4), (20, 80, 210))],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        usd_material, "convert_custom_mdl_to_builtin", lambda stage: None
+    )
+    monkeypatch.setattr(render_nvcf, "render_all_cameras", fake_render_all_cameras)
+
+    result = task.run(
+        {
+            "output_usd_paths": [str(usd_path)],
+            "render_config": {"image_width": 64},
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    assert len(result["rendered_image_paths"]) == 1
+    assert captured["universal_source_name"] == "OVRTXPreviewSurface"
+    assert captured["preview_id"] == "UsdPreviewSurface"
+    assert captured["albedo_file"] == str(texture_path)
+    assert result["render_stats"]["texture_detail_display_color_bakes"] == 0
+    assert result["render_stats"]["texture_detail_uv_texture_fallbacks"] == 1
 
 
 def test_render_output_task_accepts_legacy_list_renderer_shape(
@@ -2595,6 +4808,10 @@ def test_render_output_task_reports_bad_renderer_result_shape(
     assert result["rendered_image_paths"] == []
     assert result["render_stats"]["render_available"] is False
     assert result["render_errors"][0]["code"] == "RENDER_RESULT_PARSE_ERROR"
+    assert result["render_errors"][0]["message"] == (
+        "Renderer returned an unsupported result shape: "
+        "render_all_cameras returned a dict without a list-valued 'results' key"
+    )
     assert result["render_errors"][0]["details"]["exception_type"] == "ValueError"
 
 

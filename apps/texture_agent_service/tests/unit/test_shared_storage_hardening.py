@@ -85,6 +85,16 @@ def test_storage_config_honors_wu_s3_fallbacks(
     assert config.s3_profile == "wu-profile"
 
 
+def test_storage_config_normalizes_empty_s3_session_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TA_STORAGE_S3_SESSION_TOKEN", "")
+
+    config = StorageConfig()
+
+    assert config.s3_session_token is None
+
+
 def test_storage_config_repr_hides_s3_credentials() -> None:
     config = StorageConfig(
         s3_access_key_id="ACCESS",
@@ -154,6 +164,31 @@ def test_s3_session_store_explicit_credentials_ignore_profile(
     assert calls["client_kwargs"]["aws_access_key_id"] == "EXPLICIT_ACCESS"
     assert calls["client_kwargs"]["aws_secret_access_key"] == "EXPLICIT_SECRET"
     assert calls["client_kwargs"]["aws_session_token"] == "EXPLICIT_TOKEN"
+
+
+def test_s3_session_store_normalizes_empty_session_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: dict[str, Any] = {}
+    fake_client = object()
+
+    def fake_client_factory(service_name: str, **kwargs: Any) -> object:
+        calls["service_name"] = service_name
+        calls["client_kwargs"] = kwargs
+        return fake_client
+
+    monkeypatch.setattr(s3_store_module.boto3, "client", fake_client_factory)
+
+    store = S3SessionStore(
+        bucket="bucket",
+        access_key_id="EXPLICIT_ACCESS",
+        secret_access_key="EXPLICIT_SECRET",
+        session_token="",
+    )
+
+    assert store._get_client() is fake_client
+    assert calls["service_name"] == "s3"
+    assert calls["client_kwargs"]["aws_session_token"] is None
 
 
 def test_s3_session_store_missing_profile_falls_back_to_default_chain(
@@ -1556,7 +1591,7 @@ async def test_event_bus_debounces_shared_live_progress_metadata(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(bus_module, "_LIVE_METADATA_FLUSH_INTERVAL_SECONDS", 0.05)
+    monkeypatch.setattr(bus_module, "_LIVE_METADATA_FLUSH_INTERVAL_SECONDS", 1.0)
 
     class CountingManager(SessionManager):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -1606,7 +1641,11 @@ async def test_event_bus_debounces_shared_live_progress_metadata(
     assert manager.exists_checks == 1
     assert manager.live_updates[0]["current_step"]["progress"]["percent"] == 10
 
-    await asyncio.sleep(0.08)
+    deadline = asyncio.get_running_loop().time() + 2.0
+    while len(manager.live_updates) < 2:
+        if asyncio.get_running_loop().time() >= deadline:
+            pytest.fail("timed out waiting for debounced live metadata flush")
+        await asyncio.sleep(0.01)
 
     assert len(manager.live_updates) == 2
     assert manager.live_updates[-1]["current_step"]["progress"]["percent"] == 30

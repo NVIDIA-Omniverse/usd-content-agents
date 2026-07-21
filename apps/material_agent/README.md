@@ -18,15 +18,21 @@ The Material Agent addresses a fundamental challenge in 3D content creation: acc
 - Pipeline orchestration with automatic data flow between steps
 - Material library matching with fuzzy validation
 - Scene pipeline for large multi-asset USD files
-- RAG enhancement with technical specification documents
+- Specification evidence that can corroborate visual material predictions or
+  flag conflicts for review without overriding the visual result
 - Batch processing with parallel execution
 - Checkpointing and resume from failures
 - USD instance handling for cost savings and consistency
 - Optional image-based prim clustering for large scenes with repeated parts
 
+Technical specification text and converted PDF pages stay outside the visual
+model prompt. After the visual material label is selected, extracted material
+claims can corroborate it or flag a conflict for review; they cannot introduce
+or replace the visual label.
+
 ## Prefer the REST service?
 
-This README covers the `material-agent` CLI (Option B in the root [README](../../README.md#two-ways-to-use-this)). If you'd rather drive the same pipeline over HTTP with session management and progress streaming, see [`../material_agent_service/`](../material_agent_service/) — it brings up with a single `docker compose up`.
+This README covers the `material-agent` CLI (Option B in the root [README](../../README.md#three-ways-to-use-content-agents)). If you'd rather drive the same pipeline over HTTP with session management and progress streaming, see [`../material_agent_service/`](../material_agent_service/) — it brings up with a single `docker compose up`.
 
 ## Optional Prim Clustering
 
@@ -113,30 +119,30 @@ overrides in `.env` or edit those YAML fields directly:
 
 ```bash
 MA_VLM_BACKEND=openai
-MA_VLM_MODEL=gpt-4o
+MA_VLM_MODEL=example-vlm-model
 MA_LLM_BACKEND=openai
-MA_LLM_MODEL=gpt-4o
+MA_LLM_MODEL=example-vlm-model
 ```
 
-### Rendering Backend
+### Rendering Backends
 
-The pipeline renders multi-view images of each prim for VLM analysis. Two
-options:
+Material preview, per-prim dataset, and final-render steps use the same backend
+names and fail with a configuration error for any unknown value:
 
-- **Local via `material_agent_service`** (recommended for getting started) —
-  bring up the bundled docker-compose stack, which starts an OVRTX rendering
-  API container. Point `material-agent` at it by exporting
-  `RENDER_ENDPOINT=http://localhost:8001` (the default port exposed by the
-  service's `docker-compose.yml`).
-- **Remote NVCF rendering function** — if you have access to a deployed
-  [NVIDIA Cloud Function](https://docs.nvidia.com/cloud-functions/) that
-  serves the OVRTX render API, set `RENDER_ENDPOINT` to its full URL (or
-  set `NVCF_RENDER_FUNCTION_ID` to the function ID and
-  `NGC_API_KEY` for auth).
+| Backend | Semantics |
+|---|---|
+| `remote` | Render through an HTTP service. Configure `RENDER_ENDPOINT`, or `NVCF_RENDER_FUNCTION_ID` for NVCF; the bundled `material_agent_service` exposes its OVRTX sidecar at `http://localhost:8001`. |
+| `ovrtx` | Render locally with the isolated OVRTX RTX subprocess. Requires a compatible NVIDIA GPU and driver. |
+| `warp` | Render locally with the optional CUDA/Warp backend. Install the root `warp` extra. |
+| `mock` | Produce deterministic CPU-only images for simulation and CI. These are not production visual evidence. |
 
-The `unified_example.yaml` config uses `backend: remote`, which resolves
-via `RENDER_ENDPOINT` → `NVCF_RENDER_FUNCTION_ID`. Without one of these
-set, the rendering steps will fail.
+Set the name under `steps.render_preview.renderer.backend` or
+`steps.build_dataset_usd.renderer.backend`; the final render uses
+`steps.render.backend`. The shipped `unified_example.yaml` uses `remote`, so
+either `RENDER_ENDPOINT` or `NVCF_RENDER_FUNCTION_ID` must be configured for an
+unedited run. For an NVIDIA Cloud Functions renderer, the function ID supplies
+the endpoint;
+set `NGC_API_KEY` when that endpoint requires NVCF bearer authentication.
 
 ## Quick Start
 
@@ -145,7 +151,7 @@ set, the rendering steps will fail.
 ```bash
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # The unedited config uses backend: nim and requires NVIDIA_API_KEY.
-# RENDER_ENDPOINT or NVCF_RENDER_FUNCTION_ID must be set — see above.
+# Configure RENDER_ENDPOINT, or NVCF_RENDER_FUNCTION_ID when using NVCF.
 material-agent run apps/material_agent/configs/unified_example.yaml
 ```
 
@@ -165,11 +171,12 @@ hf download --repo-type dataset nvidia/PhysicalAI-SimReady-Warehouse-01 \
 
 # Copy the example config, then edit input.usd_path / reference_images
 # to point at the downloaded prop (absolute paths — ~ is not expanded
-# by the config loader):
-cp apps/material_agent/configs/unified_example.yaml \
-   apps/material_agent/configs/simready_scaffold.yaml
+# by the config loader). Because this copy lives at the repository root,
+# also set materials.path to the repository-root-relative manifest below:
+cp apps/material_agent/configs/unified_example.yaml my_simready_scaffold.yaml
+# materials.path: apps/material_agent/data/materials/material_libs_default/materials.yaml
 # ...edit, then:
-material-agent run apps/material_agent/configs/simready_scaffold.yaml
+material-agent run my_simready_scaffold.yaml
 ```
 
 Four curated assets (HF: scaffold, cleaning trolley; GitHub
@@ -269,13 +276,14 @@ input:
 materials:
   path: "path/to/materials.yaml"
 
-predict:
-  vlm:
-    backend: nim                    # or: openai, anthropic, gemini
-    model: qwen/qwen3.5-397b-a17b    # model from your chosen provider
+steps:
+  predict:
+    vlm:
+      backend: nim                  # or: openai, anthropic, gemini
+      model: qwen/qwen3.5-397b-a17b  # model from your chosen provider
 
-render:
-  backend: ovrtx
+  render:
+    backend: ovrtx
 ```
 
 Paths in config files are relative to the config file's directory.

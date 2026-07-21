@@ -390,6 +390,36 @@ class TestBuildImageVectorStore:
         """Create a mock embedding model."""
         return MockEmbeddingModel(api_key="dummy", embedding_dimension=512)
 
+    def test_build_creates_embedding_model_from_api_key(self, monkeypatch):
+        """Test default embedding model creation when an API key is configured."""
+        monkeypatch.setenv("NVIDIA_API_KEY", "test-api-key")
+        mock_model = MockEmbeddingModel(api_key="test-api-key", embedding_dimension=256)
+        expected_store = object()
+        captured_kwargs = {}
+
+        def create_model(**kwargs):
+            captured_kwargs["factory"] = kwargs
+            return mock_model
+
+        def build_store(**kwargs):
+            captured_kwargs["build"] = kwargs
+            return expected_store
+
+        monkeypatch.setattr(
+            "world_understanding.functions.knowledge.image_vector_store.create_image_embedding_model",
+            create_model,
+        )
+        monkeypatch.setattr(ImageVectorStore, "build_vector_store", build_store)
+
+        vector_store = build_image_vector_store(source=["image.png"])
+
+        assert vector_store is expected_store
+        assert captured_kwargs["factory"] == {
+            "backend": "nim",
+            "api_key": "test-api-key",
+        }
+        assert captured_kwargs["build"]["embedding_model"] is mock_model
+
     @pytest.fixture
     def temp_image_dir(self, tmp_path):
         """Create a temporary directory with test images."""

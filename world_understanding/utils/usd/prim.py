@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 import logging
+import math
 import random
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdLux, UsdShade, Vt
@@ -325,6 +326,7 @@ def nullify_materials(
         exclude_list = []
 
     # Determine which mode to use
+    prim_iter: Iterable[Usd.Prim]
     if prim_paths:
         # Targeted mode: process only specified prims
         prim_iter = (stage.GetPrimAtPath(path) for path in prim_paths)
@@ -350,19 +352,20 @@ def nullify_materials(
     return stage
 
 
-def set_mesh_display_color(
-    mesh: UsdGeom.Mesh,
+def set_gprim_display_color(
+    gprim: UsdGeom.Gprim,
     color: tuple[float, float, float],
     time: Usd.TimeCode = Usd.TimeCode.Default(),
 ) -> None:
-    """Set the display color of a mesh.
+    """Set the display color of a geometric primitive.
 
-    Sets the displayColor attribute on the mesh using the USD geometry API.
-    This function uses the mesh's built-in display color attribute rather than
-    creating a custom attribute.
+    ``UsdGeom.Gprim`` is the common base for meshes and native geometry such as
+    cubes, spheres, cylinders, cones, curves, and points. Using the base schema
+    keeps render preparation type-agnostic while authoring the standard
+    ``primvars:displayColor`` attribute.
 
     Args:
-        mesh (UsdGeom.Mesh): The mesh to set the display color for.
+        gprim (UsdGeom.Gprim): The geometric primitive to color.
         color (Tuple[float, float, float]): RGB color values (0.0-1.0).
         time (Usd.TimeCode): The time to set the displayColor attribute.
     Returns:
@@ -370,14 +373,43 @@ def set_mesh_display_color(
 
     Example:
         ```python
-        mesh = UsdGeom.Mesh.Get(stage, '/path/to/mesh')
-        set_mesh_display_color(mesh, (1.0, 0.0, 0.0))  # Set to red
+        cube = UsdGeom.Cube.Get(stage, "/path/to/cube")
+        set_gprim_display_color(UsdGeom.Gprim(cube.GetPrim()), (1.0, 0.0, 0.0))
         ```
+    """
+    gprim.GetDisplayColorAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*color)]), time=time)
+
+
+def set_mesh_display_color(
+    mesh: UsdGeom.Mesh,
+    color: tuple[float, float, float],
+    time: Usd.TimeCode = Usd.TimeCode.Default(),
+) -> None:
+    """Set the display color of a mesh.
+
+    This compatibility helper preserves the mesh-specific public API.
     """
     mesh.GetDisplayColorAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*color)]), time=time)
 
 
-def get_bbox_from_prim(prim: Usd.Prim) -> Gf.BBox3d:
+def _is_valid_bbox_range(bbox_range: Gf.Range3d) -> bool:
+    if bbox_range.IsEmpty():
+        return False
+    bbox_min = bbox_range.GetMin()
+    bbox_max = bbox_range.GetMax()
+    for i in range(3):
+        if not math.isfinite(bbox_min[i]) or not math.isfinite(bbox_max[i]):
+            return False
+        if bbox_min[i] > bbox_max[i]:
+            return False
+    return True
+
+
+def get_bbox_from_prim(
+    prim: Usd.Prim,
+    time: Usd.TimeCode = Usd.TimeCode.Default(),
+    included_purposes: Iterable[str] | None = None,
+) -> Gf.BBox3d:
     """Get the computed world-space bounding box (bbox) of a prim.
 
     Calculates and returns the actual bounding box for a prim in world space,
@@ -406,18 +438,70 @@ def get_bbox_from_prim(prim: Usd.Prim) -> Gf.BBox3d:
 
     Args:
         prim (Usd.Prim): The prim for which to get the bbox.
+        time: Time code used to compute the bound.
+        included_purposes: Optional UsdGeom purposes to include. The legacy
+            default includes only ``default`` geometry; callers must opt in to
+            additional purposes such as ``render``.
 
     Returns:
         Gf.BBox3d: The computed world-space bounding box for the prim.
     """
     # Create a BBoxCache object to compute the bounding box
-    bbox_cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+    bbox_cache = UsdGeom.BBoxCache(
+        time,
+        (
+            list(included_purposes)
+            if included_purposes is not None
+            else [UsdGeom.Tokens.default_]
+        ),
+    )
     # useGeom = True, useInvisibleGeom = False
 
-    # Compute the bounding box for the prim
+    # Compute the bounding box for the prim.
     bbox = bbox_cache.ComputeWorldBound(prim)
+    aligned_range = bbox.ComputeAlignedRange()
+    if _is_valid_bbox_range(aligned_range):
+        return bbox
 
-    return bbox
+    # Some Boundable container prim types, notably UsdSkelRoot, can report an
+    # empty own bound even when descendant meshes have valid bounds. Fall back to
+    # an explicit descendant union so camera framing does not inherit USD's
+    # empty-range sentinel values.
+    bbox_min: Gf.Vec3d | None = None
+    bbox_max: Gf.Vec3d | None = None
+    for child in Usd.PrimRange(prim, Usd.TraverseInstanceProxies()):
+        if child == prim:
+            continue
+        child_range = bbox_cache.ComputeWorldBound(child).ComputeAlignedRange()
+        if not _is_valid_bbox_range(child_range):
+            continue
+        child_min = child_range.GetMin()
+        child_max = child_range.GetMax()
+        if bbox_min is None or bbox_max is None:
+            bbox_min = Gf.Vec3d(child_min)
+            bbox_max = Gf.Vec3d(child_max)
+        else:
+            bbox_min = Gf.Vec3d(
+                min(bbox_min[0], child_min[0]),
+                min(bbox_min[1], child_min[1]),
+                min(bbox_min[2], child_min[2]),
+            )
+            bbox_max = Gf.Vec3d(
+                max(bbox_max[0], child_max[0]),
+                max(bbox_max[1], child_max[1]),
+                max(bbox_max[2], child_max[2]),
+            )
+
+    if bbox_min is not None and bbox_max is not None:
+        return Gf.BBox3d(Gf.Range3d(bbox_min, bbox_max))
+
+    logger.warning(
+        "No valid world-space bbox for prim %s at time %s; using zero-size fallback.",
+        prim.GetPath(),
+        time,
+    )
+    origin = Gf.Vec3d(0.0, 0.0, 0.0)
+    return Gf.BBox3d(Gf.Range3d(origin, origin))
 
 
 def print_prim_hierarchy(stage: Usd.Stage) -> None:
@@ -921,23 +1005,41 @@ def flatten_prototype_references(
         # Copy attributes from composed prim (values, connections, and shader IO)
         for attr in composed_prim.GetAttributes():
             has_value = attr.HasValue()
+            value_is_blocked = attr.GetResolveInfo().ValueIsBlocked()
             connections = attr.GetConnections()
             attr_name = attr.GetName()
             is_shader_io = attr_name.startswith("inputs:") or attr_name.startswith(
                 "outputs:"
             )
 
-            if has_value or connections or is_shader_io:
+            if has_value or value_is_blocked or connections or is_shader_io:
                 try:
                     attr_spec = Sdf.AttributeSpec(
                         prim_spec,
                         attr_name,
                         attr.GetTypeName(),
-                        Sdf.VariabilityVarying,
+                        attr.GetVariability(),
+                        attr.IsCustom(),
                     )
 
-                    # Copy value if present
-                    if has_value:
+                    # Structural fields are supplied to AttributeSpec above. Copy
+                    # the remaining authored metadata, including primvar
+                    # interpolation and elementSize.
+                    for key, value in attr.GetAllAuthoredMetadata().items():
+                        if key not in {
+                            "connectionPaths",
+                            "custom",
+                            "targetPaths",
+                            "typeName",
+                            "variability",
+                        }:
+                            attr_spec.SetInfo(key, value)
+
+                    # A blocked indices attribute is how an authored primvar can
+                    # explicitly remain unindexed. Do not silently discard it.
+                    if value_is_blocked:
+                        attr_spec.default = Sdf.ValueBlock()
+                    elif has_value:
                         val = attr.Get()
                         if val is not None:
                             attr_spec.default = val
@@ -1221,6 +1323,84 @@ def enable_visibility_except_for_selected_mesh_prims(
 
                 mesh = UsdGeom.Mesh(prim)
                 mesh.GetVisibilityAttr().Set(UsdGeom.Tokens.inherited, time=time)
+
+
+def disable_visibility_for_all_gprims(
+    stage: Usd.Stage,
+    traversal_method: str = "traverse_instanced_proxies",
+    time: Usd.TimeCode = Usd.TimeCode.Default(),
+) -> None:
+    """Disable visibility for all editable ``UsdGeom.Gprim`` prims.
+
+    This includes meshes and native geometric primitives. USD does not permit
+    authoring visibility on instance proxies directly, so remaining proxy
+    geometry is hidden through its nearest editable instance root. This keeps
+    unrelated instances intact while preserving prim-only render isolation.
+    """
+    gprim_paths = [
+        str(prim.GetPath())
+        for prim in traverse_prims(stage, traversal_method)
+        if prim.IsA(UsdGeom.Gprim)
+    ]
+    hidden_instance_roots: set[str] = set()
+
+    for prim_path in gprim_paths:
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim or not prim.IsValid() or not prim.IsA(UsdGeom.Gprim):
+            continue
+
+        masked_by_instance_root = False
+        deinstanced_roots: set[str] = set()
+        while prim.IsInstanceProxy():
+            instance_root = prim
+            while (
+                instance_root
+                and instance_root.IsValid()
+                and not instance_root.IsPseudoRoot()
+                and (not instance_root.IsInstance() or instance_root.IsInstanceProxy())
+            ):
+                instance_root = instance_root.GetParent()
+
+            if (
+                not instance_root
+                or not instance_root.IsValid()
+                or not instance_root.IsInstance()
+                or instance_root.IsInstanceProxy()
+            ):
+                raise ValueError(
+                    f"Gprim instance proxy has no editable instance root: {prim_path}"
+                )
+
+            instance_root_path = str(instance_root.GetPath())
+            imageable_root = UsdGeom.Imageable(instance_root)
+            if imageable_root:
+                if instance_root_path not in hidden_instance_roots:
+                    imageable_root.GetVisibilityAttr().Set(
+                        UsdGeom.Tokens.invisible,
+                        time=time,
+                    )
+                    hidden_instance_roots.add(instance_root_path)
+                masked_by_instance_root = True
+                break
+
+            if instance_root_path in deinstanced_roots:
+                raise ValueError(
+                    "Gprim remained an instance proxy after de-instancing "
+                    f"{instance_root_path}: {prim_path}"
+                )
+            deinstanced_roots.add(instance_root_path)
+            instance_root.SetInstanceable(False)
+            prim = stage.GetPrimAtPath(prim_path)
+
+        if masked_by_instance_root:
+            continue
+        if prim.IsInstance():
+            prim.SetInstanceable(False)
+            prim = stage.GetPrimAtPath(prim_path)
+        UsdGeom.Gprim(prim).GetVisibilityAttr().Set(
+            UsdGeom.Tokens.invisible,
+            time=time,
+        )
 
 
 def disable_visibility_for_all_mesh_prims(

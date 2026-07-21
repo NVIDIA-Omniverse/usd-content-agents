@@ -6,8 +6,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
+from world_understanding.agentic.config import load_config_mapping_from_context
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 from world_understanding.utils.object_store import ObjectStore
 
 logger = logging.getLogger(__name__)
@@ -68,7 +73,12 @@ class PrepareDatasetConfigTask(Task):
             dataset = self._resolve_path(dataset, config_dir)
         else:
             dataset = usd_dir.parent / "dataset"
-        dataset.mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            dataset,
+            label="prepare_dataset output directory",
+            parents=True,
+            exist_ok=True,
+        )
 
         # Models list
         models = config.get("models", ["."])
@@ -102,9 +112,12 @@ class PrepareDatasetConfigTask(Task):
         )
 
         logger.info("Loaded configuration for prepare dataset")
-        logger.info("USD directory: %s", usd_dir)
-        logger.info("Output dataset: %s", dataset)
-        logger.info("Models: %s", models)
+        logger.info("USD directory: %s", redact_sensitive_path(usd_dir))
+        logger.info("Output dataset: %s", redact_sensitive_path(dataset))
+        logger.info(
+            "Models: %s",
+            [redact_sensitive_path(model) for model in models],
+        )
 
         return context
 
@@ -117,19 +130,13 @@ class PrepareDatasetConfigTask(Task):
         Returns:
             Configuration dictionary
         """
-        if "config_dict" in context:
-            return context["config_dict"]
-
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("No config_path or config_dict in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+        config, _ = load_config_mapping_from_context(
+            context,
+            allow_empty=context.get("config_dict") is not None,
+            missing_path_message="No config_path or config_dict in context",
+            parse_error_message="Unable to parse configuration file: {config_path}",
+        )
+        return config
 
     def _resolve_path(self, path: str, config_dir: Path) -> Path:
         """Resolve path relative to config directory.
@@ -144,4 +151,7 @@ class PrepareDatasetConfigTask(Task):
         path_obj = Path(path)
         if path_obj.is_absolute():
             return path_obj
-        return (config_dir / path_obj).resolve()
+        return resolve_path_with_safe_diagnostics(
+            config_dir / path_obj,
+            label="prepare_dataset configuration path",
+        )

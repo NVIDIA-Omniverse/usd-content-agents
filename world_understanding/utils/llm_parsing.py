@@ -802,17 +802,16 @@ def dedupe_strings(values: Sequence[str]) -> tuple[str, ...]:
     return tuple(result)
 
 
-def _extract_between_markers(
-    text: str, start_marker: str, end_marker: str
-) -> str | None:
-    start = text.find(start_marker)
-    if start == -1:
+def extract_last_answer_block(text: str) -> str | None:
+    """Extract content from the last exact ``<answer>`` block in text."""
+    answer_matches = re.findall(
+        r"<answer\b[^>]*>(.*?)</answer>",
+        text,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if not answer_matches:
         return None
-    content_start = start + len(start_marker)
-    end = text.find(end_marker, content_start)
-    if end == -1:
-        return None
-    return text[content_start:end].strip()
+    return answer_matches[-1].strip()
 
 
 def _strip_code_fence_language(content: str) -> str:
@@ -897,8 +896,55 @@ def _iter_json_candidates(candidate: str) -> Iterator[str]:
     yield from _iter_json_objects(candidate)
 
 
+def iter_json_dicts_from_llm_response(response_text: str) -> Iterator[dict[str, Any]]:
+    """Yield JSON dictionaries found in an LLM response."""
+    if not response_text:
+        return
+
+    candidates = [response_text.strip()]
+    answer_text = extract_last_answer_block(response_text)
+    if answer_text:
+        candidates.insert(0, answer_text)
+
+    seen_json: set[str] = set()
+    for candidate in candidates:
+        for json_str in _iter_json_candidates(candidate):
+            dedupe_key = json_str.strip()
+            if dedupe_key in seen_json:
+                continue
+            seen_json.add(dedupe_key)
+
+            result = _parse_json_dict_candidate(json_str)
+            if result is not None:
+                yield result
+
+
+def iter_json_dicts_in_text_order(response_text: str) -> Iterator[dict[str, Any]]:
+    """Yield JSON dictionaries in their original textual order.
+
+    Unlike :func:`iter_json_dicts_from_llm_response`, this does not prioritize
+    fenced or ``<answer>`` content. It is intended for contracts that explicitly
+    select the last structurally valid object in a response.
+    """
+    if not response_text:
+        return
+
+    seen_json: set[str] = set()
+    for json_str in _iter_json_objects(response_text):
+        dedupe_key = json_str.strip()
+        if dedupe_key in seen_json:
+            continue
+        seen_json.add(dedupe_key)
+        result = _parse_json_dict_candidate(json_str)
+        if result is not None:
+            yield result
+
+
 def extract_json_from_llm_response(
-    response_text: str, expected_keys: Collection[str] | None = None
+    response_text: str,
+    expected_keys: Collection[str] | None = None,
+    *,
+    log_failures: bool = True,
 ) -> dict[str, Any] | None:
     """
     Extract JSON object from LLM response text.
@@ -913,56 +959,52 @@ def extract_json_from_llm_response(
         expected_keys: Optional collection of keys required in the returned JSON.
             Candidates missing these keys are skipped so earlier reasoning
             dictionaries do not mask the final answer object.
+        log_failures: Whether to log parser failures before returning ``None``.
 
     Returns:
         Parsed JSON as a dictionary, or None if parsing fails
     """
     if not response_text:
-        logger.error("Empty response text provided")
+        if log_failures:
+            logger.error("Empty response text provided")
         return None
 
     try:
-        candidates = [response_text.strip()]
-        answer_text = _extract_between_markers(response_text, "<answer>", "</answer>")
-        if answer_text:
-            candidates.insert(0, answer_text)
-
         result = None
         last_missing_keys: list[str] = []
-        for candidate in candidates:
-            for json_str in _iter_json_candidates(candidate):
-                result = _parse_json_dict_candidate(json_str)
-                if result is None:
-                    continue
-                missing_keys = _missing_expected_keys(result, expected_keys)
-                if missing_keys:
-                    last_missing_keys = missing_keys
+        for candidate_result in iter_json_dicts_from_llm_response(response_text):
+            missing_keys = _missing_expected_keys(candidate_result, expected_keys)
+            if missing_keys:
+                last_missing_keys = missing_keys
+                if log_failures:
                     logger.debug(
                         "Skipping JSON object missing expected keys: %s",
                         missing_keys,
                     )
-                    result = None
-                    continue
-                logger.debug("Found JSON object in LLM response")
-                break
-            if result is not None:
-                logger.debug("Found JSON object in response text")
-                break
+                continue
+            result = candidate_result
+            logger.debug("Found JSON object in LLM response")
+            break
+
+        if result is not None:
+            logger.debug("Found JSON object in response text")
 
         if result is None:
-            if last_missing_keys:
+            if log_failures and last_missing_keys:
                 logger.warning(f"JSON missing expected keys: {last_missing_keys}")
-            logger.error(f"No JSON found in LLM response: {response_text[:200]}...")
+            if log_failures:
+                truncated_response = f"{response_text[:200]}..."
+                logger.error(
+                    "No JSON found in LLM response: %s",
+                    truncated_response,
+                )
             return None
 
         return result
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON: {e}")
-        logger.error(f"Response was: {response_text[:500]}...")
-        return None
     except Exception as e:
-        logger.error(f"Unexpected error parsing LLM response: {e}")
+        if log_failures:
+            logger.error(f"Unexpected error parsing LLM response: {e}")
         return None
 
 

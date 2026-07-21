@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests for LLM parsing utilities."""
 
+import logging
+import math
+
 import pytest
 
+from world_understanding.utils import llm_parsing as lp
 from world_understanding.utils.llm_parsing import (
     create_json_prompt_instructions,
     extract_json_from_llm_response,
@@ -11,11 +15,15 @@ from world_understanding.utils.llm_parsing import (
     extract_labeled_codes,
     extract_labeled_score,
     extract_labeled_value,
+    extract_material_from_json,
 )
 
 
 class TestExtractLabeledJudgeFields:
     """Test lightweight labeled-field parsing shared by VLM judges."""
+
+    def test_extract_labeled_value_empty_response(self):
+        assert extract_labeled_value("", "Decision") == ""
 
     def test_extract_labeled_score_normalizes_ten_point_scores(self):
         assert extract_labeled_score("**Score:** 8/10") == 0.8
@@ -64,6 +72,18 @@ Decision: PASS
 
     def test_extract_labeled_score_handles_out_of_format(self):
         assert extract_labeled_score("Score: 8 out of 10") == 0.8
+
+    def test_extract_labeled_score_handles_fallback_score_forms(self):
+        assert extract_labeled_score("Overall Score 8/10") == 0.8
+        assert extract_labeled_score("Score: the rating is 8") == 0.8
+        assert extract_labeled_score("Score: the result is 8 out of 10") == 0.8
+        assert extract_labeled_score("Score: final value 8/10") == 0.8
+
+    def test_score_normalization_edges(self):
+        assert lp._normalize_score(math.inf, None, score_max=10.0) is None
+        assert lp._normalize_score(1.0, 0.0, score_max=10.0) is None
+        assert lp._normalize_score(8.0, None, score_max=10.0) == 0.8
+        assert lp._normalize_score(1e308, 1e-308, score_max=10.0) is None
 
     def test_extract_labeled_score_ignores_unrelated_numbers(self):
         response = """Score:
@@ -180,6 +200,15 @@ Because the asset did not fail the visual check.
 
         assert extract_labeled_choice(response, "Decision", ("fail", "pass")) == "fail"
 
+    def test_extract_labeled_choice_skips_leading_choice_marked_not_valid(self):
+        response = "Decision: PASS is not valid, so FAIL."
+
+        assert extract_labeled_choice(response, "Decision", ("fail", "pass")) == ""
+        assert lp._tokens_reject_leading_choice(
+            ("pass", "is", "not", "valid"),
+            ("pass",),
+        )
+
     def test_extract_labeled_choice_skips_too_harsh_leading_choice(self):
         response = "Decision: FAIL is too harsh, so PASS."
 
@@ -237,6 +266,31 @@ PASS
                 )
                 == ""
             )
+
+    def test_extract_labeled_choice_ignores_alias_to_unknown_choice(self):
+        assert (
+            extract_labeled_choice(
+                "Decision: ok",
+                "Decision",
+                ("pass",),
+                aliases={"ok": "unknown"},
+            )
+            == ""
+        )
+        assert (
+            extract_labeled_choice(
+                "Decision: I recommend ok",
+                "Decision",
+                ("pass",),
+                aliases={"ok": "unknown"},
+            )
+            == ""
+        )
+
+    def test_choice_helpers_handle_empty_tokens_and_blank_value(self):
+        assert lp._choice_tokens("") == ()
+        assert lp._parse_choice_value(" \n ", ("pass", "fail")) == ""
+        assert lp._tokens_contain_sequence(("pass",), ("needs", "refinement")) is False
 
     def test_extract_labeled_choice_accepts_whitespace_delimited_label(self):
         response = "Decision PASS"
@@ -334,6 +388,25 @@ Score: 8
             == "**Summary:**\nThe object matches the requested form.\n"
             "**Analysis:**\nAll visible panels are aligned."
         )
+
+    def test_extract_labeled_value_can_stop_at_markdown_generic_heading(self):
+        response = """Critique:
+The object matches the requested form.
+### Summary
+This should not be captured.
+Score: 8
+"""
+
+        assert (
+            extract_labeled_value(
+                response,
+                "Critique",
+                multiline=True,
+                stop_at_generic_headings=True,
+            )
+            == "The object matches the requested form."
+        )
+        assert lp._strip_bold_heading("**Summary") == "**Summary"
 
     def test_extract_labeled_codes_stops_at_next_heading(self):
         response = """Issue Codes:
@@ -548,6 +621,10 @@ Decision: WARN
             == ()
         )
 
+    def test_extract_labeled_codes_skips_lines_without_codes(self):
+        assert extract_labeled_codes("Issue Codes:\n- none here", "Issue Codes") == ()
+        assert extract_labeled_codes("Issue Codes: no issues", "Issue Codes") == ()
+
 
 class TestExtractJsonFromLLMResponse:
     """Test cases for extract_json_from_llm_response function."""
@@ -614,6 +691,71 @@ Final remap:
         result = extract_json_from_llm_response(response)
         assert result == {"material": "steel", "confidence": "high"}
 
+    def test_extract_json_prefers_last_answer_block(self):
+        """Repeated answer tags should use the final answer block."""
+        response = """<answer>
+```json
+{"material": "prompt example"}
+```
+</answer>
+<answer>
+```json
+{"material": "steel", "confidence": "high"}
+```
+</answer>
+"""
+
+        result = extract_json_from_llm_response(response)
+        assert result == {"material": "steel", "confidence": "high"}
+
+    def test_extract_json_prefers_last_answer_block_with_attrs_and_case(self):
+        """Answer tag parsing should match classification answer extraction."""
+        response = """<answer>
+```json
+{"material": "prompt example"}
+```
+</answer>
+<ANSWER reason="final">
+```json
+{"material": "steel", "confidence": "high"}
+```
+</ANSWER>
+"""
+
+        result = extract_json_from_llm_response(response)
+        assert result == {"material": "steel", "confidence": "high"}
+
+    def test_extract_json_ignores_answering_pseudo_tag(self):
+        """Malformed answer-like tags should not get answer-block priority."""
+        response = """Before: {"material": "outer"}
+<answering>
+{"material": "pseudo tag"}
+</answer>
+"""
+
+        result = extract_json_from_llm_response(response)
+        assert result == {"material": "outer"}
+
+    def test_extract_json_suppresses_missing_key_debug_when_log_failures_false(
+        self,
+        caplog,
+    ):
+        """Quiet mode should suppress skipped-candidate parser logging."""
+        response = '{"reasoning": "draft"}'
+
+        with caplog.at_level(
+            logging.DEBUG,
+            logger="world_understanding.utils.llm_parsing",
+        ):
+            result = extract_json_from_llm_response(
+                response,
+                expected_keys=["material"],
+                log_failures=False,
+            )
+
+        assert result is None
+        assert "Skipping JSON object missing expected keys" not in caplog.text
+
     def test_extract_json_scans_later_code_fences(self):
         """A non-JSON fence should not hide a later JSON fence."""
         response = """<answer>
@@ -628,6 +770,25 @@ This is a summary, not JSON.
 
         result = extract_json_from_llm_response(response)
         assert result == {"material": "steel", "confidence": "high"}
+
+    def test_extract_json_handles_unclosed_code_fence(self):
+        response = """```json
+{"material": "steel"}
+"""
+
+        result = extract_json_from_llm_response(response)
+        assert result == {"material": "steel"}
+
+    def test_parse_json_dict_candidate_rejects_non_dict(self, caplog):
+        with caplog.at_level(
+            logging.ERROR, logger="world_understanding.utils.llm_parsing"
+        ):
+            assert lp._parse_json_dict_candidate("[1, 2, 3]") is None
+
+        assert "Expected dict" in caplog.text
+
+    def test_iter_json_dicts_empty_response(self):
+        assert list(lp.iter_json_dicts_from_llm_response("")) == []
 
     def test_extract_json_skips_invalid_brace_prose_before_later_json(self):
         """Invalid prose braces should not hide the later valid JSON object."""
@@ -876,6 +1037,23 @@ class TestCreateJsonPromptInstructions:
         result1 = create_json_prompt_instructions()
         result2 = create_json_prompt_instructions()
         assert result1 == result2
+
+
+def test_extract_material_from_single_key_string_fallback() -> None:
+    class ContainsOnly:
+        def __iter__(self):
+            return iter(())
+
+        def __contains__(self, item: object) -> bool:
+            return item == "material_name"
+
+    assert (
+        extract_material_from_json(
+            {"material_name": "Brushed Steel"},
+            ContainsOnly(),  # type: ignore[arg-type]
+        )
+        == "Brushed Steel"
+    )
 
 
 if __name__ == "__main__":

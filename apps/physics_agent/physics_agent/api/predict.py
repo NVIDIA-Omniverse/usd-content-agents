@@ -11,9 +11,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.model_auth import (
+    MODEL_AUTHENTICATION_FAILURE_MESSAGE,
+    is_model_authentication_error,
+    public_model_failure_message,
+)
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+)
+
 from physics_agent.api.types import APIResult
 
 logger = logging.getLogger(__name__)
+
+_PREDICT_FAILURE_MESSAGE = "Prediction failed"
 
 
 @dataclass
@@ -119,25 +131,35 @@ async def arun_predict(params: PredictInput) -> PredictOutput:
 
         # Check for errors
         if result.get("error") or result.get("workflow_terminated"):
+            failure_message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(result.get("error"))
+                else _PREDICT_FAILURE_MESSAGE
+            )
+            logger.error(failure_message)
             return PredictOutput(
                 success=False,
-                error=result.get("error", "Workflow terminated unexpectedly"),
+                error=failure_message,
             )
 
         # Extract results
-        predictions_path = result.get("predictions_path")
-        predictions_count = result.get("predictions_count", 0)
-        failed_count = result.get("failed_count", 0)
-        token_stats = result.get("token_stats", {})
+        safe_result = project_result_metadata(result)
+        predictions_path = retain_safe_result_path(result.get("predictions_path"))
+        predictions_count = safe_result.get("predictions_count", 0)
+        failed_count = safe_result.get("failed_count", 0)
+        token_stats = safe_result.get("token_stats", {})
 
         return PredictOutput(
             success=True,
-            predictions_path=Path(predictions_path) if predictions_path else None,
-            predictions_count=predictions_count,
-            failed_count=failed_count,
-            token_stats=token_stats,
+            predictions_path=predictions_path,
+            predictions_count=(
+                predictions_count if type(predictions_count) is int else 0
+            ),
+            failed_count=failed_count if type(failed_count) is int else 0,
+            token_stats=token_stats if type(token_stats) is dict else {},
         )
 
-    except Exception as e:
-        logger.error("Prediction failed: %s", e, exc_info=True)
-        return PredictOutput(success=False, error=str(e))
+    except Exception as error:
+        failure_message = public_model_failure_message(error, _PREDICT_FAILURE_MESSAGE)
+        logger.error(failure_message)
+        return PredictOutput(success=False, error=failure_message)

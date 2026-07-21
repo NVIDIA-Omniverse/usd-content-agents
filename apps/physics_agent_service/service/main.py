@@ -2,12 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 """Physics Agent FastAPI Service - Main Application."""
 
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
+from world_understanding.functions.physics import ovphysx_runtime_available
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
 from world_understanding.utils.logging import setup_logging
+from world_understanding.utils.public_response import (
+    PublicJsonResponseSanitizationMiddleware,
+)
 
 from .utils import AccessLogFilter
 
@@ -36,9 +46,11 @@ from .routers import (  # noqa: E402
     artifacts_router,
     pipeline_router,
     predict_router,
+    refine_router,
     sessions_router,
     tune_router,
 )
+from .runtime.registry import get_job_registry  # noqa: E402
 from .session.manager import SessionManager  # noqa: E402
 
 # Load environment variables
@@ -47,7 +59,7 @@ load_dotenv()
 # Setup logging from config
 setup_logging()
 
-if sys.platform == "win32":
+if sys.platform == "win32":  # pragma: no cover - Windows-only import-time setup
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -62,32 +74,22 @@ logger = logging.getLogger(__name__)
 
 
 def _get_max_active_sessions() -> int:
-    """Parse PA_MAX_ACTIVE_SESSIONS from environment with safe fallback."""
-    default_limit = 8
-    env_value = os.getenv("PA_MAX_ACTIVE_SESSIONS")
+    """Return the capacity enforced by the process-wide job registry."""
+    return get_job_registry().max_concurrent
 
-    if env_value is None:
-        return default_limit
 
+def _is_tuning_extra_available() -> bool:
+    """Return whether the service image has the BoTorch tuning extra installed."""
     try:
-        limit = int(env_value)
-        if limit < 0:
-            logger.error(
-                "PA_MAX_ACTIVE_SESSIONS must be non-negative, got '%s'. "
-                "Falling back to default: %d",
-                env_value,
-                default_limit,
-            )
-            return default_limit
-        return limit
-    except ValueError:
-        logger.error(
-            "PA_MAX_ACTIVE_SESSIONS must be a valid integer, got '%s'. "
-            "Falling back to default: %d",
-            env_value,
-            default_limit,
-        )
-        return default_limit
+        from physics_agent.tuning.optimizers import is_botorch_available
+    except ImportError:
+        return False
+    return is_botorch_available()
+
+
+def _is_ovphysx_runtime_available() -> bool:
+    """Return whether the isolated OvPhysX daemon runtime is provisioned."""
+    return ovphysx_runtime_available()
 
 
 def _load_aws_config_file_into_env(*, log: logging.Logger) -> None:
@@ -154,6 +156,46 @@ def _load_aws_config_file_into_env(*, log: logging.Logger) -> None:
         log.info("AWS Region: %s", region)
 
 
+async def _periodic_cleanup_task(
+    manager: SessionManager,
+    interval_hours: float,
+    max_age_hours: float,
+) -> None:
+    """Background task that periodically cleans up stale sessions."""
+    logger.info(
+        "Starting periodic cleanup task (interval=%sh, max_age=%sh)",
+        interval_hours,
+        max_age_hours,
+    )
+
+    while True:
+        try:
+            await asyncio.sleep(interval_hours * 3600)
+
+            logger.info("Running periodic session cleanup...")
+            cleaned_cache = await manager.cleanup_stale_local_cache(
+                max_age_hours=max_age_hours
+            )
+            expired_sessions = await manager.cleanup_expired_sessions()
+
+            if cleaned_cache > 0 or expired_sessions > 0:
+                logger.info(
+                    "Cleanup complete: %d stale cache entries, %d expired sessions",
+                    cleaned_cache,
+                    expired_sessions,
+                )
+        except asyncio.CancelledError:
+            logger.info("Cleanup task cancelled")
+            break
+        except Exception:
+            log_durable_failure(
+                logger,
+                "periodic_session_cleanup_failed",
+                phase=FailurePhase.ROLLBACK,
+                retryable=True,
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
@@ -200,6 +242,24 @@ async def lifespan(app: FastAPI):
     artifacts_router.set_session_manager(session_mgr)
     sessions_router.set_session_manager(session_mgr)
     tune_router.set_session_manager(session_mgr)
+    refine_router.set_session_manager(session_mgr)
+
+    cleanup_task = None
+    if config.cleanup_enabled:
+        cleanup_task = asyncio.create_task(
+            _periodic_cleanup_task(
+                manager=session_mgr,
+                interval_hours=config.cleanup_interval_hours,
+                max_age_hours=config.cleanup_max_age_hours,
+            )
+        )
+        logger.info(
+            "Background cleanup enabled: interval=%sh, max_age=%sh",
+            config.cleanup_interval_hours,
+            config.cleanup_max_age_hours,
+        )
+    else:
+        logger.info("Background cleanup disabled (PA_CLEANUP_ENABLED=false)")
 
     # Only the local warp backend needs prewarming in the main process.
     if active_render_backend.lower() == "warp":
@@ -221,7 +281,7 @@ async def lifespan(app: FastAPI):
                 )
 
                 logger.info("Newton warp_raytrace loaded — kernels will be cached")
-            except ImportError:
+            except ImportError:  # pragma: no cover - optional dependency branch
                 logger.info("Newton not installed — Warp rendering backend unavailable")
         except ImportError:
             logger.info("warp-lang not installed — Warp rendering backend unavailable")
@@ -246,6 +306,14 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down Physics Agent Service...")
 
+    if cleanup_task is not None:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Cleanup task stopped")
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -259,9 +327,13 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    PublicJsonResponseSanitizationMiddleware,
+    session_roots=(config.session_storage_path,),
 )
 
 
@@ -286,6 +358,20 @@ app.include_router(predict_router.router)
 app.include_router(artifacts_router.router)
 app.include_router(sessions_router.router)
 app.include_router(tune_router.router)
+app.include_router(refine_router.router)
+
+_default_openapi = app.openapi
+
+
+def _openapi_with_nvcf_version() -> dict[str, Any]:
+    """Build OpenAPI metadata that identifies the serving NVCF version."""
+    schema: dict[str, Any] = _default_openapi()
+    if version_id := os.getenv("NVCF_FUNCTION_VERSION_ID"):
+        schema["info"]["x-nvcf-function-version-id"] = version_id
+    return schema
+
+
+app.openapi = _openapi_with_nvcf_version
 
 
 # Health check endpoint
@@ -298,6 +384,8 @@ async def health_check():
         "version": config.service_version,
         "api_keys_configured": config.has_required_api_keys,
         "max_active_sessions": _get_max_active_sessions(),
+        "tuning_extra_available": _is_tuning_extra_available(),
+        "ovphysx_runtime_available": _is_ovphysx_runtime_available(),
     }
 
 
@@ -342,6 +430,14 @@ async def root_api_info():
                 "events": "GET /tune/{session_id}/events",
                 "cancel": "POST /tune/{session_id}/cancel",
                 "artifact": "GET /tune/{session_id}/artifacts/{name}",
+            },
+            "refine": {
+                "create": "POST /refine",
+                "status": "GET /refine/{session_id}/status",
+                "results": "GET /refine/{session_id}/results",
+                "events": "GET /refine/{session_id}/events",
+                "cancel": "POST /refine/{session_id}/cancel",
+                "artifact": "GET /refine/{session_id}/artifacts/{name}",
             },
         },
     }

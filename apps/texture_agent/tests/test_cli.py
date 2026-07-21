@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from texture_agent.cli import app
 from texture_agent.config import unified_config
+from texture_agent.workflows import factory as workflow_factory
 
 runner = CliRunner()
 
@@ -41,10 +42,19 @@ def test_run_rejects_empty_step_filter_from_cli(
 ) -> None:
     config_path = tmp_path / "pipeline.yaml"
     config_path.write_text("input: {}\n", encoding="utf-8")
+
+    def _unexpected_load_config(
+        path: Path,
+        session_id: str | None = None,
+        *,
+        config_data: dict,
+    ) -> dict:
+        raise AssertionError("invalid filters must fail before config loading")
+
     monkeypatch.setattr(
         unified_config,
         "load_config",
-        lambda path, session_id=None: {},
+        _unexpected_load_config,
     )
     monkeypatch.setattr(unified_config, "config_to_context", lambda config: {})
 
@@ -55,3 +65,128 @@ def test_run_rejects_empty_step_filter_from_cli(
 
     assert result.exit_code == 1
     assert "empty step name" in caplog.text
+
+
+def test_run_cli_applies_detail_policy_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "pipeline.yaml"
+    config_path.write_text("input: {}\n", encoding="utf-8")
+    captured: dict[str, dict] = {}
+
+    def _load_config(
+        path: Path,
+        session_id: str | None = None,
+        *,
+        config_data: dict,
+    ) -> dict:
+        captured["config_data"] = config_data
+        return {"texture": {}}
+
+    monkeypatch.setattr(
+        unified_config,
+        "load_config",
+        _load_config,
+    )
+
+    def _capture_config(config: dict) -> dict:
+        captured["config"] = config
+        return {}
+
+    monkeypatch.setattr(unified_config, "config_to_context", _capture_config)
+    monkeypatch.setattr(
+        workflow_factory,
+        "run_pipeline",
+        lambda context, **kwargs: context,
+    )
+
+    result = runner.invoke(
+        app,
+        ["run", str(config_path), "--detail-policy", "surface_only", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert captured["config_data"] == {"input": {}}
+    assert captured["config"]["texture"]["detail_policy"] == "surface_only"
+
+
+def test_run_cli_normalizes_step_filters_before_pipeline_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "pipeline.yaml"
+    config_path.write_text("input: {}\n", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def _load_config(
+        path: Path,
+        session_id: str | None = None,
+        *,
+        config_data: dict,
+    ) -> dict:
+        captured["config_data"] = config_data
+        return {}
+
+    def _run_pipeline(
+        context: dict,
+        *,
+        skip: list[str],
+        only: list[str],
+        dry_run: bool,
+    ) -> dict:
+        captured.update(skip=skip, only=only, dry_run=dry_run)
+        return context
+
+    monkeypatch.setattr(unified_config, "load_config", _load_config)
+    monkeypatch.setattr(unified_config, "config_to_context", lambda config: {})
+    monkeypatch.setattr(workflow_factory, "run_pipeline", _run_pipeline)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            str(config_path),
+            "--only",
+            " prepare_uvs,prepare_uvs ",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "config_data": {"input": {}},
+        "skip": [],
+        "only": ["prepare_uvs"],
+        "dry_run": True,
+    }
+
+
+def test_generate_cli_applies_detail_policy_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "pipeline.yaml"
+    config_path.write_text("input: {}\n", encoding="utf-8")
+    captured: dict[str, dict] = {}
+
+    monkeypatch.setattr(unified_config, "load_config", lambda path: {"texture": {}})
+
+    def _capture_config(config: dict) -> dict:
+        captured["config"] = config
+        return {}
+
+    monkeypatch.setattr(unified_config, "config_to_context", _capture_config)
+    monkeypatch.setattr(
+        workflow_factory,
+        "run_pipeline",
+        lambda context, **kwargs: context,
+    )
+
+    result = runner.invoke(
+        app,
+        ["generate", str(config_path), "--detail-policy", "surface_only"],
+    )
+
+    assert result.exit_code == 0
+    assert captured["config"]["texture"]["detail_policy"] == "surface_only"

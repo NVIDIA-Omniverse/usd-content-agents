@@ -148,6 +148,34 @@ class TestBuildImageVectorStoreTool:
         assert len(output.errors) == 1
         assert "Invalid input" in output.errors[0]
 
+    @patch(
+        "world_understanding.tools.knowledge.image_vector_store.build_image_vector_store_func"
+    )
+    def test_build_accepts_source_list(self, mock_build_func):
+        """Test list source normalization before calling the build function."""
+        mock_store = MagicMock()
+        mock_store.metadata_store = {"img1": MagicMock(), "img2": MagicMock()}
+        mock_store.dimension = 512
+        mock_build_func.return_value = mock_store
+
+        inputs = BuildImageVectorStoreInput(
+            source=["/path/to/image1.png", "/path/to/image2.png"],
+            index_type="IndexFlatIP",
+            normalize_embeddings=True,
+            recursive=False,
+        )
+
+        output = build_image_vector_store_tool(inputs)
+
+        assert output.success is True
+        assert output.num_images_indexed == 2
+        mock_build_func.assert_called_once_with(
+            source=["/path/to/image1.png", "/path/to/image2.png"],
+            index_type="IndexFlatIP",
+            normalize_embeddings=True,
+            recursive=False,
+        )
+
 
 class TestFindSimilarImagesTool:
     """Test suite for find_similar_images_tool."""

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import asyncio
-import copy
+import json
 import logging
 import os
 import shutil
@@ -15,17 +15,36 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from world_understanding.agentic.config import clone_config_containers
 from world_understanding.agentic.events import EventListener, create_default_listener
+from world_understanding.utils.credentials import redact_sensitive_config
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_text,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
 
 from material_agent.api.defaults import (
     DEFAULT_LLM_BACKEND,
     DEFAULT_LLM_MODEL,
     PIPELINE_STEP_NAMES,
 )
+from material_agent.api.diagnostics import (
+    diagnostic_path,
+    normalize_required_config,
+)
 from material_agent.api.types import APIResult
 from material_agent.scene.manifest import SceneManifest
 
 logger = logging.getLogger(__name__)
+
+_SCENE_PIPELINE_FAILURE_MESSAGE = "Scene pipeline failed"
+
+_RETIRED_MATERIAL_HARNESS_MESSAGE = (
+    "The Material Agent task-first harness workflow has been retired. Use "
+    "`content-workflow-cli materials assign` with Content Workbench for agentic asset "
+    "workflows."
+)
 
 
 @dataclass
@@ -52,6 +71,11 @@ class ScenePipelineInput:
         simulate: Patch model/render backends to mock and generate fake predictions.
         simulate_mock_analyze: Also mock the scene analyze LLM in simulate mode.
         predict_max_workers: Override per-asset ``steps.predict.max_workers``.
+        harness_sub_assets: Retired. Use ``content-workflow-cli`` with Content
+            Workbench for agentic asset workflows.
+        harness_sub_asset_config: Retired compatibility field.
+        harness_request: Retired compatibility field.
+        harness_metadata: Retired compatibility field.
         cancel_checker: Optional callback returning True when the run should
             stop before the next scene stage.
         event_listener: Optional progress/event listener.
@@ -76,18 +100,16 @@ class ScenePipelineInput:
     simulate: bool = False
     simulate_mock_analyze: bool = False
     predict_max_workers: int | None = None
+    harness_sub_assets: bool = False
+    harness_sub_asset_config: dict[str, Any] = field(default_factory=dict)
+    harness_request: str | None = None
+    harness_metadata: dict[str, Any] = field(default_factory=dict)
     cancel_checker: Callable[[], bool] | None = None
     event_listener: EventListener | None = None
     verbose: bool = False
 
     def __post_init__(self) -> None:
-        if isinstance(self.config, dict):
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
 
         if self.max_workers < 1:
             raise ValueError("max_workers must be at least 1")
@@ -95,10 +117,22 @@ class ScenePipelineInput:
         if self.predict_max_workers is not None and self.predict_max_workers < 1:
             raise ValueError("predict_max_workers must be at least 1")
 
+        if (
+            self.harness_sub_assets
+            or self.harness_sub_asset_config
+            or self.harness_request
+            or self.harness_metadata
+        ):
+            raise ValueError(_RETIRED_MATERIAL_HARNESS_MESSAGE)
 
-@dataclass
-class ScenePipelineOutput(APIResult):
-    """Output from a large-scene pipeline run."""
+
+@dataclass(repr=False)
+class ScenePipelineOutput(SecretSafeReprMixin, APIResult):
+    """Output from a large-scene pipeline run.
+
+    ``scene_harness_summary_path`` is a deprecated compatibility field retained
+    for older clients; new runs always leave it empty.
+    """
 
     working_dir: str = ""
     manifest_path: str = ""
@@ -111,6 +145,7 @@ class ScenePipelineOutput(APIResult):
     failed_payloads: int = 0
     validation_passed: bool | None = None
     validation_report: dict[str, Any] | None = None
+    scene_harness_summary_path: str = ""
     warnings: list[str] = field(default_factory=list)
     raw_result: dict[str, Any] = field(default_factory=dict)
 
@@ -121,7 +156,10 @@ def _load_scene_config(
     """Load config and return ``(config_dict, config_path, base_dir)``."""
     if isinstance(params.config, dict):
         base_dir = (params.config_base_dir or Path.cwd()).resolve()
-        return copy.deepcopy(params.config), None, base_dir
+        cloned = clone_config_containers(params.config)
+        if not isinstance(cloned, dict):  # pragma: no cover - input type contract
+            raise AssertionError("scene configuration clone must be a dictionary")
+        return cloned, None, base_dir
 
     config_path = Path(params.config).resolve()
     with open(config_path, encoding="utf-8") as f:
@@ -190,6 +228,35 @@ def _resolve_usd_path(scene_config: dict[str, Any], base_dir: Path) -> Path:
     if not usd_path.exists():
         raise FileNotFoundError(f"USD file not found: {usd_path}")
     return usd_path
+
+
+def _reject_retired_scene_harness_config(
+    scene_config: dict[str, Any],
+    params: ScenePipelineInput,
+) -> None:
+    """Reject the retired scene harness workflow when config requests it."""
+    scene_section = scene_config.get("scene", {})
+    if not isinstance(scene_section, dict):
+        scene_section = {}
+
+    harness_section = scene_section.get("harness", {})
+    retired_scene_keys = (
+        "harness_sub_assets",
+        "harness_sub_asset_config",
+        "harness_request",
+        "harness_metadata",
+    )
+    config_requests_harness = any(key in scene_section for key in retired_scene_keys)
+    if isinstance(harness_section, dict):
+        explicitly_disabled = harness_section.get("enabled") is False
+        config_requests_harness = config_requests_harness or (
+            bool(harness_section) and not explicitly_disabled
+        )
+    elif harness_section:
+        config_requests_harness = True
+
+    if config_requests_harness:
+        raise ValueError(_RETIRED_MATERIAL_HARNESS_MESSAGE)
 
 
 def _validate_large_scene_stage_file(usd_path: Path) -> str:
@@ -288,7 +355,10 @@ def _resolve_or_materialize_material_library_yaml(
 
     materials_section.clear()
     materials_section["path"] = str(yaml_path)
-    logger.info("Materialized scene materials YAML: %s", yaml_path)
+    logger.info(
+        "Materialized scene materials YAML: %s",
+        diagnostic_path(yaml_path),
+    )
     return yaml_path
 
 
@@ -340,7 +410,20 @@ def _emit_stage_event(
         "message": message,
         **data,
     }
-    listener.event(event_type, payload)
+    _emit_safe_event(listener, event_type, payload)
+
+
+def _emit_safe_event(
+    listener: EventListener,
+    event_type: str,
+    payload: dict[str, Any],
+) -> None:
+    """Emit status metadata only after credential-safe projection."""
+    safe_payload = redact_sensitive_config(payload)
+    listener.event(
+        event_type,
+        safe_payload if isinstance(safe_payload, dict) else {},
+    )
 
 
 def _emit_scene_progress(
@@ -386,11 +469,36 @@ def _report_to_dict(report: Any) -> dict[str, Any]:
     return {"repr": repr(report)}
 
 
+def _load_render_camera_config(
+    render_config: dict[str, Any],
+    base_dir: Path,
+) -> dict[str, Any] | None:
+    inline_config = render_config.get("camera_config")
+    if isinstance(inline_config, dict):
+        return dict(inline_config)
+
+    camera_config_path = render_config.get("camera_config_path")
+    if not camera_config_path:
+        return None
+
+    resolved_path = _resolve_path(str(camera_config_path), base_dir)
+    with open(resolved_path, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Camera config must contain a JSON object: {resolved_path}")
+
+    data = dict(data)
+    data["_source_path"] = str(resolved_path)
+    return data
+
+
 def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
     """Run the large-scene material assignment pipeline synchronously."""
     listener = params.event_listener or create_default_listener(verbose=params.verbose)
     warnings: list[str] = []
     current_stage: str | None = None
+    scene_harness_summary_path = ""
+    stats_report_path: Path | None = None
 
     def check_cancelled(step_name: str | None = None) -> None:
         if not params.cancel_checker or not params.cancel_checker():
@@ -403,7 +511,8 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
                 current_stage,
                 "Scene pipeline cancelled",
             )
-        listener.event(
+        _emit_safe_event(
+            listener,
             "workflow.cancelled",
             {
                 "workflow_type": "scene_pipeline",
@@ -460,7 +569,9 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
         scene_token_tracker = TokenTracker()
 
         if params.clean and working_dir.exists():
-            listener.info(f"Cleaning scene working directory: {working_dir}")
+            listener.info(
+                f"Cleaning scene working directory: {diagnostic_path(working_dir)}"
+            )
             shutil.rmtree(working_dir)
 
         working_dir.mkdir(parents=True, exist_ok=True)
@@ -477,7 +588,8 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
             skip_steps = _merge_skip_steps(skip_steps, _steps_before(params.from_step))
             resume = True
 
-        listener.event(
+        _emit_safe_event(
+            listener,
             "workflow.started",
             {
                 "workflow_type": "scene_pipeline",
@@ -492,6 +604,7 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
         scene_section = scene_config.get("scene", {})
         if not isinstance(scene_section, dict):
             scene_section = {}
+        _reject_retired_scene_harness_config(scene_config, params)
 
         # Step 1: analyze
         if resume and manifest_path.exists():
@@ -657,6 +770,8 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
             predict_max_workers=params.predict_max_workers,
             cancel_checker=check_cancelled_for_worker,
             progress_callback=report_asset_progress,
+            scene_config=scene_config,
+            scene_config_dir=base_dir,
         )
         completed_assets, failed_assets, completed_payloads, failed_payloads = (
             _asset_counts(manifest)
@@ -798,7 +913,9 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
             base_dir,
         )
         start_stage("scene_collect", "Applying materials and composing scene")
-        listener.info(f"Applying materials and composing scene: {output_path}")
+        listener.info(
+            f"Applying materials and composing scene: {diagnostic_path(output_path)}"
+        )
         from material_agent.scene.collect import apply_and_compose
 
         apply_and_compose(
@@ -823,6 +940,7 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
             listener.info("Rendering composed scene")
             from material_agent.scene.collect import render_composed_scene
 
+            camera_config = _load_render_camera_config(render_config, base_dir)
             rendered = render_composed_scene(
                 composed_usd_path=output_path,
                 output_dir=output_path.parent,
@@ -836,6 +954,7 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
                     render_config.get("background_color", [1.0, 1.0, 1.0])
                 ),
                 clear_materials=params.clear_materials,
+                camera_config=camera_config,
             )
             rendered_images = [str(path) for path in rendered]
             complete_stage(
@@ -883,7 +1002,8 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
                     output_usd_path=output_path,
                     scene_operation_token_stats=scene_token_tracker.get_stats(),
                 )
-                listener.event(
+                _emit_safe_event(
+                    listener,
                     "workflow.failed",
                     {
                         "workflow_type": "scene_pipeline",
@@ -894,6 +1014,7 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
                         "manifest_path": str(manifest_path),
                         "output_usd_path": str(output_path),
                         "stats_report_path": str(stats_report_path),
+                        "scene_harness_summary_path": scene_harness_summary_path,
                     },
                 )
                 return _build_output(
@@ -906,6 +1027,7 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
                     manifest=manifest,
                     validation_passed=validation_passed,
                     validation_report=validation_report,
+                    scene_harness_summary_path=scene_harness_summary_path,
                     warnings=warnings,
                     stats_report_path=stats_report_path,
                 )
@@ -926,15 +1048,19 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
             output_usd_path=output_path,
             scene_operation_token_stats=scene_token_tracker.get_stats(),
         )
-        listener.info(f"Scene stats report written to {stats_report_path}")
+        listener.info(
+            f"Scene stats report written to {diagnostic_path(stats_report_path)}"
+        )
 
-        listener.event(
+        _emit_safe_event(
+            listener,
             "workflow.completed",
             {
                 "workflow_type": "scene_pipeline",
                 "manifest_path": str(manifest_path),
                 "output_usd_path": str(output_path),
                 "stats_report_path": str(stats_report_path),
+                "scene_harness_summary_path": scene_harness_summary_path,
             },
         )
         return _build_output(
@@ -947,27 +1073,37 @@ def run_scene_pipeline(params: ScenePipelineInput) -> ScenePipelineOutput:
             manifest=manifest,
             validation_passed=validation_passed,
             validation_report=validation_report,
+            scene_harness_summary_path=scene_harness_summary_path,
             warnings=warnings,
             stats_report_path=stats_report_path,
         )
 
-    except Exception as exc:
-        logger.exception("Scene pipeline failed")
-        listener.error(f"Scene pipeline failed: {exc}")
+    except Exception:
+        logger.error(_SCENE_PIPELINE_FAILURE_MESSAGE)
+        listener.error(_SCENE_PIPELINE_FAILURE_MESSAGE)
         if current_stage:
-            listener.event(
+            _emit_safe_event(
+                listener,
                 "step.failed",
                 {
                     "step_name": current_stage,
                     "workflow_type": "scene_pipeline",
-                    "error": str(exc),
+                    "error": _SCENE_PIPELINE_FAILURE_MESSAGE,
                 },
             )
-        listener.event(
+        _emit_safe_event(
+            listener,
             "workflow.failed",
-            {"workflow_type": "scene_pipeline", "error": str(exc)},
+            {
+                "workflow_type": "scene_pipeline",
+                "error": _SCENE_PIPELINE_FAILURE_MESSAGE,
+            },
         )
-        return ScenePipelineOutput(success=False, error=str(exc), warnings=warnings)
+        return ScenePipelineOutput(
+            success=False,
+            error=_SCENE_PIPELINE_FAILURE_MESSAGE,
+            warnings=_project_public_strings(warnings),
+        )
 
 
 def _load_material_names(material_library_yaml: Path) -> list[str]:
@@ -1000,6 +1136,25 @@ def _load_material_names(material_library_yaml: Path) -> list[str]:
     ]
 
 
+def _project_public_path(value: str | Path | None) -> str:
+    """Keep an operational path only when its public form is credential-safe."""
+    if isinstance(value, Path):
+        raw_value = str(value)
+    elif type(value) is str:
+        raw_value = value
+    else:
+        return ""
+    return retain_safe_result_text(raw_value, path_context=True) or ""
+
+
+def _project_public_strings(value: Any) -> list[str]:
+    """Project a public string list without rendering unsupported values."""
+    projected = project_result_metadata({"items": value}).get("items")
+    if not isinstance(projected, list):
+        return []
+    return [item for item in projected if type(item) is str]
+
+
 def _build_output(
     success: bool,
     error: str | None,
@@ -1010,33 +1165,56 @@ def _build_output(
     manifest: SceneManifest,
     validation_passed: bool | None,
     validation_report: dict[str, Any] | None,
+    scene_harness_summary_path: str,
     warnings: list[str],
     stats_report_path: Path | None = None,
 ) -> ScenePipelineOutput:
     completed_assets, failed_assets, completed_payloads, failed_payloads = (
         _asset_counts(manifest)
     )
+    projected = project_result_metadata(
+        {
+            "validation_report": validation_report,
+            "warnings": warnings,
+            "raw_result": {
+                "analysis": manifest.analysis,
+                "sub_assets": len(manifest.sub_assets),
+                "instance_groups": len(manifest.instance_groups),
+                "payload_groups": len(manifest.payload_groups),
+                "scene_harness_summary_path": scene_harness_summary_path,
+            },
+        }
+    )
+    safe_validation_report = projected.get("validation_report")
+    if not isinstance(safe_validation_report, dict):
+        safe_validation_report = None
+    safe_raw_result = projected.get("raw_result")
+    if not isinstance(safe_raw_result, dict):
+        safe_raw_result = {}
+    safe_error = retain_safe_result_text(error) if error is not None else None
     return ScenePipelineOutput(
         success=success,
-        error=error,
-        working_dir=str(working_dir),
-        manifest_path=str(manifest_path),
-        output_usd_path=str(output_path),
-        rendered_images=rendered_images,
-        stats_report_path=str(stats_report_path) if stats_report_path else "",
+        error=safe_error or (_SCENE_PIPELINE_FAILURE_MESSAGE if error else None),
+        working_dir=_project_public_path(working_dir),
+        manifest_path=_project_public_path(manifest_path),
+        output_usd_path=_project_public_path(output_path),
+        rendered_images=[
+            safe_path
+            for value in rendered_images
+            if (safe_path := _project_public_path(value))
+        ],
+        stats_report_path=(
+            _project_public_path(stats_report_path) if stats_report_path else ""
+        ),
         completed_assets=completed_assets,
         failed_assets=failed_assets,
         completed_payloads=completed_payloads,
         failed_payloads=failed_payloads,
         validation_passed=validation_passed,
-        validation_report=validation_report,
-        warnings=warnings,
-        raw_result={
-            "analysis": manifest.analysis,
-            "sub_assets": len(manifest.sub_assets),
-            "instance_groups": len(manifest.instance_groups),
-            "payload_groups": len(manifest.payload_groups),
-        },
+        validation_report=safe_validation_report,
+        scene_harness_summary_path=_project_public_path(scene_harness_summary_path),
+        warnings=_project_public_strings(projected.get("warnings")),
+        raw_result=safe_raw_result,
     )
 
 

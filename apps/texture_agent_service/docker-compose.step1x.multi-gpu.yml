@@ -1,0 +1,35 @@
+# Two-GPU overlay for the integrated Step1X + OVRTX validation topology.
+#
+# Usage from the repo root:
+#   docker compose --env-file .env \
+#     -f apps/texture_agent_service/docker-compose.yml \
+#     -f apps/texture_agent_service/docker-compose.step1x.yml \
+#     -f apps/texture_agent_service/docker-compose.step1x.multi-gpu.yml \
+#     up --build
+#
+# Requires at least two visible GPUs. Step1X owns GPU 0 and OVRTX owns GPU 1.
+# Keep optional image-gen/LLM NIM profiles on separate GPUs if they are also
+# enabled; on a two-GPU host, do not combine those profiles with this overlay.
+
+services:
+  texture-gen-step1x:
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+
+  ovrtx-rendering-api:
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=1
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]

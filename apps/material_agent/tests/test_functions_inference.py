@@ -11,8 +11,58 @@ from PIL import Image
 
 from material_agent.functions.inference import (
     assign_material,
+    async_batch_assign_materials,
     batch_assign_materials,
+    reconcile_untrusted_spec_evidence,
 )
+from material_agent.materials import UNKNOWN_MATERIAL_SENTINEL
+
+
+@pytest.mark.parametrize(
+    ("visual_material", "spec_material", "status", "review_required"),
+    [
+        ("Steel", "304 Stainless Steel", "corroborated", False),
+        ("Steel", "Brass", "conflict", True),
+        (UNKNOWN_MATERIAL_SENTINEL, "Brass", "unsupported_spec_material", True),
+    ],
+)
+def test_untrusted_spec_only_corroborates_image_supported_material(
+    visual_material: str,
+    spec_material: str,
+    status: str,
+    review_required: bool,
+) -> None:
+    visual_prediction = {"material": visual_material, "confidence": 0.9}
+    entry = {
+        "untrusted_spec_evidence": {
+            "extracted_text": f"Part: Housing\n- Material Type: {spec_material}"
+        }
+    }
+
+    result = reconcile_untrusted_spec_evidence(visual_prediction, entry)
+
+    assert result["material"] == visual_material
+    assert result["confidence"] == 0.9
+    reconciliation = result["evidence_reconciliation"]
+    assert reconciliation["status"] == status
+    assert reconciliation["review_required"] is review_required
+    assert reconciliation["visual_material"] == visual_material
+    assert reconciliation["untrusted_spec_material_claims"] == [spec_material]
+    if status == "corroborated":
+        assert reconciliation["corroborating_spec_materials"] == [spec_material]
+        assert "conflicting_spec_materials" not in reconciliation
+    else:
+        assert reconciliation["conflicting_spec_materials"] == [spec_material]
+        assert spec_material != result["material"]
+
+
+def test_image_only_prediction_is_unchanged_without_spec_claims() -> None:
+    visual_prediction = {"material": "Steel", "confidence": 0.9}
+
+    result = reconcile_untrusted_spec_evidence(visual_prediction, {})
+
+    assert result is visual_prediction
+    assert result == {"material": "Steel", "confidence": 0.9}
 
 
 class TestAssignMaterial:
@@ -375,6 +425,63 @@ class TestBatchAssignMaterials:
         assert call_kwargs["system_prompt"] == custom_prompt
         assert call_kwargs["temperature"] == 0.8
         assert call_kwargs["max_tokens"] == 1024
+
+    @pytest.mark.asyncio
+    async def test_async_batch_assign_materials_delegates_with_material_options(
+        self,
+        monkeypatch,
+        mock_vlm,
+        mock_llm,
+    ):
+        import material_agent.functions.inference as inference_module
+
+        calls = []
+
+        async def fake_async_batch_classify_objects(**kwargs):
+            calls.append(kwargs)
+            prediction = {"material": "Steel"}
+            kwargs["on_prediction"]("entry-1", prediction)
+            return [
+                {
+                    "id": "entry-1",
+                    "status": "success",
+                    "vlm_response": prediction,
+                }
+            ]
+
+        monkeypatch.setattr(
+            inference_module,
+            "async_batch_classify_objects",
+            fake_async_batch_classify_objects,
+        )
+
+        predictions = []
+        results = await async_batch_assign_materials(
+            vlm=mock_vlm,
+            entries=[
+                {
+                    "id": "entry-1",
+                    "text": "part",
+                    "images": [],
+                    "untrusted_spec_evidence": {
+                        "extracted_text": "Material Type: Brass"
+                    },
+                }
+            ],
+            llm=mock_llm,
+            processed_ids={"already-done"},
+            on_prediction=lambda _entry_id, prediction: predictions.append(prediction),
+            max_workers=2,
+            max_retries=1,
+        )
+
+        assert results[0]["vlm_response"]["material"] == "Steel"
+        assert predictions[0]["evidence_reconciliation"]["status"] == "conflict"
+        assert calls[0]["output_key"] == "material"
+        assert calls[0]["unknown_sentinel"] == UNKNOWN_MATERIAL_SENTINEL
+        assert calls[0]["processed_ids"] == {"already-done"}
+        assert calls[0]["max_workers"] == 2
+        assert calls[0]["max_retries"] == 1
 
 
 class TestIntegrationScenarios:

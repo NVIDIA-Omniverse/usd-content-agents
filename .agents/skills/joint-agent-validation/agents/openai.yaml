@@ -1,0 +1,4 @@
+interface:
+  display_name: "Joint Agent Validation"
+  short_description: "Run Gate 3A and Gate 3B on Joint output"
+  default_prompt: "Use $joint-agent-validation to run Isaac Sim Asset Validator and SimReady Foundation validation on a Joint Agent USD or USDZ output, preserving raw findings and Research Preview limitations."

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from pathlib import Path
 
 import pytest
@@ -87,6 +88,30 @@ def test_project_path_resolver_resolves_paths_and_summarizes(tmp_path: Path):
     )
 
 
+def test_project_path_resolver_redacts_missing_input_diagnostics(
+    tmp_path: Path,
+) -> None:
+    secret = "physics-input-path-secret-713"
+    config_dir = tmp_path / f"user:{secret}@assets.example.test"
+    config_dir.mkdir()
+    resolver = ProjectPathResolver(
+        config={
+            "project": {"name": "safe", "working_dir": "work"},
+            "input": {"usd_path": "missing.usd"},
+            "steps": {},
+            "advanced": {},
+        },
+        config_file_path=config_dir / "config.yaml",
+    )
+
+    with pytest.raises(FileNotFoundError) as exc_info:
+        resolver.validate_input_paths()
+
+    observable = f"{exc_info.value}\n{resolver!r}\n{resolver.get_path_summary()!r}"
+    assert secret not in observable
+    assert str(exc_info.value) == "Input USD file not found: <redacted>"
+
+
 def test_config_validator_handles_required_fields_and_warns(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -144,6 +169,88 @@ def test_config_validator_handles_required_fields_and_warns(
         )
 
 
+def test_validator_unknown_step_log_redacts_credential_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    secret = "physics-validator-key-secret-713"
+    target = logging.getLogger("physics_agent.config.validator")
+    previous_propagate = target.propagate
+    target.addHandler(caplog.handler)
+    target.propagate = False
+    try:
+        with caplog.at_level(logging.WARNING, logger=target.name):
+            ConfigValidator()._validate_steps(
+                {f"https://user:{secret}@config.example.test": {}}
+            )
+    finally:
+        target.removeHandler(caplog.handler)
+        target.propagate = previous_propagate
+
+    assert secret not in caplog.text
+    assert "<redacted>" in caplog.text
+
+
+def test_unified_validation_errors_do_not_echo_invalid_credential_values(
+    tmp_path: Path,
+) -> None:
+    secret = "physics-validator-secret-713"
+    usd_path = tmp_path / "asset.usd"
+    usd_path.write_text("#usda 1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        UnifiedPipelineConfigTask().run(
+            {
+                "config_dict": {
+                    "project": {"name": "demo", "working_dir": "runs/demo"},
+                    "input": {"usd_path": str(usd_path)},
+                    "steps": {
+                        "apply_physics": {
+                            "enabled": True,
+                            "collision_approx": (
+                                f"https://user:{secret}@physics.example.test"
+                            ),
+                        }
+                    },
+                },
+                "only_steps": ["apply_physics"],
+            }
+        )
+
+    assert secret not in str(exc_info.value)
+    assert "unsupported value" in str(exc_info.value)
+
+
+def test_unified_renderer_validation_error_is_value_free(tmp_path: Path) -> None:
+    secret = "physics-renderer-validation-secret-713"
+    usd_path = tmp_path / "asset.usd"
+    usd_path.write_text("#usda 1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        UnifiedPipelineConfigTask().run(
+            {
+                "config_dict": {
+                    "project": {"name": "demo", "working_dir": "runs/demo"},
+                    "input": {"usd_path": str(usd_path)},
+                    "steps": {
+                        "build_dataset_usd": {
+                            "enabled": True,
+                            "renderer": {
+                                "rendering_modes": {"beauty": {}},
+                                "cull_style": f"Bearer {secret}",
+                            },
+                        }
+                    },
+                },
+                "only_steps": ["build_dataset_usd"],
+            }
+        )
+
+    observable = "".join(traceback.format_exception(exc_info.value))
+    assert secret not in observable
+    assert str(exc_info.value) == "Invalid renderer configuration"
+    assert exc_info.value.__cause__ is None
+
+
 def test_unified_pipeline_config_task_builds_autowired_step_configs(tmp_path: Path):
     usd_path = tmp_path / "asset.usd"
     usd_path.write_text("#usda 1.0\n")
@@ -182,6 +289,8 @@ def test_unified_pipeline_config_task_builds_autowired_step_configs(tmp_path: Pa
 
     result = UnifiedPipelineConfigTask().run(context)
 
+    assert result["config"] is not config
+    assert "session_id" not in config["project"]
     assert result["project_name"] == "demo"
     assert result["session_id"] == "session-xyz"
     assert result["config"]["project"]["session_id"] == "session-xyz"
@@ -223,6 +332,29 @@ def test_unified_pipeline_config_task_builds_autowired_step_configs(tmp_path: Pa
     assert _path_endswith(
         restore["output_predictions_path"], "restored_predictions.jsonl"
     )
+
+
+def test_unified_config_dict_uses_source_path_only_as_anchor(tmp_path: Path) -> None:
+    config_dir = tmp_path / "configs"
+    config_dir.mkdir()
+    source_config_path = config_dir / "pipeline.yaml"
+    source_config_path.write_text("# source anchor\n", encoding="utf-8")
+    usd_path = config_dir / "asset.usda"
+    usd_path.write_text("#usda 1.0\n", encoding="utf-8")
+    source = {
+        "project": {"name": "demo", "working_dir": "work"},
+        "input": {"usd_path": "asset.usda"},
+        "steps": {"build_dataset_usd": {"enabled": True}},
+    }
+
+    result = UnifiedPipelineConfigTask().run(
+        {"config_dict": source, "config_path": source_config_path}
+    )
+
+    assert result["path_resolver"].input_usd == usd_path.resolve()
+    assert result["config_path"] == source_config_path
+    assert result["config"] is not source
+    assert source["project"] == {"name": "demo", "working_dir": "work"}
 
 
 @pytest.mark.parametrize(

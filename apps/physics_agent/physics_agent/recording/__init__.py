@@ -3,7 +3,7 @@
 """Time-sampled USD recording of physics-tune trials (issue #50).
 
 Each tune trial that runs ovphysx (or any backend that returns a
-trajectory) writes a ``recording.usda`` with
+trajectory) writes a ``recording.usd`` with
 ``Sdf.TimeCode`` time samples on the body's ``xformOp:translate``,
 ``xformOp:orient``, ``physics:velocity``, and ``physics:angularVelocity``
 attributes. The recording is **raw simulator output** — programmatic

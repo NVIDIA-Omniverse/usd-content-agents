@@ -24,6 +24,8 @@ from requests import HTTPError
 
 logger = logging.getLogger(__name__)
 
+_RENDERER_NOT_INITIALIZED = "Renderer not initialized"
+
 
 @dataclass(frozen=True)
 class WorkerSpec:
@@ -46,12 +48,19 @@ class WorkerState:
     ready: bool = False
     renderer_initialized: bool = False
     daemon_running: bool = False
+    daemon_pid: int | None = None
+    daemon_completed_renders: int | None = None
+    daemon_rss_bytes: int | None = None
+    daemon_recycle_count: int | None = None
+    daemon_last_recycle_reason: str | None = None
+    daemon_pending_recycle_reason: str | None = None
     in_flight: int = 0
     restart_count: int = 0
     last_error: str | None = None
     last_health_at: float = 0.0
     next_restart_at: float = 0.0
     unhealthy_since: float | None = None
+    restart_requested: bool = False
     status: str = "starting"
 
     def health_payload(self) -> dict[str, Any]:
@@ -64,9 +73,25 @@ class WorkerState:
             "status": self.status,
             "renderer_initialized": self.renderer_initialized,
             "daemon_running": self.daemon_running,
+            "daemon_pid": self.daemon_pid,
+            "daemon_completed_renders": self.daemon_completed_renders,
+            "daemon_rss_bytes": self.daemon_rss_bytes,
+            "daemon_recycle_count": self.daemon_recycle_count,
+            "daemon_last_recycle_reason": self.daemon_last_recycle_reason,
+            "daemon_pending_recycle_reason": self.daemon_pending_recycle_reason,
             "restart_count": self.restart_count,
             "last_error": self.last_error,
         }
+
+
+def _clear_daemon_telemetry(worker: WorkerState) -> None:
+    """Clear fields owned by the worker's current daemon process."""
+    worker.daemon_pid = None
+    worker.daemon_completed_renders = None
+    worker.daemon_rss_bytes = None
+    worker.daemon_recycle_count = None
+    worker.daemon_last_recycle_reason = None
+    worker.daemon_pending_recycle_reason = None
 
 
 def parse_gpu_workers(raw_value: str | None) -> list[str]:
@@ -175,6 +200,7 @@ class OVRTXDispatcher:
     def render(self, request_payload: dict[str, Any]) -> dict[str, Any]:
         """Dispatch one render request to a ready private worker."""
         worker: WorkerState | None = None
+        restart_worker = False
         try:
             worker = self._acquire_worker()
             logger.info(
@@ -191,14 +217,23 @@ class OVRTXDispatcher:
                 response.raise_for_status()
             if response.status_code >= 400:
                 return _worker_http_error_response(response)
-            return response.json()
+            payload = response.json()
+            if _is_renderer_not_initialized_response(payload):
+                logger.warning(
+                    "OVRTX worker gpu=%s reported an uninitialized renderer during "
+                    "render; restarting worker",
+                    worker.spec.gpu_id,
+                )
+                self._mark_worker_unhealthy(
+                    worker,
+                    _RENDERER_NOT_INITIALIZED,
+                    restart_immediately=True,
+                )
+                restart_worker = True
+            return payload
         except (requests.ConnectionError, requests.Timeout, HTTPError) as exc:
             if worker is not None:
-                with self._condition:
-                    worker.last_error = str(exc)
-                    worker.ready = False
-                    worker.status = "unhealthy"
-                    self._condition.notify_all()
+                self._mark_worker_unhealthy(worker, str(exc))
                 logger.exception(
                     "OVRTX worker gpu=%s render failed",
                     worker.spec.gpu_id,
@@ -214,6 +249,8 @@ class OVRTXDispatcher:
                 with self._condition:
                     worker.in_flight = max(0, worker.in_flight - 1)
                     self._condition.notify_all()
+                if restart_worker:
+                    self._restart_unhealthy_worker_if_due(worker)
 
     def health(self) -> dict[str, Any]:
         """Return aggregate dispatcher health."""
@@ -272,8 +309,10 @@ class OVRTXDispatcher:
             worker.ready = False
             worker.renderer_initialized = False
             worker.daemon_running = False
+            _clear_daemon_telemetry(worker)
             worker.last_error = None
             worker.unhealthy_since = None
+            worker.restart_requested = False
             worker.process = None
             self._condition.notify_all()
 
@@ -316,6 +355,9 @@ class OVRTXDispatcher:
         except Exception as exc:
             with self._condition:
                 worker.ready = False
+                worker.renderer_initialized = False
+                worker.daemon_running = False
+                _clear_daemon_telemetry(worker)
                 worker.status = (
                     "starting" if worker.status == "starting" else "unhealthy"
                 )
@@ -331,6 +373,16 @@ class OVRTXDispatcher:
             worker.ready = bool(payload.get("gpu_initialized"))
             worker.renderer_initialized = bool(payload.get("renderer_initialized"))
             worker.daemon_running = bool(payload.get("daemon_running"))
+            worker.daemon_pid = payload.get("daemon_pid")
+            worker.daemon_completed_renders = payload.get("daemon_completed_renders")
+            worker.daemon_rss_bytes = payload.get("daemon_rss_bytes")
+            worker.daemon_recycle_count = payload.get("daemon_recycle_count")
+            worker.daemon_last_recycle_reason = payload.get(
+                "daemon_last_recycle_reason"
+            )
+            worker.daemon_pending_recycle_reason = payload.get(
+                "daemon_pending_recycle_reason"
+            )
             worker.status = str(payload.get("status", "unknown"))
             worker.last_error = None if worker.ready else payload.get("error")
             worker.last_health_at = time.time()
@@ -350,9 +402,11 @@ class OVRTXDispatcher:
             worker.ready = False
             worker.renderer_initialized = False
             worker.daemon_running = False
+            _clear_daemon_telemetry(worker)
             worker.status = "exited"
             worker.last_error = f"worker exited with code {returncode}"
             worker.unhealthy_since = None
+            worker.restart_requested = False
             self._condition.notify_all()
 
     def _restart_worker_if_due(self, worker: WorkerState) -> None:
@@ -365,15 +419,16 @@ class OVRTXDispatcher:
     def _restart_unhealthy_worker_if_due(self, worker: WorkerState) -> None:
         process_to_stop: subprocess.Popen[bytes] | None = None
         with self._condition:
-            if worker.ready or worker.unhealthy_since is None:
-                return
             if worker.in_flight > 0:
                 return
-            if (
-                time.monotonic() - worker.unhealthy_since
-                < self._restart_cooldown_seconds
-            ):
-                return
+            if not worker.restart_requested:
+                if worker.ready or worker.unhealthy_since is None:
+                    return
+                if (
+                    time.monotonic() - worker.unhealthy_since
+                    < self._restart_cooldown_seconds
+                ):
+                    return
             process_to_stop = worker.process
             worker.process = None
             worker.restart_count += 1
@@ -381,13 +436,39 @@ class OVRTXDispatcher:
             worker.ready = False
             worker.renderer_initialized = False
             worker.daemon_running = False
-            worker.last_error = "worker remained unhealthy; restarting"
+            _clear_daemon_telemetry(worker)
+            worker.last_error = (
+                worker.last_error or "worker remained unhealthy; restarting"
+            )
             worker.unhealthy_since = None
+            worker.restart_requested = False
             self._condition.notify_all()
 
         if process_to_stop is not None and process_to_stop.poll() is None:
             self._stop_process(process_to_stop, worker.spec.gpu_id, timeout_seconds=5.0)
         self._start_worker(worker)
+
+    def _mark_worker_unhealthy(
+        self,
+        worker: WorkerState,
+        error: str,
+        *,
+        restart_immediately: bool = False,
+    ) -> None:
+        with self._condition:
+            worker.ready = False
+            worker.renderer_initialized = False
+            worker.daemon_running = False
+            _clear_daemon_telemetry(worker)
+            worker.status = "unhealthy"
+            worker.last_error = error
+            now = time.monotonic()
+            if restart_immediately:
+                worker.unhealthy_since = now - self._restart_cooldown_seconds
+                worker.restart_requested = True
+            elif worker.unhealthy_since is None:
+                worker.unhealthy_since = now
+            self._condition.notify_all()
 
     def _stop_worker_process(
         self,
@@ -458,3 +539,23 @@ def _worker_http_error_response(response: requests.Response) -> dict[str, Any]:
         "error": f"OVRTX worker returned HTTP {response.status_code}: {message}",
         "images": {},
     }
+
+
+def _is_renderer_not_initialized_response(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("status") != "exception":
+        return False
+    error = payload.get("error")
+    if not isinstance(error, str):
+        return False
+    normalized_error = error.strip()
+    if normalized_error == _RENDERER_NOT_INITIALIZED:
+        return True
+    if _RENDERER_NOT_INITIALIZED in normalized_error:
+        logger.warning(
+            "OVRTX worker returned renderer-not-initialized text that did not "
+            "match the exact restart sentinel: %r",
+            normalized_error,
+        )
+    return False

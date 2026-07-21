@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pytest import MonkeyPatch
+
 from world_understanding.functions.physics.physical_behavior_evidence import (
     BEHAVIOR_EVIDENCE_MALFORMED,
     BEHAVIOR_EVIDENCE_MISSING,
@@ -225,6 +227,33 @@ def test_explicit_json_evidence_validates_content_regardless_of_suffix(
     assert result.issues[0].code == BEHAVIOR_EVIDENCE_MALFORMED
 
 
+def test_explicit_valid_json_evidence_has_no_validation_issue(tmp_path: Path) -> None:
+    metrics = _touch(tmp_path / "metrics.json", json.dumps({"trajectory": []}))
+
+    result = resolve_physical_behavior_evidence(
+        [{"path": metrics, "kind": "trajectory_metrics"}],
+    )
+
+    assert result.passed
+    assert result.evidence[0].kind == "trajectory_metrics"
+    assert result.issues == ()
+
+
+def test_explicit_jsonl_evidence_validates_line_records(tmp_path: Path) -> None:
+    history = _touch(
+        tmp_path / "history.jsonl",
+        json.dumps({"trial_index": 0}) + "\n",
+    )
+
+    result = resolve_physical_behavior_evidence(
+        [{"path": history, "kind": "trajectory_metrics"}],
+    )
+
+    assert result.passed
+    assert result.evidence[0].kind == "trajectory_metrics"
+    assert result.issues == ()
+
+
 def test_malformed_mapping_spec_reports_issue() -> None:
     result = resolve_physical_behavior_evidence(
         [{"kind": "video"}],
@@ -248,6 +277,115 @@ def test_malformed_required_mapping_spec_fails_even_when_global_optional() -> No
     assert result.issues[0].severity == "fail"
     assert result.issues[0].subject == "rollout.usda"
     assert result.issues[0].details == {"input_index": 0, "required": True}
+
+
+def test_malformed_non_mapping_spec_uses_default_requiredness() -> None:
+    result = resolve_physical_behavior_evidence(
+        [123],
+        behavior_evidence_required=True,
+    )
+
+    assert not result.passed
+    assert result.evidence == ()
+    assert result.issues[0].code == BEHAVIOR_EVIDENCE_MALFORMED
+    assert result.issues[0].severity == "fail"
+    assert result.issues[0].subject is None
+    assert result.issues[0].details == {"input_index": 0, "required": True}
+
+
+def test_malformed_non_bool_required_spec_falls_back_to_global_default() -> None:
+    result = resolve_physical_behavior_evidence(
+        [{"path": "rollout.usda", "required": "yes"}],
+        behavior_evidence_required=False,
+    )
+
+    assert result.passed
+    assert result.evidence == ()
+    assert result.issues[0].code == BEHAVIOR_EVIDENCE_MALFORMED
+    assert result.issues[0].severity == "warn"
+    assert result.issues[0].subject == "rollout.usda"
+    assert result.issues[0].details == {"input_index": 0, "required": False}
+
+
+def test_relative_base_dir_resolves_against_current_working_directory(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    rollout = _touch(tmp_path / "evidence" / "rollout.usda")
+
+    result = resolve_physical_behavior_evidence(
+        "rollout.usda",
+        base_dir="evidence",
+        behavior_evidence_required=True,
+    )
+
+    assert result.passed
+    assert result.evidence[0].path == str(rollout.resolve())
+
+
+def test_json_evidence_kind_inference_edge_cases(tmp_path: Path) -> None:
+    missing_json = tmp_path / "missing.json"
+    metrics_with_positions = _touch(
+        tmp_path / "metrics.json",
+        json.dumps({"metrics": {"ok": True}, "positions": []}),
+    )
+    top_level_list = _touch(
+        tmp_path / "list.json",
+        json.dumps([{"success": True}]),
+    )
+
+    result = resolve_physical_behavior_evidence(
+        [missing_json, metrics_with_positions, top_level_list],
+    )
+
+    assert result.passed
+    assert [item.kind for item in result.evidence] == [
+        "simulation_json",
+        "trajectory_metrics",
+        "simulation_json",
+    ]
+    assert result.evidence[0].details == {"inferred": True}
+    assert result.evidence[1].details["json_keys"] == ["metrics", "positions"]
+    assert result.evidence[2].details["json_top_level"] == "list"
+    assert result.issues[0].code == BEHAVIOR_EVIDENCE_MISSING
+    assert result.issues[0].severity == "warn"
+
+
+def test_missing_jsonl_and_explicit_missing_json_skip_content_validation(
+    tmp_path: Path,
+) -> None:
+    result = resolve_physical_behavior_evidence(
+        [
+            tmp_path / "missing.jsonl",
+            {"path": tmp_path / "explicit-missing.json", "kind": "trajectory_metrics"},
+        ],
+    )
+
+    assert result.passed
+    assert [item.kind for item in result.evidence] == [
+        "trajectory_metrics",
+        "trajectory_metrics",
+    ]
+    assert [issue.code for issue in result.issues] == [
+        BEHAVIOR_EVIDENCE_MISSING,
+        BEHAVIOR_EVIDENCE_MISSING,
+    ]
+
+
+def test_jsonl_evidence_ignores_blank_lines_when_counting_records(
+    tmp_path: Path,
+) -> None:
+    history = _touch(
+        tmp_path / "history.jsonl",
+        "\n" + json.dumps({"trial_index": 0}) + "\n\n",
+    )
+
+    result = resolve_physical_behavior_evidence(history)
+
+    assert result.passed
+    assert result.evidence[0].kind == "trajectory_metrics"
+    assert result.evidence[0].details["jsonl_line_count"] == 1
 
 
 def test_placeholder_result_reports_unavailable_judge_for_valid_evidence(

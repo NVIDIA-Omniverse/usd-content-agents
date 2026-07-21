@@ -9,6 +9,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from world_understanding.functions.graphics import (
+    scene_optimizer_nvcf as optimizer_nvcf,
+)
 from world_understanding.functions.graphics.scene_optimizer_nvcf import (
     optimize_usd_from_path,
     optimize_usd_from_url,
@@ -282,6 +285,135 @@ class TestOptimizeUsdFromUrl:
             assert mock_client.post.call_count == 1
             assert mock_client.get.call_count >= 1  # Polling occurred
 
+    @pytest.mark.asyncio
+    async def test_optimize_usd_from_url_nested_config_caps_poll_and_defaults_format(
+        self, tmp_path
+    ):
+        """Nested optimizer config is passed through and poll_seconds is capped."""
+        captured: dict[str, object] = {}
+
+        async def fake_execute(**kwargs):
+            captured.update(kwargs)
+            return {
+                "success": True,
+                "optimized_stage_base64": "dGVzdA==",
+                "operations_executed": ["deinstance"],
+                "report": "ok",
+                "correspondence_map": {"a": "b"},
+            }
+
+        def fake_headers(api_key, timeout, poll_seconds):
+            captured["poll_seconds"] = poll_seconds
+            return {"Authorization": f"Bearer {api_key}"}
+
+        with (
+            patch.object(optimizer_nvcf, "get_nvcf_api_key", return_value="test-key"),
+            patch.object(
+                optimizer_nvcf,
+                "get_base_url",
+                return_value="https://optimizer.example",
+            ),
+            patch.object(
+                optimizer_nvcf, "create_nvcf_headers", side_effect=fake_headers
+            ),
+            patch.object(
+                optimizer_nvcf,
+                "execute_nvcf_request_async",
+                side_effect=fake_execute,
+            ),
+        ):
+            result = await optimize_usd_from_url(
+                "https://example.test/input.usd",
+                tmp_path / "optimized.notusd",
+                optimization_config={
+                    "scene_optimizer_settings": {"wait_for_assets": True},
+                    "poll_seconds": 999,
+                },
+            )
+
+        assert result["status"] == "success"
+        assert captured["poll_seconds"] == 300
+        params = captured["params"]
+        assert params["scene_optimizer_settings"] == {
+            "wait_for_assets": True,
+            "output_format": "usdc",
+        }
+
+    @pytest.mark.asyncio
+    async def test_optimize_usd_from_url_legacy_config_failure_response(self, tmp_path):
+        """Legacy flat optimizer config maps into scene_optimizer_settings."""
+        captured: dict[str, object] = {}
+
+        async def fake_execute(**kwargs):
+            captured.update(kwargs)
+            return {"success": False}
+
+        with (
+            patch.object(optimizer_nvcf, "get_nvcf_api_key", return_value="test-key"),
+            patch.object(
+                optimizer_nvcf,
+                "get_base_url",
+                return_value="https://optimizer.example",
+            ),
+            patch.object(optimizer_nvcf, "create_nvcf_headers", return_value={}),
+            patch.object(
+                optimizer_nvcf,
+                "execute_nvcf_request_async",
+                side_effect=fake_execute,
+            ),
+        ):
+            result = await optimize_usd_from_url(
+                "https://example.test/input.usd",
+                tmp_path / "optimized.usda",
+                optimization_config={
+                    "wait_for_assets": True,
+                    "stage_timeout": 12.0,
+                    "extract_geom_subset_indices": False,
+                    "aws_vpc_mode": False,
+                },
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "Optimization failed (success=False in response)"
+        params = captured["params"]
+        assert params["scene_optimizer_settings"] == {
+            "wait_for_assets": True,
+            "stage_timeout": 12.0,
+            "extract_geom_subset_indices": False,
+            "output_format": "usda",
+        }
+
+    @pytest.mark.asyncio
+    async def test_optimize_usd_from_url_reports_missing_optimized_stage(
+        self, tmp_path
+    ):
+        """A success response without stage bytes is returned as an error."""
+
+        async def fake_execute(**kwargs):
+            return {"success": True}
+
+        with (
+            patch.object(optimizer_nvcf, "get_nvcf_api_key", return_value="test-key"),
+            patch.object(
+                optimizer_nvcf,
+                "get_base_url",
+                return_value="https://optimizer.example",
+            ),
+            patch.object(optimizer_nvcf, "create_nvcf_headers", return_value={}),
+            patch.object(
+                optimizer_nvcf,
+                "execute_nvcf_request_async",
+                side_effect=fake_execute,
+            ),
+        ):
+            result = await optimize_usd_from_url(
+                "https://example.test/input.usd",
+                tmp_path / "optimized.usdc",
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "No optimized_stage_base64 in response"
+
 
 class TestOptimizeUsdFromPath:
     """Tests for optimize_usd_from_path async function."""
@@ -326,3 +458,82 @@ class TestOptimizeUsdFromPath:
 
                     assert result["status"] == "success"
                     assert mock_upload.called
+
+    @pytest.mark.asyncio
+    async def test_optimize_usd_from_path_uses_data_uri(self, tmp_path):
+        """Data URI mode skips S3 and delegates directly to optimize_usd_from_url."""
+        input_path = tmp_path / "input.usd"
+        output_path = tmp_path / "optimized.usdc"
+        input_path.write_text("test usd content")
+        captured: dict[str, object] = {}
+
+        async def fake_optimize_from_url(**kwargs):
+            captured.update(kwargs)
+            return {"status": "success"}
+
+        with (
+            patch.object(optimizer_nvcf, "should_use_data_uri", return_value=True),
+            patch(
+                "world_understanding.utils.usd.stage.create_data_uri_from_file",
+                return_value="data:application/octet-stream;base64,dGVzdA==",
+            ),
+            patch.object(
+                optimizer_nvcf,
+                "optimize_usd_from_url",
+                side_effect=fake_optimize_from_url,
+            ),
+        ):
+            result = await optimize_usd_from_path(
+                input_path=input_path,
+                output_path=output_path,
+                api_key="test-key",
+                base_url="https://optimizer.example",
+                use_data_uri=True,
+            )
+
+        assert result["status"] == "success"
+        assert captured["input_url"] == "data:application/octet-stream;base64,dGVzdA=="
+        assert captured["output_path"] == output_path
+
+    @pytest.mark.asyncio
+    async def test_optimize_usd_from_path_normalizes_unknown_suffix_for_s3(
+        self, tmp_path
+    ):
+        """S3 upload path uses .usd when input suffix is not a USD extension."""
+        input_path = tmp_path / "input.txt"
+        output_path = tmp_path / "optimized.usdc"
+        input_path.write_text("test usd content")
+
+        async def fake_optimize_from_url(**kwargs):
+            return {"status": "success"}
+
+        with (
+            patch.object(optimizer_nvcf, "should_use_data_uri", return_value=False),
+            patch.object(
+                optimizer_nvcf,
+                "upload_file_to_s3",
+                return_value="s3://test-bucket/test-key/input.usd",
+            ) as mock_upload,
+            patch.object(
+                optimizer_nvcf,
+                "s3_uri_to_https_url",
+                return_value="https://bucket.example/input.usd",
+            ),
+            patch.object(optimizer_nvcf, "delete_s3_path"),
+            patch.object(
+                optimizer_nvcf,
+                "optimize_usd_from_url",
+                side_effect=fake_optimize_from_url,
+            ),
+        ):
+            result = await optimize_usd_from_path(
+                input_path=input_path,
+                output_path=output_path,
+                s3_bucket="test-bucket",
+                s3_region="us-west-2",
+                s3_profile="test-profile",
+                use_data_uri=False,
+            )
+
+        assert result["status"] == "success"
+        assert mock_upload.call_args.kwargs["s3_path"].endswith("/input.usd")

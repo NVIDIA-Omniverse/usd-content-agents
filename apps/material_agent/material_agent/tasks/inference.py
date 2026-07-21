@@ -20,10 +20,13 @@ from material_agent.functions.inference import (
     assign_materials_multi_prim,
     async_batch_assign_materials,
     batch_assign_materials,
+    reconcile_untrusted_spec_evidence,
 )
 from material_agent.tasks.prepare_dataset import (
     _VLM_MULTI_PRIM_SYSTEM_PROMPT_TEMPLATE,
     _VLM_MULTI_PRIM_USER_PROMPT_TEMPLATE,
+    render_vlm_multi_prim_user_prompt_template,
+    render_vlm_system_prompt_template,
 )
 
 logger = logging.getLogger(__name__)
@@ -218,6 +221,7 @@ class VLMInferenceTask(Task):
         resolved_assignments: dict[str, str],
         prim_feedback: dict[str, str],
         prev_preds: dict[str, dict[str, Any]],
+        visual_refinement_context_by_prim: dict[str, dict[str, Any]] | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
         """Classify dataset entries for selective re-prediction.
 
@@ -258,11 +262,30 @@ class VLMInferenceTask(Task):
             elif entry_id in prim_feedback:
                 # Has feedback but no resolution — re-predict with VLM
                 feedback_text = prim_feedback[entry_id]
+                visual_context_raw = (
+                    visual_refinement_context_by_prim.get(entry_id, {})
+                    if visual_refinement_context_by_prim
+                    else {}
+                )
+                visual_context = (
+                    visual_context_raw if isinstance(visual_context_raw, dict) else {}
+                )
+                visual_text = str(visual_context.get("text") or "").strip()
+                visual_section = (
+                    f"\n\n**TARGETED VISUAL REFINEMENT EVIDENCE:**\n{visual_text}\n"
+                    if visual_text
+                    else ""
+                )
                 entry["text"] = (
                     f"\n**FEEDBACK FOR THIS SPECIFIC PART "
                     f"(from previous iteration):**\n"
-                    f"{feedback_text}\n\n"
+                    f"{feedback_text}"
+                    f"{visual_section}\n\n"
                     f"{entry.get('text', '')}"
+                )
+                VLMInferenceTask._attach_visual_refinement_images(
+                    entry,
+                    visual_context,
                 )
                 re_predict_entries.append(entry)
             elif entry_id in prev_preds:
@@ -273,6 +296,57 @@ class VLMInferenceTask(Task):
                 re_predict_entries.append(entry)
 
         return carried_forward_predictions, re_predict_entries, resolved_count
+
+    @staticmethod
+    def _attach_visual_refinement_images(
+        entry: dict[str, Any],
+        visual_context: dict[str, Any],
+    ) -> None:
+        """Attach targeted full-render crops to one reprediction entry."""
+        raw_images = visual_context.get("images")
+        if not isinstance(raw_images, list) or not raw_images:
+            return
+
+        media = entry.setdefault("media", {})
+        if not isinstance(media, dict):
+            media = {}
+            entry["media"] = media
+        images = media.setdefault("images", [])
+        if not isinstance(images, list):
+            images = []
+            media["images"] = images
+
+        existing_paths = {
+            str(image.get("path"))
+            for image in images
+            if isinstance(image, dict) and image.get("path") is not None
+        }
+        for raw_image in raw_images:
+            if not isinstance(raw_image, dict):
+                continue
+            raw_path = raw_image.get("path")
+            if not isinstance(raw_path, str) or not raw_path:
+                continue
+            if raw_path in existing_paths:
+                continue
+            caption = str(raw_image.get("caption") or "").strip()
+            images.append(
+                {
+                    "path": raw_path,
+                    "type": "render",
+                    "metadata": {
+                        "render_mode": "visual_refinement",
+                        "view": "targeted_full_scene_visual_evidence",
+                        "camera": "full_scene",
+                        "vlm_prompt": caption
+                        or (
+                            "Targeted full-scene visual evidence for this "
+                            "follow-up material prediction."
+                        ),
+                    },
+                }
+            )
+            existing_paths.add(raw_path)
 
     # ------------------------------------------------------------------
     # Multi-prim grouping helpers
@@ -389,7 +463,8 @@ class VLMInferenceTask(Task):
         image_layout = "\n".join(image_layout_lines)
         per_part_context = "\n\n".join(per_part_context_lines)
 
-        user_prompt = _VLM_MULTI_PRIM_USER_PROMPT_TEMPLATE.format(
+        user_prompt = render_vlm_multi_prim_user_prompt_template(
+            _VLM_MULTI_PRIM_USER_PROMPT_TEMPLATE,
             image_layout=image_layout,
             per_part_context=per_part_context,
         )
@@ -522,8 +597,9 @@ class VLMInferenceTask(Task):
             if isinstance(materials_list, list):
                 materials_list = ", ".join(materials_list)
 
-        multi_prim_system_prompt = _VLM_MULTI_PRIM_SYSTEM_PROMPT_TEMPLATE.format(
-            materials_list=materials_list
+        multi_prim_system_prompt = render_vlm_system_prompt_template(
+            _VLM_MULTI_PRIM_SYSTEM_PROMPT_TEMPLATE,
+            materials_list=materials_list,
         )
         listener.debug(
             f"Multi-prim system prompt built with "
@@ -600,7 +676,10 @@ class VLMInferenceTask(Task):
                     entry_id = entry.get("id", "unknown")
 
                     if entry_id in multi_results:
-                        pred = multi_results[entry_id]
+                        pred = reconcile_untrusted_spec_evidence(
+                            multi_results[entry_id],
+                            entry,
+                        )
                         result = {
                             "id": entry_id,
                             "vlm_response": pred,
@@ -646,13 +725,16 @@ class VLMInferenceTask(Task):
                                 "entry_id": entry_id,
                             },
                         )
-                        listener.event(
-                            "prediction.completed",
-                            {
-                                "entry_id": entry_id,
-                                "material": pred.get("material", "unknown"),
-                            },
-                        )
+                        event_payload: dict[str, Any] = {
+                            "entry_id": entry_id,
+                            "material": pred.get("material", "unknown"),
+                            "confidence": pred.get("confidence"),
+                            "response_snippet": pred.get("original_response", ""),
+                        }
+                        reconciliation = pred.get("evidence_reconciliation")
+                        if isinstance(reconciliation, dict):
+                            event_payload["evidence_reconciliation"] = reconciliation
+                        listener.event("prediction.completed", event_payload)
                     else:
                         # Prim missing from response → queue for individual retry
                         logger.warning(
@@ -851,6 +933,11 @@ class VLMInferenceTask(Task):
         # 3. Remaining prims -> re-predict with VLM (only if no resolution)
         resolved_assignments = context.get("resolved_assignments", {})
         prim_feedback = context.get("previous_prim_feedback", {})
+        visual_refinement_context_by_prim = context.get(
+            "visual_refinement_context_by_prim", {}
+        )
+        if not isinstance(visual_refinement_context_by_prim, dict):
+            visual_refinement_context_by_prim = {}
         previous_predictions_path = context.get("previous_predictions_path")
         carried_forward_predictions: list[dict[str, Any]] = []
 
@@ -868,7 +955,11 @@ class VLMInferenceTask(Task):
 
                 carried_forward_predictions, re_predict_entries, resolved_count = (
                     self._classify_entries_for_selective_reprediction(
-                        dataset, resolved_assignments, prim_feedback, prev_preds
+                        dataset,
+                        resolved_assignments,
+                        prim_feedback,
+                        prev_preds,
+                        visual_refinement_context_by_prim,
                     )
                 )
 
@@ -892,11 +983,32 @@ class VLMInferenceTask(Task):
                 entry_id = entry.get("id", "")
                 if entry_id in prim_feedback:
                     feedback_text = prim_feedback[entry_id]
+                    visual_context_raw = (
+                        visual_refinement_context_by_prim.get(entry_id, {})
+                        if visual_refinement_context_by_prim
+                        else {}
+                    )
+                    visual_context = (
+                        visual_context_raw
+                        if isinstance(visual_context_raw, dict)
+                        else {}
+                    )
+                    visual_text = str(visual_context.get("text") or "").strip()
+                    visual_section = (
+                        f"\n\n**TARGETED VISUAL REFINEMENT EVIDENCE:**\n{visual_text}\n"
+                        if visual_text
+                        else ""
+                    )
                     entry["text"] = (
                         f"\n**FEEDBACK FOR THIS SPECIFIC PART "
                         f"(from previous iteration):**\n"
-                        f"{feedback_text}\n\n"
+                        f"{feedback_text}"
+                        f"{visual_section}\n\n"
                         f"{entry.get('text', '')}"
+                    )
+                    VLMInferenceTask._attach_visual_refinement_images(
+                        entry,
+                        visual_context,
                     )
                     feedback_count += 1
             if feedback_count:
@@ -954,15 +1066,16 @@ class VLMInferenceTask(Task):
                 response_snippet = material_dict.get("original_response", "")
 
                 # Emit detailed prediction event
-                listener.event(
-                    "prediction.completed",
-                    {
-                        "entry_id": entry_id,
-                        "material": material,
-                        "confidence": confidence,
-                        "response_snippet": response_snippet,
-                    },
-                )
+                event_payload = {
+                    "entry_id": entry_id,
+                    "material": material,
+                    "confidence": confidence,
+                    "response_snippet": response_snippet,
+                }
+                reconciliation = material_dict.get("evidence_reconciliation")
+                if isinstance(reconciliation, dict):
+                    event_payload["evidence_reconciliation"] = reconciliation
+                listener.event("prediction.completed", event_payload)
             except Exception as e:
                 logger.warning(f"Failed to emit prediction event for {entry_id}: {e}")
 
@@ -1317,6 +1430,11 @@ class VLMInferenceTask(Task):
         # Selective re-prediction with resolved assignments
         resolved_assignments = context.get("resolved_assignments", {})
         prim_feedback = context.get("previous_prim_feedback", {})
+        visual_refinement_context_by_prim = context.get(
+            "visual_refinement_context_by_prim", {}
+        )
+        if not isinstance(visual_refinement_context_by_prim, dict):
+            visual_refinement_context_by_prim = {}
         previous_predictions_path = context.get("previous_predictions_path")
         carried_forward_predictions: list[dict[str, Any]] = []
 
@@ -1333,7 +1451,11 @@ class VLMInferenceTask(Task):
 
                 carried_forward_predictions, re_predict_entries, resolved_count = (
                     self._classify_entries_for_selective_reprediction(
-                        dataset, resolved_assignments, prim_feedback, prev_preds
+                        dataset,
+                        resolved_assignments,
+                        prim_feedback,
+                        prev_preds,
+                        visual_refinement_context_by_prim,
                     )
                 )
 
@@ -1356,11 +1478,32 @@ class VLMInferenceTask(Task):
                 entry_id = entry.get("id", "")
                 if entry_id in prim_feedback:
                     feedback_text = prim_feedback[entry_id]
+                    visual_context_raw = (
+                        visual_refinement_context_by_prim.get(entry_id, {})
+                        if visual_refinement_context_by_prim
+                        else {}
+                    )
+                    visual_context = (
+                        visual_context_raw
+                        if isinstance(visual_context_raw, dict)
+                        else {}
+                    )
+                    visual_text = str(visual_context.get("text") or "").strip()
+                    visual_section = (
+                        f"\n\n**TARGETED VISUAL REFINEMENT EVIDENCE:**\n{visual_text}\n"
+                        if visual_text
+                        else ""
+                    )
                     entry["text"] = (
                         f"\n**FEEDBACK FOR THIS SPECIFIC PART "
                         f"(from previous iteration):**\n"
-                        f"{feedback_text}\n\n"
+                        f"{feedback_text}"
+                        f"{visual_section}\n\n"
                         f"{entry.get('text', '')}"
+                    )
+                    VLMInferenceTask._attach_visual_refinement_images(
+                        entry,
+                        visual_context,
                     )
                     feedback_count += 1
             if feedback_count:
@@ -1406,15 +1549,16 @@ class VLMInferenceTask(Task):
                 material = material_dict.get("material", "unknown")
                 confidence = material_dict.get("confidence")
                 response_snippet = material_dict.get("original_response", "")
-                listener.event(
-                    "prediction.completed",
-                    {
-                        "entry_id": entry_id,
-                        "material": material,
-                        "confidence": confidence,
-                        "response_snippet": response_snippet,
-                    },
-                )
+                event_payload = {
+                    "entry_id": entry_id,
+                    "material": material,
+                    "confidence": confidence,
+                    "response_snippet": response_snippet,
+                }
+                reconciliation = material_dict.get("evidence_reconciliation")
+                if isinstance(reconciliation, dict):
+                    event_payload["evidence_reconciliation"] = reconciliation
+                listener.event("prediction.completed", event_payload)
             except Exception as e:
                 logger.warning(f"Failed to emit prediction event for {entry_id}: {e}")
 

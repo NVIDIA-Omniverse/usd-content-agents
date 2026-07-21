@@ -33,6 +33,10 @@ from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.poolmanager import PoolManager
 
+from world_understanding.utils.archive import (
+    ArchiveSizeLimitExceeded,
+    copy_stream_limited,
+)
 from world_understanding.utils.image_blankness import analyze_image_blankness
 
 logger = logging.getLogger(__name__)
@@ -43,11 +47,12 @@ logger = logging.getLogger(__name__)
 # local files.
 _USD_EXTENSIONS = (".usd", ".usda", ".usdc")
 
-# Denial-of-service guards for untrusted ZIP bundles. Real material bundles
-# are well under these limits; the thresholds exist to stop classic
-# amplification attacks (a few-KB bomb expanding to multiple GB).
+# Denial-of-service guards for untrusted ZIP bundles. The default keeps
+# generic public-facing deployments conservative; internal large-scene
+# deployments can raise the byte ceiling with OVRTX_ZIP_MAX_UNCOMPRESSED_BYTES.
 _ZIP_MAX_FILES = 10_000
-_ZIP_MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB
+_ZIP_DEFAULT_MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB
+_ZIP_MAX_UNCOMPRESSED_BYTES_ENV = "OVRTX_ZIP_MAX_UNCOMPRESSED_BYTES"
 
 # Regex for S3 HTTPS URLs:
 #   https://bucket.s3.region.amazonaws.com/key
@@ -99,6 +104,31 @@ _LEGACY_IPV4_PART_MAX_VALUES = {
     3: (0xFF, 0xFF, 0xFFFF),
     4: _IPV4_PART_MAX_VALUES,
 }
+
+
+def _parse_zip_max_uncompressed_bytes(raw_value: str | None) -> int:
+    if raw_value is None or raw_value == "":
+        return _ZIP_DEFAULT_MAX_UNCOMPRESSED_BYTES
+
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(
+            f"{_ZIP_MAX_UNCOMPRESSED_BYTES_ENV} must be an integer number of bytes"
+        ) from exc
+
+    if value <= 0:
+        raise ValueError(f"{_ZIP_MAX_UNCOMPRESSED_BYTES_ENV} must be greater than zero")
+    return value
+
+
+_ZIP_MAX_UNCOMPRESSED_BYTES = _parse_zip_max_uncompressed_bytes(
+    os.environ.get(_ZIP_MAX_UNCOMPRESSED_BYTES_ENV)
+)
+
+
+def _zip_max_uncompressed_bytes() -> int:
+    return _ZIP_MAX_UNCOMPRESSED_BYTES
 
 
 class Renderer:
@@ -154,6 +184,16 @@ class Renderer:
         if not callable(is_running):
             return False
         return bool(is_running())
+
+    @property
+    def daemon_lifecycle(self) -> dict[str, int | str | None]:
+        """Return bounded-daemon diagnostics without blocking the render lock."""
+        daemon = getattr(self._backend, "_daemon", None)
+        snapshot = getattr(daemon, "lifecycle_snapshot", None)
+        if not callable(snapshot):
+            return {}
+        payload = snapshot()
+        return payload if isinstance(payload, dict) else {}
 
     @property
     def is_ready(self) -> bool:
@@ -247,6 +287,7 @@ class Renderer:
         self,
         *,
         stage: Any,
+        base_dir: str | Path | None,
         camera_paths: list[str],
         width: int,
         height: int,
@@ -254,6 +295,7 @@ class Renderer:
         ovrtx_sensors: list[str],
         num_sensor_updates: int | None,
         render_mode: str | None,
+        material_target: str | None,
     ) -> dict[str, Any]:
         return self._backend.render(
             stage=stage,
@@ -264,12 +306,15 @@ class Renderer:
             sensors=ovrtx_sensors or None,
             num_sensor_updates=num_sensor_updates,
             render_mode=render_mode,
+            material_target=material_target,
+            base_dir=base_dir,
         )
 
     def _render_backend_with_recovery(
         self,
         *,
         stage: Any,
+        base_dir: str | Path | None,
         camera_paths: list[str],
         width: int,
         height: int,
@@ -277,10 +322,12 @@ class Renderer:
         ovrtx_sensors: list[str],
         num_sensor_updates: int | None,
         render_mode: str | None,
+        material_target: str | None,
     ) -> dict[str, Any]:
         try:
             return self._render_backend_once(
                 stage=stage,
+                base_dir=base_dir,
                 camera_paths=camera_paths,
                 width=width,
                 height=height,
@@ -288,6 +335,7 @@ class Renderer:
                 ovrtx_sensors=ovrtx_sensors,
                 num_sensor_updates=num_sensor_updates,
                 render_mode=render_mode,
+                material_target=material_target,
             )
         except Exception as exc:
             if not _is_recoverable_render_error(exc):
@@ -302,6 +350,7 @@ class Renderer:
 
         return self._render_backend_once(
             stage=stage,
+            base_dir=base_dir,
             camera_paths=camera_paths,
             width=width,
             height=height,
@@ -309,6 +358,7 @@ class Renderer:
             ovrtx_sensors=ovrtx_sensors,
             num_sensor_updates=num_sensor_updates,
             render_mode=render_mode,
+            material_target=material_target,
         )
 
     def render(
@@ -322,6 +372,7 @@ class Renderer:
         sensors: list[str] | None = None,
         num_sensor_updates: int | None = None,
         render_mode: str | None = None,
+        material_target: str | None = None,
     ) -> dict[str, Any]:
         """Render a USD file and return V1-format response.
 
@@ -415,6 +466,7 @@ class Renderer:
                 render_start = time.time()
                 result = self._render_backend_with_recovery(
                     stage=stage,
+                    base_dir=Path(usd_path).parent,
                     camera_paths=camera_paths,
                     width=width,
                     height=height,
@@ -422,6 +474,7 @@ class Renderer:
                     num_sensor_updates=num_sensor_updates,
                     ovrtx_sensors=ovrtx_sensors,
                     render_mode=render_mode,
+                    material_target=material_target,
                 )
                 render_elapsed = time.time() - render_start
                 logger.info(
@@ -789,19 +842,19 @@ def _extract_zip_bundle(
     with zipfile.ZipFile(zip_path, "r") as zf:
         infos = zf.infolist()
 
-        # ZIP-bomb guard: refuse archives that would expand past our
-        # per-request ceilings. Counts and sizes come from the ZIP's
-        # central directory, so we reject *before* any data hits disk.
+        # ZIP-bomb guard: reject obvious oversized archives from central-directory
+        # metadata, then enforce the same limit on actual streamed bytes below.
         if len(infos) > _ZIP_MAX_FILES:
             raise ValueError(
                 f"ZIP bundle has too many entries: {len(infos)} "
                 f"(limit {_ZIP_MAX_FILES})"
             )
         total_uncompressed = sum(info.file_size for info in infos)
-        if total_uncompressed > _ZIP_MAX_UNCOMPRESSED_BYTES:
+        max_uncompressed = _zip_max_uncompressed_bytes()
+        if total_uncompressed > max_uncompressed:
             raise ValueError(
                 f"ZIP bundle uncompressed size too large: "
-                f"{total_uncompressed} bytes (limit {_ZIP_MAX_UNCOMPRESSED_BYTES})"
+                f"{total_uncompressed} bytes (limit {max_uncompressed})"
             )
 
         # Python's zipfile already strips leading "/" and ".." components, but
@@ -809,6 +862,7 @@ def _extract_zip_bundle(
         # belt-and-suspenders reject: (a) entries that resolve outside
         # extract_root after symlink expansion and (b) symlink entries that
         # extractall would otherwise materialize on disk (0xA000 = S_IFLNK).
+        total_written = 0
         for info in infos:
             if (info.external_attr >> 16) & 0xF000 == 0xA000:
                 raise ValueError(f"ZIP bundle contains symlink entry: {info.filename}")
@@ -817,7 +871,24 @@ def _extract_zip_bundle(
                 raise ValueError(
                     f"ZIP bundle contains unsafe entry path: {info.filename}"
                 )
-        zf.extractall(extract_dir)
+            if info.is_dir():
+                resolved.mkdir(parents=True, exist_ok=True)
+                continue
+
+            resolved.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with zf.open(info) as src, resolved.open("wb") as dst:
+                    total_written += copy_stream_limited(
+                        src,
+                        dst,
+                        max_bytes=max_uncompressed - total_written,
+                    )
+            except ArchiveSizeLimitExceeded as exc:
+                resolved.unlink(missing_ok=True)
+                raise ValueError(
+                    "ZIP bundle uncompressed size too large while extracting: "
+                    f"limit {max_uncompressed} bytes"
+                ) from exc
 
     # Walk everything once and filter by a lowercased suffix so producers
     # that mint entries like ``MAIN.USDA`` are still recognized on

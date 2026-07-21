@@ -27,7 +27,14 @@ from physics_agent.tuning import (
     arun_tune,
 )
 from world_understanding.agentic.events import EventListener
+from world_understanding.utils.durable_diagnostics import (
+    DurableDiagnostic,
+    FailurePhase,
+    durable_diagnostic,
+    log_durable_failure,
+)
 
+from ..artifact_contract import collect_public_artifact_manifest
 from ..runtime import get_event_bus
 from ..runtime.events import ProgressEvent, StepState
 
@@ -81,6 +88,28 @@ def _has_partial_tune_results(result: Any) -> bool:
     return bool(getattr(result, "artifacts", None))
 
 
+async def _publish_tune_artifacts(
+    session_manager: Any, session_id: str, session_dir: Path
+) -> tuple[list[str], DurableDiagnostic | None]:
+    manifest = collect_public_artifact_manifest(session_dir, "tune")
+    try:
+        await session_manager.sync_to_store(session_id, prefix="tune/")
+    except Exception:
+        diagnostic = durable_diagnostic(
+            "physics_tune_artifact_sync_failed",
+            phase=FailurePhase.SYNC_UPLOAD,
+            retryable=True,
+        )
+        log_durable_failure(
+            logger,
+            diagnostic.code,
+            phase=FailurePhase.SYNC_UPLOAD,
+            retryable=True,
+        )
+        return manifest, diagnostic
+    return manifest, None
+
+
 class _TuneEventListener(EventListener):
     """Adapter from the tuning runner's events → FastAPI ProgressEvent bus.
 
@@ -109,10 +138,20 @@ class _TuneEventListener(EventListener):
         logger.debug(f"[tune {self.session_id[:8]}] {message}", *args, **kwargs)
 
     def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
-        logger.warning(f"[tune {self.session_id[:8]}] {message}", *args, **kwargs)
+        log_durable_failure(
+            logger,
+            "physics_tune_runner_reported_warning",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=True,
+        )
 
     def error(self, message: str, *args: Any, **kwargs: Any) -> None:
-        logger.error(f"[tune {self.session_id[:8]}] {message}", *args, **kwargs)
+        log_durable_failure(
+            logger,
+            "physics_tune_runner_reported_failure",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
 
     def event(self, event_type: str, data: dict[str, Any], **kwargs: Any) -> None:
         if event_type == "tune.started":
@@ -156,29 +195,34 @@ class _TuneEventListener(EventListener):
             ev = ProgressEvent(
                 session_id=self.session_id,
                 step="tune",
-                state=StepState.COMPLETED,
+                state=StepState.RUNNING,
                 percent=100,
-                message="Tuning completed",
+                message="Tuning completed; publishing artifacts",
                 extra=dict(data),
             )
         elif event_type == "tune.cancelled":
-            # Round 11 thread #10: the runner now emits ``tune.cancelled``
-            # for cancelled runs; map directly to the CANCELLED step state
-            # so SSE clients see the right terminal frame on the wire.
             ev = ProgressEvent(
                 session_id=self.session_id,
                 step="tune",
-                state=StepState.CANCELLED,
-                message="Tuning cancelled",
+                state=StepState.RUNNING,
+                message="Tuning cancelled; publishing partial artifacts",
                 extra=dict(data),
             )
         elif event_type == "tune.failed":
+            diagnostic = durable_diagnostic(
+                "physics_tune_runner_event_failed",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
             ev = ProgressEvent(
                 session_id=self.session_id,
                 step="tune",
-                state=StepState.FAILED,
-                message=data.get("error", "Tuning failed"),
-                extra=dict(data),
+                state=StepState.RUNNING,
+                message="Tuning failed; publishing partial artifacts",
+                extra={
+                    "error": diagnostic.code,
+                    "error_diagnostic": diagnostic.to_dict(),
+                },
             )
         else:
             return
@@ -200,6 +244,8 @@ async def _emit_terminal_bus_event(
     message: str,
     *,
     error: str | None = None,
+    extra: dict[str, Any] | None = None,
+    percent: int | None = None,
 ) -> None:
     """Emit a terminal CANCELLED/FAILED bus frame for early-exit branches.
 
@@ -214,23 +260,26 @@ async def _emit_terminal_bus_event(
     bus = get_event_bus()
     if bus.get_snapshot(session_id) is None:
         return
-    extra: dict[str, Any] = {}
+    event_extra: dict[str, Any] = dict(extra or {})
     if error is not None:
-        extra["error"] = error
+        event_extra["error"] = error
     try:
         await bus.emit(
             ProgressEvent(
                 session_id=session_id,
                 step="tune",
                 state=state,
+                percent=percent,
                 message=message,
-                extra=extra,
+                extra=event_extra,
             )
         )
     except Exception:
-        logger.warning(
-            f"Failed to emit terminal {state.name} event for {session_id[:8]}",
-            exc_info=True,
+        log_durable_failure(
+            logger,
+            "physics_tune_terminal_event_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
         )
 
 
@@ -254,7 +303,12 @@ async def _watch_for_cancel(
                     cancel_event.set()
                     return
             except Exception:  # pragma: no cover
-                logger.debug("cancel watcher poll failed", exc_info=True)
+                log_durable_failure(
+                    logger,
+                    "physics_tune_cancellation_poll_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
+                )
             await asyncio.sleep(poll_interval)
     except asyncio.CancelledError:
         return
@@ -279,6 +333,9 @@ async def execute_tune_async(
     reference_videos: list[Path] | None = None,
     reference_descriptions: list[str] | None = None,
     reference_video_descriptions: list[str] | None = None,
+    reference_video_frames: int = 8,
+    judge_reference_frames: int = 8,
+    judge_generated_frames: int = 16,
 ) -> None:
     """Run one tuning session end-to-end and persist results."""
     logger.info(f"Tune execution started for {session_id[:8]}...")
@@ -297,6 +354,7 @@ async def execute_tune_async(
     await session_manager.update_session(session_id, {"status": "running"})
 
     result = None
+    execution_failure: tuple[type[Exception], DurableDiagnostic] | None = None
     try:
         try:
             result = await arun_tune(
@@ -309,6 +367,9 @@ async def execute_tune_async(
                     reference_videos=reference_videos,
                     reference_descriptions=reference_descriptions,
                     reference_video_descriptions=reference_video_descriptions,
+                    reference_video_frames=reference_video_frames,
+                    judge_reference_frames=judge_reference_frames,
+                    judge_generated_frames=judge_generated_frames,
                     engine=engine,
                     optimizer=optimizer,
                     max_trials=max_trials,
@@ -321,34 +382,66 @@ async def execute_tune_async(
                     event_listener=listener,
                 )
             )
-        except BoTorchUnavailableError as e:
+        except BoTorchUnavailableError:
+            diagnostic = durable_diagnostic(
+                "physics_tune_botorch_unavailable",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
+            log_durable_failure(
+                logger,
+                diagnostic.code,
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
             await session_manager.update_session(
                 session_id,
                 {
                     "status": "failed",
-                    "error": str(e),
+                    "error": diagnostic.code,
+                    "error_diagnostic": diagnostic.to_dict(),
                     "failed_step": "tune",
                     "completed_at": datetime.now(UTC).isoformat(),
                 },
             )
             await _emit_terminal_bus_event(
-                session_id, StepState.FAILED, str(e), error=str(e)
+                session_id,
+                StepState.FAILED,
+                diagnostic.code,
+                error=diagnostic.code,
+                extra={"error_diagnostic": diagnostic.to_dict()},
             )
-            raise
-        except OvPhysXUnavailableError as e:
+            execution_failure = (BoTorchUnavailableError, diagnostic)
+        except OvPhysXUnavailableError:
+            diagnostic = durable_diagnostic(
+                "physics_tune_ovphysx_unavailable",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
+            log_durable_failure(
+                logger,
+                diagnostic.code,
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
             await session_manager.update_session(
                 session_id,
                 {
                     "status": "failed",
-                    "error": str(e),
+                    "error": diagnostic.code,
+                    "error_diagnostic": diagnostic.to_dict(),
                     "failed_step": "tune",
                     "completed_at": datetime.now(UTC).isoformat(),
                 },
             )
             await _emit_terminal_bus_event(
-                session_id, StepState.FAILED, str(e), error=str(e)
+                session_id,
+                StepState.FAILED,
+                diagnostic.code,
+                error=diagnostic.code,
+                extra={"error_diagnostic": diagnostic.to_dict()},
             )
-            raise
+            execution_failure = (OvPhysXUnavailableError, diagnostic)
         except asyncio.CancelledError:
             # Outer task cancellation (session delete, server shutdown).
             # Set the cooperative cancel signal so the worker thread's
@@ -383,33 +476,52 @@ async def execute_tune_async(
                 session_id, StepState.CANCELLED, "Tune cancelled"
             )
             return
-        except Exception as e:
+        except Exception:
             # Any unexpected failure inside the runner (USD parse, optimizer
             # bug, backend RuntimeError, …). Without this catch the exception
             # propagates into JobRegistry, whose cleanup does NOT update
             # session metadata — leaving the session stuck in 'running'.
-            logger.error(
-                "Tune execution failed for %s: %s", session_id[:8], e, exc_info=True
+            diagnostic = durable_diagnostic(
+                "physics_tune_execution_failed",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
+            log_durable_failure(
+                logger,
+                diagnostic.code,
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
             )
             await session_manager.update_session(
                 session_id,
                 {
                     "status": "failed",
-                    "error": str(e),
+                    "error": diagnostic.code,
+                    "error_diagnostic": diagnostic.to_dict(),
                     "failed_step": "tune",
                     "completed_at": datetime.now(UTC).isoformat(),
                 },
             )
             await _emit_terminal_bus_event(
-                session_id, StepState.FAILED, str(e), error=str(e)
+                session_id,
+                StepState.FAILED,
+                diagnostic.code,
+                error=diagnostic.code,
+                extra={"error_diagnostic": diagnostic.to_dict()},
             )
-            raise
+            execution_failure = (RuntimeError, diagnostic)
     finally:
         cancel_watcher.cancel()
         try:
             await cancel_watcher
         except asyncio.CancelledError:
             pass
+
+    if execution_failure is not None:
+        exception_type, diagnostic = execution_failure
+        # Raise outside the handler so no raw backend exception remains as
+        # context on the background task.
+        raise exception_type(diagnostic.code)
 
     metadata = await session_manager.get_session_metadata(session_id) or {}
     duration = 0
@@ -420,103 +532,98 @@ async def execute_tune_async(
             created_at = created_at.replace(tzinfo=UTC)
         duration = int((datetime.now(UTC) - created_at).total_seconds())
 
-    # Re-check the cancel marker before declaring completion. The /cancel
-    # endpoint accepts pending/running, so a cancel can land in the brief
-    # window between arun_tune returning and us writing 'completed'. Without
-    # this re-check that cancel would be silently overwritten.
-    late_cancel = await session_manager.is_cancelled(session_id) or result.cancelled
-
-    if late_cancel:
+    try:
+        artifact_manifest, artifact_sync_diagnostic = await _publish_tune_artifacts(
+            session_manager, session_id, session_dir
+        )
+    except asyncio.CancelledError:
+        cancel_event.set()
+        artifact_manifest = collect_public_artifact_manifest(session_dir, "tune")
         await session_manager.update_session(
             session_id,
             {
                 "status": "cancelled",
                 "completed_at": datetime.now(UTC).isoformat(),
                 "duration_seconds": duration,
-                "results": {
-                    "best_params": result.best_params,
-                    # Round 15 (doyubkim blocker #2): coerce to finite/None
-                    # at the write site so persisted metadata is always
-                    # JSON-serialisable. A pre-first-trial cancel passes
-                    # ``float("inf")`` straight from the runner.
-                    "best_score": _finite_best_score(result.best_score),
-                    "n_trials": result.n_trials,
-                    "optimizer_used": result.optimizer_used,
-                    "engine_used": result.engine_used,
-                },
+                "can_cancel": False,
+                "artifact_manifest": artifact_manifest,
+                "results": _tune_results_metadata(result),
             },
         )
-        # Emit a terminal CANCELLED bus event so same-instance SSE
-        # clients in ``stream_tune_events()`` close immediately. Without
-        # this they would hang until the 30s timeout fallback noticed
-        # the metadata change. ``stream_tune_events`` only short-circuits
-        # on FAILED / CANCELLED / tune_ready terminal events; without one
-        # of those a fresh-cancel returns no terminal frame on the wire.
-        bus = get_event_bus()
-        if bus.get_snapshot(session_id) is not None:
-            try:
-                # n_trials may be 0 if cancellation landed before the
-                # first trial completed; clamp the percent into [0, 100].
-                pct = (
-                    min(100, int(100 * result.n_trials / max(max_trials, 1)))
-                    if max_trials
-                    else 0
-                )
-                await bus.emit(
-                    ProgressEvent(
-                        session_id=session_id,
-                        step="tune",
-                        state=StepState.CANCELLED,
-                        percent=pct,
-                        message="Tune cancelled",
-                        extra={
-                            # Coerce here too — the runner stamps
-                            # ``float("inf")`` on the cancelled-before-first-trial
-                            # path, and Pydantic's JSON serializer (which the
-                            # SSE bus uses) rejects non-finite floats in
-                            # strict mode just like Starlette's encoder.
-                            # Round 15 follow-up.
-                            "best_score": _finite_best_score(result.best_score),
-                            "best_params": result.best_params,
-                            "n_trials": result.n_trials,
-                        },
-                    )
-                )
-            except Exception:
-                logger.warning(
-                    f"Failed to emit CANCELLED event for {session_id[:8]}",
-                    exc_info=True,
-                )
-        # Round 12 (CX P2#3): the cancelled-after-N-trials branch can
-        # produce ``best_params.json`` / ``history.jsonl`` / ``report.md``
-        # the user may want to download. The successful-run path syncs
-        # ``tune/`` to the multi-instance store; this branch returned
-        # before that sync, so the artifact GETs would 404 on a different
-        # instance. Sync here too — wrap in try/except to mirror the
-        # success-path behavior (best-effort, never fails the worker).
-        try:
-            await session_manager.sync_to_store(session_id, prefix="tune/")
-        except Exception:
-            logger.warning(
-                f"Failed to sync cancelled tune artifacts for {session_id[:8]}",
-                exc_info=True,
-            )
+        await _emit_terminal_bus_event(
+            session_id,
+            StepState.CANCELLED,
+            "Tune cancelled during artifact publication",
+        )
+        raise
+    # Check after publication because a cancellation can arrive while a large
+    # artifact set is uploading to the shared store.
+    late_cancel = await session_manager.is_cancelled(session_id) or result.cancelled
+
+    if late_cancel:
+        updates: dict[str, Any] = {
+            "status": "cancelled",
+            "completed_at": datetime.now(UTC).isoformat(),
+            "duration_seconds": duration,
+            "can_cancel": False,
+            "artifact_manifest": artifact_manifest,
+            "results": _tune_results_metadata(result),
+        }
+        if artifact_sync_diagnostic is not None:
+            updates["artifact_sync_error"] = artifact_sync_diagnostic.code
+            updates["artifact_sync_diagnostic"] = artifact_sync_diagnostic.to_dict()
+        await session_manager.update_session(
+            session_id,
+            updates,
+        )
+        percent = (
+            min(100, int(100 * result.n_trials / max(max_trials, 1)))
+            if max_trials
+            else 0
+        )
+        await _emit_terminal_bus_event(
+            session_id,
+            StepState.CANCELLED,
+            "Tune cancelled",
+            percent=percent,
+            extra={
+                "best_score": _finite_best_score(result.best_score),
+                "best_params": result.best_params,
+                "n_trials": result.n_trials,
+            },
+        )
         return
 
     if not result.success:
+        result_diagnostic = durable_diagnostic(
+            "physics_tune_result_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        log_durable_failure(
+            logger,
+            result_diagnostic.code,
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
         partial_results = (
             _tune_results_metadata(result)
             if _has_partial_tune_results(result)
             else None
         )
-        updates: dict[str, Any] = {
+        updates = {
             "status": "failed",
-            "error": result.error or "Tuning failed",
+            "error": result_diagnostic.code,
+            "error_diagnostic": result_diagnostic.to_dict(),
             "failed_step": "tune",
             "completed_at": datetime.now(UTC).isoformat(),
             "duration_seconds": duration,
             "can_cancel": False,
+            "artifact_manifest": artifact_manifest,
         }
+        if artifact_sync_diagnostic is not None:
+            updates["artifact_sync_error"] = artifact_sync_diagnostic.code
+            updates["artifact_sync_diagnostic"] = artifact_sync_diagnostic.to_dict()
         if partial_results is not None:
             # A media-backed judge/evidence failure can happen after the
             # optimizer wrote useful tune artifacts. Keep the terminal status
@@ -524,79 +631,61 @@ async def execute_tune_async(
             # completed/cancelled runs so REST clients can fetch artifacts.
             updates["results"] = partial_results
             updates["partial_results"] = partial_results
-        await session_manager.update_session(
+        await session_manager.update_session(session_id, updates)
+        await _emit_terminal_bus_event(
             session_id,
-            updates,
+            StepState.FAILED,
+            result_diagnostic.code,
+            error=result_diagnostic.code,
+            extra={"error_diagnostic": result_diagnostic.to_dict()},
         )
-        # Symmetric with the CANCELLED branch above: emit a terminal
-        # FAILED bus event so same-instance SSE clients in
-        # ``stream_tune_events`` close immediately. ``stream_tune_events``
-        # short-circuits on FAILED / CANCELLED / ``tune_ready``; without
-        # one, the wire would hang until the 30s timeout fallback
-        # noticed the durable metadata flip.
-        bus = get_event_bus()
-        if bus.get_snapshot(session_id) is not None:
-            try:
-                await bus.emit(
-                    ProgressEvent(
-                        session_id=session_id,
-                        step="tune",
-                        state=StepState.FAILED,
-                        message=str(result.error or "Tuning failed"),
-                        extra={"error": str(result.error or "Tuning failed")},
-                    )
-                )
-            except Exception:
-                logger.warning(
-                    f"Failed to emit FAILED event for {session_id[:8]}",
-                    exc_info=True,
-                )
-        # Round 12 (CX P2#3): same as the cancelled branch above —
-        # ``not result.success`` runs may still write tune artifacts that
-        # downstream clients can pull, so sync to the multi-instance store
-        # before returning.
-        try:
-            await session_manager.sync_to_store(session_id, prefix="tune/")
-        except Exception:
-            logger.warning(
-                f"Failed to sync failed-tune artifacts for {session_id[:8]}",
-                exc_info=True,
-            )
         return
 
+    results = _tune_results_metadata(result)
+    status = "completed"
+    updates = {
+        "status": status,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "duration_seconds": duration,
+        "can_cancel": False,
+        "results": results,
+        "artifact_manifest": artifact_manifest,
+    }
+    if artifact_sync_diagnostic is not None:
+        status = "failed"
+        updates.update(
+            {
+                "status": status,
+                "error": artifact_sync_diagnostic.code,
+                "error_diagnostic": artifact_sync_diagnostic.to_dict(),
+                "failed_step": "artifact_sync",
+                "partial_results": results,
+                "artifact_sync_error": artifact_sync_diagnostic.code,
+                "artifact_sync_diagnostic": artifact_sync_diagnostic.to_dict(),
+            }
+        )
     await session_manager.update_session(
         session_id,
-        {
-            "status": "completed",
-            "completed_at": datetime.now(UTC).isoformat(),
-            "duration_seconds": duration,
-            "can_cancel": False,
-            # Round 15 (doyubkim blocker #2): same finite/None coercion as
-            # the cancelled branch — a backend overflow on the final trial can
-            # stamp ``inf`` even on a "successful" run.
-            "results": _tune_results_metadata(result),
-        },
+        updates,
     )
-
-    # Sync the tune/ artifact dir to the store (multi-instance / S3 path).
-    try:
-        await session_manager.sync_to_store(session_id, prefix="tune/")
-    except Exception:
-        logger.warning(
-            f"Failed to sync tune artifacts to store for {session_id[:8]}",
-            exc_info=True,
+    if status == "failed":
+        await _emit_terminal_bus_event(
+            session_id,
+            StepState.FAILED,
+            artifact_sync_diagnostic.code,
+            error=artifact_sync_diagnostic.code,
+            extra={"error_diagnostic": artifact_sync_diagnostic.to_dict()},
         )
-
-    bus = get_event_bus()
-    if bus.get_snapshot(session_id) is not None:
-        await bus.emit(
-            ProgressEvent(
-                session_id=session_id,
-                step="tune",
-                state=StepState.COMPLETED,
-                percent=100,
-                message="Tune artifacts synced and ready",
-                extra={"tune_ready": True},
-            )
-        )
-    logger.info(f"Tune execution completed for {session_id[:8]}")
+        return
+    await _emit_terminal_bus_event(
+        session_id,
+        StepState.COMPLETED,
+        "Tune artifacts synced and ready",
+        percent=100,
+        extra={"tune_ready": True},
+    )
+    logger.info(
+        "Tune execution completed for %s with %d artifact(s)",
+        session_id[:8],
+        len(artifact_manifest),
+    )

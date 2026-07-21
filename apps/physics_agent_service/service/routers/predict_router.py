@@ -12,9 +12,10 @@ Distinct route group from ``/pipeline``:
 
 The predict route is intentionally NOT a thin alias for ``/pipeline``: it
 runs a prediction-only workflow that auto-detects whether the session
-already has a prepared dataset (Mode A → just predict) or needs the
-minimum upstream prep first (Mode B → optimize_usd → identify_asset →
-build_dataset_usd → build_dataset_prepare_dataset → predict). The
+has a prepared dataset whose referenced images resolve (Mode A → just
+predict) or needs the minimum upstream prep first (Mode B → optimize_usd
+→ identify_asset → build_dataset_usd → build_dataset_prepare_dataset →
+predict). The
 ``/pipeline`` workflow remains unchanged and continues to be the right
 entry point for the full classify/apply flow.
 
@@ -29,18 +30,39 @@ import asyncio
 import logging
 import os
 import shutil
+import tempfile
 import uuid
+from copy import deepcopy
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, BinaryIO
 
-import yaml
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from physics_agent.api.defaults import build_default_pipeline_config
 from sse_starlette import EventSourceResponse
-from world_understanding.utils.s3_utils import download_file_from_s3
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    RENDERING_BACKEND_NAMES,
+    validate_rendering_backend_name,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.s3_utils import (
+    S3BucketNotAllowedError,
+    authorize_s3_uri_for_extensions,
+    download_file_from_s3,
+)
 
 from ..config import config
+from ..config_persistence import (
+    PIPELINE_CONFIG_WRITE_FAILED_DETAIL,
+    build_and_validate_pipeline_config,
+    build_and_write_pipeline_config,
+)
 from ..models.responses import (
+    PREDICT_INPUT_ERROR_RESPONSES,
     PipelineError,
     PipelineStatus,
     PredictResults,
@@ -48,7 +70,10 @@ from ..models.responses import (
 )
 from ..runtime import get_event_bus, get_job_registry
 from ..session.manager import SessionManager
-from ..workers.predict_executor import execute_predict_async
+from ..workers.predict_executor import (
+    _dataset_jsonl_has_resolvable_images,
+    execute_predict_async,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +85,8 @@ router = APIRouter(prefix="/predict", tags=["predict"])
 session_manager: SessionManager | None = None
 
 _VALID_USD_EXTENSIONS = {".usd", ".usda", ".usdc", ".usdz"}
+_DATASET_STAGE_FAILED_DETAIL = "Failed to stage dataset into session cache"
+_PREDICT_START_FAILED_DETAIL = "Failed to start predict job"
 
 
 def get_session_manager() -> SessionManager:
@@ -73,6 +100,35 @@ def set_session_manager(manager: SessionManager) -> None:
     """Set the global session manager instance."""
     global session_manager
     session_manager = manager
+
+
+def _validate_mode_b_options(
+    *,
+    render_backend: str,
+    optimize_usd: bool,
+    enable_deinstance: bool,
+    enable_split: bool,
+    enable_deduplicate: bool,
+) -> str | None:
+    """Validate request-only Mode B options before starting expensive work."""
+    if optimize_usd and not any([enable_deinstance, enable_split, enable_deduplicate]):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "At least one optimization operation must be enabled when "
+                "optimize_usd is true (enable_deinstance, enable_split, or "
+                "enable_deduplicate)."
+            ),
+        )
+
+    render_backend_text = render_backend.strip() if render_backend else None
+    if render_backend_text is None:
+        return None
+
+    try:
+        return validate_rendering_backend_name(render_backend_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 async def _stream_copy(
@@ -108,6 +164,324 @@ async def _stream_copy(
     except HTTPException:
         dest.unlink(missing_ok=True)
         raise
+
+
+def _copy_to_sibling_temp(source: Path, target: Path) -> Path:
+    """Copy ``source`` to an fsynced sibling without touching ``target``."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="wb",
+        dir=target.parent,
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as temporary_file:
+        temporary_path = Path(temporary_file.name)
+
+    try:
+        shutil.copyfile(source, temporary_path)
+        with temporary_path.open("rb") as staged_file:
+            os.fsync(staged_file.fileno())
+        return temporary_path
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        raise
+
+
+@dataclass
+class _FileSnapshot:
+    """Bounded-memory, anonymous on-disk snapshot of one prior input file."""
+
+    target: Path
+    existed: bool
+    backup: BinaryIO | None = None
+
+    @classmethod
+    def capture(cls, target: Path) -> _FileSnapshot:
+        """Capture a regular file without retaining its contents on the heap."""
+        if not target.exists():
+            return cls(target=target, existed=False)
+        if target.is_symlink() or not target.is_file():
+            raise OSError("Predict input snapshot source is not a regular file")
+
+        backup = tempfile.TemporaryFile(mode="w+b", dir=target.parent)
+        try:
+            with target.open("rb") as source:
+                shutil.copyfileobj(source, backup, length=2 * 1024 * 1024)
+            backup.flush()
+            os.fsync(backup.fileno())
+            backup.seek(0)
+            return cls(target=target, existed=True, backup=backup)
+        except Exception:
+            backup.close()
+            raise
+
+    def restore(self) -> None:
+        """Atomically restore this snapshot, or remove a newly created file."""
+        if not self.existed:
+            self.target.unlink(missing_ok=True)
+            return
+        if self.backup is None:
+            raise RuntimeError("Predict input snapshot is unavailable")
+
+        self.target.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path: Path | None = None
+        try:
+            self.backup.seek(0)
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=self.target.parent,
+                prefix=f".{self.target.name}.rollback.",
+                suffix=".tmp",
+                delete=False,
+            ) as rollback_file:
+                temporary_path = Path(rollback_file.name)
+                shutil.copyfileobj(
+                    self.backup,
+                    rollback_file,
+                    length=2 * 1024 * 1024,
+                )
+                rollback_file.flush()
+                os.fsync(rollback_file.fileno())
+            os.replace(temporary_path, self.target)
+            temporary_path = None
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+
+    def close(self) -> None:
+        """Release the anonymous backup file."""
+        if self.backup is not None:
+            try:
+                self.backup.close()
+            except OSError:
+                pass
+            finally:
+                self.backup = None
+
+
+@dataclass
+class _PredictInputsTransaction:
+    """Rollback handle retained until worker registration succeeds."""
+
+    snapshots: tuple[_FileSnapshot, ...]
+    active: bool = True
+
+    def commit(self) -> None:
+        """Make the newly published inputs authoritative."""
+        self.active = False
+        for snapshot in self.snapshots:
+            snapshot.close()
+
+    def rollback(self) -> None:
+        """Restore both files independently, reporting only a fixed failure."""
+        if not self.active:
+            return
+        failed = False
+        for snapshot in self.snapshots:
+            try:
+                snapshot.restore()
+            except Exception:
+                failed = True
+            finally:
+                snapshot.close()
+        self.active = False
+        if failed:
+            raise RuntimeError("Predict input rollback failed")
+
+
+async def _execute_predict_after_commit(
+    start_gate: asyncio.Event,
+    *,
+    session_id: str,
+    config_dict: dict[str, Any],
+    manager: SessionManager,
+    dataset_path: Path | None,
+) -> None:
+    """Prevent worker side effects until the request commits startup state."""
+    await start_gate.wait()
+    await execute_predict_async(
+        session_id=session_id,
+        config_dict=config_dict,
+        session_manager=manager,
+        dataset_path=dataset_path,
+    )
+
+
+async def _cleanup_failed_predict_session(
+    *,
+    manager: SessionManager,
+    session_id: str,
+    session_created_here: bool,
+) -> None:
+    """Best-effort cleanup for a request-owned session transaction."""
+    if not session_created_here:
+        return
+    try:
+        await manager.delete_session(session_id)
+    except Exception:  # pragma: no cover - defensive cleanup containment
+        logger.error("Failed to clean up rejected predict session")
+
+
+async def _persist_predict_inputs_transactionally(
+    *,
+    predict_config: dict[str, Any],
+    config_path: Path,
+    dataset_source: Path | None,
+    dataset_target: Path,
+    manager: SessionManager,
+    session_id: str,
+    session_created_here: bool,
+) -> _PredictInputsTransaction:
+    """Publish worker config and an explicit dataset as one logical update.
+
+    The dataset is copied to a sibling temporary file first, so a partial copy
+    can never truncate the prior accepted artifact. Prior files are retained in
+    bounded-memory anonymous disk snapshots until worker registration succeeds.
+    The returned handle must be committed only after ``reservation.start()``
+    completes.
+    """
+    staged_dataset: Path | None = None
+    if dataset_source is not None:
+        already_staged = (
+            dataset_target.exists()
+            and dataset_source.exists()
+            and dataset_source.samefile(dataset_target)
+        )
+        if not already_staged:
+            try:
+                staged_dataset = _copy_to_sibling_temp(
+                    dataset_source,
+                    dataset_target,
+                )
+            except Exception:
+                log_durable_failure(
+                    logger,
+                    "predict_dataset_stage_failed",
+                    phase=FailurePhase.LOCAL_PUBLICATION,
+                    retryable=True,
+                )
+                await _cleanup_failed_predict_session(
+                    manager=manager,
+                    session_id=session_id,
+                    session_created_here=session_created_here,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=_DATASET_STAGE_FAILED_DETAIL,
+                ) from None
+
+    snapshots: list[_FileSnapshot] = []
+    try:
+        snapshots.append(_FileSnapshot.capture(config_path))
+        if staged_dataset is not None:
+            snapshots.append(_FileSnapshot.capture(dataset_target))
+    except Exception:
+        for snapshot in snapshots:
+            snapshot.close()
+        if staged_dataset is not None:
+            staged_dataset.unlink(missing_ok=True)
+        log_durable_failure(
+            logger,
+            "predict_input_snapshot_failed",
+            phase=FailurePhase.PERSISTENCE_VERIFICATION,
+            retryable=True,
+        )
+        await _cleanup_failed_predict_session(
+            manager=manager,
+            session_id=session_id,
+            session_created_here=session_created_here,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=PIPELINE_CONFIG_WRITE_FAILED_DETAIL,
+        ) from None
+
+    transaction = _PredictInputsTransaction(snapshots=tuple(snapshots))
+
+    try:
+        try:
+            await build_and_write_pipeline_config(
+                config_factory=lambda: predict_config,
+                config_path=config_path,
+                session_manager=manager,
+                session_id=session_id,
+                session_created_here=session_created_here,
+            )
+        except BaseException as exc:
+            log_durable_failure(
+                logger,
+                "predict_config_publication_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
+            if session_created_here:
+                transaction.commit()
+            else:
+                try:
+                    transaction.rollback()
+                except Exception:
+                    log_durable_failure(
+                        logger,
+                        "predict_input_publication_restore_failed",
+                        phase=FailurePhase.ROLLBACK,
+                        retryable=True,
+                    )
+            # Contained HTTP failures have already performed ownership-aware
+            # cleanup in build_and_write_pipeline_config. Other failures,
+            # including cancellation after the writer quiesces, still need the
+            # request transaction's one cleanup attempt.
+            if not isinstance(exc, HTTPException):
+                await _cleanup_failed_predict_session(
+                    manager=manager,
+                    session_id=session_id,
+                    session_created_here=session_created_here,
+                )
+            if isinstance(exc, HTTPException | asyncio.CancelledError):
+                raise
+            if not isinstance(exc, Exception):
+                raise
+            raise HTTPException(
+                status_code=500,
+                detail=PIPELINE_CONFIG_WRITE_FAILED_DETAIL,
+            ) from None
+
+        if staged_dataset is not None:
+            try:
+                os.replace(staged_dataset, dataset_target)
+                staged_dataset = None
+            except Exception:
+                log_durable_failure(
+                    logger,
+                    "predict_dataset_publication_failed",
+                    phase=FailurePhase.LOCAL_PUBLICATION,
+                    retryable=True,
+                )
+                if session_created_here:
+                    transaction.commit()
+                else:
+                    try:
+                        transaction.rollback()
+                    except Exception:
+                        log_durable_failure(
+                            logger,
+                            "predict_input_publication_restore_failed",
+                            phase=FailurePhase.ROLLBACK,
+                            retryable=True,
+                        )
+                await _cleanup_failed_predict_session(
+                    manager=manager,
+                    session_id=session_id,
+                    session_created_here=session_created_here,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=_DATASET_STAGE_FAILED_DETAIL,
+                ) from None
+    finally:
+        if staged_dataset is not None:
+            staged_dataset.unlink(missing_ok=True)
+    return transaction
 
 
 def _resolve_dataset_path_safely(raw_path: str, manager: SessionManager) -> Path:
@@ -201,12 +575,17 @@ def _preflight_s3_object_size(s3_uri: str, max_bytes: int) -> None:
         head = s3_client.head_object(Bucket=bucket, Key=key)
     except HTTPException:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         # Any failure (NoSuchBucket, AccessDenied, ProfileNotFound, network)
         # falls through to the real download_file_from_s3 path which has
         # full error-code translation. A failed preflight is not itself a
         # client-visible error.
-        logger.debug(f"S3 head_object preflight skipped for {s3_uri}: {e}")
+        log_durable_failure(
+            logger,
+            "predict_s3_preflight_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
         return
 
     content_length = head.get("ContentLength")
@@ -224,30 +603,23 @@ def _preflight_s3_object_size(s3_uri: str, max_bytes: int) -> None:
         )
 
 
-def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
-    """Download a USD file from S3 into session_dir/input/."""
-    if not s3_uri.startswith("s3://") or s3_uri.count("/") < 3:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid S3 URI format: {s3_uri}. "
-            "Expected s3://bucket/path/to/file.ext",
+def _validate_and_authorize_s3_usd_uri(s3_uri: str) -> str:
+    """Validate and authorize a client S3 USD URI without performing I/O."""
+    try:
+        return authorize_s3_uri_for_extensions(
+            s3_uri,
+            config.s3_allowed_buckets,
+            allowed_extensions=_VALID_USD_EXTENSIONS,
         )
+    except S3BucketNotAllowedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    s3_filename = s3_uri.rstrip("/").rsplit("/", 1)[-1]
-    if not s3_filename:
-        raise HTTPException(
-            status_code=400,
-            detail=f"S3 URI must include an object key: {s3_uri}",
-        )
-    ext = Path(s3_filename).suffix.lower()
-    if ext not in _VALID_USD_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Invalid USD file type in S3 URI: {ext}. "
-                f"Allowed: {', '.join(sorted(_VALID_USD_EXTENSIONS))}"
-            ),
-        )
+
+def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
+    """Reauthorize and download a client-supplied S3 USD into session input."""
+    ext = _validate_and_authorize_s3_usd_uri(s3_uri)
 
     # Reject oversized objects via head_object BEFORE writing anything to
     # disk. The post-download guard at the end of this function is kept as
@@ -262,13 +634,33 @@ def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
     try:
         download_file_from_s3(s3_uri, local_path)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"S3 object not found: {s3_uri}")
-    except PermissionError:
-        raise HTTPException(
-            status_code=403, detail=f"Access denied to S3 object: {s3_uri}"
+        log_durable_failure(
+            logger,
+            "predict_s3_object_not_found",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
         )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to download from S3: {e}")
+        raise HTTPException(status_code=404, detail="S3 object not found") from None
+    except PermissionError:
+        log_durable_failure(
+            logger,
+            "predict_s3_access_denied",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
+        )
+        raise HTTPException(
+            status_code=403, detail="Access denied to S3 object"
+        ) from None
+    except Exception:
+        log_durable_failure(
+            logger,
+            "predict_s3_download_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
+        raise HTTPException(
+            status_code=502, detail="Failed to download from S3"
+        ) from None
 
     size_mb = local_path.stat().st_size / (1024 * 1024)
     if size_mb > config.max_upload_size_mb:
@@ -294,7 +686,12 @@ def _find_input_usd(session_dir: Path) -> Path | None:
     return None
 
 
-@router.post("", response_model=SessionCreated, status_code=202)
+@router.post(
+    "",
+    response_model=SessionCreated,
+    status_code=202,
+    responses=PREDICT_INPUT_ERROR_RESPONSES,
+)
 async def create_predict(
     usd_file: UploadFile | None = File(
         None,
@@ -307,8 +704,8 @@ async def create_predict(
         None,
         description=(
             "Existing session ID (e.g. from POST /pipeline/upload-usd). When "
-            "the session already has a prepared dataset, /predict will run "
-            "Mode A (predict only)."
+            "the session has a prepared dataset whose referenced images "
+            "resolve, /predict runs Mode A (predict only)."
         ),
     ),
     s3_uri: str | None = Form(
@@ -329,9 +726,10 @@ async def create_predict(
     render_backend: str = Form(
         default="",
         description=(
-            "Rendering backend for Mode B: 'remote' (default), 'warp', or "
-            "'ovrtx'. Ignored in Mode A."
+            "Rendering backend for Mode B: 'remote' (default), 'warp', "
+            "'ovrtx', or 'mock'. Ignored in Mode A."
         ),
+        json_schema_extra={"enum": [*RENDERING_BACKEND_NAMES, ""]},
     ),
     optimize_usd: bool = Form(
         default=False,
@@ -359,19 +757,23 @@ async def create_predict(
 
     * **Mode A — dataset already prepared.** Triggered when ``dataset_path``
       points at a readable dataset.jsonl, or when an existing ``session_id``
-      already has ``cache/dataset/dataset.jsonl``. Only the predict step
-      runs; upstream prep (rendering, dataset prep) is skipped.
-    * **Mode B — USD upload / s3_uri / fresh session_id.** When no prepared
-      dataset is present, /predict runs the minimum upstream steps
+      has ``cache/dataset/dataset.jsonl`` and its referenced images resolve.
+      Only the predict step runs; upstream prep (rendering, dataset prep) is
+      skipped.
+    * **Mode B — USD upload / s3_uri / fresh session_id.** When no runnable
+      prepared dataset is present, /predict runs the minimum upstream steps
       (``optimize_usd`` if enabled → ``identify_asset`` → ``build_dataset_usd``
       → ``build_dataset_prepare_dataset``) before predicting. ``apply_physics``
       is intentionally not part of /predict — use POST /pipeline if you need
       the full classify/apply flow.
 
+      A cached JSONL whose image references do not resolve falls back to Mode B
+      when an input USD is available; without an input USD, the request returns
+      HTTP 400 with recovery guidance.
+
     The detected mode is persisted to session metadata under ``predict_mode``
     and surfaced in the GET /predict/{id}/results response.
     """
-    manager = get_session_manager()
     user_prompt_text = user_prompt.strip() if user_prompt else None
 
     # Reject ambiguous input combinations up front. The route advertises four
@@ -411,6 +813,26 @@ async def create_predict(
                 "Combine dataset_path with session_id instead, or send it alone."
             ),
         )
+
+    # Authorize a client-controlled S3 source before any session-store or
+    # network access. An upload or authorized S3 URI is unambiguously Mode B,
+    # so validate every Mode-B-only option before creating a session, writing
+    # upload bytes, or downloading an object. Existing sessions are validated
+    # below after checking whether they contain a prepared Mode A dataset.
+    if s3_uri:
+        _validate_and_authorize_s3_usd_uri(s3_uri)
+
+    render_backend_text = render_backend.strip() if render_backend else None
+    if has_usd_file or s3_uri:
+        render_backend_text = _validate_mode_b_options(
+            render_backend=render_backend,
+            optimize_usd=optimize_usd,
+            enable_deinstance=enable_deinstance,
+            enable_split=enable_split,
+            enable_deduplicate=enable_deduplicate,
+        )
+
+    manager = get_session_manager()
 
     # Resolve dataset_path early — must canonicalize inside an allowed root
     # so /predict cannot be used as an arbitrary local-file-read primitive.
@@ -476,17 +898,23 @@ async def create_predict(
         except HTTPException:
             await manager.delete_session(session_id)
             raise
-        except Exception as e:
-            logger.error(f"Failed to download USD from S3: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "predict_s3_ingest_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
             await manager.delete_session(session_id)
             raise HTTPException(
-                status_code=500, detail=f"Failed to download USD from S3: {e}"
-            )
+                status_code=500, detail="Failed to download USD from S3"
+            ) from None
     elif has_usd_file:
         # has_usd_file (computed above) treats UploadFile with an empty
         # filename as "no file", matching what FastAPI hands us when the
         # multipart field is absent.
-        assert usd_file is not None  # narrowed by has_usd_file
+        if usd_file is None:
+            raise HTTPException(status_code=400, detail="USD upload is missing")
         session_id = str(uuid.uuid4())
         session_dir = await manager.create_session(session_id)
         session_created_here = True
@@ -518,10 +946,17 @@ async def create_predict(
         except HTTPException:
             await manager.delete_session(session_id)
             raise
-        except Exception as e:
-            logger.error(f"Failed to save USD file: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "predict_usd_local_publication_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
             await manager.delete_session(session_id)
-            raise HTTPException(status_code=500, detail=f"Failed to save USD file: {e}")
+            raise HTTPException(
+                status_code=500, detail="Failed to save USD file"
+            ) from None
     elif resolved_dataset_path is not None:
         # Pure Mode A from explicit dataset path with no session/USD context.
         # We still need a session_dir for outputs.
@@ -536,10 +971,12 @@ async def create_predict(
             ),
         )
 
+    if session_id is None:
+        raise RuntimeError("Predict session allocation did not produce an identifier")
     # Mode B (USD-driven) needs an input USD on disk so the renderer can run.
     # Mode A doesn't — it can predict from dataset.jsonl alone. We don't
     # require an input USD when dataset_path was supplied OR when the session
-    # already has a prepared dataset.
+    # already has a runnable prepared dataset.
     #
     # The actual copy of the external dataset_path into the session cache is
     # deferred until *after* job_registry.reserve() succeeds, so a losing
@@ -548,26 +985,57 @@ async def create_predict(
     # staged yet.
     session_dataset = session_dir / "cache" / "dataset" / "dataset.jsonl"
     session_has_dataset = session_dataset.exists()
-    will_be_mode_a = resolved_dataset_path is not None or session_has_dataset
+    session_dataset_is_runnable = (
+        session_has_dataset and _dataset_jsonl_has_resolvable_images(session_dataset)
+    )
+    will_be_mode_a = resolved_dataset_path is not None or session_dataset_is_runnable
 
     input_usd_path = _find_input_usd(session_dir)
     if not input_usd_path and not will_be_mode_a:
-        # Maybe the input — or a prepared dataset — lives on a different
-        # instance. Pull both before declaring failure; this mirrors what
-        # execute_predict_async does at job start so the preflight can't
-        # reject a session that the worker would have happily resumed.
-        pulled = await manager.sync_from_store(session_id, prefix="input/")
-        if pulled > 0:
-            logger.info(
-                f"Pulled {pulled} input file(s) from store for /predict session "
-                f"{session_id[:8]}"
-            )
+        # A prepared dataset may live on another instance. Resolve that Mode A
+        # possibility first because its Mode-B-only options must remain ignored.
+        # If no runnable dataset exists, the session is Mode B: validate its
+        # options before pulling a potentially large input USD into the local
+        # cache.
         await manager.sync_from_store(session_id, prefix="cache/dataset/")
-        input_usd_path = _find_input_usd(session_dir)
         session_has_dataset = session_dataset.exists()
-        will_be_mode_a = resolved_dataset_path is not None or session_has_dataset
+        session_dataset_is_runnable = (
+            session_has_dataset
+            and _dataset_jsonl_has_resolvable_images(session_dataset)
+        )
+        will_be_mode_a = (
+            resolved_dataset_path is not None or session_dataset_is_runnable
+        )
+        if not will_be_mode_a:
+            render_backend_text = _validate_mode_b_options(
+                render_backend=render_backend,
+                optimize_usd=optimize_usd,
+                enable_deinstance=enable_deinstance,
+                enable_split=enable_split,
+                enable_deduplicate=enable_deduplicate,
+            )
+            pulled = await manager.sync_from_store(session_id, prefix="input/")
+            if pulled > 0:
+                logger.info(
+                    f"Pulled {pulled} input file(s) from store for /predict session "
+                    f"{session_id[:8]}"
+                )
+            input_usd_path = _find_input_usd(session_dir)
 
     if not input_usd_path and not will_be_mode_a:
+        if resolved_dataset_path is None and session_has_dataset:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Session has a staged dataset.jsonl but its referenced "
+                    "images are not present (likely a previous run staged the "
+                    "JSONL alone, or the per-prim PNGs have not been synced "
+                    "down on this instance), and no input USD is available to "
+                    "rebuild from source. Re-supply dataset_path with the "
+                    "original directory, upload the USD again, or provide "
+                    "s3_uri."
+                ),
+            )
         raise HTTPException(
             status_code=400,
             detail=(
@@ -576,50 +1044,18 @@ async def create_predict(
             ),
         )
 
-    # If the only Mode-A trigger is the session's own staged JSONL (no
-    # caller-supplied dataset_path) AND there's no USD to fall back on,
-    # verify the JSONL's images are actually resolvable now. The executor
-    # would otherwise accept the JSONL, then fail asynchronously when it
-    # tries to predict against missing images and falls back to Mode B
-    # with no USD available — surfacing as a 202 + later "failed" status,
-    # which is worse than rejecting the request up front. This applies
-    # to a session whose previous run staged an external dataset_path
-    # (only the JSONL was copied, not the images), or to a cross-pod
-    # rerun where the image PNGs have not been synced down.
-    if resolved_dataset_path is None and session_has_dataset and not input_usd_path:
-        from ..workers.predict_executor import _dataset_jsonl_has_resolvable_images
-
-        if not _dataset_jsonl_has_resolvable_images(session_dataset):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Session has a staged dataset.jsonl but its referenced "
-                    "images are not present (likely a previous run staged the "
-                    "JSONL alone, or the per-prim PNGs have not been synced "
-                    "down on this instance). Re-supply dataset_path with the "
-                    "original directory, upload the USD again, or provide "
-                    "s3_uri so /predict can rebuild from source."
-                ),
-            )
-
     # The optimizer flags and render_backend are ignored in Mode A per the
     # docstring; only validate them when the request actually triggers
     # Mode B so a dataset-only call can't 400 (or 500 from
     # build_default_pipeline_config) on options that won't run.
     if not will_be_mode_a:
-        if optimize_usd and not any(
-            [enable_deinstance, enable_split, enable_deduplicate]
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "At least one optimization operation must be enabled when "
-                    "optimize_usd is true (enable_deinstance, enable_split, or "
-                    "enable_deduplicate)."
-                ),
-            )
-
-    render_backend_text = render_backend.strip() if render_backend else None
+        render_backend_text = _validate_mode_b_options(
+            render_backend=render_backend,
+            optimize_usd=optimize_usd,
+            enable_deinstance=enable_deinstance,
+            enable_split=enable_split,
+            enable_deduplicate=enable_deduplicate,
+        )
 
     # Build a pipeline config dict so Mode B can drive the full upstream
     # workflow. In Mode A only the `predict` step + project/working_dir
@@ -633,8 +1069,10 @@ async def create_predict(
         else str(session_dir / "input" / "scene.usda")
     )
 
-    try:
-        predict_config = build_default_pipeline_config(
+    from .pipeline_router import _apply_render_request_limit
+
+    def prepare_predict_config() -> dict[str, Any]:
+        prepared: dict[str, Any] = build_default_pipeline_config(
             session_id=session_id,
             usd_path=usd_path_for_config,
             working_dir=str(session_dir / "cache"),
@@ -648,36 +1086,28 @@ async def create_predict(
             enable_split=enable_split,
             enable_deduplicate=enable_deduplicate,
         )
-    except ValueError as e:
-        # Translate config-builder rejections (bad render backend, etc.)
-        # into a clean 400 instead of a 500. Only tear down the session
-        # if we created it in this request — never delete a caller-supplied
-        # session_id, even on a malformed Mode B option.
-        if session_created_here:
-            await manager.delete_session(session_id)
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    # Mirror /pipeline: clamp render-step concurrency to the process-wide
-    # WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS cap so a Mode B /predict job
-    # cannot bypass the global render throttle that protects shared NVCF
-    # endpoints.
-    from .pipeline_router import _apply_render_request_limit
+        # Mirror /pipeline: clamp render-step concurrency to the process-wide
+        # cap, and disable apply_physics for this prediction-only route.
+        _apply_render_request_limit(prepared)
+        prepared.setdefault("steps", {}).setdefault("apply_physics", {})["enabled"] = (
+            False
+        )
+        return prepared
 
-    _apply_render_request_limit(predict_config)
-    # /predict never runs apply_physics; flip it off so Mode B's
-    # only_steps filter doesn't accidentally include it.
-    predict_config.setdefault("steps", {}).setdefault("apply_physics", {})[
-        "enabled"
-    ] = False
-
-    config_path = session_dir / "input" / "predict_config.yaml"
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_path, "w") as f:
-        yaml.dump(predict_config, f, default_flow_style=False)
+    # Reject invalid request-derived configuration before claiming a job slot.
+    # This build is side-effect-free; the exact validated object is persisted
+    # only after the reservation is acquired below.
+    predict_config = await build_and_validate_pipeline_config(
+        config_factory=prepare_predict_config,
+        session_manager=manager,
+        session_id=session_id,
+        session_created_here=session_created_here,
+    )
 
     job_registry = get_job_registry()
 
-    # Atomically claim the slot in the in-process registry BEFORE writing
-    # any session state. A losing concurrent rerun for the same terminal
+    # Atomically claim the slot in the in-process registry BEFORE writing any
+    # session state. A losing concurrent rerun for the same terminal
     # session must NOT mutate session metadata/config: under the previous
     # ordering it could pass the up-front is_running()/persisted-status
     # check, write `status=pending` + a new config block, and only then
@@ -691,86 +1121,140 @@ async def create_predict(
         raise HTTPException(status_code=409, detail=str(e)) from e
 
     async with reservation:
-        # Stage the explicit dataset.jsonl into the session cache whenever
-        # dataset_path is present. The copy happens AFTER the reservation
-        # is claimed so a losing concurrent rerun (which 409s out at
-        # reserve()) cannot overwrite the winner's
-        # session_dir/cache/dataset/dataset.jsonl — that would otherwise
-        # let `/artifacts/{id}/dataset` and on-demand report generation
-        # describe a different dataset than the predictions. Inference
-        # still reads the *original* dataset_path so the JSONL's
-        # relative image entries continue to resolve next to the rendered
-        # PNGs; only the JSONL itself is copied for the artifact contract.
-        #
-        # We deliberately stage *before* writing status="pending" so a
-        # copyfile failure on a caller-supplied session (no
-        # session_created_here teardown to fall back on) leaves the
-        # session in its previous terminal status — retryable — instead
-        # of permanently wedged in "pending" with no way out short of
-        # TTL expiry. The reservation context manager still releases the
-        # registry slot via __aexit__ when we raise.
-        if resolved_dataset_path is not None:
-            session_dataset_target = session_dir / "cache" / "dataset" / "dataset.jsonl"
-            session_dataset_target.parent.mkdir(parents=True, exist_ok=True)
-            # Skip the copy when the caller pointed dataset_path at this
-            # session's own staged dataset.jsonl (e.g. a Mode A rerun on the
-            # same session). shutil.copyfile would otherwise raise
-            # SameFileError and 500 a perfectly valid retry.
-            already_staged = (
-                session_dataset_target.exists()
-                and resolved_dataset_path.exists()
-                and resolved_dataset_path.samefile(session_dataset_target)
+        # Configuration and an explicit dataset are one worker-input update.
+        # Keep the accepted files untouched until staging succeeds, then
+        # publish both transactionally before marking the job pending. A
+        # rejected concurrent rerun, partial copy, or failed publish therefore
+        # leaves the previous terminal session fully retryable.
+        config_path = session_dir / "input" / "predict_config.yaml"
+        session_dataset_target = session_dir / "cache" / "dataset" / "dataset.jsonl"
+        input_transaction: _PredictInputsTransaction | None = None
+        metadata_snapshot: dict[str, Any] | None = None
+        start_gate = asyncio.Event()
+        try:
+            existing = await manager.get_session_metadata(session_id)
+            if not isinstance(existing, dict):
+                log_durable_failure(
+                    logger,
+                    "predict_metadata_snapshot_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=_PREDICT_START_FAILED_DETAIL,
+                )
+            metadata_snapshot = deepcopy(existing)
+            existing_config_value = existing.get("config")
+            existing_config = (
+                existing_config_value if isinstance(existing_config_value, dict) else {}
             )
-            if not already_staged:
-                try:
-                    shutil.copyfile(resolved_dataset_path, session_dataset_target)
-                except Exception as e:  # noqa: BLE001
-                    if session_created_here:
-                        await manager.delete_session(session_id)
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed to stage dataset into session cache: {e}",
-                    ) from e
 
-        existing = await manager.get_session_metadata(session_id) or {}
-        existing_config = existing.get("config") or {}
-        # Reset any prior EventBus snapshot for this session before queuing a
-        # rerun. /predict/{id}/status prefers the in-memory snapshot, and the
-        # bus's COMPLETED-state handling never demotes back to "running" on a
-        # new RUNNING event — without this clear, a rerun on a previously-
-        # completed session would report "completed" the entire time the new
-        # job is actually executing.
-        get_event_bus().cleanup_session(session_id)
-        await manager.update_session(
-            session_id,
-            {
-                "status": "pending",
-                "can_cancel": True,
-                "config": {
-                    **existing_config,
-                    "project_name": predict_config.get("project", {}).get("name", ""),
-                    "usd_path": str(input_usd_path) if input_usd_path else None,
-                    "has_usd_upload": existing_config.get("has_usd_upload", False)
-                    or has_usd_file,
-                    "s3_uri": s3_uri or existing_config.get("s3_uri"),
-                    "user_prompt": user_prompt_text,
-                    "optimize_usd": optimize_usd,
-                    "enable_deinstance": enable_deinstance,
-                    "enable_split": enable_split,
-                    "enable_deduplicate": enable_deduplicate,
-                    "predict_route": True,
-                },
-            },
-        )
-
-        await reservation.start(
-            execute_predict_async(
+            input_transaction = await _persist_predict_inputs_transactionally(
+                predict_config=predict_config,
+                config_path=config_path,
+                dataset_source=resolved_dataset_path,
+                dataset_target=session_dataset_target,
+                manager=manager,
                 session_id=session_id,
-                config_dict=predict_config,
-                session_manager=manager,
-                dataset_path=resolved_dataset_path,
-            ),
-        )
+                session_created_here=session_created_here,
+            )
+
+            # Register a gated coroutine before the pending metadata transition.
+            # The worker cannot mutate files/status until every startup surface is
+            # committed and the gate is opened below.
+            await reservation.start(
+                _execute_predict_after_commit(
+                    start_gate,
+                    session_id=session_id,
+                    config_dict=predict_config,
+                    manager=manager,
+                    dataset_path=resolved_dataset_path,
+                )
+            )
+            await manager.update_session(
+                session_id,
+                {
+                    "status": "pending",
+                    "can_cancel": True,
+                    "config": {
+                        **existing_config,
+                        "project_name": predict_config.get("project", {}).get(
+                            "name", ""
+                        ),
+                        "usd_path": str(input_usd_path) if input_usd_path else None,
+                        "has_usd_upload": existing_config.get("has_usd_upload", False)
+                        or has_usd_file,
+                        "s3_uri": s3_uri or existing_config.get("s3_uri"),
+                        "user_prompt": user_prompt_text,
+                        "optimize_usd": optimize_usd,
+                        "enable_deinstance": enable_deinstance,
+                        "enable_split": enable_split,
+                        "enable_deduplicate": enable_deduplicate,
+                        "predict_route": True,
+                    },
+                },
+            )
+
+            # Local status is mutated only after every fallible publication and
+            # registration step has succeeded. Failed startup therefore leaves
+            # the prior EventBus state in place without snapshot restoration.
+            get_event_bus().cleanup_session(session_id)
+            input_transaction.commit()
+            start_gate.set()
+        except BaseException as exc:
+            try:
+                await job_registry.cancel(session_id)
+            except Exception:
+                log_durable_failure(
+                    logger,
+                    "predict_start_task_cancel_failed",
+                    phase=FailurePhase.ROLLBACK,
+                    retryable=True,
+                )
+
+            if session_created_here:
+                if input_transaction is not None:
+                    input_transaction.commit()
+                get_event_bus().cleanup_session(session_id)
+                await _cleanup_failed_predict_session(
+                    manager=manager,
+                    session_id=session_id,
+                    session_created_here=True,
+                )
+            else:
+                if input_transaction is not None:
+                    try:
+                        input_transaction.rollback()
+                    except Exception:
+                        log_durable_failure(
+                            logger,
+                            "predict_start_input_restore_failed",
+                            phase=FailurePhase.ROLLBACK,
+                            retryable=True,
+                        )
+                if metadata_snapshot is not None:
+                    try:
+                        await manager.restore_session_metadata(
+                            session_id,
+                            deepcopy(metadata_snapshot),
+                        )
+                    except Exception:
+                        log_durable_failure(
+                            logger,
+                            "predict_start_metadata_restore_failed",
+                            phase=FailurePhase.ROLLBACK,
+                            retryable=True,
+                        )
+
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            if isinstance(exc, HTTPException):
+                raise
+            raise HTTPException(
+                status_code=500,
+                detail=_PREDICT_START_FAILED_DETAIL,
+            ) from None
 
     logger.info(f"/predict registered for session {session_id}")
 
@@ -856,9 +1340,12 @@ async def get_predict_results(session_id: str):
             # the URL, so /artifacts/{id}/dataset can serve it on this pod too.
             try:
                 await manager.sync_from_store(session_id, prefix="cache/dataset/")
-            except Exception as e:  # noqa: BLE001
-                logger.debug(
-                    f"sync_from_store(cache/dataset/) failed for {session_id[:8]}: {e}"
+            except Exception:  # noqa: BLE001
+                log_durable_failure(
+                    logger,
+                    "predict_dataset_restore_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
                 )
         if dataset_local.exists():
             download_urls["dataset"] = f"/artifacts/{session_id}/dataset"
@@ -999,7 +1486,7 @@ async def stream_predict_events(session_id: str) -> EventSourceResponse:
                 ),
             )
 
-    async def event_generator():
+    async def event_generator():  # pragma: no cover - SSE transport loop
         queue = event_bus.get_queue(session_id)
 
         if snapshot is not None and snapshot.get("status") in terminal_states:

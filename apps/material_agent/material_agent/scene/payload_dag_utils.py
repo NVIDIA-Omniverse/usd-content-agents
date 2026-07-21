@@ -25,7 +25,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Sdf
 
 logger = logging.getLogger(__name__)

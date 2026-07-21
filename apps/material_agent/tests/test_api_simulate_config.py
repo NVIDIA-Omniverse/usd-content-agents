@@ -67,6 +67,18 @@ def test_patch_config_for_simulate_creates_missing_mock_scene_analyze():
     assert patched["scene"]["analyze"]["llm"]["api_key"] == "not-used"
 
 
+def test_patch_config_for_simulate_replaces_non_mapping_scene() -> None:
+    patched = patch_config_for_simulate({"scene": "not-a-mapping"}, mock_analyze=True)
+
+    assert patched["scene"]["analyze"]["llm"]["backend"] == "mock"
+
+
+def test_patch_config_for_simulate_skips_non_analyze_missing_llm() -> None:
+    patched = patch_config_for_simulate({"scene": {"reconcile": {}}})
+
+    assert patched["scene"]["reconcile"] == {}
+
+
 def test_patch_config_for_simulate_clears_real_provider_credentials() -> None:
     """Switching a section to the mock backend must drop any prior provider
     api_key/base_url. Otherwise a real credential would persist on a config
@@ -77,7 +89,7 @@ def test_patch_config_for_simulate_clears_real_provider_credentials() -> None:
             "predict": {
                 "vlm": {
                     "backend": "openai",
-                    "model": "gpt-4o",
+                    "model": "example-vlm-model",
                     "api_key": "sk-real-openai-key",
                     "base_url": "https://api.openai.com/v1",
                 },
@@ -91,9 +103,9 @@ def test_patch_config_for_simulate_clears_real_provider_credentials() -> None:
         "scene": {
             "reconcile": {
                 "llm": {
-                    "backend": "perflab_azure_openai",
-                    "api_key": "azure-real-key",
-                    "base_url": "https://nstorage.example.com/v1",
+                    "backend": "openai",
+                    "api_key": "sk-reconcile-openai-key",
+                    "base_url": "https://api.openai.com/v1",
                 }
             }
         },
@@ -119,4 +131,4 @@ def test_patch_config_for_simulate_clears_real_provider_credentials() -> None:
     # Original config must remain untouched.
     assert original["steps"]["predict"]["vlm"]["api_key"] == "sk-real-openai-key"
     assert original["steps"]["predict"]["llm"]["api_key"] == "nvidia-real-key"
-    assert original["scene"]["reconcile"]["llm"]["api_key"] == "azure-real-key"
+    assert original["scene"]["reconcile"]["llm"]["api_key"] == "sk-reconcile-openai-key"

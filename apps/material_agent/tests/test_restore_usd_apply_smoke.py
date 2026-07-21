@@ -97,6 +97,11 @@ def test_restore_usd_predictions_apply_to_original_topology(tmp_path: Path) -> N
 
     assert apply_context["assignment_stats"]["failed"] == 0
     assert apply_context["assignment_stats"]["total_prims"] == 2
+    assert apply_context["assignment_stats"]["bound_prim_ids"] == [
+        "/Root/Body/SubsetA",
+        "/Root/Body/SubsetB",
+    ]
+    assert apply_context["assignment_stats"]["unbound_prim_ids"] == []
 
     output_stage = Usd.Stage.Open(str(output_usd_path))
     assert output_stage.GetPrimAtPath("/Root/Body").IsValid()

@@ -6,8 +6,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
+from world_understanding.agentic.config import load_config_mapping_from_context
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 from world_understanding.utils.object_store import ObjectStore
 
 from physics_agent.config.validator import VALID_COLLISION_APPROX
@@ -41,10 +46,9 @@ class ApplyPhysicsConfigTask(Task):
     ) -> dict[str, Any]:
         config = self._load_config(context)
 
-        # Anchor relative paths on the YAML file only when we actually loaded
-        # from it; if the caller passed config_dict directly, relative paths
-        # are resolved against the cwd.
-        if "config_dict" not in context and context.get("config_path"):
+        # A config_dict may be paired with its original YAML path so an
+        # in-memory override preserves the same relative-path semantics.
+        if context.get("config_path"):
             config_dir = Path(context["config_path"]).parent
         else:
             config_dir = Path.cwd()
@@ -70,14 +74,14 @@ class ApplyPhysicsConfigTask(Task):
         if collision_approx not in VALID_COLLISION_APPROX:
             raise ValueError(
                 "apply_physics.collision_approx must be one of "
-                f"{sorted(VALID_COLLISION_APPROX)}, got '{collision_approx}'"
+                f"{sorted(VALID_COLLISION_APPROX)}; got an unsupported value"
             )
         output_key = config.get("output_key", "classification")
         mass_scale_policy = config.get("mass_scale_policy", "skip_mass")
         if mass_scale_policy not in VALID_MASS_SCALE_POLICIES:
             raise ValueError(
                 "apply_physics.mass_scale_policy must be one of "
-                f"{sorted(VALID_MASS_SCALE_POLICIES)}, got '{mass_scale_policy}'"
+                f"{sorted(VALID_MASS_SCALE_POLICIES)}; got an unsupported value"
             )
         allow_empty_predictions = config.get("allow_empty_predictions", False)
         if not isinstance(allow_empty_predictions, bool):
@@ -98,44 +102,40 @@ class ApplyPhysicsConfigTask(Task):
             }
         )
 
-        logger.info("Input USD: %s", usd_path)
-        logger.info("Predictions: %s", predictions_path)
-        logger.info("Output USD: %s", output_usd_path)
+        logger.info("Input USD: %s", redact_sensitive_path(usd_path))
+        logger.info("Predictions: %s", redact_sensitive_path(predictions_path))
+        logger.info("Output USD: %s", redact_sensitive_path(output_usd_path))
         logger.info("Collision approx: %s", collision_approx)
-        logger.info("Output key: %s", output_key)
+        logger.info("Output key: %s", redact_sensitive_config(output_key))
         logger.info("Mass scale policy: %s", mass_scale_policy)
         logger.info("Allow empty predictions: %s", allow_empty_predictions)
 
         return context
 
     def _load_config(self, context: dict[str, Any]) -> dict[str, Any]:
-        if "config_dict" in context:
-            config_dict = context["config_dict"]
-            if not isinstance(config_dict, dict):
-                raise ValueError(
-                    "apply_physics config_dict must be a mapping, got "
-                    f"{type(config_dict).__name__}"
-                )
-            return config_dict
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("No config_path or config_dict in context")
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Config not found: {config_path}")
-        with open(config_path, encoding="utf-8") as f:
-            loaded = yaml.safe_load(f)
-        if loaded is None:
-            return {}
-        if not isinstance(loaded, dict):
-            raise ValueError(
-                f"apply_physics config must be a YAML mapping, got "
-                f"{type(loaded).__name__}: {config_path}"
-            )
-        return loaded
+        config, _ = load_config_mapping_from_context(
+            context,
+            allow_empty=True,
+            missing_path_message="No config_path or config_dict in context",
+            missing_file_message="Config not found: {config_path}",
+            parse_error_message=(
+                "Unable to parse apply_physics configuration file: {config_path}"
+            ),
+            config_dict_non_mapping_message=(
+                "apply_physics config_dict must be a mapping, got {type_name}"
+            ),
+            file_non_mapping_message=(
+                "apply_physics config must be a YAML mapping, got "
+                "{type_name}: {config_path}"
+            ),
+        )
+        return config
 
     def _resolve_path(self, path: str, config_dir: Path) -> Path:
         p = Path(path)
         if p.is_absolute():
             return p
-        return (config_dir / p).resolve()
+        return resolve_path_with_safe_diagnostics(
+            config_dir / p,
+            label="apply_physics configuration path",
+        )

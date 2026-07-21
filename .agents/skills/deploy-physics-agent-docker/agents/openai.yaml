@@ -1,4 +1,4 @@
 interface:
   display_name: "Deploy Physics Agent Docker"
   short_description: "Help with Deploy Physics Agent Docker tasks"
-  default_prompt: "Use $deploy-physics-agent-docker to deploy the physics-agent-service locally using Docker Compose with the bundled OVRTX GPU rendering sidecar."
+  default_prompt: "Use $deploy-physics-agent-docker to deploy the physics-agent-service locally using Docker Compose with the bundled OVRTX GPU rendering sidecar, and to check tune/refine route readiness."

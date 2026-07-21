@@ -12,6 +12,11 @@ from pathlib import Path
 from rich.console import Console
 from rich.logging import RichHandler
 
+from world_understanding.utils.credentials import redact_sensitive_path
+from world_understanding.utils.model_auth import ModelAuthenticationLogFilter
+
+_LOG_FILE_OPEN_FAILURE_MESSAGE = "Unable to open log file"
+
 
 def setup_logging(
     agent_name: str,
@@ -57,13 +62,16 @@ def setup_logging(
         show_time=True,
         show_path=verbose,
         rich_tracebacks=True,
-        tracebacks_show_locals=verbose,
+        # Runtime/config locals can contain resolved credentials. Verbose mode
+        # may add source paths, but it must never serialize frame locals.
+        tracebacks_show_locals=False,
     )
     console_handler.setLevel(numeric_level)
 
     # Create formatter
     format_str = "%(message)s"
     console_handler.setFormatter(logging.Formatter(format_str))
+    console_handler.addFilter(ModelAuthenticationLogFilter())
 
     # Configure main logger for the agent
     logger = logging.getLogger(agent_name)
@@ -95,14 +103,27 @@ def setup_logging(
 
     # Add file handler if log file specified
     if log_file:
-        file_handler = logging.FileHandler(log_file)
+        file_handler: logging.FileHandler | None = None
+        file_open_failed = False
+        try:
+            # Keep the raw path solely for the requested I/O operation.
+            file_handler = logging.FileHandler(log_file)
+        except Exception:
+            file_open_failed = True
+            # Do not retain the credential-bearing path in the frame that will
+            # be rendered if the caller does not catch the replacement error.
+            log_file = None
+        if file_open_failed:
+            raise RuntimeError(_LOG_FILE_OPEN_FAILURE_MESSAGE)
+        assert file_handler is not None
         file_handler.setLevel(numeric_level)
         file_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         file_handler.setFormatter(file_formatter)
+        file_handler.addFilter(ModelAuthenticationLogFilter())
         logger.addHandler(file_handler)
         wu_logger.addHandler(file_handler)
-        logger.info(f"Logging to file: {log_file}")
+        logger.info("Logging to file: %s", redact_sensitive_path(log_file))
 
     return logger

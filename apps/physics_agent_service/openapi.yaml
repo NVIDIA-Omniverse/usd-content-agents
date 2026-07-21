@@ -25,7 +25,7 @@ info:
     \ endpoint.\n    * Cancel running pipelines via a dedicated endpoint.\n\n* Visual\
     \ feedback\n    * Live preview gallery during the rendering stage.\n    * On-demand\
     \ HTML report generation with per-prim classifications.\n"
-  version: 0.1.0
+  version: 0.5.0
 paths:
   /pipeline/upload-usd:
     post:
@@ -46,6 +46,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionCreated'
+        '403':
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
         '422':
           description: Validation Error
           content:
@@ -57,7 +63,12 @@ paths:
       tags:
       - pipeline
       summary: Create Pipeline
-      description: Create and execute a physics agent pipeline.
+      description: |
+        Create and execute a physics agent pipeline.
+
+        At least one input source is required. When more than one is supplied,
+        the selected source is deterministic: `session_id` first, then
+        `s3_uri`, then `usd_file`. Lower-priority source fields are ignored.
       operationId: create_pipeline_pipeline_post
       requestBody:
         content:
@@ -71,6 +82,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionCreated'
+        '403':
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
         '422':
           description: Validation Error
           content:
@@ -114,7 +131,7 @@ paths:
       tags:
       - pipeline
       summary: Get Pipeline Results
-      description: Get pipeline execution results (only available when completed).
+      description: Get terminal pipeline execution results.
       operationId: get_pipeline_results_pipeline__session_id__results_get
       parameters:
       - name: session_id
@@ -250,13 +267,18 @@ paths:
 
         * **Mode A — dataset already prepared.** Triggered when `dataset_path`
           points at a readable dataset.jsonl, or when an existing `session_id`
-          already has `cache/dataset/dataset.jsonl`. Only the predict step runs.
-        * **Mode B — USD upload / s3_uri / fresh session_id.** When no prepared
-          dataset is present, /predict runs the minimum upstream steps
+          has `cache/dataset/dataset.jsonl` whose referenced images resolve.
+          Only the predict step runs.
+        * **Mode B — USD upload / s3_uri / fresh session_id.** When no runnable
+          session dataset is present, /predict runs the minimum upstream steps
           (`optimize_usd` if enabled → `identify_asset` → `build_dataset_usd` →
           `build_dataset_prepare_dataset`) before predicting. `apply_physics`
           is intentionally not part of /predict — use POST /pipeline if you
           need the full classify/apply flow.
+
+          A cached JSONL whose images do not resolve falls back to Mode B when
+          an input USD is available. Without an input USD, the request returns
+          HTTP 400 with recovery guidance.
 
         The detected mode is persisted to session metadata under `predict_mode`
         and surfaced in the `GET /predict/{id}/results` response.
@@ -274,9 +296,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/SessionCreated'
         '400':
-          description: Missing/invalid input — no usd_file/session_id/s3_uri/dataset_path, ambiguous combinations (e.g. usd_file + s3_uri, dataset_path + s3_uri), invalid USD extension, missing dataset, or invalid optimizer config.
+          description: Missing/invalid input — no usd_file/session_id/s3_uri/dataset_path, ambiguous combinations (e.g. usd_file + s3_uri, dataset_path + s3_uri), invalid USD extension, missing dataset, unknown Mode-B render backend, invalid optimizer config, or a cached dataset whose images are unavailable with no input USD to rebuild from.
         '403':
-          description: dataset_path resolves outside allowed roots, or S3 access denied.
+          description: dataset_path resolves outside allowed roots; client S3 URI rejected by the configured bucket allowlist; or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
         '404':
           description: Session not found, or S3 object not found.
         '409':
@@ -675,6 +701,12 @@ paths:
                 $ref: '#/components/schemas/SessionCreated'
         '400':
           description: Invalid scenario or input USD
+        '403':
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
         '422':
           description: Validation Error
           content:
@@ -787,7 +819,7 @@ paths:
       description: |
         Download one of the canonical tune artifacts:
         `best_params.json`, `tune_results.json`, `history.jsonl`,
-        `report.md`, `tuned_physics.usda`, or the optional visual judge
+        `report.md`, `tuned_physics.usd`, or the optional visual judge
         contact sheet `comparison.png`.
       operationId: download_tune_artifact_tune__session_id__artifacts__name__get
       parameters:
@@ -814,10 +846,195 @@ paths:
                   requested artifact: `best_params.json` /
                   `tune_results.json` are JSON, `history.jsonl` is
                   JSON-lines, `report.md` is markdown,
-                  `tuned_physics.usda` is a text-format USD layer, and
+                  `tuned_physics.usd` is a USD layer, and
                   `comparison.png` is a PNG image when visual judging ran.
                   Generated SDKs should treat the response as a binary
                   download.
+        '404':
+          description: Unknown artifact or session not found
+  /refine:
+    post:
+      tags:
+      - refine
+      summary: Create Refine Session
+      description: |
+        Create and queue an iterative refine session over an authored physics USD.
+
+        Exactly one of `physics_usd`, `s3_uri`, or `source_session_id` must be
+        provided. Both `scenario_yaml` and `user_prompt` are required: the YAML
+        defines the initial tuning scenario and the prompt defines the target
+        behavior for judge/refiner calls. Deployments build the judge/refiner
+        models server-side from service configuration.
+      operationId: create_refine_refine_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_create_refine_refine_post'
+      responses:
+        '202':
+          description: Refine queued for execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionCreated'
+        '400':
+          description: Invalid scenario, optimizer, source, or input USD
+        '403':
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /refine/{session_id}/status:
+    get:
+      tags:
+      - refine
+      summary: Get Refine Status
+      operationId: get_refine_status_refine__session_id__status_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Refine status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefineStatus'
+        '404':
+          description: Session not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /refine/{session_id}/results:
+    get:
+      tags:
+      - refine
+      summary: Get Refine Results
+      operationId: get_refine_results_refine__session_id__results_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Refine results when terminal (RefineResults), or PipelineError payload when the run failed before partial artifacts were available.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/RefineResults'
+                - $ref: '#/components/schemas/PipelineError'
+                title: Response Get Refine Results Refine  Session Id  Results Get
+        '202':
+          description: Refine still running
+        '404':
+          description: Session not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /refine/{session_id}/events:
+    get:
+      tags:
+      - refine
+      summary: Stream Refine Events
+      description: Server-Sent Events stream of iteration, trial, and judge progress.
+      operationId: stream_refine_events_refine__session_id__events_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: text
+                description: |
+                  SSE stream of refine lifecycle events. Each frame is a
+                  JSON-encoded ProgressEvent. Stream terminates on FAILED /
+                  CANCELLED / refine_ready.
+        '404':
+          description: Session not found
+        '503':
+          description: Refine is running on a different instance; use polling
+  /refine/{session_id}/cancel:
+    post:
+      tags:
+      - refine
+      summary: Cancel Refine
+      operationId: cancel_refine_refine__session_id__cancel_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cancellation requested
+        '400':
+          description: Cannot cancel from current status
+        '404':
+          description: Session not found
+        '409':
+          description: Session is not a refine session
+  /refine/{session_id}/artifacts/{name}:
+    get:
+      tags:
+      - refine
+      summary: Download Refine Artifact
+      description: |
+        Download one of the canonical refine artifacts:
+        `refine_summary.json`, `final/scenario.yaml`, `final/best_params.json`,
+        `final/tune_results.json`, `final/history.jsonl`,
+        `final/judge_result.json`, `final/tuned_physics.usd`,
+        `final/recording.usd`, `final/report.md`, or `final/comparison.png`.
+      operationId: download_refine_artifact_refine__session_id__artifacts__name__get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Artifact bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: Raw artifact bytes. Concrete content type depends on the requested artifact.
         '404':
           description: Unknown artifact or session not found
   /health:
@@ -861,15 +1078,15 @@ components:
           type: string
           contentMediaType: application/octet-stream
           title: Usd File
-          description: USD file to process (optional if session_id or s3_uri provided)
+          description: USD file to process. Lowest-priority source; used only when neither session_id nor s3_uri is provided.
         session_id:
           type: string
           title: Session Id
-          description: Existing session ID (from /upload-usd endpoint)
+          description: Existing session ID (from /upload-usd endpoint). Highest-priority source when multiple source fields are supplied.
         s3_uri:
           type: string
           title: S3 Uri
-          description: S3 URI to a USD file (e.g. s3://bucket/path/scene.usdz)
+          description: S3 URI to a USD file (e.g. s3://bucket/path/scene.usdz). Used when session_id is absent, ahead of usd_file.
         user_prompt:
           type: string
           title: User Prompt
@@ -880,7 +1097,9 @@ components:
           title: Render Backend
           description: 'Rendering backend: ''remote'' (default, HTTP render service;
             the bundled compose points this at the OVRTX sidecar), ''warp'' (local
-            CUDA), or ''ovrtx'' (local Vulkan subprocess)'
+            CUDA), ''ovrtx'' (local Vulkan subprocess), or ''mock'' (deterministic
+            CPU-only test images)'
+          enum: [remote, warp, ovrtx, mock, ""]
           default: ''
         optimize_usd:
           type: boolean
@@ -911,6 +1130,7 @@ components:
           default: false
       type: object
       title: Body_create_pipeline_pipeline_post
+      description: At least one source is required. Source precedence is session_id, then s3_uri, then usd_file.
     Body_create_predict_predict_post:
       properties:
         usd_file:
@@ -923,7 +1143,8 @@ components:
           type: string
           title: Session Id
           description: Existing session ID (e.g. from POST /pipeline/upload-usd).
-            When the session already has a prepared dataset, /predict runs Mode A.
+            When the session has a prepared dataset whose referenced images resolve,
+            /predict runs Mode A (predict only).
         s3_uri:
           type: string
           title: S3 Uri
@@ -942,7 +1163,8 @@ components:
           type: string
           title: Render Backend
           description: 'Rendering backend for Mode B: ''remote'' (default), ''warp'',
-            or ''ovrtx''. Ignored in Mode A.'
+            ''ovrtx'', or ''mock''. Ignored in Mode A.'
+          enum: [remote, warp, ovrtx, mock, ""]
           default: ''
         optimize_usd:
           type: boolean
@@ -1111,6 +1333,17 @@ components:
       - elapsed_seconds
       title: CurrentStepInfo
       description: Information about the currently executing step.
+    ErrorDetail:
+      properties:
+        detail:
+          type: string
+          title: Detail
+          description: Human-readable error detail
+      type: object
+      required:
+      - detail
+      title: ErrorDetail
+      description: Standard FastAPI error payload returned by authorization failures.
     HTTPValidationError:
       properties:
         detail:
@@ -1159,7 +1392,7 @@ components:
         error_message:
           type: string
           title: Error Message
-          description: Error description
+          description: Stable value-free diagnostic code
         failed_step:
           type: string
           title: Failed Step
@@ -1429,6 +1662,27 @@ components:
           title: Reference Video Descriptions
           default: ''
           description: Optional JSON array of descriptions parallel to reference_videos
+        reference_video_frames:
+          type: integer
+          title: Reference Video Frames
+          maximum: 64
+          minimum: 1
+          default: 8
+          description: Frames to extract from each reference video for visual judging
+        judge_reference_frames:
+          type: integer
+          title: Judge Reference Frames
+          maximum: 64
+          minimum: 1
+          default: 8
+          description: Max reference images/video frames to send to the VLM judge
+        judge_generated_frames:
+          type: integer
+          title: Judge Generated Frames
+          maximum: 64
+          minimum: 1
+          default: 16
+          description: Max generated render frames to send to the VLM judge
         scenario_yaml:
           type: string
           title: Scenario Yaml
@@ -1526,6 +1780,154 @@ components:
             - s3_uri
         - required:
             - source_session_id
+    Body_create_refine_refine_post:
+      properties:
+        physics_usd:
+          type: string
+          contentMediaType: application/octet-stream
+          title: Physics Usd
+          description: Physics-authored USD (output of apply_physics) to refine
+        s3_uri:
+          type: string
+          title: S3 Uri
+          description: S3 URI to a physics-authored USD
+        source_session_id:
+          type: string
+          title: Source Session Id
+          description: Pipeline session ID whose apply_physics output_usd should be used
+        reference_images:
+          items:
+            type: string
+            contentMediaType: application/octet-stream
+          type: array
+          title: Reference Images
+          default: []
+          description: Optional reference images for the visual/VLM judge
+        reference_videos:
+          items:
+            type: string
+            contentMediaType: application/octet-stream
+          type: array
+          title: Reference Videos
+          default: []
+          description: Optional reference videos for the visual/VLM judge
+        reference_descriptions:
+          type: string
+          title: Reference Descriptions
+          default: ''
+          description: Optional JSON array of descriptions parallel to reference_images
+        reference_video_descriptions:
+          type: string
+          title: Reference Video Descriptions
+          default: ''
+          description: Optional JSON array of descriptions parallel to reference_videos
+        reference_video_frames:
+          type: integer
+          title: Reference Video Frames
+          maximum: 64
+          minimum: 1
+          default: 8
+          description: Frames to extract from each reference video for visual judging
+        judge_reference_frames:
+          type: integer
+          title: Judge Reference Frames
+          maximum: 64
+          minimum: 1
+          default: 8
+          description: Max reference images/video frames to send to the VLM judge
+        judge_generated_frames:
+          type: integer
+          title: Judge Generated Frames
+          maximum: 64
+          minimum: 1
+          default: 16
+          description: Max generated render frames to send to the VLM judge
+        scenario_yaml:
+          type: string
+          title: Scenario Yaml
+          default: ''
+          description: Initial refine scenario YAML body
+        user_prompt:
+          type: string
+          title: User Prompt
+          default: ''
+          description: Natural-language desired behavior for judge/refine loop
+        optimizer:
+          type: string
+          title: Optimizer
+          default: botorch
+          description: botorch, auto, random, cma-es
+        engine:
+          type: string
+          title: Engine
+          default: ovphysx
+          description: ovphysx, newton, or fake
+        max_trials:
+          type: integer
+          title: Max Trials
+          maximum: 1000
+          minimum: 1
+          default: 30
+          description: Optimizer trial budget per iteration
+        max_iterations:
+          type: integer
+          title: Max Iterations
+          maximum: 12
+          minimum: 1
+          default: 5
+          description: Refine iteration cap
+        score_threshold:
+          type: number
+          title: Score Threshold
+          maximum: 1.0
+          minimum: 0.0
+          default: 0.9
+          description: Judge approval threshold
+        seed:
+          type: integer
+          title: Seed
+          default: 42
+          description: Seed for optimizer + backend
+        judge_max_tokens:
+          anyOf:
+          - type: integer
+            minimum: 1
+          - type: 'null'
+          title: Judge Max Tokens
+          description: Optional max output tokens for judge responses
+        judge_temperature:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Judge Temperature
+          description: Optional temperature for judge calls
+        visual_evidence_enabled:
+          type: boolean
+          title: Visual Evidence Enabled
+          default: true
+          description: Send generated/reference media to the VLM judge
+        llm_timeout_seconds:
+          type: number
+          title: Llm Timeout Seconds
+          default: 180.0
+          description: Wall-clock deadline for each judge/refine LLM call
+      required:
+      - scenario_yaml
+      - user_prompt
+      type: object
+      title: Body_create_refine_refine_post
+      description: >-
+        Both `scenario_yaml` and `user_prompt` must be supplied. Exactly
+        one of `physics_usd`, `s3_uri`, `source_session_id` must be supplied
+        as the asset source.
+      oneOf:
+        - required:
+            - physics_usd
+        - required:
+            - s3_uri
+        - required:
+            - source_session_id
     TuneStatus:
       properties:
         session_id:
@@ -1552,6 +1954,11 @@ components:
           type: integer
         can_cancel:
           type: boolean
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Failure reason for terminal failed tune sessions.
         created_at:
           type: string
         updated_at:
@@ -1594,6 +2001,7 @@ components:
           type: object
           additionalProperties:
             type: string
+          description: URLs for tune artifacts that were produced and published.
         duration_seconds:
           type: integer
         completed_at:
@@ -1615,3 +2023,116 @@ components:
       - completed_at
       type: object
       title: TuneResults
+    RefineStatus:
+      properties:
+        session_id:
+          type: string
+        status:
+          type: string
+          description: pending, running, completed, failed, cancelled, cancelling
+        iteration:
+          type: integer
+          default: 0
+          description: Current or final iteration number
+        max_iterations:
+          type: integer
+          default: 0
+          description: Configured iteration cap
+        n_trials:
+          type: integer
+          default: 0
+          description: Trials completed in current iteration
+        max_trials:
+          type: integer
+          default: 0
+          description: Configured trial budget per iteration
+        best_score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          description: Best score observed in current/final iteration
+        best_params:
+          anyOf:
+          - type: object
+            additionalProperties:
+              type: number
+          - type: 'null'
+          description: Best parameter set observed in current/final iteration
+        judge_score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          description: Latest judge score, when available
+        termination_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: approved, max_iterations, cancelled, error, or null while running
+        elapsed_seconds:
+          type: integer
+          description: Total elapsed time in seconds
+        can_cancel:
+          type: boolean
+          description: Whether refine can be cancelled
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Failure reason for terminal failed refine sessions.
+        created_at:
+          type: string
+        updated_at:
+          type: string
+      required:
+      - session_id
+      - status
+      - elapsed_seconds
+      - can_cancel
+      - created_at
+      - updated_at
+      type: object
+      title: RefineStatus
+    RefineResults:
+      properties:
+        session_id:
+          type: string
+        status:
+          type: string
+        termination_reason:
+          type: string
+        iteration_count:
+          type: integer
+        final_iteration:
+          type: integer
+        final_judge_score:
+          anyOf:
+          - type: number
+          - type: 'null'
+        iterations:
+          items:
+            type: object
+          type: array
+          default: []
+        download_urls:
+          type: object
+          additionalProperties:
+            type: string
+          description: URLs for refine artifacts that were produced and published.
+        duration_seconds:
+          type: integer
+        completed_at:
+          type: string
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - session_id
+      - status
+      - termination_reason
+      - iteration_count
+      - final_iteration
+      - duration_seconds
+      - completed_at
+      type: object
+      title: RefineResults

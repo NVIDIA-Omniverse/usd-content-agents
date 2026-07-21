@@ -7,8 +7,15 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
+from world_understanding.agentic.config import load_config_mapping_from_context
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    path_exists_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 from world_understanding.utils.object_store import ObjectStore
 
 from physics_agent.api.defaults import PREDICT_DEFAULTS, apply_defaults
@@ -105,7 +112,10 @@ class PredictConfigTask(Task):
                     / "dataset"
                     / "dataset.jsonl"
                 )
-                if candidate.exists():
+                if path_exists_with_safe_diagnostics(
+                    candidate,
+                    label="derived prediction dataset",
+                ):
                     dataset_path = candidate
 
         if dataset_path is None:
@@ -130,7 +140,12 @@ class PredictConfigTask(Task):
             output_dir = self._resolve_path(str(config["output_dir"]), config_dir)
         else:
             output_dir = dataset_path.parent / "output"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            output_dir,
+            label="predict output directory",
+            parents=True,
+            exist_ok=True,
+        )
 
         # Extract system prompt (if dataset.json exists with v0.2 format)
         system_prompt = self._extract_system_prompt(dataset_path)
@@ -174,9 +189,13 @@ class PredictConfigTask(Task):
                 context["report_image_quality"] = report_config["image_quality"]
 
         logger.info("Loaded configuration for prediction")
-        logger.info("Dataset: %s (%d entries)", dataset_path, len(dataset))
-        logger.info("Output directory: %s", output_dir)
-        logger.info("Output key: %s", output_key)
+        logger.info(
+            "Dataset: %s (%d entries)",
+            redact_sensitive_path(dataset_path),
+            len(dataset),
+        )
+        logger.info("Output directory: %s", redact_sensitive_path(output_dir))
+        logger.info("Output key: %s", redact_sensitive_config(output_key))
 
         return context
 
@@ -243,7 +262,10 @@ class PredictConfigTask(Task):
         if working_dir_raw:
             working_dir = Path(working_dir_raw)
             if not working_dir.is_absolute():
-                working_dir = (config_dir / working_dir).resolve()
+                working_dir = resolve_path_with_safe_diagnostics(
+                    config_dir / working_dir,
+                    label="predict working directory",
+                )
             return working_dir
 
         if config_path is None:
@@ -257,8 +279,7 @@ class PredictConfigTask(Task):
         except Exception:
             logger.debug(
                 "ProjectPathResolver fallback failed for predict config; "
-                "returning None for working_dir derivation",
-                exc_info=True,
+                "returning None for working_dir derivation"
             )
             return None
 
@@ -271,19 +292,13 @@ class PredictConfigTask(Task):
         Returns:
             Configuration dictionary
         """
-        if "config_dict" in context:
-            return context["config_dict"]
-
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("No config_path or config_dict in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+        config, _ = load_config_mapping_from_context(
+            context,
+            allow_empty=context.get("config_dict") is not None,
+            missing_path_message="No config_path or config_dict in context",
+            parse_error_message="Unable to parse configuration file: {config_path}",
+        )
+        return config
 
     def _resolve_path(self, path: str, config_dir: Path) -> Path:
         """Resolve path relative to config directory.
@@ -298,7 +313,10 @@ class PredictConfigTask(Task):
         path_obj = Path(path)
         if path_obj.is_absolute():
             return path_obj
-        return (config_dir / path_obj).resolve()
+        return resolve_path_with_safe_diagnostics(
+            config_dir / path_obj,
+            label="predict configuration path",
+        )
 
     def _load_dataset(self, dataset_path: Path) -> list[dict[str, Any]]:
         """Load dataset from JSONL file.
@@ -309,15 +327,34 @@ class PredictConfigTask(Task):
         Returns:
             List of dataset entries
         """
-        if not dataset_path.exists():
-            raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
+        safe_dataset_path = redact_sensitive_path(dataset_path)
+        if not path_exists_with_safe_diagnostics(
+            dataset_path,
+            label="prediction dataset path",
+        ):
+            raise FileNotFoundError(
+                f"Dataset file not found: {safe_dataset_path}"
+            ) from None
 
         dataset = []
-        with open(dataset_path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    dataset.append(json.loads(line))
+        try:
+            with open(dataset_path, encoding="utf-8") as f:
+                for line_number, line in enumerate(f, 1):
+                    line = line.strip()
+                    if line:
+                        try:
+                            dataset.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            raise ValueError(
+                                "Malformed prediction dataset JSONL at "
+                                f"{safe_dataset_path}, line {line_number}"
+                            ) from None
+        except OSError as error:
+            raise type(error)(
+                error.errno,
+                "Unable to read prediction dataset",
+                safe_dataset_path,
+            ) from None
 
         return dataset
 
@@ -332,12 +369,18 @@ class PredictConfigTask(Task):
         """
         # Check for dataset.json in same directory
         dataset_json = dataset_path.parent / "dataset.json"
-        if dataset_json.exists():
+        if path_exists_with_safe_diagnostics(
+            dataset_json,
+            label="prediction dataset metadata",
+        ):
             try:
                 with open(dataset_json, encoding="utf-8") as f:
                     data = json.load(f)
                     return data.get("system_prompt")
-            except Exception as e:
-                logger.warning("Failed to load system prompt from dataset.json: %s", e)
+            except Exception:
+                logger.warning(
+                    "Failed to load system prompt from %s",
+                    redact_sensitive_path(dataset_json),
+                )
 
         return None

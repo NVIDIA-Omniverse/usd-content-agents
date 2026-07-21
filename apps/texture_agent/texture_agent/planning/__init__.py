@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Public planning contracts for bounded Texture Agent execution."""
+
+from texture_agent.planning.contracts import (
+    TEXTURE_PLAN_HARD_CAP,
+    TEXTURE_PLAN_SCHEMA_VERSION,
+    TEXTURE_PLANNING_REQUEST_SCHEMA_VERSION,
+    TEXTURE_UNIT_DEFAULT_CAP,
+    TEXTURE_UV_AWARE_DEFAULT_CAP,
+    TextureDetailPolicy,
+    TextureDiscoveryMode,
+    TexturePlan,
+    TexturePlanCounts,
+    TexturePlanDecision,
+    TexturePlanDecisionState,
+    TexturePlanExecution,
+    TexturePlanLimits,
+    TexturePlanRequest,
+    TexturePlanSkippedItem,
+    TexturePlanSource,
+    TexturePlanUnit,
+    TextureSelectionKind,
+    TextureUnitMode,
+    stable_texture_unit_id,
+    texture_plan_json_schema,
+    validate_texture_plan_payload,
+)
+from texture_agent.planning.planner import build_texture_plan
+
+__all__ = [
+    "TEXTURE_PLAN_HARD_CAP",
+    "TEXTURE_PLAN_SCHEMA_VERSION",
+    "TEXTURE_PLANNING_REQUEST_SCHEMA_VERSION",
+    "TEXTURE_UV_AWARE_DEFAULT_CAP",
+    "TEXTURE_UNIT_DEFAULT_CAP",
+    "TextureDetailPolicy",
+    "TextureDiscoveryMode",
+    "TexturePlan",
+    "TexturePlanCounts",
+    "TexturePlanDecision",
+    "TexturePlanDecisionState",
+    "TexturePlanExecution",
+    "TexturePlanLimits",
+    "TexturePlanRequest",
+    "TexturePlanSkippedItem",
+    "TexturePlanSource",
+    "TexturePlanUnit",
+    "TextureSelectionKind",
+    "TextureUnitMode",
+    "build_texture_plan",
+    "stable_texture_unit_id",
+    "texture_plan_json_schema",
+    "validate_texture_plan_payload",
+]

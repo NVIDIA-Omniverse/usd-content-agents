@@ -33,11 +33,13 @@ import atexit
 import json
 import logging
 import os
+import platform
 import queue
 import selectors
 import subprocess
 import threading
 import time
+from collections import deque
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -49,12 +51,28 @@ logger = logging.getLogger(__name__)
 # ``~/.cache/wu/ovrtx_venv/`` precedent from render_ovrtx.py.
 _DEFAULT_VENV_DIR = Path(
     os.environ.get("WU_OVPHYSX_VENV_DIR", str(Path.home() / ".cache/wu/ovphysx_venv"))
-)
+).expanduser()
 
 
 _THIS_DIR = Path(__file__).resolve().parent
 _DAEMON_SCRIPT_PATH = _THIS_DIR / "_ovphysx_daemon_script.py"
-_OVPHYSX_INSTALL_INDEX_URL = "https://pypi.nvidia.com"
+_OVPHYSX_RUNTIME_LOCK = Path("apps/physics_agent/runtime/pylock.ovphysx-runtime.toml")
+_OVPHYSX_RUNTIME_LOCK_AARCH64 = Path(
+    "apps/physics_agent/runtime/pylock.ovphysx-runtime.aarch64.toml"
+)
+_OVPHYSX_RUNTIME_READY_MARKER = ".wu-ovphysx-runtime-ready"
+_STDERR_TAIL_LINES = 40
+_STDERR_TAIL_CHARS = 4000
+
+
+def _ovphysx_runtime_lock(machine: str | None = None) -> Path:
+    """Return the reviewed daemon lock for the current machine architecture."""
+    machine = (machine or platform.machine()).lower()
+    if machine in {"aarch64", "arm64"}:
+        return _OVPHYSX_RUNTIME_LOCK_AARCH64
+    if machine in {"x86_64", "amd64"}:
+        return _OVPHYSX_RUNTIME_LOCK
+    raise ValueError(f"Unsupported architecture for OvPhysX runtime: {machine}")
 
 
 def _ovphysx_venv_python_path(venv_dir: Path) -> Path:
@@ -77,15 +95,33 @@ def _ovphysx_venv_python_candidates(venv_dir: Path) -> tuple[Path, ...]:
     return (preferred, fallback)
 
 
+def ovphysx_runtime_available(venv_dir: Path | None = None) -> bool:
+    """Return whether a successfully probed OvPhysX runtime is provisioned."""
+
+    if venv_dir is None:
+        venv_dir = Path(
+            os.environ.get("WU_OVPHYSX_VENV_DIR", str(_DEFAULT_VENV_DIR))
+        ).expanduser()
+    python_available = any(
+        candidate.is_file() for candidate in _ovphysx_venv_python_candidates(venv_dir)
+    )
+    return python_available and (venv_dir / _OVPHYSX_RUNTIME_READY_MARKER).is_file()
+
+
 def _ovphysx_unavailable_message(venv_dir: Path = _DEFAULT_VENV_DIR) -> str:
     python_path = _ovphysx_venv_python_path(venv_dir)
+    runtime_lock = _ovphysx_runtime_lock()
     return (
         "ovphysx daemon is not available. The daemon venv at "
         f"{venv_dir} either does not exist or does not have ovphysx "
-        "installed. Bootstrap it with:\n"
-        f"  uv venv {venv_dir}\n"
-        f"  uv pip install --python {python_path} ovphysx numpy "
-        f"--extra-index-url {_OVPHYSX_INSTALL_INDEX_URL}\n"
+        "installed. From a source checkout's repository root, bootstrap the exact "
+        "runtime with:\n"
+        f"  uv venv --python 3.12 {venv_dir}\n"
+        f"  uv pip install --python {python_path} --require-hashes --no-deps "
+        f"-r {runtime_lock} --no-config --no-sources\n"
+        f'  env -u PYTHONPATH {python_path} -c "from ovphysx import PhysX; '
+        "physics = PhysX(device='cpu'); physics.release()\" && "
+        f"touch {venv_dir / _OVPHYSX_RUNTIME_READY_MARKER}\n"
         "Or override the venv path with WU_OVPHYSX_VENV_DIR=/some/path."
     )
 
@@ -107,10 +143,11 @@ class OvPhysXDaemonUnavailableError(OvPhysXDaemonError):
     issue body — callers (CLI, REST, runner) surface it verbatim.
     """
 
-    DEFAULT_MESSAGE = _ovphysx_unavailable_message()
+    DEFAULT_MESSAGE = "ovphysx daemon is not available."
 
     def __init__(self, message: str | None = None) -> None:
-        super().__init__(message or self.DEFAULT_MESSAGE)
+        default_message = _ovphysx_unavailable_message() if message is None else message
+        super().__init__(default_message)
 
 
 class _OvPhysXDaemon:
@@ -153,6 +190,8 @@ class _OvPhysXDaemon:
         self._device = device
         self._process: subprocess.Popen[str] | None = None
         self._stderr_thread: threading.Thread | None = None
+        self._stderr_tail: deque[str] = deque(maxlen=_STDERR_TAIL_LINES)
+        self._stderr_lock = threading.Lock()
         self._stdout_buffer = b""
         self._lock = threading.Lock()
         self._start_timeout_s = float(
@@ -203,6 +242,8 @@ class _OvPhysXDaemon:
 
         logger.info("Starting ovphysx daemon subprocess (%s)", python)
         self._stdout_buffer = b""
+        with self._stderr_lock:
+            self._stderr_tail.clear()
         # Wrap ``Popen`` in the daemon-unavailable error class so spawn-time
         # failures (interpreter missing despite the venv check, fork EAGAIN,
         # missing libs, EPERM, …) surface through the same CLI/REST
@@ -224,7 +265,11 @@ class _OvPhysXDaemon:
                 f"failed to spawn ovphysx daemon ({python}): {exc}"
             ) from exc
 
-        self._stderr_thread = threading.Thread(target=self._drain_stderr, daemon=True)
+        self._stderr_thread = threading.Thread(
+            target=self._drain_stderr,
+            args=(self._process,),
+            daemon=True,
+        )
         self._stderr_thread.start()
 
         # ``_read_stdout_line`` raises plain ``OvPhysXDaemonError`` on
@@ -237,13 +282,16 @@ class _OvPhysXDaemon:
         except OvPhysXDaemonError as exc:
             # ``_read_stdout_line`` already kills the subprocess on
             # timeout; re-raise as the more specific class.
-            raise OvPhysXDaemonUnavailableError(str(exc)) from exc
+            raise OvPhysXDaemonUnavailableError(
+                self._with_stderr_tail(str(exc))
+            ) from exc
         if not ready_line:
             rc = self._process.wait(timeout=10)
-            self._process = None
-            raise OvPhysXDaemonUnavailableError(
+            message = self._with_stderr_tail(
                 f"ovphysx daemon exited during start-up (exit code {rc})"
             )
+            self._process = None
+            raise OvPhysXDaemonUnavailableError(message)
         try:
             msg = json.loads(ready_line)
         except json.JSONDecodeError as exc:
@@ -254,7 +302,7 @@ class _OvPhysXDaemon:
         if msg.get("status") == "error":
             err = str(msg.get("error", "unknown daemon start-up error"))
             self._kill_process()
-            raise OvPhysXDaemonUnavailableError(err)
+            raise OvPhysXDaemonUnavailableError(self._with_stderr_tail(err))
         if msg.get("status") != "ready":
             self._kill_process()
             raise OvPhysXDaemonUnavailableError(
@@ -262,14 +310,26 @@ class _OvPhysXDaemon:
             )
         logger.info("ovphysx daemon ready (pid %d)", self._process.pid)
 
-    def _drain_stderr(self) -> None:
-        proc = self._process
-        if proc is None or proc.stderr is None:  # pragma: no cover
+    def _drain_stderr(self, proc: subprocess.Popen[str]) -> None:
+        if proc.stderr is None:  # pragma: no cover
             return
         for line in proc.stderr:
             stripped = line.rstrip()
             if stripped:
+                with self._stderr_lock:
+                    self._stderr_tail.append(stripped)
                 logger.debug("[ovphysx-daemon] %s", stripped)
+
+    def _with_stderr_tail(self, message: str) -> str:
+        thread = self._stderr_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=1)
+        with self._stderr_lock:
+            stderr_tail = "\n".join(self._stderr_tail)
+        if not stderr_tail:
+            return message
+        stderr_tail = stderr_tail[-_STDERR_TAIL_CHARS:]
+        return f"{message}\novphysx stderr (tail):\n{stderr_tail}"
 
     # ------------------------------------------------------------------
     # Commands
@@ -537,4 +597,5 @@ __all__ = [
     "_OvPhysXDaemon",
     "OvPhysXDaemonError",
     "OvPhysXDaemonUnavailableError",
+    "ovphysx_runtime_available",
 ]

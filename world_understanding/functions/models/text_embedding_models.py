@@ -64,6 +64,15 @@ class OpenAITextEmbeddingModel(BaseTextEmbeddingModel):
 
         self._init_embedding_dimension()
 
+    @classmethod
+    def list_available_models(cls) -> list[str]:
+        """List all available OpenAI text embedding models.
+
+        Returns:
+            List of available OpenAI model names
+        """
+        return cls.AVAILABLE_MODELS.copy()
+
     def embed_texts(self, texts: list[str | Path]) -> list[np.ndarray]:
         """Generate embeddings for multiple texts."""
         texts = [self._load_text(text) for text in texts]
@@ -178,8 +187,8 @@ class NIMTextEmbeddingModel(BaseTextEmbeddingModel):
         return self._get_embedding_vectors_from_response(response)
 
 
-class PerflabAzureOpenAITextEmbeddingModel(BaseTextEmbeddingModel):
-    """Perflab Azure OpenAI text embedding model."""
+class AzureOpenAITextEmbeddingModel(BaseTextEmbeddingModel):
+    """Azure OpenAI text embedding model."""
 
     # Available OpenAI models with their specifications
     AVAILABLE_MODELS = ["text-embedding-3-large", "text-embedding-3-small", "embedding"]
@@ -192,10 +201,10 @@ class PerflabAzureOpenAITextEmbeddingModel(BaseTextEmbeddingModel):
         model: str = DEFAULT_MODEL,
         **kwargs: Any,
     ):
-        """Initialize Perflab Azure OpenAI text embedding model.
+        """Initialize an Azure OpenAI text embedding model.
 
         Args:
-            api_key: Perflab Azure OpenAI API key
+            api_key: Azure OpenAI API key
             model: Model ID to use for embeddings
             **kwargs: Additional configuration options
         """
@@ -211,9 +220,7 @@ class PerflabAzureOpenAITextEmbeddingModel(BaseTextEmbeddingModel):
         self.model = model
         self.base_url = kwargs.pop("base_url", "")
         if not self.base_url:
-            raise ValueError(
-                "base_url is required for PerflabAzureOpenAIEmbedding (no default)."
-            )
+            raise ValueError("base_url is required for AzureOpenAITextEmbeddingModel")
         self.timeout = kwargs.pop("timeout", 120.0)
         self._embedding_dim = kwargs.pop("embedding_dimension", 1024)
 
@@ -303,35 +310,35 @@ def create_openai_text_embedding_model(
     )
 
 
-def create_perflab_azure_openai_text_embedding_model(
+def create_azure_openai_text_embedding_model(
     api_key: str,
-    model: str = PerflabAzureOpenAITextEmbeddingModel.DEFAULT_MODEL,
+    model: str = AzureOpenAITextEmbeddingModel.DEFAULT_MODEL,
     **kwargs: Any,
-) -> PerflabAzureOpenAITextEmbeddingModel:
-    """Create Perflab Azure OpenAI text embedding model.
+) -> AzureOpenAITextEmbeddingModel:
+    """Create an Azure OpenAI text embedding model.
 
     Args:
-        api_key: Perflab Azure OpenAI API key
+        api_key: Azure OpenAI API key
         model: Model ID to use for embeddings
-        **kwargs: Additional arguments to pass to PerflabAzureOpenAITextEmbeddingModel
+        **kwargs: Additional arguments to pass to AzureOpenAITextEmbeddingModel
 
     Returns:
-        Configured PerflabAzureOpenAITextEmbeddingModel instance
+        Configured AzureOpenAITextEmbeddingModel instance
     """
-    return PerflabAzureOpenAITextEmbeddingModel(
+    return AzureOpenAITextEmbeddingModel(
         api_key=api_key,
         model=model,
         **kwargs,
     )
 
 
-def list_perflab_azure_openai_text_models() -> list[str]:
-    """List all available Perflab Azure OpenAI models with their specifications.
+def list_azure_openai_text_models() -> list[str]:
+    """List all available Azure OpenAI models with their specifications.
 
     Returns:
-        List of available Perflab Azure OpenAI model names
+        List of available Azure OpenAI model names
     """
-    return PerflabAzureOpenAITextEmbeddingModel.list_available_models()
+    return AzureOpenAITextEmbeddingModel.list_available_models()
 
 
 def create_text_embedding_model(
@@ -340,7 +347,7 @@ def create_text_embedding_model(
     """Create a text embedding model for the specified backend.
 
     Args:
-        backend: Backend name ('nim', 'openai', 'perflab')
+        backend: Registered backend name.
         api_key: API key for the backend
         model: Model ID (optional, defaults used if not specified)
         **kwargs: Additional backend-specific arguments
@@ -373,18 +380,13 @@ def create_text_embedding_model(
             **kwargs,
         )
 
-    elif backend == "perflab":
-        if api_key is None:
-            api_key = os.getenv("NSTORAGE_API_KEY")
-        if api_key is None:
-            raise ValueError("API key is required for Perflab backend")
-        return create_perflab_azure_openai_text_embedding_model(
-            api_key=api_key,
-            model=model or PerflabAzureOpenAITextEmbeddingModel.DEFAULT_MODEL,
-            **kwargs,
-        )
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        get_text_embedding_factory,
+    )
 
-    else:
-        raise ValueError(
-            f"Unknown backend: {backend}. Available backends: nim, openai, perflab"
-        )
+    factory = get_text_embedding_factory(backend)
+    factory_kwargs: dict[str, Any] = {"api_key": api_key, **kwargs}
+    if model is not None:
+        factory_kwargs["model"] = model
+    return factory(**factory_kwargs)

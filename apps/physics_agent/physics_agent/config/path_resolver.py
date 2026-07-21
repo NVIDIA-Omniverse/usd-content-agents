@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from world_understanding.agentic.config import BasePathResolver
+from world_understanding.utils.credentials import redact_sensitive_path
 
 from physics_agent.config.schema import STEP_OUTPUT_DIRS
 
@@ -59,7 +60,7 @@ class ProjectPathResolver(BasePathResolver):
             if img and (resolved := self._resolve_path(img)) is not None
         ]
 
-        logger.info(f"Input USD: {self.input_usd}")
+        logger.info("Input USD: %s", redact_sensitive_path(self.input_usd))
 
     # Path resolution methods
 
@@ -137,12 +138,18 @@ class ProjectPathResolver(BasePathResolver):
         Raises:
             FileNotFoundError: If required input files don't exist
         """
-        if not self.input_usd or not self.input_usd.exists():
-            raise FileNotFoundError(f"Input USD file not found: {self.input_usd}")
+        if not self.input_usd or not self._path_exists_for_validation(
+            self.input_usd, label="input USD"
+        ):
+            raise FileNotFoundError(
+                f"Input USD file not found: {redact_sensitive_path(self.input_usd)}"
+            )
 
         for img in self.reference_images:
-            if not img.exists():
-                logger.warning(f"Reference image not found: {img}")
+            if not self._path_exists_for_validation(img, label="reference image"):
+                logger.warning(
+                    "Reference image not found: %s", redact_sensitive_path(img)
+                )
 
     def get_path_summary(self) -> dict[str, Any]:
         """Get a summary of all resolved paths.
@@ -157,11 +164,17 @@ class ProjectPathResolver(BasePathResolver):
         summary.update(
             {
                 "input": {
-                    "usd_path": str(self.input_usd) if self.input_usd else None,
-                    "reference_images": [str(img) for img in self.reference_images],
+                    "usd_path": (
+                        redact_sensitive_path(self.input_usd)
+                        if self.input_usd
+                        else None
+                    ),
+                    "reference_images": [
+                        redact_sensitive_path(img) for img in self.reference_images
+                    ],
                 },
                 "step_outputs": {
-                    step: str(self.get_step_output_dir(step))
+                    step: redact_sensitive_path(self.get_step_output_dir(step))
                     for step in STEP_OUTPUT_DIRS.keys()
                 },
             }

@@ -44,6 +44,11 @@ without a single monolithic Compose stack.
 - Material, Physics, and Texture Agent services are CPU-only.
 - OVRTX rendering is a shared GPU dependency required by Material and Physics.
 - VLM, LLM, image generation, and embeddings are optional model dependencies.
+- Material Agent Service uses the image-generation dependency for generated
+  reference images and the opt-in generated-material-library workflow. Texture
+  Agent texture generation, Material Agent-generated reference images, and
+  Material Agent-generated material-library textures can share the same
+  image-generation endpoint.
 - Dependencies are configured by endpoint URL.
 - Brev is optional. Use it only when the user asks for Brev or wants a full
   self-hosted validation topology.

@@ -9,10 +9,10 @@ backends.
 
 from __future__ import annotations
 
-import copy
 import logging
 from typing import Any
 
+from world_understanding.agentic.config import clone_config_containers
 from world_understanding.utils.credentials import (
     LOCAL_NIM_API_KEY_PLACEHOLDER,
     drop_stale_endpoint_credentials,
@@ -36,7 +36,9 @@ def patch_config_for_simulate(
 
     The scene optimizer (``optimize_usd``) is always left unchanged.
     """
-    cfg = copy.deepcopy(config)
+    cfg = clone_config_containers(config)
+    if not isinstance(cfg, dict):  # pragma: no cover - input type contract
+        raise AssertionError("simulation configuration clone must be a dictionary")
     patched: list[str] = []
 
     steps = cfg.setdefault("steps", {})

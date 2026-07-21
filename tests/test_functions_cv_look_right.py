@@ -18,7 +18,10 @@ from world_understanding.functions.cv.look_right import (
     VISUAL_REFERENCE_MISMATCH,
     VISUAL_RENDER_PREFLIGHT_FAILED,
     VISUAL_RENDER_PREFLIGHT_UNAVAILABLE,
+    LookRightIssue,
     LookRightJudgePlan,
+    _safe_optional_attr,
+    _token_usage_dict,
     build_look_right_judge_plan,
     invoke_look_right_judge,
     normalize_look_right_judgment,
@@ -64,6 +67,19 @@ class _RecordingLLM:
         if isinstance(self.response, Exception):
             raise self.response
         return _FakeLLMResponse(self.response)
+
+
+class _GeneratingLLM:
+    backend_name = "fake-generate"
+    model_name = "fake-generate-llm"
+
+    def __init__(self, response: str) -> None:
+        self.response = response
+        self.calls: list[dict[str, object]] = []
+
+    def generate(self, **kwargs: object) -> str:
+        self.calls.append(kwargs)
+        return self.response
 
 
 def test_build_look_right_judge_plan_orders_multimodal_evidence() -> None:
@@ -140,6 +156,44 @@ def test_invoke_look_right_judge_passes_single_or_multiple_images_in_one_call(
     assert invocation.metadata["image_count"] == len(expected_pairs)
 
 
+def test_invoke_look_right_judge_serializes_token_usage() -> None:
+    class Usage:
+        def to_dict(self) -> dict[str, int]:
+            return {"input_tokens": 3, "output_tokens": 4}
+
+    plan = build_look_right_judge_plan(
+        "Validate the rendered asset.",
+        current_image_paths=["renders/corner.png"],
+    )
+    vlm = _RecordingVLM()
+    vlm.last_token_usage = Usage()
+
+    invocation = invoke_look_right_judge(plan, vlm)
+
+    assert invocation.to_dict()["token_usage"] == {
+        "input_tokens": 3,
+        "output_tokens": 4,
+    }
+
+
+def test_look_right_issue_to_dict() -> None:
+    issue = LookRightIssue(
+        code=VISUAL_LOW_CONFIDENCE,
+        message="Evidence is limited.",
+        severity="warning",
+        subject="render.png",
+        details={"view": "front"},
+    )
+
+    assert issue.to_dict() == {
+        "code": VISUAL_LOW_CONFIDENCE,
+        "message": "Evidence is limited.",
+        "severity": "warning",
+        "subject": "render.png",
+        "details": {"view": "front"},
+    }
+
+
 def test_normalize_look_right_judgment_uses_llm_final_decision() -> None:
     llm = _RecordingLLM(
         """
@@ -166,6 +220,21 @@ Issue Codes: none
     assert "rejects PASS" in result.judgment.reasoning
     assert result.metadata["method"] == "llm"
     assert llm.calls[0]["kwargs"] == {"temperature": 0.0, "max_tokens": 512}
+
+
+def test_normalize_look_right_judgment_parser_result_to_dict() -> None:
+    result = normalize_look_right_judgment(
+        """
+Critique: The render matches the requested asset.
+Score: 9
+Decision: PASS
+Issue Codes: none
+"""
+    )
+
+    data = result.to_dict()
+    assert data["judgment"]["verdict"] == "pass"
+    assert data["metadata"] == {"method": "parser", "llm_invoked": False}
 
 
 def test_normalize_look_right_judgment_is_stable_for_same_response() -> None:
@@ -1278,3 +1347,149 @@ The front render lacks the requested handle detail.
         VISUAL_PROMPT_MISMATCH,
         VISUAL_LOW_CONFIDENCE,
     )
+
+
+def test_parse_look_right_judgment_adds_low_confidence_for_uncoded_refinement() -> None:
+    judgment = parse_look_right_judgment(
+        """
+Critique: The asset is close, but one material detail should be refined.
+Score: 6
+Decision: NEEDS_REFINEMENT
+Issue Codes: none
+"""
+    )
+
+    assert judgment.verdict == "needs_refinement"
+    assert judgment.issue_codes == (VISUAL_LOW_CONFIDENCE,)
+
+
+def test_parse_look_right_judgment_truncates_long_reasoning_summary() -> None:
+    long_line = "Critique: " + ("The visible evidence is acceptable. " * 20)
+
+    judgment = parse_look_right_judgment(
+        f"""
+{long_line}
+Score: 9
+Decision: PASS
+Issue Codes: none
+"""
+    )
+
+    assert len(judgment.reasoning) == 240
+    assert judgment.reasoning.endswith("...")
+
+
+def test_normalize_look_right_judgment_uses_generate_llm_and_string_codes() -> None:
+    llm = _GeneratingLLM(
+        """
+{"decision": "continue", "score": 8,
+ "issue_codes": "visual.low_confidence, unknown.code",
+ "rationale": "The response asks for another refinement pass."}
+"""
+    )
+
+    result = normalize_look_right_judgment(
+        """
+Critique: The render is close but needs one material adjustment.
+Score: 8
+Decision: NEEDS_REFINEMENT
+Issue Codes: none
+""",
+        llm_judge=llm,
+        temperature=None,
+        max_tokens=None,
+    )
+
+    assert result.judgment.verdict == "needs_refinement"
+    assert result.judgment.score == 0.8
+    assert result.judgment.issue_codes == (VISUAL_LOW_CONFIDENCE,)
+    assert result.backend_name == "fake-generate"
+    assert result.model_name == "fake-generate-llm"
+    assert llm.calls[0]["system_prompt"]
+    assert "temperature" not in llm.calls[0]
+    assert "max_tokens" not in llm.calls[0]
+
+
+def test_normalize_look_right_judgment_adds_default_fail_code_from_final_judge() -> (
+    None
+):
+    result = normalize_look_right_judgment(
+        """
+Critique: The asset is clearly wrong.
+Score: 2
+Decision: FAIL
+Issue Codes: none
+""",
+        llm_judge=_RecordingLLM(
+            '{"decision": "fail", "score": null, "issue_codes": null, '
+            '"rationale": "The final judge confirms failure."}'
+        ),
+    )
+
+    assert result.judgment.verdict == "fail"
+    assert result.judgment.score == 0.2
+    assert result.judgment.issue_codes == (VISUAL_PROMPT_MISMATCH,)
+
+
+def test_normalize_look_right_judgment_adds_fail_code_when_parser_had_none() -> None:
+    result = normalize_look_right_judgment(
+        """
+Critique: The parser fallback sees a clean pass.
+Score: 9
+Decision: PASS
+Issue Codes: none
+""",
+        llm_judge=_RecordingLLM(
+            '{"decision": "fail", "score": 0.9, "issue_codes": null, '
+            '"rationale": "The final judge found an identity mismatch."}'
+        ),
+    )
+
+    assert result.judgment.verdict == "fail"
+    assert result.judgment.issue_codes == (VISUAL_PROMPT_MISMATCH,)
+
+
+def test_normalize_look_right_judgment_adds_default_warn_code_from_final_judge() -> (
+    None
+):
+    result = normalize_look_right_judgment(
+        """
+Critique: The evidence is not sufficient to decide.
+Score: 8
+Decision: WARN
+Issue Codes: none
+""",
+        llm_judge=_RecordingLLM(
+            '{"decision": "warn", "score": 0.8, "issue_codes": null, '
+            '"rationale": "The evidence is limited."}'
+        ),
+    )
+
+    assert result.judgment.verdict == "warn"
+    assert result.judgment.issue_codes == (VISUAL_LOW_CONFIDENCE,)
+
+
+def test_look_right_metadata_helpers_ignore_unsupported_values() -> None:
+    class MappingUsage:
+        def to_dict(self) -> dict[str, int]:
+            return {"total_tokens": 7}
+
+    class NonMappingUsage:
+        def to_dict(self) -> list[str]:
+            return ["not", "a", "mapping"]
+
+    class ExplodingAttribute:
+        @property
+        def backend_name(self) -> str:
+            raise RuntimeError("attribute unavailable")
+
+    class NullAttribute:
+        backend_name = None
+
+    assert _token_usage_dict(MappingUsage()) == {"total_tokens": 7}
+    assert _token_usage_dict(NonMappingUsage()) is None
+    assert _token_usage_dict({"input_tokens": 3}) == {"input_tokens": 3}
+    assert _token_usage_dict(42) is None
+    assert _safe_optional_attr(ExplodingAttribute(), "backend_name") is None
+    assert _safe_optional_attr(NullAttribute(), "backend_name") is None
+    assert _safe_optional_attr(object(), "missing_name") is None

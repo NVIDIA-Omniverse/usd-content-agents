@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from world_understanding.agentic.config import BasePathResolver
+from world_understanding.utils.credentials import redact_sensitive_path
 
 from material_agent.config.schema import STEP_OUTPUT_DIRS
 
@@ -72,6 +73,12 @@ class ProjectPathResolver(BasePathResolver):
         output_config = config.get("output") or {}
         self.layer_only = output_config.get("layer_only", False)
         self.flatten_output = output_config.get("flatten_output", True)
+        self.material_profile = (
+            output_config.get("material_profile")
+            or output_config.get("shader_target")
+            or output_config.get("material_authoring_target")
+            or "auto"
+        )
 
         # Output paths are now DERIVED from session structure
         # Structure: .{session_id}/output/
@@ -88,8 +95,15 @@ class ProjectPathResolver(BasePathResolver):
             if resolved_output is not None:
                 self.output_usd = resolved_output
 
-        logger.info(f"Input USD: {self.input_usd}")
-        logger.info(f"Output USD: {self.output_usd}")
+        logger.info(
+            "Input USD: %s",
+            (
+                redact_sensitive_path(self.input_usd)
+                if self.input_usd is not None
+                else None
+            ),
+        )
+        logger.info("Output USD: %s", redact_sensitive_path(self.output_usd))
 
     # Material-agent specific path methods
 
@@ -178,12 +192,19 @@ class ProjectPathResolver(BasePathResolver):
         Raises:
             FileNotFoundError: If required input files don't exist
         """
-        if not self.input_usd or not self.input_usd.exists():
-            raise FileNotFoundError(f"Input USD file not found: {self.input_usd}")
+        if not self.input_usd or not self._path_exists_for_validation(
+            self.input_usd, label="input USD"
+        ):
+            raise FileNotFoundError(
+                f"Input USD file not found: {redact_sensitive_path(self.input_usd)}"
+            )
 
         for img in self.reference_images:
-            if not img.exists():
-                logger.warning(f"Reference image not found: {img}")
+            if not self._path_exists_for_validation(img, label="reference image"):
+                logger.warning(
+                    "Reference image not found: %s",
+                    redact_sensitive_path(img),
+                )
 
     def get_path_summary(self) -> dict[str, Any]:
         """Get a summary of all resolved paths.
@@ -198,17 +219,30 @@ class ProjectPathResolver(BasePathResolver):
         summary.update(
             {
                 "input": {
-                    "usd_path": str(self.input_usd) if self.input_usd else None,
-                    "reference_images": [str(img) for img in self.reference_images],
-                    "reference_pdfs": [str(pdf) for pdf in self.reference_pdfs],
+                    "usd_path": (
+                        redact_sensitive_path(self.input_usd)
+                        if self.input_usd
+                        else None
+                    ),
+                    "reference_images": [
+                        redact_sensitive_path(img) for img in self.reference_images
+                    ],
+                    "reference_pdfs": [
+                        redact_sensitive_path(pdf) for pdf in self.reference_pdfs
+                    ],
                 },
                 "output": {
-                    "usd_path": str(self.output_usd) if self.output_usd else None,
+                    "usd_path": (
+                        redact_sensitive_path(self.output_usd)
+                        if self.output_usd
+                        else None
+                    ),
                     "layer_only": self.layer_only,
                     "flatten_output": self.flatten_output,
+                    "material_profile": self.material_profile,
                 },
                 "step_outputs": {
-                    step: str(self.get_step_output_dir(step))
+                    step: redact_sensitive_path(self.get_step_output_dir(step))
                     for step in STEP_OUTPUT_DIRS.keys()
                 },
             }

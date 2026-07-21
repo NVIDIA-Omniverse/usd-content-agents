@@ -1,81 +1,51 @@
 ### Physics Agent Service Python Client (CLI + API)
 
-Minimal Python client to start the Physics Agent pipeline and monitor progress via SSE (with polling fallback).
+Python client for the Physics Agent REST service. It supports the main
+`/pipeline` workflow plus first-class helpers for `/predict`, `/tune`, and the
+server-configured `/refine` loop.
 
-This client is focused on `/pipeline` workflows. The service also exposes
-`/predict` and `/tune`, but this wrapper does not yet provide first-class helper
-methods for tuning. For `/tune`, use raw HTTP, generated clients from
-`../openapi.yaml`, or the REST reference in `../docs/api.md`.
+Supports:
 
-Supports two input modes:
-- **File upload** — upload a local USD file over HTTP
-- **S3 reference** — pass an S3 URI and the service downloads it server-side (better for large files)
+- **Pipeline** — upload or reference a raw USD, run classify/apply, and produce
+  a simulation-ready `output_usd`.
+- **Predict-only** — run VLM prediction without applying physics schemas.
+- **Tune** — tune authored physics parameters from a physics USD or completed
+  pipeline `source_session_id`.
+- **Refine** — run the iterative tune-judge-scenario-refine loop from a physics
+  USD or completed pipeline `source_session_id`.
 
 #### Requirements
-- Python 3.12+
-- requests
 
-Install:
+- Python 3.12+
+- `requests`
+
 ```bash
-uv pip install requests   # preferred if uv is available
-# or
-pip install requests
+uv pip install requests
 ```
 
 #### CLI Usage
-From repo root:
+
+The CLI remains focused on the `/pipeline` workflow:
+
 ```bash
-# Local file upload
 python apps/physics_agent_service/client/client.py /path/to/scene.usdz
 
-# S3 URI (service downloads server-side — no local file needed)
 python apps/physics_agent_service/client/client.py \
   --s3-uri s3://your-bucket/path/to/scene.usdz
 ```
 
-Auth (Bearer token):
-- Flag: `--token "$YOUR_TOKEN"`
-- Or env: `export PHYSICS_AGENT_TOKEN="$YOUR_TOKEN"`
+Auth:
 
-Examples:
-```bash
-# Simple — local USD file
-python apps/physics_agent_service/client/client.py /path/to/scene.usdz
+- CLI flag: `--token "$YOUR_TOKEN"`
+- Env var: `export PHYSICS_AGENT_TOKEN="$YOUR_TOKEN"`
 
-# S3 URI — large asset, no upload needed
-python apps/physics_agent_service/client/client.py \
-  --s3-uri s3://your-bucket/path/to/large_scene.usdz
-
-# With user prompt
-python apps/physics_agent_service/client/client.py \
-  --prompt "Identify electronic components" \
-  /path/to/scene.usdz
-
-# Choose rendering backend (remote, warp, or ovrtx)
-python apps/physics_agent_service/client/client.py \
-  --render-backend remote \
-  /path/to/scene.usdz
-
-# Upload USD first, then start pipeline (two-step)
-python apps/physics_agent_service/client/client.py \
-  --upload-first \
-  /path/to/scene.usdz
-
-# With token and custom base URL
-python apps/physics_agent_service/client/client.py \
-  --base-url http://localhost:8000 \
-  --token "$TOKEN" \
-  /path/to/scene.usdz
-```
-
-Exit behavior:
-- Streams live progress (SSE) and prints updates like: `[build_dataset_usd] running overall=45%`.
-- Falls back to status polling if SSE is unavailable.
-- Prints artifact URLs on completion.
+The historical `client_v2.py` entry point is retained as a compatibility shim
+that delegates to `client.py`.
 
 #### Programmatic Use
 
-**Basic usage:**
+Pipeline:
+
 ```python
 from apps.physics_agent_service.client.client import PhysicsAgentClient
 
@@ -83,70 +53,70 @@ client = PhysicsAgentClient(base_url="http://localhost:8000")
 session_id, status = client.run_and_monitor(
     usd_path="/path/to/scene.usdz",
     user_prompt="Focus on identifying furniture parts",
-    render_backend="remote",  # or "warp", "ovrtx"
+    render_backend="remote",
 )
-print(session_id, status)
+
+output_usd = client.download_output_usd(session_id)
 ```
 
-**Instanced assets:**
+Prediction-only:
+
 ```python
-session_id, status = client.run_and_monitor(
-    usd_path="/path/to/robot.usdz",
-    optimize_usd=True,
-    enable_deinstance=True,
+predict_session = client.start_predict(
+    session_id=session_id,
+    user_prompt="Only return predictions; do not apply physics",
 )
-print(session_id, status)
+predict_status = client.get_predict_status(predict_session)
+predict_results = client.get_predict_results(predict_session)
 ```
 
-**S3 URI (large assets):**
-```python
-from apps.physics_agent_service.client.client import PhysicsAgentClient
+Tune a completed pipeline output:
 
-client = PhysicsAgentClient(base_url="http://localhost:8000")
-session_id, status = client.run_and_monitor(
-    s3_uri="s3://your-bucket/path/to/scene.usdz",
-    user_prompt="Classify robot components",
+```python
+tune_session = client.start_tune(
+    source_session_id=session_id,
+    scenario_yaml_path="apps/physics_agent/configs/tuning/drop_settle.yaml",
+    optimizer="botorch",
+    seed=42,
 )
-print(session_id, status)
+tune_results = client.get_tune_results(tune_session)
+best_params = client.download_tune_artifact(tune_session, "best_params.json")
 ```
 
-**Two-step (upload/download first, then run):**
+Refine a completed pipeline output:
+
 ```python
-client = PhysicsAgentClient(base_url="http://localhost:8000")
-
-# Upload from local file
-session_id = client.upload_usd("/path/to/scene.usdz")
-# Or download from S3
-session_id = client.upload_usd(s3_uri="s3://bucket/path/robot.usdz")
-
-# Start pipeline with existing session
-run_id = client.start_pipeline(session_id=session_id)
+refine_session = client.start_refine(
+    source_session_id=session_id,
+    scenario_yaml_path="apps/physics_agent/configs/tuning/drop_settle.yaml",
+    user_prompt="make the object settle on the target surface",
+    optimizer="botorch",
+    score_threshold=0.9,
+    seed=42,
+)
+refine_results = client.get_refine_results(refine_session)
+tuned_usd = client.download_refine_artifact(
+    refine_session,
+    "final/tuned_physics.usd",
+)
 ```
 
-#### Endpoints
+#### Endpoint Families
 
-Key endpoints the client uses:
+| Area | Client helpers |
+|------|----------------|
+| Pipeline | `start_pipeline`, `run_and_monitor`, `get_status`, `get_results`, `stream_events`, `cancel`, `regenerate` |
+| Predict | `start_predict`, `get_predict_status`, `get_predict_results`, `stream_predict_events`, `cancel_predict` |
+| Tune | `start_tune`, `get_tune_status`, `get_tune_results`, `stream_tune_events`, `cancel_tune`, `download_tune_artifact` |
+| Refine | `start_refine`, `get_refine_status`, `get_refine_results`, `stream_refine_events`, `cancel_refine`, `download_refine_artifact` |
+| Pipeline artifacts | `download_predictions`, `download_report`, `download_dataset`, `download_output_usd` |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/pipeline` | POST | Start pipeline (USD file, S3 URI, or session_id + optional prompt) |
-| `/pipeline/upload-usd` | POST | Upload USD file or provide S3 URI, returns session_id |
-| `/pipeline/{session_id}/status` | GET | Poll pipeline status |
-| `/pipeline/{session_id}/events` | GET | SSE stream (progress/done/ping) |
-| `/pipeline/{session_id}/results` | GET | Final results |
-| `/pipeline/{session_id}/cancel` | POST | Cancel running pipeline |
-| `/pipeline/{session_id}/regenerate` | POST | Re-run specific steps |
-| `/artifacts/{session_id}/predictions` | GET | Download predictions JSONL |
-| `/artifacts/{session_id}/report` | GET | Download HTML report |
-| `/artifacts/{session_id}/dataset` | GET | Download dataset JSONL |
+`get_status`, `get_results`, `stream_events`, and `cancel` default to
+`family="pipeline"` for backward compatibility and also accept
+`family="predict"`, `family="tune"`, or `family="refine"`.
 
-Tuning endpoints are service-supported but not wrapped by this client:
+#### Route Shape
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/tune` | POST | Start single-shot auto-tuning from a physics USD upload, S3 URI, or pipeline `source_session_id` |
-| `/tune/{session_id}/status` | GET | Poll trial progress and best score |
-| `/tune/{session_id}/results` | GET | Final or partial tune results |
-| `/tune/{session_id}/events` | GET | SSE stream for tune progress |
-| `/tune/{session_id}/cancel` | POST | Cooperatively cancel a tune |
-| `/tune/{session_id}/artifacts/{name}` | GET | Download tune artifacts |
+Do not route tune/refine through `/pipeline`. Use `/pipeline` to produce the
+physics-authored `output_usd`, then call `/tune` or `/refine` with
+`source_session_id`.

@@ -10,7 +10,7 @@ The runner emits five canonical artifacts into ``output_dir``:
 * ``history.jsonl`` — one JSON line per trial, append-flushed so an SSE
   consumer / live tail can watch progress.
 * ``report.md`` — human-readable summary.
-* ``tuned_physics.usda`` — the tuned USD (written by :mod:`usd_patch`).
+* ``tuned_physics.usd`` — the tuned USD (written by :mod:`usd_patch`).
 
 When visual reference media is supplied, the runner may also emit
 ``comparison.png`` as the judge contact sheet.
@@ -104,7 +104,7 @@ ARTIFACT_BEST_PARAMS = "best_params.json"
 ARTIFACT_RESULTS = "tune_results.json"
 ARTIFACT_HISTORY = "history.jsonl"
 ARTIFACT_REPORT = "report.md"
-ARTIFACT_TUNED_USD = "tuned_physics.usda"
+ARTIFACT_TUNED_USD = "tuned_physics.usd"
 ARTIFACT_VISUAL_COMPARISON = "comparison.png"
 
 

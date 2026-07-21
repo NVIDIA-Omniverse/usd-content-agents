@@ -19,6 +19,8 @@ import pytest
 from material_agent.api.pipeline import PipelineInput, PipelineOutput
 from material_agent.api.scene_pipeline import ScenePipelineInput, ScenePipelineOutput
 
+from ...service.runtime.events import ProgressEvent, StepState
+
 _USD_WITH_DEFAULT_ROOT_PRIM = """#usda 1.0
 (
     defaultPrim = "Root"
@@ -28,6 +30,8 @@ def Xform "Root"
 {
 }
 """
+
+_RAW_CAD_PROMPT = "AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }"
 
 
 def _get_session_dir(event_listener: Any) -> Path:
@@ -85,6 +89,10 @@ async def test_pipeline_uses_real_executor_with_mocked_material_agent(
 
     async def fake_arun_pipeline(params: PipelineInput) -> PipelineOutput:
         session_dir = _get_session_dir(params.event_listener)
+        configured_prompt = params.config["steps"]["build_dataset_prepare_dataset"][
+            "prompts"
+        ]["vlm_user"]
+        assert configured_prompt == _RAW_CAD_PROMPT
         dataset_dir = session_dir / "cache" / "dataset"
         predictions_dir = session_dir / "cache" / "predictions"
         output_dir = session_dir / "output"
@@ -96,7 +104,11 @@ async def test_pipeline_uses_real_executor_with_mocked_material_agent(
             "\n".join(
                 [
                     json.dumps(
-                        {"id": "/Root/Cube", "images": {"composition": "cube.png"}}
+                        {
+                            "id": "/Root/Cube",
+                            "user_prompt": configured_prompt,
+                            "images": {"composition": "cube.png"},
+                        }
                     ),
                     json.dumps(
                         {"id": "/Root/Sphere", "images": {"composition": "sphere.png"}}
@@ -172,7 +184,10 @@ async def test_pipeline_uses_real_executor_with_mocked_material_agent(
     response = await client.post(
         "/pipeline",
         files={"usd_file": ("scene.usda", b"#usda 1.0\n", "application/octet-stream")},
-        data={"user_email": "test@example.com"},
+        data={
+            "user_email": "test@example.com",
+            "user_prompt": _RAW_CAD_PROMPT,
+        },
     )
 
     assert response.status_code == 202
@@ -207,11 +222,400 @@ async def test_pipeline_uses_real_executor_with_mocked_material_agent(
     assert results["stats"]["prims_processed"] == 2
     assert results["stats"]["predictions_made"] == 2
     assert results["stats"]["materials_applied"] == 2
+    assert results["coverage"]["readiness_grade"] == "complete"
+    assert results["coverage"]["bound_count"] == 2
 
     predictions_r = await client.get(f"/artifacts/{session_id}/predictions")
     assert predictions_r.status_code == 200
     output_r = await client.get(f"/artifacts/{session_id}/output")
     assert output_r.status_code == 200
+
+
+@pytest.mark.api
+@pytest.mark.real_executor
+async def test_strict_coverage_fails_closed_and_preserves_partial_results(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    _reset_event_bus: None,
+) -> None:
+    """A 1/4 prediction run must not reach final success in strict mode."""
+    from ...service.routers import pipeline_router
+    from ...service.workers import executor as executor_module
+
+    target_ids = [f"/Root/Part_{index}" for index in range(4)]
+    terminal_progress_emitted = asyncio.Event()
+    release_pipeline_result = asyncio.Event()
+
+    async def fake_arun_pipeline(params: PipelineInput) -> PipelineOutput:
+        session_dir = _get_session_dir(params.event_listener)
+        dataset_dir = session_dir / "cache" / "dataset"
+        predictions_dir = session_dir / "cache" / "predictions"
+        output_dir = session_dir / "output"
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+        predictions_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        (dataset_dir / "prims.jsonl").write_text(
+            "".join(
+                f"{json.dumps({'prim_path': prim_id})}\n" for prim_id in target_ids
+            ),
+            encoding="utf-8",
+        )
+        (dataset_dir / "dataset.jsonl").write_text(
+            "".join(f"{json.dumps({'id': prim_id})}\n" for prim_id in target_ids),
+            encoding="utf-8",
+        )
+        predictions_path = predictions_dir / "predictions.jsonl"
+        predictions_path.write_text(
+            json.dumps({"id": target_ids[0], "material": "Steel"}) + "\n",
+            encoding="utf-8",
+        )
+        (output_dir / "scene_with_materials.usd").write_text(
+            "#usda 1.0\n", encoding="utf-8"
+        )
+
+        for step_name in (
+            "build_dataset_usd",
+            "build_dataset_prepare_dataset",
+            "predict",
+            "apply",
+        ):
+            await _emit_step(
+                params.event_listener,
+                step_name,
+                progress_message=f"Completed {step_name}",
+            )
+
+        completed_steps = [
+            "build_dataset_usd",
+            "build_dataset_prepare_dataset",
+            "predict",
+            "apply",
+        ]
+        params.event_listener.event(
+            "workflow.completed",
+            {
+                "workflow_type": "pipeline",
+                "completed_steps": completed_steps,
+            },
+        )
+        # Simulate a legacy/intermediate producer publishing workflow success
+        # before the service has qualified strict coverage.
+        await executor_module.get_event_bus().emit(
+            ProgressEvent(
+                session_id=session_dir.name,
+                step="pipeline",
+                state=StepState.COMPLETED,
+                percent=100,
+                overall_percent=100,
+                extra={"pipeline_completed": True},
+            )
+        )
+        await asyncio.sleep(0.01)
+        terminal_progress_emitted.set()
+        await release_pipeline_result.wait()
+
+        step_results = {
+            "build_dataset_usd": {"num_prims": 4, "num_images": 4},
+            "build_dataset_prepare_dataset": {"num_entries": 4},
+            "predict": {
+                "predictions_count": 1,
+                "predictions_path": str(predictions_path),
+            },
+            "apply": {
+                "materials_applied": {"Steel": "/Root/Looks/Steel"},
+                "assignment_stats": {
+                    "total_prims": 1,
+                    "bound_prim_ids": [target_ids[0]],
+                    "unbound_prim_ids": [],
+                },
+            },
+        }
+        return PipelineOutput(
+            success=True,
+            step_results=step_results,
+            completed_steps=completed_steps,
+            raw_result={"pipeline_results": step_results},
+        )
+
+    monkeypatch.setattr(executor_module, "arun_pipeline", fake_arun_pipeline)
+
+    response = await client.post(
+        "/pipeline",
+        files={"usd_file": ("scene.usda", b"#usda 1.0\n", "application/octet-stream")},
+        data={"coverage_policy": "strict"},
+    )
+    assert response.status_code == 202
+    session_id = response.json()["session_id"]
+
+    await asyncio.wait_for(terminal_progress_emitted.wait(), timeout=10)
+    manager = pipeline_router.get_session_manager()
+    provisional_metadata = await manager.get_session_metadata(session_id)
+
+    pending_sse_event: asyncio.Task[dict[str, str]] | None = None
+    progress_stream = None
+    try:
+        assert provisional_metadata is not None
+        assert provisional_metadata["status"] == "running"
+        assert "coverage" not in provisional_metadata
+
+        provisional_status_r = await client.get(f"/pipeline/{session_id}/status")
+        assert provisional_status_r.status_code == 200
+        assert provisional_status_r.json()["status"] == "running"
+
+        sessions_r = await client.get("/sessions")
+        assert sessions_r.status_code == 200
+        listed = {
+            session["session_id"]: session for session in sessions_r.json()["sessions"]
+        }
+        assert listed[session_id]["status"] == "running"
+
+        progress_stream = await pipeline_router.stream_progress_events(session_id)
+        while True:
+            progress_item = await anext(progress_stream.body_iterator)
+            if progress_item["event"] != "progress":
+                continue
+            progress_event = json.loads(progress_item["data"])
+            progress_extra = progress_event.get("extra") or {}
+            if progress_extra.get("pipeline_completed"):
+                assert "coverage" not in progress_event["extra"]
+                break
+        pending_sse_event = asyncio.create_task(anext(progress_stream.body_iterator))
+        await asyncio.sleep(0.05)
+        assert not pending_sse_event.done()
+
+        provisional_results_r = await client.get(f"/pipeline/{session_id}/results")
+        assert provisional_results_r.status_code == 202
+    finally:
+        release_pipeline_result.set()
+
+    body = None
+    for _ in range(200):
+        results_r = await client.get(f"/pipeline/{session_id}/results")
+        if results_r.status_code == 200:
+            body = results_r.json()
+            break
+        assert results_r.status_code == 202
+        await asyncio.sleep(0.01)
+    assert body is not None
+    assert body["status"] == "failed"
+    assert body["failed_step"] == "coverage_validation"
+    assert body["completed_steps"]
+    assert all(isinstance(step_name, str) for step_name in body["completed_steps"])
+    assert pending_sse_event is not None
+    failed_progress = await asyncio.wait_for(pending_sse_event, timeout=2)
+    assert failed_progress["event"] == "progress"
+    assert json.loads(failed_progress["data"])["state"] == "failed"
+    assert progress_stream is not None
+    assert (await anext(progress_stream.body_iterator))["event"] == "done"
+
+    final_status = None
+    for _ in range(200):
+        status_r = await client.get(f"/pipeline/{session_id}/status")
+        assert status_r.status_code == 200
+        if (
+            status_r.json()["status"] == "failed"
+            and status_r.json().get("coverage") is not None
+        ):
+            final_status = status_r.json()
+            break
+        await asyncio.sleep(0.01)
+
+    assert final_status is not None
+    assert final_status["coverage"]["readiness_grade"] == "partial"
+    assert final_status["coverage"]["missing_prediction_prim_ids"] == target_ids[1:]
+
+    assert body["coverage"]["target_count"] == 4
+    assert body["coverage"]["bound_count"] == 1
+    assert body["partial_results"]["coverage"]["unbound_count"] == 3
+    assert body["download_urls"] == {
+        "output_usd": f"/artifacts/{session_id}/output",
+        "predictions": f"/artifacts/{session_id}/predictions",
+        "report": f"/artifacts/{session_id}/report",
+    }
+
+    for artifact_url in body["download_urls"].values():
+        artifact_r = await client.get(artifact_url)
+        assert artifact_r.status_code == 200, artifact_url
+
+
+@pytest.mark.api
+@pytest.mark.real_executor
+async def test_strict_coverage_qualifies_optimized_restore_namespace(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    _reset_event_bus: None,
+) -> None:
+    """Restored target IDs must replace optimized IDs across strict coverage."""
+    from ...service.workers import executor as executor_module
+
+    restored_prim_sources = {
+        "/Root/A": "/Optimized/P1",
+        "/Root/B": "/Optimized/P1",
+        "/Root/C/Left": "/Optimized/P2",
+        "/Root/C/Right": "/Optimized/P2",
+    }
+    optimized_ids = sorted(set(restored_prim_sources.values()))
+    restored_ids = list(restored_prim_sources)
+
+    async def fake_arun_pipeline(params: PipelineInput) -> PipelineOutput:
+        session_dir = _get_session_dir(params.event_listener)
+        dataset_dir = session_dir / "cache" / "dataset"
+        predictions_dir = session_dir / "cache" / "predictions"
+        restored_dir = session_dir / "cache" / "restored"
+        output_dir = session_dir / "output"
+        for directory in (dataset_dir, predictions_dir, restored_dir, output_dir):
+            directory.mkdir(parents=True, exist_ok=True)
+
+        (dataset_dir / "prims.jsonl").write_text(
+            "".join(
+                f"{json.dumps({'prim_path': prim_id})}\n" for prim_id in optimized_ids
+            ),
+            encoding="utf-8",
+        )
+        dataset_path = dataset_dir / "dataset.jsonl"
+        dataset_path.write_text(
+            "".join(f"{json.dumps({'id': prim_id})}\n" for prim_id in optimized_ids),
+            encoding="utf-8",
+        )
+        raw_predictions_path = predictions_dir / "predictions.jsonl"
+        raw_predictions_path.write_text(
+            "".join(
+                f"{json.dumps({'id': prim_id, 'material': 'RawSteel'})}\n"
+                for prim_id in optimized_ids
+            ),
+            encoding="utf-8",
+        )
+        restored_predictions_path = restored_dir / "restored_predictions.jsonl"
+        restored_predictions_path.write_text(
+            "".join(
+                f"{json.dumps({'id': prim_id, 'material': 'Steel'})}\n"
+                for prim_id in restored_ids
+            ),
+            encoding="utf-8",
+        )
+        (output_dir / "scene_with_materials.usd").write_text(
+            "#usda 1.0\n", encoding="utf-8"
+        )
+
+        completed_steps = [
+            "optimize_usd",
+            "build_dataset_usd",
+            "build_dataset_prepare_dataset",
+            "predict",
+            "restore_usd",
+            "apply",
+        ]
+        for step_name in completed_steps:
+            await _emit_step(
+                params.event_listener,
+                step_name,
+                progress_message=f"Completed {step_name}",
+            )
+
+        step_results = {
+            "optimize_usd": {
+                "optimization_metadata": {
+                    "correspondence_map": {
+                        "full_mapping": {"original_to_prototype": {}},
+                        "split_mapping": {},
+                    }
+                }
+            },
+            "build_dataset_usd": {"num_prims": 2, "num_images": 2},
+            "build_dataset_prepare_dataset": {
+                "num_entries": 2,
+                "dataset_jsonl_path": str(dataset_path),
+            },
+            "predict": {
+                "predictions_count": 2,
+                "predictions_path": str(raw_predictions_path),
+            },
+            "restore_usd": {
+                "restored_predictions_path": str(restored_predictions_path),
+                "restore_success": True,
+                "predictions_count": 4,
+                "restore_stats": {
+                    "restored_prim_sources": restored_prim_sources,
+                    "expected_target_count": 4,
+                    "mapping_complete": True,
+                    "mapping_warnings": [],
+                },
+            },
+            "apply": {
+                "materials_applied": {"Steel": "/Root/Looks/Steel"},
+                "assignment_stats": {
+                    "total_prims": 4,
+                    "bound_prim_ids": restored_ids,
+                    "unbound_prim_ids": [],
+                },
+            },
+        }
+        return PipelineOutput(
+            success=True,
+            step_results=step_results,
+            completed_steps=completed_steps,
+            raw_result={"pipeline_results": step_results},
+        )
+
+    monkeypatch.setattr(executor_module, "arun_pipeline", fake_arun_pipeline)
+
+    response = await client.post(
+        "/pipeline",
+        files={"usd_file": ("scene.usda", b"#usda 1.0\n", "application/octet-stream")},
+        data={"coverage_policy": "strict"},
+    )
+    assert response.status_code == 202
+    session_id = response.json()["session_id"]
+
+    final_status = None
+    for _ in range(200):
+        status_r = await client.get(f"/pipeline/{session_id}/status")
+        assert status_r.status_code == 200
+        if status_r.json()["status"] in {"completed", "failed"}:
+            final_status = status_r.json()
+            break
+        await asyncio.sleep(0.01)
+
+    assert final_status is not None
+    assert final_status["status"] == "completed"
+    coverage = final_status["coverage"]
+    assert coverage["readiness_grade"] == "complete"
+    assert coverage["target_count"] == 4
+    assert coverage["prepared_count"] == 4
+    assert coverage["predicted_count"] == 4
+    assert coverage["bound_count"] == 4
+    exact_id_fields = {
+        name: coverage[name]
+        for name in (
+            "missing_prepared_prim_ids",
+            "missing_prediction_prim_ids",
+            "extra_prediction_prim_ids",
+            "unbound_prim_ids",
+        )
+    }
+    assert exact_id_fields == {
+        "missing_prepared_prim_ids": [],
+        "missing_prediction_prim_ids": [],
+        "extra_prediction_prim_ids": [],
+        "unbound_prim_ids": [],
+    }
+    assert "/Optimized/" not in json.dumps(exact_id_fields)
+
+    results_r = await client.get(f"/pipeline/{session_id}/results")
+    assert results_r.status_code == 200
+    assert results_r.json()["download_urls"]["predictions"] == (
+        f"/artifacts/{session_id}/predictions"
+    )
+    restored_predictions_r = await client.get(f"/artifacts/{session_id}/predictions")
+    assert restored_predictions_r.status_code == 200
+    served_ids = [
+        json.loads(line)["id"]
+        for line in restored_predictions_r.text.splitlines()
+        if line.strip()
+    ]
+    assert served_ids == restored_ids
+    assert not set(served_ids) & set(optimized_ids)
 
 
 @pytest.mark.api
@@ -368,6 +772,7 @@ async def test_large_scene_pipeline_uses_real_executor_with_mocked_scene_api(
     assert final_status is not None
     assert final_status["overall_progress"]["percent"] == 100
     assert final_status["overall_progress"]["total_steps"] == 9
+    assert final_status["coverage"]["readiness_grade"] == "not_evaluated"
 
     results_r = await client.get(f"/pipeline/{session_id}/results")
     assert results_r.status_code == 200
@@ -383,6 +788,7 @@ async def test_large_scene_pipeline_uses_real_executor_with_mocked_scene_api(
     assert results["stats"]["scene_render_count"] == 1
     assert results["stats"]["scene_validation_passed"] is True
     assert results["stats"]["scene_validation_warnings"] == 1
+    assert results["coverage"]["readiness_grade"] == "not_evaluated"
     assert (
         results["download_urls"]["scene_manifest"]
         == f"/artifacts/{session_id}/scene-manifest"
@@ -453,6 +859,10 @@ async def test_large_scene_validation_failure_keeps_report_and_partial_results(
 
         manifest_path = scene_dir / "manifest.json"
         output_path = output_dir / "scene_with_materials.usd"
+        asset_predictions_path = scene_dir / "asset_a_predictions.jsonl"
+        asset_predictions_path.write_text(
+            json.dumps({"id": "/Root/AssetA", "material": "Steel"}) + "\n"
+        )
         manifest_path.write_text(
             json.dumps(
                 {
@@ -461,6 +871,7 @@ async def test_large_scene_validation_failure_keeps_report_and_partial_results(
                             "id": "asset-a",
                             "name": "AssetA",
                             "prim_path": "/Root/AssetA",
+                            "predictions_path": str(asset_predictions_path),
                             "status": "completed",
                         },
                         {
@@ -559,11 +970,12 @@ async def test_large_scene_validation_failure_keeps_report_and_partial_results(
     assert results_r.status_code == 200
     results = results_r.json()
     assert results["status"] == "failed"
-    assert results["error_message"] == "Scene validation failed"
+    assert results["error_message"] == "material_scene_validation_failed"
     assert results["failed_step"] == "scene_validate"
-    assert results["partial_results"]["scene_validation_passed"] is False
-    assert results["partial_results"]["scene_validation_errors"] == 1
-    failed_items = results["partial_results"]["scene_failed_items"]
+    partial_stats = results["partial_results"]["stats"]
+    assert partial_stats["scene_validation_passed"] is False
+    assert partial_stats["scene_validation_errors"] == 1
+    failed_items = partial_stats["scene_failed_items"]
     assert failed_items[0] == {
         "source_type": "sub_asset",
         "source_id": "asset-b",
@@ -574,6 +986,16 @@ async def test_large_scene_validation_failure_keeps_report_and_partial_results(
     assert failed_items[1]["source_id"] == "payload-a"
     assert failed_items[1]["source_name"] == "PayloadA"
     assert failed_items[1]["source_payload_file"].endswith("payload.usda")
+
+    assert results["download_urls"] == {
+        "output_usd": f"/artifacts/{session_id}/output",
+        "scene_manifest": f"/artifacts/{session_id}/scene-manifest",
+        "scene_validation_report": (f"/artifacts/{session_id}/scene-validation-report"),
+        "scene_predictions": f"/artifacts/{session_id}/scene-predictions",
+    }
+    for artifact_url in results["download_urls"].values():
+        artifact_r = await client.get(artifact_url)
+        assert artifact_r.status_code == 200, artifact_url
 
     output_r = await client.get(f"/artifacts/{session_id}/output")
     assert output_r.status_code == 200

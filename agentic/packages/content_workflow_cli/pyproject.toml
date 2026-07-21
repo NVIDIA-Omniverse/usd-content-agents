@@ -1,0 +1,47 @@
+[project]
+name = "content-workflow-cli"
+version = "0.1.0"
+description = "Batch launcher for agentic USD asset workflows"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "content-agent-workflows",
+    "content-workbench-agent-client",
+    "numpy>=1.26",
+    "Pillow>=10",
+    "physics-agent",
+    "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "ruff>=0.12",
+]
+
+[project.scripts]
+content-workflow-cli = "content_workflow_cli.cli:main"
+content-workbench-snapshot-scene = "content_workflow_cli.workbench_tools.snapshot_scene:main"
+
+[tool.uv.sources]
+content-agent-workflows = { path = "../content_agent_workflows", editable = true }
+content-workbench-agent-client = { path = "../content_workbench_agent_client", editable = true }
+physics-agent = { path = "../../../apps/physics_agent", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["content_workflow_cli"]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]

@@ -184,6 +184,261 @@ class TestSessionManager:
         assert "project_a" in project_names
         assert "project_b" in project_names
 
+        by_id = {item["session_id"]: item for item in sessions}
+        assert by_id["session-001"]["session_dir"] == str(session1.session_dir)
+        assert by_id["session-002"]["session_dir"] == str(session2.session_dir)
+
+    def test_list_sessions_redacts_unsafe_derived_fields(self, tmp_path):
+        """Credential-bearing directory fields never escape through the result."""
+        secret = "list-session-result-sentinel-727"
+        session_dir = tmp_path / f".artifact?X-Amz-Signature={secret}"
+        session_dir.mkdir()
+        (session_dir / ".metadata.json").write_text(
+            json.dumps(
+                {
+                    "project_name": f"https://user:{secret}@project.test/name",
+                    "artifact": (
+                        f"https://assets.test/model.usd?X-Amz-Signature={secret}"
+                    ),
+                    "safe": "retained",
+                    "created_at": "2026-07-16T00:00:00",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        sessions = SessionManager.list_sessions(tmp_path)
+
+        assert len(sessions) == 1
+        assert sessions[0]["session_id"] == "<redacted>"
+        assert sessions[0]["session_dir"] == "<redacted>"
+        assert sessions[0]["project_name"] == "<redacted>"
+        assert sessions[0]["metadata"]["artifact"] == "<redacted>"
+        assert sessions[0]["metadata"]["safe"] == "retained"
+        assert secret not in repr(sessions)
+
+    def test_list_sessions_redacts_unsafe_base_path_only(self, tmp_path):
+        """A sensitive base path does not alter an otherwise benign session ID."""
+        secret = "list-session-base-sentinel-727"
+        base_dir = tmp_path / f"runs?X-Amz-Signature={secret}"
+        (base_dir / ".ordinary-id").mkdir(parents=True)
+
+        sessions = SessionManager.list_sessions(base_dir)
+
+        assert sessions[0]["session_id"] == "ordinary-id"
+        assert sessions[0]["session_dir"] == "<redacted>"
+        assert secret not in repr(sessions)
+
+    def test_list_sessions_skips_directory_and_metadata_symlinks(self, tmp_path):
+        """Listing never follows aliases to external session data."""
+        secret = "list-session-symlink-sentinel-727"
+        base_dir = tmp_path / "sessions"
+        base_dir.mkdir()
+        external_session = tmp_path / "external-session"
+        external_session.mkdir()
+        (external_session / ".metadata.json").write_text(
+            json.dumps({"project_name": f"https://user:{secret}@project.test"}),
+            encoding="utf-8",
+        )
+        (base_dir / ".external-alias").symlink_to(
+            external_session,
+            target_is_directory=True,
+        )
+
+        real_session = base_dir / ".real"
+        real_session.mkdir()
+        external_metadata = tmp_path / "external-metadata.json"
+        external_metadata.write_text(
+            json.dumps({"project_name": f"https://user:{secret}@project.test"}),
+            encoding="utf-8",
+        )
+        (real_session / ".metadata.json").symlink_to(external_metadata)
+
+        sessions = SessionManager.list_sessions(base_dir)
+
+        assert sessions == [
+            {
+                "session_id": "real",
+                "session_dir": str(real_session),
+                "project_name": "unknown",
+                "created_at": None,
+                "metadata": {},
+            }
+        ]
+        assert secret not in repr(sessions)
+
+    def test_list_sessions_normalizes_malformed_summary_fields(self, tmp_path):
+        """Malformed JSON metadata stays projected and cannot break sorting."""
+        valid = tmp_path / ".valid"
+        valid.mkdir()
+        (valid / ".metadata.json").write_text(
+            json.dumps(
+                {
+                    "project_name": "valid-project",
+                    "created_at": "2026-07-16T00:00:00",
+                }
+            ),
+            encoding="utf-8",
+        )
+        malformed = tmp_path / ".malformed"
+        malformed.mkdir()
+        malformed_metadata = {
+            "project_name": ["not", "a", "string"],
+            "created_at": {"not": "a string"},
+            "nested": {"safe": [1, True, None]},
+        }
+        (malformed / ".metadata.json").write_text(
+            json.dumps(malformed_metadata),
+            encoding="utf-8",
+        )
+        non_mapping = tmp_path / ".non-mapping"
+        non_mapping.mkdir()
+        (non_mapping / ".metadata.json").write_text("[]", encoding="utf-8")
+
+        sessions = SessionManager.list_sessions(tmp_path)
+
+        assert sessions[0]["session_id"] == "valid"
+        by_id = {item["session_id"]: item for item in sessions}
+        assert by_id["malformed"]["project_name"] == "unknown"
+        assert by_id["malformed"]["created_at"] is None
+        assert by_id["malformed"]["metadata"] == malformed_metadata
+        assert by_id["non-mapping"]["project_name"] == "unknown"
+        assert by_id["non-mapping"]["created_at"] is None
+        assert by_id["non-mapping"]["metadata"] == {}
+
+    @pytest.mark.parametrize(
+        ("session_id", "prefix", "expected_message"),
+        [
+            (
+                "../session-traversal-sentinel-727",
+                "",
+                "Session ID must be a single filename component",
+            ),
+            (
+                "safe-id",
+                "../prefix-traversal-sentinel-727/",
+                "Session prefix must be a single filename component",
+            ),
+        ],
+    )
+    def test_create_and_from_id_reject_unconfined_components(
+        self,
+        tmp_path,
+        caplog,
+        session_id,
+        prefix,
+        expected_message,
+    ):
+        """Creation and loading reject traversal before filesystem access."""
+        base_dir = tmp_path / "sessions"
+        base_dir.mkdir()
+
+        for operation in (SessionManager.create, SessionManager.from_id):
+            caplog.clear()
+            with (
+                caplog.at_level("INFO"),
+                pytest.raises(
+                    ValueError,
+                    match=f"^{expected_message}$",
+                ) as exc_info,
+            ):
+                operation(
+                    base_dir=base_dir,
+                    session_id=session_id,
+                    prefix=prefix,
+                )
+            observable = f"{exc_info.value!r}\n{caplog.text}"
+            assert "traversal-sentinel-727" not in observable
+
+        assert list(base_dir.iterdir()) == []
+
+    def test_create_and_from_id_reject_external_session_symlink(self, tmp_path):
+        """A valid alias name cannot redirect a session outside its base."""
+        base_dir = tmp_path / "sessions"
+        base_dir.mkdir()
+        external_session = tmp_path / "external"
+        external_session.mkdir()
+        alias = base_dir / ".alias"
+        alias.symlink_to(external_session, target_is_directory=True)
+
+        for operation in (SessionManager.create, SessionManager.from_id):
+            with pytest.raises(ValueError, match="^Invalid session directory$"):
+                operation(base_dir=base_dir, session_id="alias")
+
+        assert alias.is_symlink()
+        assert list(external_session.iterdir()) == []
+
+    def test_from_id_does_not_follow_external_metadata_symlink(self, tmp_path):
+        """Loading a confined session never follows its metadata outside the base."""
+        secret = "from-id-metadata-symlink-sentinel-727"
+        base_dir = tmp_path / "sessions"
+        session_dir = base_dir / ".safe"
+        session_dir.mkdir(parents=True)
+        external_metadata = tmp_path / "external-metadata.json"
+        external_metadata.write_text(
+            json.dumps({"project_name": secret}),
+            encoding="utf-8",
+        )
+        (session_dir / ".metadata.json").symlink_to(external_metadata)
+
+        loaded = SessionManager.from_id("safe", base_dir)
+
+        assert loaded.project_name == "unknown_project"
+        assert loaded.metadata == {
+            "session_id": "safe",
+            "project_name": "unknown_project",
+        }
+        assert secret not in repr(loaded.metadata)
+        assert external_metadata.read_text(encoding="utf-8") == json.dumps(
+            {"project_name": secret}
+        )
+
+    def test_session_child_paths_reject_absolute_and_traversal(self, tmp_path):
+        """Session path helpers reject portable escape syntax value-free."""
+        session = SessionManager.create(tmp_path, session_id="confined")
+        unsafe_calls = (
+            lambda: session.get_subdir("../subdir-traversal-sentinel-727"),
+            lambda: session.get_file(str(tmp_path / "absolute-sentinel-727")),
+            lambda: session.get_file(r"C:\windows-absolute-sentinel-727"),
+            lambda: session.get_file(r"\windows-rooted-sentinel-727"),
+        )
+
+        for unsafe_call in unsafe_calls:
+            with pytest.raises(ValueError, match="^Invalid session path$") as exc_info:
+                unsafe_call()
+            assert "sentinel-727" not in str(exc_info.value)
+
+        assert not (tmp_path / "subdir-traversal-sentinel-727").exists()
+
+    def test_session_child_paths_confine_symlink_targets(self, tmp_path):
+        """Internal aliases work, while aliases outside the session are rejected."""
+        session = SessionManager.create(tmp_path, session_id="symlink-paths")
+        internal = session.session_dir / "internal"
+        internal.mkdir()
+        (session.session_dir / "internal-alias").symlink_to(
+            internal,
+            target_is_directory=True,
+        )
+
+        nested = session.get_subdir("internal-alias/nested")
+
+        assert nested == internal / "nested"
+        assert nested.is_dir()
+        assert session.get_file("internal-alias/result.json") == (
+            internal / "result.json"
+        )
+
+        external = tmp_path / "external"
+        external.mkdir()
+        (session.session_dir / "external-alias").symlink_to(
+            external,
+            target_is_directory=True,
+        )
+        with pytest.raises(ValueError, match="^Invalid session path$"):
+            session.get_subdir("external-alias/nested")
+        with pytest.raises(ValueError, match="^Invalid session path$"):
+            session.get_file("external-alias/result.json")
+
     def test_list_sessions_ignores_non_session_dirs(self, tmp_path):
         """Test that list_sessions ignores non-session directories."""
         # Create a session

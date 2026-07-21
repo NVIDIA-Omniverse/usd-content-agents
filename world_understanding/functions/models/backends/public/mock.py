@@ -36,14 +36,48 @@ from world_understanding.functions.models.vision_language_models import (
 # ---------------------------------------------------------------------------
 
 
+def _extract_json_material_names(text: str) -> list[str] | None:
+    """Return a strict JSON ``material_names`` list embedded in *text*.
+
+    Material prompts contain prose and output-schema examples around the material
+    library payload, so the full prompt is not itself valid JSON. Scan each object
+    boundary with :class:`json.JSONDecoder` and accept only a direct
+    ``material_names: list[str]`` field. ``None`` means no current-contract payload
+    was found; an empty list is a valid payload and must not fall through to legacy
+    parsing.
+    """
+    decoder = json.JSONDecoder()
+    search_from = 0
+    while (object_start := text.find("{", search_from)) != -1:
+        try:
+            payload, object_end = decoder.raw_decode(text, object_start)
+        except json.JSONDecodeError:
+            search_from = object_start + 1
+            continue
+
+        if isinstance(payload, dict):
+            material_names = payload.get("material_names")
+            if isinstance(material_names, list) and all(
+                isinstance(name, str) for name in material_names
+            ):
+                return material_names
+        search_from = max(object_start + 1, object_end)
+    return None
+
+
 def _extract_material_names(text: str) -> list[str]:
-    """Parse material names from the ``Available materials:`` section of a prompt.
+    """Parse material names from current JSON or supported legacy prompts.
 
     Handles multiple formats:
-    1. ``- **Material name**: Aluminum\\n  **Description**: ...``
-    2. Simple bulleted list: ``- Aluminum``
-    3. Validate repair format: ``Valid material names:\\n"X", "Y", ...``
+    1. ``{"material_names": ["Aluminum", ...]}``
+    2. ``- **Material name**: Aluminum\\n  **Description**: ...``
+    3. Simple bulleted list: ``- Aluminum``
+    4. Validate repair format: ``Valid material names:\\n"X", "Y", ...``
     """
+    json_material_names = _extract_json_material_names(text)
+    if json_material_names is not None:
+        return json_material_names
+
     # First try structured format: "**Material name**: <name>"
     structured = re.findall(
         r"\*\*Material name\*\*:\s*(.+)",
@@ -277,8 +311,15 @@ class MockChatModel(BaseChatModel):
         valid_names = _extract_material_names(text)
         first_valid = valid_names[0] if valid_names else "Steel Painted Gray"
 
-        # Try to find invalid names (often quoted)
-        invalid_names = re.findall(r'"([^"]+)"', text)
+        # Try to find invalid names (often quoted) without scanning the valid
+        # material library or JSON keys as invalid-name candidates.
+        invalid_section = re.search(
+            r"Invalid names to fix:\s*\n(.+?)(?:\n\n|\Z)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        invalid_source = invalid_section.group(1) if invalid_section else text
+        invalid_names = re.findall(r'"([^"]+)"', invalid_source)
         # Filter out names that are in the valid set
         valid_set = set(valid_names)
         invalids = [n for n in invalid_names if n not in valid_set and len(n) > 2]
@@ -286,21 +327,21 @@ class MockChatModel(BaseChatModel):
         if invalids:
             mapping = dict.fromkeys(invalids[:10], first_valid)
             return f"<answer>{json.dumps(mapping)}</answer>"
-        return f'<answer>{{"{first_valid}": "{first_valid}"}}</answer>'
+        return f"<answer>{json.dumps({first_valid: first_valid})}</answer>"
 
     @staticmethod
     def _harmonize_response(text: str) -> str:
         """Return a unify action with the first material mentioned."""
         materials = _extract_material_names(text)
         mat = materials[0] if materials else "Steel Painted Gray"
-        return f'<answer>{{"action": "unify", "material": "{mat}"}}</answer>'
+        return f"<answer>{json.dumps({'action': 'unify', 'material': mat})}</answer>"
 
     @staticmethod
     def _reconcile_response(text: str) -> str:
         """Return a mapping from the first invalid to the first valid name."""
         valid_names = _extract_material_names(text)
         first_valid = valid_names[0] if valid_names else "Steel Painted Gray"
-        return f'<answer>{{"{first_valid}": "{first_valid}"}}</answer>'
+        return f"<answer>{json.dumps({first_valid: first_valid})}</answer>"
 
 
 # ---------------------------------------------------------------------------
@@ -375,5 +416,5 @@ def _create_mock_vlm(**kwargs: Any) -> MockVLM:
     return MockVLM()
 
 
-register_chat_backend("mock", _create_mock_chat)
-register_vlm_backend("mock", _create_mock_vlm)
+register_chat_backend("mock", _create_mock_chat, requires_api_key=False)
+register_vlm_backend("mock", _create_mock_vlm, requires_api_key=False)

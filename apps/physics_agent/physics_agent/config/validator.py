@@ -5,9 +5,18 @@
 import logging
 from typing import Any
 
+from world_understanding.agentic.config.unknown_keys import (
+    build_nested_config_key_schema,
+    warn_unknown_nested_config_keys,
+)
+from world_understanding.utils.credentials import redact_sensitive_config
+
 from physics_agent.config.schema import (
     REQUIRED_FIELDS,
     REQUIRED_SECTIONS,
+    STEP_ORDER,
+    get_default_config,
+    get_step_defaults,
 )
 from physics_agent.functions.mass_scale_quality import VALID_MASS_SCALE_POLICIES
 
@@ -55,6 +64,19 @@ class ConfigValidator:
                 if field not in section_config or section_config[field] is None:
                     raise ValueError(f"Missing required field: '{section}.{field}'")
 
+        key_schema = build_nested_config_key_schema(
+            get_default_config(),
+            STEP_ORDER,
+            get_step_defaults,
+        )
+        key_schema["steps"]["predict"]["report"] = {}
+        warn_unknown_nested_config_keys(
+            config,
+            key_schema,
+            logger,
+            strict_paths={("steps", step_name) for step_name in STEP_ORDER},
+        )
+
         # Validate steps section if present
         steps = config.get("steps", {})
         if steps:
@@ -66,21 +88,13 @@ class ConfigValidator:
         Args:
             steps: Steps configuration dictionary
         """
-        valid_steps = {
-            "optimize_usd",
-            "identify_asset",
-            "build_dataset_usd",
-            "build_dataset_prepare_dataset",
-            "predict",
-            "restore_usd",
-            "apply_physics",
-        }
+        valid_steps = set(STEP_ORDER)
 
         for step_name in steps.keys():
             if step_name not in valid_steps:
                 logger.warning(
                     "Unknown step '%s' in configuration. Valid steps: %s",
-                    step_name,
+                    redact_sensitive_config(step_name),
                     ", ".join(sorted(valid_steps)),
                 )
 
@@ -123,14 +137,13 @@ class ConfigValidator:
             if collision_approx not in VALID_COLLISION_APPROX:
                 raise ValueError(
                     "apply_physics.collision_approx must be one of "
-                    f"{sorted(VALID_COLLISION_APPROX)}, got '{collision_approx}'"
+                    f"{sorted(VALID_COLLISION_APPROX)}; got an unsupported value"
                 )
             mass_scale_policy = step_config.get("mass_scale_policy", "skip_mass")
             if mass_scale_policy not in VALID_MASS_SCALE_POLICIES:
                 raise ValueError(
                     "apply_physics.mass_scale_policy must be one of "
-                    f"{sorted(VALID_MASS_SCALE_POLICIES)}, got "
-                    f"'{mass_scale_policy}'"
+                    f"{sorted(VALID_MASS_SCALE_POLICIES)}; got an unsupported value"
                 )
             allow_empty_predictions = step_config.get("allow_empty_predictions", False)
             if not isinstance(allow_empty_predictions, bool):

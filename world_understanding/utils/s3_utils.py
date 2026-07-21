@@ -5,6 +5,8 @@
 import logging
 import mimetypes
 import os
+import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 # Get tracer at module level
 _tracer = trace.get_tracer(__name__)
+
+_S3_LOCATION_NOT_ALLOWED_MESSAGE = (
+    "S3 URI is not permitted by the service's configured bucket allowlist"
+)
 
 
 def _create_s3_client(profile_name: str | None = None) -> Any:
@@ -52,6 +58,102 @@ def _create_s3_client(profile_name: str | None = None) -> Any:
         return s3_client
     except NoCredentialsError as e:
         raise ValueError("No AWS credentials available") from e
+
+
+class S3BucketNotAllowedError(Exception):
+    """Raised when a client-supplied S3 URI is outside an explicit allowlist."""
+
+
+def _normalize_bucket_names(
+    allowed_buckets: str | Iterable[str] | None,
+) -> set[str]:
+    """Normalize a delimited string or iterable of bucket names for exact matching."""
+    if allowed_buckets is None:
+        return set()
+    if isinstance(allowed_buckets, str):
+        items: Iterable[str] = re.split(r"[,\s]+", allowed_buckets)
+    else:
+        items = allowed_buckets
+    return {item.strip() for item in items if isinstance(item, str) and item.strip()}
+
+
+def assert_s3_bucket_allowed(
+    s3_uri: str,
+    allowed_buckets: str | Iterable[str] | None,
+) -> str:
+    """Authorize a client-supplied S3 URI before any service-owned S3 request.
+
+    The policy intentionally fails closed: an empty or unset allowlist rejects
+    every bucket. Entries are exact bucket names, not prefixes or URI patterns.
+    Services should expose the same generic rejection detail for both an empty
+    policy and a foreign bucket so the authorization check cannot disclose
+    whether an object exists.
+
+    Args:
+        s3_uri: Client-supplied URI in ``s3://bucket/key`` form.
+        allowed_buckets: Bucket names as a comma/whitespace-separated string or
+            an iterable of strings.
+
+    Returns:
+        The authorized bucket name.
+
+    Raises:
+        ValueError: If ``s3_uri`` is malformed.
+        S3BucketNotAllowedError: If the bucket is not explicitly allowed.
+    """
+    if not s3_uri.startswith("s3://"):
+        raise ValueError("Invalid S3 URI format; expected s3://bucket/key")
+    bucket, key = _parse_s3_path(s3_uri)
+    if not bucket or not key:
+        raise ValueError("Invalid S3 URI format; expected s3://bucket/key")
+    if bucket not in _normalize_bucket_names(allowed_buckets):
+        raise S3BucketNotAllowedError(_S3_LOCATION_NOT_ALLOWED_MESSAGE)
+    return bucket
+
+
+def authorize_s3_uri_for_extensions(
+    s3_uri: str,
+    allowed_buckets: str | Iterable[str] | None,
+    *,
+    allowed_extensions: Iterable[str],
+) -> str:
+    """Authorize one client S3 URI and validate its object-key extension.
+
+    URI shape and file type are validated before bucket authorization to retain
+    the services' existing HTTP 400 contract for malformed inputs. Bucket
+    authorization still completes before the caller performs any service-owned
+    S3 or session-store operation. The caller must translate these domain
+    exceptions into its transport contract.
+
+    Args:
+        s3_uri: Client-supplied URI in ``s3://bucket/key`` form.
+        allowed_buckets: Exact bucket names accepted by the service.
+        allowed_extensions: Accepted object suffixes, with or without a leading
+            dot. Matching is case-insensitive and the returned suffix is lower-case.
+
+    Returns:
+        The normalized object-key extension, including its leading dot.
+
+    Raises:
+        ValueError: If the URI is malformed or its extension is not allowed.
+        S3BucketNotAllowedError: If the bucket is not explicitly allowed.
+    """
+    if not s3_uri.startswith("s3://") or s3_uri.count("/") < 3:
+        raise ValueError("Invalid S3 URI format; expected s3://bucket/key")
+    filename = s3_uri.rstrip("/").rsplit("/", 1)[-1]
+    extension = Path(filename).suffix.lower()
+    normalized_extensions: set[str] = set()
+    for item in allowed_extensions:
+        value = item.strip().lower()
+        if value:
+            normalized_extensions.add(value if value.startswith(".") else f".{value}")
+    if extension not in normalized_extensions:
+        allowed = ", ".join(sorted(normalized_extensions))
+        raise ValueError(
+            f"Invalid USD file type in S3 URI: {extension}. Allowed: {allowed}"
+        )
+    assert_s3_bucket_allowed(s3_uri, allowed_buckets)
+    return extension
 
 
 def list_s3_folder(

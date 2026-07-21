@@ -159,7 +159,7 @@ class TestConvenienceFunctions:
     def test_convenience_with_dict_config(self):
         """Test convenience functions with dict config."""
         config_dict = {
-            "model": {"service": "azure", "name": "gpt-4o"},
+            "model": {"service": "azure", "name": "example-vlm-model"},
             "dataset_path": "data.jsonl",
         }
 

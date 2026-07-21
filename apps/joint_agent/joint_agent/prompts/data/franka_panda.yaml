@@ -1,0 +1,59 @@
+# Franka Emika Panda — 7-DOF research arm with redundant elbow.
+# White links with black joint housings; characteristic curved silhouette.
+
+robot_id: franka_panda
+aliases:
+  - panda
+  - "franka_emika_panda"
+  - "franka panda"
+filename_aliases:
+  - panda
+  - "franka_panda"
+  - "franka_emika_panda"
+description: "Franka Emika Panda — 7-DOF research arm with redundant elbow, 8 benchmark segments"
+topology: serial_chain
+num_dofs: 7
+component_names:
+  - link0_base
+  - link1
+  - link2
+  - link3
+  - link4
+  - link5
+  - link6
+  - link7_flange
+visual_cues:
+  link0_base: >-
+    Base mounting plate; black cylindrical pedestal with a flat bottom face.
+  link1: >-
+    First white revolute housing rotating about the vertical axis above the
+    base.
+  link2: >-
+    First curved white link tilting forward off the shoulder; angled, not
+    purely vertical.
+  link3: >-
+    Second curved white link extending the arm reach; together with link2 it
+    forms the redundant-elbow's S-shape.
+  link4: >-
+    Third curved white link forming the elbow region of the arm.
+  link5: >-
+    Forearm-length white link continuing toward the wrist assembly.
+  link6: >-
+    Compact white wrist housing closer to the forearm.
+  link7_flange: >-
+    Final white wrist link with the tool-mounting flange face. The black hand,
+    gripper body, and parallel fingers are grouped with this terminal flange
+    label in the articulated benchmark.
+tiebreakers:
+  - >-
+    Two long curved white links closest to the base are link2/link3; the
+    third curved segment is link4 — distinguishable by their position along
+    the chain rather than their individual silhouettes.
+  - >-
+    Panda has a redundant 7th DOF, so do not assume a strict 6-axis chain;
+    every benchmark label link0_base..link7_flange must appear at least once.
+  - >-
+    The hand is black where the chain is white — color contrast is a reliable
+    cue for assigning it to link7_flange rather than an upstream wrist label.
+completeness_required: true
+self_check: true

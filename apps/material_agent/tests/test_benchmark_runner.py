@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from material_agent.benchmark import VLMBenchmark, create_benchmark
+from material_agent.benchmark import BaseBenchmark, VLMBenchmark, create_benchmark
 
 
 class FakeResponse:
@@ -44,12 +44,22 @@ def test_vlm_benchmark_run_inference_and_evaluate_with_judge(
     monkeypatch.setattr(
         "material_agent.benchmark.console.print", lambda *args, **kwargs: None
     )
-    monkeypatch.setattr(
-        "material_agent.benchmark.batch_assign_materials",
-        lambda **kwargs: [
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    (output_dir / "predictions.jsonl").write_text("stale\n", encoding="utf-8")
+
+    def fake_batch_assign_materials(**kwargs):
+        kwargs["on_progress"]("a", "steel")
+        kwargs["on_error"]("b", "bad input")
+        return [
             {"id": "a", "status": "success", "vlm_response": "steel"},
             {"id": "b", "status": "error", "error": "bad input"},
-        ],
+        ]
+
+    monkeypatch.setattr(
+        "material_agent.benchmark.batch_assign_materials",
+        fake_batch_assign_materials,
     )
 
     judge = FakeJudge(
@@ -68,7 +78,7 @@ def test_vlm_benchmark_run_inference_and_evaluate_with_judge(
         system_prompt="Assign materials.",
     )
 
-    predictions_path = benchmark.run_inference(dataset_path, tmp_path / "out")
+    predictions_path = benchmark.run_inference(dataset_path, output_dir)
     saved_predictions = [
         json.loads(line) for line in predictions_path.read_text().splitlines()
     ]
@@ -100,6 +110,71 @@ def test_vlm_benchmark_run_inference_and_evaluate_with_judge(
     assert (tmp_path / "eval" / "evaluation_results.json").exists()
     assert judge.calls[0][1]["temperature"] == 0.2
     assert judge.calls[0][1]["max_tokens"] == 128
+
+
+def test_base_benchmark_runs_inference_then_evaluation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        "material_agent.benchmark.console.print", lambda *args, **kwargs: None
+    )
+
+    class FakeBenchmark(BaseBenchmark):
+        def __init__(self) -> None:
+            super().__init__(name="fake")
+            self.calls: list[tuple[str, Path, Path | None]] = []
+
+        def run_inference(
+            self, dataset_path: Path, output_dir: Path | None = None
+        ) -> Path:
+            self.calls.append(("inference", dataset_path, output_dir))
+            return output_dir / "predictions.jsonl" if output_dir else dataset_path
+
+        def evaluate_with_judge(
+            self, predictions_path: Path, output_dir: Path | None = None
+        ) -> dict[str, object]:
+            self.calls.append(("evaluate", predictions_path, output_dir))
+            return {"predictions_path": str(predictions_path)}
+
+    benchmark = FakeBenchmark()
+    dataset_path = tmp_path / "dataset.jsonl"
+    output_dir = tmp_path / "results"
+
+    metrics = benchmark.run_full_benchmark(dataset_path, output_dir)
+
+    assert metrics == {"predictions_path": str(output_dir / "predictions.jsonl")}
+    assert benchmark.calls == [
+        ("inference", dataset_path, output_dir),
+        ("evaluate", output_dir / "predictions.jsonl", output_dir),
+    ]
+
+
+def test_vlm_benchmark_default_output_dirs_and_no_valid_evaluations(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    dataset_path = tmp_path / "dataset.jsonl"
+    dataset_path.write_text(
+        json.dumps({"id": "a", "ground_truth": "steel"}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "material_agent.benchmark.console.print", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "material_agent.benchmark.batch_assign_materials",
+        lambda **kwargs: [{"id": "a", "status": "success", "vlm_response": "steel"}],
+    )
+
+    benchmark = VLMBenchmark(vlm=object(), llm_judge=FakeJudge([]))
+
+    predictions_path = benchmark.run_inference(dataset_path)
+
+    assert predictions_path == tmp_path / "predictions.jsonl"
+    assert predictions_path.exists()
+
+    predictions_path.write_text("", encoding="utf-8")
+
+    assert benchmark.evaluate_with_judge(predictions_path) == {}
 
 
 def test_vlm_benchmark_helpers_and_factory(

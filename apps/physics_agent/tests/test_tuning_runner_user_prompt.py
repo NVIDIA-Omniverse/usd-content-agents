@@ -49,6 +49,21 @@ def _scenario_dict() -> dict[str, Any]:
     }
 
 
+def _freeform_scenario_dict() -> dict[str, Any]:
+    return {
+        "name": "freeform",
+        "metric": "judge_score",
+        "target": {
+            "description": "realistic generated rollout",
+            "duration_s": 1.0,
+            "observations": ["the object behaves realistically"],
+        },
+        "parameters": [
+            {"name": "restitution", "min": 0.0, "max": 1.0},
+        ],
+    }
+
+
 def _physics_usd(tmp_path: Path) -> Path:
     """Minimal physics-authored USD for the runner. Mirrors the helper in
     ``test_tuning_runner.py`` to keep these integration tests self-contained.
@@ -85,6 +100,30 @@ def _patch_judge_chat_model_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
         "physics_agent.tuning.runner._resolve_judge_vlm_lazy",
         lambda: None,
     )
+
+
+def test_default_judge_vlm_setup_failure_uses_value_free_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    sentinel = "physics-judge-setup-api-key-sentinel"
+
+    def _raise_provider_error() -> None:
+        raise RuntimeError(f"provider rejected api_key={sentinel}")
+
+    monkeypatch.setattr(
+        "physics_agent.tuning.runner.resolve_default_judge_vlm",
+        _raise_provider_error,
+    )
+    from physics_agent.tuning import runner as runner_module
+
+    with caplog.at_level("WARNING", logger=runner_module.__name__):
+        assert runner_module._resolve_judge_vlm_lazy() is None
+
+    assert sentinel not in caplog.text
+    assert caplog.messages == [
+        "Failed to instantiate default judge VLM; judge will be marked unavailable."
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -783,6 +822,64 @@ def test_tune_visual_comparison_in_artifact_map(
     )
 
 
+def test_freeform_tune_prepares_generated_visual_evidence_without_reference_media(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from physics_agent.tasks.judge_tune import JudgeResult
+    from physics_agent.tuning.visual_evidence import JudgeVisualEvidence
+
+    frame = tmp_path / "generated.png"
+    frame.write_bytes(b"fake generated image bytes")
+    prep_calls: list[dict[str, Any]] = []
+    judge_visual_evidence: list[JudgeVisualEvidence | None] = []
+
+    def _fake_prepare_visual_evidence(**kwargs: Any) -> JudgeVisualEvidence:
+        prep_calls.append(kwargs)
+        assert kwargs["include_generated_without_reference"] is True
+        return JudgeVisualEvidence(generated_image_paths=(frame,))
+
+    def _fake_judge(*args: Any, **kwargs: Any) -> JudgeResult:
+        judge_visual_evidence.append(kwargs["visual_evidence"])
+        return JudgeResult(
+            decision="approve",
+            score=1.0,
+            programmatic_score=1.0,
+            llm_score=1.0,
+            reasoning="generated frames looked realistic",
+            iterations=1,
+            llm_unavailable=False,
+        )
+
+    monkeypatch.setattr(
+        "physics_agent.tuning.runner._prepare_visual_evidence_for_judge",
+        _fake_prepare_visual_evidence,
+    )
+    monkeypatch.setattr(
+        "physics_agent.tasks.judge_tune.run_tune_judge",
+        _fake_judge,
+    )
+    _patch_judge_chat_model_to_none(monkeypatch)
+
+    out = tmp_path / "out"
+    result = run_tune(
+        TuneInput(
+            scenario=_freeform_scenario_dict(),
+            physics_usd=_physics_usd(tmp_path),
+            output_dir=out,
+            engine="fake",
+            optimizer="random",
+            max_trials=2,
+            enable_judge=True,
+        )
+    )
+
+    assert result.success is True
+    assert len(prep_calls) == 1
+    assert judge_visual_evidence[0] is not None
+    assert judge_visual_evidence[0].generated_image_paths == (frame,)
+
+
 def test_user_prompt_persisted_in_tune_results_and_report(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -875,20 +972,30 @@ def test_report_visual_evidence_captions_are_markdown_safe(tmp_path: Path) -> No
 
 
 def test_judge_failure_is_non_fatal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A JudgeError must not abort the tune — artifacts are still written
     without a judge section."""
     from physics_agent.tasks.judge_tune import JudgeError
 
+    sentinel = "physics-judge-api-key-sentinel"
+
     def _explode(*args: Any, **kwargs: Any) -> Any:
-        raise JudgeError("synthetic judge failure")
+        raise JudgeError(f"provider rejected api_key={sentinel}")
 
     monkeypatch.setattr(
         "physics_agent.tasks.judge_tune.run_tune_judge",
         _explode,
     )
     _patch_judge_chat_model_to_none(monkeypatch)
+
+    events: list[tuple[str, dict[str, Any]]] = []
+
+    class _Listener:
+        def event(self, event_type: str, data: dict[str, Any]) -> None:
+            events.append((event_type, data))
 
     out = tmp_path / "out"
     result = run_tune(
@@ -900,6 +1007,7 @@ def test_judge_failure_is_non_fatal(
             optimizer="random",
             max_trials=2,
             enable_judge=True,
+            event_listener=_Listener(),
         )
     )
     assert result.success
@@ -917,6 +1025,14 @@ def test_judge_failure_is_non_fatal(
     # being present. Failed-but-attempted states intentionally do NOT
     # render a Judge-verdict section to avoid showing a partial verdict.
     assert "## Judge verdict" not in report
+    failed_events = [
+        data for event_type, data in events if event_type == "tune.judge.failed"
+    ]
+    assert failed_events == [
+        {"error": "Judge execution failed.", "error_type": "JudgeError"}
+    ]
+    published = json.dumps(tr) + report + repr(events) + caplog.text
+    assert sentinel not in published
 
 
 # ---------------------------------------------------------------------------
@@ -1110,7 +1226,9 @@ def test_interpreter_llm_timeout_propagates_as_tuning_error(
 
 
 def test_judge_llm_timeout_is_non_fatal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A hung judge VLM call is non-fatal: tune artifacts are written
     with a persisted failed judge section, and a tune.judge.failed event
@@ -1161,6 +1279,8 @@ def test_judge_llm_timeout_is_non_fatal(
     failed_events = [d for (t, d) in events if t == "tune.judge.failed"]
     assert len(failed_events) == 1
     assert failed_events[0]["error_type"] == "_LLMTimeoutError"
+    assert failed_events[0]["error"] == "Judge execution failed."
+    assert "deadline" not in caplog.text
 
 
 def test_reference_media_judge_timeout_fails_closed(

@@ -25,9 +25,7 @@ from world_understanding.utils.credentials import (
 logger = logging.getLogger(__name__)
 
 # Default VLM configurations
-_DEFAULT_NVIDIA_INFERENCE_VLM_MODEL = "gcp/google/gemini-3.1-pro-preview"
 _DEFAULT_NIM_VLM_MODEL = "qwen/qwen3.5-397b-a17b"
-_DEFAULT_AZURE_VLM_MODEL = "gpt-5"
 _DEFAULT_OPENAI_VLM_MODEL = "gpt-5.4"
 _DEFAULT_ANTHROPIC_VLM_MODEL = "claude-opus-4-6"
 _DEFAULT_GEMINI_VLM_MODEL = "gemini-3-pro-preview"
@@ -133,12 +131,8 @@ def vlm_tool(inputs: VLMInput) -> VLMOutput:
     # Select model based on backend
     model = inputs.model
     if not model:
-        if inputs.backend == "nvidia_inference":
-            model = _DEFAULT_NVIDIA_INFERENCE_VLM_MODEL
-        elif inputs.backend == "nim":
+        if inputs.backend == "nim":
             model = _DEFAULT_NIM_VLM_MODEL
-        elif inputs.backend == "perflab_azure_openai":
-            model = _DEFAULT_AZURE_VLM_MODEL
         elif inputs.backend == "openai":
             model = _DEFAULT_OPENAI_VLM_MODEL
         elif inputs.backend == "anthropic":

@@ -81,7 +81,7 @@ def test_collection_optional_model_endpoints_wire_agent_env() -> None:
                 "endpoint": "http://image.example:8000/v1",
                 "backend": "openai",
                 "model": "black-forest-labs/flux.2-klein-4b",
-                "api_key": "not-used",
+                "api_key_env": "IMAGE_GEN_API_KEY",
             },
             "embeddings": {
                 "enabled": True,
@@ -89,7 +89,7 @@ def test_collection_optional_model_endpoints_wire_agent_env() -> None:
                 "endpoint": "http://embed.example:8000/v1",
                 "backend": "nim",
                 "model": "nvidia/llama-nemotron-embed-vl-1b-v2",
-                "api_key": "not-used",
+                "api_key_env": "EMBEDDING_API_KEY",
             },
         },
     }
@@ -107,9 +107,186 @@ def test_collection_optional_model_endpoints_wire_agent_env() -> None:
     assert env["TA_LLM_BASE_URL"] == "http://llm.example:8000/v1"
     assert env["MA_LLM_TEMPERATURE"] == "0.1"
     assert env["MA_LLM_MAX_TOKENS"] == "256"
+    assert env["TA_IMAGE_GEN_BACKEND"] == "openai"
+    assert env["MA_IMAGE_GEN_BACKEND"] == "openai"
+    assert env["TA_IMAGE_GEN_MODEL"] == "black-forest-labs/flux.2-klein-4b"
+    assert env["MA_IMAGE_GEN_MODEL"] == "black-forest-labs/flux.2-klein-4b"
     assert env["TA_IMAGE_GEN_BASE_URL"] == "http://image.example:8000/v1"
     assert env["MA_IMAGE_GEN_BASE_URL"] == "http://image.example:8000/v1"
+    assert env["TA_IMAGE_GEN_API_KEY_ENV"] == "IMAGE_GEN_API_KEY"
+    assert env["MA_IMAGE_GEN_API_KEY_ENV"] == "IMAGE_GEN_API_KEY"
+    assert "TA_IMAGE_GEN_API_KEY" not in env
+    assert "MA_IMAGE_GEN_API_KEY" not in env
     assert env["MA_CLUSTER_EMBEDDING_BASE_URL"] == "http://embed.example:8000/v1"
+    assert env["MA_CLUSTER_EMBEDDING_API_KEY_ENV"] == "EMBEDDING_API_KEY"
+    assert "MA_CLUSTER_EMBEDDING_API_KEY" not in env
+
+
+def test_collection_openai_vlm_base_url_does_not_emit_nim_routing() -> None:
+    deploy = load_deploy_module()
+    config = {
+        "agents": {
+            "material": {"enabled": True, "host_port": 8100},
+            "physics": {"enabled": True, "host_port": 8200},
+            "texture": {"enabled": False},
+        },
+        "dependencies": {
+            "render": {
+                "enabled": True,
+                "provider": "external",
+                "endpoint": "http://render.example:8001",
+            },
+            "vlm": {
+                "enabled": True,
+                "provider": "external",
+                "backend": "openai",
+                "model": "my-custom-vlm",
+                "base_url": "https://api.openai-compatible.example/v1",
+                "api_key_env": "OPENAI_API_KEY",
+            },
+        },
+    }
+
+    env, errors = deploy.build_env(config)
+
+    assert errors == []
+    assert env["MA_VLM_BACKEND"] == "openai"
+    assert env["PA_VLM_BACKEND"] == "openai"
+    assert env["MA_VLM_BASE_URL"] == "https://api.openai-compatible.example/v1"
+    assert env["PA_VLM_BASE_URL"] == "https://api.openai-compatible.example/v1"
+    assert env["MA_VLM_API_KEY_ENV"] == "OPENAI_API_KEY"
+    assert env["PA_VLM_API_KEY_ENV"] == "OPENAI_API_KEY"
+    assert "MA_VLM_NIM_BASE_URL" not in env
+    assert "PA_VLM_NIM_BASE_URL" not in env
+    assert "MA_NIM_API_KEY" not in env
+    assert "PA_NIM_API_KEY" not in env
+
+
+def test_collection_openai_llm_base_url_uses_generic_endpoint_env() -> None:
+    deploy = load_deploy_module()
+    config = {
+        "agents": {
+            "material": {"enabled": True, "host_port": 8100},
+            "physics": {"enabled": False},
+            "texture": {"enabled": True, "host_port": 8300},
+        },
+        "dependencies": {
+            "render": {
+                "enabled": True,
+                "provider": "external",
+                "endpoint": "http://render.example:8001",
+            },
+            "llm": {
+                "enabled": True,
+                "provider": "external",
+                "backend": "openai",
+                "model": "my-custom-llm",
+                "endpoint": "https://api.openai-compatible.example/v1",
+                "api_key_env": "OPENAI_API_KEY",
+            },
+        },
+    }
+
+    env, errors = deploy.build_env(config)
+
+    assert errors == []
+    assert env["MA_LLM_BACKEND"] == "openai"
+    assert env["TA_LLM_BACKEND"] == "openai"
+    assert env["MA_LLM_BASE_URL"] == "https://api.openai-compatible.example/v1"
+    assert env["TA_LLM_BASE_URL"] == "https://api.openai-compatible.example/v1"
+    assert env["MA_LLM_API_KEY_ENV"] == "OPENAI_API_KEY"
+    assert env["TA_LLM_API_KEY_ENV"] == "OPENAI_API_KEY"
+    assert "MA_LLM_NIM_BASE_URL" not in env
+    assert "MA_NIM_API_KEY" not in env
+
+
+def test_collection_openai_vlm_base_url_requires_paired_key() -> None:
+    deploy = load_deploy_module()
+    config = {
+        "agents": {
+            "material": {"enabled": True, "host_port": 8100},
+            "physics": {"enabled": True, "host_port": 8200},
+            "texture": {"enabled": False},
+        },
+        "dependencies": {
+            "render": {
+                "enabled": True,
+                "provider": "external",
+                "endpoint": "http://render.example:8001",
+            },
+            "vlm": {
+                "enabled": True,
+                "provider": "external",
+                "backend": "openai",
+                "model": "my-custom-vlm",
+                "base_url": "https://api.openai-compatible.example/v1",
+            },
+        },
+    }
+
+    _env, errors = deploy.build_env(config)
+
+    assert any("dependencies.vlm.api_key or api_key_env" in error for error in errors)
+
+
+def test_collection_openai_llm_base_url_requires_paired_key() -> None:
+    deploy = load_deploy_module()
+    config = {
+        "agents": {
+            "material": {"enabled": True, "host_port": 8100},
+            "physics": {"enabled": False},
+            "texture": {"enabled": True, "host_port": 8300},
+        },
+        "dependencies": {
+            "render": {
+                "enabled": True,
+                "provider": "external",
+                "endpoint": "http://render.example:8001",
+            },
+            "llm": {
+                "enabled": True,
+                "provider": "external",
+                "backend": "openai",
+                "model": "my-custom-llm",
+                "base_url": "https://api.openai-compatible.example/v1",
+            },
+        },
+    }
+
+    _env, errors = deploy.build_env(config)
+
+    assert any("dependencies.llm.api_key or api_key_env" in error for error in errors)
+
+
+def test_collection_docs_describe_shared_image_gen_dependency() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    required_phrases = [
+        "Texture Agent texture generation",
+        "Material Agent-generated reference images",
+        "Material Agent-generated material-library textures",
+    ]
+    docs = [
+        repo_root / "deploy" / "collection" / "README.md",
+        repo_root / "deploy" / "collection" / "collection.yaml",
+        repo_root / ".agents" / "skills" / "deploy-collection" / "SKILL.md",
+        repo_root
+        / ".agents"
+        / "skills"
+        / "deploy-collection"
+        / "references"
+        / "env-contract.md",
+        repo_root
+        / ".agents"
+        / "skills"
+        / "deploy-collection"
+        / "references"
+        / "topologies.md",
+    ]
+
+    for path in docs:
+        text = " ".join(path.read_text(encoding="utf-8").split())
+        for phrase in required_phrases:
+            assert phrase in text, path
 
 
 def test_collection_env_preview_redacts_sensitive_values(
@@ -632,6 +809,26 @@ def test_collection_optional_sidecar_compose_files_parse() -> None:
         data = deploy.load_config(collection_dir / filename)
 
         assert "services" in data, filename
+
+
+def test_collection_vllm_healthchecks_use_python3() -> None:
+    deploy = load_deploy_module()
+    collection_dir = Path(__file__).resolve().parents[1] / "deploy" / "collection"
+    expected_command = (
+        "python3 - <<'PY'\n"
+        "import urllib.request\n"
+        "urllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=5)\n"
+        "PY"
+    )
+
+    for filename, service_name in (
+        ("docker-compose.vlm.yml", "vlm-vllm"),
+        ("docker-compose.llm.yml", "llm-vllm"),
+    ):
+        data = deploy.load_config(collection_dir / filename)
+        healthcheck = data["services"][service_name]["healthcheck"]["test"]
+
+        assert healthcheck == ["CMD-SHELL", expected_command], filename
 
 
 def test_collection_vlm_compose_matches_brev_runtime_path() -> None:

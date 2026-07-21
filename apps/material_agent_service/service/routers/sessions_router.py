@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
+from ..coverage import normalize_legacy_completed_coverage
 from ..runtime.registry import get_job_registry
 from ..session.manager import SessionManager
 from ..utils import timer
@@ -363,7 +364,10 @@ async def get_session(session_id: str):
     if not metadata:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    return metadata
+    return normalize_legacy_completed_coverage(
+        metadata,
+        pipeline_active=get_job_registry().is_running(session_id),
+    )
 
 
 @router.delete("/{session_id}", status_code=204)

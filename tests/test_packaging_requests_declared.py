@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Regression test for nvbug-6122162 / OMPE-91543.
+"""Regression tests for direct ``requests`` dependency declarations.
 
 Service `client.py` and four `world_understanding/` modules import `requests`
 at top-level, but only `ovrtx_rendering_api` had it declared as a direct
@@ -65,7 +65,7 @@ def _declares_requests_runtime(pyproject_path: Path) -> bool:
     """Return True iff `requests` is declared in `[project].dependencies`.
 
     Optional-dependencies / dev-dependencies do *not* count — a default
-    `pip install` of the package must pull in `requests` to fix nvbug-6122162.
+    `pip install` of the package must pull in `requests`.
     """
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     runtime_deps = list(data.get("project", {}).get("dependencies") or [])
@@ -91,6 +91,5 @@ def test_requests_declared_when_imported(
         f"[project].dependencies (NOT optional-dependencies) — "
         f"{importer.relative_to(REPO_ROOT)} imports it at top-level. "
         "Relying on transitive resolution from langchain / google-genai is "
-        "fragile; nvbug-6122162 surfaced when `--no-deps` installs would "
-        "break."
+        "fragile; `--no-deps` installs would break."
     )

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Regression coverage for /sessions/{sid} ↔ /pipeline/{sid}/status agreement.
 
-NVBug 6127705 / OMPE-91861: /sessions/{sid} read straight from disk reports
+Reading /sessions/{sid} straight from disk previously reported
 current_step=None, completed_steps=[], elapsed_seconds=0, can_cancel=true for
 an actively-running session because session.json is initialized with frozen
 defaults and only "status" gets re-persisted on terminal transitions. The
@@ -134,6 +134,33 @@ async def test_get_session_falls_back_to_disk_when_no_snapshot(
     assert detail.current_step is None
     assert detail.completed_steps == []
     assert detail.can_cancel is True
+
+
+async def test_pipeline_status_uses_active_snapshot_without_disk_view(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager, bus = _wire_service_state(tmp_path)
+    session_id = "accepted-active"
+    manager.create_session(session_id)
+    await bus.seed_pending_session(session_id)
+
+    class RunningRegistry:
+        def is_running(self, session_id: str) -> bool:
+            return True
+
+    def fail_disk_view(*args, **kwargs):
+        raise AssertionError("active status should not read disk view")
+
+    monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: RunningRegistry())
+    monkeypatch.setattr(sessions_router, "_build_session_view", fail_disk_view)
+
+    pipeline_status = await pipeline_router.get_pipeline_status(session_id)
+
+    assert pipeline_status.session_id == session_id
+    assert pipeline_status.status == "pending"
+    assert pipeline_status.overall_progress.percent == 0
+    assert pipeline_status.can_cancel is True
 
 
 async def test_get_session_surfaces_failed_step_diagnostics(

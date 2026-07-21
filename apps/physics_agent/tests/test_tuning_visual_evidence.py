@@ -10,12 +10,19 @@ import pytest
 
 from physics_agent.tuning.visual_evidence import (
     JudgeVisualEvidence,
+    backend_supports_reasoning_effort,
     generated_frame_caption,
     has_reference_media,
     prepare_reference_media,
     resolve_default_judge_vlm,
+    sample_visual_evidence_items,
+    validate_visual_frame_count,
     write_comparison_contact_sheet,
 )
+
+
+def test_unknown_backend_does_not_support_reasoning_effort() -> None:
+    assert backend_supports_reasoning_effort("missing-vlm-backend") is False
 
 
 def test_prepare_reference_images_copies_and_captions(tmp_path: Path) -> None:
@@ -76,7 +83,7 @@ def test_prepare_reference_video_captions_include_timestamps(
         *,
         n: int,
     ) -> list[Path]:
-        del n
+        assert n == 3
         output_dir.mkdir(parents=True, exist_ok=True)
         frame = output_dir / "frame_0001__t500.png"
         frame.write_bytes(b"fake frame bytes")
@@ -91,6 +98,7 @@ def test_prepare_reference_video_captions_include_timestamps(
         reference_videos=[src],
         reference_video_descriptions=["target motion"],
         output_dir=tmp_path / "out",
+        frames_per_video=3,
     )
 
     assert evidence.reference_image_caption_pairs[0][0] == (
@@ -102,6 +110,40 @@ def test_generated_frame_caption_includes_timestamp() -> None:
     assert generated_frame_caption(2, "frame_0002__t1250.png") == (
         "Generated Physics Output - Frame 2 (t=1.250s):"
     )
+
+
+def test_sample_visual_evidence_items_preserves_endpoints(tmp_path: Path) -> None:
+    references = tuple(
+        (f"Reference Image {idx}: target", tmp_path / f"ref_{idx:02d}.png")
+        for idx in range(1, 21)
+    )
+    generated = tuple(tmp_path / f"frame_{idx:04d}.png" for idx in range(1, 61))
+    evidence = JudgeVisualEvidence(
+        reference_image_caption_pairs=references,
+        generated_image_paths=generated,
+    )
+
+    reference_items, generated_items = sample_visual_evidence_items(
+        evidence,
+        max_reference_images=5,
+        max_generated_images=7,
+    )
+
+    assert len(reference_items) == 5
+    assert len(generated_items) == 7
+    assert reference_items[0] == references[0]
+    assert reference_items[-1] == references[-1]
+    assert generated_items[0] == ("Generated Physics Output - Frame 1:", generated[0])
+    assert generated_items[-1] == (
+        "Generated Physics Output - Frame 60:",
+        generated[-1],
+    )
+
+
+@pytest.mark.parametrize("value", [0, 65, True, 3.0, "3"])
+def test_validate_visual_frame_count_rejects_invalid_values(value: object) -> None:
+    with pytest.raises(ValueError, match="frames"):
+        validate_visual_frame_count("frames", value)  # type: ignore[arg-type]
 
 
 def test_write_comparison_contact_sheet_and_metadata(tmp_path: Path) -> None:
@@ -145,6 +187,25 @@ def test_write_comparison_contact_sheet_and_metadata(tmp_path: Path) -> None:
     }
 
 
+def test_write_comparison_contact_sheet_reports_invalid_limits(tmp_path: Path) -> None:
+    evidence = JudgeVisualEvidence(
+        reference_image_caption_pairs=(
+            ("Reference Image 1: target", tmp_path / "r.png"),
+        ),
+        generated_image_paths=(tmp_path / "g.png",),
+    )
+
+    comparison_path, comparison_error = write_comparison_contact_sheet(
+        evidence,
+        tmp_path / "comparison.png",
+        max_reference_images=0,
+    )
+
+    assert comparison_path is None
+    assert comparison_error is not None
+    assert "max_reference_images" in comparison_error
+
+
 def test_write_comparison_contact_sheet_reports_all_image_failures(
     tmp_path: Path,
 ) -> None:
@@ -186,7 +247,6 @@ def test_default_judge_vlm_filters_reasoning_effort_for_nim(
     monkeypatch.setattr(defaults, "DEFAULT_VLM_TEMPERATURE", 0.0)
     monkeypatch.setattr(defaults, "DEFAULT_VLM_MAX_TOKENS", 123)
     monkeypatch.setattr(defaults, "DEFAULT_VLM_REASONING_EFFORT", "high")
-    monkeypatch.setattr(defaults, "DEFAULT_VLM_LLMGATEWAY_CONFIG", {})
     monkeypatch.setattr(
         "world_understanding.agentic.config.get_api_key_for_model_config",
         lambda _backend, _config, _model_type: "key",
@@ -228,7 +288,6 @@ def test_default_judge_vlm_honors_nim_base_url_override(
     monkeypatch.setattr(defaults, "DEFAULT_VLM_TEMPERATURE", 0.0)
     monkeypatch.setattr(defaults, "DEFAULT_VLM_MAX_TOKENS", 123)
     monkeypatch.setattr(defaults, "DEFAULT_VLM_REASONING_EFFORT", "high")
-    monkeypatch.setattr(defaults, "DEFAULT_VLM_LLMGATEWAY_CONFIG", {})
     monkeypatch.setattr(
         "world_understanding.agentic.config.get_api_key_for_model_config",
         lambda _backend, _config, _model_type: "not-used",
@@ -244,6 +303,75 @@ def test_default_judge_vlm_honors_nim_base_url_override(
     assert captured["base_url"] == "http://localhost:9000/v1"
     assert captured["api_key"] == "not-used"
     assert "reasoning_effort" not in captured
+
+
+def test_default_judge_vlm_honors_configured_custom_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from physics_agent.api import defaults
+
+    for env_var in (
+        "WU_VLM_NIM_BASE_URL",
+        "PA_VLM_NIM_BASE_URL",
+        "TA_VLM_NIM_BASE_URL",
+        "MA_VLM_NIM_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_BACKEND", "openai")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_MODEL", "custom-model")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_TEMPERATURE", 0.0)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_MAX_TOKENS", 123)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_REASONING_EFFORT", "high")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_BASE_URL", "https://vlm.example.test/v1")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_API_KEY", None)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_API_KEY_ENV", "CUSTOM_VLM_KEY")
+    monkeypatch.setenv("CUSTOM_VLM_KEY", "endpoint-key")
+    monkeypatch.setattr(
+        "world_understanding.functions.models.vision_language_models.create_vlm",
+        lambda **kwargs: captured.update(kwargs) or object(),
+    )
+
+    resolve_default_judge_vlm()
+
+    assert captured["backend"] == "openai"
+    assert captured["model"] == "custom-model"
+    assert captured["base_url"] == "https://vlm.example.test/v1"
+    assert captured["api_key"] == "endpoint-key"
+    assert captured["reasoning_effort"] == "high"
+
+
+def test_default_judge_vlm_rejects_unset_configured_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from physics_agent.api import defaults
+
+    for env_var in (
+        "WU_VLM_NIM_BASE_URL",
+        "PA_VLM_NIM_BASE_URL",
+        "TA_VLM_NIM_BASE_URL",
+        "MA_VLM_NIM_BASE_URL",
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_BACKEND", "openai")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_MODEL", "custom-model")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_TEMPERATURE", 0.0)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_MAX_TOKENS", 123)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_REASONING_EFFORT", "high")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_BASE_URL", "https://vlm.example.test/v1")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_API_KEY", None)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_API_KEY_ENV", "MISSING_CUSTOM_VLM_KEY")
+    monkeypatch.delenv("MISSING_CUSTOM_VLM_KEY", raising=False)
+
+    with pytest.raises(
+        ValueError,
+        match="^configured API key environment variable is not set or empty$",
+    ) as exc_info:
+        resolve_default_judge_vlm()
+    assert "MISSING_CUSTOM_VLM_KEY" not in str(exc_info.value)
 
 
 def test_has_reference_media_detects_images_or_videos(tmp_path: Path) -> None:

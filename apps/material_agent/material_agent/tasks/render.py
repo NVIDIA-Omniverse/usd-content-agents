@@ -15,44 +15,123 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 from PIL import Image
-from pxr import Usd, UsdGeom
+from pxr import Usd
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.functions.graphics.render_validation import (
+    RENDER_BLANK_IMAGE,
+    ImageValidationResult,
+    validate_image_artifact,
+)
 from world_understanding.functions.graphics.rendering import (
     CameraFocusMode,
     CameraViewType,
-    OvRTXRenderingBackend,
-    RemoteRenderingBackend,
     RenderingConfig,
     format_direction_for_filename,
 )
-from world_understanding.utils.image_blankness import analyze_image_blankness
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    create_rendering_backend,
+    validate_rendering_backend_name,
+)
 from world_understanding.utils.image_utils import paste_on_background
-from world_understanding.utils.usd.camera import add_corner_view_camera
+from world_understanding.utils.usd.camera import (
+    add_corner_view_camera,
+    add_focused_corner_view_camera,
+    add_focused_side_view_camera,
+    add_side_view_camera,
+)
+from world_understanding.utils.usd.prim import get_bbox_from_prim
 from world_understanding.utils.usd.stage import prepare_stage_for_render
 
 logger = logging.getLogger(__name__)
 
+_SIDE_VIEW_DIRECTIONS = {"+x", "-x", "+y", "-y", "+z", "-z"}
+_FORCED_SERIAL_RENDERING_BACKENDS = frozenset({"ovrtx", "warp"})
 
-class BlankRenderStatsDict(TypedDict):
-    """JSON-safe shape emitted by ImageBlanknessStats.to_dict()."""
 
-    blank: bool
-    reason: str | None
-    width: int
-    height: int
-    mode: str
-    sampled_pixels: int
+class BlankRenderStatsDict(TypedDict, total=False):
+    reason: str
     unique_colors: int
     dominant_color_ratio: float
     luma_std: float
-    luma_dynamic_range: float
-    rgb_dynamic_range: float
-    strong_minority_pixel_ratio: float
-    alpha_visible_ratio: float | None
+
+
+def _blank_final_render_error(
+    output_path: str,
+    stats: BlankRenderStatsDict,
+    backend_type: str,
+) -> str:
+    details = (
+        f"Blank final render detected at {output_path}: "
+        f"reason={stats.get('reason', 'unknown')}, "
+        f"unique_colors={stats.get('unique_colors', 'unknown')}, "
+        f"dominant_color_ratio={stats.get('dominant_color_ratio', 'unknown')}, "
+        f"luma_std={stats.get('luma_std', 'unknown')}."
+    )
+    if backend_type == "ovrtx":
+        return (
+            f"{details} Check OVRTX rendering endpoint logs, renderer lighting, "
+            "and WU_OVRTX_DEFAULT_HDRI."
+        )
+    if backend_type == "remote":
+        return f"{details} Check remote rendering endpoint logs."
+    return f"{details} Check the {backend_type} rendering backend configuration."
+
+
+def _scene_render_max_workers(
+    *,
+    render_config: dict[str, Any],
+    backend_type: str,
+    camera_count: int,
+) -> int:
+    """Resolve worker count without parallelizing local GPU backends."""
+    configured_max_workers = render_config.get("max_workers")
+    if backend_type in _FORCED_SERIAL_RENDERING_BACKENDS:
+        max_workers = 1
+    elif configured_max_workers is not None:
+        max_workers = max(1, int(configured_max_workers))
+    elif backend_type == "remote":
+        max_workers = 1
+    else:
+        max_workers = 2
+    return min(camera_count, max_workers)
+
+
+def _validation_issue_codes(validation: ImageValidationResult) -> list[str]:
+    return [issue.code for issue in validation.issues]
+
+
+def _is_blank_render_validation(validation: ImageValidationResult) -> bool:
+    return RENDER_BLANK_IMAGE in _validation_issue_codes(validation)
+
+
+def _failed_render_attempt_path(
+    output_path: Path,
+    *,
+    attempt: int,
+    reason: str,
+) -> Path:
+    return output_path.with_name(
+        f"{output_path.stem}.{reason}_attempt_{attempt}{output_path.suffix}"
+    )
+
+
+def _preserve_failed_render_stage(
+    stage: Usd.Stage,
+    *,
+    output_base_path: Path,
+    output_path: Path,
+    attempt: int,
+) -> Path | None:
+    debug_dir = output_base_path / "_render_debug"
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    stage_path = debug_dir / f"{output_path.stem}.attempt_{attempt}.usda"
+    if stage.GetRootLayer().Export(str(stage_path)):
+        return stage_path
+    return None
 
 
 class RenderTask(Task):
@@ -79,7 +158,8 @@ class RenderTask(Task):
         - render_enabled: Whether to perform rendering (default: True)
         - flatten_before_render: Whether to flatten USD before rendering (default: True)
         - render_config: Rendering configuration dictionary with:
-            - backend: Rendering backend ("remote" or "ovrtx", default: "remote")
+            - backend: Rendering backend ("remote", "warp", "ovrtx", or
+                "mock"; default: "remote")
             - image_width: Image width in pixels (default: 1024)
             - image_height: Image height in pixels (default: image_width)
             - camera_corners: List of camera corners to render from (default: ["+x+y+z"])
@@ -90,6 +170,12 @@ class RenderTask(Task):
             - retry_delay: REST renderer retry delay (optional)
             - retry_backoff_factor: REST renderer backoff factor (optional)
             - retry_jitter: REST renderer jitter (optional)
+            - max_attempts: Per-camera render attempts after task-level validation (optional)
+            - allow_partial_renders: If True, return successfully rendered cameras
+                when other requested cameras fail validation (default: False)
+            - max_workers: Camera render worker count override (optional).
+                Remote rendering defaults to 1 to avoid sharing a USD stage
+                across concurrent REST render requests.
             OvRTX-specific keys (backend == "ovrtx"):
             - log_level: Logging verbosity for OvRTX subprocess (str, default: "warn")
             - ovrtx_venv_dir: Path to the OvRTX virtual environment directory
@@ -168,6 +254,11 @@ class RenderTask(Task):
             context["rendering_skipped"] = True
             return context
 
+        render_config = context.get("render_config", {})
+        backend_type = validate_rendering_backend_name(
+            render_config.get("backend", "remote")
+        )
+
         # Get output directory - support multiple context key patterns
         # Priority: output_base_path > render_output_dir > input USD parent dir
         output_base_path = context.get("output_base_path") or context.get(
@@ -182,7 +273,6 @@ class RenderTask(Task):
         output_base_path = Path(output_base_path)
         output_base_path.mkdir(parents=True, exist_ok=True)
 
-        render_config = context.get("render_config", {})
         flatten_before_render = context.get("flatten_before_render", True)
 
         # Track which USD path to use for output naming (before potential flattening)
@@ -235,7 +325,6 @@ class RenderTask(Task):
         listener.info(f"Starting rendering from: {usd_to_render}")
 
         # Extract render settings
-        backend_type = render_config.get("backend", "remote")
         image_width = render_config.get("image_width", 1024)
         image_height = render_config.get("image_height", image_width)
 
@@ -253,6 +342,7 @@ class RenderTask(Task):
         # Background color: config uses 0-1 range, convert to 0-255 for PIL
         bg_color_normalized = render_config.get("background_color", [1.0, 1.0, 1.0])
         background_color = tuple(int(c * 255) for c in bg_color_normalized)
+        allow_partial_renders = bool(render_config.get("allow_partial_renders", False))
 
         listener.info("Rendering configuration:")
         listener.info(f"  Backend: {backend_type}")
@@ -262,6 +352,7 @@ class RenderTask(Task):
         )
         listener.info(f"  Camera margin: {camera_margin}")
         listener.info(f"  Background color: {background_color}")
+        listener.info(f"  Allow partial renders: {allow_partial_renders}")
 
         # Open the USD stage for rendering
         stage = Usd.Stage.Open(str(usd_to_render))
@@ -313,13 +404,10 @@ class RenderTask(Task):
             prim_path = None
             focus_prim = None
 
-        bbox_cache = UsdGeom.BBoxCache(
-            Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]
-        )
         if focus_prim:
-            scene_bbox = bbox_cache.ComputeWorldBound(focus_prim)
+            scene_bbox = get_bbox_from_prim(focus_prim)
         else:
-            scene_bbox = bbox_cache.ComputeWorldBound(stage.GetPseudoRoot())
+            scene_bbox = get_bbox_from_prim(stage.GetPseudoRoot())
         aligned_range = scene_bbox.ComputeAlignedRange()
         bbox_min = aligned_range.GetMin()
         bbox_max = aligned_range.GetMax()
@@ -336,54 +424,15 @@ class RenderTask(Task):
             f"Scene dimensions: {scene_size_x:.2f} × {scene_size_y:.2f} × {scene_size_z:.2f}"
         )
 
-        # Set up rendering backend
-        if backend_type == "remote":
-            import os
-
-            api_key = os.environ.get("NGC_API_KEY")
-            remote_kwargs = {"api_key": api_key}
-
-            for key in (
-                "base_url",
-                "s3_bucket",
-                "s3_region",
-                "s3_profile",
-                "timeout",
-                "max_retries",
-                "retry_delay",
-                "retry_backoff_factor",
-                "retry_jitter",
-                "bundle_mdl_assets",
-                "use_data_uri",
-            ):
-                if key in render_config:
-                    remote_kwargs[key] = render_config[key]
-
-            rendering_backend = RemoteRenderingBackend(**remote_kwargs)
-            listener.info(
-                f"Using remote REST renderer with retry config: max_retries={remote_kwargs.get('max_retries', 3)}, "
-                f"retry_delay={remote_kwargs.get('retry_delay', 1.0)}"
-            )
-        elif backend_type == "ovrtx":
-            # Pin render_mode to ``pt`` because num_sensor_updates=500 is
-            # sized for the PT convergence plateau. The shared backend's
-            # default flipped to ``rt2`` for fast iteration, which caps
-            # quality regardless of step count — pairing 500 steps with
-            # rt2 would pay the latency without gaining quality.
-            ovrtx_kwargs: dict[str, Any] = {
-                "log_level": render_config.get("log_level", "warn"),
-                "ovrtx_venv_dir": render_config.get("ovrtx_venv_dir"),
-                "num_sensor_updates": render_config.get("num_sensor_updates", 500),
-                "render_mode": render_config.get("render_mode", "pt"),
-            }
-            rendering_backend = OvRTXRenderingBackend(**ovrtx_kwargs)
-            listener.info(
-                f"Using OvRTX backend with log_level={ovrtx_kwargs['log_level']}"
-            )
-        else:
-            listener.error(f"Unknown rendering backend: {backend_type}")
-            context["rendering_skipped"] = True
-            return context
+        # Final renders use the OVRTX path-traced quality profile unless the
+        # caller overrides it. Other backends ignore these OVRTX-only options.
+        backend_config = {
+            "num_sensor_updates": 500,
+            "render_mode": "pt",
+            **render_config,
+        }
+        rendering_backend = create_rendering_backend(backend_type, backend_config)
+        listener.info(f"Using {backend_type} rendering backend")
         # Set up rendering configuration
         rendering_config = RenderingConfig(
             image_width=image_width,
@@ -406,11 +455,6 @@ class RenderTask(Task):
         camera_infos = []
         listener.info(f"Creating {len(camera_corners)} camera(s)...")
 
-        if focus_prim:
-            from world_understanding.utils.usd.camera import (
-                add_focused_corner_view_camera,
-            )
-
         for i, camera_corner in enumerate(camera_corners):
             camera_path = (
                 f"/RenderCamera_{i}" if len(camera_corners) > 1 else "/RenderCamera"
@@ -420,9 +464,16 @@ class RenderTask(Task):
                 f"  [{i + 1}/{len(camera_corners)}] Creating camera at {camera_path} (direction: {camera_corner})"
             )
 
-            # Add corner view camera (scoped to prim bbox when set)
+            # Add a view camera scoped to the prim bbox when requested. Single-axis
+            # directions are side views; compound directions are corner views.
+            is_side_view = camera_corner in _SIDE_VIEW_DIRECTIONS
             if focus_prim:
-                add_focused_corner_view_camera(
+                add_camera = (
+                    add_focused_side_view_camera
+                    if is_side_view
+                    else add_focused_corner_view_camera
+                )
+                add_camera(
                     prim_to_focus=focus_prim,
                     camera_path=camera_path,
                     direction=camera_corner,
@@ -435,7 +486,10 @@ class RenderTask(Task):
                     far_clip_margin=0.1,
                 )
             else:
-                add_corner_view_camera(
+                add_camera = (
+                    add_side_view_camera if is_side_view else add_corner_view_camera
+                )
+                add_camera(
                     stage,
                     margin=camera_margin,
                     camera_path=camera_path,
@@ -471,6 +525,8 @@ class RenderTask(Task):
 
         # Save the stage with all cameras
         stage.Save()
+        render_validation_results: list[dict[str, Any]] = []
+        validation_retry_count = 0
 
         # Define rendering function for parallel execution
         def render_single_camera(camera_info: dict) -> dict:
@@ -479,6 +535,7 @@ class RenderTask(Task):
             output_path = camera_info["output_path"]
             corner = camera_info["camera_corner"]
             index = camera_info["index"]
+            camera_validation_results: list[dict[str, Any]] = []
 
             listener.info(
                 f"[{index + 1}/{len(camera_corners)}] Rendering {corner} to {output_path.name}"
@@ -489,11 +546,35 @@ class RenderTask(Task):
                 # with body {"status": "exception"} on single full-scene renders
                 # (seen on the final post-apply render step in CI). Retry a
                 # couple of times before giving up on the camera.
-                max_attempts = 3 if backend_type == "remote" else 1
+                max_attempts = int(
+                    render_config.get(
+                        "max_attempts",
+                        3 if backend_type == "remote" else 1,
+                    )
+                )
                 render_result = None
                 for attempt in range(max_attempts):
+                    stage_for_render = stage
+                    if backend_type == "remote":
+                        # Reopen the serialized render stage for every REST
+                        # attempt. This avoids re-exporting a potentially stale
+                        # in-memory stage object after cameras/material edits.
+                        stage_for_render = Usd.Stage.Open(str(usd_to_render))
+                        if not stage_for_render:
+                            return {
+                                "success": False,
+                                "error": (
+                                    "Failed to reopen serialized USD stage for "
+                                    f"render attempt: {usd_to_render}"
+                                ),
+                                "camera_path": camera_path,
+                                "corner": corner,
+                                "index": index,
+                                "validation_results": camera_validation_results,
+                            }
+
                     render_result = rendering_backend.render(
-                        stage=stage,
+                        stage=stage_for_render,
                         cameras=[camera_path],
                         image_width=image_width,
                         image_height=image_height,
@@ -501,9 +582,13 @@ class RenderTask(Task):
                         frames="0",  # Single frame render
                         base_dir=render_asset_base_dir,
                     )
-                    if render_result and render_result.get("successful_cameras", 0) > 0:
-                        break
-                    if attempt < max_attempts - 1:
+                    if (
+                        not (
+                            render_result
+                            and render_result.get("successful_cameras", 0) > 0
+                        )
+                        and attempt < max_attempts - 1
+                    ):
                         attempt_error = "No successful renders returned"
                         if render_result and "results" in render_result:
                             for r in render_result["results"]:
@@ -514,110 +599,192 @@ class RenderTask(Task):
                             f"Render {corner} attempt {attempt + 1}/{max_attempts} failed: {attempt_error}; retrying"
                         )
                         time.sleep(2 * (attempt + 1))
+                        continue
 
-                # Check if rendering was successful
-                if not (
-                    render_result
-                    and render_result.get("successful_cameras", 0) > 0
-                    and "results" in render_result
-                    and len(render_result["results"]) > 0
-                ):
-                    error_msg = "No successful renders returned"
-                    if render_result and "results" in render_result:
-                        for result in render_result["results"]:
-                            if "error" in result:
-                                error_msg = result["error"]
-                                break
-                    return {
-                        "success": False,
-                        "error": error_msg,
-                        "camera_path": camera_path,
-                        "corner": corner,
-                    }
+                    # Check if rendering was successful
+                    if not (
+                        render_result
+                        and render_result.get("successful_cameras", 0) > 0
+                        and "results" in render_result
+                        and len(render_result["results"]) > 0
+                    ):
+                        error_msg = "No successful renders returned"
+                        if render_result and "results" in render_result:
+                            for result in render_result["results"]:
+                                if "error" in result:
+                                    error_msg = result["error"]
+                                    break
+                        if attempt < max_attempts - 1:
+                            listener.warning(
+                                f"Render {corner} attempt {attempt + 1}/{max_attempts} failed: {error_msg}; retrying"
+                            )
+                            time.sleep(2 * (attempt + 1))
+                            continue
+                        return {
+                            "success": False,
+                            "error": error_msg,
+                            "camera_path": camera_path,
+                            "corner": corner,
+                            "index": index,
+                            "validation_results": camera_validation_results,
+                        }
 
-                # Get the first camera result
-                camera_result = render_result["results"][0]
+                    # Get the first camera result
+                    camera_result = render_result["results"][0]
 
-                # Save the image
-                if not ("images" in camera_result and camera_result["images"]):
-                    return {
-                        "success": False,
-                        "error": "No image data in result",
-                        "camera_path": camera_path,
-                        "corner": corner,
-                    }
+                    # Save the image
+                    if not ("images" in camera_result and camera_result["images"]):
+                        error_msg = "No image data in result"
+                        if attempt < max_attempts - 1:
+                            listener.warning(
+                                f"Render {corner} attempt {attempt + 1}/{max_attempts} failed: {error_msg}; retrying"
+                            )
+                            time.sleep(2 * (attempt + 1))
+                            continue
+                        return {
+                            "success": False,
+                            "error": error_msg,
+                            "camera_path": camera_path,
+                            "corner": corner,
+                            "index": index,
+                            "validation_results": camera_validation_results,
+                        }
 
-                # Get the first image (we only rendered one frame)
-                image = camera_result["images"][0]
+                    # Get the first image (we only rendered one frame)
+                    image = camera_result["images"][0]
 
-                # Check if it's a PIL Image or raw data
-                if hasattr(image, "save"):
-                    # It's a PIL Image, use it directly
-                    pass
-                elif isinstance(image, dict) and "image" in image:
-                    # For remote REST backends, image data might be in a dict.
-                    if isinstance(image["image"], bytes):
-                        img_bytes = image["image"]
+                    # Check if it's a PIL Image or raw data
+                    if hasattr(image, "save"):
+                        # It's a PIL Image, use it directly
+                        pass
+                    elif isinstance(image, dict) and "image" in image:
+                        # For remote REST backends, image data might be in a dict.
+                        if isinstance(image["image"], bytes):
+                            img_bytes = image["image"]
+                        else:
+                            # Decode base64 if needed
+                            img_bytes = base64.b64decode(image["image"])
+                        image = Image.open(BytesIO(img_bytes))
                     else:
-                        # Decode base64 if needed
-                        img_bytes = base64.b64decode(image["image"])
-                    image = Image.open(BytesIO(img_bytes))
-                else:
-                    return {
-                        "success": False,
-                        "error": "Unexpected image format",
-                        "camera_path": camera_path,
-                        "corner": corner,
-                    }
+                        error_msg = "Unexpected image format"
+                        if attempt < max_attempts - 1:
+                            listener.warning(
+                                f"Render {corner} attempt {attempt + 1}/{max_attempts} failed: {error_msg}; retrying"
+                            )
+                            time.sleep(2 * (attempt + 1))
+                            continue
+                        return {
+                            "success": False,
+                            "error": error_msg,
+                            "camera_path": camera_path,
+                            "corner": corner,
+                            "index": index,
+                            "validation_results": camera_validation_results,
+                        }
 
-                blank_stats = analyze_image_blankness(image)
-                if blank_stats.blank:
-                    return {
-                        "success": False,
-                        "error": _blank_final_render_error(
-                            str(output_path),
-                            cast(BlankRenderStatsDict, blank_stats.to_dict()),
-                        ),
-                        "blank_render": True,
-                        "blank_stats": blank_stats.to_dict(),
-                        "camera_path": camera_path,
-                        "corner": corner,
-                    }
+                    # Apply background color if specified
+                    if rendering_config.use_background_color:
+                        # Convert to RGBA if needed
+                        if image.mode != "RGBA":
+                            image = image.convert("RGBA")
 
-                # Apply background color if specified
-                if rendering_config.use_background_color:
-                    # Convert to RGBA if needed
-                    if image.mode != "RGBA":
-                        image = image.convert("RGBA")
+                        # Apply background color
+                        image = paste_on_background(image, background_color)
 
-                    # Apply background color
-                    image = paste_on_background(image, background_color)
-
-                # Save the final image
-                image.save(str(output_path))
-
-                listener.info(f"✓ Successfully rendered {corner} to {output_path.name}")
-
-                # Emit per-camera rendering event
-                try:
-                    listener.event(
-                        "rendering.completed",
-                        {
-                            "camera_corner": corner,
-                            "output_path": str(output_path),
-                            "image_width": image_width,
-                            "image_height": image_height,
-                            "backend": backend_type,
-                        },
+                    validation = validate_image_artifact(
+                        image,
+                        backend=backend_type,
+                        low_contrast_std_threshold=-1.0,
+                        low_contrast_percentile_range_threshold=-1.0,
                     )
-                except Exception as e:
-                    logger.warning(f"Failed to emit rendering event for {corner}: {e}")
+                    validation_payload = {
+                        "camera_corner": corner,
+                        "camera_path": camera_path,
+                        "attempt": attempt + 1,
+                        "output_path": str(output_path),
+                        "validation": validation.to_dict(),
+                    }
+                    camera_validation_results.append(validation_payload)
+                    if _is_blank_render_validation(validation):
+                        failed_attempt_path = _failed_render_attempt_path(
+                            output_path,
+                            attempt=attempt + 1,
+                            reason="blank",
+                        )
+                        image.save(str(failed_attempt_path))
+                        _preserve_failed_render_stage(
+                            stage_for_render,
+                            output_base_path=output_base_path,
+                            output_path=output_path,
+                            attempt=attempt + 1,
+                        )
+                        if attempt < max_attempts - 1:
+                            listener.warning(
+                                f"Render {corner} attempt {attempt + 1}/{max_attempts} returned a blank image; retrying"
+                            )
+                            time.sleep(2 * (attempt + 1))
+                            continue
+                        return {
+                            "success": False,
+                            "error": "Rendered image failed validation: blank image",
+                            "camera_path": camera_path,
+                            "corner": corner,
+                            "index": index,
+                            "validation": validation.to_dict(),
+                            "failed_attempt_path": str(failed_attempt_path),
+                            "attempts": attempt + 1,
+                            "validation_results": camera_validation_results,
+                        }
+
+                    if not validation.passed:
+                        listener.warning(
+                            f"Render {corner} produced a low-quality image: "
+                            f"{_validation_issue_codes(validation)}"
+                        )
+
+                    # Save the final image
+                    image.save(str(output_path))
+
+                    listener.info(
+                        f"✓ Successfully rendered {corner} to {output_path.name}"
+                    )
+
+                    # Emit per-camera rendering event
+                    try:
+                        listener.event(
+                            "rendering.completed",
+                            {
+                                "camera_corner": corner,
+                                "output_path": str(output_path),
+                                "image_width": image_width,
+                                "image_height": image_height,
+                                "backend": backend_type,
+                                "attempts": attempt + 1,
+                            },
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to emit rendering event for {corner}: {e}"
+                        )
+
+                    return {
+                        "success": True,
+                        "output_path": str(output_path),
+                        "camera_path": camera_path,
+                        "corner": corner,
+                        "index": index,
+                        "attempts": attempt + 1,
+                        "validation": validation.to_dict(),
+                        "validation_results": camera_validation_results,
+                    }
 
                 return {
-                    "success": True,
-                    "output_path": str(output_path),
+                    "success": False,
+                    "error": "Render attempts exhausted",
                     "camera_path": camera_path,
                     "corner": corner,
+                    "index": index,
+                    "validation_results": camera_validation_results,
                 }
 
             except Exception as e:
@@ -627,15 +794,21 @@ class RenderTask(Task):
                     "error": str(e),
                     "camera_path": camera_path,
                     "corner": corner,
+                    "index": index,
+                    "validation_results": camera_validation_results,
                 }
 
         # Render all cameras in parallel
         listener.info(f"Rendering {len(camera_infos)} view(s) in parallel...")
-        rendered_image_paths = []
+        rendered_results = []
         failed_renders = []
 
         # Determine max workers based on number of cameras and backend
-        max_workers = min(len(camera_infos), 4 if backend_type == "remote" else 2)
+        max_workers = _scene_render_max_workers(
+            render_config=render_config,
+            backend_type=backend_type,
+            camera_count=len(camera_infos),
+        )
         listener.info(f"Using {max_workers} parallel workers")
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -650,8 +823,12 @@ class RenderTask(Task):
                 cam_info = future_to_camera[future]
                 try:
                     result = future.result()
+                    validation_retry_count += max(0, int(result.get("attempts", 1)) - 1)
+                    result_validation = result.get("validation_results", [])
+                    if isinstance(result_validation, list):
+                        render_validation_results.extend(result_validation)
                     if result["success"]:
-                        rendered_image_paths.append(result["output_path"])
+                        rendered_results.append(result)
                     else:
                         failed_renders.append(result)
                         listener.error(
@@ -678,24 +855,31 @@ class RenderTask(Task):
         stage.Save()
         listener.info("Cleaned up render camera prims from output USD")
 
+        context["render_validation"] = render_validation_results
+        context["rendering_stats"] = {
+            "total_images": len(rendered_results),
+            "failed_renders": len(failed_renders),
+            "image_width": image_width,
+            "image_height": image_height,
+            "backend": backend_type,
+            "validation_retry_count": validation_retry_count,
+        }
+
         # Check if any renders failed
         if failed_renders:
-            blank_renders = [
-                result for result in failed_renders if result.get("blank_render")
-            ]
-            if blank_renders:
-                raise RuntimeError(
-                    "One or more final renders are blank or near-blank. "
-                    f"First error: {blank_renders[0].get('error', 'Unknown')}"
-                )
             listener.warning(
                 f"{len(failed_renders)}/{len(camera_infos)} renders failed"
             )
-            if len(rendered_image_paths) == 0:
-                # All renders failed
+            if not allow_partial_renders or len(rendered_results) == 0:
+                context["rendering_errors"] = failed_renders
                 raise RuntimeError(
-                    f"All {len(camera_infos)} camera renders failed. First error: {failed_renders[0].get('error', 'Unknown')}"
+                    f"{len(failed_renders)}/{len(camera_infos)} camera renders failed. "
+                    f"First error: {failed_renders[0].get('error', 'Unknown')}"
                 )
+            context["rendering_errors"] = failed_renders
+
+        rendered_results.sort(key=lambda result: result.get("index", 0))
+        rendered_image_paths = [result["output_path"] for result in rendered_results]
 
         # Update context with results
         if rendered_image_paths:
@@ -710,11 +894,13 @@ class RenderTask(Task):
                 "image_width": image_width,
                 "image_height": image_height,
                 "backend": backend_type,
+                "validation_retry_count": validation_retry_count,
             }
 
             listener.info("✓ Rendering complete:")
             listener.info(f"  • Total images rendered: {len(rendered_image_paths)}")
             listener.info(f"  • Failed renders: {len(failed_renders)}")
+            listener.info(f"  • Validation retries: {validation_retry_count}")
             listener.info(f"  • Image size: {image_width}x{image_height}")
             for img_path in rendered_image_paths:
                 listener.info(f"  • {img_path}")
@@ -736,23 +922,6 @@ class RenderTask(Task):
             except Exception as e:
                 logger.warning(f"Failed to emit overall rendering event: {e}")
         else:
-            context["rendering_skipped"] = True
+            context["rendering_skipped"] = True  # pragma: no cover - defensive fallback
 
         return context
-
-
-def _blank_final_render_error(
-    output_path: str,
-    stats: BlankRenderStatsDict,
-) -> str:
-    """Format final-render blankness metrics into a user-facing error."""
-    dominant_color_ratio = float(stats.get("dominant_color_ratio", 0.0))
-    luma_std = float(stats.get("luma_std", 0.0))
-    return (
-        f"Final render output is blank or near-blank: {output_path}. "
-        f"reason={stats.get('reason')}, unique_colors={stats.get('unique_colors')}, "
-        f"dominant_color_ratio={dominant_color_ratio:.3f}, "
-        f"luma_std={luma_std:.3f}. Check the rendering endpoint logs "
-        "and any HDRI / dome-light configuration "
-        "(WU_OVRTX_DEFAULT_HDRI, WU_OVRTX_DEFAULT_HDRI_INTENSITY)."
-    )

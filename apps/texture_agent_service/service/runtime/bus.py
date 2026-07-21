@@ -68,6 +68,34 @@ class EventBus:
         """Get current in-memory state snapshot for a session."""
         return self._state.get(session_id)
 
+    async def seed_pending_session(self, session_id: str) -> None:
+        """Seed a lightweight local status snapshot for an accepted pipeline.
+
+        This avoids backing-store access so same-instance status polling can
+        return immediately after /pipeline accepts a job, before the worker has
+        emitted its first progress event.
+        """
+        timestamp = datetime.now(UTC).isoformat()
+        async with self._lock:
+            existing = self._state.get(session_id)
+            self._state[session_id] = {
+                "session_id": session_id,
+                "status": "pending",
+                "created_at": existing.get("created_at", timestamp)
+                if existing
+                else timestamp,
+                "updated_at": timestamp,
+                "current_step": None,
+                "completed_steps": [],
+                "overall_progress": {
+                    "current_step": 0,
+                    "total_steps": 9,
+                    "percent": 0,
+                },
+                "preview_images": [],
+                "step_timings": {},
+            }
+
     def clear_session_state(self, session_id: str) -> None:
         """Drop the in-memory snapshot AND any queued SSE events.
 
@@ -89,7 +117,7 @@ class EventBus:
             while not queue.empty():
                 try:
                     queue.get_nowait()
-                except asyncio.QueueEmpty:
+                except asyncio.QueueEmpty:  # pragma: no cover - defensive race guard
                     break
         self._live_metadata_flush_at.pop(session_id, None)
         self._shared_session_exists_checked_at.pop(session_id, None)
@@ -152,8 +180,8 @@ class EventBus:
             return
         async with self._worker_heartbeat_lock:
             now = asyncio.get_running_loop().time()
-            last = self._worker_heartbeat_at.get(session_id, 0.0)
-            if now - last < _WORKER_HEARTBEAT_INTERVAL_SECONDS:
+            last = self._worker_heartbeat_at.get(session_id)
+            if last is not None and now - last < _WORKER_HEARTBEAT_INTERVAL_SECONDS:
                 return
             self._worker_heartbeat_at[session_id] = now
         await asyncio.to_thread(heartbeat_worker, session_id, owner_token=owner_token)
@@ -311,7 +339,7 @@ class EventBus:
                 "completed_steps": [],
                 "overall_progress": {
                     "current_step": 0,
-                    "total_steps": 8,
+                    "total_steps": 9,
                     "percent": 0,
                 },
                 "step_timings": {},
@@ -419,8 +447,10 @@ class EventBus:
     def _get_display_name(self, step: str) -> str:
         """Get human-readable display name for step."""
         display_map = {
+            "pipeline_startup": "Starting Pipeline Worker",
             "prepare_uvs": "Preparing UV Coordinates",
             "discover_materials": "Discovering Materials",
+            "plan_textures": "Planning Bounded Texture Work",
             "generate_prompts": "Generating Texture Prompts",
             "render_previews": "Rendering Material Previews",
             "generate_textures": "Generating PBR Textures",
@@ -435,21 +465,24 @@ class EventBus:
     ) -> None:
         """Update overall progress based on current step progress.
 
-        Uses weighted allocation across 8 texture pipeline steps:
+        Uses weighted allocation across 9 texture pipeline steps:
         - prepare_uvs: 0-3%
         - discover_materials: 3-5%
-        - generate_prompts: 5-10%
-        - render_previews: 10-20%
+        - plan_textures: 5-7%
+        - generate_prompts: 7-12%
+        - render_previews: 12-20%
         - generate_textures: 20-75% (dominant cost)
         - blend_textures: 75-85%
         - apply_textures: 85-95%
         - render: 95-100%
         """
         step_weights = {
+            "pipeline_startup": (0, 0),
             "prepare_uvs": (0, 3),
             "discover_materials": (3, 5),
-            "generate_prompts": (5, 10),
-            "render_previews": (10, 20),
+            "plan_textures": (5, 7),
+            "generate_prompts": (7, 12),
+            "render_previews": (12, 20),
             "generate_textures": (20, 75),
             "blend_textures": (75, 85),
             "apply_textures": (85, 95),
@@ -471,7 +504,8 @@ class EventBus:
         completion_percent = {
             "prepare_uvs": 3,
             "discover_materials": 5,
-            "generate_prompts": 10,
+            "plan_textures": 7,
+            "generate_prompts": 12,
             "render_previews": 20,
             "generate_textures": 75,
             "blend_textures": 85,
@@ -593,7 +627,9 @@ class EventBus:
                 while not queue.empty():
                     try:
                         queue.get_nowait()
-                    except asyncio.QueueEmpty:
+                    except (
+                        asyncio.QueueEmpty
+                    ):  # pragma: no cover - defensive race guard
                         break
                 sentinel = ProgressEvent(
                     session_id=session_id,
@@ -603,7 +639,7 @@ class EventBus:
                 )
                 try:
                     queue.put_nowait(sentinel)
-                except asyncio.QueueFull:
+                except asyncio.QueueFull:  # pragma: no cover - unbounded queue guard
                     # Unbounded asyncio.Queue() does not raise QueueFull, but
                     # guard anyway -- a stuck subscriber is preferable to a
                     # raised exception inside DELETE.

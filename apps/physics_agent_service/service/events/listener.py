@@ -23,6 +23,11 @@ from ..runtime.events import ProgressEvent, StepState
 
 logger = logging.getLogger(__name__)
 
+_TASK_TO_PIPELINE_STEP = {
+    "VLMInference": "predict",
+    "USDPrimTraversalAndRendering": "build_dataset_usd",
+}
+
 
 class FastAPIEventListener(EventListener):
     """Event listener that bridges Physics Agent API events to FastAPI SSE.
@@ -36,6 +41,8 @@ class FastAPIEventListener(EventListener):
         session_id: str,
         session_dir: "Path | None" = None,
         loop: asyncio.AbstractEventLoop | None = None,
+        *,
+        suppress_failure_events: bool = False,
     ):
         """Initialize FastAPI event listener.
 
@@ -43,11 +50,14 @@ class FastAPIEventListener(EventListener):
             session_id: Session identifier for this pipeline run
             session_dir: Session directory for finding thumbnails (optional)
             loop: Event loop (None = get running loop)
+            suppress_failure_events: Keep failure events off the EventBus so a
+                service worker can persist its terminal state before publishing.
         """
         self.session_id = session_id
         self.session_dir = session_dir
         self.event_bus = get_event_bus()
         self.current_step: str | None = None
+        self.suppress_failure_events = suppress_failure_events
 
         # Track thumbnailed images to avoid duplicates
         self.thumbnailed_images: set[str] = set()
@@ -94,6 +104,13 @@ class FastAPIEventListener(EventListener):
 
         progress_event = self._map_event_to_progress(event_type, data)
 
+        if (
+            progress_event
+            and self.suppress_failure_events
+            and progress_event.state == StepState.FAILED
+        ):
+            return
+
         if progress_event:
             self._emit_event_threadsafe(progress_event)
 
@@ -101,24 +118,27 @@ class FastAPIEventListener(EventListener):
     # Internal Methods
     # =================================================================
 
+    @property
+    def canonical_current_step(self) -> str | None:
+        """Return the active task using the service's public pipeline step name."""
+        if self.current_step is None:
+            return None
+        return _TASK_TO_PIPELINE_STEP.get(self.current_step, self.current_step)
+
     def _map_event_to_progress(
         self, event_type: str, data: dict[str, Any]
     ) -> ProgressEvent | None:
         """Map API event to ProgressEvent."""
-        task_to_step = {
-            "VLMInference": "predict",
-            "USDPrimTraversalAndRendering": "build_dataset_usd",
-        }
-
         step_name = self.current_step or data.get("step_name")
         if not step_name:
             task_name = data.get("task_name")
             step_name = (
-                task_to_step.get(task_name, task_name) if task_name else "unknown"
+                _TASK_TO_PIPELINE_STEP.get(task_name, task_name)
+                if task_name
+                else "unknown"
             )
 
-        if step_name == "VLMInference":
-            step_name = "predict"
+        step_name = _TASK_TO_PIPELINE_STEP.get(step_name, step_name)
 
         # Step lifecycle events
         if event_type == "step.started":

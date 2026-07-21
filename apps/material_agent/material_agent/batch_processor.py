@@ -7,7 +7,35 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    path_exists_with_safe_diagnostics,
+    redact_sensitive_path,
+)
+
 logger = logging.getLogger(__name__)
+
+_BATCH_ITEM_FAILURE_MESSAGE = "USD file processing failed"
+_BATCH_SOURCE_INSPECTION_FAILURE_MESSAGE = "Unable to inspect USD directory"
+_BATCH_OUTPUT_SETUP_FAILURE_MESSAGE = "Unable to create batch output directory"
+
+
+def _safe_batch_identifier(
+    usd_file: Path,
+    position: int,
+    used_identifiers: set[str],
+) -> str:
+    """Return a non-secret, collision-safe identifier for batch status output."""
+    safe_name = redact_sensitive_path(usd_file.name)
+    base_identifier = (
+        f"file_{position}" if safe_name != usd_file.name else usd_file.stem
+    )
+    identifier = base_identifier
+    suffix = 2
+    while identifier in used_identifiers:
+        identifier = f"{base_identifier}_{suffix}"
+        suffix += 1
+    return identifier
 
 
 async def process_usd_batch(
@@ -41,37 +69,62 @@ async def process_usd_batch(
     Raises:
         RuntimeError: If no USD files found or if all files fail to process
     """
-    if not usd_dir.exists():
-        raise RuntimeError(f"USD directory not found: {usd_dir}")
+    if not path_exists_with_safe_diagnostics(usd_dir, label="USD directory"):
+        raise RuntimeError("USD directory not found")
 
     # Find all USD files recursively
-    usd_files = (
-        list(usd_dir.rglob("*.usd"))
-        + list(usd_dir.rglob("*.usda"))
-        + list(usd_dir.rglob("*.usdc"))
-    )
+    source_inspection_failed = False
+    try:
+        usd_files = (
+            list(usd_dir.rglob("*.usd"))
+            + list(usd_dir.rglob("*.usda"))
+            + list(usd_dir.rglob("*.usdc"))
+        )
+    except (OSError, RuntimeError):
+        source_inspection_failed = True
+        usd_files = []
+    if source_inspection_failed:
+        raise RuntimeError(_BATCH_SOURCE_INSPECTION_FAILURE_MESSAGE)
 
     if not usd_files:
-        raise RuntimeError(f"No USD files found in directory: {usd_dir}")
+        raise RuntimeError("No USD files found in directory")
 
     logger.info(f"Found {len(usd_files)} USD files to process")
-    logger.info(f"  USD directory: {usd_dir}")
-    logger.info(f"  Output directory: {batch_output_dir}")
+    logger.info("  USD directory: %s", redact_sensitive_path(usd_dir))
+    logger.info("  Output directory: %s", redact_sensitive_path(batch_output_dir))
 
     # Create base output directory
-    batch_output_dir.mkdir(parents=True, exist_ok=True)
+    output_setup_failed = False
+    try:
+        create_directory_with_safe_diagnostics(
+            batch_output_dir,
+            label="batch output directory",
+        )
+    except (OSError, RuntimeError):
+        output_setup_failed = True
+    if output_setup_failed:
+        raise RuntimeError(_BATCH_OUTPUT_SETUP_FAILURE_MESSAGE)
 
     # Process each USD file
     successful = 0
     failed = 0
     results = {}
+    used_result_keys: set[str] = set()
     base_context = base_context or {}
 
-    for usd_file in usd_files:
+    for position, usd_file in enumerate(usd_files, start=1):
         usd_name = usd_file.stem
         dataset_output_dir = batch_output_dir / usd_name
+        safe_result_key = _safe_batch_identifier(
+            usd_file,
+            position,
+            used_result_keys,
+        )
+        used_result_keys.add(safe_result_key)
+        safe_usd_file = redact_sensitive_path(usd_file)
+        safe_output_dir = redact_sensitive_path(dataset_output_dir)
 
-        logger.info(f"  Processing {usd_file.name} -> {dataset_output_dir}")
+        logger.info("  Processing %s -> %s", safe_usd_file, safe_output_dir)
 
         try:
             # Prepare context for this specific file
@@ -84,37 +137,36 @@ async def process_usd_batch(
 
             # Check result
             if not result or "error" in result:
-                logger.warning(f"  ✗ Failed to process {usd_file.name}")
-                results[usd_name] = {
+                logger.warning("  ✗ Failed to process %s", safe_usd_file)
+                results[safe_result_key] = {
                     "status": "failed",
-                    "usd_file": str(usd_file),
-                    "output_dir": str(dataset_output_dir),
-                    "error": (
-                        result.get("error", "Unknown error")
-                        if result
-                        else "Empty result"
-                    ),
+                    "usd_file": safe_usd_file,
+                    "output_dir": safe_output_dir,
+                    "error": _BATCH_ITEM_FAILURE_MESSAGE,
                 }
                 failed += 1
             else:
-                logger.info(f"  ✓ Successfully processed {usd_file.name}")
-                results[usd_name] = {
+                logger.info("  ✓ Successfully processed %s", safe_usd_file)
+                dataset_path = result.get("dataset_path")
+                results[safe_result_key] = {
                     "status": "success",
-                    "usd_file": str(usd_file),
-                    "output_dir": str(dataset_output_dir),
-                    "dataset_path": result.get("dataset_path", "N/A"),
+                    "usd_file": safe_usd_file,
+                    "output_dir": safe_output_dir,
+                    "dataset_path": (
+                        redact_sensitive_path(dataset_path) if dataset_path else "N/A"
+                    ),
                     "num_prims": result.get("num_prims", 0),
                     "num_images": result.get("num_images", 0),
                 }
                 successful += 1
 
-        except Exception as e:
-            logger.error(f"  ✗ Error processing {usd_file.name}: {e}")
-            results[usd_name] = {
+        except Exception:
+            logger.error("  ✗ Failed to process %s", safe_usd_file)
+            results[safe_result_key] = {
                 "status": "failed",
-                "usd_file": str(usd_file),
-                "output_dir": str(dataset_output_dir),
-                "error": str(e),
+                "usd_file": safe_usd_file,
+                "output_dir": safe_output_dir,
+                "error": _BATCH_ITEM_FAILURE_MESSAGE,
             }
             failed += 1
 
@@ -125,7 +177,7 @@ async def process_usd_batch(
 
     # Return aggregated results
     return {
-        "output_dir": str(batch_output_dir),
+        "output_dir": redact_sensitive_path(batch_output_dir),
         "num_files_processed": successful,
         "num_files_failed": failed,
         "total_files": len(usd_files),

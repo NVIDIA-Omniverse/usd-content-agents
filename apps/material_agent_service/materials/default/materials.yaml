@@ -3,7 +3,7 @@
 # It is pre-configured and not exposed through the API.
 
 materials:
-  # USD library path (relative to the application root)
+  # USD library path (relative to this YAML file)
   # This path works in both dev and Docker container
   library_path: "materials_libs_v2.usd"
 
@@ -139,7 +139,7 @@ materials:
 
     - name: "Glass Clear Tinted Blue"
       description: "Transparent blue‑tinted glass with smooth surfaces, subtle coloration, crisp refractions, and sharp reflections that gently color the objects seen through it"
-      binding: "/World/Looks/Glass_Tinted_Blue"
+      binding: "/World/Looks/Glass_Clear_Tinted_Blue"
 
     - name: "Glass Frosted"
       description: "Translucent, matte glass with a softly roughened surface, diffuse light scattering, and blurred, muted silhouettes of objects behind it"

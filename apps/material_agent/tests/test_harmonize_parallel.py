@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 import json
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -181,16 +182,27 @@ class TestResolveConflictsParallel:
         assert mock_llm.invoke.call_count == n_groups
 
     def test_parallel_faster_than_sequential(self):
-        """Parallel should be faster when LLM calls have latency."""
+        """Conflict groups should invoke the LLM concurrently."""
         n_groups = 8
-        sleep_time = 0.1  # simulate 100ms LLM latency
+        sleep_time = 0.2
         predictions, conflicts, signals_map = _make_conflict_predictions(n_groups, 4)
+        lock = threading.Lock()
+        active_calls = 0
+        max_active_calls = 0
 
         def slow_invoke(*args, **kwargs):
-            time.sleep(sleep_time)
-            return MagicMock(
-                content='{"action": "unify", "material": "Steel Brushed", "reason": "test"}'
-            )
+            nonlocal active_calls, max_active_calls
+            with lock:
+                active_calls += 1
+                max_active_calls = max(max_active_calls, active_calls)
+            try:
+                time.sleep(sleep_time)
+                return MagicMock(
+                    content='{"action": "unify", "material": "Steel Brushed", "reason": "test"}'
+                )
+            finally:
+                with lock:
+                    active_calls -= 1
 
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = slow_invoke
@@ -199,18 +211,11 @@ class TestResolveConflictsParallel:
             "world_understanding.functions.models.chat_models.create_chat_model_from_config",
             return_value=mock_llm,
         ):
-            t0 = time.monotonic()
             remap = _resolve_conflicts(
                 conflicts, predictions, signals_map, llm_config={"backend": "mock"}
             )
-            elapsed = time.monotonic() - t0
 
-        # Sequential would take n_groups * sleep_time = 0.8s
-        # Parallel should take ~sleep_time + overhead ≈ 0.15-0.3s
-        sequential_time = n_groups * sleep_time
-        assert elapsed < sequential_time * 0.6, (
-            f"Parallel took {elapsed:.2f}s, sequential would be {sequential_time:.2f}s"
-        )
+        assert max_active_calls > 1
         assert len(remap) == n_groups * 2
 
     def test_single_group_no_threadpool(self):

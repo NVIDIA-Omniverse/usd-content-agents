@@ -6,6 +6,20 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+def projected_int(value: Any) -> int:
+    """Return an exact integer from public metadata, or a safe typed default."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def projected_float(value: Any) -> float:
+    """Return a numeric public metric, or a safe typed default."""
+    return (
+        float(value)
+        if isinstance(value, int | float) and not isinstance(value, bool)
+        else 0.0
+    )
+
+
 @dataclass
 class APIResult:
     """Base class for API results."""
@@ -43,6 +57,40 @@ class MetricsResult:
             score_distribution=data.get("score_distribution", {}),
         )
 
+    @classmethod
+    def from_projected_dict(cls, data: dict[str, Any]) -> "MetricsResult":
+        """Build type-stable metrics from detached public metadata.
+
+        Credential projection can replace rejected values with strings such as
+        ``<redacted>``. Public result models must not copy those strings into
+        numeric fields, even when the raw runtime mapping used the expected key.
+        """
+        distribution = data.get("score_distribution")
+        safe_distribution = (
+            {
+                key: value
+                for key, value in distribution.items()
+                if type(key) is str
+                and isinstance(value, int)
+                and not isinstance(value, bool)
+            }
+            if isinstance(distribution, dict)
+            else {}
+        )
+        return cls(
+            functional_correctness_score=projected_float(
+                data.get("functional_correctness_score")
+            ),
+            success_rate=projected_float(data.get("success_rate")),
+            exact_match_rate=projected_float(data.get("exact_match_rate")),
+            total_cases=projected_int(data.get("total_cases")),
+            valid_cases=projected_int(data.get("valid_cases")),
+            successful_cases=projected_int(data.get("successful_cases")),
+            exact_matches=projected_int(data.get("exact_matches")),
+            failure_count=projected_int(data.get("failure_count")),
+            score_distribution=safe_distribution,
+        )
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -75,6 +123,8 @@ class AssignmentStats:
     materials_applied: int = 0
     total_prims: int = 0
     failed: int = 0
+    bound_prim_ids: list[str] = field(default_factory=list)
+    unbound_prim_ids: list[str] = field(default_factory=list)
 
 
 @dataclass

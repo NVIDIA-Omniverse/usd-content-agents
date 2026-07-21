@@ -6,20 +6,31 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from world_understanding.agentic.config import log_config_source
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    path_exists_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
+
+from material_agent.tasks.config_loader import load_config_from_context
 
 logger = logging.getLogger(__name__)
 
 
 class RenderConfigTask(Task):
-    """Load render configuration from a YAML file.
+    """Load render configuration.
 
     This task is the entry point for the render workflow. It loads the configuration
     file and prepares the context for subsequent tasks.
 
     Input context keys:
-        - config_path: Path to the YAML configuration file (required)
+        - config_dict: In-memory step configuration (preferred)
+        - config_path: YAML path or relative-path anchor
         - input_usd_override: Optional override for input USD path
         - output_path_override: Optional override for output path
 
@@ -27,7 +38,7 @@ class RenderConfigTask(Task):
         - input_usd_path: Path to the USD file to render
         - output_base_path: Base path for rendered images
         - render_config: Rendering configuration dictionary with:
-            - backend: Rendering backend (remote, ovrtx)
+            - backend: Canonical rendering backend name
             - image_width: Image width in pixels
             - image_height: Image height in pixels
             - camera_corners: List of camera corners to render from
@@ -55,25 +66,14 @@ class RenderConfigTask(Task):
         # Get event listener (or logger fallback)
         listener = get_listener(context, logger_name=__name__)
 
-        import yaml
-
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path is required in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(f"Loading render configuration from {config_path}")
-
-        # Load config
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        config, config_path = load_config_from_context(
+            context, missing_path_message="config_path is required in context"
+        )
+        log_config_source(context, listener.info, label="render")
 
         # Extract render configuration
         # Handle three cases:
-        # 1. Direct render config (from pipeline executor temp file)
+        # 1. Direct render config (from the pipeline executor's config_dict)
         # 2. Nested under "render" key (standalone config)
         # 3. Nested under "steps.render" (full unified config)
 
@@ -117,40 +117,60 @@ class RenderConfigTask(Task):
         input_usd_override = context.get("input_usd_override")
         if input_usd_override:
             input_usd_path = input_usd_override
-            listener.info(f"Using input USD override: {input_usd_path}")
+            listener.info(
+                f"Using input USD override: {redact_sensitive_path(input_usd_path)}"
+            )
 
         output_path_override = context.get("output_path_override")
         if output_path_override:
             output_path = output_path_override
-            listener.info(f"Using output path override: {output_path}")
+            listener.info(
+                f"Using output path override: {redact_sensitive_path(output_path)}"
+            )
 
         # Validate inputs
         if not input_usd_path:
             raise ValueError("input_usd_path not specified in config")
 
-        # Convert to Path - paths from unified config temp files are already absolute
+        # Convert to Path - paths from unified step configs are already absolute
         input_usd_path = Path(input_usd_path)
 
         # If path is relative (unlikely from unified config), resolve relative to config file
         if not input_usd_path.is_absolute():
-            input_usd_path = (config_path.parent / input_usd_path).resolve()
+            input_usd_path = resolve_path_with_safe_diagnostics(
+                config_path.parent / input_usd_path,
+                label="render input USD path",
+            )
 
-        listener.info(f"Input USD for rendering: {input_usd_path}")
+        listener.info(
+            f"Input USD for rendering: {redact_sensitive_path(input_usd_path)}"
+        )
 
-        if not input_usd_path.exists():
-            raise FileNotFoundError(f"Input USD file not found: {input_usd_path}")
+        if not path_exists_with_safe_diagnostics(
+            input_usd_path,
+            label="render input USD path",
+        ):
+            raise FileNotFoundError(
+                f"Input USD file not found: {redact_sensitive_path(input_usd_path)}"
+            )
 
         # Prepare output path
         if output_path:
             output_path = Path(output_path)
             if not output_path.is_absolute():
-                output_path = (config_path.parent / output_path).resolve()
+                output_path = resolve_path_with_safe_diagnostics(
+                    config_path.parent / output_path,
+                    label="render output path",
+                )
         else:
             # Default to same directory as input USD
             output_path = input_usd_path.parent
 
         # Ensure output directory exists
-        output_path.mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            output_path,
+            label="render output directory",
+        )
 
         # Extract render settings with defaults
         backend = render_config.get("backend", "remote")
@@ -166,9 +186,9 @@ class RenderConfigTask(Task):
             camera_corners = [camera_corners]
 
         listener.info("Render configuration loaded successfully:")
-        listener.info(f"  Input USD: {input_usd_path}")
-        listener.info(f"  Output directory: {output_path}")
-        listener.info(f"  Backend: {backend}")
+        listener.info(f"  Input USD: {redact_sensitive_path(input_usd_path)}")
+        listener.info(f"  Output directory: {redact_sensitive_path(output_path)}")
+        listener.info(f"  Backend: {redact_sensitive_config(backend)}")
         listener.info(f"  Image size: {image_width}x{image_height}")
         listener.info(f"  Camera corners: {', '.join(camera_corners)}")
         listener.info(f"  Flatten before render: {flatten_before_render}")
@@ -190,6 +210,25 @@ class RenderConfigTask(Task):
         # Pass through clear_materials to strip original bindings before render
         if render_config.get("clear_materials"):
             render_config_out["clear_materials"] = True
+        for key in (
+            "allow_partial_renders",
+            "max_attempts",
+            "max_workers",
+            "max_retries",
+            "retry_delay",
+            "retry_backoff_factor",
+            "retry_jitter",
+            "base_url",
+            "s3_bucket",
+            "s3_region",
+            "s3_profile",
+            "timeout",
+            "bundle_mdl_assets",
+            "use_data_uri",
+            "material_target",
+        ):
+            if key in render_config:
+                render_config_out[key] = render_config[key]
         context["render_config"] = render_config_out
         context["flatten_before_render"] = flatten_before_render
 

@@ -1,0 +1,64 @@
+# SO-Arm-101 — Hugging Face / TheRobotStudio 6-DOF tabletop arm.
+# Compact, low-cost research arm, much smaller than the UR/Franka families.
+
+robot_id: so_arm_101
+aliases:
+  - so101
+  - "so 101"
+  - "so_101"
+  - "so-101"
+  - "so_arm_101"
+  - "so-arm-101"
+  - "so arm 101"
+  - "so101_new_calib"
+filename_aliases:
+  - so101
+  - "so_arm_101"
+  - "so-arm-101"
+  - "so101_new_calib"
+description: "SO-Arm-101 — 6-DOF compact tabletop arm (TheRobotStudio / LeRobot)"
+topology: serial_chain
+num_dofs: 6
+component_names:
+  - base
+  - shoulder
+  - upper_arm
+  - lower_arm
+  - wrist
+  - gripper
+  - moving_jaw
+visual_cues:
+  base: >-
+    Small flat tabletop base / mounting block; significantly smaller than
+    industrial arm bases. Sits at the bottom of the chain.
+  shoulder: >-
+    First revolute housing directly above the base, rotating about the
+    vertical axis.
+  upper_arm: >-
+    Short structural link from the shoulder housing to the elbow joint.
+  lower_arm: >-
+    Short structural link from the elbow joint to the wrist assembly.
+  wrist: >-
+    Compact wrist housing after the lower_arm, including the wrist roll/pitch
+    servo geometry before the gripper body.
+  gripper: >-
+    Fixed gripper body after the wrist; carries the jaw linkage and wrist-roll
+    follower but is not the moving finger itself.
+  moving_jaw: >-
+    Moving gripper jaw / finger at the end of the chain; the only segment
+    that should receive the dedicated moving_jaw label.
+tiebreakers:
+  - >-
+    Scale cue: SO-Arm-101 is roughly hand-sized, NOT industrial-arm-sized.
+    Do not infer it as a UR or Franka if the visible scale (vs context, vs
+    floor/table) is small.
+  - >-
+    The moving_jaw is unique because it has finger geometry; assign the
+    surrounding fixed gripper body to gripper.
+completeness_required: true
+self_check: true
+notes: >-
+  The robots.zip ships three variants: so_arm_101.usdz, so_arm_101_nested.usdz,
+  and so_arm_101_anonymous.usdz. The _anonymous variant has prim names
+  stripped — this is the canonical blind probe for whether the prompt-library
+  improves classification independently of prim naming.

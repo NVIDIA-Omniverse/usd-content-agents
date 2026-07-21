@@ -2,9 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for unified rendering configuration parser."""
 
+from pathlib import Path
+
 import pytest
 
-from world_understanding.agentic.config import RendererConfig
+from world_understanding.agentic.config import (
+    PrimFilters,
+    RendererConfig,
+    USDDatasetConfig,
+)
+from world_understanding.rendering_backend_contract import RENDERING_BACKEND_NAMES
 
 
 def parse_rendering_config(config: dict) -> RendererConfig:
@@ -29,6 +36,26 @@ def parse_rendering_config(config: dict) -> RendererConfig:
 
 class TestRenderingConfigParser:
     """Test suite for rendering configuration parser."""
+
+    def test_renderer_schema_describes_every_canonical_backend(self):
+        """The shared dataset schema must not carry a drifting backend list."""
+        backend_schema = RendererConfig.model_json_schema()["properties"]["backend"]
+
+        assert backend_schema["default"] == "remote"
+        assert ", ".join(RENDERING_BACKEND_NAMES) in backend_schema["description"]
+
+    def test_renderer_backend_uses_shared_canonical_contract(self):
+        """Canonical names pass model preflight and unknown names fail there."""
+        assert (
+            tuple(
+                RendererConfig(backend=backend_name).backend
+                for backend_name in RENDERING_BACKEND_NAMES
+            )
+            == RENDERING_BACKEND_NAMES
+        )
+
+        with pytest.raises(ValueError, match="Unknown rendering backend: typo"):
+            RendererConfig(backend="typo")
 
     def test_old_format_basic(self):
         """Test parsing old format (material_agent) with basic config."""
@@ -200,6 +227,23 @@ class TestRenderingConfigParser:
         assert result.backend == "remote"
         assert len(result.rendering_modes_config) == 0  # No modes specified
 
+    def test_explicit_none_camera_directions_keeps_default(self):
+        """Explicit None is accepted for camera_directions."""
+        result = RendererConfig(camera_directions=None)
+
+        assert result.camera_directions is None
+
+    def test_old_format_unknown_mode_and_mutated_single_camera(self):
+        """Unknown legacy modes use defaults and tolerate non-list camera state."""
+        renderer = RendererConfig()
+        renderer.camera_directions = "+x"
+
+        modes = renderer.get_rendering_modes_config(["custom_mode"])
+
+        assert modes["custom_mode"].margin == 1.2
+        assert modes["custom_mode"].camera_focus_mode == "prim"
+        assert modes["custom_mode"].cameras == ["+x"]
+
     def test_backward_compatibility(self):
         """Test that old format produces same structure as new format."""
         # Old format config
@@ -299,6 +343,59 @@ class TestRenderingConfigParser:
         assert "composition" in result.rendering_modes_config
         assert result.rendering_modes_config["composition"].camera_focus_mode == "stage"
         assert len(result.rendering_modes_config["prim_with_stage"].cameras) == 8
+
+
+def test_usd_dataset_config_converts_paths_and_context_dict(tmp_path: Path) -> None:
+    config = USDDatasetConfig(
+        usd_path="asset.usda",
+        output_dir="dataset",
+        prim_filters=PrimFilters(types=["UsdGeom.Mesh"]),
+    )
+    path_config = USDDatasetConfig(
+        usd_path=tmp_path / "asset.usda",
+        output_dir=tmp_path / "dataset",
+    )
+
+    context = config.to_context_dict()
+
+    assert config.usd_path == Path("asset.usda")
+    assert config.output_dir == Path("dataset")
+    assert path_config.usd_path == tmp_path / "asset.usda"
+    assert context["usd_path"] == "asset.usda"
+    assert context["output_dir"] == "dataset"
+    assert context["prim_filters"] == {
+        "types": ["UsdGeom.Mesh"],
+        "paths": None,
+        "exclude_paths": None,
+        "allowed_purposes": None,
+        "rigid_body_purpose_fallbacks": None,
+        "skip_fully_transparent": False,
+        "skip_unusable_bbox": False,
+    }
+    assert context["renderer_config"]["backend"] == "remote"
+
+
+def test_usd_dataset_config_from_yaml_resolves_empty_file_with_overrides(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "dataset.yaml"
+    config_path.write_text("", encoding="utf-8")
+
+    config = USDDatasetConfig.from_yaml(
+        config_path,
+        overrides={
+            "usd_path": "asset.usda",
+            "output_dir": "dataset",
+        },
+    )
+
+    assert config.usd_path == (tmp_path / "asset.usda").resolve()
+    assert config.output_dir == (tmp_path / "dataset").resolve()
+
+
+def test_usd_dataset_config_from_yaml_requires_existing_file(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="Configuration file not found"):
+        USDDatasetConfig.from_yaml(tmp_path / "missing.yaml")
 
 
 if __name__ == "__main__":

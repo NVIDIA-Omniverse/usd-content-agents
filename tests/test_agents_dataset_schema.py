@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for dataset schema (v0.2) Pydantic models."""
 
+import json
 from datetime import datetime
 
 import pytest
@@ -19,6 +20,9 @@ from world_understanding.agentic.dataset.schema import (
     PromptConfig,
     SourceInfo,
     TaskConfig,
+    export_json_schema,
+    validate_dataset_config_file,
+    validate_dataset_entry,
 )
 
 
@@ -150,6 +154,10 @@ class TestInferenceConfig:
                     ),  # Missing index 1
                 ]
             )
+
+    def test_step_index_validator_allows_empty_input_fast_path(self):
+        """The sequential-index validator itself leaves empty lists unchanged."""
+        assert InferenceConfig.validate_step_indices([]) == []
 
 
 class TestDatasetConfig:
@@ -346,6 +354,73 @@ class TestDatasetEntry:
         )
 
         assert entry.ground_truth.material == "002_plastic_black"
+
+
+class TestSchemaHelpers:
+    """Test schema export and standalone validation helpers."""
+
+    def test_export_json_schema_includes_config_and_entry(self):
+        schemas = export_json_schema()
+
+        assert set(schemas) == {"dataset_config", "dataset_entry"}
+        assert schemas["dataset_config"]["title"] == "DatasetConfig"
+        assert schemas["dataset_entry"]["title"] == "DatasetEntry"
+
+    def test_validate_dataset_config_file(self, tmp_path):
+        config_path = tmp_path / "dataset.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "0.2",
+                    "metadata": {
+                        "created": "2025-01-15T10:30:00Z",
+                        "creator": "test",
+                        "num_entries": 1,
+                    },
+                    "task": {
+                        "type": "material_assignment",
+                        "description": "Assign materials",
+                    },
+                    "inference": {
+                        "prompts": [
+                            {
+                                "step_name": "main",
+                                "step_index": 0,
+                                "system_prompt": "Prompt",
+                            }
+                        ]
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        config = validate_dataset_config_file(str(config_path))
+
+        assert config.task.type == "material_assignment"
+
+    def test_validate_dataset_config_file_rejects_missing_path(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="Dataset config not found"):
+            validate_dataset_config_file(str(tmp_path / "missing.json"))
+
+    def test_validate_dataset_entry_helper(self):
+        entry = validate_dataset_entry(
+            {
+                "id": "/prim/path",
+                "source": {"type": "usd_prim", "prim_path": "/prim/path"},
+                "user_prompt": "Test prompt",
+                "media": {
+                    "images": [
+                        {
+                            "path": "renders/part1.png",
+                            "type": "render",
+                        }
+                    ]
+                },
+            }
+        )
+
+        assert entry.id == "/prim/path"
 
 
 if __name__ == "__main__":

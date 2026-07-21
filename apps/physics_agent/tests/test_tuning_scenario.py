@@ -154,6 +154,17 @@ def test_parse_scenario_rejects_min_greater_than_max() -> None:
         parse_scenario(raw)
 
 
+def test_parse_scenario_rejects_infeasible_friction_ranges() -> None:
+    raw = _good_scenario()
+    raw["parameters"] = [
+        {"name": "static_friction", "min": 0.1, "max": 0.5},
+        {"name": "dynamic_friction", "min": 0.6, "max": 1.0},
+    ]
+
+    with pytest.raises(ScenarioParseError, match="dynamic_friction minimum"):
+        parse_scenario(raw)
+
+
 def test_parse_scenario_rejects_non_numeric_bound() -> None:
     raw = _good_scenario()
     raw["parameters"] = [{"name": "mass_scale", "min": "low"}]

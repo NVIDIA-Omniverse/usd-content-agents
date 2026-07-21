@@ -13,6 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from physics_agent.api.types import APIResult
+from physics_agent.tuning.visual_evidence import (
+    DEFAULT_JUDGE_GENERATED_FRAMES,
+    DEFAULT_JUDGE_REFERENCE_FRAMES,
+    DEFAULT_REFERENCE_VIDEO_FRAMES,
+)
 
 # Scenario kinds.
 #
@@ -197,6 +202,15 @@ class TuneInput:
 
     reference_video_descriptions: list[str] | None = None
     """Optional descriptions parallel to ``reference_videos``."""
+
+    reference_video_frames: int = DEFAULT_REFERENCE_VIDEO_FRAMES
+    """Number of frames to extract from each reference video for visual judging."""
+
+    judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES
+    """Max reference images/video frames to send to the VLM judge."""
+
+    judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES
+    """Max generated render frames to send to the VLM judge."""
 
     vlm_model: Any | None = None
     """Optional pre-built VLM instance for judging. When this is ``None``,

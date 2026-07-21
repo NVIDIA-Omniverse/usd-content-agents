@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from pxr import Usd, UsdGeom
+from pxr import Usd, UsdGeom, UsdShade
 
 from material_agent.scene import analyze as analyze_module
 from material_agent.scene import llm_refine as llm_refine_module
@@ -16,7 +17,11 @@ from material_agent.scene.analyze import (
     _collect_payload_paths_from_node,
     _count_payload_meshes,
     _detect_payload_groups,
+    _detect_prototype_groups,
     _detect_structural_duplicates,
+    _extract_large_payload_representatives,
+    _extract_prototype,
+    _extract_prototype_sources,
     analyze_scene,
 )
 from material_agent.scene.llm_refine import (
@@ -44,6 +49,7 @@ def test_build_children_list_and_format(tmp_path: Path) -> None:
     child_b = UsdGeom.Xform.Define(stage, "/World/Asset/B")
     mesh_b = UsdGeom.Mesh.Define(stage, "/World/Asset/B/Mesh")
     mesh_b.CreatePointsAttr([(0, 0, 0), (1, 1, 0)])
+    UsdGeom.Xform.Define(stage, "/World/Asset/Empty")
     stage.GetRootLayer().Save()
 
     children = _build_children_list(stage, "/World/Asset")
@@ -57,6 +63,7 @@ def test_build_children_list_and_format(tmp_path: Path) -> None:
     assert [child["vertex_count"] for child in children] == [3, 2]
     assert "A: 1 meshes, 3 vertices" in formatted
     assert "B: 1 meshes, 2 vertices" in formatted
+    assert _build_children_list(stage, "/World/Missing") == []
 
 
 def test_detect_structural_duplicates_and_count_payload_meshes(tmp_path: Path) -> None:
@@ -275,6 +282,47 @@ def test_refine_objects_with_llm_handles_auto_and_llm_paths(
         ],
         "/auto-split/one": [],
         "/auto-split/two": [],
+        "/auto-keep-leaves": [
+            {
+                "name": "leaf-a",
+                "path": "/auto-keep-leaves/a",
+                "mesh_count": 1,
+                "vertex_count": 1,
+            },
+            {
+                "name": "leaf-b",
+                "path": "/auto-keep-leaves/b",
+                "mesh_count": 1,
+                "vertex_count": 1,
+            },
+            {
+                "name": "leaf-c",
+                "path": "/auto-keep-leaves/c",
+                "mesh_count": 1,
+                "vertex_count": 1,
+            },
+        ],
+        "/auto-split-large-child": [
+            {
+                "name": "large",
+                "path": "/auto-split-large-child/large",
+                "mesh_count": 150,
+                "vertex_count": 10,
+            },
+            {
+                "name": "leaf-a",
+                "path": "/auto-split-large-child/a",
+                "mesh_count": 1,
+                "vertex_count": 1,
+            },
+            {
+                "name": "leaf-b",
+                "path": "/auto-split-large-child/b",
+                "mesh_count": 1,
+                "vertex_count": 1,
+            },
+        ],
+        "/auto-split-large-child/large": [],
         "/llm-split": [
             {
                 "name": "left",
@@ -384,20 +432,34 @@ def test_refine_objects_with_llm_handles_auto_and_llm_paths(
         },
         {
             "id": "obj_004",
+            "name": "auto-keep-leaves",
+            "path": "/auto-keep-leaves",
+            "mesh_count": 210,
+            "vertex_count": 1,
+        },
+        {
+            "id": "obj_005",
+            "name": "auto-split-large-child",
+            "path": "/auto-split-large-child",
+            "mesh_count": 210,
+            "vertex_count": 1,
+        },
+        {
+            "id": "obj_006",
             "name": "llm-split",
             "path": "/llm-split",
             "mesh_count": 210,
             "vertex_count": 1,
         },
         {
-            "id": "obj_005",
+            "id": "obj_007",
             "name": "llm-keep",
             "path": "/llm-keep",
             "mesh_count": 210,
             "vertex_count": 1,
         },
         {
-            "id": "obj_006",
+            "id": "obj_008",
             "name": "parse-fail",
             "path": "/parse-fail",
             "mesh_count": 210,
@@ -421,6 +483,9 @@ def test_refine_objects_with_llm_handles_auto_and_llm_paths(
     assert "/auto-descend/child" in refined_paths
     assert "/auto-split" not in refined_paths
     assert "/auto-split/one" in refined_paths
+    assert "/auto-keep-leaves" in refined_paths
+    assert "/auto-split-large-child" not in refined_paths
+    assert "/auto-split-large-child/large" in refined_paths
     assert "/llm-split" not in refined_paths
     assert "/llm-split/left" in refined_paths
     assert "/llm-keep" in refined_paths
@@ -441,6 +506,178 @@ def test_refine_objects_with_llm_handles_auto_and_llm_paths(
         min_mesh_for_review=100,
     )
     assert skipped_refine[0]
+
+
+def test_refine_objects_exits_when_no_llm_or_no_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    objects = [
+        {
+            "id": "obj_bad",
+            "name": "plain",
+            "path": "/plain",
+            "mesh_count": 10,
+            "vertex_count": 1,
+        }
+    ]
+
+    monkeypatch.setattr(
+        "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+        lambda config, defaults=None: None,
+    )
+
+    assert llm_refine_module.refine_objects_with_llm(
+        stage=object(),
+        objects=objects,
+        instance_groups=[{"group_name": "native"}],
+        llm_config={"backend": "mock"},
+    ) == (objects, [{"group_name": "native"}])
+
+    monkeypatch.setattr(
+        "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+        lambda config, defaults=None: object(),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.llm_refine._build_children_list",
+        lambda stage, prim_path: [],
+    )
+
+    assert llm_refine_module.refine_objects_with_llm(
+        stage=object(),
+        objects=objects,
+        instance_groups=[],
+        llm_config={"backend": "mock"},
+    ) == (objects, [])
+
+
+def test_refine_objects_keeps_candidates_at_depth_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    objects = [
+        {
+            "id": "obj_001",
+            "name": "depth-limit",
+            "path": "/depth-limit",
+            "mesh_count": 200,
+            "vertex_count": 1,
+        }
+    ]
+    monkeypatch.setattr(
+        "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+        lambda config, defaults=None: object(),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.llm_refine._build_children_list",
+        lambda stage, prim_path: [
+            {
+                "name": "left",
+                "path": "/depth-limit/left",
+                "mesh_count": 120,
+                "vertex_count": 5,
+            },
+            {
+                "name": "right",
+                "path": "/depth-limit/right",
+                "mesh_count": 125,
+                "vertex_count": 5,
+            },
+        ],
+    )
+
+    refined, _ = llm_refine_module.refine_objects_with_llm(
+        stage=object(),
+        objects=objects,
+        instance_groups=[],
+        llm_config={"backend": "mock"},
+        max_split_depth=0,
+        min_mesh_for_review=100,
+    )
+
+    assert refined == objects
+
+
+def test_refine_objects_keeps_llm_response_when_usage_tracking_fails(
+    monkeypatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    children_map = {
+        "/llm-split": [
+            {
+                "name": "left",
+                "path": "/llm-split/left",
+                "mesh_count": 120,
+                "vertex_count": 5,
+            },
+            {
+                "name": "right",
+                "path": "/llm-split/right",
+                "mesh_count": 125,
+                "vertex_count": 5,
+            },
+        ]
+    }
+
+    monkeypatch.setattr(
+        "material_agent.scene.llm_refine._build_children_list",
+        lambda stage, prim_path: children_map.get(prim_path, []),
+    )
+    monkeypatch.setattr(
+        "world_understanding.utils.usd.prim.get_subtree_geometry_stats",
+        lambda stage, path, skip_geometry=False: {
+            "mesh_count": next(
+                child["mesh_count"]
+                for values in children_map.values()
+                for child in values
+                if child["path"] == path
+            ),
+            "vertex_count": 42,
+            "face_count": 7,
+            "prim_type_breakdown": {"Mesh": 1},
+        },
+    )
+    monkeypatch.setattr(
+        "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+        lambda config, defaults=None: SimpleNamespace(
+            invoke=lambda messages: SimpleNamespace(
+                content='{"action": "split", "reason": "modular"}'
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "world_understanding.utils.llm_parsing.extract_json_from_llm_response",
+        lambda content, expected_keys=None: json.loads(content),
+    )
+
+    def fail_usage_recording(*args, **kwargs):
+        raise RuntimeError("usage tracker failed")
+
+    monkeypatch.setattr(
+        "material_agent.scene.stats.record_model_response_usage",
+        fail_usage_recording,
+    )
+
+    caplog.set_level(logging.WARNING, logger="material_agent.scene.llm_refine")
+    refined, _ = llm_refine_module.refine_objects_with_llm(
+        stage=object(),
+        objects=[
+            {
+                "id": "obj_001",
+                "name": "llm-split",
+                "path": "/llm-split",
+                "mesh_count": 210,
+                "vertex_count": 1,
+            }
+        ],
+        instance_groups=[],
+        llm_config={"backend": "mock", "model": "mock", "max_workers": 1},
+        min_mesh_for_review=100,
+        token_tracker=object(),
+    )
+
+    refined_paths = {obj["path"] for obj in refined}
+    assert "/llm-split" not in refined_paths
+    assert "/llm-split/left" in refined_paths
+    assert "Failed to record LLM usage" in caplog.text
 
 
 def test_split_context_and_analyze_scene_main(monkeypatch, tmp_path: Path) -> None:
@@ -497,6 +734,13 @@ def test_split_context_and_analyze_scene_main(monkeypatch, tmp_path: Path) -> No
             "vertex_count": 5,
         },
         {
+            "id": "obj_outside",
+            "name": "Outside",
+            "path": "/Other/Outside",
+            "mesh_count": 12,
+            "vertex_count": 24,
+        },
+        {
             "id": "obj_child",
             "name": "Child",
             "path": "/World/Parent/Child",
@@ -507,11 +751,17 @@ def test_split_context_and_analyze_scene_main(monkeypatch, tmp_path: Path) -> No
     ]
     instance_groups_raw = [
         {
+            "group_name": "direct_group",
+            "source_file": "/tmp/direct.usd",
+            "instance_count": 1,
+            "member_paths": ["/World/Keep"],
+        },
+        {
             "group_name": "native_group",
             "source_file": "/tmp/source.usd",
             "instance_count": 2,
             "member_paths": ["/World/Parent"],
-        }
+        },
     ]
     monkeypatch.setattr(
         "world_understanding.functions.graphics.usd_scene_analysis.detect_objects",
@@ -543,21 +793,24 @@ def test_split_context_and_analyze_scene_main(monkeypatch, tmp_path: Path) -> No
             )
         ],
     )
-    monkeypatch.setattr(
-        "material_agent.scene.analyze._extract_large_payload_representatives",
-        lambda payload_groups, scene_usd_path: payload_groups.__setitem__(
-            0,
-            PayloadGroup(
-                **{
-                    **payload_groups[0].__dict__,
-                    "representative_path": "/tmp/payload_one_representative.usd",
-                }
-            ),
-        ),
-    )
-    monkeypatch.setattr(
-        "material_agent.scene.analyze._detect_prototype_groups",
-        lambda stage, scene_usd_path: [
+    captured_working_dirs = {}
+
+    def fake_extract_representatives(
+        payload_groups,
+        scene_usd_path,
+        working_dir=None,
+    ):
+        captured_working_dirs["extract"] = working_dir
+        payload_groups[0] = PayloadGroup(
+            **{
+                **payload_groups[0].__dict__,
+                "representative_path": "/tmp/payload_one_representative.usd",
+            }
+        )
+
+    def fake_detect_prototypes(stage, scene_usd_path, working_dir=None):
+        captured_working_dirs["prototype"] = working_dir
+        return [
             PayloadGroup(
                 id="proto_one",
                 group_name="proto_one",
@@ -565,9 +818,18 @@ def test_split_context_and_analyze_scene_main(monkeypatch, tmp_path: Path) -> No
                 instance_count=1,
                 instance_paths=["/World/Proto"],
             )
-        ],
+        ]
+
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._extract_large_payload_representatives",
+        fake_extract_representatives,
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._detect_prototype_groups",
+        fake_detect_prototypes,
     )
 
+    analysis_dir = tmp_path / "analysis"
     manifest = analyze_scene(
         tmp_path / "scene.usda",
         filters={
@@ -577,13 +839,504 @@ def test_split_context_and_analyze_scene_main(monkeypatch, tmp_path: Path) -> No
             "detect_structural_duplicates": True,
         },
         llm_config={"backend": "mock", "model": "mock"},
+        working_dir=analysis_dir,
     )
 
     assert [sa.id for sa in manifest.sub_assets] == ["obj_keep", "obj_child"]
     assert manifest.sub_assets[1].instance_group is None
-    assert manifest.instance_groups[0].representative_id == "obj_child"
-    assert manifest.analysis["total_objects_detected"] == 4
+    representatives = {
+        group.group_name: group.representative_id for group in manifest.instance_groups
+    }
+    assert representatives["direct_group"] == "obj_keep"
+    assert representatives["native_group"] == "obj_child"
+    assert manifest.analysis["total_objects_detected"] == 5
     assert manifest.analysis["total_objects_after_filter"] == 2
     assert manifest.analysis["total_payload_groups"] == 2
     assert manifest.payload_groups[0].group_name == "payload_one"
     assert manifest.payload_groups[1].group_name == "proto_one"
+    assert captured_working_dirs == {
+        "extract": analysis_dir,
+        "prototype": analysis_dir,
+    }
+
+
+@pytest.mark.parametrize(
+    "filter_key",
+    ["exclude_invisible_assets", "skip_invisible"],
+)
+def test_analyze_scene_skip_invisible_traverses_instance_proxies(
+    monkeypatch, tmp_path: Path, filter_key: str
+) -> None:
+    scene_path = tmp_path / "instanced_scene.usda"
+    stage = _make_stage(scene_path)
+    prototype = UsdGeom.Xform.Define(stage, "/World/Prototype")
+    UsdGeom.Mesh.Define(stage, f"{prototype.GetPath()}/Mesh")
+
+    instance = UsdGeom.Xform.Define(stage, "/World/InstancedAsset").GetPrim()
+    instance.GetReferences().AddInternalReference(str(prototype.GetPath()))
+    instance.SetInstanceable(True)
+
+    material_asset = UsdGeom.Xform.Define(stage, "/World/AssetWithMaterial")
+    UsdShade.Material.Define(stage, f"{material_asset.GetPath()}/Looks/Material")
+    UsdGeom.Mesh.Define(stage, f"{material_asset.GetPath()}/Mesh")
+
+    hidden_group = UsdGeom.Xform.Define(stage, "/World/HiddenGroup")
+    UsdGeom.Imageable(hidden_group).CreateVisibilityAttr(UsdGeom.Tokens.invisible)
+    hidden_asset = UsdGeom.Xform.Define(stage, f"{hidden_group.GetPath()}/HiddenAsset")
+    UsdGeom.Mesh.Define(stage, f"{hidden_asset.GetPath()}/Mesh")
+    hidden_child_container = UsdGeom.Xform.Define(
+        stage,
+        "/World/HiddenChildContainer",
+    )
+    hidden_child = UsdGeom.Xform.Define(
+        stage,
+        f"{hidden_child_container.GetPath()}/HiddenChild",
+    )
+    UsdGeom.Imageable(hidden_child).CreateVisibilityAttr(UsdGeom.Tokens.invisible)
+    UsdGeom.Mesh.Define(stage, f"{hidden_child.GetPath()}/Mesh")
+    stage.GetRootLayer().Save()
+
+    objects = [
+        {
+            "id": "obj_instance",
+            "name": "InstancedAsset",
+            "path": str(instance.GetPath()),
+            "mesh_count": 1,
+            "vertex_count": 0,
+        },
+        {
+            "id": "obj_material",
+            "name": "AssetWithMaterial",
+            "path": str(material_asset.GetPath()),
+            "mesh_count": 1,
+            "vertex_count": 0,
+        },
+        {
+            "id": "obj_hidden",
+            "name": "HiddenAsset",
+            "path": str(hidden_asset.GetPath()),
+            "mesh_count": 1,
+            "vertex_count": 0,
+        },
+        {
+            "id": "obj_hidden_child",
+            "name": "HiddenChildContainer",
+            "path": str(hidden_child_container.GetPath()),
+            "mesh_count": 1,
+            "vertex_count": 0,
+        },
+        {
+            "id": "obj_missing",
+            "name": "MissingAsset",
+            "path": "/World/MissingAsset",
+            "mesh_count": 1,
+            "vertex_count": 0,
+        },
+    ]
+    monkeypatch.setattr(
+        "world_understanding.functions.graphics.usd_scene_analysis.detect_objects",
+        lambda *args, **kwargs: (objects, []),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._detect_payload_groups",
+        lambda stage, scene_usd_path: [],
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._detect_prototype_groups",
+        lambda stage, scene_usd_path: [],
+    )
+
+    manifest = analyze_scene(
+        scene_path,
+        filters={filter_key: True},
+        llm_config=None,
+    )
+
+    assert [sub_asset.id for sub_asset in manifest.sub_assets] == [
+        "obj_instance",
+        "obj_material",
+    ]
+
+
+def test_scene_analyze_payload_and_structural_edge_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    stage = _make_stage(tmp_path / "scene.usda")
+    UsdGeom.Mesh.Define(stage, "/World/A/Mesh")
+    UsdGeom.Mesh.Define(stage, "/World/B/Mesh")
+    stage.GetRootLayer().Save()
+
+    sub_assets = [
+        SubAsset(id="a", name="A", prim_path="/World/A"),
+        SubAsset(id="b", name="B", prim_path="/World/B"),
+        SubAsset(id="missing", name="Missing", prim_path="/World/Missing"),
+    ]
+    updated, groups = _detect_structural_duplicates(stage, sub_assets)
+    assert updated[1].instance_group == "structural_A"
+    assert updated[2].instance_group is None
+    assert groups[0].member_paths == ["/World/B"]
+
+    monkeypatch.setattr("pxr.Usd.Stage.Open", lambda payload_file: None)
+    assert _count_payload_meshes(str(tmp_path / "missing.usda")) == 0
+
+    def raise_open(payload_file: str):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("pxr.Usd.Stage.Open", raise_open)
+    assert _count_payload_meshes(str(tmp_path / "broken.usda")) == 0
+
+    payload_path = tmp_path / "Payload A.usda"
+    payload_path.write_text("", encoding="utf-8")
+
+    class FakePrim:
+        def __init__(
+            self, path: str, is_instance: bool, root_node: object | None
+        ) -> None:
+            self._path = path
+            self._is_instance = is_instance
+            self._root_node = root_node
+
+        def IsInstance(self) -> bool:
+            return self._is_instance
+
+        def GetPath(self) -> str:
+            return self._path
+
+        def GetPrimIndex(self):
+            if self._root_node == "no-index":
+                return None
+            return SimpleNamespace(rootNode=self._root_node)
+
+    class FakeStage:
+        def Traverse(self):
+            return [
+                FakePrim("/World/NoIndex", True, "no-index"),
+                FakePrim("/World/NoRoot", True, None),
+                FakePrim("/World/Instance", True, "payload"),
+                FakePrim("/World/Plain", False, "ignored"),
+            ]
+
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._collect_payload_paths_from_node",
+        lambda node, scene_dir: [str(payload_path.resolve())],
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._count_payload_meshes", lambda payload_file: 1
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._build_payload_dag", lambda groups: groups
+    )
+
+    groups = _detect_payload_groups(FakeStage(), tmp_path / "scene.usda")
+    assert len(groups) == 1
+    assert groups[0].instance_paths == ["/World/Instance"]
+
+
+def test_scene_analyze_prototype_group_edge_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class FakePrim:
+        def __init__(
+            self,
+            path: str,
+            *,
+            name: str | None = None,
+            is_instance: bool = False,
+            prototype: object | None = None,
+            valid: bool = True,
+            is_mesh: bool = False,
+        ) -> None:
+            self._path = path
+            self._name = name or path.rsplit("/", 1)[-1]
+            self._is_instance = is_instance
+            self._prototype = prototype
+            self._valid = valid
+            self._is_mesh = is_mesh
+
+        def GetName(self) -> str:
+            return self._name
+
+        def GetPath(self) -> str:
+            return self._path
+
+        def GetPrototype(self):
+            return self._prototype
+
+        def IsInstance(self) -> bool:
+            return self._is_instance
+
+        def IsValid(self) -> bool:
+            return self._valid
+
+        def IsA(self, schema) -> bool:
+            return self._is_mesh
+
+    empty_proto = FakePrim("/__Prototype_1")
+    mesh_without_instance = FakePrim("/__Prototype_2")
+    mesh_with_instance = FakePrim("/__Prototype_3")
+    instance = FakePrim(
+        "/World/Instance",
+        name="Nice Instance",
+        is_instance=True,
+        prototype=mesh_with_instance,
+    )
+    invalid_named_instance = FakePrim(
+        "/World/InvalidName",
+        is_instance=True,
+        prototype=mesh_with_instance,
+        valid=False,
+    )
+
+    class FakeStage:
+        def GetPrototypes(self):
+            return [empty_proto, mesh_without_instance, mesh_with_instance]
+
+        def Traverse(self):
+            return [instance, invalid_named_instance]
+
+        def GetPrimAtPath(self, path: str):
+            if path == "/World/Instance":
+                return instance
+            return invalid_named_instance
+
+    def fake_prim_range(proto, *args):
+        if proto is empty_proto:
+            return [FakePrim("/__Prototype_1/Xform")]
+        return [FakePrim(str(proto.GetPath()) + "/Mesh", is_mesh=True)]
+
+    monkeypatch.setattr("pxr.Usd.PrimRange", fake_prim_range)
+    monkeypatch.setattr("pxr.Usd.TraverseInstanceProxies", lambda: object())
+
+    def fail_extract(stage, representative_path: str, output_path: str) -> None:
+        raise RuntimeError("extract failed")
+
+    monkeypatch.setattr("material_agent.scene.analyze._extract_prototype", fail_extract)
+
+    assert _detect_prototype_groups(FakeStage(), tmp_path / "scene.usda") == []
+
+    empty_stage = SimpleNamespace(GetPrototypes=lambda: [])
+    assert _detect_prototype_groups(empty_stage, tmp_path / "scene.usda") == []
+
+    def write_extract(stage, representative_path: str, output_path: str) -> None:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(output_path).write_text("#usda 1.0\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._extract_prototype", write_extract
+    )
+
+    active = _detect_prototype_groups(FakeStage(), tmp_path / "scene.usda")
+    assert len(active) == 1
+    assert active[0].group_name == "nice_instance"
+    assert active[0].payload_file.endswith("nice_instance.usd")
+
+
+def test_extract_prototype_mask_paths_and_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    masks: list[list[str]] = []
+    exports: list[str] = []
+
+    class FakeProto:
+        def GetPath(self) -> str:
+            return "/__Prototype_1"
+
+    class FakePrim:
+        def __init__(self, *, is_instance: bool, prototype: object | None) -> None:
+            self._is_instance = is_instance
+            self._prototype = prototype
+            self.instanceable: bool | None = None
+
+        def IsInstance(self) -> bool:
+            return self._is_instance
+
+        def GetPrototype(self):
+            return self._prototype
+
+        def SetInstanceable(self, value: bool) -> None:
+            self.instanceable = value
+
+    class FakeFlatLayer:
+        def Export(self, path: str) -> None:
+            exports.append(path)
+
+    class FakeMaskedStage:
+        def __init__(self) -> None:
+            self.masked_prim = FakePrim(is_instance=True, prototype=FakeProto())
+
+        def GetPrimAtPath(self, path: str):
+            return self.masked_prim
+
+        def Flatten(self) -> FakeFlatLayer:
+            return FakeFlatLayer()
+
+    class FakeStage:
+        def GetRootLayer(self):
+            return object()
+
+        def GetPrimAtPath(self, path: str):
+            return FakePrim(is_instance=True, prototype=FakeProto())
+
+    def fake_mask(paths: list[str]):
+        masks.append(list(paths))
+        return object()
+
+    monkeypatch.setattr("pxr.Usd.StagePopulationMask", fake_mask)
+    monkeypatch.setattr("pxr.Usd.Stage.OpenMasked", lambda *args: FakeMaskedStage())
+
+    out_file = tmp_path / "prototype.usda"
+    _extract_prototype(FakeStage(), "/World/Instance", str(out_file))
+    assert masks == [["/World/Instance", "/__Prototype_1"]]
+    assert exports == [str(out_file)]
+
+    monkeypatch.setattr("pxr.Usd.Stage.OpenMasked", lambda *args: None)
+    with pytest.raises(RuntimeError, match="Failed to open masked stage"):
+        _extract_prototype(FakeStage(), "/World/Instance", str(out_file))
+
+
+def test_large_payload_representative_extraction_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    skipped = PayloadGroup(
+        id="skipped",
+        group_name="Skipped",
+        payload_file=str(tmp_path / "skipped.usda"),
+        status="skipped",
+    )
+    missing = PayloadGroup(id="missing", group_name="Missing", payload_file="")
+    unreadable = PayloadGroup(
+        id="unreadable",
+        group_name="Unreadable",
+        payload_file=str(tmp_path / "unreadable.usda"),
+    )
+    small = PayloadGroup(
+        id="small",
+        group_name="Small",
+        payload_file=str(tmp_path / "small.usda"),
+    )
+    large_without_instances = PayloadGroup(
+        id="plain",
+        group_name="Plain",
+        payload_file=str(tmp_path / "plain.usda"),
+    )
+    large_with_instances = PayloadGroup(
+        id="large",
+        group_name="Large",
+        payload_file=str(tmp_path / "large.usda"),
+    )
+    large_with_working_dir = PayloadGroup(
+        id="working",
+        group_name="WorkingDir",
+        payload_file=str(tmp_path / "working.usda"),
+    )
+    representative = tmp_path / "large_representative.usda"
+    working_representative = tmp_path / "working_representative.usda"
+
+    def fake_getsize(path) -> int:
+        path = str(path)
+        if path.endswith("unreadable.usda"):
+            raise OSError("missing")
+        if path in {str(representative), str(working_representative)}:
+            return 2 * 1024 * 1024
+        if path.endswith(("plain.usda", "large.usda", "working.usda")):
+            return analyze_module._LARGE_PAYLOAD_THRESHOLD_BYTES + 1024
+        return 1
+
+    analysis_dir = tmp_path / "analysis"
+    seen_working_dirs = []
+
+    def fake_extract(
+        payload_file: str,
+        scene_usd_path: Path,
+        working_dir: Path | None = None,
+    ) -> Path | None:
+        seen_working_dirs.append(working_dir)
+        if payload_file.endswith("working.usda"):
+            assert working_dir == analysis_dir
+            return working_representative
+        assert working_dir is None
+        if payload_file.endswith("large.usda"):
+            return representative
+        return None
+
+    monkeypatch.setattr("os.path.getsize", fake_getsize)
+    monkeypatch.setattr(
+        "material_agent.scene.analyze._extract_prototype_sources", fake_extract
+    )
+
+    _extract_large_payload_representatives(
+        [
+            skipped,
+            missing,
+            unreadable,
+            small,
+            large_without_instances,
+            large_with_instances,
+        ],
+        tmp_path / "scene.usda",
+    )
+    _extract_large_payload_representatives(
+        [large_with_working_dir],
+        tmp_path / "scene.usda",
+        working_dir=analysis_dir,
+    )
+
+    assert large_without_instances.representative_path is None
+    assert large_with_instances.representative_path == str(representative)
+    assert large_with_working_dir.representative_path == str(working_representative)
+    assert seen_working_dirs == [None, None, analysis_dir]
+
+
+def test_extract_prototype_sources_failures_and_success(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    payload_path = tmp_path / "payload.usda"
+    scene_path = tmp_path / "scene.usda"
+
+    def raise_open(payload_file: str):
+        raise RuntimeError("cannot open")
+
+    monkeypatch.setattr("pxr.Usd.Stage.Open", raise_open)
+    assert _extract_prototype_sources(str(payload_path), scene_path) is None
+
+    monkeypatch.setattr("pxr.Usd.Stage.Open", lambda payload_file: None)
+    assert _extract_prototype_sources(str(payload_path), scene_path) is None
+
+    class EmptyPrototypeStage:
+        def GetPrototypes(self):
+            return []
+
+    monkeypatch.setattr(
+        "pxr.Usd.Stage.Open", lambda payload_file: EmptyPrototypeStage()
+    )
+    assert _extract_prototype_sources(str(payload_path), scene_path) is None
+
+    class NoSourceStage:
+        def GetPrototypes(self):
+            return [object()]
+
+        def GetPseudoRoot(self):
+            return SimpleNamespace(GetChildren=lambda: [])
+
+    monkeypatch.setattr("pxr.Usd.Stage.Open", lambda payload_file: NoSourceStage())
+    assert _extract_prototype_sources(str(payload_path), scene_path) is None
+
+    payload_stage = Usd.Stage.CreateNew(str(payload_path))
+    UsdGeom.Xform.Define(payload_stage, "/World")
+    source = UsdGeom.Xform.Define(payload_stage, "/World/Source").GetPrim()
+    UsdGeom.Mesh.Define(payload_stage, "/World/Source/Mesh")
+    instance = UsdGeom.Xform.Define(payload_stage, "/World/Instance").GetPrim()
+    instance.GetReferences().AddInternalReference(str(source.GetPath()))
+    instance.SetInstanceable(True)
+    payload_stage.GetRootLayer().Save()
+
+    monkeypatch.undo()
+    extracted = _extract_prototype_sources(str(payload_path), scene_path)
+    assert extracted == tmp_path / ".scene_working" / "representatives" / (
+        "payload_representative.usd"
+    )
+    assert extracted.exists()
+
+    monkeypatch.setattr("pxr.Usd.Stage.Open", lambda payload_file: payload_stage)
+    monkeypatch.setattr("pxr.Usd.Stage.OpenMasked", lambda *args: None)
+    assert _extract_prototype_sources(str(payload_path), scene_path) is None

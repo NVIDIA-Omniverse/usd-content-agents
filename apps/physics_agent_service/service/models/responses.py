@@ -7,6 +7,33 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class ErrorDetail(BaseModel):
+    """Standard FastAPI error payload returned by authorization failures."""
+
+    detail: str = Field(description="Human-readable error detail")
+
+
+S3_INPUT_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    403: {
+        "description": (
+            "Client S3 URI rejected by the configured bucket allowlist, "
+            "or S3 access denied."
+        ),
+        "model": ErrorDetail,
+    }
+}
+
+PREDICT_INPUT_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    403: {
+        "description": (
+            "dataset_path resolves outside allowed roots; client S3 URI rejected "
+            "by the configured bucket allowlist; or S3 access denied."
+        ),
+        "model": ErrorDetail,
+    }
+}
+
+
 class StepProgress(BaseModel):
     """Progress information for a single step."""
 
@@ -104,7 +131,7 @@ class PipelineError(BaseModel):
 
     session_id: str
     status: str = "failed"
-    error_message: str = Field(description="Error description")
+    error_message: str = Field(description="Stable value-free diagnostic code")
     failed_step: str = Field(description="Step that failed")
     completed_steps: list[str] = Field(
         default_factory=list, description="Steps completed before failure"
@@ -200,6 +227,10 @@ class TuneStatus(BaseModel):
     )
     elapsed_seconds: int = Field(description="Total elapsed time in seconds")
     can_cancel: bool = Field(description="Whether tune can be cancelled")
+    error_message: str | None = Field(
+        default=None,
+        description="Failure reason for terminal failed tune sessions.",
+    )
     created_at: str
     updated_at: str
 
@@ -226,7 +257,10 @@ class TuneResults(BaseModel):
     n_trials: int
     optimizer_used: str = Field(description="Resolved optimizer name (auto→botorch)")
     engine_used: str
-    download_urls: dict[str, str] = Field(default_factory=dict)
+    download_urls: dict[str, str] = Field(
+        default_factory=dict,
+        description="URLs for tune artifacts that were produced and published.",
+    )
     duration_seconds: int
     completed_at: str
     error_message: str | None = Field(
@@ -236,3 +270,61 @@ class TuneResults(BaseModel):
             "partial tune results and artifact URLs."
         ),
     )
+
+
+class RefineStatus(BaseModel):
+    """Status response for an iterative refine session."""
+
+    session_id: str
+    status: str = Field(
+        description="pending, running, completed, failed, cancelled, cancelling"
+    )
+    iteration: int = Field(default=0, description="Current or final iteration number")
+    max_iterations: int = Field(default=0, description="Configured iteration cap")
+    n_trials: int = Field(
+        default=0, description="Trials completed in current iteration"
+    )
+    max_trials: int = Field(
+        default=0, description="Configured trial budget per iteration"
+    )
+    best_score: float | None = Field(
+        default=None, description="Best score observed in current/final iteration"
+    )
+    best_params: dict[str, float] | None = Field(
+        default=None,
+        description="Best parameter set observed in current/final iteration",
+    )
+    judge_score: float | None = Field(
+        default=None, description="Latest judge score, when available"
+    )
+    termination_reason: str | None = Field(
+        default=None,
+        description="approved, max_iterations, cancelled, error, or null while running",
+    )
+    elapsed_seconds: int = Field(description="Total elapsed time in seconds")
+    can_cancel: bool = Field(description="Whether refine can be cancelled")
+    error_message: str | None = Field(
+        default=None,
+        description="Failure reason for terminal failed refine sessions.",
+    )
+    created_at: str
+    updated_at: str
+
+
+class RefineResults(BaseModel):
+    """Results response for a terminal refine session."""
+
+    session_id: str
+    status: str
+    termination_reason: str
+    iteration_count: int
+    final_iteration: int
+    final_judge_score: float | None = None
+    iterations: list[dict[str, Any]] = Field(default_factory=list)
+    download_urls: dict[str, str] = Field(
+        default_factory=dict,
+        description="URLs for refine artifacts that were produced and published.",
+    )
+    duration_seconds: int
+    completed_at: str
+    error_message: str | None = None

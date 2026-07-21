@@ -59,6 +59,13 @@ class IdentifyAssetTask(Task):
         listener = get_listener(context, logger_name=__name__)
 
         vlm = context.get("vlm")
+        if isinstance(vlm, dict):
+            context.setdefault("vlm_config", vlm)
+            vlm = None
+        elif vlm is not None and not hasattr(vlm, "generate_with_image_caption_pairs"):
+            raise TypeError(
+                "vlm must be a provisioned vision-language model or a VLM config dict"
+            )
         images = context.get("composition_images") or context.get(
             "rendered_preview_paths", []
         )

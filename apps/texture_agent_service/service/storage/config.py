@@ -51,7 +51,7 @@ class StorageConfig:
         repr=False,
     )
     s3_session_token: str | None = field(
-        default_factory=lambda: os.getenv("TA_STORAGE_S3_SESSION_TOKEN"),
+        default_factory=lambda: os.getenv("TA_STORAGE_S3_SESSION_TOKEN") or None,
         repr=False,
     )
     s3_use_path_style: bool = field(

@@ -11,12 +11,20 @@ This module contains:
 from .bus import EventBus, get_event_bus
 from .events import ProgressEvent, StepState
 from .registry import JobRegistry, get_job_registry
+from .texture_execution import (
+    TEXTURE_EXECUTION_ACCEPTED_PREFIX,
+    TEXTURE_EXECUTION_CHECKPOINT_KEY,
+    SessionTextureExecutionCheckpointStore,
+)
 
 __all__ = [
-    "ProgressEvent",
-    "StepState",
     "EventBus",
-    "get_event_bus",
     "JobRegistry",
+    "ProgressEvent",
+    "SessionTextureExecutionCheckpointStore",
+    "StepState",
+    "TEXTURE_EXECUTION_ACCEPTED_PREFIX",
+    "TEXTURE_EXECUTION_CHECKPOINT_KEY",
+    "get_event_bus",
     "get_job_registry",
 ]

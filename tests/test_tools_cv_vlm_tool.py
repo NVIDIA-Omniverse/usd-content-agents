@@ -8,7 +8,44 @@ from unittest.mock import patch
 
 import pytest
 
-from world_understanding.tools.cv.vlm import VLMInput, VLMOutput, vlm_tool
+from world_understanding.tools.cv.vlm import (
+    VLMInput,
+    VLMOutput,
+    _display_vlm_response,
+    vlm_tool,
+)
+
+
+class RecordingConsole:
+    """Minimal console double that records print calls."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def print(self, *args, **kwargs) -> None:
+        self.calls.append((args, kwargs))
+
+
+def test_display_vlm_response_includes_optional_model() -> None:
+    console = RecordingConsole()
+
+    _display_vlm_response(
+        {
+            "backend_used": "nim",
+            "model_used": "qwen/qwen3.5-397b-a17b",
+            "images_analyzed": 2,
+            "response": "Two objects are visible.",
+        },
+        console,
+        indent="  ",
+    )
+
+    rendered = "\n".join(str(call[0][0]) for call in console.calls)
+    assert "VLM Analysis Results" in rendered
+    assert "Backend: nim" in rendered
+    assert "Model: qwen/qwen3.5-397b-a17b" in rendered
+    assert "Images Analyzed: 2" in rendered
+    assert "Two objects are visible." in rendered
 
 
 def test_vlm_tool_accepts_gemini_api_key_alias(
@@ -44,6 +81,64 @@ def test_vlm_tool_accepts_gemini_api_key_alias(
     mock_create_vlm.assert_called_once()
     call_kwargs = mock_create_vlm.call_args[1]
     assert call_kwargs["api_key"] == "gemini-key"
+
+
+@pytest.mark.parametrize(
+    ("backend", "expected_model", "custom_base_url"),
+    (
+        ("test-provider", None, None),
+        ("nim", "qwen/qwen3.5-397b-a17b", None),
+        ("openai", "gpt-5.4", "https://api.openai.example/v1"),
+        ("anthropic", "claude-opus-4-6", None),
+    ),
+)
+def test_vlm_tool_uses_backend_default_models(
+    backend: str,
+    expected_model: str | None,
+    custom_base_url: str | None,
+) -> None:
+    fake_vlm = object()
+
+    with (
+        patch(
+            "world_understanding.tools.cv.vlm.create_vlm",
+            return_value=fake_vlm,
+        ) as mock_create_vlm,
+        patch(
+            "world_understanding.tools.cv.vlm.generate_vlm_response",
+            return_value={"response": f"{backend} response"},
+        ) as mock_generate_response,
+    ):
+        output = vlm_tool(
+            VLMInput(
+                prompt="Describe this image",
+                images=["image.png", "other.png"],
+                backend=backend,
+                api_key="explicit-key",
+                base_url=custom_base_url,
+            )
+        )
+
+    assert output.response == f"{backend} response"
+    assert output.backend_used == backend
+    assert output.model_used == expected_model
+    assert output.images_analyzed == 2
+    create_kwargs = mock_create_vlm.call_args.kwargs
+    assert create_kwargs["backend"] == backend
+    assert create_kwargs["api_key"] == "explicit-key"
+    assert create_kwargs["model"] == expected_model
+    if custom_base_url is None:
+        assert "base_url" not in create_kwargs
+    else:
+        assert create_kwargs["base_url"] == custom_base_url
+    mock_generate_response.assert_called_once_with(
+        vlm=fake_vlm,
+        prompt="Describe this image",
+        images=["image.png", "other.png"],
+        system_prompt="You are a helpful AI assistant that can analyze images.",
+        temperature=0.7,
+        max_tokens=1024,
+    )
 
 
 def test_vlm_tool_openai_rejects_hosted_key_with_env_redirected_base_url(

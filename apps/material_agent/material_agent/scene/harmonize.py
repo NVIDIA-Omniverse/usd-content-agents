@@ -242,6 +242,25 @@ def _compute_geometry_fingerprints(
     Fingerprint = (vertex_count, face_count, rounded_bbox_dimensions).
     Returns dict of group_key → list of prediction indices.
     """
+    prim_fingerprints = _compute_geometry_fingerprint_map(
+        predictions, optimized_usd_path
+    )
+
+    # Group by fingerprint
+    groups: dict[str, list[int]] = defaultdict(list)
+    for idx, pred in enumerate(predictions):
+        fp = prim_fingerprints.get(pred["id"])
+        if fp:
+            groups[f"geo:{fp}"].append(idx)
+
+    return {k: v for k, v in groups.items() if len(v) > 1}
+
+
+def _compute_geometry_fingerprint_map(
+    predictions: list[dict[str, Any]],
+    optimized_usd_path: str | None,
+) -> dict[str, str]:
+    """Return prediction prim path → geometry fingerprint from a USD stage."""
     if not optimized_usd_path:
         return {}
 
@@ -261,7 +280,6 @@ def _compute_geometry_fingerprints(
         logger.warning("Failed to open USD stage: %s", usd_path)
         return {}
 
-    # Build a map of prim_path → geometry fingerprint
     prim_fingerprints: dict[str, str] = {}
     for pred in predictions:
         prim_path = pred["id"]
@@ -277,15 +295,55 @@ def _compute_geometry_fingerprints(
         fp = _fingerprint_prim(prim)
         if fp:
             prim_fingerprints[prim_path] = fp
+    return prim_fingerprints
 
-    # Group by fingerprint
-    groups: dict[str, list[int]] = defaultdict(list)
-    for idx, pred in enumerate(predictions):
-        fp = prim_fingerprints.get(pred["id"])
-        if fp:
-            groups[f"geo:{fp}"].append(idx)
 
-    return {k: v for k, v in groups.items() if len(v) > 1}
+def _constrain_name_groups_by_geometry(
+    name_groups: dict[str, list[int]],
+    predictions: list[dict[str, Any]],
+    geometry_by_path: dict[str, str],
+) -> dict[str, list[int]]:
+    """Split name-template groups by geometry when fingerprints are available.
+
+    Generic CAD node names such as ``node123`` and ``mesh456`` can otherwise
+    group unlike siblings, for example a tabletop with workbench legs.  If a
+    geometry fingerprint is available for any group member, keep only
+    same-fingerprint subgroups from that name-template group.  When no geometry
+    data is available, retain the original behavior.
+    """
+    if not geometry_by_path:
+        return name_groups
+
+    constrained: dict[str, list[int]] = {}
+    for group_name, members in name_groups.items():
+        fp_groups: dict[str, list[int]] = defaultdict(list)
+        missing: list[int] = []
+        for idx in members:
+            fp = geometry_by_path.get(predictions[idx]["id"])
+            if fp:
+                fp_groups[fp].append(idx)
+            else:
+                missing.append(idx)
+
+        if len(missing) == len(members):
+            constrained[group_name] = members
+            continue
+
+        if missing:
+            logger.warning(
+                "Name-template group %s has %d member(s) without geometry "
+                "fingerprints; keeping missing-fingerprint members in a "
+                "separate subgroup.",
+                group_name,
+                len(missing),
+            )
+            constrained[f"{group_name}|geo:missing"] = missing
+
+        for fp, fp_members in fp_groups.items():
+            if len(fp_members) > 1:
+                constrained[f"{group_name}|geo:{fp}"] = fp_members
+
+    return constrained
 
 
 def _fingerprint_prim(prim: Any) -> str | None:
@@ -974,9 +1032,16 @@ def harmonize_asset_predictions(
         )
         return predictions_path, {}
 
-    # Compute all three grouping signals
+    # Compute all three grouping signals.  Name-template grouping is constrained
+    # by geometry where possible to avoid grouping unlike generic node siblings.
     sig_groups = _group_by_signature(predictions)
-    name_groups = _group_by_name_template(predictions)
+    raw_name_groups = _group_by_name_template(predictions)
+    geometry_by_path = _compute_geometry_fingerprint_map(
+        predictions, optimized_usd_path
+    )
+    name_groups = _constrain_name_groups_by_geometry(
+        raw_name_groups, predictions, geometry_by_path
+    )
     geo_groups = _compute_geometry_fingerprints(predictions, optimized_usd_path)
 
     logger.info(

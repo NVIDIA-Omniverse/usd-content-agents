@@ -177,6 +177,38 @@ class TestBuildTextVectorStoreTool:
         assert len(output.errors) == 1
         assert "File not found" in output.errors[0]
 
+    @patch(
+        "world_understanding.tools.knowledge.text_vector_store.build_text_vector_store_func"
+    )
+    def test_build_accepts_image_only_list(self, mock_build_func):
+        """Test empty text source and list image source normalization."""
+        mock_store = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.image_path = "/path/to/image1.png"
+        mock_store.metadata_store = {"img1": MagicMock(document=mock_doc)}
+        mock_store.dimension = 512
+        mock_build_func.return_value = mock_store
+
+        inputs = BuildTextVectorStoreInput(
+            image_source=["/path/to/image1.png"],
+            index_type="IndexFlatIP",
+            normalize_embeddings=True,
+            recursive=False,
+        )
+
+        output = build_text_vector_store_tool(inputs)
+
+        assert output.success is True
+        assert output.num_texts == 0
+        assert output.num_images_captioned == 1
+        mock_build_func.assert_called_once_with(
+            text_source=None,
+            image_source=["/path/to/image1.png"],
+            index_type="IndexFlatIP",
+            normalize_embeddings=True,
+            recursive=False,
+        )
+
 
 class TestFindSimilarTextsTool:
     """Test suite for find_similar_texts_tool."""

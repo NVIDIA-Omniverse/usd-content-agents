@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Regression test for nvbug-6122035 / OMPE-91525.
+"""Regression tests for dynamic-version fallback behavior.
 
 When users `git clone` the public repository without tags, `uv-dynamic-versioning`
 reports a synthetic `0.0.0.post...` version. That is below the app dependency
@@ -67,7 +67,7 @@ def test_dynamic_versioning_reads_version_md(pyproject_path: Path) -> None:
     assert fallback, (
         f"{pyproject_path.relative_to(REPO_ROOT)} is missing "
         "[tool.uv-dynamic-versioning].fallback-version. ZIP-download installs "
-        "(no .git) will fail without it. See nvbug-6122035."
+        "(no .git) will fail without it."
     )
     expected = _expected_version()
     assert fallback == expected, (

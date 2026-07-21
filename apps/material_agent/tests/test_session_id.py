@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for session ID functionality."""
 
+import logging
 import uuid
 from pathlib import Path
 
@@ -229,3 +230,99 @@ def test_backward_compatibility_no_session(tmp_path):
 
     # Working directory should use session-based structure: .{session_id}
     assert f".{resolver.session_id}" in str(resolver.working_dir)
+
+
+def test_project_path_resolver_legacy_paths_and_summary(tmp_path, caplog):
+    """Cover material-agent specific path helpers and legacy output override."""
+    config_file = tmp_path / "config.yaml"
+    input_usd = tmp_path / "input.usd"
+    input_usd.touch()
+    existing_ref = tmp_path / "existing.png"
+    existing_ref.touch()
+
+    config = {
+        "project": {
+            "name": "test_project",
+            "session_id": "session-paths",
+        },
+        "input": {
+            "usd_path": "input.usd",
+            "prim_path": "/World/Robot",
+            "reference_images": ["existing.png", "missing.png", None],
+            "reference_pdfs": ["docs/spec.pdf", ""],
+        },
+        "output": {
+            "usd_path": "legacy/output.usd",
+            "layer_only": True,
+            "flatten_output": False,
+            "shader_target": "preview",
+        },
+    }
+
+    resolver = ProjectPathResolver(config, config_file)
+
+    assert resolver.input_usd == input_usd.resolve()
+    assert resolver.prim_path == "/World/Robot"
+    assert resolver.reference_images == [
+        existing_ref.resolve(),
+        (tmp_path / "missing.png").resolve(),
+    ]
+    assert resolver.reference_pdfs == [(tmp_path / "docs/spec.pdf").resolve()]
+    assert resolver.output_usd == (tmp_path / "legacy/output.usd").resolve()
+    assert resolver.layer_only is True
+    assert resolver.flatten_output is False
+    assert resolver.material_profile == "preview"
+
+    assert resolver.get_step_dataset_file("predict").name == "dataset.jsonl"
+    assert resolver.get_step_predictions_file().name == "predictions.jsonl"
+    assert resolver.get_usd_dataset_dir().name == "usd"
+    assert resolver.get_vectorstore_dir().name == "vectorstore"
+    assert resolver.get_dataset_dir().name == "dataset"
+    assert resolver.get_predictions_dir().name == "predictions"
+
+    resolver.create_working_directories()
+    assert resolver.working_dir.exists()
+    assert resolver.get_output_dir().exists()
+    assert resolver.get_temp_dir().exists()
+
+    caplog.set_level(logging.WARNING)
+    resolver.validate_input_paths()
+    assert "Reference image not found" in caplog.text
+
+    summary = resolver.get_path_summary()
+    assert summary["project_name"] == "test_project"
+    assert summary["input"]["usd_path"] == str(input_usd.resolve())
+    assert summary["input"]["reference_images"] == [
+        str(existing_ref.resolve()),
+        str((tmp_path / "missing.png").resolve()),
+    ]
+    assert summary["output"]["usd_path"] == str(
+        (tmp_path / "legacy/output.usd").resolve()
+    )
+    assert summary["output"]["layer_only"] is True
+    assert summary["output"]["flatten_output"] is False
+    assert summary["output"]["material_profile"] == "preview"
+    assert Path(summary["step_outputs"]["build_dataset_usd"]).name == "usd"
+
+
+def test_project_path_resolver_redacts_missing_input_diagnostics(
+    tmp_path: Path,
+) -> None:
+    secret = "material-input-path-secret-713"
+    config_dir = tmp_path / f"user:{secret}@assets.example.test"
+    config_dir.mkdir()
+    resolver = ProjectPathResolver(
+        {
+            "project": {"name": "safe", "working_dir": "work"},
+            "input": {"usd_path": "missing.usd"},
+            "output": {},
+        },
+        config_dir / "config.yaml",
+    )
+
+    with pytest.raises(FileNotFoundError) as exc_info:
+        resolver.validate_input_paths()
+
+    observable = f"{exc_info.value}\n{resolver!r}\n{resolver.get_path_summary()!r}"
+    assert secret not in observable
+    assert str(exc_info.value) == "Input USD file not found: <redacted>"

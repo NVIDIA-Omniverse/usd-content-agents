@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Exact isolated OVRTX runtime. OVRTX is intentionally resolved with --no-deps;
+# its compatible NumPy/Pillow pair is reviewed and installed explicitly.
+ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_x86_64.whl#sha256=a6b2b3c357f6487451c8d71e96cc4f83156c08fd9747d10e1b65f3866bed4b8f ; platform_machine == 'x86_64'
+ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_aarch64.whl#sha256=958d254cebeb271ac397f5b760ff5def84a02d04b23f610c31d456c7c8e871af ; platform_machine == 'aarch64'
+numpy==2.2.6
+pillow==12.3.0

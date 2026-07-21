@@ -106,7 +106,7 @@ def patch_physics_usd(
         ):
             mass_api = UsdPhysics.MassAPI(prim)
             mass_attr = mass_api.GetMassAttr()
-            if not mass_attr.IsValid():
+            if not mass_attr.IsValid():  # pragma: no cover - MassAPI attr is defined
                 continue
             has_authored = getattr(mass_attr, "HasAuthoredValue", None)
             authored = (
@@ -241,7 +241,7 @@ def patch_physics_usd(
 
 def make_tuned_usd_path(output_dir: Path) -> Path:
     """Return the canonical artifact path for the tuned USD."""
-    return Path(output_dir) / "tuned_physics.usda"
+    return Path(output_dir) / "tuned_physics.usd"
 
 
 __all__ = ["patch_physics_usd", "make_tuned_usd_path"]

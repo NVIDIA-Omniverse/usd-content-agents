@@ -10,7 +10,7 @@ is handled by the SessionStore (S3). The EventBus provides:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from .events import ProgressEvent, StepState
@@ -47,6 +47,52 @@ class EventBus:
     def get_snapshot(self, session_id: str) -> dict[str, Any] | None:
         """Get current in-memory state snapshot for a session."""
         return self._state.get(session_id)
+
+    async def seed_pending_session(
+        self,
+        session_id: str,
+        *,
+        created_at: str | None = None,
+    ) -> None:
+        """Seed a lightweight local status snapshot for an accepted pipeline.
+
+        This avoids any backing-store access so same-instance status polling can
+        return immediately after /pipeline accepts a job, before the worker has
+        emitted its first progress event.
+        """
+        timestamp = datetime.now(UTC).isoformat()
+        async with self._lock:
+            existing = self._state.get(session_id)
+            self._state[session_id] = {
+                "session_id": session_id,
+                "status": "pending",
+                "created_at": created_at
+                or (existing.get("created_at", timestamp) if existing else timestamp),
+                "updated_at": timestamp,
+                "current_step": None,
+                "completed_steps": [],
+                "overall_progress": {
+                    "current_step": 0,
+                    "total_steps": TOTAL_VISIBLE_STEPS,
+                    "percent": 0,
+                },
+                "preview_images": [],
+                "step_timings": {},
+            }
+
+    async def mark_cancelling(self, session_id: str) -> None:
+        """Expose an accepted local cancellation while its worker drains."""
+        timestamp = datetime.now(UTC).isoformat()
+        async with self._lock:
+            state = self._state.get(session_id)
+            if state is None or state.get("status") in {
+                "completed",
+                "failed",
+                "cancelled",
+            }:
+                return
+            state["status"] = "cancelling"
+            state["updated_at"] = timestamp
 
     async def emit(self, event: ProgressEvent) -> None:
         """Emit an event: update local state and queue for SSE subscribers."""
@@ -148,7 +194,11 @@ class EventBus:
 
                 self._update_overall_progress_on_completion(state, event.step)
 
-            elif event.extra and event.extra.get("pipeline_completed"):
+            elif (
+                event.extra
+                and event.extra.get("pipeline_completed")
+                and state.get("status") not in {"cancelling", "cancelled", "failed"}
+            ):
                 state["overall_progress"]["percent"] = 100
                 state["status"] = "completed"
                 state["completed_at"] = datetime.utcnow().isoformat()
@@ -163,6 +213,8 @@ class EventBus:
         elif event.state == StepState.CANCELLED:
             state["status"] = "cancelled"
             state["cancelled_at"] = event.timestamp
+            state["completed_at"] = event.timestamp
+            state["current_step"] = None
 
     def _get_display_name(self, step: str) -> str:
         return STEP_DISPLAY_NAMES.get(step, step)
@@ -193,7 +245,11 @@ class EventBus:
             STEP_NUMBER.get(step, len(state["completed_steps"])),
         )
 
-        if state["overall_progress"]["percent"] >= 100:
+        if state["overall_progress"]["percent"] >= 100 and state.get("status") not in {
+            "cancelling",
+            "cancelled",
+            "failed",
+        }:
             state["status"] = "completed"
             state["completed_at"] = datetime.utcnow().isoformat()
 

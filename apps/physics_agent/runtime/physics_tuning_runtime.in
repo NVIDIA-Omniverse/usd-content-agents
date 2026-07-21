@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Exact additive runtime for the CPU-only Physics Agent service parent process.
+# GPU simulation/rendering remains isolated in the OvPhysX and OVRTX workers.
+botorch==0.17.2
+torch==2.12.1+cpu
+imageio==2.37.2
+imageio-ffmpeg==0.6.0

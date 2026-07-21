@@ -8,7 +8,17 @@ present in step configs (paths must be auto-derived).
 """
 
 import logging
+from collections.abc import Collection
 from typing import Any
+
+from world_understanding.agentic.config.unknown_keys import (
+    build_nested_config_key_schema,
+    warn_unknown_nested_config_keys,
+)
+from world_understanding.utils.credentials import (
+    redact_sensitive_config,
+    redact_sensitive_path,
+)
 
 from material_agent.config.schema import (
     MUTUALLY_EXCLUSIVE_STEPS,
@@ -16,9 +26,15 @@ from material_agent.config.schema import (
     REQUIRED_FIELDS,
     REQUIRED_SECTIONS,
     STEP_ORDER,
+    get_default_config,
+    get_step_defaults,
 )
 
 logger = logging.getLogger(__name__)
+
+_OPEN_STEP_KEY_SCHEMAS = frozenset(
+    {"build_dataset_prepare_dataset", "validate_predictions"}
+)
 
 
 class ConfigValidator:
@@ -39,6 +55,7 @@ class ConfigValidator:
         "dataset",
         "dataset_path",
         "predictions_path",
+        "source_usd",
         "input_usd_path",
         "output_usd_path",
         "vector_store",
@@ -49,6 +66,9 @@ class ConfigValidator:
     # Exceptions: step-specific keys that are allowed (external sources)
     ALLOWED_EXTERNAL_SOURCES = {
         "build_dataset_pdf_vectorstore": {"source"},  # External PDF source
+        "generate_material_library": {
+            "material_generation_plan_path",
+        },
     }
 
     # Behavior flags that contain "path" or "dir" in their names but are NOT path configs
@@ -58,7 +78,7 @@ class ConfigValidator:
         "include_geometric_context",  # Boolean flag (could be confused with path)
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the validator."""
         pass
 
@@ -72,6 +92,28 @@ class ConfigValidator:
             ValueError: If configuration is invalid
         """
         self._validate_structure(config)
+        key_schema = build_nested_config_key_schema(
+            get_default_config(),
+            STEP_ORDER,
+            get_step_defaults,
+        )
+        key_schema["steps"]["predict"].update(
+            {
+                "report": {},
+                "system_prompt": None,
+                "system_prompt_file": None,
+            }
+        )
+        warn_unknown_nested_config_keys(
+            config,
+            key_schema,
+            logger,
+            strict_paths={
+                ("steps", step_name)
+                for step_name in STEP_ORDER
+                if step_name not in _OPEN_STEP_KEY_SCHEMAS
+            },
+        )
         self._validate_required_fields(config)
         self._validate_materials(config)
         self._validate_steps(config)
@@ -100,7 +142,10 @@ class ConfigValidator:
         valid_sections = set(REQUIRED_SECTIONS + OPTIONAL_SECTIONS)
         for section in config.keys():
             if section not in valid_sections:
-                logger.warning(f"Unknown config section: '{section}' (will be ignored)")
+                logger.warning(
+                    "Unknown config section: '%s' (will be ignored)",
+                    redact_sensitive_config(section),
+                )
 
     def _validate_required_fields(self, config: dict[str, Any]) -> None:
         """Validate required fields in each section.
@@ -158,8 +203,22 @@ class ConfigValidator:
                 )
 
             logger.info(
-                f"Materials will be loaded from external file: {materials['path']}"
+                "Materials will be loaded from external file: %s",
+                redact_sensitive_path(materials["path"]),
             )
+            return
+
+        if "simready" in materials and not materials.get("entries"):
+            simready = materials["simready"]
+            if isinstance(simready, str):
+                if not simready.strip():
+                    raise ValueError("'materials.simready' must not be empty")
+                return
+            if not isinstance(simready, dict):
+                raise ValueError("'materials.simready' must be a string or mapping")
+            library_id = simready.get("library_id")
+            if not isinstance(library_id, str) or not library_id.strip():
+                raise ValueError("'materials.simready.library_id' is required")
             return
 
         # Inline materials - validate entries
@@ -181,9 +240,7 @@ class ConfigValidator:
                 raise ValueError(f"Material entry {i} missing 'name' field")
 
             if "binding" not in entry:
-                raise ValueError(
-                    f"Material entry {i} ('{entry.get('name')}') missing 'binding' field"
-                )
+                raise ValueError(f"Material entry {i} missing 'binding' field")
 
         logger.info(f"Validated {len(entries)} material entries")
 
@@ -204,7 +261,9 @@ class ConfigValidator:
         for step_name, step_config in steps.items():
             if step_name not in STEP_ORDER:
                 logger.warning(
-                    f"Unknown step: '{step_name}' (valid steps: {', '.join(STEP_ORDER)})"
+                    "Unknown step: '%s' (valid steps: %s)",
+                    redact_sensitive_config(step_name),
+                    ", ".join(STEP_ORDER),
                 )
                 continue
 
@@ -229,15 +288,17 @@ class ConfigValidator:
         allowed_keys = self.ALLOWED_EXTERNAL_SOURCES.get(step_name, set())
 
         for key in step_config.keys():
+            safe_key = redact_sensitive_config(key)
             # Check exact matches
             if key in self.FORBIDDEN_PATH_KEYS and key not in allowed_keys:
                 raise ValueError(
-                    f"Path configuration not allowed in step '{step_name}': '{key}'\n\n"
+                    f"Path configuration not allowed in step '{step_name}': "
+                    f"'{safe_key}'\n\n"
                     f"In the unified config system, paths are auto-derived from:\n"
                     f"  - project.working_dir\n"
                     f"  - input.usd_path\n"
                     f"  - output.usd_path\n\n"
-                    f"Please remove '{key}' from steps.{step_name} configuration.\n"
+                    f"Please remove '{safe_key}' from steps.{step_name} configuration.\n"
                     f"Only behavior configuration is allowed in step configs."
                 )
 
@@ -250,10 +311,12 @@ class ConfigValidator:
 
                 if key not in allowed_keys:
                     raise ValueError(
-                        f"Suspicious path-like key in step '{step_name}': '{key}'\n\n"
+                        f"Suspicious path-like key in step '{step_name}': "
+                        f"'{safe_key}'\n\n"
                         f"Only behavior configuration is allowed in step configs.\n"
                         f"Paths are auto-derived from project.working_dir.\n\n"
-                        f"Please remove '{key}' or move it to the appropriate top-level section:\n"
+                        f"Please remove '{safe_key}' or move it to the appropriate "
+                        "top-level section:\n"
                         f"  - input.usd_path for input USD files\n"
                         f"  - output.usd_path for output USD files\n"
                         f"  - project.working_dir for intermediate files location"
@@ -290,7 +353,11 @@ class ConfigValidator:
                 )
 
     def validate_step_requirements(
-        self, step_name: str, step_config: dict[str, Any], config: dict[str, Any]
+        self,
+        step_name: str,
+        step_config: dict[str, Any],
+        config: dict[str, Any],
+        current_steps: Collection[str] | None = None,
     ) -> None:
         """Validate that a specific step has all its requirements.
 
@@ -298,6 +365,7 @@ class ConfigValidator:
             step_name: Name of the step
             step_config: Step configuration
             config: Full configuration
+            current_steps: Steps scheduled for the current run, after filters
 
         Raises:
             ValueError: If step requirements are not met
@@ -305,16 +373,37 @@ class ConfigValidator:
         # Check if materials are required but not defined
         if step_name in ["predict", "benchmark", "apply", "refine"]:
             materials = config.get("materials") or {}
+            generated_materials = self._is_step_enabled(
+                (config.get("steps") or {}).get("generate_material_library", {})
+            )
+            create_materials_enabled = self._is_step_enabled(
+                (config.get("steps") or {}).get("create_materials", {})
+            )
+            create_materials_scheduled = (
+                current_steps is None or "create_materials" in current_steps
+            )
+            created_materials = (
+                step_name
+                in [
+                    "apply",
+                    "refine",
+                ]
+                and create_materials_enabled
+                and create_materials_scheduled
+            )
             # Materials can be either external file (path) or inline (entries)
             has_materials = materials and (
-                materials.get("path") or materials.get("entries")
+                materials.get("path")
+                or materials.get("entries")
+                or materials.get("simready")
             )
-            if not has_materials:
+            if not has_materials and not generated_materials and not created_materials:
                 raise ValueError(
                     f"Step '{step_name}' requires materials to be defined.\n"
                     f"Please add a 'materials' section with either:\n"
                     f"  - path: 'materials/file.yaml' (external file)\n"
-                    f"  - entries: [...] (inline definition)"
+                    f"  - entries: [...] (inline definition)\n"
+                    f"  - simready: simready-light"
                 )
 
         # Check step-specific requirements
@@ -345,6 +434,12 @@ class ConfigValidator:
                 self._validate_fail_on_unknown_material("refine.apply", apply_config)
 
         logger.debug(f"Step '{step_name}' requirements validated")
+
+    def _is_step_enabled(self, step_config: dict[str, Any]) -> bool:
+        enabled = step_config.get("enabled")
+        if enabled is not None:
+            return bool(enabled)
+        return any(key != "enabled" for key in step_config)
 
     def _validate_allow_empty_predictions(
         self, step_name: str, config: dict[str, Any]

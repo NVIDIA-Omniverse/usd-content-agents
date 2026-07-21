@@ -1,0 +1,33 @@
+[project]
+name = "content-workbench-agent-client"
+version = "0.1.0"
+description = "Thin Python client for Content Workbench agent APIs"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "pydantic>=2.11,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "ruff>=0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["content_workbench_agent_client"]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]

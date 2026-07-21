@@ -10,6 +10,7 @@ Tests the core workflows:
 """
 
 import asyncio
+from typing import Any
 
 import pytest
 import yaml
@@ -62,6 +63,128 @@ class TestPipelineCreation:
         response = await client.post("/pipeline")
 
         assert response.status_code == 400
+
+    async def test_create_pipeline_rejects_unknown_backend_before_session_creation(
+        self, client
+    ):
+        """A backend typo is a request error and must not leave session state."""
+        manager = pipeline_router.get_session_manager()
+        sessions_before = {path.name for path in manager.storage_path.iterdir()}
+
+        response = await client.post(
+            "/pipeline",
+            files=make_pipeline_files(),
+            data={"render_backend": "typo"},
+        )
+
+        assert response.status_code == 400
+        assert "Unknown rendering backend: typo" in response.json()["detail"]
+        assert {path.name for path in manager.storage_path.iterdir()} == sessions_before
+
+    @pytest.mark.parametrize("route", ["/pipeline", "/pipeline/upload-usd"])
+    @pytest.mark.parametrize(
+        "allowed_buckets,s3_uri",
+        [
+            ("", "s3://trusted-input-bucket/path/scene.usda"),
+            ("trusted-input-bucket", "s3://foreign-bucket/path/scene.usda"),
+        ],
+    )
+    async def test_create_pipeline_rejects_unapproved_s3_before_download(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+        route: str,
+        allowed_buckets: str,
+        s3_uri: str,
+    ) -> None:
+        """Rejected Physics S3 input must not acquire the session store."""
+        monkeypatch.setattr(
+            pipeline_router.config,
+            "s3_allowed_buckets",
+            allowed_buckets,
+        )
+        manager_calls = 0
+        download_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("S3 policy must precede session-store access")
+
+        def fail_if_downloaded(*_args: Any, **_kwargs: Any) -> None:
+            nonlocal download_calls
+            download_calls += 1
+            raise AssertionError("foreign S3 bucket reached the downloader")
+
+        monkeypatch.setattr(pipeline_router, "get_session_manager", fail_manager)
+        monkeypatch.setattr(
+            pipeline_router,
+            "download_file_from_s3",
+            fail_if_downloaded,
+        )
+
+        response = await client.post(
+            route,
+            data={"s3_uri": s3_uri},
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == (
+            "S3 URI is not permitted by the service's configured bucket allowlist"
+        )
+        assert manager_calls == 0
+        assert download_calls == 0
+
+    async def test_create_pipeline_session_id_precedes_lower_priority_sources(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Lower-priority fields must not affect an existing-session run."""
+        upload_response = await client.post(
+            "/pipeline/upload-usd",
+            files=make_pipeline_files(),
+        )
+        assert upload_response.status_code == 201
+        session_id = upload_response.json()["session_id"]
+        manager = pipeline_router.get_session_manager()
+        before_config = (await manager.get_session_metadata(session_id))["config"]
+        before_config = {**before_config, "has_usd_upload": False}
+        await manager.update_session(session_id, {"config": before_config})
+
+        def fail_validation(*_args: Any, **_kwargs: Any) -> str:
+            raise AssertionError("unused S3 URI reached authorization")
+
+        def fail_download(*_args: Any, **_kwargs: Any) -> None:
+            raise AssertionError("unused S3 URI reached the downloader")
+
+        monkeypatch.setattr(
+            pipeline_router,
+            "_validate_and_authorize_s3_usd_uri",
+            fail_validation,
+        )
+        monkeypatch.setattr(pipeline_router, "download_file_from_s3", fail_download)
+
+        response = await client.post(
+            "/pipeline",
+            files=make_pipeline_files(
+                usd_content=b"ignored lower-priority upload",
+                usd_filename="ignored.usdz",
+            ),
+            data={
+                "session_id": session_id,
+                "s3_uri": "s3://foreign/private/scene.usdz",
+            },
+        )
+
+        assert response.status_code == 202, response.text
+        assert response.json()["session_id"] == session_id
+        after_config = (await manager.get_session_metadata(session_id))["config"]
+        assert before_config["s3_uri"] is None
+        assert after_config["s3_uri"] is None
+        assert after_config["original_filename"] == before_config["original_filename"]
+        assert after_config["usd_path"] == before_config["usd_path"]
+        assert after_config["has_usd_upload"] is False
 
     async def test_create_pipeline_accepts_optimizer_boolean_form_values(self, client):
         """FastAPI should parse common boolean form values for optimizer flags."""
@@ -151,6 +274,51 @@ class TestPipelineCreation:
 @pytest.mark.api
 class TestPipelineStatus:
     """Test pipeline status endpoint."""
+
+    async def test_status_for_accepted_pipeline_does_not_wait_on_metadata_store(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Accepted sessions must return lightweight status even if the store stalls."""
+        worker_started = asyncio.Event()
+        worker_blocker = asyncio.Event()
+
+        async def blocked_execute(*args, **kwargs) -> None:
+            worker_started.set()
+            await worker_blocker.wait()
+
+        monkeypatch.setattr(
+            pipeline_router, "execute_pipeline_async", blocked_execute, raising=True
+        )
+
+        create_r = await client.post("/pipeline", files=make_pipeline_files())
+        assert create_r.status_code == 202
+        session_id = create_r.json()["session_id"]
+        await asyncio.wait_for(worker_started.wait(), timeout=1.0)
+
+        manager = pipeline_router.get_session_manager()
+
+        async def stalled_get_session_metadata(
+            session_id: str,
+        ) -> dict[str, Any] | None:
+            await asyncio.sleep(10)
+            return None
+
+        monkeypatch.setattr(
+            manager, "get_session_metadata", stalled_get_session_metadata
+        )
+
+        try:
+            status_r = await asyncio.wait_for(
+                client.get(f"/pipeline/{session_id}/status"),
+                timeout=0.25,
+            )
+
+            assert status_r.status_code == 200
+            body = status_r.json()
+            assert body["session_id"] == session_id
+            assert body["status"] in {"pending", "running"}
+        finally:
+            worker_blocker.set()
 
     async def test_get_status_for_valid_session(self, client):
         """Test getting status for a valid session."""
@@ -325,11 +493,33 @@ class TestDownloadEndpoints:
 
         assert response.status_code == 404
 
-    async def test_download_incomplete_returns_404(self, client):
+    async def test_download_incomplete_returns_404(self, client, monkeypatch):
         """Test that downloading from incomplete pipeline returns 404."""
+        started = asyncio.Event()
+        release = asyncio.Event()
+        finished = asyncio.Event()
+
+        async def hold_pipeline_incomplete(**_kwargs: Any) -> None:
+            started.set()
+            try:
+                await release.wait()
+            finally:
+                finished.set()
+
+        monkeypatch.setattr(
+            pipeline_router,
+            "execute_pipeline_async",
+            hold_pipeline_incomplete,
+            raising=True,
+        )
+
         create_r = await client.post("/pipeline", files=make_pipeline_files())
         session_id = create_r.json()["session_id"]
 
-        download_r = await client.get(f"/artifacts/{session_id}/predictions")
-
-        assert download_r.status_code == 404
+        await asyncio.wait_for(started.wait(), timeout=5.0)
+        try:
+            download_r = await client.get(f"/artifacts/{session_id}/predictions")
+            assert download_r.status_code == 404
+        finally:
+            release.set()
+            await asyncio.wait_for(finished.wait(), timeout=5.0)

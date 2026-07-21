@@ -23,19 +23,19 @@ dependencies = [
     "aiofiles>=24.1.0",
 
     # File locking for concurrent metadata access
-    "filelock>=3.13.0",
+    "filelock>=3.20.3",
 
     # Configuration
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0",
 
     # Texture Agent dependencies (from parent)
-    "texture-agent",
-    "world-understanding",
+    "texture-agent>=0.5.0",
+    "world-understanding>=0.5.0",
 
     # other
     "httpx>=0.27.0",
-    "requests>=2.31",  # Used by client/client.py
+    "requests>=2.33.0",  # Used by client/client.py
     "boto3>=1.35.0,<2.0.0",  # Shared S3 session storage
     "setuptools>=80.9.0",
     "pillow>=10.1.0",
@@ -69,7 +69,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]

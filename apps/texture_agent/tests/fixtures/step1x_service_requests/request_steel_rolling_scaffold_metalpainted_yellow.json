@@ -1,0 +1,43 @@
+{
+  "source_asset_uri": "file:///work/texture_step1x/steel_rolling_scaffold/prepared/SM_SteelRollingScaffold_A01_01_uv_ready.usd",
+  "conditioning": {
+    "text_prompt": "yellow painted steel scaffold braces with chipped paint, exposed dark metal, rust streaks, grease smudges, and scraped corners",
+    "reference_image_uris": [],
+    "turntable_video_uri": null,
+    "multiview_image_uris": []
+  },
+  "configuration": {
+    "strength": 0.85,
+    "seed": 4202,
+    "variant_name": "steel_rolling_scaffold_metalpainted_yellow_step1x",
+    "engine": "step1x",
+    "texture_size": 1024,
+    "custom_parameters": {
+      "scenario": "steel_rolling_scaffold_step1x_service",
+      "asset": "steel_rolling_scaffold",
+      "steps": 30,
+      "guidance": 10.0,
+      "skip_material_anything": true,
+      "upscale": true
+    }
+  },
+  "target": {
+    "material_name": "MetalPainted_Yellow_Glossy_A",
+    "material_path": "/RootNode/Materials/MetalPainted_Yellow_Glossy_A",
+    "prim_paths": [
+      "/RootNode/Geometry/M_SteelRollingScaffold_A01_Body",
+      "/RootNode/Geometry/MetalPainted_Yellow_Glossy_A"
+    ],
+    "mode": "per_material",
+    "strict_scope": true
+  },
+  "capabilities": {
+    "image_conditioning": false,
+    "multiview": false,
+    "normal_map": true,
+    "orm": true,
+    "masks": true,
+    "coverage": true,
+    "geometry_output": "none"
+  }
+}

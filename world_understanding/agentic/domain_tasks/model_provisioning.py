@@ -105,7 +105,7 @@ class ModelProvisioningTask(Task):
         if "vlm" in config and _has_backend(config["vlm"]):
             listener.info("Creating VLM instance...")
             try:
-                vlm = self._create_vlm(config["vlm"])
+                vlm = self.create_vlm(config["vlm"])
                 models["vlm"] = vlm
                 backend = config["vlm"].get("backend") or config["vlm"].get("provider")
                 listener.info(f"✓ VLM created: {backend}")
@@ -138,7 +138,7 @@ class ModelProvisioningTask(Task):
         if "vlm_judge" in config and _has_backend(config["vlm_judge"]):
             listener.info("Creating VLM Judge instance...")
             try:
-                vlm_judge = self._create_vlm(config["vlm_judge"])
+                vlm_judge = self.create_vlm(config["vlm_judge"])
                 models["vlm_judge"] = vlm_judge
                 backend = config["vlm_judge"].get("backend") or config["vlm_judge"].get(
                     "provider"
@@ -197,7 +197,7 @@ class ModelProvisioningTask(Task):
 
         return context
 
-    def _create_vlm(self, vlm_config: dict[str, Any]) -> Any:
+    def create_vlm(self, vlm_config: dict[str, Any]) -> Any:
         """Create a VLM instance from configuration.
 
         Args:
@@ -225,8 +225,6 @@ class ModelProvisioningTask(Task):
             kwargs["model"] = vlm_config["model"]
         if vlm_config.get("base_url"):
             kwargs["base_url"] = vlm_config["base_url"]
-        if vlm_config.get("llmgateway") and "llmgateway" in backend:
-            kwargs["llmgateway"] = vlm_config["llmgateway"]
         if vlm_config.get("endpoint"):
             kwargs["endpoint"] = vlm_config["endpoint"]
         if vlm_config.get("api_name"):
@@ -238,9 +236,9 @@ class ModelProvisioningTask(Task):
             "backend",
             "provider",  # Alias for backend
             "model",
-            "llmgateway",
             "endpoint",
             "api_key",
+            "api_key_env",
             "api_name",
             "base_url",
             "llm",  # Filter out llm if accidentally included in vlm_config
@@ -272,6 +270,10 @@ class ModelProvisioningTask(Task):
             )
 
         return create_vlm(**kwargs)
+
+    def _create_vlm(self, vlm_config: dict[str, Any]) -> Any:
+        """Compatibility wrapper for older internal call sites."""
+        return self.create_vlm(vlm_config)
 
     def _create_llm(self, llm_config: dict[str, Any]) -> Any | None:
         """Create an LLM instance from configuration.
@@ -305,8 +307,6 @@ class ModelProvisioningTask(Task):
             kwargs["model"] = llm_config["model"]
         if llm_config.get("base_url"):
             kwargs["base_url"] = llm_config["base_url"]
-        if llm_config.get("llmgateway") and "llmgateway" in backend:
-            kwargs["llmgateway"] = llm_config["llmgateway"]
 
         # Pass through any additional, backend-specific kwargs from config
         # to allow custom parameters such as include_thinking, thinking, etc.
@@ -315,9 +315,9 @@ class ModelProvisioningTask(Task):
             "provider",  # Alias for backend
             "model",
             "base_url",
-            "llmgateway",
             "endpoint",
             "api_key",
+            "api_key_env",
             "vlm",  # Filter out vlm if accidentally included in llm_config
         }
         # These are inference-time parameters that should NOT be passed to LLM constructor

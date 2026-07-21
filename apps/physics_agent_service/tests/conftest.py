@@ -62,6 +62,7 @@ def app(_env_for_service):
         artifacts_router,
         pipeline_router,
         predict_router,
+        refine_router,
         sessions_router,
         tune_router,
     )
@@ -79,6 +80,7 @@ def app(_env_for_service):
     artifacts_router.set_session_manager(session_mgr)
     sessions_router.set_session_manager(session_mgr)
     tune_router.set_session_manager(session_mgr)
+    refine_router.set_session_manager(session_mgr)
 
     return app
 
@@ -151,6 +153,12 @@ def _stub_executor(
             "max_concurrency_seen": lambda: 0,
             "current_concurrency": lambda: 0,
         }
+
+    from ..service.routers import tune_router
+
+    # API tests exercise the deterministic stub runtime, not the separately
+    # provisioned OvPhysX daemon used by production deployments.
+    monkeypatch.setattr(tune_router, "ovphysx_runtime_available", lambda: True)
 
     from ..service.runtime import get_job_registry
     from ..service.session.manager import SessionManager

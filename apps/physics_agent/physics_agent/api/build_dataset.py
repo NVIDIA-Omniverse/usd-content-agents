@@ -11,9 +11,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+)
+
 from physics_agent.api.types import APIResult
 
 logger = logging.getLogger(__name__)
+
+_USD_BUILD_FAILURE_MESSAGE = "USD dataset building failed"
+_PREPARE_DATASET_FAILURE_MESSAGE = "Dataset preparation failed"
 
 
 # ============================================================================
@@ -110,28 +118,32 @@ async def abuild_dataset_usd(params: BuildDatasetUsdInput) -> BuildDatasetUsdOut
 
         # Check for errors
         if result.get("error") or result.get("workflow_terminated"):
+            logger.error(_USD_BUILD_FAILURE_MESSAGE)
             return BuildDatasetUsdOutput(
                 success=False,
-                error=result.get("error", "Workflow terminated unexpectedly"),
+                error=_USD_BUILD_FAILURE_MESSAGE,
             )
 
         # Extract results
-        dataset_path = result.get("dataset_path") or result.get("output_dir")
-        num_prims = result.get("num_prims", 0)
-        num_images = result.get("num_images", 0)
-        batch_results = result.get("batch_results", {})
+        safe_result = project_result_metadata(result)
+        dataset_path = retain_safe_result_path(
+            result.get("dataset_path") or result.get("output_dir")
+        )
+        num_prims = safe_result.get("num_prims", 0)
+        num_images = safe_result.get("num_images", 0)
+        batch_results = safe_result.get("batch_results", {})
 
         return BuildDatasetUsdOutput(
             success=True,
-            dataset_path=Path(dataset_path) if dataset_path else None,
-            num_prims=num_prims,
-            num_images=num_images,
-            batch_results=batch_results,
+            dataset_path=dataset_path,
+            num_prims=num_prims if type(num_prims) is int else 0,
+            num_images=num_images if type(num_images) is int else 0,
+            batch_results=batch_results if type(batch_results) is dict else {},
         )
 
-    except Exception as e:
-        logger.error("USD dataset building failed: %s", e, exc_info=True)
-        return BuildDatasetUsdOutput(success=False, error=str(e))
+    except Exception:
+        logger.error(_USD_BUILD_FAILURE_MESSAGE)
+        return BuildDatasetUsdOutput(success=False, error=_USD_BUILD_FAILURE_MESSAGE)
 
 
 # ============================================================================
@@ -220,23 +232,28 @@ async def abuild_dataset_prepare_dataset(
 
         # Check for errors
         if result.get("error") or result.get("workflow_terminated"):
+            logger.error(_PREPARE_DATASET_FAILURE_MESSAGE)
             return BuildDatasetPrepareDatasetOutput(
                 success=False,
-                error=result.get("error", "Workflow terminated unexpectedly"),
+                error=_PREPARE_DATASET_FAILURE_MESSAGE,
             )
 
         # Extract results
-        dataset_entries = result.get("dataset_entries", [])
-        dataset_jsonl_path = result.get("dataset_jsonl_path")
-        failed_models = result.get("failed_models", [])
+        safe_result = project_result_metadata(result)
+        dataset_entries = safe_result.get("dataset_entries", [])
+        dataset_jsonl_path = retain_safe_result_path(result.get("dataset_jsonl_path"))
+        failed_models = safe_result.get("failed_models", [])
 
         return BuildDatasetPrepareDatasetOutput(
             success=True,
-            dataset_entries=dataset_entries,
-            dataset_jsonl_path=Path(dataset_jsonl_path) if dataset_jsonl_path else None,
-            failed_models=failed_models,
+            dataset_entries=(dataset_entries if type(dataset_entries) is list else []),
+            dataset_jsonl_path=dataset_jsonl_path,
+            failed_models=failed_models if type(failed_models) is list else [],
         )
 
-    except Exception as e:
-        logger.error("Dataset preparation failed: %s", e, exc_info=True)
-        return BuildDatasetPrepareDatasetOutput(success=False, error=str(e))
+    except Exception:
+        logger.error(_PREPARE_DATASET_FAILURE_MESSAGE)
+        return BuildDatasetPrepareDatasetOutput(
+            success=False,
+            error=_PREPARE_DATASET_FAILURE_MESSAGE,
+        )

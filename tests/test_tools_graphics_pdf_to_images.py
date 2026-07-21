@@ -11,6 +11,9 @@ from PIL import Image
 from world_understanding.functions.graphics.pdf_to_images import convert_pdf_to_images
 from world_understanding.tools.graphics.pdf_to_images import (
     ConvertPdfToImagesInput,
+    ConvertPdfToImagesOutput,
+    PageImageInfo,
+    _display_pdf_conversion,
     convert_pdf_to_images_tool,
 )
 
@@ -236,6 +239,40 @@ def test_tool_grayscale(sample_pdf_path: Path) -> None:
 
     assert output.converted_pages == 1
     assert len(output.pages) == 1
+
+
+class RecordingConsole:
+    """Minimal console double that records print calls."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def print(self, *args, **kwargs) -> None:
+        self.calls.append((args, kwargs))
+
+
+def test_display_pdf_conversion_renders_pages_and_output_dir() -> None:
+    console = RecordingConsole()
+    output = ConvertPdfToImagesOutput(
+        pages=[
+            PageImageInfo(
+                page_number=1, image_path="/tmp/page-1.png", width=640, height=480
+            ),
+            PageImageInfo(page_number=2, image_path=None, width=320, height=240),
+        ],
+        total_pages=3,
+        converted_pages=2,
+        output_directory="/tmp/pdf-pages",
+    )
+
+    _display_pdf_conversion(output, console, indent="  ")
+
+    rendered = "\n".join(str(call[0][0]) for call in console.calls)
+    assert "PDF Conversion Results" in rendered
+    assert "Converted: 2/3 pages" in rendered
+    assert "Output Directory: /tmp/pdf-pages" in rendered
+    assert "Page 1: 640x480px - /tmp/page-1.png" in rendered
+    assert "Page 2: 320x240px - in-memory" in rendered
 
 
 def test_tool_input_validation() -> None:

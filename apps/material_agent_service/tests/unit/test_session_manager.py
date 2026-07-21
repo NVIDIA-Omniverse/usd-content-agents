@@ -71,6 +71,99 @@ def session_id() -> str:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_list_sessions_filters_untrusted_backend_names(tmp_path: str) -> None:
+    store = LocalSessionStore(tmp_path)
+    manager = SessionManager(tmp_path, store=store)
+    safe_id = str(uuid4())
+    for backend_name in (safe_id, ".pipeline_temp", "access_token=do-not-return"):
+        backend_dir = Path(tmp_path) / backend_name
+        backend_dir.mkdir()
+        (backend_dir / "session.json").write_text("{}", encoding="utf-8")
+
+    assert await manager.list_sessions() == [safe_id]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_local_store_rejects_nested_session_before_creating_paths(
+    tmp_path: str,
+) -> None:
+    store = LocalSessionStore(tmp_path)
+
+    with pytest.raises(ValueError, match="storage child"):
+        await store.init_session("nested/session")
+    with pytest.raises(ValueError, match="storage child"):
+        await store.put_json("nested/session", METADATA_KEY, {})
+
+    assert not (Path(tmp_path) / "nested").exists()
+    assert not (Path(tmp_path) / ".locks" / "nested").exists()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_uuid_symlink_session_cannot_expose_outside_metadata(
+    tmp_path: str,
+) -> None:
+    storage_root = Path(tmp_path)
+    outside_root = storage_root.parent / f"{storage_root.name}-outside-{uuid4()}"
+    outside_root.mkdir()
+    sentinel = "outside-material-session-metadata-727"
+    (outside_root / "session.json").write_text(
+        '{"credential":"' + sentinel + '"}',
+        encoding="utf-8",
+    )
+    session_id = str(uuid4())
+    (storage_root / session_id).symlink_to(outside_root, target_is_directory=True)
+    store = LocalSessionStore(tmp_path)
+    manager = SessionManager(tmp_path, store=store)
+
+    assert session_id not in await store.list_sessions()
+    assert session_id not in await manager.list_sessions()
+    assert not await store.exists(session_id, "session.json")
+    assert await store.get_json(session_id, "session.json") is None
+    assert await manager.get_session_metadata(session_id) is None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_local_store_reserved_paths_are_invisible_and_writes_fail_loudly(
+    tmp_path: str,
+) -> None:
+    store = LocalSessionStore(tmp_path)
+    session_dir = Path(tmp_path) / "s1"
+    reserved = session_dir / "cache" / ".pipeline_temp" / "config.json"
+    reserved.parent.mkdir(parents=True)
+    reserved.write_text('{"api_key": "sentinel"}', encoding="utf-8")
+    alias = session_dir / "cache" / "alias.json"
+    alias.symlink_to(reserved)
+
+    assert await store.list_keys("s1") == []
+    assert await store.list_keys("s1", r"cache\.pipeline_temp") == []
+    assert not await store.exists("s1", "cache/.pipeline_temp/config.json")
+    assert not await store.exists("s1", "cache/alias.json")
+    assert await store.get_json("s1", "cache/.pipeline_temp/config.json") is None
+    with pytest.raises(FileNotFoundError):
+        await store.open_read("s1", r"cache\.pipeline_temp\config.json")
+    with pytest.raises(ValueError, match="reserved"):
+        await store.put_bytes("s1", "cache/.pipeline_temp/new.json", b"{}")
+
+    safe_target = session_dir / "cache" / "public.json"
+    safe_target.write_bytes(b"public")
+    safe_alias = session_dir / "cache" / "public-alias.json"
+    safe_alias.symlink_to(safe_target)
+    with pytest.raises(FileNotFoundError):
+        await store.open_read("s1", "cache/public-alias.json")
+
+    outside = Path(tmp_path) / "outside.json"
+    outside.write_bytes(b"outside")
+    outside_alias = session_dir / "cache" / "outside-alias.json"
+    outside_alias.symlink_to(outside)
+    with pytest.raises(FileNotFoundError):
+        await store.open_read("s1", "cache/outside-alias.json")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 class TestSessionManagerLifecycle:
     """Test basic session lifecycle operations."""
 

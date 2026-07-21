@@ -1,0 +1,81 @@
+# Universal Robots UR10e — 6-DOF collaborative arm.
+# Reference content adapted from the verbose prompt that fixed joint rigging
+# on a stripped Blender variant of the UR10 in CIP testing.
+
+robot_id: ur10e
+aliases:
+  - ur10
+  - "universal_robots_ur10"
+  - "universal_robots_ur10e"
+  - "ur 10"
+  - "ur 10e"
+  - "ur-10"
+  - "ur-10e"
+filename_aliases:
+  - ur10
+  - ur10e
+  - "ur_10"
+  - "ur_10e"
+  - "universal_robots_ur10"
+  - "universal_robots_ur10e"
+description: "Universal Robots UR10e — 6-DOF collaborative arm, 7 rigid links"
+topology: serial_chain
+num_dofs: 6
+component_names:
+  - base
+  - shoulder
+  - upper_arm
+  - forearm
+  - wrist_1
+  - wrist_2
+  - wrist_3
+visual_cues:
+  base: >-
+    Lowest and typically widest housing; mounts to a surface or table. Has a
+    flat circular face on its bottom. Usually the heaviest link.
+  shoulder: >-
+    Directly above the base; first revolute housing in the chain. Roughly the
+    same diameter as the base.
+  upper_arm: >-
+    The longest cylindrical tube in the model, connecting the shoulder housing
+    to the elbow. When in doubt, the longer tube is the upper arm.
+  forearm: >-
+    Second long tube, from the elbow to the first wrist housing. Shorter than
+    the upper arm; may taper or narrow toward the wrist end.
+  wrist_1: >-
+    First compact cylindrical housing after the forearm. Its rotation axis
+    continues roughly along the forearm's long axis.
+  wrist_2: >-
+    Second compact housing; typically mounted at 90° to wrist_1, forming
+    the bend that redirects the end effector.
+  wrist_3: >-
+    Outermost housing; has a circular tool-mounting flange on its free end.
+    Smallest of the three wrist links.
+tiebreakers:
+  - >-
+    When the three wrist housings are hard to distinguish visually, use chain
+    position as the tiebreaker: the housing physically closest to the forearm
+    is wrist_1; the one with the tool flange face is wrist_3; the middle one
+    is wrist_2.
+  - >-
+    The two long tubes (upper_arm, forearm) can be distinguished by
+    length and by their position in the chain — the longer tube closer to the
+    base is the upper arm.
+  - >-
+    Blender UR10e exports may include a compact side-branch joint directly
+    under Joint_001 (for example Joint_007/Cylinder_002). Treat that branch as
+    part of the shoulder assembly, not as a distal wrist segment. The wrist
+    cluster is the nested chain after forearm/Bow_001/Joint_004/Joint_005.
+  - >-
+    For Blender UR10e joint-centric exports, the first joint housing and its
+    attached cap meshes are shoulder geometry: Joint_001, Cylinder_003,
+    Cap_001/Cylinder_017, and Joint_007/Cylinder_002 should map to shoulder.
+    The next nested joint cover, Joint_002/Cap_002/Cylinder_007, belongs to the
+    upper_arm assembly rather than shoulder.
+completeness_required: true
+self_check: true
+notes: >-
+  Authoring source: verbose prompt by Michael Kowalski (Apr 23 2026), confirmed
+  to fix joint rigging on a Blender UR10 with collision geometry stripped and
+  materials retained. Did not fix the original cluttered Newton UR10 — that
+  failure tracks under bug 6087954 and is geometry-sensitive, not prompt-sensitive.

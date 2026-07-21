@@ -121,6 +121,34 @@ def test_tire_bounce_yaml_resolves_for_ovphysx() -> None:
     assert bindings["restitution"]["attribute"] == "physics:restitution"
 
 
+def test_internal_physics_tire_yaml_resolves_for_ovphysx() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    scenario_path = (
+        repo_root
+        / "apps/physics_agent/configs/internal/tire_b01_internal_physics_drop_settle.yaml"
+    )
+    if not scenario_path.exists():
+        pytest.skip("internal-only Tire_B01 scenario is excluded from public staging")
+    scenario = load_scenario(scenario_path)
+    tire_usd = repo_root / "apps/physics_agent/data/examples/Tire_B01/tire.usdc"
+
+    resolved = resolve_scenario_bindings(
+        scenario,
+        physics_usd=tire_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    assert scenario.metric == "settle_distance"
+    bindings = _bindings_by_param(resolved)
+    assert set(bindings) == {
+        "mass_scale",
+        "static_friction",
+        "dynamic_friction",
+        "restitution",
+    }
+    assert bindings["restitution"]["attribute"] == "physics:restitution"
+
+
 def test_fake_backend_uses_same_resolution_for_runner_smoke(
     tmp_path: Path,
 ) -> None:

@@ -28,6 +28,7 @@ class _RecordingBackend:
     def __init__(self) -> None:
         self.last_num_sensor_updates: int | None | object = object()
         self.last_render_mode: str | None | object = object()
+        self.last_material_target: str | None | object = object()
         self.last_kwargs: dict[str, Any] = {}
         self.render_calls = 0
         self.responses: list[dict[str, Any] | BaseException] = []
@@ -36,6 +37,7 @@ class _RecordingBackend:
         self.render_calls += 1
         self.last_num_sensor_updates = kwargs.get("num_sensor_updates")
         self.last_render_mode = kwargs.get("render_mode")
+        self.last_material_target = kwargs.get("material_target")
         self.last_kwargs = kwargs
         if self.responses:
             response = self.responses.pop(0)
@@ -212,6 +214,35 @@ class TestRenderModePrecedence:
             render_mode=mode,
         )
         assert backend.last_render_mode == mode
+
+
+class TestMaterialTargetPrecedence:
+    def test_per_request_target_is_forwarded_to_backend(
+        self, renderer_with_stub_backend
+    ):
+        r, backend = renderer_with_stub_backend
+        r.render(
+            url="data:application/octet-stream;base64,AA==",
+            camera_paths=["/World/Camera"],
+            frame_start=0,
+            frame_end=0,
+            width=64,
+            height=64,
+            material_target="openpbr_materialx",
+        )
+        assert backend.last_material_target == "openpbr_materialx"
+
+    def test_unset_target_passes_none_to_backend(self, renderer_with_stub_backend):
+        r, backend = renderer_with_stub_backend
+        r.render(
+            url="data:application/octet-stream;base64,AA==",
+            camera_paths=["/World/Camera"],
+            frame_start=0,
+            frame_end=0,
+            width=64,
+            height=64,
+        )
+        assert backend.last_material_target is None
 
 
 class TestBlankRenderDetection:

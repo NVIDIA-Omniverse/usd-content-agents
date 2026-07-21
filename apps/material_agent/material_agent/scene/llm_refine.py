@@ -217,6 +217,11 @@ def refine_objects_with_llm(
             response = llm.invoke(
                 [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=prompt)]
             )
+        except Exception:
+            logger.exception("LLM call failed")
+            return None
+
+        try:
             from .stats import record_model_response_usage
 
             record_model_response_usage(
@@ -225,10 +230,9 @@ def refine_objects_with_llm(
                 llm_config.get("model") or None,
                 "scene_analyze_llm",
             )
-            return response
         except Exception:
-            logger.exception("LLM call failed")
-            return None
+            logger.warning("Failed to record LLM usage", exc_info=True)
+        return response
 
     def _make_child_obj(
         obj: dict[str, Any],

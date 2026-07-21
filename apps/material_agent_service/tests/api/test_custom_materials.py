@@ -10,6 +10,7 @@ Tests the custom materials ZIP upload functionality:
 """
 
 import asyncio
+import logging
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -285,13 +286,14 @@ class TestCustomMaterialsUpload:
         assert not (extract_dir / "materials_libs.usda").exists()
         assert not (extract_dir / "large.bin").exists()
 
-    async def test_create_pipeline_rejects_invalid_yaml(self, client):
+    async def test_create_pipeline_rejects_invalid_yaml(self, client, caplog):
         """Test that invalid YAML in materials.yaml is rejected."""
         usd_content = b"#usda 1.0\n"
+        sentinel = "material-yaml-parser-sentinel-727"
 
         # Create ZIP with malformed YAML
         materials_zip = _create_materials_zip(
-            "this: is: invalid: yaml: {",
+            f"materials:\n  description: {sentinel}\n  entries: [\n",
             subdirectory="test",
         )
 
@@ -300,12 +302,60 @@ class TestCustomMaterialsUpload:
             ("materials_zip", ("bad_yaml.zip", materials_zip, "application/zip")),
         ]
 
-        response = await client.post(
-            "/pipeline", files=files, data={"user_email": "test@example.com"}
-        )
+        with caplog.at_level(logging.ERROR):
+            response = await client.post(
+                "/pipeline", files=files, data={"user_email": "test@example.com"}
+            )
 
         assert response.status_code == 400
-        assert "Invalid materials.yaml" in response.json()["detail"]
+        assert response.json()["detail"] == "Invalid materials.yaml"
+        assert sentinel not in response.text
+        assert sentinel not in caplog.text
+        assert "code=material_manifest_parse_failed" in caplog.text
+        assert "phase=local_publication" in caplog.text
+
+    async def test_create_pipeline_rejects_credential_bearing_materials_archive(
+        self,
+        client,
+        caplog,
+    ):
+        """Credential-bearing manifests are rejected before archive publication."""
+        from ...service.routers import pipeline_router
+
+        sentinel = "material-archive-credential-sentinel-727"
+        materials_zip = _create_materials_zip(
+            f"""materials:
+  library_path: "materials_libs.usda"
+  api_key: "{sentinel}"
+  entries:
+    - name: "Test"
+      binding: "/World/Looks/Test"
+""",
+            subdirectory="test",
+        )
+        manager = pipeline_router.get_session_manager()
+        before = set(manager.storage_path.iterdir())
+        files = [
+            ("usd_file", ("scene.usda", b"#usda 1.0\n", "application/octet-stream")),
+            ("materials_zip", ("credentials.zip", materials_zip, "application/zip")),
+        ]
+
+        with caplog.at_level(logging.ERROR):
+            response = await client.post(
+                "/pipeline", files=files, data={"user_email": "test@example.com"}
+            )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid materials.yaml"
+        assert sentinel not in response.text
+        assert sentinel not in caplog.text
+        assert "code=material_manifest_security_failed" in caplog.text
+        assert "phase=local_publication" in caplog.text
+        created = set(manager.storage_path.iterdir()) - before
+        assert created
+        for session_dir in created:
+            assert not list(session_dir.rglob("materials.zip"))
+            assert not list(session_dir.rglob("materials.yaml"))
 
     async def test_create_pipeline_rejects_missing_library_path(self, client):
         """Test that materials.yaml without library_path is rejected."""

@@ -7,7 +7,6 @@ import io
 import json
 import logging
 import mimetypes
-import shutil
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,6 +18,19 @@ import aioboto3
 from aiobotocore.config import AioConfig
 from botocore.exceptions import ClientError
 from cachetools import TTLCache
+from world_understanding.utils.artifacts import (
+    confined_atomic_writer,
+    is_pipeline_temp_path,
+    iter_open_regular_files,
+    open_confined_directory,
+    open_regular_file_no_follow,
+    remove_confined_tree,
+    validated_s3_object_suffix,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
 
 from .base import METADATA_KEY, SessionStore
 from .config import StorageConfig
@@ -28,7 +40,7 @@ logger = logging.getLogger(__name__)
 # Cache key for sessions list (single key since we only cache one list per store)
 _SESSIONS_CACHE_KEY = "sessions"
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing only
     from types_aiobotocore_s3 import S3Client  # type: ignore[import-untyped]
 
 
@@ -233,6 +245,8 @@ class S3SessionStore(SessionStore):
     async def put_bytes(
         self, session_id: str, key: str, data: bytes, content_type: str | None = None
     ) -> None:
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
         async with self._client() as client:
             kwargs: dict[str, Any] = {
                 "Bucket": self.bucket,
@@ -243,21 +257,63 @@ class S3SessionStore(SessionStore):
                 kwargs["ContentType"] = content_type
             await client.put_object(**kwargs)
 
+    async def put_bytes_if_absent(
+        self, session_id: str, key: str, data: bytes, content_type: str | None = None
+    ) -> bool:
+        """Atomically publish a claim using S3 conditional-write semantics."""
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
+        async with self._client() as client:
+            kwargs: dict[str, Any] = {
+                "Bucket": self.bucket,
+                "Key": self._key(session_id, key),
+                "Body": data,
+                "IfNoneMatch": "*",
+            }
+            if content_type:
+                kwargs["ContentType"] = content_type
+            try:
+                await client.put_object(**kwargs)
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in {
+                    "412",
+                    "PreconditionFailed",
+                    "ConditionalRequestConflict",
+                }:
+                    return False
+                raise
+        return True
+
     async def put_file(
         self, session_id: str, key: str, file_path: str, content_type: str | None = None
     ) -> None:
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
+        with open_regular_file_no_follow(file_path) as (source, _metadata):
+            async with self._client() as client:
+                extra: dict[str, Any] = {}
+                if content_type:
+                    extra["ContentType"] = content_type
+                await client.upload_fileobj(
+                    source,
+                    self.bucket,
+                    self._key(session_id, key),
+                    ExtraArgs=extra,
+                )
+
+    async def delete_key(self, session_id: str, key: str) -> None:
+        """Delete one session artifact."""
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
         async with self._client() as client:
-            extra: dict[str, Any] = {}
-            if content_type:
-                extra["ContentType"] = content_type
-            await client.upload_file(
-                file_path,
-                self.bucket,
-                self._key(session_id, key),
-                ExtraArgs=extra,
+            await client.delete_object(
+                Bucket=self.bucket, Key=self._key(session_id, key)
             )
 
     async def open_read(self, session_id: str, key: str) -> io.BytesIO:
+        if is_pipeline_temp_path(key):
+            raise FileNotFoundError(key)
         async with self._client() as client:
             response = await client.get_object(
                 Bucket=self.bucket, Key=self._key(session_id, key)
@@ -266,6 +322,8 @@ class S3SessionStore(SessionStore):
             return io.BytesIO(body)
 
     async def exists(self, session_id: str, key: str) -> bool:
+        if is_pipeline_temp_path(key):
+            return False
         async with self._client() as client:
             try:
                 await client.head_object(
@@ -279,6 +337,8 @@ class S3SessionStore(SessionStore):
                 raise
 
     async def list_keys(self, session_id: str, prefix: str = "") -> list[str]:
+        if is_pipeline_temp_path(prefix):
+            return []
         out: list[str] = []
         pfx = self._key(session_id, prefix)
         async with self._client() as client:
@@ -287,7 +347,10 @@ class S3SessionStore(SessionStore):
                 for obj in page.get("Contents", []):
                     full = obj["Key"]
                     base_len = len(self._key(session_id, ""))
-                    out.append(full[base_len:].lstrip("/"))
+                    rel = full[base_len:].lstrip("/")
+                    if is_pipeline_temp_path(rel):
+                        continue
+                    out.append(rel)
         return out
 
     async def put_json(self, session_id: str, key: str, obj: dict) -> None:
@@ -296,6 +359,8 @@ class S3SessionStore(SessionStore):
         )
 
     async def get_json(self, session_id: str, key: str) -> dict | None:
+        if is_pipeline_temp_path(key):
+            return None
         async with self._client() as client:
             try:
                 response = await client.get_object(
@@ -333,7 +398,7 @@ class S3SessionStore(SessionStore):
     async def make_public_url(
         self, session_id: str, key: str, expires_seconds: int = 3600
     ) -> str | None:
-        if not self.presign_by_default:
+        if is_pipeline_temp_path(key) or not self.presign_by_default:
             return None
         async with self._client() as client:
             return await client.generate_presigned_url(
@@ -359,52 +424,41 @@ class S3SessionStore(SessionStore):
         Returns:
             Number of files synced
         """
-        local_dir = Path(local_session_dir)
-        if not local_dir.exists():
+        try:
+            with open_confined_directory(local_session_dir) as source_descriptor:
+                count = 0
+                async with self._client() as client:
+                    existing_keys: set[str] = set()
+                    s3_prefix = self._key(session_id, prefix)
+                    paginator = client.get_paginator("list_objects_v2")
+                    async for page in paginator.paginate(
+                        Bucket=self.bucket,
+                        Prefix=s3_prefix,
+                    ):
+                        for obj in page.get("Contents", []):
+                            existing_keys.add(obj["Key"])
+
+                    for artifact in iter_open_regular_files(
+                        source_descriptor,
+                        prefix=prefix,
+                    ):
+                        s3_key = self._key(session_id, artifact.relative_key)
+                        if s3_key in existing_keys:
+                            continue
+                        content_type, _ = mimetypes.guess_type(artifact.relative_key)
+                        extra: dict[str, Any] = {}
+                        if content_type:
+                            extra["ContentType"] = content_type
+                        await client.upload_fileobj(
+                            artifact.stream,
+                            self.bucket,
+                            s3_key,
+                            ExtraArgs=extra,
+                        )
+                        count += 1
+                return count
+        except FileNotFoundError:
             return 0
-
-        # Collect local files to sync
-        local_files: list[tuple[Path, str]] = []
-        for file_path in local_dir.rglob("*"):
-            if not file_path.is_file():
-                continue
-            rel_path = file_path.relative_to(local_dir).as_posix()
-            if prefix and not rel_path.startswith(prefix):
-                continue
-            local_files.append((file_path, rel_path))
-
-        if not local_files:
-            return 0
-
-        count = 0
-        async with self._client() as client:
-            # Single LIST call to get all existing keys under this prefix
-            existing_keys: set[str] = set()
-            s3_prefix = self._key(session_id, prefix)
-            paginator = client.get_paginator("list_objects_v2")
-            async for page in paginator.paginate(Bucket=self.bucket, Prefix=s3_prefix):
-                for obj in page.get("Contents", []):
-                    existing_keys.add(obj["Key"])
-
-            # Upload only files that don't exist on S3
-            for file_path, rel_path in local_files:
-                s3_key = self._key(session_id, rel_path)
-                if s3_key in existing_keys:
-                    continue
-
-                content_type, _ = mimetypes.guess_type(str(file_path))
-                extra: dict[str, Any] = {}
-                if content_type:
-                    extra["ContentType"] = content_type
-                await client.upload_file(
-                    str(file_path),
-                    self.bucket,
-                    s3_key,
-                    ExtraArgs=extra,
-                )
-                count += 1
-
-        return count
 
     async def sync_to_local(
         self, session_id: str, local_session_dir: str, prefix: str = ""
@@ -421,31 +475,49 @@ class S3SessionStore(SessionStore):
         Returns:
             Number of files downloaded
         """
-        local_dir = Path(local_session_dir)
-        local_dir.mkdir(parents=True, exist_ok=True)
-
-        count = 0
+        remote_files: list[tuple[str, str]] = []
         async with self._client() as client:
             paginator = client.get_paginator("list_objects_v2")
             s3_prefix = self._key(session_id, prefix)
+            session_prefix = self._key(session_id, "")
             async for page in paginator.paginate(Bucket=self.bucket, Prefix=s3_prefix):
                 for obj in page.get("Contents", []):
-                    s3_key = obj["Key"]
-                    # Derive local relative path from the key
-                    rel_path = s3_key[len(self._key(session_id, "")) :]
-                    if prefix and not rel_path.startswith(prefix):
+                    s3_key = obj.get("Key")
+                    relative_key = validated_s3_object_suffix(
+                        s3_key,
+                        session_prefix,
+                    )
+                    if prefix and not relative_key.startswith(prefix):
                         continue
-                    local_path = local_dir / rel_path
-                    if local_path.exists():
-                        continue
-                    local_path.parent.mkdir(parents=True, exist_ok=True)
-                    await client.download_file(self.bucket, s3_key, str(local_path))
-                    count += 1
+                    remote_files.append((s3_key, relative_key))
 
+            count = 0
+            with open_confined_directory(
+                local_session_dir,
+                create=True,
+            ) as destination_descriptor:
+                for s3_key, relative_key in remote_files:
+                    with confined_atomic_writer(
+                        destination_descriptor,
+                        relative_key,
+                        overwrite=False,
+                    ) as destination:
+                        if destination.stream is None:
+                            continue
+                        await client.download_fileobj(
+                            self.bucket,
+                            s3_key,
+                            destination.stream,
+                        )
+                    if destination.published:
+                        count += 1
         return count
 
     async def cleanup_stale_local_sessions(
-        self, local_storage_path: str, max_age_hours: float = 24.0
+        self,
+        local_storage_path: str,
+        max_age_hours: float = 24.0,
+        skip_session_ids: set[str] | None = None,
     ) -> int:
         """Clean up stale local session directories by syncing to S3 and removing.
 
@@ -458,6 +530,7 @@ class S3SessionStore(SessionStore):
         Args:
             local_storage_path: Root path where local sessions are stored
             max_age_hours: Maximum age in hours before cleanup (default: 24)
+            skip_session_ids: Session IDs that must not be removed locally
 
         Returns:
             Number of sessions cleaned up
@@ -468,12 +541,15 @@ class S3SessionStore(SessionStore):
 
         cutoff_time = datetime.now(UTC) - timedelta(hours=max_age_hours)
         cleaned_count = 0
+        skip_session_ids = skip_session_ids or set()
 
         for session_dir in local_root.iterdir():
             if not session_dir.is_dir():
                 continue
 
             session_id = session_dir.name
+            if session_id in skip_session_ids:
+                continue
 
             # Determine last update time using the store API
             last_updated = await self._get_session_last_updated(session_id)
@@ -498,13 +574,18 @@ class S3SessionStore(SessionStore):
                 )
 
                 # Remove local directory
-                shutil.rmtree(session_dir)
+                remove_confined_tree(session_dir, local_root)
                 logger.info(f"Removed local cache for session {session_id[:8]}")
 
                 cleaned_count += 1
 
-            except Exception as e:
-                logger.warning(f"Failed to cleanup session {session_id[:8]}: {e}")
+            except Exception:
+                log_durable_failure(
+                    logger,
+                    "stale_session_cleanup_failed",
+                    phase=FailurePhase.ROLLBACK,
+                    retryable=True,
+                )
 
         if cleaned_count > 0:
             logger.info(

@@ -84,6 +84,7 @@ TemplateStatus = Literal[
 ValidationVerdict = Literal["pass", "warn", "fail", "needs_refinement", "planned"]
 
 BEHAVIOR_NEEDS_REFINEMENT = "physics.behavior_needs_refinement"
+BEHAVIOR_REJECTED = "physics.behavior_rejected"
 BEHAVIOR_REFINE_LOOP_FAILED = "physics.behavior_refine_loop_failed"
 BEHAVIOR_REFINER_UNAVAILABLE = "physics.behavior_refiner_unavailable"
 CANONICAL_RUNTIME_RENDER_DISABLED = "render.canonical_runtime_render_disabled"
@@ -2065,7 +2066,12 @@ def _physical_behavior_semantic_result(
 
     chosen = _choose_behavior_summary(refine_summary_results)
     status = _coerce_behavior_status(chosen.get("status"))
-    issues = list(_issues_from_behavior_summary(chosen))
+    issues = list(
+        _issues_from_behavior_summary(
+            chosen,
+            behavior_evidence_required=effective_required,
+        )
+    )
     summaries = _behavior_summary_payloads(refine_summary_results)
     if any(
         int(summary.get("judge_llm_unavailable_count") or 0) > 0
@@ -2165,6 +2171,8 @@ def _behavior_summary_payloads(
 
 def _issues_from_behavior_summary(
     summary: Mapping[str, Any],
+    *,
+    behavior_evidence_required: bool = False,
 ) -> tuple[DraftValidationIssue, ...]:
     status = summary.get("status")
     if status == "failed":
@@ -2177,11 +2185,23 @@ def _issues_from_behavior_summary(
                 details=_summary_issue_details(summary),
             ),
         )
+    judge_decision = str(summary.get("judge_decision") or "").strip().lower()
+    if behavior_evidence_required and judge_decision in {"reject", "rejected"}:
+        return (
+            DraftValidationIssue(
+                code=BEHAVIOR_REJECTED,
+                severity="fail",
+                message="Required physical behavior evidence was rejected by the judge.",
+                subject=_optional_text(summary.get("path")),
+                details=_summary_issue_details(summary),
+            ),
+        )
     if status == "needs_refinement":
+        severity: IssueSeverity = "fail" if behavior_evidence_required else "warn"
         return (
             DraftValidationIssue(
                 code=BEHAVIOR_NEEDS_REFINEMENT,
-                severity="warn",
+                severity=severity,
                 message=(
                     "Physics Agent behavior judge requested another refinement "
                     "iteration or reached the iteration cap before approval."

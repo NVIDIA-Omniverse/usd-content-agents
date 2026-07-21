@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from .backend import ENGINE_NEWTON, validate_engine_supports_params
 from .capabilities import BindingCapability, newton_mujoco_capabilities
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing only
     from .newton_simulator import NewtonSimulator
     from .types import Scenario
 

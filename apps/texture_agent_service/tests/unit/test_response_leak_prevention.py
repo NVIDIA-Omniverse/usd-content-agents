@@ -11,7 +11,7 @@ asserts neither substring appears in any of:
 - ``GET /pipeline/{session_id}/status`` and ``/results``,
 - ``GET /sessions`` and ``/sessions/{session_id}``.
 
-Covers NVBugs 6127703 (filesystem path leak) and 6127945 (NVCF URL leak).
+These tests pin both filesystem-path and NVCF-URL leak prevention.
 """
 
 from __future__ import annotations

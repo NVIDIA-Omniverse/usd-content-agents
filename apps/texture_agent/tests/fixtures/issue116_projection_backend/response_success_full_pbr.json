@@ -1,0 +1,84 @@
+{
+  "job_id": "fake-issue116-success",
+  "status": "completed",
+  "progress": 100,
+  "result": {
+    "variant_asset_uri": "file:///work/ladder/.issue116/prepared/ladder_uv_ready.usd",
+    "variant_name": "ladder_aluminum_scuffed",
+    "generated_textures": {
+      "albedo": "file:///work/ladder/.issue116/backend/fake-issue116-success/albedo.png",
+      "normal": "file:///work/ladder/.issue116/backend/fake-issue116-success/normal.png",
+      "orm": "file:///work/ladder/.issue116/backend/fake-issue116-success/orm.png"
+    },
+    "maps": {
+      "albedo": {
+        "uri": "file:///work/ladder/.issue116/backend/fake-issue116-success/albedo.png",
+        "width": 1024,
+        "height": 1024,
+        "mime_type": "image/png",
+        "colorspace": "srgb"
+      },
+      "normal": {
+        "uri": "file:///work/ladder/.issue116/backend/fake-issue116-success/normal.png",
+        "width": 1024,
+        "height": 1024,
+        "mime_type": "image/png",
+        "colorspace": "raw",
+        "packing": "tangent_space_rgb"
+      },
+      "orm": {
+        "uri": "file:///work/ladder/.issue116/backend/fake-issue116-success/orm.png",
+        "width": 1024,
+        "height": 1024,
+        "mime_type": "image/png",
+        "colorspace": "raw",
+        "packing": "r=occlusion,g=roughness,b=metalness"
+      }
+    },
+    "auxiliary_artifacts": {
+      "masks": [
+        {
+          "label": "target_coverage",
+          "uri": "file:///work/ladder/.issue116/backend/fake-issue116-success/coverage_mask.png",
+          "mime_type": "image/png"
+        }
+      ],
+      "debug_previews": [
+        {
+          "label": "projection_preview",
+          "uri": "file:///work/ladder/.issue116/backend/fake-issue116-success/projection_preview.png",
+          "mime_type": "image/png"
+        }
+      ],
+      "geometry": []
+    },
+    "metadata": {
+      "backend_name": "fake_projection_backend",
+      "model": "fake-projection-v1",
+      "endpoint_type": "fake_http",
+      "seed": 11631,
+      "texture_size": 1024,
+      "timings_ms": {
+        "total": 125
+      },
+      "custom_parameter_summary": {
+        "variant": "success_full_pbr"
+      },
+      "capabilities": {
+        "image_conditioning": true,
+        "multiview": false,
+        "normal_map": true,
+        "orm": true,
+        "masks": true,
+        "coverage": true,
+        "geometry_output": "none"
+      },
+      "coverage": {
+        "target_coverage": 0.97,
+        "uv_island_coverage": 0.94
+      },
+      "degraded_channels": []
+    },
+    "diagnostics": []
+  }
+}

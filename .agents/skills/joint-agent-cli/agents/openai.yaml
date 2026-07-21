@@ -1,0 +1,4 @@
+interface:
+  display_name: "Joint Agent CLI"
+  short_description: "Run the Joint Agent CLI"
+  default_prompt: "Use $joint-agent-cli to run the Joint Agent CLI for LLM hierarchy analysis and VLM classification of articulated bodies (robot arms)."

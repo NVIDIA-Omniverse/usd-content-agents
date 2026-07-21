@@ -7,6 +7,11 @@ requires-python = ">=3.12"
 authors = [
     {name = "Omniverse GenAI Team"},
 ]
+dependencies = [
+    # The shared rendering backend factory first ships in v0.5.0.
+    "world-understanding>=0.5.0",
+    "setuptools>=80.9.0",
+]
 
 [build-system]
 requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
@@ -16,22 +21,15 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
-dependencies = [
-    # Core dependency - the world-understanding package from parent directory
-    "world-understanding>=0.2.0",
-    "setuptools>=80.9.0",
-
-]
-
 [project.optional-dependencies]
 dev = [
-    "world-understanding[dev]>=0.2.0",
+    "world-understanding[dev]>=0.5.0",
 ]
 tuning = [
     # BoTorch is the first-class production optimizer for `physics-agent tune`.
@@ -45,7 +43,7 @@ tuning = [
     # simulator over IPC via the daemon and never imports ``ovphysx``
     # directly. See ``apps/physics_agent/physics_agent/tuning/backend.py``
     # for the isolation contract.
-    "botorch>=0.17,<0.18",
+    "botorch==0.17.2",
 ]
 newton = [
     # NVIDIA Newton (GPU-accelerated, Warp + MuJoCo-warp) as a second tuning

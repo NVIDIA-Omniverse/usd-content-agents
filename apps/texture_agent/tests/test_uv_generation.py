@@ -370,6 +370,57 @@ class TestGenerateUvsForStage:
         )
         np.testing.assert_allclose(result_uvs, np.array(original_uvs))
 
+    def test_target_prim_paths_limit_generation(self) -> None:
+        """Only targeted mesh prims should be mutated when a target scope is set."""
+        stage = Usd.Stage.CreateInMemory()
+        target_mesh = _create_quad_mesh(stage, "/World/TargetMesh")
+        other_mesh = _create_quad_mesh(stage, "/World/OtherMesh")
+        target_uvs = Vt.Vec2fArray([Gf.Vec2f(0.2, 0.2)] * 4)
+        other_uvs = Vt.Vec2fArray([Gf.Vec2f(0.8, 0.8)] * 4)
+        UsdGeom.PrimvarsAPI(target_mesh.GetPrim()).CreatePrimvar(
+            "st", Sdf.ValueTypeNames.TexCoord2fArray, "faceVarying"
+        ).Set(target_uvs)
+        UsdGeom.PrimvarsAPI(other_mesh.GetPrim()).CreatePrimvar(
+            "st", Sdf.ValueTypeNames.TexCoord2fArray, "faceVarying"
+        ).Set(other_uvs)
+
+        count = generate_uvs_for_stage(
+            stage,
+            overwrite_existing=True,
+            target_prim_paths=("/World/TargetMesh",),
+        )
+
+        assert count == 1
+        updated_target = np.array(
+            UsdGeom.PrimvarsAPI(stage.GetPrimAtPath("/World/TargetMesh"))
+            .GetPrimvar("st")
+            .Get()
+        )
+        updated_other = np.array(
+            UsdGeom.PrimvarsAPI(stage.GetPrimAtPath("/World/OtherMesh"))
+            .GetPrimvar("st")
+            .Get()
+        )
+        assert not np.allclose(updated_target, np.array(target_uvs))
+        np.testing.assert_allclose(updated_other, np.array(other_uvs))
+
+    def test_target_generation_deinstances_only_target_mesh(self) -> None:
+        """Targeted UV generation should not touch unrelated instanceable meshes."""
+        stage = Usd.Stage.CreateInMemory()
+        target_mesh = _create_quad_mesh(stage, "/World/TargetMesh")
+        other_mesh = _create_quad_mesh(stage, "/World/OtherMesh")
+        target_mesh.GetPrim().SetInstanceable(True)
+        other_mesh.GetPrim().SetInstanceable(True)
+
+        count = generate_uvs_for_stage(
+            stage,
+            target_prim_paths=("/World/TargetMesh",),
+        )
+
+        assert count == 1
+        assert target_mesh.GetPrim().IsInstanceable() is False
+        assert other_mesh.GetPrim().IsInstanceable() is True
+
     def test_planar_mode(self) -> None:
         """Planar projection mode should also generate valid UVs."""
         stage = Usd.Stage.CreateInMemory()
@@ -642,6 +693,39 @@ class TestEdgeCases:
 
         assert count == 1
 
+    def test_fix_uv_interpolation_deinstances_only_target_mesh(self) -> None:
+        """Scoped interpolation repair should not de-instance unrelated meshes."""
+        stage = Usd.Stage.CreateInMemory()
+        target_mesh = _create_quad_mesh(stage, "/World/TargetMesh")
+        other_mesh = _create_quad_mesh(stage, "/World/OtherMesh")
+        for mesh in (target_mesh, other_mesh):
+            api = UsdGeom.PrimvarsAPI(mesh.GetPrim())
+            st = api.CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray, "constant")
+            st.Set(
+                Vt.Vec2fArray(
+                    [
+                        Gf.Vec2f(0.0, 0.0),
+                        Gf.Vec2f(1.0, 0.0),
+                        Gf.Vec2f(1.0, 1.0),
+                        Gf.Vec2f(0.0, 1.0),
+                    ]
+                )
+            )
+            mesh.GetPrim().SetInstanceable(True)
+
+        count = fix_uv_interpolation(
+            stage,
+            target_prim_paths=("/World/TargetMesh",),
+        )
+
+        target_st = UsdGeom.PrimvarsAPI(target_mesh.GetPrim()).GetPrimvar("st")
+        other_st = UsdGeom.PrimvarsAPI(other_mesh.GetPrim()).GetPrimvar("st")
+        assert count == 1
+        assert target_st.GetInterpolation() == "faceVarying"
+        assert other_st.GetInterpolation() == "constant"
+        assert target_mesh.GetPrim().IsInstanceable() is False
+        assert other_mesh.GetPrim().IsInstanceable() is True
+
     def test_normalize_uvs_skips_mesh_without_st(self) -> None:
         """normalize_uvs should skip meshes that have no 'st' primvar."""
         stage = Usd.Stage.CreateInMemory()
@@ -650,3 +734,27 @@ class TestEdgeCases:
         count = normalize_uvs(stage)
 
         assert count == 0
+
+    def test_normalize_uvs_deinstances_only_target_mesh(self) -> None:
+        """Scoped UV normalization should not de-instance unrelated meshes."""
+        stage = Usd.Stage.CreateInMemory()
+        target_mesh = _create_quad_mesh(stage, "/World/TargetMesh")
+        other_mesh = _create_quad_mesh(stage, "/World/OtherMesh")
+        for mesh in (target_mesh, other_mesh):
+            api = UsdGeom.PrimvarsAPI(mesh.GetPrim())
+            st = api.CreatePrimvar(
+                "st",
+                Sdf.ValueTypeNames.TexCoord2fArray,
+                "faceVarying",
+            )
+            st.Set(Vt.Vec2fArray([Gf.Vec2f(-1.0, 2.0)] * 4))
+            mesh.GetPrim().SetInstanceable(True)
+
+        count = normalize_uvs(
+            stage,
+            target_prim_paths=("/World/TargetMesh",),
+        )
+
+        assert count == 1
+        assert target_mesh.GetPrim().IsInstanceable() is False
+        assert other_mesh.GetPrim().IsInstanceable() is True

@@ -2,6 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Validation Agent V1 contracts and extension points."""
 
+from world_understanding.validation.evaluation import (
+    EVALUATION_SCHEMA_VERSION,
+    EvaluationCorrection,
+    EvaluationFinding,
+    EvaluationResult,
+    EvaluationStatus,
+    EvaluationSubject,
+    material_self_evaluation_result_from_signals,
+)
 from world_understanding.validation.models import (
     InputKind,
     IssueSeverity,
@@ -23,6 +32,10 @@ from world_understanding.validation.models import (
     ValidationTemplateResult,
     ValidationVerdict,
     aggregate_validation_verdict,
+)
+from world_understanding.validation.rendering_backend_contract import (
+    SUPPORTED_RENDER_BACKENDS,
+    VALIDATION_RENDERING_BACKEND_NAMES,
 )
 from world_understanding.validation.runner import (
     ValidationTemplate,
@@ -51,17 +64,27 @@ from world_understanding.validation.templates import (
     ValidationTemplateRegistry,
     create_default_template_registry,
 )
-from world_understanding.validation.usd_rendering import (
-    SUPPORTED_RENDER_BACKENDS,
-    render_usd_visual_evidence,
+from world_understanding.validation.usd_rendering import render_usd_visual_evidence
+from world_understanding.validation.visual_grounding import (
+    CameraSpec,
+    MeshRecord,
+    generate_visual_grounding_packet,
 )
 
 __all__ = [
     "DEFAULT_TEMPLATE_DEFINITIONS",
     "DEFAULT_FIXTURE_CONFIG_NAME",
     "DEFERRED_FIXTURE_STATUSES",
+    "EVALUATION_SCHEMA_VERSION",
+    "EvaluationCorrection",
+    "EvaluationFinding",
+    "EvaluationResult",
+    "EvaluationStatus",
+    "EvaluationSubject",
     "InputKind",
     "IssueSeverity",
+    "CameraSpec",
+    "MeshRecord",
     "PlannerBackend",
     "SimReadyFixtureRequest",
     "SimReadyProfileError",
@@ -88,9 +111,12 @@ __all__ = [
     "ValidationTemplateRegistry",
     "ValidationTemplateResult",
     "ValidationVerdict",
+    "VALIDATION_RENDERING_BACKEND_NAMES",
     "aggregate_validation_verdict",
     "build_simready_fixture_requests",
     "create_default_template_registry",
+    "generate_visual_grounding_packet",
+    "material_self_evaluation_result_from_signals",
     "render_usd_visual_evidence",
     "validation_issue_from_scaffold_issue",
     "validation_plan_from_scaffold_plan",

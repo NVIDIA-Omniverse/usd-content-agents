@@ -3,11 +3,12 @@
 """Configuration loading task for validate_usd step."""
 
 import logging
-from pathlib import Path
 from typing import Any
 
-import yaml
-
+from world_understanding.agentic.config import (
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.agentic.usd_tasks.validate_usd import ON_FAILURE_MODES
@@ -16,15 +17,19 @@ from world_understanding.functions.graphics.validate_usd import (
     DEFAULT_VALIDATION_CATEGORIES,
     normalize_validation_categories,
 )
+from world_understanding.utils.credentials import redact_sensitive_path
 
 logger = logging.getLogger(__name__)
+
+_INVALID_VALIDATION_CONFIG_MESSAGE = "validation_config must be a mapping"
 
 
 class ValidateUSDConfigTask(Task):
     """Load and validate configuration for USD validation step.
 
     Input context keys:
-        - config_path: Path to YAML config file
+        - config_dict: In-memory configuration dictionary (preferred)
+        - config_path: Path to YAML config file (fallback)
 
     Output context keys:
         - input_usd_path: Path to input USD to validate
@@ -51,21 +56,7 @@ class ValidateUSDConfigTask(Task):
         """
         listener = get_listener(context)
 
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path is required in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(f"Loading validate_usd configuration from {config_path}")
-
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config:
-            raise ValueError(f"Empty configuration file: {config_path}")
+        config = self._load_config(context, listener)
 
         # Extract paths (already resolved by UnifiedPipelineConfigTask)
         if "input_usd_path" not in config:
@@ -87,13 +78,14 @@ class ValidateUSDConfigTask(Task):
         on_failure = config.get("on_failure", "warn")
         if on_failure not in ON_FAILURE_MODES:
             raise ValueError(
-                f"Invalid on_failure mode: {on_failure!r}. "
-                f"Must be one of {ON_FAILURE_MODES}"
+                f"Invalid on_failure mode. Must be one of {ON_FAILURE_MODES}"
             )
         context["on_failure"] = on_failure
 
         # Build validation config
         validation_config = config.get("validation_config", {})
+        if not isinstance(validation_config, dict):
+            raise ValueError(_INVALID_VALIDATION_CONFIG_MESSAGE) from None
 
         # Ensure categories have defaults
         if "categories" not in validation_config:
@@ -111,7 +103,7 @@ class ValidateUSDConfigTask(Task):
         ]
         if invalid:
             raise ValueError(
-                f"Unknown validation categories: {invalid}. "
+                "Unknown validation categories. "
                 f"Available: {AVAILABLE_VALIDATION_CATEGORIES}"
             )
 
@@ -121,9 +113,35 @@ class ValidateUSDConfigTask(Task):
 
         context["validation_config"] = validation_config
 
-        listener.info(f"Input USD: {context['input_usd_path']}")
+        safe_input_path = redact_sensitive_path(context["input_usd_path"])
+        listener.info(f"Input USD: {safe_input_path}")
         cats = ", ".join(validation_config.get("categories", []))
         listener.info(f"Categories: {cats}")
         listener.info(f"On failure: {on_failure}")
 
         return context
+
+    def _load_config(self, context: dict[str, Any], listener: Any) -> dict[str, Any]:
+        """Load an isolated mapping without rendering configuration values."""
+        config, _ = load_config_mapping_from_context(
+            context,
+            missing_path_message="config_path is required in context",
+            missing_file_message="Configuration file not found: {config_path}",
+            read_error_message=(
+                "Unable to read validate_usd configuration file: {config_path}"
+            ),
+            parse_error_message=(
+                "Unable to parse validate_usd configuration file: {config_path}"
+            ),
+            empty_message=(
+                "Empty validate_usd configuration dictionary"
+                if context.get("config_dict") is not None
+                else "Empty configuration file: {config_path}"
+            ),
+            config_dict_non_mapping_message=(
+                "validate_usd config_dict must be a mapping"
+            ),
+            file_non_mapping_message=("validate_usd configuration must be a mapping"),
+        )
+        log_config_source(context, listener.info, label="validate_usd")
+        return config

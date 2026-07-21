@@ -9,10 +9,29 @@ from pathlib import Path
 from typing import Any
 
 from world_understanding.agentic.events import EventListener
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
 
+from material_agent.api.diagnostics import diagnostic_path, normalize_required_config
 from material_agent.api.types import APIResult, MetricsResult
 
 logger = logging.getLogger(__name__)
+
+_BENCHMARK_FAILURE_MESSAGE = "Benchmark failed"
+
+
+def _metrics_from_projected_result(
+    projected_result: dict[str, Any],
+) -> MetricsResult | None:
+    """Build typed metrics only from the detached public projection."""
+    metrics_data = projected_result.get("metrics")
+    if not isinstance(metrics_data, dict) or not metrics_data:
+        return None
+
+    return MetricsResult.from_projected_dict(metrics_data)
 
 
 @dataclass
@@ -21,6 +40,7 @@ class BenchmarkInput:
 
     Args:
         config: Either a Path to a YAML config file or a dict with config contents
+        config_path: Optional source path used to anchor relative paths for dict config
         dataset_override: Optional path to override dataset from config
         output_dir_override: Optional path to override output directory from config
         resume: Resume from existing predictions.jsonl
@@ -36,19 +56,13 @@ class BenchmarkInput:
     stream_predictions: bool = True
     event_listener: EventListener | None = None
     verbose: bool = False
+    config_path: Path | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate inputs."""
-        # Handle config as either Path or dict
-        if isinstance(self.config, dict):
-            # Config is provided as dictionary (in-memory)
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            # Config is provided as file path
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
+        if self.config_path is not None:
+            self.config_path = Path(self.config_path)
 
         if self.dataset_override:
             self.dataset_override = Path(self.dataset_override)
@@ -57,8 +71,8 @@ class BenchmarkInput:
             self.output_dir_override = Path(self.output_dir_override)
 
 
-@dataclass
-class BenchmarkOutput(APIResult):
+@dataclass(repr=False)
+class BenchmarkOutput(SecretSafeReprMixin, APIResult):
     """Output results from benchmark API."""
 
     metrics: MetricsResult | None = None
@@ -98,12 +112,14 @@ async def arun_benchmark(params: BenchmarkInput) -> BenchmarkOutput:
     if isinstance(params.config, dict):
         listener.info("Using in-memory config dictionary")
     else:
-        listener.info(f"Configuration file: {params.config}")
+        listener.info(f"Configuration file: {diagnostic_path(params.config)}")
 
     if params.dataset_override:
-        listener.info(f"Dataset override: {params.dataset_override}")
+        listener.info(f"Dataset override: {diagnostic_path(params.dataset_override)}")
     if params.output_dir_override:
-        listener.info(f"Output directory override: {params.output_dir_override}")
+        listener.info(
+            f"Output directory override: {diagnostic_path(params.output_dir_override)}"
+        )
 
     try:
         # Import workflow factory
@@ -135,6 +151,8 @@ async def arun_benchmark(params: BenchmarkInput) -> BenchmarkOutput:
         # Add config as either path or dict
         if isinstance(config_to_use, dict):
             initial_context["config_dict"] = config_to_use
+            if params.config_path is not None:
+                initial_context["config_path"] = str(params.config_path)
         else:
             initial_context["config_path"] = str(config_to_use)
 
@@ -147,21 +165,35 @@ async def arun_benchmark(params: BenchmarkInput) -> BenchmarkOutput:
         listener.event("workflow.executing", {"workflow_type": "benchmark"})
 
         result = await workflow.arun(initial_context)
+        safe_result = project_result_metadata(result)
 
-        # Extract metrics from workflow result
-        metrics_dict = result.get("metrics") if result else None
+        # Runtime context/results stay raw while the workflow runs. Build every
+        # public metric and metadata field from a detached projection.
+        metrics = _metrics_from_projected_result(safe_result)
 
-        if metrics_dict:
-            metrics = MetricsResult.from_dict(metrics_dict)
+        if metrics is not None:
+            evaluation_path = retain_safe_result_path(
+                result.get("evaluation_path") if isinstance(result, dict) else None
+            )
+            predictions_path = retain_safe_result_path(
+                result.get("predictions_path") if isinstance(result, dict) else None
+            )
+            safe_event_metrics = project_result_metadata(
+                {"metrics": metrics.to_dict()}
+            ).get("metrics", {})
 
             # Emit completion event
             listener.event(
                 "workflow.completed",
                 {
                     "workflow_type": "benchmark",
-                    "metrics": metrics.to_dict(),
-                    "evaluation_path": result.get("evaluation_path"),
-                    "predictions_path": result.get("predictions_path"),
+                    "metrics": safe_event_metrics,
+                    "evaluation_path": (
+                        diagnostic_path(evaluation_path) if evaluation_path else None
+                    ),
+                    "predictions_path": (
+                        diagnostic_path(predictions_path) if predictions_path else None
+                    ),
                 },
             )
             listener.info("Benchmark completed successfully")
@@ -169,33 +201,38 @@ async def arun_benchmark(params: BenchmarkInput) -> BenchmarkOutput:
             return BenchmarkOutput(
                 success=True,
                 metrics=metrics,
-                evaluation_path=Path(result["evaluation_path"])
-                if result.get("evaluation_path")
-                else None,
-                predictions_path=Path(result["predictions_path"])
-                if result.get("predictions_path")
-                else None,
-                raw_result=result,
+                evaluation_path=evaluation_path,
+                predictions_path=predictions_path,
+                raw_result=safe_result,
             )
         else:
-            error_msg = "Benchmark workflow completed but returned no metrics"
-            listener.error(error_msg)
+            safe_result["error"] = _BENCHMARK_FAILURE_MESSAGE
+            listener.error(_BENCHMARK_FAILURE_MESSAGE)
             listener.event(
-                "workflow.failed", {"workflow_type": "benchmark", "error": error_msg}
+                "workflow.failed",
+                {
+                    "workflow_type": "benchmark",
+                    "error": _BENCHMARK_FAILURE_MESSAGE,
+                },
             )
             return BenchmarkOutput(
                 success=False,
-                error=error_msg,
+                error=_BENCHMARK_FAILURE_MESSAGE,
+                raw_result=safe_result,
             )
 
-    except Exception as e:
-        listener.error(f"Error running benchmark: {str(e)}")
+    except Exception:
+        listener.error(_BENCHMARK_FAILURE_MESSAGE)
         listener.event(
-            "workflow.failed", {"workflow_type": "benchmark", "error": str(e)}
+            "workflow.failed",
+            {
+                "workflow_type": "benchmark",
+                "error": _BENCHMARK_FAILURE_MESSAGE,
+            },
         )
         return BenchmarkOutput(
             success=False,
-            error=str(e),
+            error=_BENCHMARK_FAILURE_MESSAGE,
         )
 
 

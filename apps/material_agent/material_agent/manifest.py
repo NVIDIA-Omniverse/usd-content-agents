@@ -25,10 +25,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+from world_understanding.utils.credentials import redact_sensitive_config
+
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Usd
 
 log = logging.getLogger(__name__)
+
+_THUMBNAIL_RENDER_FAILURE_MESSAGE = "Thumbnail render failed"
+_S3_CLEANUP_FAILURE_MESSAGE = "S3 cleanup failed"
+_DESCRIPTION_GENERATION_FAILURE_MESSAGE = "VLM description generation failed"
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -236,7 +242,7 @@ def _collect_mdl_deps(mdl_path: Path, visited: set[Path] | None = None) -> set[P
             base = base.parent
             i += 1
         module_parts = parts[i:]
-        if not module_parts:
+        if not module_parts:  # pragma: no cover
             continue
         candidate = base.joinpath(*module_parts[:-1]) / f"{module_parts[-1]}.mdl"
         _collect_mdl_deps(candidate, visited)
@@ -438,8 +444,6 @@ def _render_one_thumbnail(
     from world_understanding.utils.nvcf_utils import s3_uri_to_https_url
     from world_understanding.utils.s3_utils import delete_s3_path, upload_file_to_s3
 
-    name = prim_path_to_filename(material_prim_path)
-
     try:
         # Compose template + material (flattened)
         stage = _compose_thumbnail_stage(template_path, usd_file, material_prim_path)
@@ -469,17 +473,13 @@ def _render_one_thumbnail(
             # Clean up S3 assets
             try:
                 delete_s3_path(s3_uri, profile_name=_S3_PROFILE)
-            except Exception as e:
-                log.debug("S3 cleanup failed for %s: %s", name, e)
+            except Exception:
+                log.debug(_S3_CLEANUP_FAILURE_MESSAGE)
 
         # Check render result
         status = result.get("status")
         if status != RenderingStatus.success:
-            return (
-                material_prim_path,
-                None,
-                f"Render status: {status}, error: {result.get('error', 'unknown')}",
-            )
+            return material_prim_path, None, _THUMBNAIL_RENDER_FAILURE_MESSAGE
 
         images = result.get("images", [])
         if not images:
@@ -490,8 +490,8 @@ def _render_one_thumbnail(
         images[0].save(str(output_path))
         return material_prim_path, output_path, None
 
-    except Exception as e:
-        return material_prim_path, None, str(e)
+    except Exception:
+        return material_prim_path, None, _THUMBNAIL_RENDER_FAILURE_MESSAGE
 
 
 def render_thumbnails(
@@ -564,11 +564,18 @@ def render_thumbnails(
             name = prim_path_to_filename(pp)
 
             if error:
-                log.warning("[%d/%d] FAILED %s: %s", done_count, total, name, error)
+                log.warning(
+                    "[%d/%d] %s", done_count, total, _THUMBNAIL_RENDER_FAILURE_MESSAGE
+                )
                 failed.append(pp)
             else:
                 results[pp] = thumb_path  # type: ignore[assignment]
-                log.info("[%d/%d] OK %s", done_count, total, name)
+                log.info(
+                    "[%d/%d] OK %s",
+                    done_count,
+                    total,
+                    redact_sensitive_config(name, _path_context=True),
+                )
 
     if failed:
         log.warning(
@@ -639,11 +646,11 @@ def _describe_one(
             images=[str(thumb_path)],
         )
         if "error" in result:
-            return pp, None, result["error"]
+            return pp, None, _DESCRIPTION_GENERATION_FAILURE_MESSAGE
         desc = result["response"].strip().strip('"').strip("'")
         return pp, desc, None
-    except Exception as e:
-        return pp, None, str(e)
+    except Exception:
+        return pp, None, _DESCRIPTION_GENERATION_FAILURE_MESSAGE
 
 
 def generate_descriptions(
@@ -659,11 +666,15 @@ def generate_descriptions(
     Returns a mapping of prim_path -> description.
     """
     from world_understanding.functions.models.vision_language_models import create_vlm
+    from world_understanding.utils.credentials import (
+        API_KEY_ENV_VAR_MAP,
+        get_env_api_key_for_backend,
+    )
 
     log.info(
         "Generating descriptions via VLM (backend=%s, model=%s, workers=%d)",
-        vlm_backend,
-        vlm_model or "default",
+        redact_sensitive_config(vlm_backend),
+        redact_sensitive_config(vlm_model or "default", _path_context=True),
         max_workers,
     )
 
@@ -671,20 +682,25 @@ def generate_descriptions(
     if vlm_model:
         vlm_kwargs["model"] = vlm_model
 
-    # Resolve API key from environment based on backend
-    api_key_env_map = {
-        "nvidia_inference": "INFERENCE_NVIDIA_API_KEY",
-        "nim": "NVIDIA_API_KEY",
-        "perflab_azure_openai": "NSTORAGE_API_KEY",
-    }
-    env_var = api_key_env_map.get(vlm_backend)
-    if env_var:
-        api_key = os.environ.get(env_var)
+    # Resolve API key from environment based on backend.
+    env_vars = API_KEY_ENV_VAR_MAP.get(vlm_backend, ())
+    if env_vars:
+        api_key = get_env_api_key_for_backend(vlm_backend)
         if not api_key:
-            raise ValueError(f"{env_var} not set for {vlm_backend} backend")
+            expected = " or ".join(env_vars)
+            raise ValueError(f"{expected} not set for {vlm_backend} backend")
         vlm_kwargs["api_key"] = api_key
 
-    vlm = create_vlm(**vlm_kwargs)
+    provider_setup_failed = False
+    try:
+        vlm = create_vlm(**vlm_kwargs)
+    except Exception:
+        provider_setup_failed = True
+        vlm = None
+    if provider_setup_failed:
+        vlm_kwargs = {}
+        api_key = None
+        raise RuntimeError(_DESCRIPTION_GENERATION_FAILURE_MESSAGE)
 
     descriptions: dict[str, str] = {}
     failed: list[str] = []
@@ -703,20 +719,24 @@ def generate_descriptions(
             name = prim_path_to_name(pp)
             if error:
                 log.warning(
-                    "[%d/%d] VLM error for %s: %s", done_count, total, name, error
+                    "[%d/%d] %s",
+                    done_count,
+                    total,
+                    _DESCRIPTION_GENERATION_FAILURE_MESSAGE,
                 )
                 failed.append(name)
             else:
                 descriptions[pp] = desc  # type: ignore[assignment]
-                log.info("[%d/%d] %s: %s", done_count, total, name, desc)
+                log.info(
+                    "[%d/%d] %s: %s",
+                    done_count,
+                    total,
+                    redact_sensitive_config(name, _path_context=True),
+                    redact_sensitive_config(desc),
+                )
 
     if failed:
-        log.warning(
-            "Failed to describe %d/%d materials: %s",
-            len(failed),
-            len(thumbnails),
-            ", ".join(failed),
-        )
+        log.warning("Failed to describe %d/%d materials", len(failed), len(thumbnails))
 
     return descriptions
 

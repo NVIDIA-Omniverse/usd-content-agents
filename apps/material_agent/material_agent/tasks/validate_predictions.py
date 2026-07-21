@@ -30,6 +30,7 @@ from world_understanding.agentic.tasks import Task
 
 from material_agent.materials import (
     DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+    FALLBACK_MATERIAL_NAME,
     PREDICTION_CONTAINER_KEYS,
     PREDICTION_ID_KEYS,
     PREDICTION_MATERIAL_KEYS,
@@ -53,6 +54,7 @@ class _PredictionMaterialRecord:
     material: str | None
     set_material: Callable[[str], None]
     mark_disallowed_unknown: Callable[[], None]
+    mark_fallback: Callable[[str | None, str], None]
     report_id: str | None = None
     reason: str | None = None
 
@@ -84,7 +86,7 @@ def _best_fuzzy_match(name: str, valid_names: list[str]) -> tuple[str | None, fl
 
 def _extract_material_name(prediction: dict[str, Any]) -> str | None:
     """Extract material name from a prediction entry."""
-    has_material, material, _, _, _ = _selected_material_location(prediction)
+    has_material, material, _, _, _, _ = _selected_material_location(prediction)
     if not has_material:
         return None
     return material if isinstance(material, str) else None
@@ -107,6 +109,24 @@ def _mark_materials_disallowed_unknown(prediction: dict[str, Any]) -> None:
     prediction["materials"]["validation_status"] = DISALLOWED_UNKNOWN_VALIDATION_STATUS
 
 
+def _mark_materials_fallback(
+    prediction: dict[str, Any], original: str | None, reason: str
+) -> None:
+    """Annotate a prediction whose material was replaced by the fallback."""
+    materials = prediction.get("materials")
+    if not isinstance(materials, dict):
+        prediction["materials"] = {
+            "material": materials
+            if isinstance(materials, str)
+            else FALLBACK_MATERIAL_NAME
+        }
+        materials = prediction["materials"]
+    materials["fallback_source"] = "validation"
+    materials["fallback_reason"] = reason
+    if original:
+        materials["fallback_original_material"] = original
+
+
 def _top_level_validation_status_marker(
     prediction: dict[str, Any],
 ) -> Callable[[], None]:
@@ -118,6 +138,11 @@ def _top_level_validation_status_marker(
 
 def _noop_disallowed_unknown_marker() -> None:
     """Do nothing for synthesized missing-material records."""
+    return None
+
+
+def _noop_fallback_marker(original: str | None, reason: str) -> None:
+    """Do nothing for synthesized fallback records."""
     return None
 
 
@@ -139,9 +164,28 @@ def _top_level_material_setter(
     return set_material
 
 
+def _top_level_fallback_marker(
+    prediction: dict[str, Any],
+) -> Callable[[str | None, str], None]:
+    def mark_fallback(original: str | None, reason: str) -> None:
+        prediction["fallback_source"] = "validation"
+        prediction["fallback_reason"] = reason
+        if original:
+            prediction["fallback_original_material"] = original
+
+    return mark_fallback
+
+
 def _selected_material_location(
     prediction: dict[str, Any],
-) -> tuple[bool, Any | None, Callable[[str], None], Callable[[], None], str | None]:
+) -> tuple[
+    bool,
+    Any | None,
+    Callable[[str], None],
+    Callable[[], None],
+    Callable[[str | None, str], None],
+    str | None,
+]:
     """Return selected material value, setter, and optional reason."""
     materials = prediction.get("materials")
     if isinstance(materials, dict):
@@ -151,6 +195,16 @@ def _selected_material_location(
             lambda name: materials.__setitem__("material", name),
             lambda: materials.__setitem__(
                 "validation_status", DISALLOWED_UNKNOWN_VALIDATION_STATUS
+            ),
+            lambda original, reason: (
+                materials.__setitem__("fallback_source", "validation"),
+                materials.__setitem__("fallback_reason", reason),
+                materials.__setitem__(
+                    "fallback_original_material",
+                    original,
+                )
+                if original
+                else None,
             ),
             materials.get("reason")
             if isinstance(materials.get("reason"), str)
@@ -162,6 +216,9 @@ def _selected_material_location(
             materials,
             lambda name: prediction.__setitem__("materials", name),
             lambda: _mark_materials_disallowed_unknown(prediction),
+            lambda original, reason: _mark_materials_fallback(
+                prediction, original, reason
+            ),
             None,
         )
     for key in PREDICTION_MATERIAL_KEYS:
@@ -172,6 +229,7 @@ def _selected_material_location(
             prediction.get(key),
             _top_level_material_setter(prediction, key),
             _top_level_validation_status_marker(prediction),
+            _top_level_fallback_marker(prediction),
             None,
         )
     return (
@@ -179,6 +237,7 @@ def _selected_material_location(
         None,
         lambda name: _set_material_name(prediction, name),
         lambda: _mark_materials_disallowed_unknown(prediction),
+        lambda original, reason: _mark_materials_fallback(prediction, original, reason),
         None,
     )
 
@@ -279,6 +338,7 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
         report_id: str | None,
         reason: str | None = None,
         marker: Callable[[], None] = _noop_disallowed_unknown_marker,
+        fallback_marker: Callable[[str | None, str], None] = _noop_fallback_marker,
     ) -> None:
         records.append(
             _PredictionMaterialRecord(
@@ -286,6 +346,7 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
                 material=material if isinstance(material, str) else None,
                 set_material=setter,
                 mark_disallowed_unknown=marker,
+                mark_fallback=fallback_marker,
                 report_id=report_id,
                 reason=reason,
             )
@@ -294,7 +355,14 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
     def parent_accessors(
         parent: dict[str, Any] | list[Any],
         key: str | int,
-    ) -> tuple[Callable[[str], None], Callable[[], None]] | None:
+    ) -> (
+        tuple[
+            Callable[[str], None],
+            Callable[[], None],
+            Callable[[str | None, str], None],
+        ]
+        | None
+    ):
         if isinstance(parent, list) and isinstance(key, int):
 
             def set_list_item(name: str) -> None:
@@ -306,7 +374,18 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
                     "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
                 }
 
-            return set_list_item, mark_list_item
+            def mark_list_fallback(original: str | None, reason: str) -> None:
+                parent[key] = {
+                    "material": parent[key]
+                    if isinstance(parent[key], str)
+                    else FALLBACK_MATERIAL_NAME,
+                    "fallback_source": "validation",
+                    "fallback_reason": reason,
+                }
+                if original:
+                    parent[key]["fallback_original_material"] = original
+
+            return set_list_item, mark_list_item, mark_list_fallback
         if isinstance(parent, dict) and isinstance(key, str):
 
             def set_dict_item(name: str) -> None:
@@ -318,8 +397,19 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
                     "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
                 }
 
-            return set_dict_item, mark_dict_item
-        return None
+            def mark_dict_fallback(original: str | None, reason: str) -> None:
+                parent[key] = {
+                    "material": parent[key]
+                    if isinstance(parent[key], str)
+                    else FALLBACK_MATERIAL_NAME,
+                    "fallback_source": "validation",
+                    "fallback_reason": reason,
+                }
+                if original:
+                    parent[key]["fallback_original_material"] = original
+
+            return set_dict_item, mark_dict_item, mark_dict_fallback
+        return None  # pragma: no cover - defensive guard for impossible traversal state
 
     def visit(
         node: Any,
@@ -340,20 +430,38 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
             if parent is not None and key is not None:
                 accessors = parent_accessors(parent, key)
                 if accessors is not None:
-                    setter, marker = accessors
-                    add_record(node, setter, fallback_id, marker=marker)
+                    setter, marker, fallback_marker = accessors
+                    add_record(
+                        node,
+                        setter,
+                        fallback_id,
+                        marker=marker,
+                        fallback_marker=fallback_marker,
+                    )
             return
 
         if not isinstance(node, dict):
             return
 
         report_id = _prediction_prim_id(node) or fallback_id
-        has_material, material, setter, marker, reason = _selected_material_location(
-            node
-        )
+        (
+            has_material,
+            material,
+            setter,
+            marker,
+            fallback_marker,
+            reason,
+        ) = _selected_material_location(node)
         record_count_before = len(records)
         if has_material:
-            add_record(material, setter, report_id, reason, marker=marker)
+            add_record(
+                material,
+                setter,
+                report_id,
+                reason,
+                marker=marker,
+                fallback_marker=fallback_marker,
+            )
 
         for container_key in PREDICTION_CONTAINER_KEYS:
             container = node.get(container_key)
@@ -370,7 +478,13 @@ def _prediction_material_records(payload: Any) -> list[_PredictionMaterialRecord
         if len(records) == record_count_before and (
             report_id is not None or (parent is not None and key is not None)
         ):
-            add_record(None, setter, report_id, marker=marker)
+            add_record(
+                None,
+                setter,
+                report_id,
+                marker=marker,
+                fallback_marker=fallback_marker,
+            )
 
     visit(payload)
     return records
@@ -407,6 +521,11 @@ class ValidatePredictionsTask(Task):
             context["validation_stats"] = {"skipped": True}
             return context
 
+        fallback_material_name = context.get("fallback_material_name")
+        if not isinstance(fallback_material_name, str) or not fallback_material_name:
+            fallback_material_name = FALLBACK_MATERIAL_NAME
+        if fallback_material_name not in material_names:
+            material_names = [*material_names, fallback_material_name]
         valid_set = set(material_names)
         listener.info(f"Validating predictions against {len(valid_set)} material names")
 
@@ -424,31 +543,40 @@ class ValidatePredictionsTask(Task):
         no_material: list[int] = []
         unknown_materials: list[dict[str, Any]] = []
         unknown_disallowed_materials: list[dict[str, Any]] = []
+        fallback_applied: list[dict[str, Any]] = []
+
+        def apply_fallback(
+            record: _PredictionMaterialRecord,
+            original: str | None,
+            reason: str,
+        ) -> None:
+            record.set_material(fallback_material_name)
+            record.material = fallback_material_name
+            record.mark_fallback(original, reason)
+            entry: dict[str, Any] = {
+                "index": record.index,
+                "new": fallback_material_name,
+                "reason": reason,
+            }
+            if record.report_id:
+                entry["id"] = record.report_id
+            if original:
+                entry["old"] = original
+            fallback_applied.append(entry)
 
         for record in prediction_records:
             mat_name = record.material
-            if mat_name is None:
+            if mat_name is None or not mat_name.strip():
                 no_material.append(record.index)
+                apply_fallback(record, mat_name, "missing_material")
                 continue
             if is_unknown_material_name(mat_name):
+                entry = _unknown_prediction_report_entry(record)
                 if allow_unknown_material:
-                    if mat_name != UNKNOWN_MATERIAL_SENTINEL:
-                        record.set_material(UNKNOWN_MATERIAL_SENTINEL)
-                        record.material = UNKNOWN_MATERIAL_SENTINEL
-                    unknown_materials.append(_unknown_prediction_report_entry(record))
+                    unknown_materials.append(entry)
                 else:
-                    unknown_disallowed_materials.append(
-                        _unknown_prediction_report_entry(record)
-                    )
-                    no_material.append(record.index)
-                    record.set_material("")
-                    record.mark_disallowed_unknown()
-                    record.material = ""
-                    listener.warning(
-                        f"Prediction {record.index} used '{mat_name}', "
-                        "but allow_unknown_material is false; treating as "
-                        "missing material and clearing the sentinel."
-                    )
+                    unknown_disallowed_materials.append(entry)
+                    apply_fallback(record, mat_name, "unknown_material")
                 continue
             if mat_name in valid_set:
                 valid_count += 1
@@ -473,7 +601,13 @@ class ValidatePredictionsTask(Task):
         if unknown_materials:
             listener.warning(
                 f"{len(unknown_materials)} prediction(s) were classified as "
-                f"'{UNKNOWN_MATERIAL_SENTINEL}' and will not be material-applied."
+                f"'{UNKNOWN_MATERIAL_SENTINEL}' and are allowed by policy."
+            )
+        if unknown_disallowed_materials:
+            listener.warning(
+                f"{len(unknown_disallowed_materials)} prediction(s) were classified as "
+                f"'{UNKNOWN_MATERIAL_SENTINEL}' and will use "
+                f"'{fallback_material_name}'."
             )
 
         # Apply auto-corrections
@@ -504,7 +638,11 @@ class ValidatePredictionsTask(Task):
                     )
                     llm_failed += 1
                     continue
-                if repaired_name and repaired_name in valid_set:
+                if (
+                    repaired_name
+                    and repaired_name in valid_set
+                    and repaired_name != fallback_material_name
+                ):
                     record.set_material(repaired_name)
                     record.material = repaired_name
                     listener.info(f"  LLM-repaired: '{old_name}' -> '{repaired_name}'")
@@ -535,6 +673,7 @@ class ValidatePredictionsTask(Task):
                         listener.warning(
                             f"  Could not repair: '{old_name}' (no good match)"
                         )
+                        apply_fallback(record, old_name, "unrepaired_invalid_material")
                         llm_failed += 1
         elif needs_llm:
             # No LLM config - use fuzzy best match for all
@@ -553,6 +692,11 @@ class ValidatePredictionsTask(Task):
                     listener.warning(
                         f"  Could not repair: '{old_name}' (no good match)"
                     )
+                    apply_fallback(
+                        record_by_index[idx],
+                        old_name,
+                        "unrepaired_invalid_material",
+                    )
                     llm_failed += 1
 
         _write_predictions_atomically(
@@ -570,6 +714,7 @@ class ValidatePredictionsTask(Task):
             "no_material": len(no_material),
             "unknown": len(unknown_materials),
             "unknown_disallowed": len(unknown_disallowed_materials),
+            "fallback_applied": len(fallback_applied),
         }
         context["validation_stats"] = stats
         existing_unknown_count = context.get("unknown_material_predictions", 0)
@@ -577,13 +722,14 @@ class ValidatePredictionsTask(Task):
             existing_unknown_count = 0
         context["unknown_material_predictions"] = max(
             existing_unknown_count,
-            stats["unknown"] + stats["unknown_disallowed"],
+            stats["unknown"],
         )
         listener.info(
             f"Validation complete: {stats['auto_corrected']} auto-corrected, "
             f"{stats['llm_repaired']} LLM-repaired, {stats['failed']} failed, "
             f"{stats['unknown']} unknown, "
-            f"{stats['unknown_disallowed']} disallowed unknown"
+            f"{stats['unknown_disallowed']} disallowed unknown, "
+            f"{stats['fallback_applied']} fallback-applied"
         )
 
         # Write validation report
@@ -597,12 +743,18 @@ class ValidatePredictionsTask(Task):
             "failed": [],
             "unknown": unknown_materials,
             "unknown_disallowed": unknown_disallowed_materials,
+            "fallback_applied": fallback_applied,
         }
         # Collect LLM repair results if available
         if needs_llm and llm_config:
             for idx, old_name, best_match, score in needs_llm:
                 final_mat = record_by_index[idx].material
-                if final_mat and final_mat != old_name and final_mat in valid_set:
+                if (
+                    final_mat
+                    and final_mat != old_name
+                    and final_mat in valid_set
+                    and final_mat != fallback_material_name
+                ):
                     report["llm_repaired"].append(
                         {"index": idx, "old": old_name, "new": final_mat}
                     )

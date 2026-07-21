@@ -48,7 +48,7 @@ def _path_redactor(storage_root: str | None) -> re.Pattern[str] | None:
         roots.append(storage_root.rstrip("/"))
     if "/var/texture-agent/sessions" not in roots:
         roots.append("/var/texture-agent/sessions")
-    if not roots:
+    if not roots:  # pragma: no cover - docker default root is always appended
         return None
     pattern = "|".join(re.escape(r) for r in roots)
     # Match the root plus any non-whitespace tail (path segments, filenames).

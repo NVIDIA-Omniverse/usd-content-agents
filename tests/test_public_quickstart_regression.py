@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Regression tests for the public quickstart paths (NVBug 6125716).
+"""Regression tests for the public quickstart paths.
 
-QA filed NVBug 6125716 after the public README quickstart for the physics
-agent failed end-to-end with only NVIDIA_API_KEY in .env. Two distinct
+The public README quickstart for the Physics Agent previously failed
+end-to-end with only NVIDIA_API_KEY in .env. Two distinct
 foot-guns were responsible:
 
 1. ``apps/physics_agent/configs/lightbulb.yaml`` -- the ``identify_asset``
@@ -69,12 +69,21 @@ _PUBLIC_CONFIG_LOCAL_RENDER_STEPS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+_JOINT_PUBLIC_CONFIG = Path("apps/joint_agent/configs/byoa_joint_rigger.yaml")
+_JOINT_PUBLIC_GUIDES = (
+    Path("apps/joint_agent/README.md"),
+    Path("apps/joint_agent/AGENTS.md"),
+    Path("apps/joint_agent/CLAUDE.md"),
+    Path(".agents/skills/joint-agent-cli/SKILL.md"),
+)
+
 # Compose files that load the repo-root .env via long-form `env_file`. The
 # fix is to NOT list provider API keys under `environment:` for the same
 # service, because Compose substitution can't see env_file contents.
 _COMPOSE_FILES = (
     "apps/physics_agent_service/docker-compose.yml",
     "apps/material_agent_service/docker-compose.yml",
+    "apps/joint_agent_service/docker-compose.yml",
     "apps/texture_agent_service/docker-compose.yml",
 )
 
@@ -172,6 +181,148 @@ def test_public_config_render_steps_default_to_ovrtx(
         )
 
 
+def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
+    """Joint staging exposes one asset-neutral, candidate-driven config."""
+
+    config_dir = REPO_ROOT / "apps/joint_agent/configs"
+    if not config_dir.exists():
+        pytest.skip("Joint Agent is not included in this staging release")
+
+    public_configs = sorted(path.name for path in config_dir.glob("*.yaml"))
+    assert public_configs == [_JOINT_PUBLIC_CONFIG.name]
+
+    config_path = REPO_ROOT / _JOINT_PUBLIC_CONFIG
+    config_text = config_path.read_text(encoding="utf-8")
+    config = yaml.safe_load(config_text)
+    assert isinstance(config, dict)
+    assert config["input"]["usd_path"] == "/absolute/path/to/your_asset.usd"
+    assert ".data/" not in config_text
+    assert "nvidia" + "_inference" not in config_text
+    assert "llm" + "gateway" not in config_text
+
+    steps = config["steps"]
+    assert steps["identify_asset"]["renderer"]["backend"] == "remote"
+    assert steps["build_dataset_usd"]["renderer"]["backend"] == "remote"
+    assert steps["analyze_structure"]["llm"] == {
+        "backend": "nim",
+        "model": "qwen/qwen3.5-397b-a17b",
+    }
+    assert steps["predict"]["vlm"] == {
+        "backend": "nim",
+        "model": "qwen/qwen3.5-397b-a17b",
+    }
+    assert steps["predict"]["completion_retries"] == 3
+    assert steps["build_dataset_prepare_dataset"]["prompt_profile"] == (
+        "prop_articulation"
+    )
+    assert steps["infer_articulation_candidates"] == {
+        "enabled": True,
+        "output_key": "classification",
+        "candidate_joint_types": ["revolute", "prismatic"],
+        "adjudication": {
+            "enabled": True,
+            "reconcile_topology": True,
+            "model_key": "vlm",
+            "min_confidence": "high",
+            "max_tokens": 8192,
+            "max_images": 64,
+            "require_source_images": True,
+        },
+        "vlm": {
+            "backend": "nim",
+            "model": "qwen/qwen3.5-397b-a17b",
+        },
+    }
+    apply_step = steps["apply_joint_rigger"]
+    assert apply_step["enabled"] is False
+    assert apply_step["adapter"] == "owned_core"
+    assert apply_step["apply_masses"] is False
+    assert apply_step["apply_collision"] is False
+    assert apply_step["articulation_candidates_path"].endswith(
+        "articulation_candidates/articulation_candidates.json"
+    )
+    assert apply_step["output_usd_path"].endswith("joint_rigger/rigged.usdz")
+
+
+def test_joint_service_public_defaults_are_remote_and_unbounded() -> None:
+    """The public service should need no local renderer or fixed upload cap."""
+
+    compose_path = REPO_ROOT / "apps/joint_agent_service/docker-compose.yml"
+    if not compose_path.exists():
+        pytest.skip("Joint Agent Service is not included in this staging release")
+
+    compose_text = compose_path.read_text(encoding="utf-8")
+    dockerfile_text = (REPO_ROOT / "apps/joint_agent_service/Dockerfile").read_text(
+        encoding="utf-8"
+    )
+    assert "JA_RENDER_BACKEND=${JA_RENDER_BACKEND:-remote}" in compose_text
+    assert "JA_MAX_UPLOAD_SIZE_MB=${JA_MAX_UPLOAD_SIZE_MB:-0}" in compose_text
+    assert "runtime: nvidia" not in compose_text
+    assert "JA_MAX_UPLOAD_SIZE_MB=0" in dockerfile_text
+    assert "JA_RENDER_BACKEND=remote" in dockerfile_text
+    assert "packages/usd_joint_rigger" not in dockerfile_text
+
+
+def test_joint_public_guides_use_the_byoa_template() -> None:
+    """Public Joint commands must not point users at internal asset configs."""
+
+    if not (REPO_ROOT / "apps/joint_agent").exists():
+        pytest.skip("Joint Agent is not included in this staging release")
+
+    for relative_path in _JOINT_PUBLIC_GUIDES:
+        path = public_doc_path(REPO_ROOT, relative_path)
+        assert path.is_file(), relative_path
+        text = path.read_text(encoding="utf-8")
+        assert _JOINT_PUBLIC_CONFIG.as_posix() in text, relative_path
+        assert "apps/joint_agent/configs/nova_carter.yaml" not in text
+        assert "apps/joint_agent/configs/blender_ur10e.yaml" not in text
+
+
+def test_joint_byoa_template_loads_after_input_and_authoring_opt_in(
+    tmp_path: Path,
+) -> None:
+    """The public template must become executable after its documented edits."""
+
+    if not (REPO_ROOT / "apps/joint_agent").exists():
+        pytest.skip("Joint Agent is not included in this staging release")
+
+    from joint_agent.config.unified_config import UnifiedPipelineConfigTask
+
+    asset_path = tmp_path / "asset.usda"
+    asset_path.write_text('#usda 1.0\ndef Xform "World" {}\n', encoding="utf-8")
+    config = yaml.safe_load(
+        (REPO_ROOT / _JOINT_PUBLIC_CONFIG).read_text(encoding="utf-8")
+    )
+    config["input"]["usd_path"] = str(asset_path)
+    config["steps"]["apply_joint_rigger"]["enabled"] = True
+    config_path = tmp_path / "joint_byoa.yaml"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    context = UnifiedPipelineConfigTask().run(
+        {
+            "config_path": str(config_path),
+            "only_steps": [
+                "infer_articulation_candidates",
+                "apply_joint_rigger",
+            ],
+        }
+    )
+
+    assert context["steps_to_run"] == [
+        "infer_articulation_candidates",
+        "apply_joint_rigger",
+    ]
+    apply_config = context["step_configs"]["apply_joint_rigger"]
+    assert apply_config["adapter"] == "owned_core"
+    assert apply_config["articulation_candidates_path"] == str(
+        tmp_path
+        / ".joint-agent-byoa/articulation_candidates/articulation_candidates.json"
+    )
+    assert apply_config["output_usd_path"] == str(
+        tmp_path / ".joint-agent-byoa/joint_rigger/rigged.usdz"
+    )
+
+
 @pytest.mark.parametrize("compose_relpath", _COMPOSE_FILES)
 def test_compose_does_not_clobber_env_file_api_keys(compose_relpath: str) -> None:
     """env_file values must not be clobbered by `environment: ${VAR:-}` lines.
@@ -218,6 +369,7 @@ _PUBLIC_DOCKER_COMPOSE_READMES = (
     "README_PUBLIC.md",
     "apps/physics_agent_service/README.md",
     "apps/material_agent_service/README_PUBLIC.md",
+    "apps/joint_agent_service/README.md",
     "apps/texture_agent_service/README.md",
 )
 

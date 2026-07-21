@@ -12,7 +12,7 @@ ProgressReporter was deleted - FastAPIEventListener now handles progress emissio
 
 from .bus import EventBus, get_event_bus
 from .events import ProgressEvent, StepState
-from .registry import JobRegistry, get_job_registry
+from .registry import DuplicateJobError, JobRegistry, get_job_registry
 
 __all__ = [
     "ProgressEvent",
@@ -20,5 +20,6 @@ __all__ = [
     "EventBus",
     "get_event_bus",
     "JobRegistry",
+    "DuplicateJobError",
     "get_job_registry",
 ]

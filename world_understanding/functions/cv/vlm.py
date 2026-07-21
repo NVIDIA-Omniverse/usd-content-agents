@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Portable function for vision-language model (VLM) response generation."""
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ from world_understanding.functions.models.vision_language_models import (
     BaseVisionLanguageModel,
     create_vlm,
 )
+from world_understanding.utils.credentials import get_env_api_key_for_backend
 
 
 def generate_vlm_response(
@@ -54,8 +54,8 @@ def generate_vlm_response(
 
 
 def create_vlm_instance(
-    backend: str = "perflab_azure_openai",
-    model: str | None = "gpt-4o-20241120",
+    backend: str,
+    model: str | None = None,
     api_key: str | None = None,
     endpoint: str | None = None,
     api_name: str | None = None,
@@ -64,9 +64,9 @@ def create_vlm_instance(
     """Create a VLM instance with the specified backend and configuration.
 
     Args:
-        backend: Backend for VLM ('perflab_azure_openai', 'nim', 'gradio')
-        model: VLM model name (for 'perflab_azure_openai' and 'nim')
-        api_key: API key for the VLM backend (for 'perflab_azure_openai' and 'nim')
+        backend: Registered backend for VLM creation
+        model: VLM model name for backends that accept a model
+        api_key: API key for the VLM backend (uses env var if None)
         endpoint: Server endpoint (for 'gradio')
         api_name: API endpoint name (for 'gradio')
 
@@ -76,32 +76,26 @@ def create_vlm_instance(
     Raises:
         ValueError: If required parameters are not set
     """
-    kwargs: dict[str, Any] = {"backend": backend}
+    kwargs: dict[str, Any] = {"backend": backend, **extra_kwargs}
 
-    if backend == "nim":
-        api_key = api_key or os.getenv("NVIDIA_API_KEY")
-        if not api_key:
-            raise ValueError("NVIDIA_API_KEY not set for NIM VLM")
-        kwargs["api_key"] = api_key
-        if model:
-            kwargs["model"] = model
-    elif backend == "perflab_azure_openai":
-        api_key = api_key or os.getenv("NSTORAGE_API_KEY")
-        if not api_key:
-            raise ValueError("NSTORAGE_API_KEY not set for Azure OpenAI VLM")
-        kwargs["api_key"] = api_key
-        if model:
-            kwargs["model"] = model
-    elif backend == "gradio":
-        # For Gradio, use endpoint and api_name instead of api_key and model
+    if model:
+        kwargs["model"] = model
+
+    if backend == "gradio":
+        # For Gradio, use endpoint and api_name instead of api_key and model.
         if endpoint:
             kwargs["endpoint"] = endpoint
         if api_name:
             kwargs["api_name"] = api_name
-        if extra_kwargs:
-            kwargs.update(extra_kwargs)
+    elif backend in {"nim", "openai"}:
+        # NIM and OpenAI-compatible factories are endpoint-aware. Let them
+        # decide whether env credentials are safe for any supplied base_url.
+        if api_key is not None:
+            kwargs["api_key"] = api_key
     else:
-        raise ValueError(f"Unknown VLM backend: {backend}")
+        resolved_api_key = get_env_api_key_for_backend(backend, api_key)
+        if resolved_api_key:
+            kwargs["api_key"] = resolved_api_key
 
     # Create and return VLM instance
     return create_vlm(**kwargs)
@@ -128,7 +122,7 @@ def get_image_caption(
             either path or PIL Image object
         caption_prompt: Prompt to use for image captioning
         system_prompt: System instructions for the VLM
-        vlm_backend: VLM backend to use ('nim', 'perflab_azure_openai', 'gradio')
+        vlm_backend: Registered VLM backend to use
         vlm_model: Model to use (uses backend default if None)
         vlm_api_key: API key for the VLM backend (uses env var if None)
 

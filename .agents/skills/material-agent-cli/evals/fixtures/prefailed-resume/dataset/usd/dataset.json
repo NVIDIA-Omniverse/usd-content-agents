@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "source_usd": "../../../../../../../../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+    "generator": "skill-eval-prefailed-resume-fixture"
+  },
+  "statistics": {
+    "total_prims": 1,
+    "total_images": 2,
+    "total_collections": 0,
+    "type_distribution": {
+      "Mesh": 1
+    }
+  },
+  "prims_file": "prims.jsonl",
+  "usd_model_file": "usd_model.json"
+}

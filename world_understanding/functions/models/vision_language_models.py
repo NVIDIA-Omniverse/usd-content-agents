@@ -13,7 +13,10 @@ import numpy as np
 from PIL import Image as PILImage
 
 from world_understanding.functions.models.nim_timeout import _apply_nim_chat_timeout
-from world_understanding.telemetry import traced_vlm
+from world_understanding.functions.models.token_limits import (
+    normalize_openai_token_kwargs,
+)
+from world_understanding.telemetry import GenAIAttributes, get_current_span, traced_vlm
 from world_understanding.utils.credentials import get_env_api_key_for_backend
 from world_understanding.utils.image_utils import image_to_base64
 from world_understanding.utils.token_tracking import TokenUsage
@@ -21,9 +24,6 @@ from world_understanding.utils.token_tracking import TokenUsage
 # Default configurations
 _DEFAULT_NIM_VLM_MODEL = "qwen/qwen3.5-397b-a17b"
 _DEFAULT_AZURE_VLM_MODEL = "gpt-5"
-_DEFAULT_AWS_VLM_MODEL = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-_DEFAULT_NVIDIA_INFERENCE_MODEL = "gcp/google/gemini-3.1-pro-preview"
-_DEFAULT_NVIDIA_INFERENCE_BASE_URL = "https://inference-api.nvidia.com"
 _DEFAULT_OPENAI_MODEL = "gpt-5.4"
 _DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
 _DEFAULT_GEMINI_MODEL = "gemini-3-pro-preview"
@@ -33,6 +33,19 @@ _DEFAULT_GRADIO_ENDPOINT = ""
 _DEFAULT_TIMEOUT_SECONDS = 120.0
 _DEFAULT_MAX_TOKENS = None
 _DEFAULT_TEMPERATURE = None
+
+
+def _record_effective_openai_max_tokens(request_kwargs: dict[str, Any]) -> None:
+    """Replace the traced request limit with the value sent to the provider."""
+    effective_max_tokens = request_kwargs.get("max_tokens")
+    if effective_max_tokens is None:
+        effective_max_tokens = request_kwargs.get("max_completion_tokens")
+    if effective_max_tokens is None:
+        return
+
+    span = get_current_span()
+    if span is not None:
+        span.set_attribute(GenAIAttributes.REQUEST_MAX_TOKENS, effective_max_tokens)
 
 
 class BaseVisionLanguageModel(ABC):
@@ -489,7 +502,7 @@ class GradioVLM(BaseVisionLanguageModel):
         return "gradio"
 
 
-class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
+class AzureOpenAIVLM(BaseVisionLanguageModel):
     """Azure OpenAI VLM with support for interleaved text and images."""
 
     def __init__(
@@ -499,9 +512,10 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
         api_version: str = "2025-03-01-preview",
         azure_endpoint: str = "",
         timeout: float = _DEFAULT_TIMEOUT_SECONDS,
+        backend_name: str = "azure_openai",
         **kwargs: Any,
     ):
-        """Initialize Perflab Azure OpenAI VLM.
+        """Initialize an Azure OpenAI VLM.
 
         Args:
             api_key: Azure OpenAI API key
@@ -513,25 +527,29 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
         """
         if not azure_endpoint:
             raise ValueError(
-                "azure_endpoint is required for PerflabAzureOpenAIVLM (no default)."
+                "azure_endpoint is required for AzureOpenAIVLM (no default)."
             )
         super().__init__()  # Initialize token tracking
         try:
             from langchain_openai import AzureChatOpenAI
         except ImportError as e:
             raise ImportError(
-                "langchain-openai is required for PerflabAzureOpenAIVLM. "
+                "langchain-openai is required for AzureOpenAIVLM. "
                 "Install with: pip install langchain-openai"
             ) from e
 
         self._model_name = model or _DEFAULT_AZURE_VLM_MODEL
+        self._backend_name = backend_name
+        constructor_kwargs = normalize_openai_token_kwargs(
+            self._model_name, None, kwargs
+        )
         self.chat_model = AzureChatOpenAI(
             azure_endpoint=azure_endpoint,
             api_version=api_version,
             model=self._model_name,
             api_key=api_key,  # type: ignore[arg-type]
             timeout=timeout,
-            **kwargs,
+            **constructor_kwargs,
         )
 
     @traced_vlm(name="vlm.generate", system="azure_openai", operation="generate")
@@ -559,10 +577,10 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
         logger = logging.getLogger(__name__)
         if images is not None:
             logger.debug(
-                f"PerflabAzureOpenAIVLM.generate received {len(images)} images (type: {type(images).__name__})"
+                f"AzureOpenAIVLM.generate received {len(images)} images (type: {type(images).__name__})"
             )
         else:
-            logger.warning("PerflabAzureOpenAIVLM.generate received images=None")
+            logger.warning("AzureOpenAIVLM.generate received images=None")
 
         # Add images if provided
         if images:
@@ -581,32 +599,12 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content if images else prompt),
         ]
 
-        # Set temperature and token limits if provided
-        invoke_kwargs = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name, max_tokens, kwargs
+        )
+        _record_effective_openai_max_tokens(invoke_kwargs)
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key, alt_key = (
-            ("max_completion_tokens", "max_tokens")
-            if is_gpt5
-            else ("max_tokens", "max_completion_tokens")
-        )
-        if token_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[token_key]
-        elif alt_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[alt_key]
-        elif max_tokens is not None:
-            invoke_kwargs[token_key] = max_tokens
-
-        # Add remaining kwargs (excluding max_tokens and max_completion_tokens which we handled)
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        # Remove None values - they shouldn't be passed to the API
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
 
         response = self.chat_model.invoke(messages, **invoke_kwargs)
 
@@ -641,10 +639,10 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
         logger = logging.getLogger(__name__)
         if images is not None:
             logger.debug(
-                f"PerflabAzureOpenAIVLM.agenerate received {len(images)} images (type: {type(images).__name__})"
+                f"AzureOpenAIVLM.agenerate received {len(images)} images (type: {type(images).__name__})"
             )
         else:
-            logger.warning("PerflabAzureOpenAIVLM.agenerate received images=None")
+            logger.warning("AzureOpenAIVLM.agenerate received images=None")
 
         # Add images if provided
         if images:
@@ -663,32 +661,11 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content if images else prompt),
         ]
 
-        # Set temperature and token limits if provided
-        invoke_kwargs = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name, max_tokens, kwargs
+        )
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key, alt_key = (
-            ("max_completion_tokens", "max_tokens")
-            if is_gpt5
-            else ("max_tokens", "max_completion_tokens")
-        )
-        if token_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[token_key]
-        elif alt_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[alt_key]
-        elif max_tokens is not None:
-            invoke_kwargs[token_key] = max_tokens
-
-        # Add remaining kwargs (excluding max_tokens and max_completion_tokens which we handled)
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        # Remove None values - they shouldn't be passed to the API
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
 
         response = await self.chat_model.ainvoke(messages, **invoke_kwargs)
 
@@ -736,32 +713,11 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content),
         ]
 
-        # Set temperature and token limits if provided
-        invoke_kwargs = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name, max_tokens, kwargs
+        )
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key, alt_key = (
-            ("max_completion_tokens", "max_tokens")
-            if is_gpt5
-            else ("max_tokens", "max_completion_tokens")
-        )
-        if token_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[token_key]
-        elif alt_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[alt_key]
-        elif max_tokens is not None:
-            invoke_kwargs[token_key] = max_tokens
-
-        # Add remaining kwargs (excluding max_tokens and max_completion_tokens which we handled)
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        # Remove None values - they shouldn't be passed to the API
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
 
         response = self.chat_model.invoke(messages, **invoke_kwargs)
 
@@ -809,32 +765,11 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content),
         ]
 
-        # Set temperature and token limits if provided
-        invoke_kwargs = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name, max_tokens, kwargs
+        )
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key, alt_key = (
-            ("max_completion_tokens", "max_tokens")
-            if is_gpt5
-            else ("max_tokens", "max_completion_tokens")
-        )
-        if token_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[token_key]
-        elif alt_key in kwargs:
-            invoke_kwargs[token_key] = kwargs[alt_key]
-        elif max_tokens is not None:
-            invoke_kwargs[token_key] = max_tokens
-
-        # Add remaining kwargs (excluding max_tokens and max_completion_tokens which we handled)
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        # Remove None values - they shouldn't be passed to the API
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
 
         response = await self.chat_model.ainvoke(messages, **invoke_kwargs)
 
@@ -853,44 +788,43 @@ class PerflabAzureOpenAIVLM(BaseVisionLanguageModel):
     @property
     def backend_name(self) -> str:
         """Return the backend name."""
-        return "perflab_azure_openai"
+        return self._backend_name
 
 
-class NvidiaInferenceVLM(BaseVisionLanguageModel):
-    """NVIDIA Inference API VLM using OpenAI-compatible endpoint.
-
-    This VLM uses the NVIDIA Inference API (https://inference-api.nvidia.com)
-    which provides an OpenAI-compatible interface for various models including
-    Azure OpenAI models like GPT-5.1.
-    """
+class OpenAICompatibleVLM(BaseVisionLanguageModel):
+    """VLM backed by an operator-selected OpenAI-compatible endpoint."""
 
     def __init__(
         self,
         api_key: str,
         model: str | None = None,
-        base_url: str = _DEFAULT_NVIDIA_INFERENCE_BASE_URL,
+        base_url: str = "",
         timeout: float = _DEFAULT_TIMEOUT_SECONDS,
+        backend_name: str = "openai_compatible",
         **kwargs: Any,
     ):
-        """Initialize NVIDIA Inference API VLM.
+        """Initialize an OpenAI-compatible VLM.
 
         Args:
-            api_key: NVIDIA Inference API key (INFERENCE_NVIDIA_API_KEY)
-            model: Model name (defaults to azure/openai/gpt-5.1)
-            base_url: Base URL for the API (defaults to https://inference-api.nvidia.com)
+            api_key: Endpoint-scoped API key.
+            model: Model name.
+            base_url: OpenAI-compatible API base URL.
             timeout: Request timeout in seconds
             **kwargs: Additional configuration options
         """
+        if not base_url:
+            raise ValueError("base_url is required for OpenAICompatibleVLM")
         super().__init__()
         try:
             from openai import OpenAI
         except ImportError as e:
             raise ImportError(
-                "openai is required for NvidiaInferenceVLM. "
+                "openai is required for OpenAICompatibleVLM. "
                 "Install with: pip install openai"
             ) from e
 
-        self._model_name = model or _DEFAULT_NVIDIA_INFERENCE_MODEL
+        self._model_name = model or _DEFAULT_OPENAI_MODEL
+        self._backend_name = backend_name
         self._base_url = base_url
         self._timeout = timeout
         self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
@@ -899,7 +833,7 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
 
         self.aclient = AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
 
-    @traced_vlm(name="vlm.generate", system="nvidia_inference", operation="generate")
+    @traced_vlm(name="vlm.generate", system="openai_compatible", operation="generate")
     def generate(
         self,
         prompt: str,
@@ -909,7 +843,7 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
         max_tokens: int | None = _DEFAULT_MAX_TOKENS,
         **kwargs: Any,
     ) -> str:
-        """Generate response using NVIDIA Inference API."""
+        """Generate a response through the configured endpoint."""
         # Build content
         content: list[dict[str, Any]] = []
 
@@ -942,19 +876,10 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
         if temperature is not None:
             request_kwargs["temperature"] = temperature
 
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key = "max_completion_tokens" if is_gpt5 else "max_tokens"
-
-        if token_key in kwargs:
-            request_kwargs[token_key] = kwargs.pop(token_key)
-        elif max_tokens is not None:
-            request_kwargs[token_key] = max_tokens
-
-        # Add any additional kwargs
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens") and value is not None:
-                request_kwargs[key] = value
+        request_kwargs.update(
+            normalize_openai_token_kwargs(self._model_name, max_tokens, kwargs)
+        )
+        _record_effective_openai_max_tokens(request_kwargs)
 
         response = self.client.chat.completions.create(**request_kwargs)
 
@@ -979,7 +904,7 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
         max_tokens: int | None = _DEFAULT_MAX_TOKENS,
         **kwargs: Any,
     ) -> str:
-        """Generate response using NVIDIA Inference API asynchronously."""
+        """Generate a response through the configured endpoint asynchronously."""
         # Build content
         content: list[dict[str, Any]] = []
 
@@ -1012,19 +937,9 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
         if temperature is not None:
             request_kwargs["temperature"] = temperature
 
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key = "max_completion_tokens" if is_gpt5 else "max_tokens"
-
-        if token_key in kwargs:
-            request_kwargs[token_key] = kwargs.pop(token_key)
-        elif max_tokens is not None:
-            request_kwargs[token_key] = max_tokens
-
-        # Add any additional kwargs
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens") and value is not None:
-                request_kwargs[key] = value
+        request_kwargs.update(
+            normalize_openai_token_kwargs(self._model_name, max_tokens, kwargs)
+        )
 
         response = await self.aclient.chat.completions.create(**request_kwargs)
 
@@ -1084,19 +999,9 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
         if temperature is not None:
             request_kwargs["temperature"] = temperature
 
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key = "max_completion_tokens" if is_gpt5 else "max_tokens"
-
-        if token_key in kwargs:
-            request_kwargs[token_key] = kwargs.pop(token_key)
-        elif max_tokens is not None:
-            request_kwargs[token_key] = max_tokens
-
-        # Add any additional kwargs
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens") and value is not None:
-                request_kwargs[key] = value
+        request_kwargs.update(
+            normalize_openai_token_kwargs(self._model_name, max_tokens, kwargs)
+        )
 
         response = self.client.chat.completions.create(**request_kwargs)
 
@@ -1156,19 +1061,9 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
         if temperature is not None:
             request_kwargs["temperature"] = temperature
 
-        # Choose token key based on model family (gpt-5 vs others)
-        is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-        token_key = "max_completion_tokens" if is_gpt5 else "max_tokens"
-
-        if token_key in kwargs:
-            request_kwargs[token_key] = kwargs.pop(token_key)
-        elif max_tokens is not None:
-            request_kwargs[token_key] = max_tokens
-
-        # Add any additional kwargs
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens") and value is not None:
-                request_kwargs[key] = value
+        request_kwargs.update(
+            normalize_openai_token_kwargs(self._model_name, max_tokens, kwargs)
+        )
 
         response = await self.aclient.chat.completions.create(**request_kwargs)
 
@@ -1192,7 +1087,7 @@ class NvidiaInferenceVLM(BaseVisionLanguageModel):
     @property
     def backend_name(self) -> str:
         """Return the backend name."""
-        return "nvidia_inference"
+        return self._backend_name
 
 
 class NvidiaNIMVLM(BaseVisionLanguageModel):
@@ -1425,11 +1320,14 @@ class OpenAIVLM(BaseVisionLanguageModel):
             ) from e
 
         self._model_name = model or _DEFAULT_OPENAI_MODEL
+        constructor_kwargs = normalize_openai_token_kwargs(
+            self._model_name, None, kwargs
+        )
         self.chat_model = ChatOpenAI(
             model=self._model_name,
             api_key=api_key,  # type: ignore[arg-type]
             timeout=timeout,
-            **kwargs,
+            **constructor_kwargs,
         )
 
     @traced_vlm(name="vlm.generate", system="openai", operation="generate")
@@ -1463,17 +1361,15 @@ class OpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content if images else prompt),
         ]
 
-        invoke_kwargs: dict[str, Any] = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name,
+            max_tokens,
+            kwargs,
+            prefer_max_tokens_argument=True,
+        )
+        _record_effective_openai_max_tokens(invoke_kwargs)
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-        if max_tokens is not None:
-            invoke_kwargs["max_tokens"] = max_tokens
-
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
         response = self.chat_model.invoke(messages, **invoke_kwargs)
 
         self._last_token_usage = TokenUsage.from_langchain_response(
@@ -1511,17 +1407,14 @@ class OpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content if images else prompt),
         ]
 
-        invoke_kwargs: dict[str, Any] = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name,
+            max_tokens,
+            kwargs,
+            prefer_max_tokens_argument=True,
+        )
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-        if max_tokens is not None:
-            invoke_kwargs["max_tokens"] = max_tokens
-
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
         response = await self.chat_model.ainvoke(messages, **invoke_kwargs)
 
         self._last_token_usage = TokenUsage.from_langchain_response(
@@ -1559,17 +1452,14 @@ class OpenAIVLM(BaseVisionLanguageModel):
             HumanMessage(content=content),
         ]
 
-        invoke_kwargs: dict[str, Any] = {}
+        invoke_kwargs = normalize_openai_token_kwargs(
+            self._model_name,
+            max_tokens,
+            kwargs,
+            prefer_max_tokens_argument=True,
+        )
         if temperature is not None:
             invoke_kwargs["temperature"] = temperature
-        if max_tokens is not None:
-            invoke_kwargs["max_tokens"] = max_tokens
-
-        for key, value in kwargs.items():
-            if key not in ("max_tokens", "max_completion_tokens"):
-                invoke_kwargs[key] = value
-
-        invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
         response = self.chat_model.invoke(messages, **invoke_kwargs)
 
         self._last_token_usage = TokenUsage.from_langchain_response(
@@ -2021,385 +1911,142 @@ def create_gradio_vlm(
     )
 
 
-def create_azure_llmgateway_vlm(
-    llmgateway: dict | None = None,
-    **kwargs: Any,
-):
-    from langchain_core.messages import HumanMessage, SystemMessage
+class LangChainChatVLM(BaseVisionLanguageModel):
+    """Generic multimodal adapter for a plugin-provided LangChain chat model."""
 
-    from world_understanding.functions.models.llmgateway import (
-        AzureChatOpenAI_LLMGateway,
-    )
+    def __init__(
+        self,
+        chat_model: Any,
+        *,
+        model_name: str,
+        backend_name: str,
+        request_style: str = "openai",
+    ) -> None:
+        super().__init__()
+        self.chat_model = chat_model
+        self._model_name = model_name
+        self._backend_name = backend_name
+        self._request_style = request_style
 
-    class AzureLLMGatewayVLM(BaseVisionLanguageModel):
-        def __init__(self):
-            super().__init__()  # Initialize token tracking
-            self._model_name = kwargs.pop("model", _DEFAULT_AZURE_VLM_MODEL)
-            self.chat_model = AzureChatOpenAI_LLMGateway(
-                azure_endpoint=(llmgateway or {}).get(
-                    "azure_endpoint", "https://prod.api.nvidia.com/llm/v1/azure/"
-                ),
-                openai_api_version=(llmgateway or {}).get(
-                    "api_version", "2025-03-01-preview"
-                ),
-                deployment_name=self._model_name,
-                cred_dict=(llmgateway or {}).get("cred_dict"),
-                cred_fields=(llmgateway or {}).get(
-                    "cred_fields", ["token_url", "client_id", "client_secret", "scope"]
-                ),
-                env_prefix=(llmgateway or {}).get("env_prefix", "LLMGATEWAY_CREDS_"),
-                cred_file_url=(llmgateway or {}).get("cred_file_url"),
-                timeout=_DEFAULT_TIMEOUT_SECONDS,
-                **kwargs,
+    def _content(
+        self,
+        prompt: str,
+        images: list[str | Path | PILImage.Image | np.ndarray] | None,
+    ) -> str | list[dict[str, Any]]:
+        if not images:
+            return prompt
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+        for image in images:
+            encoded = image_to_base64(self._load_image(image))
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{encoded}"},
+                }
             )
+        return content
 
-        def generate(
-            self,
-            prompt: str,
-            images: list[str | Path | PILImage.Image | np.ndarray] | None = None,
-            system_prompt: str = "You are a helpful AI assistant.",
-            temperature: float | None = _DEFAULT_TEMPERATURE,
-            max_tokens: int | None = _DEFAULT_MAX_TOKENS,
-            **gen_kwargs: Any,
-        ) -> str:
-            content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
-            if images:
-                for image in images:
-                    pil_image = self._load_image(image)
-                    base64_image = image_to_base64(pil_image)
-                    content.append(
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{base64_image}"
-                            },
-                        }
-                    )
-
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=content if images else prompt),
-            ]
-
-            invoke_kwargs: dict[str, Any] = {}
-            if temperature is not None:
-                invoke_kwargs["temperature"] = temperature
-
-            # Pick one token key based on model family and map inputs consistently
-            is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-            token_key, alt_key = (
-                ("max_completion_tokens", "max_tokens")
-                if is_gpt5
-                else ("max_tokens", "max_completion_tokens")
-            )
-            if token_key in gen_kwargs:
-                invoke_kwargs[token_key] = gen_kwargs[token_key]
-            elif alt_key in gen_kwargs:
-                invoke_kwargs[token_key] = gen_kwargs[alt_key]
-            elif max_tokens is not None:
-                invoke_kwargs[token_key] = max_tokens
-
-            # Add remaining gen_kwargs (excluding max_tokens and max_completion_tokens which we handled)
-            for key, value in gen_kwargs.items():
-                if key not in ("max_tokens", "max_completion_tokens"):
-                    invoke_kwargs[key] = value
-
-            # Remove None values - they shouldn't be passed to the API
-            invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
-
-            resp = self.chat_model.invoke(messages, **invoke_kwargs)
-
-            # Track token usage
-            self._last_token_usage = TokenUsage.from_langchain_response(
-                resp, model_name=self._model_name, invocation_type="vlm"
-            )
-
-            return resp.content
-
-        def generate_with_image_caption_pairs(
-            self,
-            image_caption_pairs: list[
-                tuple[str, str | Path | PILImage.Image | np.ndarray]
-            ],
-            final_prompt: str,
-            system_prompt: str = "You are a helpful AI assistant.",
-            temperature: float | None = _DEFAULT_TEMPERATURE,
-            max_tokens: int | None = _DEFAULT_MAX_TOKENS,
-            **gen_kwargs: Any,
-        ) -> str:
-            content: list[dict[str, Any]] = []
-            for caption, image in image_caption_pairs:
-                content.append({"type": "text", "text": caption})
-                pil_image = self._load_image(image)
-                base64_image = image_to_base64(pil_image)
-                content.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                    }
-                )
-            content.append({"type": "text", "text": final_prompt})
-
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=content),
-            ]
-
-            invoke_kwargs: dict[str, Any] = {}
-            if temperature is not None:
-                invoke_kwargs["temperature"] = temperature
-
-            # Pick one token key based on model family and map inputs consistently
-            is_gpt5 = "gpt-5" in (self._model_name or "").lower()
-            token_key, alt_key = (
-                ("max_completion_tokens", "max_tokens")
-                if is_gpt5
-                else ("max_tokens", "max_completion_tokens")
-            )
-            if token_key in gen_kwargs:
-                invoke_kwargs[token_key] = gen_kwargs[token_key]
-            elif alt_key in gen_kwargs:
-                invoke_kwargs[token_key] = gen_kwargs[alt_key]
-            elif max_tokens is not None:
-                invoke_kwargs[token_key] = max_tokens
-
-            # Add remaining gen_kwargs (excluding max_tokens and max_completion_tokens which we handled)
-            for key, value in gen_kwargs.items():
-                if key not in ("max_tokens", "max_completion_tokens"):
-                    invoke_kwargs[key] = value
-
-            # Remove None values - they shouldn't be passed to the API
-            invoke_kwargs = {k: v for k, v in invoke_kwargs.items() if v is not None}
-
-            resp = self.chat_model.invoke(messages, **invoke_kwargs)
-
-            # Track token usage
-            self._last_token_usage = TokenUsage.from_langchain_response(
-                resp, model_name=self._model_name, invocation_type="vlm"
-            )
-
-            return resp.content
-
-        @property
-        def model_name(self) -> str:
-            return self._model_name
-
-        @property
-        def backend_name(self) -> str:
-            return "llmgateway_azure_openai"
-
-    return AzureLLMGatewayVLM()
-
-
-def create_aws_llmgateway_vlm(
-    llmgateway: dict | None = None,
-    **kwargs: Any,
-):
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    from world_understanding.functions.models.llmgateway import (
-        ChatConverseAnthropic_LLMGateway,
-    )
-
-    class AWSAnthropicLLMGatewayVLM(BaseVisionLanguageModel):
-        def __init__(self):
-            super().__init__()  # Initialize token tracking
-            self._model_name = kwargs.pop("model", _DEFAULT_AWS_VLM_MODEL)
-            # Thinking display options
-            include_thinking = bool(kwargs.pop("include_thinking", False))
-            begin_text = kwargs.pop("thinking_begin_text", "<thinking>\n")
-            end_text = kwargs.pop("thinking_end_text", "</thinking>\n")
-
-            temperature = kwargs.pop("temperature", None)
-            top_p = kwargs.pop("top_p", None)
-            max_tokens = kwargs.pop("max_tokens", None)
-            thinking = kwargs.pop("thinking", None)
-
-            # Prepare model kwargs for inference configuration
-            model_kwargs: dict[str, Any] = {}
-            if temperature is not None:
-                model_kwargs["temperature"] = temperature
-            if top_p is not None:
-                model_kwargs["top_p"] = top_p
-            if max_tokens is not None:
-                model_kwargs["max_tokens"] = max_tokens
-            if thinking is not None:
-                model_kwargs["thinking"] = thinking
-
-            self.chat_model = ChatConverseAnthropic_LLMGateway(
-                proxy_base_url=(llmgateway or {}).get(
-                    "proxy_base_url", "https://prod.api.nvidia.com/llm/v1/aws"
-                ),
-                aws_region=(llmgateway or {}).get("aws_region", "us-east-2"),
-                cred_dict=(llmgateway or {}).get("cred_dict"),
-                cred_fields=(llmgateway or {}).get(
-                    "cred_fields", ["token_url", "client_id", "client_secret"]
-                ),
-                env_prefix=(llmgateway or {}).get("env_prefix", "LLMGATEWAY_CREDS_"),
-                cred_file_url=(llmgateway or {}).get("cred_file_url"),
-                include_thinking=include_thinking,
-                thinking_begin_text=begin_text,
-                thinking_end_text=end_text,
-                model_id=self._model_name,
-                model_kwargs=model_kwargs if model_kwargs else None,
-                **kwargs,
-            )
-
-        def generate(
-            self,
-            prompt: str,
-            images: list[str | Path | PILImage.Image | np.ndarray] | None = None,
-            system_prompt: str = "You are a helpful AI assistant.",
-            temperature: float | None = _DEFAULT_TEMPERATURE,
-            max_tokens: int | None = _DEFAULT_MAX_TOKENS,
-            **gen_kwargs: Any,
-        ) -> str:
-            # Build content list as LangChain multimodal parts
-            content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
-            if images:
-                for image in images:
-                    pil_image = self._load_image(image)
-                    b64 = image_to_base64(pil_image)
-                    content.append(
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{b64}"},
-                        }
-                    )
-
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=content if images else prompt),
-            ]
-
+    def _invoke_kwargs(
+        self,
+        temperature: float | None,
+        max_tokens: int | None,
+        kwargs: dict[str, Any],
+    ) -> dict[str, Any]:
+        options = dict(kwargs)
+        if self._request_style == "bedrock":
             inference_config: dict[str, Any] = {}
             if temperature is not None:
                 inference_config["temperature"] = float(temperature)
-            top_p = gen_kwargs.pop("top_p", None)
+            top_p = options.pop("top_p", None)
             if top_p is not None:
                 inference_config["topP"] = float(top_p)
-
-            # Handle max_tokens/max_completion_tokens priority for AWS Anthropic
-            # Prefer max_completion_tokens from gen_kwargs, then max_tokens from gen_kwargs, then parameter
-            max_completion_tokens = gen_kwargs.pop("max_completion_tokens", None)
-            max_tokens_kwarg = gen_kwargs.pop("max_tokens", None)
-            if max_completion_tokens is not None:
-                inference_config["maxTokens"] = int(max_completion_tokens)
-            elif max_tokens_kwarg is not None:
-                inference_config["maxTokens"] = int(max_tokens_kwarg)
-            elif max_tokens is not None:
-                inference_config["maxTokens"] = int(max_tokens)
-
-            stop_sequences = gen_kwargs.pop("stop_sequences", None)
+            selected_max_tokens = options.pop(
+                "max_completion_tokens", options.pop("max_tokens", max_tokens)
+            )
+            if selected_max_tokens is not None:
+                inference_config["maxTokens"] = int(selected_max_tokens)
+            stop_sequences = options.pop("stop_sequences", None)
             if stop_sequences is not None:
                 inference_config["stopSequences"] = stop_sequences
+            if inference_config:
+                options["inference_config"] = inference_config
+            return options
 
-            # Remove constructor-only keys if present in gen_kwargs
-            constructor_only_keys = [
-                "include_thinking",
-                "thinking",
-                "thinking_begin_text",
-                "thinking_end_text",
-            ]
-            for k in constructor_only_keys:
-                gen_kwargs.pop(k, None)
+        if temperature is not None:
+            options["temperature"] = temperature
+        return normalize_openai_token_kwargs(self._model_name, max_tokens, options)
 
-            resp = self.chat_model.invoke(
-                messages,
-                inference_config=inference_config if inference_config else None,
-                **gen_kwargs,
+    def generate(
+        self,
+        prompt: str,
+        images: list[str | Path | PILImage.Image | np.ndarray] | None = None,
+        system_prompt: str = "You are a helpful AI assistant.",
+        temperature: float | None = _DEFAULT_TEMPERATURE,
+        max_tokens: int | None = _DEFAULT_MAX_TOKENS,
+        **kwargs: Any,
+    ) -> str:
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=self._content(prompt, images)),
+        ]
+        response = self.chat_model.invoke(
+            messages,
+            **self._invoke_kwargs(temperature, max_tokens, kwargs),
+        )
+        self._last_token_usage = TokenUsage.from_langchain_response(
+            response, model_name=self._model_name, invocation_type="vlm"
+        )
+        return (
+            response.content
+            if isinstance(response.content, str)
+            else str(response.content)
+        )
+
+    def generate_with_image_caption_pairs(
+        self,
+        image_caption_pairs: list[tuple[str, str | Path | PILImage.Image | np.ndarray]],
+        final_prompt: str,
+        system_prompt: str = "You are a helpful AI assistant.",
+        temperature: float | None = _DEFAULT_TEMPERATURE,
+        max_tokens: int | None = _DEFAULT_MAX_TOKENS,
+        **kwargs: Any,
+    ) -> str:
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        content: list[dict[str, Any]] = []
+        for caption, image in image_caption_pairs:
+            content.append({"type": "text", "text": caption})
+            encoded = image_to_base64(self._load_image(image))
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{encoded}"},
+                }
             )
+        content.append({"type": "text", "text": final_prompt})
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=content)]
+        response = self.chat_model.invoke(
+            messages,
+            **self._invoke_kwargs(temperature, max_tokens, kwargs),
+        )
+        self._last_token_usage = TokenUsage.from_langchain_response(
+            response, model_name=self._model_name, invocation_type="vlm"
+        )
+        return (
+            response.content
+            if isinstance(response.content, str)
+            else str(response.content)
+        )
 
-            # Track token usage
-            self._last_token_usage = TokenUsage.from_langchain_response(
-                resp, model_name=self._model_name, invocation_type="vlm"
-            )
+    @property
+    def model_name(self) -> str:
+        return self._model_name
 
-            return resp.content
-
-        def generate_with_image_caption_pairs(
-            self,
-            image_caption_pairs: list[
-                tuple[str, str | Path | PILImage.Image | np.ndarray]
-            ],
-            final_prompt: str,
-            system_prompt: str = "You are a helpful AI assistant.",
-            temperature: float | None = _DEFAULT_TEMPERATURE,
-            max_tokens: int | None = _DEFAULT_MAX_TOKENS,
-            **gen_kwargs: Any,
-        ) -> str:
-            content: list[dict[str, Any]] = []
-            for caption, image in image_caption_pairs:
-                content.append({"type": "text", "text": caption})
-                pil_image = self._load_image(image)
-                b64 = image_to_base64(pil_image)
-                content.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{b64}"},
-                    }
-                )
-            content.append({"type": "text", "text": final_prompt})
-
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=content),
-            ]
-
-            inference_config: dict[str, Any] = {}
-            if temperature is not None:
-                inference_config["temperature"] = float(temperature)
-            top_p = gen_kwargs.pop("top_p", None)
-            if top_p is not None:
-                inference_config["topP"] = float(top_p)
-
-            # Handle max_tokens/max_completion_tokens priority for AWS Anthropic
-            # Prefer max_completion_tokens from gen_kwargs, then max_tokens from gen_kwargs, then parameter
-            max_completion_tokens = gen_kwargs.pop("max_completion_tokens", None)
-            max_tokens_kwarg = gen_kwargs.pop("max_tokens", None)
-            if max_completion_tokens is not None:
-                inference_config["maxTokens"] = int(max_completion_tokens)
-            elif max_tokens_kwarg is not None:
-                inference_config["maxTokens"] = int(max_tokens_kwarg)
-            elif max_tokens is not None:
-                inference_config["maxTokens"] = int(max_tokens)
-
-            stop_sequences = gen_kwargs.pop("stop_sequences", None)
-            if stop_sequences is not None:
-                inference_config["stopSequences"] = stop_sequences
-
-            # Remove constructor-only keys if present in gen_kwargs
-            constructor_only_keys = [
-                "include_thinking",
-                "thinking",
-                "thinking_begin_text",
-                "thinking_end_text",
-            ]
-            for k in constructor_only_keys:
-                gen_kwargs.pop(k, None)
-
-            resp = self.chat_model.invoke(
-                messages,
-                inference_config=inference_config if inference_config else None,
-                **gen_kwargs,
-            )
-
-            # Track token usage
-            self._last_token_usage = TokenUsage.from_langchain_response(
-                resp, model_name=self._model_name, invocation_type="vlm"
-            )
-
-            return resp.content
-
-        @property
-        def model_name(self) -> str:
-            return self._model_name
-
-        @property
-        def backend_name(self) -> str:
-            return "llmgateway_aws_anthropic"
-
-    return AWSAnthropicLLMGatewayVLM()
+    @property
+    def backend_name(self) -> str:
+        return self._backend_name
 
 
 @traced_vlm(name="vlm.create", system="multi", operation="create")
@@ -2409,13 +2056,12 @@ def create_vlm(
 ) -> BaseVisionLanguageModel:
     """Create a Vision-Language Model for the specified backend.
 
-    Available backends depend on the installation. Public backends (nim) are
-    always available. Additional internal backends are available only when
-    ``world_understanding_internal`` is installed.
+    Available backends depend on the installation. Public providers are always
+    available; optional provider packages contribute factories via entry points.
 
     Args:
         backend: Backend name (use ``list_vlm_backends()`` to see available)
-        **kwargs: Backend-specific arguments (api_key, model, llmgateway, etc.)
+        **kwargs: Backend-specific arguments.
 
     Returns:
         Configured VLM instance

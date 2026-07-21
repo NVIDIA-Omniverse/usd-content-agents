@@ -7,7 +7,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+import pytest
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from ...service.routers import pipeline_router, sessions_router
@@ -180,6 +181,197 @@ def test_delete_stale_cancelling_session_succeeds(tmp_path: Path) -> None:
     assert response.status_code == 204
     assert manager.session_exists(sid) is False
     assert get_event_bus().get_snapshot(sid) is None
+
+
+def test_session_detail_normalizes_non_list_completed_steps(tmp_path: Path) -> None:
+    client, manager = _build_session_app(tmp_path)
+    sid = "non-list-completed-steps"
+    manager.create_session(sid)
+    manager.update_session(
+        sid,
+        {
+            "completed_steps": {"bad": "shape"},
+            "status": "failed",
+            "error": "failed under /tmp/internal/path",
+            "failed_step_stats": {"message": "see /tmp/internal/path"},
+            "partial_results": {"errors": [{"message": "secret path"}]},
+            "results": {"warnings": ["secret path"]},
+        },
+    )
+
+    response = client.get(f"/sessions/{sid}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["completed_steps"] == []
+    assert payload["status"] == "failed"
+
+
+def test_build_session_view_handles_missing_metadata_and_bad_dates() -> None:
+    class ViewManager:
+        def __init__(self, metadata: dict[str, Any] | None) -> None:
+            self.metadata = metadata
+
+        def session_exists(self, session_id: str) -> bool:
+            return True
+
+        def get_session_metadata(self, session_id: str) -> dict[str, Any] | None:
+            return self.metadata
+
+    old_manager = sessions_router.session_manager
+    old_bus = bus_module._event_bus
+    try:
+        sessions_router.set_session_manager(ViewManager(None))  # type: ignore[arg-type]
+        init_event_bus(None)
+        assert sessions_router._build_session_view("missing-metadata") is None
+
+        sessions_router.set_session_manager(
+            ViewManager(
+                {
+                    "session_id": "bad-date",
+                    "status": "pending",
+                    "created_at": "not-a-date",
+                    "updated_at": "not-a-date",
+                    "config": {},
+                }
+            )
+        )  # type: ignore[arg-type]
+        view = sessions_router._build_session_view("bad-date")
+        assert view is not None
+        assert view["created_at"] == "not-a-date"
+    finally:
+        sessions_router.session_manager = old_manager
+        bus_module._event_bus = old_bus
+
+
+def test_session_summary_list_filters_invalid_rows_and_bad_dates(
+    tmp_path: Path,
+) -> None:
+    class MetadataListManager:
+        def list_session_metadata(self) -> list[dict[str, Any] | None]:
+            return [
+                None,
+                {"session_id": 123, "status": "pending"},
+                {
+                    "session_id": "terminal",
+                    "status": "failed",
+                    "created_at": "not-a-date",
+                    "updated_at": "2026-01-01T00:00:00+00:00",
+                    "config": {"original_filename": "scene.usd"},
+                },
+                {
+                    "session_id": "active",
+                    "status": "pending",
+                    "created_at": "2026-01-01T00:00:00+00:00",
+                    "updated_at": "2026-01-01T00:00:00+00:00",
+                    "config": {},
+                },
+            ]
+
+    old_manager = sessions_router.session_manager
+    old_bus = bus_module._event_bus
+    try:
+        sessions_router.set_session_manager(MetadataListManager())  # type: ignore[arg-type]
+        bus = init_event_bus(None)
+        bus._state["terminal"] = {"status": "running"}
+        bus._state["active"] = {"status": "running"}
+
+        summaries = sessions_router._build_session_summary_list(
+            sessions_router.get_session_manager()
+        )
+
+        status_by_id = {summary.session_id: summary.status for summary in summaries}
+        assert status_by_id == {"active": "running", "terminal": "failed"}
+    finally:
+        sessions_router.session_manager = old_manager
+        bus_module._event_bus = old_bus
+
+
+async def test_delete_session_retries_then_returns_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class NeverDeletesManager:
+        def __init__(self) -> None:
+            self.delete_calls = 0
+
+        def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        def is_worker_active(self, _session_id: str) -> bool:
+            return False
+
+        def delete_session(self, _session_id: str) -> bool:
+            self.delete_calls += 1
+            return False
+
+    class EmptyRegistry:
+        def is_running(self, _session_id: str) -> bool:
+            return False
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    manager = NeverDeletesManager()
+    old_manager = sessions_router.session_manager
+    try:
+        sessions_router.set_session_manager(manager)  # type: ignore[arg-type]
+        monkeypatch.setattr(
+            sessions_router, "get_job_registry", lambda: EmptyRegistry()
+        )
+        monkeypatch.setattr(sessions_router.asyncio, "sleep", no_sleep)
+
+        with pytest.raises(HTTPException) as exc:
+            await sessions_router.delete_session("stuck")
+
+        assert exc.value.status_code == 500
+        assert manager.delete_calls == 3
+    finally:
+        sessions_router.session_manager = old_manager
+
+
+async def test_delete_session_retry_races_to_active_or_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RaceManager:
+        def __init__(self, *, active_after_failure: bool) -> None:
+            self.active_after_failure = active_after_failure
+            self.delete_calls = 0
+
+        def session_exists(self, _session_id: str) -> bool:
+            return self.delete_calls == 0 or self.active_after_failure
+
+        def is_worker_active(self, _session_id: str) -> bool:
+            return self.delete_calls > 0 and self.active_after_failure
+
+        def delete_session(self, _session_id: str) -> bool:
+            self.delete_calls += 1
+            return False
+
+    class EmptyRegistry:
+        def is_running(self, _session_id: str) -> bool:
+            return False
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    old_manager = sessions_router.session_manager
+    try:
+        monkeypatch.setattr(
+            sessions_router, "get_job_registry", lambda: EmptyRegistry()
+        )
+        monkeypatch.setattr(sessions_router.asyncio, "sleep", no_sleep)
+
+        active_manager = RaceManager(active_after_failure=True)
+        sessions_router.set_session_manager(active_manager)  # type: ignore[arg-type]
+        with pytest.raises(HTTPException) as exc:
+            await sessions_router.delete_session("active-race")
+        assert exc.value.status_code == 409
+
+        missing_manager = RaceManager(active_after_failure=False)
+        sessions_router.set_session_manager(missing_manager)  # type: ignore[arg-type]
+        assert await sessions_router.delete_session("missing-race") is None
+    finally:
+        sessions_router.session_manager = old_manager
 
 
 async def test_list_sessions_offloads_store_reads_from_event_loop() -> None:

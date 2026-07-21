@@ -11,10 +11,10 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import yaml
 
 import material_agent.tasks.unified_pipeline_executor as upe
 import material_agent.workflows as workflows
+from material_agent.materials import FALLBACK_MATERIAL_NAME
 from material_agent.tasks.unified_pipeline_executor import UnifiedPipelineExecutorTask
 
 _WORKFLOW_FACTORY_BY_STEP = {
@@ -23,6 +23,7 @@ _WORKFLOW_FACTORY_BY_STEP = {
     "render_preview": "create_render_preview_workflow_from_config",
     "identify_asset": "create_identify_asset_workflow_from_config",
     "generate_reference_image": "create_generate_reference_image_workflow_from_config",
+    "generate_material_library": "create_generate_material_library_workflow_from_config",
     "build_dataset_usd": "create_usd_data_preparation_workflow_from_config",
     "build_dataset_pdf_vectorstore": "create_pdf_vectorstore_workflow_from_config",
     "build_dataset_prepare_dataset": "create_prepare_dataset_workflow_from_config",
@@ -49,8 +50,7 @@ class _WorkflowCapture:
 
     def _capture(self, step_context: dict[str, Any]) -> None:
         self.last_context = dict(step_context)
-        with open(step_context["config_path"], encoding="utf-8") as f:
-            self.last_config = yaml.safe_load(f) or {}
+        self.last_config = step_context["config_dict"]
 
     def run(self, step_context: dict[str, Any]) -> dict[str, Any]:
         self._capture(step_context)
@@ -121,6 +121,234 @@ def test_execute_step_evaluate_wires_paths_and_report_context(
     assert workflow.last_context["original_prim_count"] == 0
     assert workflow.last_context["num_prims"] == 12
     assert workflow.last_context["num_images"] == 24
+
+
+def test_execute_identify_step_protects_runtime_control_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    workflow = _WorkflowCapture({"identification": {"asset_type": "prop"}})
+    _patch_workflow_factory(monkeypatch, "identify_asset", workflow)
+    trusted_listener = object()
+    trusted_config_path = tmp_path / "pipeline.yaml"
+
+    executor._execute_step(
+        "identify_asset",
+        {
+            "vlm": {"backend": "mock"},
+            "event_listener": "from-config",
+            "config_path": "from-config.yaml",
+            "config_dict": {"from": "config"},
+        },
+        {
+            "working_dir": str(tmp_path / "work"),
+            "config_path": str(trusted_config_path),
+            "event_listener": trusted_listener,
+        },
+        object_store=None,
+        pipeline_state={"step_outputs": {}},
+    )
+
+    assert workflow.last_context["event_listener"] is trusted_listener
+    assert workflow.last_context["config_path"] == str(trusted_config_path)
+    transport_config = workflow.last_context["config_dict"]
+    assert transport_config["vlm"] == {"backend": "mock"}
+    assert transport_config["config_dict"] == {"from": "config"}
+    assert transport_config != {"from": "config"}
+    assert workflow.last_context["vlm_config"] == {"backend": "mock"}
+
+
+def test_build_identify_context_derives_vlm_config_from_child_config() -> None:
+    """The shared context builder supports callers before executor auto-wiring."""
+    context = upe._build_child_workflow_context(
+        "identify_asset",
+        {"vlm": {"backend": "mock"}},
+        {},
+    )
+
+    assert context["vlm_config"] == {"backend": "mock"}
+    assert context["config_dict"] == {"vlm": {"backend": "mock"}}
+
+
+@pytest.mark.asyncio
+async def test_aexecute_identify_step_protects_runtime_control_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    workflow = _WorkflowCapture({"identification": {"asset_type": "prop"}})
+    _patch_workflow_factory(monkeypatch, "identify_asset", workflow)
+    trusted_listener = object()
+    trusted_config_path = tmp_path / "pipeline.yaml"
+
+    await executor._aexecute_step(
+        "identify_asset",
+        {
+            "vlm": {"backend": "mock"},
+            "event_listener": "from-config",
+            "config_path": "from-config.yaml",
+            "config_dict": {"from": "config"},
+        },
+        {
+            "working_dir": str(tmp_path / "work"),
+            "config_path": str(trusted_config_path),
+            "event_listener": trusted_listener,
+        },
+        object_store=None,
+        pipeline_state={"step_outputs": {}},
+    )
+
+    assert workflow.last_context["event_listener"] is trusted_listener
+    assert workflow.last_context["config_path"] == str(trusted_config_path)
+    transport_config = workflow.last_context["config_dict"]
+    assert transport_config["vlm"] == {"backend": "mock"}
+    assert transport_config["config_dict"] == {"from": "config"}
+    assert transport_config != {"from": "config"}
+    assert workflow.last_context["vlm_config"] == {"backend": "mock"}
+
+
+def test_execute_step_prefers_created_predictions_for_apply_evaluate_and_restore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    created_predictions_path = "created_materials/created_predictions.jsonl"
+    pipeline_state = {
+        "step_outputs": {
+            "create_materials": {"predictions_path": created_predictions_path},
+            "build_dataset_prepare_dataset": {
+                "dataset_jsonl_path": "dataset/dataset.jsonl"
+            },
+            "optimize_usd": {"original_usd_path": "/tmp/original.usd"},
+        }
+    }
+    context = {"working_dir": str(tmp_path / "work")}
+
+    apply_workflow = _WorkflowCapture({"output_usd_path": "/tmp/applied.usd"})
+    _patch_workflow_factory(monkeypatch, "apply", apply_workflow)
+    executor._execute_step(
+        "apply",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert apply_workflow.last_config["predictions_path"] == created_predictions_path
+
+    refine_workflow = _WorkflowCapture({"final_output_path": "/tmp/refined.usd"})
+    _patch_workflow_factory(monkeypatch, "refine", refine_workflow)
+    executor._execute_step(
+        "refine",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert refine_workflow.last_config["predictions_path"] == created_predictions_path
+
+    evaluate_workflow = _WorkflowCapture(
+        {
+            "evaluation_path": "eval/evaluation.json",
+            "html_report_path": "eval/report.html",
+        }
+    )
+    _patch_workflow_factory(monkeypatch, "evaluate", evaluate_workflow)
+    executor._execute_step(
+        "evaluate",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert evaluate_workflow.last_config["predictions_path"] == created_predictions_path
+
+    restore_workflow = _WorkflowCapture(
+        {
+            "restored_predictions_path": "restored/restored_predictions.jsonl",
+            "restore_success": True,
+        }
+    )
+    _patch_workflow_factory(monkeypatch, "restore_usd", restore_workflow)
+    executor._execute_step(
+        "restore_usd",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert restore_workflow.last_config["predictions_path"] == created_predictions_path
+
+
+@pytest.mark.asyncio
+async def test_aexecute_step_prefers_created_predictions_for_evaluate_and_restore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    created_predictions_path = "created_materials/created_predictions.jsonl"
+    pipeline_state = {
+        "step_outputs": {
+            "create_materials": {"predictions_path": created_predictions_path},
+            "build_dataset_prepare_dataset": {
+                "dataset_jsonl_path": "dataset/dataset.jsonl"
+            },
+            "optimize_usd": {"original_usd_path": "/tmp/original.usd"},
+        }
+    }
+    context = {"working_dir": str(tmp_path / "work")}
+
+    apply_workflow = _WorkflowCapture({"output_usd_path": "/tmp/applied.usd"})
+    _patch_workflow_factory(monkeypatch, "apply", apply_workflow)
+    await executor._aexecute_step(
+        "apply",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert apply_workflow.last_config["predictions_path"] == created_predictions_path
+
+    refine_workflow = _WorkflowCapture({"final_output_path": "/tmp/refined.usd"})
+    _patch_workflow_factory(monkeypatch, "refine", refine_workflow)
+    await executor._aexecute_step(
+        "refine",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert refine_workflow.last_config["predictions_path"] == created_predictions_path
+
+    evaluate_workflow = _WorkflowCapture(
+        {
+            "evaluation_path": "eval/evaluation.json",
+            "html_report_path": "eval/report.html",
+        }
+    )
+    _patch_workflow_factory(monkeypatch, "evaluate", evaluate_workflow)
+    await executor._aexecute_step(
+        "evaluate",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert evaluate_workflow.last_config["predictions_path"] == created_predictions_path
+
+    restore_workflow = _WorkflowCapture(
+        {
+            "restored_predictions_path": "restored/restored_predictions.jsonl",
+            "restore_success": True,
+        }
+    )
+    _patch_workflow_factory(monkeypatch, "restore_usd", restore_workflow)
+    await executor._aexecute_step(
+        "restore_usd",
+        {},
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    assert restore_workflow.last_config["predictions_path"] == created_predictions_path
 
 
 def test_execute_step_restore_usd_wires_fallbacks_and_metadata_file(
@@ -354,6 +582,95 @@ def test_execute_step_wires_preview_identification_and_generated_refs(
         "/tmp/existing_ref.png",
         "/tmp/generated_refs/ref.png",
     ]
+
+
+def test_generated_material_library_activation_patches_downstream_steps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    workflow = _WorkflowCapture(
+        {
+            "output_dir": "/tmp/generated_material_library",
+            "generated_material_library_path": "/tmp/generated_material_library/material_library.usda",
+            "generated_materials_yaml_path": "/tmp/generated_material_library/materials.yaml",
+            "material_generation_plan_path": "/tmp/generated_material_library/material_generation_plan.yaml",
+            "generated_material_entries": [
+                {
+                    "name": "Generated Blue Plastic",
+                    "description": "Generated saturated blue glossy plastic.",
+                    "binding": "/World/Looks/Generated_Blue_Plastic",
+                }
+            ],
+            "generated_materials_data": {
+                "library_path": "/tmp/generated_material_library/material_library.usda",
+                "entries": [
+                    {
+                        "name": "Generated Blue Plastic",
+                        "description": "Generated saturated blue glossy plastic.",
+                        "binding": "/World/Looks/Generated_Blue_Plastic",
+                    }
+                ],
+            },
+        }
+    )
+    _patch_workflow_factory(monkeypatch, "generate_material_library", workflow)
+
+    step_configs = {
+        "generate_material_library": {},
+        "build_dataset_prepare_dataset": {"materials_list": ["Default Steel"]},
+        "validate_predictions": {"material_names": ["Default Steel"]},
+        "harmonize_predictions": {"material_names": ["Default Steel"]},
+        "apply": {"materials_mapping": {"Default Steel": "/World/Looks/Steel"}},
+    }
+    context = {
+        "working_dir": str(tmp_path / "work"),
+        "materials_data": {
+            "library_path": "/default/materials.usd",
+            "entries": [{"name": "Default Steel", "binding": "/World/Looks/Steel"}],
+        },
+    }
+    pipeline_state = {
+        "step_outputs": {
+            "render_preview": {
+                "rendered_preview_paths": ["/tmp/preview.png"],
+                "composition_images": ["/tmp/composition.png"],
+            },
+            "generate_reference_image": {
+                "generated_reference_image_paths": ["/tmp/generated_ref.png"]
+            },
+            "identify_asset": {"identification": {"asset_type": "ladder"}},
+        }
+    }
+
+    outputs = executor._execute_step(
+        "generate_material_library",
+        step_configs["generate_material_library"],
+        context,
+        object_store=None,
+        pipeline_state=pipeline_state,
+    )
+    executor._activate_generated_material_library(outputs, context, step_configs)
+
+    assert workflow.last_config["rendered_preview_paths"] == ["/tmp/preview.png"]
+    assert workflow.last_config["generated_reference_image_paths"] == [
+        "/tmp/generated_ref.png"
+    ]
+    assert workflow.last_config["identification"] == {"asset_type": "ladder"}
+
+    prompt_names = step_configs["build_dataset_prepare_dataset"]["materials_list"]
+    assert prompt_names == [
+        "Generated Blue Plastic",
+        FALLBACK_MATERIAL_NAME,
+        "__USE_DEFAULT_LIBRARY__",
+    ]
+    assert step_configs["validate_predictions"]["material_names"] == prompt_names
+    assert step_configs["harmonize_predictions"]["material_names"] == prompt_names
+    assert step_configs["apply"]["materials_mapping"] == {
+        "material_library_path": "/tmp/generated_material_library/material_library.usda",
+        "Generated Blue Plastic": "/World/Looks/Generated_Blue_Plastic",
+        FALLBACK_MATERIAL_NAME: "/World/Looks/Fallback_Neutral_Gray_Matte_Plastic",
+    }
+    assert context["default_materials_data"]["library_path"] == "/default/materials.usd"
 
 
 @pytest.mark.parametrize("step_name", ["unknown_step", "assign"])
@@ -703,7 +1020,10 @@ async def test_arun_clean_resume_and_restore_skip_paths(tmp_path: Path) -> None:
                 "step_configs": {"already_done": {}, "restore_usd": {}},
                 "resume": True,
                 "clean": True,
-                "path_resolver": SimpleNamespace(output_usd=output_file),
+                "path_resolver": SimpleNamespace(
+                    output_usd=output_file,
+                    working_dir_base=tmp_path,
+                ),
             }
         )
 

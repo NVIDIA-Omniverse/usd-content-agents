@@ -14,7 +14,14 @@ from world_understanding.telemetry import (
     initialize_telemetry,
     shutdown_telemetry,
 )
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
 from world_understanding.utils.logging import setup_logging
+from world_understanding.utils.public_response import (
+    PublicJsonResponseSanitizationMiddleware,
+)
 
 from .utils import AccessLogFilter
 
@@ -24,7 +31,7 @@ try:
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
     OTEL_INSTRUMENTATION_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     OTEL_INSTRUMENTATION_AVAILABLE = False
 
 # Add parent directories to Python path for material_agent imports
@@ -60,6 +67,7 @@ from .routers import (  # noqa: E402
     sessions_router,
 )
 from .runtime.bus import get_event_bus  # noqa: E402
+from .runtime.registry import get_job_registry  # noqa: E402
 from .session.manager import SessionManager  # noqa: E402
 from .storage.config import StorageConfig  # noqa: E402
 from .storage.s3_store import S3SessionStore  # noqa: E402
@@ -70,7 +78,7 @@ load_dotenv()
 # setup logging from config
 setup_logging()
 
-if sys.platform == "win32":
+if sys.platform == "win32":  # pragma: no cover
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -85,37 +93,8 @@ logger = logging.getLogger(__name__)
 
 
 def _get_max_active_sessions() -> int:
-    """
-    Parse MA_MAX_ACTIVE_SESSIONS from environment with safe fallback.
-
-    Returns:
-        int: Maximum active sessions limit (default 8 if not set or invalid)
-    """
-    default_limit = 8
-    env_value = os.getenv("MA_MAX_ACTIVE_SESSIONS")
-
-    if env_value is None:
-        return default_limit
-
-    try:
-        limit = int(env_value)
-        if limit < 0:
-            logger.error(
-                "MA_MAX_ACTIVE_SESSIONS must be non-negative, got '%s'. "
-                "Falling back to default: %d",
-                env_value,
-                default_limit,
-            )
-            return default_limit
-        return limit
-    except ValueError:
-        logger.error(
-            "MA_MAX_ACTIVE_SESSIONS must be a valid integer, got '%s'. "
-            "Falling back to default: %d",
-            env_value,
-            default_limit,
-        )
-        return default_limit
+    """Return the capacity enforced by the process-wide job registry."""
+    return get_job_registry().max_concurrent
 
 
 def _load_aws_config_file_into_env(*, log: logging.Logger) -> None:
@@ -241,8 +220,13 @@ async def _periodic_cleanup_task(
         except asyncio.CancelledError:
             logger.info("Cleanup task cancelled")
             break
-        except Exception as e:
-            logger.error(f"Cleanup task error: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "periodic_session_cleanup_failed",
+                phase=FailurePhase.ROLLBACK,
+                retryable=True,
+            )
             # Continue running despite errors
 
 
@@ -405,9 +389,13 @@ if OTEL_INSTRUMENTATION_AVAILABLE:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    PublicJsonResponseSanitizationMiddleware,
+    session_roots=(config.session_storage_path,),
 )
 
 
@@ -417,6 +405,7 @@ app.add_middleware(
 # subclass (not all ValueError) so unrelated ValueError bugs still surface as
 # 500 — otherwise pydantic / type-conversion errors would silently map to 400.
 from .session.manager import InvalidSessionIdError  # noqa: E402
+from .storage.base import SessionMetadataContentionError  # noqa: E402
 
 
 @app.exception_handler(InvalidSessionIdError)
@@ -424,6 +413,20 @@ async def _invalid_session_id_handler(
     request: Request, exc: InvalidSessionIdError
 ) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(SessionMetadataContentionError)
+async def _session_metadata_contention_handler(
+    request: Request,
+    exc: SessionMetadataContentionError,
+) -> JSONResponse:
+    """Return a retryable response without exposing storage internals."""
+    del request, exc
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Session metadata is temporarily busy; retry the request."},
+        headers={"Retry-After": "1"},
+    )
 
 
 # Include routers
@@ -435,7 +438,7 @@ app.include_router(materials_router.router)
 
 # Mount docs/images as static files for user manual
 docs_images_path = Path(__file__).parent.parent / "docs" / "images"
-if docs_images_path.exists():
+if docs_images_path.exists():  # pragma: no cover
     app.mount(
         "/docs/images", StaticFiles(directory=docs_images_path), name="docs-images"
     )
@@ -443,7 +446,7 @@ if docs_images_path.exists():
 
 # Mount React build static assets (if available)
 react_static_path = Path(__file__).parent.parent / "web" / "dist" / "_static"
-if react_static_path.exists():
+if react_static_path.exists():  # pragma: no cover
     app.mount("/_static", StaticFiles(directory=react_static_path), name="react-static")
 
 
@@ -467,12 +470,10 @@ async def serve_manual():
         return {"error": "User manual not found"}
 
 
-@app.get("/3rd_party_licenses.html")  # STAGING_EXCLUDED
+@app.get("/3rd_party_licenses.html")
 async def serve_third_party_licenses():
     """Serve the third-party licenses page."""
-    licenses_path = (
-        Path(__file__).parent.parent / "3rd_party_licenses.html"  # STAGING_EXCLUDED
-    )
+    licenses_path = Path(__file__).parent.parent / "3rd_party_licenses.html"
     if licenses_path.exists():
         return FileResponse(licenses_path, media_type="text/html")
     else:
@@ -590,5 +591,5 @@ def main():
     )
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

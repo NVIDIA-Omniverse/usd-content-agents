@@ -1,0 +1,29 @@
+{
+  "file_path": "../../../../../../../../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+  "stage_info": {
+    "root_layer": "../../../../../../../../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+    "default_prim_path": "/World",
+    "up_axis": "Y",
+    "meters_per_unit": 1.0
+  },
+  "statistics": {
+    "total_prims": 1,
+    "total_meshes": 1,
+    "type_distribution": {
+      "Mesh": 1
+    }
+  },
+  "collections": [],
+  "prims": {
+    "/World/Ladder/SideRail": {
+      "path": "/World/Ladder/SideRail",
+      "name": "SideRail",
+      "type_name": "Mesh",
+      "is_active": true,
+      "is_instance": false,
+      "is_xform": true,
+      "parent_path": "/World/Ladder",
+      "children_paths": []
+    }
+  }
+}

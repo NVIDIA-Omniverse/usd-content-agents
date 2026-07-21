@@ -148,4 +148,4 @@ pytest apps/material_agent/tests/test_functions_inference.py
 ## Related Documentation
 
 - **material_agent**: `/apps/material_agent/README.md`
-- **Architecture**: `/docs/internal/agentic_framework.md`
+- **Project overview**: `../../../README.md`

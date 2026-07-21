@@ -13,15 +13,18 @@ from urllib.parse import urlparse
 from physics_agent import __version__
 from physics_agent.api.defaults import (
     DEFAULT_VLM_BACKEND,
-    DEFAULT_VLM_LLMGATEWAY_CONFIG,
     DEFAULT_VLM_MODEL,
     DEFAULT_VLM_TEMPERATURE,
 )
 from pydantic import Field
 from pydantic_settings import BaseSettings
 from world_understanding.utils.credentials import (
+    get_env_api_key_for_backend,
     get_nim_api_key_for_base_url,
+    get_openai_api_key_for_base_url,
     get_vlm_nim_env_base_url_override,
+    is_nvidia_provider_base_url,
+    resolve_endpoint_api_key,
 )
 
 _LOCAL_RENDER_HOSTS = {
@@ -47,32 +50,42 @@ def _backend_has_credentials(
     backend: str | None,
     *,
     nvidia_api_key: str | None,
-    nstorage_api_key: str | None,
     nim_base_url: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> bool:
     """Check whether the active backend has the credential it needs."""
     backend_name = (backend or "").lower()
 
-    if backend_name in ("", "echo", "mock"):
+    if not backend_name:
         return True
-    if "llmgateway" in backend_name:
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        vlm_backend_requires_api_key,
+    )
+
+    try:
+        requires_api_key = vlm_backend_requires_api_key(backend_name)
+    except ValueError:
+        # An unregistered provider is not service-ready unless an explicit
+        # credential was supplied.  The eventual model construction reports
+        # the more specific registration error.
+        return bool(get_env_api_key_for_backend(backend_name, api_key))
+    if not requires_api_key:
         return True
     if backend_name == "nim":
-        if nim_base_url:
-            return bool(get_nim_api_key_for_base_url(nim_base_url))
-        return bool(nvidia_api_key)
-    if backend_name == "nvidia_inference":
-        return bool(os.getenv("INFERENCE_NVIDIA_API_KEY"))
+        base_url = nim_base_url or base_url
+        explicit_key = api_key
+        if explicit_key is None and is_nvidia_provider_base_url(base_url):
+            explicit_key = nvidia_api_key
+        return bool(get_nim_api_key_for_base_url(base_url, explicit_key))
     if backend_name == "openai":
-        return bool(os.getenv("OPENAI_API_KEY"))
+        return bool(get_openai_api_key_for_base_url(base_url, api_key))
     if backend_name == "anthropic":
-        return bool(os.getenv("ANTHROPIC_API_KEY"))
+        return bool(get_env_api_key_for_backend(backend_name, api_key))
     if backend_name == "gemini":
-        return bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
-    if backend_name in ("azure_openai", "perflab_azure_openai"):
-        return bool(os.getenv("AZURE_OPENAI_API_KEY") or nstorage_api_key)
-
-    return True
+        return bool(get_env_api_key_for_backend(backend_name, api_key))
+    return bool(get_env_api_key_for_backend(backend_name, api_key))
 
 
 class ServiceConfig(BaseSettings):
@@ -90,6 +103,9 @@ class ServiceConfig(BaseSettings):
     # Session settings
     session_storage_path: str = "/var/physics-agent/sessions"
     session_ttl_hours: int = 24
+    cleanup_interval_hours: float = 1.0
+    cleanup_max_age_hours: float = 24.0
+    cleanup_enabled: bool = True
 
     # File upload settings
     max_upload_size_mb: int = 500
@@ -101,9 +117,12 @@ class ServiceConfig(BaseSettings):
     # Colon-separated string via env: PA_DATASET_ALLOWED_ROOTS.
     dataset_allowed_roots: str = ""
 
+    # Exact bucket names allowed for client-supplied s3_uri inputs. Empty is a
+    # deliberate fail-closed default; configure PA_S3_ALLOWED_BUCKETS to opt in.
+    s3_allowed_buckets: str = ""
+
     # API Keys
     nvidia_api_key: str | None = None
-    nstorage_api_key: str | None = None
     nvcf_api_key: str | None = None
 
     # Storage backend (local or s3 for multi-instance)
@@ -125,11 +144,24 @@ class ServiceConfig(BaseSettings):
         default=DEFAULT_VLM_BACKEND, description="VLM backend to use"
     )
     vlm_model: str = Field(default=DEFAULT_VLM_MODEL, description="VLM model to use")
+    vlm_base_url: str | None = Field(
+        default=None,
+        description="Optional VLM API base URL for non-NIM endpoint routing",
+    )
+    vlm_api_key: str | None = Field(
+        default=None,
+        description="Optional endpoint-scoped VLM API key",
+    )
+    vlm_api_key_env: str | None = Field(
+        default=None,
+        description="Environment variable containing the endpoint-scoped VLM API key",
+    )
     vlm_temperature: float = Field(
         default=DEFAULT_VLM_TEMPERATURE, description="VLM temperature to use"
     )
-    llmgateway_config: dict[str, str | list[str] | None] = Field(
-        default=DEFAULT_VLM_LLMGATEWAY_CONFIG, description="LLM gateway config to use"
+    vlm_backend_options: dict[str, object] = Field(
+        default_factory=dict,
+        description="Optional provider-specific VLM constructor options",
     )
 
     class Config:
@@ -144,10 +176,6 @@ class ServiceConfig(BaseSettings):
         if not self.nvidia_api_key:
             self.nvidia_api_key = os.getenv(
                 "PA_NVIDIA_API_KEY", os.getenv("NVIDIA_API_KEY")
-            )
-        if not self.nstorage_api_key:
-            self.nstorage_api_key = os.getenv(
-                "PA_NSTORAGE_API_KEY", os.getenv("NSTORAGE_API_KEY")
             )
         if not self.nvcf_api_key:
             self.nvcf_api_key = os.getenv("NGC_API_KEY")
@@ -174,11 +202,19 @@ class ServiceConfig(BaseSettings):
         """Check if the active backend and render settings are configured."""
         vlm_nim_base_url = get_vlm_nim_env_base_url_override()
         effective_vlm_backend = "nim" if vlm_nim_base_url else self.vlm_backend
+        vlm_api_key = (
+            None
+            if vlm_nim_base_url
+            else resolve_endpoint_api_key(
+                self.vlm_api_key, self.vlm_api_key_env, prefer_env=True
+            )
+        )
         vlm_ready = _backend_has_credentials(
             effective_vlm_backend,
             nvidia_api_key=self.nvidia_api_key,
-            nstorage_api_key=self.nstorage_api_key,
             nim_base_url=vlm_nim_base_url,
+            base_url=self.vlm_base_url,
+            api_key=vlm_api_key,
         )
 
         render_ready = True

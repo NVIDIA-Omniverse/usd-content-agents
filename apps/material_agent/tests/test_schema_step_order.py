@@ -45,6 +45,18 @@ def test_cluster_step_defaults_copy_thresholds():
     assert second["complexity_thresholds"]["low"][2] == 0.98
 
 
+def test_api_pipeline_step_names_include_create_materials():
+    from material_agent.api.defaults import PIPELINE_STEP_NAMES
+
+    assert "create_materials" in PIPELINE_STEP_NAMES
+    assert PIPELINE_STEP_NAMES.index(
+        "harmonize_predictions"
+    ) < PIPELINE_STEP_NAMES.index("create_materials")
+    assert PIPELINE_STEP_NAMES.index("create_materials") < PIPELINE_STEP_NAMES.index(
+        "restore_usd"
+    )
+
+
 class TestStepOrderCompleteness:
     """Verify all expected steps are present in STEP_ORDER."""
 
@@ -53,6 +65,7 @@ class TestStepOrderCompleteness:
         "render_preview",
         "identify_asset",
         "generate_reference_image",
+        "generate_material_library",
         "build_dataset_usd",
         "build_dataset_pdf_vectorstore",
         "build_dataset_prepare_dataset",
@@ -62,6 +75,7 @@ class TestStepOrderCompleteness:
         "expand_cluster_predictions",
         "validate_predictions",
         "harmonize_predictions",
+        "create_materials",
         "restore_usd",
         "apply",
         "evaluate",
@@ -100,6 +114,11 @@ class TestStepOrderRelativeOrdering:
     def test_build_dataset_before_predict(self):
         self._assert_before("build_dataset_prepare_dataset", "predict")
 
+    def test_generated_material_library_before_dataset_prompting(self):
+        self._assert_before(
+            "generate_material_library", "build_dataset_prepare_dataset"
+        )
+
     def test_predict_before_validate(self):
         self._assert_before("predict", "validate_predictions")
 
@@ -108,6 +127,15 @@ class TestStepOrderRelativeOrdering:
 
     def test_harmonize_before_apply(self):
         self._assert_before("harmonize_predictions", "apply")
+
+    def test_harmonize_before_create_materials(self):
+        self._assert_before("harmonize_predictions", "create_materials")
+
+    def test_create_materials_before_restore(self):
+        self._assert_before("create_materials", "restore_usd")
+
+    def test_create_materials_before_apply(self):
+        self._assert_before("create_materials", "apply")
 
     def test_cluster_prims_before_predict(self):
         self._assert_before("cluster_prims", "predict")
@@ -133,6 +161,7 @@ class TestStepOutputDirs:
         "render_preview",
         "identify_asset",
         "generate_reference_image",
+        "generate_material_library",
         "build_dataset_usd",
         "build_dataset_pdf_vectorstore",
         "build_dataset_prepare_dataset",
@@ -140,6 +169,7 @@ class TestStepOutputDirs:
         "predict",
         "benchmark",
         "expand_cluster_predictions",
+        "create_materials",
         "evaluate",
         "refine",
         "restore_usd",
@@ -197,6 +227,22 @@ class TestGetStepDefaults:
             "model": "gemini-3-pro-image-preview",
         }
         assert defaults["num_images"] == 1
+
+    def test_generate_material_library_public_defaults(self):
+        defaults = get_step_defaults("generate_material_library")
+
+        assert defaults["enabled"] is False
+        assert defaults["material_generation_plan_path"] is None
+        assert defaults["texture_generation"]["texture_size"] == 1024
+        assert defaults["write_material_generation_plan"] is True
+
+    def test_create_materials_public_defaults(self):
+        defaults = get_step_defaults("create_materials")
+
+        assert defaults["enabled"] is False
+        assert defaults["backend"] == "fake"
+        assert defaults["creation_requests"] == []
+        assert defaults["fail_on_error"] is True
 
     def test_empty_predictions_fail_closed_by_default(self) -> None:
         assert get_step_defaults("predict")["allow_empty_predictions"] is False

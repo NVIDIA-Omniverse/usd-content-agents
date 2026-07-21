@@ -2,10 +2,33 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import BinaryIO, Protocol
 
 # Standard key for session metadata JSON
 METADATA_KEY = "session.json"
+
+
+@dataclass(frozen=True)
+class VersionedJson:
+    """A JSON document and the opaque store version read with it.
+
+    ``version`` is ``None`` only when the key does not exist.  Callers must
+    treat non-``None`` versions as opaque values and pass them back unchanged
+    to :meth:`SessionStore.replace_json_if_version`.
+    """
+
+    value: dict | None
+    version: str | None
+
+
+class JsonPreconditionError(RuntimeError):
+    """Raised when a conditional JSON replacement loses its compare-and-swap."""
+
+
+class SessionMetadataContentionError(RuntimeError):
+    """Raised when session metadata cannot be updated after bounded CAS retries."""
 
 
 class SessionStore(Protocol):
@@ -42,13 +65,37 @@ class SessionStore(Protocol):
     async def put_file(
         self, session_id: str, key: str, file_path: str, content_type: str | None = None
     ) -> None: ...
+    async def delete_file(self, session_id: str, key: str) -> None: ...
     async def open_read(self, session_id: str, key: str) -> BinaryIO: ...
+    def iter_read(
+        self,
+        session_id: str,
+        key: str,
+        *,
+        chunk_size: int,
+    ) -> AsyncIterator[bytes]: ...
     async def exists(self, session_id: str, key: str) -> bool: ...
     async def list_keys(self, session_id: str, prefix: str = "") -> list[str]: ...
 
     # Metadata/Status/Events
     async def put_json(self, session_id: str, key: str, obj: dict) -> None: ...
     async def get_json(self, session_id: str, key: str) -> dict | None: ...
+    async def get_json_versioned(self, session_id: str, key: str) -> VersionedJson: ...
+    async def replace_json_if_version(
+        self,
+        session_id: str,
+        key: str,
+        obj: dict,
+        expected_version: str | None,
+    ) -> str:
+        """Atomically replace JSON only if its version still matches.
+
+        ``expected_version=None`` means create-only: replacement succeeds only
+        when the key is absent.  Returns the new opaque version, or raises
+        :class:`JsonPreconditionError` when the precondition does not hold.
+        """
+        ...
+
     async def get_json_batch(
         self, session_ids: list[str], key: str
     ) -> list[dict | None]:

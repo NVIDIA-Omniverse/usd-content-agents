@@ -19,8 +19,12 @@ canonical input for the `physics-agent refine` bounce-flow demo at
   output) to produce the shipped `tire.usdc`. The VLM backend used
   for the predict step is unspecified here — operators who reproduce
   this asset should consult `apps/material_agent/configs/` for the
-  current public/internal backend selection.
+  current public backend selection.
 - **Materialization date**: 2026-05-13.
+- **Reference video**: `reference_media/tire_bounce_reference.mov` is a
+  2.4 s, 720x960, 29.58 fps phone capture of a physical tire drop/bounce.
+  It is bundled as optional visual judge evidence for the refine demo and
+  can be passed to `physics-agent refine` with `--reference-video`.
 - **Bundled textures**: `Textures/` ships three PBR maps
   (`t_rubber_new_a01_tile_alb.png`, `_nor.png`, `_orm.png`), downscaled
   from the SimReady 4K sources to 1K so the example asset stays under
@@ -60,10 +64,8 @@ The raw SimReady tire is an instance-proxy wrapper that requires
 `material-agent` to run before physics classification produces useful
 material/density predictions. Shipping the materialized result lets
 the `physics-agent` quickstart run end-to-end on a public install
-without first wiring a material-agent pipeline. The internal-only
-`apps/physics_agent/configs/internal/tire_b01.yaml` exists as the raw
-SimReady baseline for developers who do have the SimReady tree locally
-and want to re-derive this output.
+without first wiring a material-agent pipeline. Re-deriving the asset from
+the upstream SimReady source is outside this public example's scope.
 
 ## Working with this file
 
@@ -78,22 +80,38 @@ wu render apps/physics_agent/data/examples/Tire_B01/tire.usdc \
 # Run the physics agent classification + apply_physics step on it
 physics-agent run apps/physics_agent/configs/tire_bounce.yaml
 
-# Iteratively tune the bounce parameters (the demo this asset was
-# bundled for). Requires NVIDIA_API_KEY for the public NIM/qwen judge,
-# or set --chat-backend gemini and GOOGLE_API_KEY.
+# Iteratively tune the bounce parameters with a small text-only smoke run.
+# Requires physics_agent[tuning] plus a simulation backend such as OvPhysX.
 physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml \
   --physics-usd apps/physics_agent/configs/.tire_bounce/physics/tire_physics.usdc \
   --user-prompt "make this object bouncy" \
   --output-dir /tmp/tire_bouncy \
   --engine ovphysx --optimizer random \
   --max-trials 4 --max-iterations 3 --score-threshold 0.7
+
+# Run the full reference-video tire-bounce refine example. This uses the
+# bundled phone video as visual judge evidence; do not pass
+# --reference-video-description unless you intentionally want to override
+# frame-based interpretation. Configure the judge backend and credentials
+# for your environment before running this example.
+physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml \
+  --physics-usd apps/physics_agent/configs/.tire_bounce/physics/tire_physics.usdc \
+  --user-prompt "Match the bounce behavior shown in the reference video." \
+  --reference-video apps/physics_agent/data/examples/Tire_B01/reference_media/tire_bounce_reference.mov \
+  --reference-video-frames 32 \
+  --judge-reference-frames 32 \
+  --judge-generated-frames 32 \
+  --output-dir /tmp/tire_bouncy_refvideo \
+  --engine ovphysx --optimizer botorch \
+  --max-trials 30 --max-iterations 12 --score-threshold 0.9 \
+  --seed 42
 ```
 
 ## Known caveats
 
 - **Collision approximation**: the tire is a torus. The shipped
-  `tire_bounce.yaml` / `internal/tire_bounce.yaml` configs author
-  `collision_approx: convexDecomposition` so the rim hole is preserved
+  `tire_bounce.yaml` config authors `collision_approx: convexDecomposition`
+  so the rim hole is preserved
   in the physics collider. A `convexHull` approximation would fill the
   hole and produce a disc-shaped collider — fine for a drop test on
   flat ground but wrong for downstream multi-body / friction contact

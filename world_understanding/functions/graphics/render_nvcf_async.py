@@ -7,4 +7,10 @@ code. This module name is kept because the REST renderer was originally
 NVCF-only.
 """
 
-from world_understanding.functions.graphics.render_remote_async import *  # noqa: F403
+from __future__ import annotations
+
+import sys
+
+from world_understanding.functions.graphics import render_remote_async as _remote_async
+
+sys.modules[__name__] = _remote_async

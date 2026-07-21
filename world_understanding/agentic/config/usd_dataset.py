@@ -11,6 +11,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from world_understanding.rendering_backend_contract import (
+    RENDERING_BACKEND_NAMES,
+    validate_rendering_backend_name,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +70,10 @@ class RendererConfig(BaseModel):
 
     backend: str = Field(
         default="remote",
-        description="Rendering backend: 'remote' (default), 'ovrtx', or 'warp'",
+        description=(
+            "Canonical rendering backend name (default: 'remote'): "
+            + ", ".join(RENDERING_BACKEND_NAMES)
+        ),
     )
     image_width: int = Field(default=512, description="Image width in pixels")
     image_height: int = Field(default=512, description="Image height in pixels")
@@ -89,6 +97,12 @@ class RendererConfig(BaseModel):
         default=None,
         description="Optional custom camera directions (overrides camera_view_type)",
     )
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, value: str) -> str:
+        """Reject backend names outside the shared canonical contract."""
+        return validate_rendering_backend_name(value)
 
     @field_validator("camera_directions", mode="before")
     @classmethod
@@ -285,6 +299,32 @@ class PrimFilters(BaseModel):
     exclude_paths: list[str] | None = Field(
         default=None,
         description="Prim paths to exclude",
+    )
+    allowed_purposes: list[str] | None = Field(
+        default=None,
+        description=(
+            "Effective UsdGeom purposes eligible for rendering. When unset, "
+            "purpose does not affect selection and bbox metadata/camera framing "
+            "remain default-purpose only. When set, the same purposes define "
+            "selection, bbox metadata, and camera framing."
+        ),
+    )
+    rigid_body_purpose_fallbacks: list[str] | None = Field(
+        default=None,
+        description=(
+            "Otherwise excluded purposes that may be selected only when the "
+            "nearest enabled rigid-body owner has no normally selected Gprim "
+            "descendant. Intended for bounded recovery of guide-only moving "
+            "assemblies without globally admitting guide helpers."
+        ),
+    )
+    skip_fully_transparent: bool = Field(
+        default=False,
+        description=("Skip Gprims whose effective displayOpacity values are all zero"),
+    )
+    skip_unusable_bbox: bool = Field(
+        default=False,
+        description=("Skip Gprims without a finite, non-degenerate world-space bound"),
     )
 
 

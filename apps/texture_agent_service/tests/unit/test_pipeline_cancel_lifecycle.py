@@ -150,6 +150,9 @@ def test_regenerate_clears_stale_cancel_marker_before_register(
         def clear_session_state(self, *args: Any, **kwargs: Any) -> None:
             return None
 
+        async def seed_pending_session(self, *args: Any, **kwargs: Any) -> None:
+            return None
+
     monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: _StubRegistry())
     monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: _StubBus())
 
@@ -236,7 +239,7 @@ def test_reset_session_for_new_run_fresh_clears_bookkeeping(
     assert metadata["preview_images"] == []
     assert metadata["overall_progress"] == {
         "current_step": 0,
-        "total_steps": 8,
+        "total_steps": 9,
         "percent": 0,
         "estimated_remaining_seconds": None,
     }
@@ -521,6 +524,9 @@ def test_regenerate_clears_cancel_marker_under_worker_lock(
 
     class _StubBus:
         def clear_session_state(self, *args: Any, **kwargs: Any) -> None:
+            return None
+
+        async def seed_pending_session(self, *args: Any, **kwargs: Any) -> None:
             return None
 
     monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: _StubRegistry())

@@ -536,6 +536,31 @@ def create_generate_reference_image_workflow_from_config() -> Workflow:
     )
 
 
+def create_generate_material_library_workflow_from_config() -> Workflow:
+    """Create a config-driven generated-material-library workflow.
+
+    This workflow reads a material generation plan, directly synthesizes texture
+    maps, authors a USD material library, and writes canonical ``materials.yaml``
+    for downstream Material Agent steps.
+    """
+    from material_agent.tasks import (
+        GenerateMaterialLibraryConfigTask,
+        GenerateMaterialLibraryTask,
+    )
+
+    tasks = [
+        GenerateMaterialLibraryConfigTask(),
+        GenerateMaterialLibraryTask(),
+    ]
+
+    return Workflow(
+        tasks=tasks,
+        object_store=InMemoryObjectStore(),
+        name="Generate Material Library",
+        description="Generate an asset-specific material library package",
+    )
+
+
 def create_render_preview_workflow_from_config() -> Workflow:
     """Create a config-driven render-preview workflow.
 

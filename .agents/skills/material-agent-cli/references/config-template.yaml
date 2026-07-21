@@ -135,7 +135,7 @@ steps:
     max_concurrent_requests: 1
 
   build_dataset_pdf_vectorstore:
-    enabled: false  # Enable if you have reference PDFs for RAG
+    enabled: false  # Enable to retrieve specification evidence from PDFs
 
   build_dataset_prepare_dataset:
     enabled: true

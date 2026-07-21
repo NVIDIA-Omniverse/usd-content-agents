@@ -3,14 +3,28 @@
 """Artifacts API endpoints - Downloads and reports."""
 
 import asyncio
+import hashlib
 import json
 import logging
+import shutil
+import uuid
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.held_file_response import HeldFileResponse
 
+from ..artifact_lineage import artifact_is_valid
 from ..session.manager import SessionManager
 
 logger = logging.getLogger(__name__)
@@ -34,6 +48,16 @@ CONTENT_TYPES = {
 
 # Global session manager (initialized by main app)
 session_manager: SessionManager | None = None
+STORE_STREAM_CHUNK_SIZE = 1024 * 1024
+
+
+def _requires_sanitizing_proxy(media_type: str) -> bool:
+    """Keep structured text artifacts behind the public response boundary."""
+    normalized = media_type.partition(";")[0].strip().lower()
+    return normalized in {
+        "application/json",
+        "application/x-ndjson",
+    } or normalized.endswith("+json")
 
 
 def get_session_manager() -> SessionManager:
@@ -49,6 +73,21 @@ def set_session_manager(manager: SessionManager) -> None:
     session_manager = manager
 
 
+async def _require_valid_artifact_lineage(
+    manager: SessionManager,
+    session_id: str,
+    artifact: str,
+) -> dict[str, Any] | None:
+    """Reject artifacts retained from an invalidated pipeline generation."""
+    metadata = await manager.get_session_metadata(session_id)
+    if not artifact_is_valid(metadata, artifact):
+        raise HTTPException(
+            status_code=404,
+            detail="Artifact is not available for the current pipeline run",
+        )
+    return metadata
+
+
 async def _try_serve_file_with_fallback(
     manager: SessionManager,
     session_id: str,
@@ -56,7 +95,8 @@ async def _try_serve_file_with_fallback(
     local_path: Path,
     media_type: str | None = None,
     filename: str | None = None,
-) -> Response | FileResponse | RedirectResponse | None:
+    artifact: str | None = None,
+) -> Response | FileResponse | RedirectResponse | StreamingResponse | None:
     """Serve a file with fallback from presigned URL → store → local.
 
     Args:
@@ -76,28 +116,103 @@ async def _try_serve_file_with_fallback(
         suffix = local_path.suffix.lower()
         media_type = CONTENT_TYPES.get(suffix, "application/octet-stream")
 
-    # 1. Try presigned URL (redirect)
-    url = await manager.make_public_url(session_id, key)
-    if url:
-        return RedirectResponse(url, status_code=302)
+    metadata_snapshot = await manager.get_session_metadata_versioned(session_id)
+    metadata = metadata_snapshot.value
+    if metadata is None or metadata_snapshot.version is None:
+        return None
+    if artifact is not None and not artifact_is_valid(metadata, artifact):
+        return None
+    immutable_key = key.startswith(("runs/", "reports/"))
 
-    # 2. Try reading from store (streaming response)
-    data = await manager.read_from_store(session_id, key)
-    if data is not None:
+    def resolve_store_key(current_metadata: dict[str, Any]) -> str | None:
+        if immutable_key:
+            return key
+        if key == "cache/predictions/prediction_report.html":
+            return manager.resolve_prediction_report_key(
+                current_metadata,
+                legacy_key=key,
+            )
+        return manager.resolve_published_artifact_key(
+            current_metadata,
+            key,
+            legacy_key=key,
+        )
+
+    store_key = resolve_store_key(metadata)
+    if store_key is None:
+        return None
+
+    async def publication_is_still_current() -> bool:
+        if artifact is None:
+            return True
+        current = await manager.get_session_metadata_versioned(session_id)
+        if current.value is None or current.version is None:
+            return False
+        return artifact_is_valid(current.value, artifact) and (
+            resolve_store_key(current.value) == store_key
+        )
+
+    # 1. Try presigned URL (redirect). JSON and NDJSON must be proxied so the
+    # public response middleware can sanitize persisted session-local fields.
+    if not _requires_sanitizing_proxy(media_type):
+        url = await manager.make_public_url(session_id, store_key)
+        if url and await publication_is_still_current():
+            return RedirectResponse(url, status_code=302)
+
+    # 2. Keep record-oriented artifacts streaming so sanitization stays bounded.
+    if _requires_sanitizing_proxy(media_type) and (
+        media_type.partition(";")[0].strip().lower() == "application/x-ndjson"
+    ):
+        stream = await manager.iter_store_chunks(
+            session_id,
+            store_key,
+            chunk_size=STORE_STREAM_CHUNK_SIZE,
+        )
+        if stream is not None:
+            if await publication_is_still_current():
+                headers = {}
+                if filename:
+                    headers["Content-Disposition"] = (
+                        f'attachment; filename="{filename}"'
+                    )
+                return StreamingResponse(
+                    stream,
+                    media_type=media_type,
+                    headers=headers,
+                )
+
+    # 3. Try reading a single-value object from the store.
+    data = await manager.read_from_store(session_id, store_key)
+    if data is not None and await publication_is_still_current():
         headers = {}
         if filename:
             headers["Content-Disposition"] = f'attachment; filename="{filename}"'
         return Response(content=data, media_type=media_type, headers=headers)
 
-    # 3. Fallback to local file
-    if local_path.exists():
-        return FileResponse(
-            local_path,
-            media_type=media_type,
-            filename=filename,
-        )
-
-    return None
+    # 4. Fallback to local file
+    if manager.store.kind != "local" or (
+        metadata is not None and metadata.get("published_artifacts") is not None
+    ):
+        return None
+    local_artifact = await manager.open_local_artifact(session_id, local_path)
+    if local_artifact is None:
+        return None
+    if artifact is not None:
+        try:
+            local_data = local_artifact.stream.read()
+        finally:
+            local_artifact.stream.close()
+        if not await publication_is_still_current():
+            return None
+        headers = {}
+        if filename:
+            headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return Response(content=local_data, media_type=media_type, headers=headers)
+    return HeldFileResponse(
+        local_artifact,
+        media_type=media_type,
+        filename=filename,
+    )
 
 
 async def _serve_file_with_fallback(
@@ -107,7 +222,9 @@ async def _serve_file_with_fallback(
     local_path: Path,
     media_type: str | None = None,
     filename: str | None = None,
-) -> Response | FileResponse | RedirectResponse:
+    not_found_detail: str = "Artifact not found",
+    artifact: str | None = None,
+) -> Response | FileResponse | RedirectResponse | StreamingResponse:
     """Serve a file with fallback from presigned URL → store → local.
 
     Raises:
@@ -120,11 +237,12 @@ async def _serve_file_with_fallback(
         local_path,
         media_type=media_type,
         filename=filename,
+        artifact=artifact,
     )
     if response is not None:
         return response
 
-    raise HTTPException(status_code=404, detail="Artifact not found")
+    raise HTTPException(status_code=404, detail=not_found_detail)
 
 
 def _scene_render_candidates(
@@ -168,8 +286,11 @@ def _scene_render_candidates(
 
 
 async def _generate_report_on_demand(
-    session_dir: Path, predictions_path: Path, dataset_path: Path
-) -> None:
+    session_dir: Path,
+    predictions_path: Path,
+    dataset_path: Path,
+    prediction_lineage: str,
+) -> Path:
     """Generate prediction HTML report on-demand.
 
     This is called only when the /report endpoint is accessed, preventing
@@ -201,16 +322,30 @@ async def _generate_report_on_demand(
     task = GeneratePredictionReportTask()
 
     # Prepare context
+    lineage_digest = hashlib.sha256(prediction_lineage.encode("utf-8")).hexdigest()
+    report_dir = (
+        predictions_path.parent / ".report-builds" / f"{lineage_digest}-{uuid.uuid4()}"
+    )
     report_context = {
         "predictions": predictions,
         "failed_predictions": [],
         "dataset": dataset,
-        "output_dir": str(predictions_path.parent),
+        "output_dir": str(report_dir),
         "dataset_path": str(dataset_path),
     }
 
     # Run report generation in thread pool (blocks this coroutine but not event loop)
-    await asyncio.to_thread(task.run, report_context, None)
+    try:
+        await asyncio.to_thread(task.run, report_context, None)
+        staged_report = report_dir / "prediction_report.html"
+        if not staged_report.is_file():
+            raise RuntimeError(
+                "Report generator did not produce prediction_report.html"
+            )
+        return staged_report
+    except BaseException:
+        shutil.rmtree(report_dir, ignore_errors=True)
+        raise
 
 
 @router.get("/{session_id}/output")
@@ -231,43 +366,50 @@ async def download_output_usd(session_id: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    metadata = await manager.get_session_metadata(session_id)
     session_dir = manager.get_session_dir(session_id)
 
-    # Try flattened version first
-    response = await _try_serve_file_with_fallback(
-        manager,
-        session_id,
-        "output/scene_with_materials_flat.usd",
-        session_dir / "output" / "scene_with_materials_flat.usd",
-        filename="scene_with_materials_flat.usd",
-    )
-    if response:
-        return response
+    if artifact_is_valid(metadata, "rendered_output_usd"):
+        # Try flattened version first.
+        response = await _try_serve_file_with_fallback(
+            manager,
+            session_id,
+            "output/scene_with_materials_flat.usd",
+            session_dir / "output" / "scene_with_materials_flat.usd",
+            filename="scene_with_materials_flat.usd",
+            artifact="rendered_output_usd",
+        )
+        if response:
+            return response
 
-    # Large-scene rendering writes this sibling flat file before mirroring.
-    response = await _try_serve_file_with_fallback(
-        manager,
-        session_id,
-        "output/composed_scene_flat.usd",
-        session_dir / "output" / "composed_scene_flat.usd",
-        filename="scene_with_materials_flat.usd",
-    )
-    if response:
-        return response
+        # Large-scene rendering writes this sibling flat file before mirroring.
+        response = await _try_serve_file_with_fallback(
+            manager,
+            session_id,
+            "output/composed_scene_flat.usd",
+            session_dir / "output" / "composed_scene_flat.usd",
+            filename="scene_with_materials_flat.usd",
+            artifact="rendered_output_usd",
+        )
+        if response:
+            return response
 
     # Fallback to non-flattened version
-    logger.warning(
-        f"Flattened USD not found for {session_id[:8]}, trying non-flattened version"
-    )
-    response = await _try_serve_file_with_fallback(
-        manager,
-        session_id,
-        "output/scene_with_materials.usd",
-        session_dir / "output" / "scene_with_materials.usd",
-        filename="scene_with_materials.usd",
-    )
-    if response:
-        return response
+    if artifact_is_valid(metadata, "applied_output_usd"):
+        logger.warning(
+            f"Flattened USD not found for {session_id[:8]}, "
+            "trying non-flattened version"
+        )
+        response = await _try_serve_file_with_fallback(
+            manager,
+            session_id,
+            "output/scene_with_materials.usd",
+            session_dir / "output" / "scene_with_materials.usd",
+            filename="scene_with_materials.usd",
+            artifact="applied_output_usd",
+        )
+        if response:
+            return response
 
     raise HTTPException(
         status_code=404,
@@ -291,13 +433,18 @@ async def download_final_render(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session_dir = manager.get_session_dir(session_id)
-    metadata = await manager.get_session_metadata(session_id)
+    metadata = await _require_valid_artifact_lineage(
+        manager,
+        session_id,
+        "final_render",
+    )
     response = await _try_serve_file_with_fallback(
         manager,
         session_id,
         "output/scene_with_materials.png",
         session_dir / "output" / "scene_with_materials.png",
         media_type="image/png",
+        artifact="final_render",
     )
     if response:
         return response
@@ -314,6 +461,7 @@ async def download_final_render(session_id: str):
                 local_path,
                 media_type="image/png",
                 filename=filename,
+                artifact="final_render",
             )
             if response:
                 return response
@@ -340,18 +488,34 @@ async def download_predictions(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    metadata = await manager.get_session_metadata(session_id)
+    if artifact_is_valid(metadata, "restored_predictions"):
+        response = await _try_serve_file_with_fallback(
+            manager,
+            session_id,
+            "cache/restored/restored_predictions.jsonl",
+            session_dir / "cache" / "restored" / "restored_predictions.jsonl",
+            media_type="application/x-ndjson",
+            filename="predictions.jsonl",
+            artifact="restored_predictions",
+        )
+        if response:
+            return response
+    if not artifact_is_valid(metadata, "raw_predictions"):
+        raise HTTPException(
+            status_code=404,
+            detail="Predictions are not available for the current pipeline run",
+        )
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "cache/predictions/predictions.jsonl",
         session_dir / "cache" / "predictions" / "predictions.jsonl",
         media_type="application/x-ndjson",
         filename="predictions.jsonl",
+        not_found_detail="Predictions not available yet",
+        artifact="raw_predictions",
     )
-    if response:
-        return response
-
-    raise HTTPException(status_code=404, detail="Predictions not available")
 
 
 @router.get("/{session_id}/scene-manifest")
@@ -363,18 +527,15 @@ async def download_scene_manifest(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "scene/manifest.json",
         session_dir / "scene" / "manifest.json",
         media_type="application/json",
         filename="manifest.json",
+        not_found_detail="Scene manifest not available",
     )
-    if response:
-        return response
-
-    raise HTTPException(status_code=404, detail="Scene manifest not available")
 
 
 @router.get("/{session_id}/scene-validation-report")
@@ -386,20 +547,14 @@ async def download_scene_validation_report(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "scene/validation_report.json",
         session_dir / "scene" / "validation_report.json",
         media_type="application/json",
         filename="validation_report.json",
-    )
-    if response:
-        return response
-
-    raise HTTPException(
-        status_code=404,
-        detail="Scene validation report not available",
+        not_found_detail="Scene validation report not available",
     )
 
 
@@ -412,18 +567,15 @@ async def download_scene_predictions(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "scene/predictions.jsonl",
         session_dir / "scene" / "predictions.jsonl",
         media_type="application/x-ndjson",
         filename="scene_predictions.jsonl",
+        not_found_detail="Scene predictions not available",
     )
-    if response:
-        return response
-
-    raise HTTPException(status_code=404, detail="Scene predictions not available")
 
 
 @router.get("/{session_id}/cluster-map")
@@ -434,19 +586,18 @@ async def download_cluster_map(session_id: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    await _require_valid_artifact_lineage(manager, session_id, "cluster_map")
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "cache/clusters/cluster_map.jsonl",
         session_dir / "cache" / "clusters" / "cluster_map.jsonl",
         media_type="application/x-ndjson",
         filename="cluster_map.jsonl",
+        not_found_detail="Cluster map not available",
+        artifact="cluster_map",
     )
-    if response:
-        return response
-
-    raise HTTPException(status_code=404, detail="Cluster map not available")
 
 
 @router.get("/{session_id}/cluster-report")
@@ -457,18 +608,17 @@ async def view_cluster_report(session_id: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    await _require_valid_artifact_lineage(manager, session_id, "cluster_report")
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "cache/clusters/cluster_report.html",
         session_dir / "cache" / "clusters" / "cluster_report.html",
         media_type="text/html",
+        not_found_detail="Cluster report not available",
+        artifact="cluster_report",
     )
-    if response:
-        return response
-
-    raise HTTPException(status_code=404, detail="Cluster report not available")
 
 
 @router.get("/{session_id}/cluster-summary")
@@ -479,19 +629,18 @@ async def download_cluster_summary(session_id: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    await _require_valid_artifact_lineage(manager, session_id, "cluster_summary")
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "cache/clusters/cluster_summary.json",
         session_dir / "cache" / "clusters" / "cluster_summary.json",
         media_type="application/json",
         filename="cluster_summary.json",
+        not_found_detail="Cluster summary not available",
+        artifact="cluster_summary",
     )
-    if response:
-        return response
-
-    raise HTTPException(status_code=404, detail="Cluster summary not available")
 
 
 @router.get("/{session_id}/cluster-representatives")
@@ -502,21 +651,21 @@ async def download_cluster_representatives(session_id: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    await _require_valid_artifact_lineage(
+        manager,
+        session_id,
+        "cluster_representatives",
+    )
     session_dir = manager.get_session_dir(session_id)
-    response = await _serve_file_with_fallback(
+    return await _serve_file_with_fallback(
         manager,
         session_id,
         "cache/clusters/dataset_representatives.jsonl",
         session_dir / "cache" / "clusters" / "dataset_representatives.jsonl",
         media_type="application/x-ndjson",
         filename="dataset_representatives.jsonl",
-    )
-    if response:
-        return response
-
-    raise HTTPException(
-        status_code=404,
-        detail="Cluster representatives dataset not available",
+        not_found_detail="Cluster representatives not available",
+        artifact="cluster_representatives",
     )
 
 
@@ -573,20 +722,39 @@ async def view_prediction_report(session_id: str):
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
+    metadata = await manager.get_session_metadata(session_id)
     key = "cache/predictions/prediction_report.html"
     session_dir = manager.get_session_dir(session_id)
     report_path = session_dir / "cache" / "predictions" / "prediction_report.html"
 
-    # Try serving from presigned URL or store first
-    response = await _try_serve_file_with_fallback(
-        manager,
-        session_id,
-        key,
-        report_path,
-        media_type="text/html",
-    )
-    if response:
-        return response
+    if artifact_is_valid(metadata, "prediction_report"):
+        # Serve only HTML produced for the active prediction lineage.
+        response = await _try_serve_file_with_fallback(
+            manager,
+            session_id,
+            key,
+            report_path,
+            media_type="text/html",
+            artifact="prediction_report",
+        )
+        if response:
+            return response
+
+    if not artifact_is_valid(metadata, "raw_predictions"):
+        raise HTTPException(
+            status_code=404,
+            detail="Prediction report inputs are not available for the current run",
+        )
+
+    prediction_lineage = await manager.capture_prediction_lineage(session_id)
+    if prediction_lineage is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Prediction report inputs are not available for the current run",
+        )
+    metadata = await manager.get_session_metadata(session_id)
+    if metadata is None:
+        raise HTTPException(status_code=404, detail="Session not found")
 
     # Report doesn't exist anywhere - try to generate on-demand
     logger.info(f"Report not found for {session_id[:8]}, generating on-demand...")
@@ -595,29 +763,102 @@ async def view_prediction_report(session_id: str):
     predictions_path = session_dir / "cache" / "predictions" / "predictions.jsonl"
     dataset_path = session_dir / "cache" / "dataset" / "dataset.jsonl"
 
-    if not predictions_path.exists():
-        await manager.sync_from_store(session_id, prefix="cache/predictions/")
-    if not dataset_path.exists():
-        await manager.sync_from_store(session_id, prefix="cache/dataset/")
+    # Always refresh canonical report inputs from the shared store.  Ordinary
+    # sync intentionally skips existing local files, which can leave another
+    # service instance holding inputs from an older prediction generation.
+    refreshed_inputs: dict[Path, bool] = {}
+    for key_to_refresh, local_path in (
+        ("cache/predictions/predictions.jsonl", predictions_path),
+        ("cache/dataset/dataset.jsonl", dataset_path),
+    ):
+        published_key = manager.resolve_published_artifact_key(
+            metadata,
+            key_to_refresh,
+            legacy_key=key_to_refresh,
+        )
+        current_data = (
+            await manager.read_from_store(session_id, published_key)
+            if published_key is not None
+            else None
+        )
+        if current_data is not None:
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            pending_path = local_path.with_suffix(f"{local_path.suffix}.refresh")
+            pending_path.write_bytes(current_data)
+            pending_path.replace(local_path)
+        refreshed_inputs[local_path] = current_data is not None
 
-    if not predictions_path.exists():
+    trust_local_inputs = (
+        manager.store.kind == "local" and metadata.get("published_artifacts") is None
+    )
+    if not predictions_path.exists() or (
+        not trust_local_inputs and not refreshed_inputs[predictions_path]
+    ):
         raise HTTPException(status_code=404, detail="Predictions not available yet")
 
-    if not dataset_path.exists():
+    if not dataset_path.exists() or (
+        not trust_local_inputs and not refreshed_inputs[dataset_path]
+    ):
         raise HTTPException(status_code=404, detail="Dataset not available")
 
-    # Generate report in background thread to avoid blocking
+    # Generate into a lineage-specific staging path.  The canonical local/store
+    # file is published only after the lineage check succeeds under the session
+    # metadata lock.
+    staged_report: Path | None = None
     try:
-        await _generate_report_on_demand(session_dir, predictions_path, dataset_path)
+        staged_report = await _generate_report_on_demand(
+            session_dir,
+            predictions_path,
+            dataset_path,
+            prediction_lineage,
+        )
         logger.info(f"✓ Report generated on-demand for {session_id[:8]}")
-    except Exception as e:
-        logger.error(f"Failed to generate report for {session_id[:8]}: {e}")
+    except Exception:
+        log_durable_failure(
+            logger,
+            "material_prediction_report_publication_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
         raise HTTPException(
-            status_code=500, detail=f"Report generation failed: {str(e)}"
+            status_code=500,
+            detail="Report generation failed",
+        ) from None
+
+    assert staged_report is not None
+    try:
+        report_published = (
+            await manager.mark_prediction_report_valid_if_lineage_matches(
+                session_id,
+                prediction_lineage,
+                staged_report,
+                report_key=key,
+            )
+        )
+    finally:
+        shutil.rmtree(staged_report.parent, ignore_errors=True)
+    if not report_published:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Prediction lineage changed while the report was generated; "
+                "retry after the active run finishes"
+            ),
         )
 
-    # make sure the report is synced to the store
-    await manager.sync_session_to_store(session_id)
-
-    # Serve HTML for viewing (not as download)
-    return FileResponse(report_path, media_type="text/html")
+    # Resolve the CAS-published immutable pointer; the staging directory has
+    # already been removed and no mutable canonical report is written.
+    response = await _try_serve_file_with_fallback(
+        manager,
+        session_id,
+        key,
+        report_path,
+        media_type="text/html",
+        artifact="prediction_report",
+    )
+    if response is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Published prediction report is unavailable",
+        )
+    return response

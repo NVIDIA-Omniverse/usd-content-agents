@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -216,6 +217,121 @@ def test_missing_param_in_best_params_drops_plausibility() -> None:
     assert result.decision == "continue"
 
 
+def test_backend_programmatic_failure_blocks_vlm_approval() -> None:
+    """The outer judge must not approve when the backend evaluator already
+    proved a hard freeform objective failed."""
+    sc = _scenario(
+        name="freeform",
+        metric="judge_score",
+        target={"observations": ["the object does not fall through the floor"]},
+    )
+    history = [
+        _trial(
+            0,
+            0.5625,
+            backend_metrics={
+                "programmatic_score": 0.25,
+                "programmatic_critique": (
+                    "settled=fail; finite_position=pass; ground_clearance=fail"
+                ),
+            },
+        )
+    ]
+    vlm = StubVLM('{"score": 0.95, "decision": "approve", "reasoning": "looks fine"}')
+
+    result = run_tune_judge(
+        sc,
+        history,
+        {"mass_scale": 1.0},
+        vlm_model=vlm,
+        score_threshold=0.7,
+    )
+
+    assert result.programmatic_score == pytest.approx(0.25)
+    assert result.llm_score == pytest.approx(0.95)
+    assert result.score == pytest.approx(0.53)
+    assert result.decision == "continue"
+    assert "backend_programmatic=0.25" in result.programmatic_critique
+    assert "ground_clearance=fail" in result.programmatic_critique
+
+
+def test_backend_programmatic_hard_fail_cannot_approve_at_threshold() -> None:
+    sc = _scenario(
+        name="freeform",
+        metric="judge_score",
+        target={"observations": ["settle on the floor"]},
+    )
+    history = [
+        _trial(
+            0,
+            0.5,
+            backend_metrics={
+                "programmatic_score": 0.5,
+                "programmatic_critique": (
+                    "settled=pass; finite_position=pass; ground_clearance=fail"
+                ),
+            },
+        )
+    ]
+    vlm = StubVLM('{"score": 1.0, "decision": "approve", "reasoning": "looks fine"}')
+
+    result = run_tune_judge(
+        sc,
+        history,
+        {"mass_scale": 1.0},
+        vlm_model=vlm,
+        score_threshold=0.7,
+    )
+
+    assert result.programmatic_score == pytest.approx(0.5)
+    assert result.llm_score == pytest.approx(1.0)
+    assert result.score < 0.7
+    assert result.decision == "continue"
+    assert "ground_clearance=fail" in result.programmatic_critique
+
+
+def test_replayed_legacy_upright_component_has_no_effect() -> None:
+    sc = _scenario(name="freeform", metric="judge_score")
+    history = [
+        _trial(
+            0,
+            0.4,
+            backend_metrics={
+                "programmatic_score": 0.6,
+                "programmatic_critique": (
+                    "upright=fail; settled=pass; finite_position=pass"
+                ),
+            },
+        )
+    ]
+    vlm = StubVLM('{"score": 1.0, "decision": "approve", "reasoning": "looks fine"}')
+
+    result = run_tune_judge(
+        sc,
+        history,
+        {"mass_scale": 1.0},
+        vlm_model=vlm,
+        score_threshold=0.7,
+    )
+
+    assert result.programmatic_score == pytest.approx(1.0)
+    assert result.score == pytest.approx(1.0)
+    assert result.decision == "approve"
+    assert "upright" not in result.programmatic_critique
+
+
+def test_legacy_upright_only_replay_preserves_non_component_notes() -> None:
+    from physics_agent.tasks.judge_tune import _drop_legacy_upright_component
+
+    score, critique = _drop_legacy_upright_component(
+        0.2,
+        "upright=fail; diagnostic note",
+    )
+
+    assert score == pytest.approx(1.0)
+    assert critique == "diagnostic note"
+
+
 # ---------------------------------------------------------------------------
 # LLM path
 # ---------------------------------------------------------------------------
@@ -382,6 +498,53 @@ def test_vlm_visual_media_is_sampled_before_invoke(tmp_path: Path) -> None:
     assert pairs[-1] == ("Generated Physics Output - Frame 60:", generated[-1])
     assert result.extra["reference_image_count"] == 20
     assert result.extra["generated_image_count"] == 60
+    assert result.extra["judge_reference_frames"] == 8
+    assert result.extra["judge_generated_frames"] == 16
+
+    custom_vlm = StubVLM('{"score": 0.8, "decision": "approve", "reasoning": "ok"}')
+    run_tune_judge(
+        sc,
+        history,
+        {"mass_scale": 1.0},
+        vlm_model=custom_vlm,
+        visual_evidence=evidence,
+        judge_reference_frames=5,
+        judge_generated_frames=7,
+    )
+
+    custom_pairs = custom_vlm.calls[0]["image_caption_pairs"]
+    assert len(custom_pairs) == 12
+    assert custom_pairs[0] == references[0]
+    assert custom_pairs[4] == references[-1]
+    assert custom_pairs[5] == ("Generated Physics Output - Frame 1:", generated[0])
+    assert custom_pairs[-1] == ("Generated Physics Output - Frame 60:", generated[-1])
+
+
+@pytest.mark.parametrize(
+    ("field_name", "kwargs"),
+    [
+        ("judge_reference_frames", {"judge_reference_frames": cast(int, 3.0)}),
+        ("judge_generated_frames", {"judge_generated_frames": cast(int, "7")}),
+    ],
+)
+def test_vlm_judge_validates_frame_limits_without_visual_evidence(
+    field_name: str,
+    kwargs: dict[str, int],
+) -> None:
+    sc = _scenario()
+    history = _history((0.1, False))
+    vlm = StubVLM('{"score": 0.8, "decision": "approve", "reasoning": "ok"}')
+
+    with pytest.raises(ValueError, match=field_name):
+        run_tune_judge(
+            sc,
+            history,
+            {"mass_scale": 1.0},
+            vlm_model=vlm,
+            **kwargs,
+        )
+
+    assert vlm.calls == []
 
 
 def test_vlm_judge_max_tokens_override(tmp_path: Path) -> None:
@@ -744,11 +907,13 @@ def test_build_prompt_includes_per_trial_metrics_whitelist(
             backend_metrics={
                 "settle_distance": 0.000448,
                 "max_bounce_height": -0.025,
+                "first_bounce_height": 0.025,
                 "final_position": [0.0, 0.498, 0.0],
                 # These are NOT whitelisted and must NOT leak into the prompt.
                 "trajectory_jsonl": "/tmp/x/trajectory.jsonl",
-                "recording_usda": "/tmp/x/recording.usda",
-                "scene_usd": "/tmp/x/scene.usda",
+                "recording_usd": "/tmp/x/recording.usd",
+                "recording_usda": "/tmp/x/recording.usd",
+                "scene_usd": "/tmp/x/scene.usd",
                 "trajectory": [(0.0, [0.0] * 7, [0.0] * 6)] * 60,
             },
         ),
@@ -762,8 +927,10 @@ def test_build_prompt_includes_per_trial_metrics_whitelist(
 
     assert metrics["settle_distance"] == pytest.approx(0.000448)
     assert metrics["max_bounce_height"] == pytest.approx(-0.025)
+    assert metrics["first_bounce_height"] == pytest.approx(0.025)
     assert metrics["final_position"] == [0.0, pytest.approx(0.498), 0.0]
     assert "trajectory_jsonl" not in metrics
+    assert "recording_usd" not in metrics
     assert "recording_usda" not in metrics
     assert "scene_usd" not in metrics
     assert "trajectory" not in metrics

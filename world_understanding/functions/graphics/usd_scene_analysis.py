@@ -8,19 +8,83 @@ in USD scenes using a feature-scoring algorithm.
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Usd
 
 logger = logging.getLogger(__name__)
 
 _SKIP_TYPES = frozenset({"Material", "Shader"})
 _MATERIAL_SCOPE_NAMES = frozenset({"Looks", "Materials", "materials", "looks"})
+_GENERIC_INSTANCE_BASE_NAMES = frozenset(
+    {
+        "body",
+        "component",
+        "geom",
+        "geometry",
+        "mesh",
+        "node",
+        "object",
+        "obj",
+        "part",
+        "shape",
+        "solid",
+    }
+)
+_GENERIC_CONTEXT_NAMES = frozenset(
+    {
+        "assets",
+        "geometry",
+        "meshes",
+        "model",
+        "models",
+        "root",
+        "scene",
+        "world",
+    }
+)
+
+
+def _canonical_instance_context_name(name: str) -> str:
+    """Return a stable semantic context name for numbered instance containers."""
+    # Siemens/NX-style product names often keep a part code and append a short
+    # instance suffix, e.g. FORKLIFT__MFE_000007669_5.  Preserve the part code
+    # while removing only the authored instance suffix.
+    match = re.match(r"^(.+)_\d{1,3}$", name)
+    if match and "__" in match.group(1):
+        return match.group(1)
+    return name
+
+
+def _semantic_instance_context(path: str) -> str | None:
+    """Find the nearest useful semantic ancestor for generic instance names."""
+    parts = [part for part in path.split("/") if part]
+    for part in reversed(parts[:-1]):
+        canonical = _canonical_instance_context_name(part)
+        if not canonical:
+            continue  # pragma: no cover - path parts are filtered to non-empty strings
+        lower = canonical.lower()
+        if lower in _GENERIC_CONTEXT_NAMES:
+            continue
+        if re.fullmatch(r"(?:arrangement|group|node|xform)_?\d*", lower):
+            continue
+        return canonical
+    return None
+
+
+def _name_pattern_group_key(path: str, base_name: str) -> tuple[str, str | None]:
+    """Return a conservative grouping key for numbered-name instances."""
+    canonical_base = _canonical_instance_context_name(base_name)
+    if canonical_base.lower() in _GENERIC_INSTANCE_BASE_NAMES:
+        return canonical_base, _semantic_instance_context(path)
+    return canonical_base, None
 
 
 def _instance_base_name(name: str) -> str | None:
@@ -38,6 +102,221 @@ def _instance_base_name(name: str) -> str | None:
     elif base.endswith("_"):
         base = base[:-1]
     return base or None
+
+
+def _topology_group_key(obj: dict[str, Any]) -> tuple[int, int, int]:
+    """Return a conservative geometry key for duplicate grouping."""
+    return (
+        int(obj.get("mesh_count", 0) or 0),
+        int(obj.get("vertex_count", 0) or 0),
+        int(obj.get("face_count", 0) or 0),
+    )
+
+
+def _bound_material_identity(material: Any, root_path: str | None = None) -> str | None:
+    """Return a stable material identity for conservative grouping.
+
+    Materials scoped under ``root_path`` (per-asset ``Looks`` copies emitted by
+    CAD exporters) are identified by their root-relative path plus a fingerprint
+    of their directly authored shader inputs, so structurally identical assets
+    with private material copies compare equal only when their appearance
+    actually matches too -- a shared relative path alone (e.g. two unrelated
+    "Looks/Copper" prims with different authored colors) is not enough to
+    collapse two otherwise-distinct assets into one representative.
+    """
+    if not material:
+        return None
+    prim = material.GetPrim()
+    if not prim or not prim.IsValid():
+        return None
+    identity = str(prim.GetPath())
+    if root_path and identity.startswith(root_path + "/"):
+        relative = identity[len(root_path) + 1 :]
+        fingerprint = _material_appearance_fingerprint(material)
+        if fingerprint is None:
+            # The shader network could not be fully fingerprinted (e.g. a
+            # connection into a node graph or missing prim we can't resolve
+            # a value from). Collapsing by relative path alone risks a
+            # false-positive match between two private materials that only
+            # *look* identical because we failed to inspect them, so fall
+            # back to the material's absolute identity instead.
+            return identity
+        return f"{relative}#{fingerprint}" if fingerprint else relative
+    return identity
+
+
+def _material_appearance_fingerprint(material: Any) -> str | None:
+    """Return a short hash of a material's authored surface shader network.
+
+    Returns ``None`` when the network cannot be fully resolved (e.g. a
+    connection leads into something other than a ``UsdShade.Shader``, such as
+    a node graph) rather than an empty string, so callers can distinguish
+    "genuinely no authored values" (safe to match on path alone) from
+    "could not inspect this" (unsafe to match at all).
+    """
+    from pxr import UsdShade
+
+    usd_material = UsdShade.Material(material.GetPrim())
+    if not usd_material:
+        return None
+    surface_output = usd_material.GetSurfaceOutput()
+    source = surface_output.GetConnectedSource() if surface_output else None
+    if not source:
+        return None
+    shader = UsdShade.Shader(source[0].GetPrim())
+    if not shader:
+        return None
+    values = _shader_network_fingerprint_values(shader, visited=set())
+    if values is None:
+        return None
+    if not values:
+        return ""
+    payload = repr(sorted(values)).encode("utf-8")
+    return hashlib.blake2s(payload, digest_size=4).hexdigest()
+
+
+def _shader_network_fingerprint_values(
+    shader: Any, *, visited: set[str]
+) -> list[tuple[str, str]] | None:
+    """Recursively collect (name, value) pairs across a connected shader network.
+
+    Directly authored (unconnected) input values are hashed as-is. Connected
+    inputs (e.g. a texture reader feeding ``diffuseColor``) are resolved by
+    recursing into the upstream shader so its authored values (such as a
+    texture's ``file`` asset path) are incorporated too, instead of being
+    silently dropped because the downstream input itself has no direct
+    value. Returns ``None`` if any connection cannot be resolved to a
+    ``UsdShade.Shader`` (e.g. it points into a node graph), since that
+    means part of the network's appearance can't be inspected.
+    """
+    from pxr import UsdShade
+
+    shader_path = str(shader.GetPath())
+    if shader_path in visited:
+        return []
+    visited.add(shader_path)
+
+    shader_id = shader.GetShaderId() or shader.GetPrim().GetTypeName()
+    values: list[tuple[str, str]] = [("__shader__", str(shader_id))]
+    for shader_input in shader.GetInputs():
+        connection = shader_input.GetConnectedSource()
+        if connection is not None:
+            connected_shader = UsdShade.Shader(connection[0].GetPrim())
+            if not connected_shader:
+                return None
+            nested = _shader_network_fingerprint_values(
+                connected_shader, visited=visited
+            )
+            if nested is None:
+                return None
+            # Nest the upstream shader's fingerprint as a single value under
+            # this specific input rather than flattening it into the parent
+            # list. Flattening would let two networks that wire the same
+            # upstream shaders to *different* inputs (e.g. swapping which
+            # texture feeds diffuseColor vs emissiveColor) collapse to the
+            # same fingerprint once the combined value set is sorted, even
+            # though they look nothing alike. The upstream shader's absolute
+            # path is deliberately excluded (see the identity docstring
+            # above): only its own authored/nested values matter here.
+            # The source output name and attribute type are included too,
+            # since connecting the same upstream shader through a different
+            # output port (e.g. a different color channel) can produce a
+            # different appearance despite an identical nested fingerprint.
+            source_output_name, source_attr_type = connection[1], connection[2]
+            values.append(
+                (
+                    shader_input.GetBaseName(),
+                    repr(
+                        (str(source_output_name), str(source_attr_type), sorted(nested))
+                    ),
+                )
+            )
+            continue
+        value = shader_input.Get()
+        if value is not None:
+            values.append((shader_input.GetBaseName(), repr(value)))
+    return values
+
+
+def _surface_identity_group_key(
+    stage: Usd.Stage,
+    root_path: str,
+) -> tuple[tuple[str, int, str | None], ...]:
+    """Return surface partitions used only to split ambiguous duplicate groups."""
+    from pxr import Usd, UsdGeom, UsdShade
+
+    root = stage.GetPrimAtPath(root_path)
+    if not root or not root.IsValid():
+        return ()
+
+    surfaces: list[tuple[str, int, str | None]] = []
+    for prim in Usd.PrimRange(root, Usd.TraverseInstanceProxies()):
+        if not prim.IsA(UsdGeom.Mesh):
+            continue
+        mesh = UsdGeom.Mesh(prim)
+        face_counts = mesh.GetFaceVertexCountsAttr().Get()
+        face_count_known = bool(face_counts)
+        face_count = len(face_counts or [])
+        covered_faces: set[int] = set()
+        material_subsets: list[tuple[Any, int]] = []
+        for subset in UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Imageable(prim)):
+            indices = subset.GetIndicesAttr().Get() or []
+            if indices:
+                material_subsets.append((subset.GetPrim(), len(indices)))
+                covered_faces.update(int(index) for index in indices)
+        for subset_prim, subset_face_count in material_subsets:
+            material, _relationship = UsdShade.MaterialBindingAPI(
+                subset_prim
+            ).ComputeBoundMaterial()
+            surfaces.append(
+                (
+                    subset_prim.GetTypeName(),
+                    subset_face_count,
+                    _bound_material_identity(material, root_path)
+                    or subset_prim.GetName(),
+                )
+            )
+        if (
+            not material_subsets
+            or not face_count_known
+            or len(covered_faces) < face_count
+        ):
+            material, _relationship = UsdShade.MaterialBindingAPI(
+                prim
+            ).ComputeBoundMaterial()
+            surfaces.append(
+                (
+                    prim.GetTypeName(),
+                    max(face_count - len(covered_faces), 0) if face_count_known else 0,
+                    _bound_material_identity(material, root_path),
+                )
+            )
+    return tuple(surfaces)
+
+
+def _surface_identity_subgroup_suffix(
+    subgroup_key: tuple[
+        tuple[int, int, int],
+        tuple[tuple[str, int, str | None], ...],
+    ],
+) -> str:
+    """Return an insertion-order-independent suffix for ambiguous groups."""
+    topology, surfaces = subgroup_key
+    normalized = (
+        topology,
+        tuple((kind, count, material or "") for kind, count, material in surfaces),
+    )
+    payload = repr(normalized).encode("utf-8")
+    return hashlib.blake2s(payload, digest_size=4).hexdigest()
+
+
+def _subtree_has_mesh(prim: Usd.Prim) -> bool:
+    """Return True if any descendant (or the prim itself) is a Mesh."""
+    from pxr import Usd, UsdGeom
+
+    return any(
+        p.IsA(UsdGeom.Mesh) for p in Usd.PrimRange(prim, Usd.TraverseInstanceProxies())
+    )
 
 
 def _find_content_root(prim: Usd.Prim, max_depth: int = 5) -> Usd.Prim:
@@ -77,9 +356,27 @@ def _find_content_root(prim: Usd.Prim, max_depth: int = 5) -> Usd.Prim:
 
     # Stop if multiple children have significant content — the content is
     # spread across siblings rather than concentrated in one subtree.
+    #
+    # Returning the prim here can hand back the stage pseudo-root itself
+    # (path "/") when there is no valid default prim. That used to be
+    # unsafe: `detect_objects` built its path-prefix filter as
+    # `scene_root_path + "/"`, which becomes "//" for the pseudo-root and
+    # matches no real prim path, silently dropping every object in the
+    # scene. `_content_root_prefix()` (used by `detect_objects` and
+    # `_build_subtree_refs_cache`) now treats "/" as its own prefix, so
+    # returning the pseudo-root here is safe -- and is exactly the right
+    # answer when the pseudo-root has multiple significant top-level
+    # assemblies, since descending into only the busiest one would drop
+    # every object under the others instead.
     if len(gc_counts) > 1:
         _, second_gc_count = gc_counts[1]
         if second_gc_count >= 2 and second_gc_count >= best_gc_count * 0.3:
+            return prim
+        # Grandchild counts alone can miss thin sibling assemblies (a chain
+        # of single-child wrappers still holding real geometry). Descending
+        # past a sibling with mesh content would drop it from candidacy
+        # entirely, so stop while meshes exist in more than one child.
+        if sum(1 for c in children if _subtree_has_mesh(c)) > 1:
             return prim
 
     if best_gc_count >= len(children):
@@ -117,6 +414,21 @@ def _build_mesh_ancestry_cache(root_prim: Usd.Prim) -> set[str]:
     return paths_with_meshes
 
 
+def _content_root_prefix(root_path: str) -> str:
+    """Return the prefix that marks a path as under *root_path*.
+
+    A real content root like ``/World`` is matched via ``/World/``. The
+    stage pseudo-root's own path *is* ``/``, so naively appending another
+    ``/`` would produce ``//``, which prefix-matches no real prim path
+    (every real path has exactly one leading ``/``) -- silently excluding
+    every prim in the scene. `_find_content_root` can still return the
+    pseudo-root through several of its return paths (e.g. a wide or
+    balanced top-level layout with no default prim), so callers that turn
+    a content root into a path-prefix filter must handle ``/`` itself.
+    """
+    return root_path if root_path == "/" else root_path + "/"
+
+
 def _build_subtree_refs_cache(
     prim_refs: dict[str, list[str]], root_path: str
 ) -> dict[str, set[str]]:
@@ -130,7 +442,7 @@ def _build_subtree_refs_cache(
 
     # Collect only refs under the content root
     relevant: list[tuple[str, list[str]]] = []
-    prefix = root_path + "/"
+    prefix = _content_root_prefix(root_path)
     for p, refs in prim_refs.items():
         if p == root_path or p.startswith(prefix):
             relevant.append((p, refs))
@@ -143,11 +455,14 @@ def _build_subtree_refs_cache(
         cache.setdefault(p, set()).update(own)
         # Propagate upward to each ancestor down to root_path
         parts = p.split("/")
-        # Build ancestor paths from parent up to root
+        # Build ancestor paths from parent up to root. Joining an empty
+        # leading part list (only possible when root_path is the
+        # pseudo-root "/") yields "", which is not a valid path -- normalize
+        # it back to "/" so the root_path sentinel below is actually reached.
         for i in range(len(parts) - 1, 0, -1):
-            ancestor = "/".join(parts[:i])
+            ancestor = "/".join(parts[:i]) or "/"
             if len(ancestor) < len(root_path):
-                break
+                break  # pragma: no cover - relevant paths are constrained under root_path
             cache.setdefault(ancestor, set()).update(cache[p])
             if ancestor == root_path:
                 break
@@ -396,7 +711,7 @@ def detect_objects(
     # Phase 1: Candidate Selection
     # ==================================================================
     candidates: dict[str, CandidateFeatures] = {}
-    prefix = scene_root_path + "/"
+    prefix = _content_root_prefix(scene_root_path)
 
     for prim in Usd.PrimRange(scene_root_prim, Usd.TraverseInstanceProxies()):
         prim_path = str(prim.GetPath())
@@ -405,7 +720,7 @@ def detect_objects(
             continue
         # Must be under content root
         if not prim_path.startswith(prefix):
-            continue
+            continue  # pragma: no cover - PrimRange(scene_root_prim) stays under root
         # Skip instance proxy descendants — instance roots (IsInstance)
         # stay as candidates but their proxy children don't expand into
         # separate candidates.  Prototypes are handled via Signal 0.
@@ -441,7 +756,7 @@ def detect_objects(
         prim = stage.GetPrimAtPath(path)
         parent = prim.GetParent()
         if not parent or not parent.IsValid():
-            continue
+            continue  # pragma: no cover - selected candidates always have valid parents
         parent_path = str(parent.GetPath())
         if parent_path not in parents_computed:
             parents_computed.add(parent_path)
@@ -452,7 +767,10 @@ def detect_objects(
         prim = stage.GetPrimAtPath(path)
 
         # Relative depth
-        rel_part = path[len(scene_root_path) + 1 :]
+        # Sliced by `len(prefix)` rather than `len(scene_root_path) + 1` so
+        # this stays correct when scene_root_path is the pseudo-root "/"
+        # (prefix "/" itself, not scene_root_path + "/").
+        rel_part = path[len(prefix) :]
         feat.rel_depth = rel_part.count("/") + 1
 
         # Subtree refs
@@ -557,7 +875,7 @@ def detect_objects(
         if scene_root_path and path.startswith(prefix):
             rel = path[len(prefix) :]
         else:
-            rel = path
+            rel = path  # pragma: no cover - final roots are selected under scene_root_path
         parts = [p for p in rel.split("/") if p]
         if len(parts) >= 2:
             return parts[0]
@@ -566,7 +884,9 @@ def detect_objects(
     def _compute_bbox_dict(path: str) -> dict[str, Any] | None:
         prim = stage.GetPrimAtPath(path)
         if not prim or not prim.IsValid():
-            return None
+            return (
+                None  # pragma: no cover - final roots come from valid traversed prims
+            )
         try:
             bbox = get_bbox_from_prim(prim)
             rng = bbox.ComputeAlignedRange()
@@ -583,7 +903,7 @@ def detect_objects(
     for path in final_roots:
         prim = stage.GetPrimAtPath(path)
         if not prim or not prim.IsValid():
-            continue
+            continue  # pragma: no cover - final roots come from valid traversed prims
         stats = get_subtree_geometry_stats(stage, path, skip_geometry=skip_geometry)
         source_files = _collect_subtree_refs_sorted(path)
         bbox = _compute_bbox_dict(path)
@@ -627,7 +947,8 @@ def detect_objects(
                 proto_path = str(proto.GetPath())
                 proto_groups.setdefault(proto_path, []).append(obj)
 
-    for proto_path, members in proto_groups.items():
+    for proto_path, members in sorted(proto_groups.items()):
+        members = sorted(members, key=lambda member: member["path"])
         if len(members) < 2:
             continue
         group_name = members[0]["name"]
@@ -643,25 +964,31 @@ def detect_objects(
             assigned.add(m["path"])
 
     # Signal 1: Same direct sub-USD (strongest)
-    source_groups: dict[str, list[dict[str, Any]]] = {}
+    source_groups: dict[str, dict[tuple[int, int, int], list[dict[str, Any]]]] = {}
     for obj in objects:
         if len(obj["source_files"]) == 1:
             sf = obj["source_files"][0]
-            source_groups.setdefault(sf, []).append(obj)
-    for sf, members in source_groups.items():
-        if len(members) < 2:
-            continue
-        group_name = Path(sf).stem
-        ig = {
-            "group_name": group_name,
-            "source_file": sf,
-            "instance_count": len(members),
-            "member_paths": [m["path"] for m in members],
-        }
-        instance_groups.append(ig)
-        for m in members:
-            m["instance_group"] = group_name
-            assigned.add(m["path"])
+            topology = _topology_group_key(obj)
+            source_groups.setdefault(sf, {}).setdefault(topology, []).append(obj)
+    for sf, topology_groups in sorted(source_groups.items()):
+        for topology, members in sorted(topology_groups.items()):
+            members = sorted(members, key=lambda member: member["path"])
+            if len(members) < 2:
+                continue
+            group_name = Path(sf).stem
+            if len(topology_groups) > 1:
+                mc, vc, fc = topology
+                group_name = f"{group_name}_{mc}m_{vc}v_{fc}f"
+            ig = {
+                "group_name": group_name,
+                "source_file": sf,
+                "instance_count": len(members),
+                "member_paths": [m["path"] for m in members],
+            }
+            instance_groups.append(ig)
+            for m in members:
+                m["instance_group"] = group_name
+                assigned.add(m["path"])
 
     # Signal 1b: Reference-source duplicate detection via PcpPrimIndex
     # Catches prims that reference the same USD file but whose source_files
@@ -680,23 +1007,23 @@ def detect_objects(
                         identifier = layer.identifier
                         if identifier and not identifier.startswith("anon:"):
                             return identifier
-        except Exception:
+        except Exception:  # pragma: no cover - defensive Pcp API guard
             pass
         return None
 
-    ref_source_groups: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    ref_source_groups: dict[tuple[str, tuple[int, int, int]], list[dict[str, Any]]] = {}
     for obj in objects:
         if obj["path"] in assigned:
             continue
         prim = stage.GetPrimAtPath(obj["path"])
         if not prim or not prim.IsValid():
-            continue
+            continue  # pragma: no cover - objects are assembled from valid prims
         ref_src = _get_reference_source(prim)
         if ref_src:
-            key = (ref_src, obj["mesh_count"])
+            key = (ref_src, _topology_group_key(obj))
             ref_source_groups.setdefault(key, []).append(obj)
 
-    for (ref_src, _mc), members in ref_source_groups.items():
+    for (ref_src, _topology), members in ref_source_groups.items():
         if len(members) < 2:
             continue
         group_name = Path(ref_src).stem
@@ -714,15 +1041,15 @@ def detect_objects(
     # Signal 1b fallback: same name + exact topology match.
     # Catches objects referencing different source files that contain
     # identical geometry (e.g. fixture.usd vs fixture_loaded.usd).
-    name_topo_groups: dict[tuple[str, int, int], list[dict[str, Any]]] = {}
+    name_topo_groups: dict[tuple[str, tuple[int, int, int]], list[dict[str, Any]]] = {}
     for obj in objects:
         if obj["path"] in assigned:
             continue
         if obj["mesh_count"] > 0:
-            key = (obj["name"], obj["mesh_count"], obj["vertex_count"])
+            key = (obj["name"], _topology_group_key(obj))
             name_topo_groups.setdefault(key, []).append(obj)
 
-    for (name, _mc, _vc), members in name_topo_groups.items():
+    for (name, _topology), members in name_topo_groups.items():
         if len(members) < 2:
             continue
         source = members[0]["source_files"]
@@ -740,25 +1067,51 @@ def detect_objects(
             assigned.add(m["path"])
 
     # Signal 2: Name pattern
-    name_groups: dict[str, list[dict[str, Any]]] = {}
+    name_groups: dict[tuple[str, str | None], list[dict[str, Any]]] = {}
     for obj in objects:
         if obj["path"] in assigned:
             continue
         base = _instance_base_name(obj["name"])
-        if base:
-            name_groups.setdefault(base, []).append(obj)
+        if base is not None:
+            name_groups.setdefault(
+                _name_pattern_group_key(obj["path"], base), []
+            ).append(obj)
 
-    for base_name, members in name_groups.items():
+    for (base_name, context_name), members in sorted(name_groups.items()):
+        members = sorted(members, key=lambda member: member["path"])
         if len(members) < 2:
             continue
-        # Sub-group by mesh_count to avoid grouping prims with different topology
-        mc_subgroups: dict[int, list[dict[str, Any]]] = {}
+        # Sub-group by mesh, vertex, and face counts to avoid grouping prims with
+        # different topology. This is especially important for generic names
+        # such as node1480/node1534, where the semantic parent disambiguates
+        # product type but geometry still needs to match.
+        mc_subgroups: dict[
+            tuple[tuple[int, int, int], tuple[tuple[str, int, str | None], ...]],
+            list[dict[str, Any]],
+        ] = {}
         for m in members:
-            mc_subgroups.setdefault(m["mesh_count"], []).append(m)
-        for mc, sub_members in mc_subgroups.items():
+            key = (
+                _topology_group_key(m),
+                _surface_identity_group_key(stage, m["path"]),
+            )
+            mc_subgroups.setdefault(key, []).append(m)
+        for subgroup_key, sub_members in sorted(
+            mc_subgroups.items(),
+            key=lambda item: _surface_identity_subgroup_suffix(item[0]),
+        ):
+            (mc, vc, fc), _surface_key = subgroup_key
             if len(sub_members) < 2:
                 continue
-            group_name = base_name if len(mc_subgroups) == 1 else f"{base_name}_{mc}m"
+            group_base = f"{context_name}_{base_name}" if context_name else base_name
+            group_name = (
+                group_base
+                if len(mc_subgroups) == 1
+                else (
+                    f"{group_base}_{mc}m_{vc}v_{fc}f_"
+                    f"{_surface_identity_subgroup_suffix(subgroup_key)}"
+                )
+            )
+            sub_members = sorted(sub_members, key=lambda member: member["path"])
             source = sub_members[0]["source_files"]
             ig = {
                 "group_name": group_name,
@@ -782,14 +1135,19 @@ def detect_objects(
         if sf:  # skip objects with no source files
             fingerprint_groups.setdefault(sf, []).append(obj)
 
-    for sf_set, members in fingerprint_groups.items():
+    for sf_set, members in sorted(
+        fingerprint_groups.items(),
+        key=lambda item: tuple(sorted(item[0])),
+    ):
+        members = sorted(members, key=lambda member: member["path"])
         if len(members) < 2:
             continue
-        # Sub-group by mesh_count to avoid grouping prims with different topology
-        mc_subgroups_fp: dict[int, list[dict[str, Any]]] = {}
+        # Sub-group by topology to avoid grouping prims with different geometry.
+        mc_subgroups_fp: dict[tuple[int, int, int], list[dict[str, Any]]] = {}
         for m in members:
-            mc_subgroups_fp.setdefault(m["mesh_count"], []).append(m)
-        for mc, sub_members in mc_subgroups_fp.items():
+            mc_subgroups_fp.setdefault(_topology_group_key(m), []).append(m)
+        for (mc, _vc, _fc), sub_members in sorted(mc_subgroups_fp.items()):
+            sub_members = sorted(sub_members, key=lambda member: member["path"])
             if len(sub_members) < 2:
                 continue
             # Use shortest common stem as group name

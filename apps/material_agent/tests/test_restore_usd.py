@@ -492,3 +492,7 @@ class TestRestorationStats:
         assert d["predictions_written"] == 10
         assert d["uncovered_originals"] == ["/missing"]
         assert d["unconsumed_predictions"] == ["/extra"]
+        assert d["restored_prim_sources"] == {}
+        assert d["expected_target_count"] == 0
+        assert d["mapping_complete"] is True
+        assert d["mapping_warnings"] == []

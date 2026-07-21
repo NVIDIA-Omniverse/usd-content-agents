@@ -150,6 +150,13 @@ def test_run_tool_not_found(simple_agent, object_store):
     assert "not found" in result["error"].lower()
 
 
+def test_run_without_context_uses_empty_context(simple_agent):
+    """A missing context should be initialized before tool lookup."""
+    result = simple_agent.run(task="non_existent_tool")
+
+    assert result["error"] == "Tool 'non_existent_tool' not found"
+
+
 def test_run_with_invalid_inputs(simple_agent, object_store):
     """Test running with invalid inputs."""
     # Run without required input

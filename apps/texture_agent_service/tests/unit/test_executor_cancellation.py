@@ -4,8 +4,7 @@
 state when asyncio task cancellation lands before the cooperative checkpoint.
 
 Without this branch, POST /cancel → task.cancel() mid-step would leave the
-session pinned at "running" forever, which is the regression that nvbug
-6122134 / OMPE-91539 surfaced.
+session pinned at "running" forever.
 """
 
 from __future__ import annotations
@@ -147,14 +146,58 @@ async def test_outer_wrapper_persists_cancelled_on_cancellederror(
     assert snapshot["status"] == "cancelled"
 
 
+async def test_outer_wrapper_marks_startup_before_inner_setup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The worker should leave opaque pending state before expensive setup."""
+    session_id = "startup-marker"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = _StubSessionManager(session_dir)
+
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+
+    async def _assert_startup_marker(
+        session_id: str,
+        _config_dict: dict[str, Any],
+        _session_manager: Any,
+        event_bus: Any,
+        _session_dir: Path,
+        _only_steps: list[str] | None,
+        _skip_steps: list[str] | None,
+        _create_texture_pipeline_workflow: Any,
+        _on_artifacts_synced: Any,
+    ) -> None:
+        snapshot = event_bus.get_snapshot(session_id)
+        assert snapshot is not None
+        assert snapshot["status"] == "running"
+        assert snapshot["current_step"]["name"] == "pipeline_startup"
+        assert (
+            snapshot["current_step"]["progress"]["message"]
+            == "Preparing texture pipeline workflow"
+        )
+        assert snapshot["completed_steps"] == []
+
+    monkeypatch.setattr(executor, "_execute_pipeline_inner", _assert_startup_marker)
+
+    await executor.execute_pipeline_async(
+        session_id=session_id,
+        config_dict={},
+        session_manager=manager,
+    )
+
+    assert any(update.get("status") == "running" for update in manager.updates)
+
+
 async def test_outer_wrapper_does_not_persist_cancelled_on_normal_exception(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Sanity check: non-cancellation errors still hit the failed branch.
 
-    Also pins the bus emit added in OMPE-91856/91861: the outer wrapper
-    must emit a FAILED event in addition to persisting status="failed" to
-    disk, so the in-memory snapshot agrees with disk on terminal status
+    The outer wrapper must emit a FAILED event in addition to persisting
+    status="failed" to disk, so the in-memory snapshot agrees with disk on
+    terminal status
     without read-side guards needing to encode "trust disk over bus".
     """
     session_id = "def456"
@@ -238,6 +281,135 @@ async def test_inner_cancellation_waits_for_threaded_step_to_stop(
     assert finished.is_set() is True
 
 
+async def test_inner_progress_callback_tolerates_minimal_session_manager(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from texture_agent.execution import (
+        TextureExecutionCheckpoint,
+        TextureUnitExecutionRecord,
+    )
+
+    session_id = "progress-minimal-manager"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+
+    class _ProgressFailingSessionManager(_StubSessionManager):
+        def update_step_progress(
+            self,
+            session_id: str,
+            step_name: str,
+            progress_data: dict[str, Any],
+        ) -> None:
+            del session_id, step_name, progress_data
+            raise RuntimeError("progress store failed")
+
+    manager = _ProgressFailingSessionManager(session_dir)
+
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+
+    class ProgressTask:
+        name = "GenerateTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            callback = context["texture_execution_progress_callback"]
+            callback(
+                TextureExecutionCheckpoint(
+                    plan_schema_version="texture-agent-plan.v1",
+                    plan_fingerprint="0" * 64,
+                    selected_unit_ids=("tu_00000000000000000000",),
+                    records=(
+                        TextureUnitExecutionRecord(
+                            unit_id="tu_00000000000000000000",
+                        ),
+                    ),
+                )
+            )
+            raise RuntimeError("stop after progress callback")
+
+    monkeypatch.setattr(
+        executor,
+        "_prepare_config_and_context",
+        lambda config_dict, session_dir: (config_dict, {}),
+    )
+
+    with pytest.raises(RuntimeError, match="stop after progress callback"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={},
+            session_manager=manager,
+            event_bus=bus_module.get_event_bus(),
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=lambda context, skip=None, only=None: [
+                ProgressTask()
+            ],
+        )
+
+    assert any(update.get("status") == "failed" for update in manager.updates)
+
+
+async def test_inner_progress_callback_skips_missing_progress_updater(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from texture_agent.execution import (
+        TextureExecutionCheckpoint,
+        TextureUnitExecutionRecord,
+    )
+
+    session_id = "progress-no-updater"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = _StubSessionManager(session_dir)
+
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+
+    class ProgressTask:
+        name = "GenerateTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            callback = context["texture_execution_progress_callback"]
+            callback(
+                TextureExecutionCheckpoint(
+                    plan_schema_version="texture-agent-plan.v1",
+                    plan_fingerprint="0" * 64,
+                    selected_unit_ids=("tu_00000000000000000000",),
+                    records=(
+                        TextureUnitExecutionRecord(
+                            unit_id="tu_00000000000000000000",
+                        ),
+                    ),
+                )
+            )
+            raise RuntimeError("stop after progress callback")
+
+    monkeypatch.setattr(
+        executor,
+        "_prepare_config_and_context",
+        lambda config_dict, session_dir: (config_dict, {}),
+    )
+
+    with pytest.raises(RuntimeError, match="stop after progress callback"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={},
+            session_manager=manager,
+            event_bus=bus_module.get_event_bus(),
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=lambda context, skip=None, only=None: [
+                ProgressTask()
+            ],
+        )
+
+    assert any(update.get("status") == "failed" for update in manager.updates)
+
+
 async def test_execute_pipeline_holds_worker_lock_for_inner_lifecycle(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -280,6 +452,59 @@ async def test_execute_pipeline_holds_worker_lock_for_inner_lifecycle(
     )
 
     assert observed["during"] is True
+    assert await asyncio.to_thread(manager.is_worker_active, session_id) is False
+
+
+async def test_cancel_during_artifact_finalization_drains_durable_commit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A started post-sync commit finishes before cancellation releases its lock."""
+    session_id = "cancel-artifact-finalization"
+    manager = SessionManager(storage_path=tmp_path / "sessions", ttl_hours=24)
+    manager.create_session(session_id, config={})
+
+    bus_module._event_bus = None
+    bus_module.init_event_bus(manager)
+
+    from texture_agent.workflows import factory as workflow_factory
+
+    monkeypatch.setattr(
+        workflow_factory,
+        "create_texture_pipeline_workflow",
+        lambda context, skip=None, only=None: [],
+    )
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+    committed = False
+
+    async def _commit() -> None:
+        nonlocal committed
+        started.set()
+        await release.wait()
+        committed = True
+
+    pipeline_task = asyncio.create_task(
+        executor.execute_pipeline_async(
+            session_id=session_id,
+            config_dict={"input": {"usd_path": str(tmp_path / "scene.usda")}},
+            session_manager=manager,
+            on_artifacts_synced=_commit,
+        )
+    )
+
+    await asyncio.wait_for(started.wait(), timeout=1)
+    pipeline_task.cancel()
+    await asyncio.sleep(0)
+    assert await asyncio.to_thread(manager.is_worker_active, session_id) is True
+
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(pipeline_task, timeout=1)
+
+    assert committed is True
+    assert manager.get_session_metadata(session_id)["status"] == "cancelled"
     assert await asyncio.to_thread(manager.is_worker_active, session_id) is False
 
 

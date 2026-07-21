@@ -144,6 +144,10 @@ def test_print_manifest_summary_and_validation_stats(
     assert "LLM" in printed
     assert "UNFIXED" in printed
 
+    printer.reset_mock()
+    scene_cli._print_validation_stats(tmp_path / "empty")
+    printer.assert_not_called()
+
 
 def test_analyze_runs_scene_analysis_and_uses_default_llm(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -186,6 +190,43 @@ def test_analyze_runs_scene_analysis_and_uses_default_llm(
     assert kwargs["llm_config"]["backend"] == DEFAULT_LLM_BACKEND
     assert manifest.saved_paths == [working_dir / "manifest.json"]
     assert printer.call_count >= 3
+
+
+def test_analyze_uses_configured_llm(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    usd_path = tmp_path / "scene.usd"
+    usd_path.write_text("usd")
+    manifest = FakeManifest()
+    called: dict[str, object] = {}
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(
+        scene_cli,
+        "_load_scene_config",
+        lambda config: {"scene": {"analyze": {"llm": {"backend": "configured"}}}},
+    )
+    monkeypatch.setattr(
+        scene_cli, "_resolve_usd_path", lambda scene_config, config: usd_path
+    )
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_print_manifest_summary",
+        lambda manifest: _record(called, "summary", manifest),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze.analyze_scene",
+        lambda **kwargs: _record_and_return_value(called, "kwargs", kwargs, manifest),
+    )
+
+    scene_cli.analyze(tmp_path / "scene.yaml")
+
+    assert called["kwargs"]["llm_config"] == {"backend": "configured"}
 
 
 def test_extract_errors_without_manifest_and_runs_payload_config_generation(
@@ -330,6 +371,83 @@ def test_collect_handles_missing_library_and_successful_render(
     assert called["render"]["clear_materials"] is True
 
 
+def test_collect_and_validate_report_missing_manifest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    usd_path = tmp_path / "scene.usd"
+    usd_path.write_text("usd")
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(scene_cli, "_load_scene_config", lambda config: {"scene": {}})
+    monkeypatch.setattr(
+        scene_cli, "_resolve_usd_path", lambda scene_config, config: usd_path
+    )
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+
+    with pytest.raises(typer.Exit):
+        scene_cli.collect(tmp_path / "scene.yaml")
+    with pytest.raises(typer.Exit):
+        scene_cli.validate(tmp_path / "scene.yaml")
+
+
+def test_collect_handles_no_harmonize_changes_or_renders(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    printer = _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    manifest_path = working_dir / "manifest.json"
+    working_dir.mkdir()
+    manifest_path.write_text("{}")
+    manifest = FakeManifest(
+        sub_assets=[FakeSubAsset("a", "AssetA", "/World/A", status="completed")]
+    )
+    usd_path = tmp_path / "scene.usd"
+    usd_path.write_text("usd")
+    material_yaml = tmp_path / "materials.yaml"
+    material_yaml.write_text("entries: []\n")
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(
+        scene_cli,
+        "_load_scene_config",
+        lambda config: {"scene": {"harmonize": {"enabled": True}}},
+    )
+    monkeypatch.setattr(
+        scene_cli, "_resolve_usd_path", lambda scene_config, config: usd_path
+    )
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+    monkeypatch.setattr(
+        scene_cli, "SceneManifest", SimpleNamespace(load=lambda path: manifest)
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_material_library_yaml",
+        lambda scene_config, config: material_yaml,
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.harmonize.harmonize_scene_predictions",
+        lambda **kwargs: {},
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.collect.apply_and_compose", lambda **kwargs: None
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.collect.render_composed_scene", lambda **kwargs: []
+    )
+
+    scene_cli.collect(tmp_path / "scene.yaml")
+
+    printed = "\n".join(str(call.args[0]) for call in printer.call_args_list)
+    assert "No cross-asset conflicts" in printed
+    assert "No renders produced" in printed
+
+
 def test_run_validation_and_validate_command(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -405,7 +523,7 @@ def test_run_validation_and_validate_command(
     assert exc.value.exit_code == 3
 
 
-def test_run_cmd_resume_simulate_reconcile_harmonize_collect_and_validate(
+def test_run_cmd_legacy_resume_simulate_reconcile_harmonize_collect_and_validate(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     printer = _patch_console(monkeypatch)
@@ -470,7 +588,7 @@ def test_run_cmd_resume_simulate_reconcile_harmonize_collect_and_validate(
     monkeypatch.setattr(
         scene_cli,
         "_print_validation_stats",
-        lambda working_dir: _record(called, "stats", working_dir),
+        lambda working_dir: _record(called, "validation_stats", working_dir),
     )
     monkeypatch.setattr(scene_cli, "_run_validation", lambda config, verbose: 0)
     monkeypatch.setattr(
@@ -524,28 +642,14 @@ def test_run_cmd_resume_simulate_reconcile_harmonize_collect_and_validate(
             called, "render", kwargs, [output_dir / "a.png"]
         ),
     )
-
-    from material_agent.api import ScenePipelineOutput
-
-    def fake_run_scene_pipeline(params):
-        called["scene_params"] = params
-        return ScenePipelineOutput(
-            success=True,
-            output_usd_path=str(output_dir / "composed_scene.usd"),
-            rendered_images=[str(output_dir / "a.png")],
-            completed_assets=2,
-            failed_assets=0,
-            completed_payloads=1,
-            failed_payloads=0,
-            validation_passed=True,
-        )
-
     monkeypatch.setattr(
-        "material_agent.api.run_scene_pipeline",
-        fake_run_scene_pipeline,
+        "material_agent.scene.stats.write_scene_stats_report",
+        lambda **kwargs: _record_and_return_value(
+            called, "stats_report", kwargs, output_dir / "stats.html"
+        ),
     )
 
-    scene_cli.run_cmd(
+    scene_cli._run_cmd_legacy(
         config_path,
         assets="AssetA",
         skip="validate_predictions",
@@ -554,24 +658,475 @@ def test_run_cmd_resume_simulate_reconcile_harmonize_collect_and_validate(
         workers=2,
         skip_existing=True,
         simulate=True,
+        simulate_mock_analyze=True,
         predict_max_workers=5,
         resume=True,
     )
 
-    params = called["scene_params"]
-    assert params.config == config_path
-    assert params.assets == ["AssetA"]
-    assert params.skip_steps == ["validate_predictions"]
-    assert params.only_steps == ["predict", "apply"]
-    assert params.skip_existing is True
-    assert params.max_workers == 2
-    assert params.simulate is True
-    assert params.resume is True
-    assert params.from_step == "predict"
-    assert params.predict_max_workers == 5
+    assert called["run_all"]["names_filter"] == ["AssetA"]
+    assert called["run_all"]["only_steps"] == ["predict", "apply"]
+    assert set(called["run_all"]["skip_steps"]) == {
+        "validate_predictions",
+        "optimize_usd",
+        "render_preview",
+    }
+    assert called["run_all"]["skip_existing"] is True
+    assert called["run_all"]["max_workers"] == 2
+    assert called["run_all"]["resume"] is True
+    assert called["run_all"]["from_step"] == "predict"
+    assert called["run_all"]["predict_max_workers"] == 5
+    assert called["run_all"]["material_names"] == ["Steel", "Plastic"]
+    assert called["run_payloads"]["configs_dir"] == configs_dir
+    assert called["run_payloads"]["scene_config_dir"] == tmp_path
+    assert called["reconcile"]["materials_list"] == ["Steel"]
+    assert called["remap_applied"] == {"old": "new"}
+    assert called["harmonize"]["llm_config"] is None
+    assert called["compose"]["output_usd_path"] == output_dir / "composed_scene.usd"
+    assert called["compose"]["material_library_yaml"] == material_yaml
+    assert called["render"]["output_dir"] == output_dir
+    assert called["render"]["clear_materials"] is False
+    assert called["validation_stats"] == working_dir
+    assert called["stats_report"]["output_dir"] == output_dir
     printed = "\n".join(str(call.args[0]) for call in printer.call_args_list)
     assert "Validation passed" in printed
     assert "Scene pipeline complete" in printed
+
+
+def test_run_cmd_prints_optional_results_and_simulate_modes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    printer = _patch_console(monkeypatch)
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text("project:\n  name: demo\n")
+
+    from material_agent.api import ScenePipelineOutput
+
+    outputs = [
+        ScenePipelineOutput(
+            success=True,
+            output_usd_path=str(tmp_path / "out.usd"),
+            rendered_images=[str(tmp_path / "a.png")],
+            stats_report_path=str(tmp_path / "stats.html"),
+            completed_assets=2,
+            failed_assets=1,
+            completed_payloads=1,
+            failed_payloads=0,
+            validation_passed=False,
+            warnings=["careful now"],
+        ),
+        ScenePipelineOutput(success=True, completed_assets=0, failed_assets=0),
+    ]
+    calls: list[object] = []
+
+    def fake_run_scene_pipeline(params: object) -> ScenePipelineOutput:
+        calls.append(params)
+        return outputs.pop(0)
+
+    monkeypatch.setattr(
+        "material_agent.api.run_scene_pipeline",
+        fake_run_scene_pipeline,
+    )
+
+    scene_cli.run_cmd(config_path, simulate=True, simulate_mock_analyze=True)
+    scene_cli.run_cmd(config_path, simulate=True, simulate_mock_analyze=False)
+
+    assert calls[0].simulate_mock_analyze is True
+    assert calls[1].simulate_mock_analyze is False
+    printed = "\n".join(str(call.args[0]) for call in printer.call_args_list)
+    assert "including analyze LLM" in printed
+    assert "analyze LLM kept real" in printed
+    assert "Rendered 1 images" in printed
+    assert "Scene stats report" in printed
+    assert "Payloads" in printed
+    assert "careful now" in printed
+
+
+def test_run_agent_resets_assets_and_runs_payloads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    printer = _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    working_dir.mkdir()
+    manifest_path = working_dir / "manifest.json"
+    manifest_path.write_text("{}")
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text("project:\n  name: demo\n")
+    scene_config = {"project": {"name": "demo"}}
+    manifest = FakeManifest(
+        sub_assets=[
+            FakeSubAsset("a", "AssetA", "/World/A", status="completed"),
+            FakeSubAsset("b", "AssetB", "/World/B", status="failed"),
+        ],
+        payload_groups=[
+            FakePayloadGroup("p1", "PayloadOne", "payload.usd", 2, depth=1)
+        ],
+    )
+    called: dict[str, object] = {}
+    simulate_patch_calls: list[tuple[dict[str, object], bool]] = []
+
+    def patch_for_simulate(
+        config: dict[str, object], mock_analyze: bool = False
+    ) -> dict[str, object]:
+        simulate_patch_calls.append((config, mock_analyze))
+        return dict(config, mock_analyze=mock_analyze)
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(scene_cli, "_load_scene_config", lambda config: scene_config)
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+    monkeypatch.setattr(scene_cli, "_parse_assets_filter", lambda assets: ["AssetA"])
+    monkeypatch.setattr(
+        scene_cli, "_steps_before", lambda step_name: ["render_preview"]
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_print_manifest_summary",
+        lambda manifest: _record(called, "summary", manifest),
+    )
+    monkeypatch.setattr(
+        scene_cli, "SceneManifest", SimpleNamespace(load=lambda path: manifest)
+    )
+    monkeypatch.setattr(
+        "material_agent.api.simulate_config.patch_config_for_simulate",
+        patch_for_simulate,
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.simulate.load_material_names_from_config",
+        lambda scene_config, config: ["Steel", "Plastic"],
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.run.run_all",
+        lambda **kwargs: _record_and_return(
+            called,
+            "run_all",
+            kwargs,
+            manifest,
+            set_assets_status="completed",
+        ),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.run.run_all_payloads_bottomup",
+        lambda **kwargs: _record_and_return(
+            called,
+            "payloads",
+            kwargs,
+            manifest,
+            set_payloads_status="completed",
+        ),
+    )
+
+    scene_cli.run_agent_cmd(
+        config_path,
+        assets="AssetA",
+        skip="validate_predictions",
+        only="predict,apply",
+        from_step="predict",
+        skip_existing=True,
+        workers=2,
+        simulate=True,
+        simulate_mock_analyze=True,
+        predict_max_workers=4,
+        verbose=True,
+    )
+
+    assert called["run_all"]["names_filter"] == ["AssetA"]
+    assert "render_preview" in called["run_all"]["skip_steps"]
+    assert called["run_all"]["only_steps"] == ["predict", "apply"]
+    assert called["run_all"]["resume"] is True
+    assert called["run_all"]["simulate"] is True
+    assert called["run_all"]["material_names"] == ["Steel", "Plastic"]
+    assert called["run_all"]["predict_max_workers"] == 4
+    assert called["run_all"]["scene_config"] is scene_config
+    assert called["payloads"]["configs_dir"] == working_dir / "configs"
+    assert called["payloads"]["max_workers"] == 2
+    assert called["payloads"]["scene_config"] is scene_config
+    assert simulate_patch_calls == [(scene_config, True)]
+    assert called["summary"] is manifest
+    assert manifest.saved_paths
+    printed = "\n".join(str(call.args[0]) for call in printer.call_args_list)
+    assert "payloads" in printed
+    assert "Simulate mode" in printed
+
+
+def test_run_agent_cmd_exits_when_manifest_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text("project:\n  name: demo\n")
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(scene_cli, "_load_scene_config", lambda config: {})
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+
+    with pytest.raises(typer.Exit):
+        scene_cli.run_agent_cmd(config_path)
+
+
+def test_run_cmd_legacy_fresh_run_warning_validation_and_empty_renders(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    printer = _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    working_dir.mkdir()
+    (working_dir / "stale.txt").write_text("old")
+    output_dir = working_dir / "output"
+    material_yaml = tmp_path / "materials.yaml"
+    material_yaml.write_text("entries:\n  - name: Steel\n")
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text("project:\n  name: demo\n")
+    usd_path = tmp_path / "scene.usd"
+    usd_path.write_text("usd")
+    manifest = FakeManifest(
+        sub_assets=[
+            FakeSubAsset("a", "AssetA", "/World/A", status="extracted"),
+            FakeSubAsset("b", "AssetB", "/World/B", status="skipped"),
+        ],
+        instance_groups=[FakeInstanceGroup("instances", 2, "a")],
+        payload_groups=[
+            FakePayloadGroup("p1", "PayloadOne", "payload.usd", 2, depth=1)
+        ],
+    )
+    scene_config = {
+        "scene": {
+            "analyze": {
+                "skip_geometry": True,
+                "building_block_min_reuse": 7,
+                "llm": {"backend": "custom"},
+            },
+            "filters": {"kind": "mesh"},
+            "extract": {"flatten": False, "max_workers": 3},
+            "reconcile": {"enabled": True, "llm": {"backend": "judge"}},
+            "harmonize": {"enabled": True},
+        },
+        "steps": {"render": {"enabled": True}},
+    }
+    called: dict[str, object] = {}
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(scene_cli, "_load_scene_config", lambda config: scene_config)
+    monkeypatch.setattr(
+        scene_cli, "_resolve_usd_path", lambda scene_config, config: usd_path
+    )
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+    monkeypatch.setattr(scene_cli, "_parse_assets_filter", lambda assets: ["AssetA"])
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_material_library_yaml",
+        lambda scene_config, config: material_yaml,
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_print_manifest_summary",
+        lambda manifest: _record(called, "summary", manifest),
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_print_validation_stats",
+        lambda working_dir: _record(called, "validation_stats", working_dir),
+    )
+    monkeypatch.setattr(scene_cli, "_run_validation", lambda config, verbose: 2)
+    monkeypatch.setattr(
+        "material_agent.api.simulate_config.patch_config_for_simulate",
+        lambda config, mock_analyze=False: config,
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.simulate.load_material_names_from_config",
+        lambda scene_config, config: ["Steel"],
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.analyze.analyze_scene",
+        lambda **kwargs: _record_and_return_value(called, "analyze", kwargs, manifest),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.extract.extract_all",
+        lambda **kwargs: _record_and_return_value(called, "extract", kwargs, manifest),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.config_gen.generate_all_configs",
+        lambda **kwargs: _record_and_return_value(called, "configs", kwargs, manifest),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.config_gen.generate_all_payload_configs",
+        lambda **kwargs: _record_and_return_value(
+            called, "payload_configs", kwargs, manifest
+        ),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.run.run_all",
+        lambda **kwargs: _record_and_return(
+            called, "run_all", kwargs, manifest, set_assets_status="completed"
+        ),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.run.run_all_payloads_bottomup",
+        lambda **kwargs: _record_and_return(
+            called, "payloads", kwargs, manifest, set_payloads_status="completed"
+        ),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.reconcile.reconcile_predictions",
+        lambda **kwargs: _record_and_return_value(called, "reconcile", kwargs, {}),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.harmonize.harmonize_scene_predictions",
+        lambda **kwargs: _record_and_return_value(called, "harmonize", kwargs, {}),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.collect.apply_and_compose",
+        lambda **kwargs: _record(called, "compose", kwargs),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.collect.render_composed_scene",
+        lambda **kwargs: _record_and_return_value(called, "render", kwargs, []),
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.stats.write_scene_stats_report",
+        lambda **kwargs: _record_and_return_value(
+            called, "stats_report", kwargs, output_dir / "stats.html"
+        ),
+    )
+
+    scene_cli._run_cmd_legacy(
+        config_path,
+        assets="AssetA",
+        resume=True,
+        clean=True,
+        simulate=True,
+        simulate_mock_analyze=False,
+        fail_on_validation=False,
+    )
+
+    assert not (working_dir / "stale.txt").exists()
+    assert called["analyze"]["skip_geometry"] is True
+    assert called["analyze"]["building_block_min_reuse"] == 7
+    assert called["analyze"]["filters"] == {"kind": "mesh"}
+    assert called["extract"]["flatten"] is False
+    assert called["extract"]["max_workers"] == 3
+    assert called["configs"]["configs_dir"] == working_dir / "configs"
+    assert called["payload_configs"]["configs_dir"] == working_dir / "configs"
+    assert called["run_all"]["material_names"] == ["Steel"]
+    assert called["reconcile"]["llm_config"] == {"backend": "judge"}
+    assert called["harmonize"]["mode"] == "full"
+    assert called["compose"]["names_filter"] == ["AssetA"]
+    assert called["render"]["output_dir"] == output_dir
+    assert called["validation_stats"] == working_dir
+    printed = "\n".join(str(call.args[0]) for call in printer.call_args_list)
+    assert "no existing state found" in printed
+    assert "No renders produced" in printed
+    assert "Validation failed" in printed
+    assert "No reconciliation needed" in printed
+    assert "No cross-asset conflicts" in printed
+
+
+def test_run_cmd_legacy_exits_on_validation_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    working_dir.mkdir()
+    (working_dir / "manifest.json").write_text("{}")
+    (working_dir / "extracted").mkdir()
+    (working_dir / "configs").mkdir()
+    material_yaml = tmp_path / "materials.yaml"
+    material_yaml.write_text("entries: []\n")
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text("project:\n  name: demo\n")
+    manifest = FakeManifest(
+        sub_assets=[FakeSubAsset("a", "AssetA", "/World/A", status="completed")]
+    )
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(
+        scene_cli,
+        "_load_scene_config",
+        lambda config: {"scene": {"harmonize": {"enabled": False}}},
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_usd_path",
+        lambda scene_config, config: tmp_path / "scene.usd",
+    )
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+    monkeypatch.setattr(
+        scene_cli, "SceneManifest", SimpleNamespace(load=lambda path: manifest)
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_material_library_yaml",
+        lambda scene_config, config: material_yaml,
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_print_manifest_summary",
+        lambda manifest: None,
+    )
+    monkeypatch.setattr(scene_cli, "_print_validation_stats", lambda working_dir: None)
+    monkeypatch.setattr(scene_cli, "_run_validation", lambda config, verbose: 5)
+    monkeypatch.setattr("material_agent.scene.run.run_all", lambda **kwargs: manifest)
+    monkeypatch.setattr(
+        "material_agent.scene.collect.apply_and_compose", lambda **kwargs: None
+    )
+    monkeypatch.setattr(
+        "material_agent.scene.stats.write_scene_stats_report",
+        lambda **kwargs: tmp_path / "stats.html",
+    )
+
+    with pytest.raises(typer.Exit) as exc:
+        scene_cli._run_cmd_legacy(config_path, resume=True, no_render=True)
+
+    assert exc.value.exit_code == 5
+
+
+def test_run_cmd_legacy_exits_when_material_library_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_console(monkeypatch)
+    working_dir = tmp_path / ".demo_scene"
+    working_dir.mkdir()
+    (working_dir / "manifest.json").write_text("{}")
+    (working_dir / "extracted").mkdir()
+    (working_dir / "configs").mkdir()
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text("project:\n  name: demo\n")
+    manifest = FakeManifest(
+        sub_assets=[FakeSubAsset("a", "AssetA", "/World/A", status="completed")]
+    )
+
+    monkeypatch.setattr(scene_cli, "_setup_logging", lambda verbose: None)
+    monkeypatch.setattr(
+        scene_cli,
+        "_load_scene_config",
+        lambda config: {"scene": {"harmonize": {"enabled": False}}},
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_usd_path",
+        lambda scene_config, config: tmp_path / "scene.usd",
+    )
+    monkeypatch.setattr(
+        scene_cli, "_get_working_dir", lambda scene_config, config: working_dir
+    )
+    monkeypatch.setattr(
+        scene_cli, "SceneManifest", SimpleNamespace(load=lambda path: manifest)
+    )
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_material_library_yaml",
+        lambda scene_config, config: None,
+    )
+    monkeypatch.setattr("material_agent.scene.run.run_all", lambda **kwargs: manifest)
+
+    with pytest.raises(typer.Exit):
+        scene_cli._run_cmd_legacy(config_path, resume=True)
 
 
 def _record_and_return(
@@ -621,6 +1176,19 @@ def test_bundle_handles_missing_inputs_and_success(
         scene_cli.bundle(tmp_path / "scene.yaml")
 
     composed.write_text("usd")
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_material_library_yaml",
+        lambda scene_config, config: None,
+    )
+    with pytest.raises(typer.Exit):
+        scene_cli.bundle(tmp_path / "scene.yaml")
+
+    monkeypatch.setattr(
+        scene_cli,
+        "_resolve_material_library_yaml",
+        lambda scene_config, config: material_yaml,
+    )
     monkeypatch.setattr(
         "material_agent.scene.bundle.create_bundle",
         lambda **kwargs: _record_and_return_value(

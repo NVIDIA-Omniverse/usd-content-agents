@@ -54,7 +54,7 @@ from world_understanding.telemetry.decorators import (
     traced_vlm,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing imports.
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.trace import Span, Tracer
 

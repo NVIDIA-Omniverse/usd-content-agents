@@ -3,12 +3,13 @@
 """Configuration loading task for validate_predictions step."""
 
 import logging
-from pathlib import Path
 from typing import Any
 
-import yaml
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import redact_sensitive_path
+
+from material_agent.tasks.config_loader import load_config_from_context
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +30,15 @@ class ValidatePredictionsConfigTask(Task):
     def run(self, context: dict[str, Any], object_store=None) -> dict[str, Any]:
         listener = get_listener(context, logger_name=__name__)
 
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path is required in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(f"Loading validate_predictions config from {config_path}")
-
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config:
-            raise ValueError(f"Empty configuration file: {config_path}")
+        config, _ = load_config_from_context(
+            context,
+            missing_path_message="config_path is required in context",
+            empty_message="Empty configuration",
+        )
+        if context.get("config_dict") is not None:
+            listener.info("Using in-memory validate_predictions config")
+        else:
+            listener.info("Loading validate_predictions config from file")
 
         # predictions_path is required (auto-wired by executor)
         if "predictions_path" not in config:
@@ -71,7 +66,9 @@ class ValidatePredictionsConfigTask(Task):
             )
         context["allow_unknown_material"] = allow_unknown_material
 
-        listener.info(f"Predictions: {context['predictions_path']}")
+        listener.info(
+            f"Predictions: {redact_sensitive_path(context['predictions_path'])}"
+        )
         listener.info(f"Material library: {len(context['material_names'])} entries")
 
         return context

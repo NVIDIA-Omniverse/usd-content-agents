@@ -137,6 +137,67 @@ class TestBuildMultimodalVectorStoreTool:
     @patch(
         "world_understanding.tools.knowledge.multimodal_vector_store.build_multimodal_vector_store_func"
     )
+    def test_image_only_build_with_filename_metadata_and_multimodal_count(
+        self, mock_build_func
+    ):
+        """Test image-only build, filename metadata extraction, and multimodal count."""
+        mock_store = MagicMock()
+
+        mock_image_doc = MagicMock()
+        mock_image_doc.get_content_type.return_value = "image"
+        mock_multimodal_doc = MagicMock()
+        mock_multimodal_doc.get_content_type.return_value = "multimodal"
+
+        mock_store.metadata_store = {
+            "img1": MagicMock(document=mock_image_doc),
+            "multi1": MagicMock(document=mock_multimodal_doc),
+        }
+        mock_store.dimension = 512
+        mock_build_func.return_value = mock_store
+
+        inputs = BuildMultimodalVectorStoreInput(
+            image_source=["/assets/080-2418-000_1_0001_structured.txt"],
+            include_filename_metadata=True,
+        )
+
+        output = build_multimodal_vector_store_tool(inputs)
+
+        assert output.success is True
+        assert output.num_texts == 0
+        assert output.num_images == 1
+        assert output.num_multimodal == 1
+        assert output.embedding_dimension == 512
+
+        call_kwargs = mock_build_func.call_args.kwargs
+        assert call_kwargs["text_source"] is None
+        assert call_kwargs["image_source"] == [
+            "/assets/080-2418-000_1_0001_structured.txt"
+        ]
+
+        metadata_extractor = call_kwargs["metadata_extractor"]
+        structured_metadata = metadata_extractor(
+            "/docs/080-2418-000_1_0001_structured.txt"
+        )
+        assert structured_metadata == {
+            "filename": "080-2418-000_1_0001_structured.txt",
+            "file_stem": "080-2418-000_1_0001_structured",
+            "extension": ".txt",
+            "parent_dir": "docs",
+            "relative_path": "/docs/080-2418-000_1_0001_structured.txt",
+            "document_id": "080-2418-000",
+            "page_or_section": "0001",
+            "content_type": "structured",
+            "is_structured": True,
+        }
+
+        text_metadata = metadata_extractor(Path("/docs/guide_text.md"))
+        assert text_metadata["filename"] == "guide_text.md"
+        assert text_metadata["document_id"] == "guide"
+        assert text_metadata["is_text"] is True
+
+    @patch(
+        "world_understanding.tools.knowledge.multimodal_vector_store.build_multimodal_vector_store_func"
+    )
     def test_successful_build_with_save(self, mock_build_func):
         """Test building and saving multimodal vector store."""
         # Mock the vector store

@@ -66,6 +66,13 @@ def test_generate_texture_prompts_uses_fallback_when_llm_raises() -> None:
     }
 
 
+def test_fallback_prompt_without_user_prompt() -> None:
+    assert (
+        prompt_generation._fallback_prompt_for_material(_make_material("Brushed_Steel"))
+        == "realistic brushed steel surface texture"
+    )
+
+
 def test_generate_texture_prompts_normalizes_result(monkeypatch) -> None:
     monkeypatch.setattr(
         "world_understanding.utils.llm_parsing.extract_json_from_llm_response",

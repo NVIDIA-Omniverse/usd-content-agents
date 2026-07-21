@@ -2,12 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import errno
 import json
+import logging
+import traceback
 from pathlib import Path
 
 import pytest
 import yaml
 
+from physics_agent.config.unified_config import UnifiedPipelineConfigTask
 from physics_agent.tasks.apply_physics import ApplyPhysicsTask
 from physics_agent.tasks.config_apply_physics import ApplyPhysicsConfigTask
 from physics_agent.tasks.config_identify_asset import IdentifyAssetConfigTask
@@ -34,6 +38,58 @@ class MemoryObjectStore:
 
 def write_yaml(path: Path, payload: dict[str, object]) -> None:
     path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+
+
+def _load_unified_config_mapping(context: dict[str, object]) -> dict[str, object]:
+    config, _ = UnifiedPipelineConfigTask()._load_config(context)
+    return config
+
+
+CONFIG_MAPPING_LOADERS = [
+    pytest.param(IdentifyAssetConfigTask()._load_config, id="identify-asset"),
+    pytest.param(PredictConfigTask()._load_config, id="predict"),
+    pytest.param(PrepareDatasetConfigTask()._load_config, id="prepare-dataset"),
+    pytest.param(USDDatasetConfigTask()._load_config, id="usd-dataset"),
+    pytest.param(ApplyPhysicsConfigTask()._load_config, id="apply-physics"),
+    pytest.param(_load_unified_config_mapping, id="unified"),
+]
+
+
+@pytest.mark.parametrize("load_config", CONFIG_MAPPING_LOADERS)
+def test_config_mapping_loaders_hide_yaml_alias_values_from_tracebacks(
+    load_config,
+    tmp_path: Path,
+) -> None:
+    sentinel = "physics_secret_alias_713"
+    config_path = tmp_path / "malformed.yaml"
+    config_path.write_text(f"api_key: *{sentinel}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        load_config({"config_path": config_path})
+
+    rendered_traceback = "".join(
+        traceback.format_exception(
+            exc_info.type,
+            exc_info.value,
+            exc_info.tb,
+        )
+    )
+    assert sentinel not in str(exc_info.value)
+    assert sentinel not in rendered_traceback
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__ is True
+
+
+@pytest.mark.parametrize("load_config", CONFIG_MAPPING_LOADERS)
+def test_config_mapping_loaders_isolate_nested_in_memory_mappings(load_config) -> None:
+    source = {"nested": {"owner": "caller"}}
+
+    loaded = load_config({"config_dict": source})
+    nested = loaded["nested"]
+    assert isinstance(nested, dict)
+    nested["owner"] = "task"
+
+    assert source == {"nested": {"owner": "caller"}}
 
 
 def test_predict_config_task_loads_dataset_and_system_prompt(tmp_path: Path):
@@ -94,7 +150,53 @@ def test_predict_config_task_validates_allow_empty_predictions(tmp_path: Path):
         )
 
 
-def test_prepare_and_usd_dataset_config_tasks_resolve_paths(tmp_path: Path):
+def test_predict_dataset_override_diagnostics_hide_sensitive_paths(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    secret = "physics-predict-override-secret-713"
+    dataset_path = tmp_path / f"user:{secret}@predict.example.test" / "missing.jsonl"
+
+    with pytest.raises(FileNotFoundError) as exc_info:
+        PredictConfigTask().run(
+            {
+                "config_dict": {},
+                "dataset_override": str(dataset_path),
+            }
+        )
+
+    observable = caplog.text + "".join(traceback.format_exception(exc_info.value))
+    assert secret not in observable
+    assert "<redacted>" in observable
+
+
+def test_predict_derived_dataset_exists_error_preserves_errno_without_path_leak(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    secret = "physics-derived-dataset-secret-713"
+    working_dir = tmp_path / f"user:{secret}@predict.example.test"
+
+    def raise_name_too_long(path: Path) -> bool:
+        raise OSError(errno.ENAMETOOLONG, "File name too long", str(path))
+
+    monkeypatch.setattr(Path, "exists", raise_name_too_long)
+
+    with pytest.raises(OSError) as exc_info:
+        PredictConfigTask().run(
+            {"config_dict": {"project": {"working_dir": str(working_dir)}}}
+        )
+
+    assert exc_info.value.errno == errno.ENAMETOOLONG
+    observable = "".join(traceback.format_exception(exc_info.value))
+    assert secret not in observable
+    assert "<redacted>" in observable
+
+
+def test_prepare_and_usd_dataset_config_tasks_resolve_paths(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+):
     usd_dir = tmp_path / "usd_dataset"
     usd_dir.mkdir()
     reference = tmp_path / "reference.png"
@@ -124,6 +226,29 @@ def test_prepare_and_usd_dataset_config_tasks_resolve_paths(tmp_path: Path):
     assert prepare_result["prompts"]["system"] == "hello"
     assert prepare_result["include_prim_path_context"] is False
     assert prepare_result["include_geometric_context"] is True
+
+    secret = "physics-prepare-model-log-secret-713"
+    target = logging.getLogger("physics_agent.tasks.config_prepare_dataset")
+    previous_propagate = target.propagate
+    target.addHandler(caplog.handler)
+    target.propagate = False
+    caplog.clear()
+    try:
+        with caplog.at_level(logging.INFO, logger=target.name):
+            PrepareDatasetConfigTask().run(
+                {
+                    "config_dict": {
+                        "usd_dir": str(usd_dir),
+                        "dataset": str(tmp_path / "prepared-secret-model"),
+                        "models": [f"https://user:{secret}@models.example.test"],
+                    }
+                }
+            )
+    finally:
+        target.removeHandler(caplog.handler)
+        target.propagate = previous_propagate
+    assert secret not in caplog.text
+    assert "<redacted>" in caplog.text
 
     usd_path = tmp_path / "asset.usd"
     usd_path.write_text("#usda 1.0\n", encoding="utf-8")
@@ -188,6 +313,22 @@ def test_apply_physics_config_task_validates_mass_scale_policy(tmp_path: Path):
     assert result["allow_empty_predictions"] is True
     assert result["usd_path"] == str(usd_path.resolve())
 
+    anchored_result = ApplyPhysicsConfigTask().run(
+        {
+            "config_dict": {
+                "usd_path": "asset.usd",
+                "predictions_path": "predictions.jsonl",
+                "output_usd_path": "anchored_out.usda",
+            },
+            "config_path": config_path,
+        }
+    )
+    assert anchored_result["usd_path"] == str(usd_path.resolve())
+    assert anchored_result["predictions_path"] == str(predictions_path.resolve())
+    assert anchored_result["output_usd_path"] == str(
+        (tmp_path / "anchored_out.usda").resolve()
+    )
+
     default_result = ApplyPhysicsConfigTask().run(
         {
             "config_dict": {
@@ -212,6 +353,20 @@ def test_apply_physics_config_task_validates_mass_scale_policy(tmp_path: Path):
             }
         )
 
+    secret = "direct-apply-validator-secret-713"
+    with pytest.raises(ValueError) as exc_info:
+        ApplyPhysicsConfigTask().run(
+            {
+                "config_dict": {
+                    "usd_path": str(usd_path),
+                    "predictions_path": str(predictions_path),
+                    "output_usd_path": str(tmp_path / "out.usda"),
+                    "collision_approx": f"Bearer {secret}",
+                }
+            }
+        )
+    assert secret not in "".join(traceback.format_exception(exc_info.value))
+
     with pytest.raises(ValueError, match="allow_empty_predictions"):
         ApplyPhysicsConfigTask().run(
             {
@@ -223,6 +378,39 @@ def test_apply_physics_config_task_validates_mass_scale_policy(tmp_path: Path):
                 }
             }
         )
+
+
+def test_apply_physics_config_task_copies_in_memory_config() -> None:
+    source: dict[str, object] = {
+        "usd_path": "asset.usd",
+        "predictions_path": "predictions.jsonl",
+        "output_usd_path": "out.usda",
+        "metadata": {"owner": "caller"},
+    }
+
+    loaded = ApplyPhysicsConfigTask()._load_config({"config_dict": source})
+    metadata = loaded["metadata"]
+    assert isinstance(metadata, dict)
+    metadata["owner"] = "task"
+
+    assert source["metadata"] == {"owner": "caller"}
+
+
+def test_apply_physics_malformed_yaml_uses_value_free_parse_error(
+    tmp_path: Path,
+) -> None:
+    sentinel = "never-disclose-physics-yaml"
+    config_path = tmp_path / "malformed-apply.yaml"
+    config_path.write_text(f"api_key: [{sentinel}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        ApplyPhysicsConfigTask().run({"config_path": config_path})
+
+    message = str(exc_info.value)
+    assert message == (
+        f"Unable to parse apply_physics configuration file: {config_path}"
+    )
+    assert sentinel not in message
 
 
 def test_apply_physics_task_forwards_authoring_policies(monkeypatch, tmp_path: Path):

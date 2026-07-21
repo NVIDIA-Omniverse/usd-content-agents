@@ -3,26 +3,38 @@
 """Configuration loading task for optimize_usd step."""
 
 import logging
-from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import ValidationError
 
+from world_understanding.agentic.config import (
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.agentic.usd_tasks.optimizer_models import (
     SceneOptimizerSettings,
 )
+from world_understanding.utils.credentials import redact_sensitive_config
+from world_understanding.utils.object_store import ObjectStore
 
 logger = logging.getLogger(__name__)
+
+_INVALID_OPTIMIZER_SETTINGS_MESSAGE = "Invalid scene_optimizer_settings in config"
+_INVALID_OPTIMIZATION_CONFIG_MESSAGE = "optimization_config must be a mapping"
+_INVALID_OPTIMIZATION_BACKEND_MESSAGE = (
+    "Invalid optimization backend; expected 'local' or 'remote'"
+)
+_INVALID_FLATTEN_PROTOTYPES_MESSAGE = "flatten_prototypes must be a boolean"
 
 
 class OptimizeUSDConfigTask(Task):
     """Load and validate configuration for USD optimization step.
 
     Input context keys:
-        - config_path: Path to YAML config file
+        - config_dict: In-memory configuration dictionary (preferred)
+        - config_path: Path to YAML config file (fallback)
 
     Output context keys:
         - input_usd_path: Path to input USD
@@ -30,7 +42,11 @@ class OptimizeUSDConfigTask(Task):
         - optimization_config: API-specific parameters (optional)
     """
 
-    def run(self, context: dict[str, Any], object_store=None) -> dict[str, Any]:
+    def run(
+        self,
+        context: dict[str, Any],
+        object_store: ObjectStore | None = None,
+    ) -> dict[str, Any]:
         """Load optimization configuration.
 
         Args:
@@ -46,22 +62,7 @@ class OptimizeUSDConfigTask(Task):
         """
         listener = get_listener(context)
 
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path is required in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(f"Loading optimize_usd configuration from {config_path}")
-
-        # Load config
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config:
-            raise ValueError(f"Empty configuration file: {config_path}")
+        config = self._load_config(context, listener)
 
         # Validate required fields
         if "input_usd_path" not in config:
@@ -75,11 +76,19 @@ class OptimizeUSDConfigTask(Task):
 
         # Get optimization config
         optimization_config = config.get("optimization_config", {})
+        if not isinstance(optimization_config, dict):
+            listener.error(_INVALID_OPTIMIZATION_CONFIG_MESSAGE)
+            raise ValueError(_INVALID_OPTIMIZATION_CONFIG_MESSAGE) from None
 
         # Parse and validate scene_optimizer_settings if present
         if "scene_optimizer_settings" in optimization_config:
+            settings_data = optimization_config["scene_optimizer_settings"]
+            if not isinstance(settings_data, dict) or any(
+                not isinstance(key, str) for key in settings_data
+            ):
+                listener.error(_INVALID_OPTIMIZER_SETTINGS_MESSAGE)
+                raise ValueError(_INVALID_OPTIMIZER_SETTINGS_MESSAGE) from None
             try:
-                settings_data = optimization_config["scene_optimizer_settings"]
                 settings_model = SceneOptimizerSettings(**settings_data)
 
                 # Convert to dict with snake_case (matches client behavior)
@@ -104,11 +113,9 @@ class OptimizeUSDConfigTask(Task):
                 listener.info("Scene optimizer settings validated successfully")
                 self._log_optimizer_settings(listener, validated_settings, enabled_ops)
 
-            except ValidationError as e:
-                listener.error(f"Invalid scene_optimizer_settings: {e}")
-                raise ValueError(
-                    f"Invalid scene_optimizer_settings in config: {e}"
-                ) from e
+            except ValidationError:
+                listener.error(_INVALID_OPTIMIZER_SETTINGS_MESSAGE)
+                raise ValueError(_INVALID_OPTIMIZER_SETTINGS_MESSAGE) from None
         else:
             # No scene_optimizer_settings specified - apply defaults from model
             listener.info("No scene_optimizer_settings specified, applying defaults")
@@ -134,11 +141,8 @@ class OptimizeUSDConfigTask(Task):
         # Validate backend selection
         backend = optimization_config.get("backend", "local")
         if backend not in ("remote", "local"):
-            raise ValueError(
-                f"Invalid backend '{backend}' in optimization_config. "
-                "Must be 'remote' or 'local'."
-            )
-        listener.info(f"Optimization backend: {backend}")
+            raise ValueError(_INVALID_OPTIMIZATION_BACKEND_MESSAGE) from None
+        listener.info(f"Optimization backend: {redact_sensitive_config(backend)}")
 
         if backend == "remote":
             # Default poll_seconds to 300 (NVCF max long-polling, 5 min) so the
@@ -152,12 +156,46 @@ class OptimizeUSDConfigTask(Task):
         # flatten_prototypes: full flatten (convert + inline refs + remove protos)
         # Default is True since optimize_usd is typically used with pre-flattened scenes
         flatten_prototypes = optimization_config.get("flatten_prototypes", True)
+        if not isinstance(flatten_prototypes, bool):
+            listener.error(_INVALID_FLATTEN_PROTOTYPES_MESSAGE)
+            raise ValueError(_INVALID_FLATTEN_PROTOTYPES_MESSAGE) from None
         listener.info(f"Flatten prototypes before optimization: {flatten_prototypes}")
 
-        listener.info(f"Input USD: {context['input_usd_path']}")
-        listener.info(f"Output USD: {context['output_usd_path']}")
+        safe_paths = redact_sensitive_config(
+            {
+                "input_usd_path": str(context["input_usd_path"]),
+                "output_usd_path": str(context["output_usd_path"]),
+            }
+        )
+        listener.info(f"Input USD: {safe_paths['input_usd_path']}")
+        listener.info(f"Output USD: {safe_paths['output_usd_path']}")
 
         return context
+
+    def _load_config(self, context: dict[str, Any], listener: Any) -> dict[str, Any]:
+        """Load an isolated mapping without rendering configuration values."""
+        config, _ = load_config_mapping_from_context(
+            context,
+            missing_path_message="config_dict or config_path is required in context",
+            missing_file_message="Configuration file not found: {config_path}",
+            read_error_message=(
+                "Unable to read optimize_usd configuration file: {config_path}"
+            ),
+            parse_error_message=(
+                "Unable to parse optimize_usd configuration file: {config_path}"
+            ),
+            empty_message=(
+                "Empty optimize_usd configuration dictionary"
+                if context.get("config_dict") is not None
+                else "Empty configuration file: {config_path}"
+            ),
+            config_dict_non_mapping_message=(
+                "optimize_usd config_dict must be a mapping"
+            ),
+            file_non_mapping_message=("optimize_usd configuration must be a mapping"),
+        )
+        log_config_source(context, listener.info, label="optimize_usd")
+        return config
 
     def _build_enabled_operations(self, settings: dict[str, Any]) -> list[str]:
         """Build list of enabled operations from settings dict.

@@ -1,0 +1,64 @@
+services:
+  joint-agent-service:
+    build:
+      context: ../..
+      dockerfile: apps/joint_agent_service/Dockerfile
+    container_name: joint-agent-service
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../../.env
+    environment:
+      # Service configuration
+      - JA_SESSION_STORAGE_PATH=/var/joint-agent/sessions
+      - JA_SESSION_TTL_HOURS=${JA_SESSION_TTL_HOURS:-24}
+      - JA_MAX_ACTIVE_SESSIONS=${JA_MAX_ACTIVE_SESSIONS:-1}
+      # 0 means unbounded. Operators may set a positive MiB guard.
+      - JA_MAX_UPLOAD_SIZE_MB=${JA_MAX_UPLOAD_SIZE_MB:-0}
+      - JA_DEBUG=${JA_DEBUG:-false}
+      - JA_RENDER_BACKEND=${JA_RENDER_BACKEND:-remote}
+
+      # VLM/LLM configuration
+      - JA_VLM_BACKEND=${JA_VLM_BACKEND:-nim}
+      - JA_VLM_MODEL=${JA_VLM_MODEL:-qwen/qwen3.5-397b-a17b}
+      - JA_VLM_TEMPERATURE=${JA_VLM_TEMPERATURE:-1.0}
+
+    volumes:
+      # Persist session data
+      - session-storage:/var/joint-agent/sessions
+
+    restart: unless-stopped
+
+    # Add logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+    # Resource limits for the API process. Rendering runs at RENDER_ENDPOINT.
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          cpus: '4'
+          memory: 8G
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  session-storage:
+    driver: local
+
+networks:
+  default:
+    name: joint-agent-network
+    driver: bridge

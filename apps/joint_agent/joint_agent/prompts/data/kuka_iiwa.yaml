@@ -1,0 +1,71 @@
+# KUKA LBR iiwa — 7-DOF lightweight collaborative arm.
+# Regression case in the joint-agent benchmark — extra care required on
+# link counting and the redundant 7th DOF.
+
+robot_id: kuka_iiwa
+aliases:
+  - iiwa
+  - "lbr_iiwa"
+  - "lbr iiwa"
+  - "lbr iiwa 7"
+  - "kuka_lbr"
+  - "kuka lbr iiwa"
+  - "lbr_iiwa_7_r800"
+  - "kuka_iiwa14"
+  - "iiwa14"
+filename_aliases:
+  - "kuka_iiwa"
+  - "lbr_iiwa"
+  - "lbr_iiwa_7_r800"
+  - "iiwa14"
+description: "KUKA LBR iiwa — 7-DOF lightweight collaborative arm, 8 links"
+topology: serial_chain
+num_dofs: 7
+component_names:
+  - link0_base
+  - link1
+  - link2
+  - link3
+  - link4
+  - link5
+  - link6
+  - link7_flange
+visual_cues:
+  link0_base: >-
+    Base mounting plate at the bottom of the chain; flat circular face for
+    table or pedestal mounting.
+  link1: >-
+    First revolute housing directly above the base, rotating about the
+    vertical axis.
+  link2: >-
+    First long structural link tilting forward off the shoulder.
+  link3: >-
+    Second long link continuing the arm; together with link2 spans most of
+    the arm reach.
+  link4: >-
+    Elbow region link — the 7-DOF redundant joint; without this, the chain
+    would be degenerate.
+  link5: >-
+    Forearm-length link continuing toward the wrist cluster.
+  link6: >-
+    Compact wrist housing closer to the forearm.
+  link7_flange: >-
+    Final wrist link with the tool-mounting flange face.
+tiebreakers:
+  - >-
+    Critical: KUKA iiwa has 7 DOFs, NOT 6. The chain must include all of
+    link0_base..link7_flange. Do not collapse link4 (the redundant elbow)
+    into a neighboring segment — that's the most common failure mode.
+  - >-
+    The two long structural links (link2, link3) and the redundant elbow
+    (link4) can look similar; distinguish by chain position only.
+  - >-
+    Color cues: iiwa is typically orange (KUKA brand color) on the
+    structural links, with silver/gray housings at the joints.
+completeness_required: true
+self_check: true
+notes: >-
+  Doyub flagged kuka_iiwa as the only structure-prediction failure on the
+  Apr 24 robots.zip benchmark. The redundant 7-DOF elbow is the suspected
+  source of error — the model was likely treating the chain as 6-DOF and
+  collapsing link4 into a neighbor.

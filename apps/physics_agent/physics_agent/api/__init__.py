@@ -109,7 +109,7 @@ from physics_agent.api.types import APIResult
 # pathway so importing ``physics_agent.api`` still does NOT pull the
 # orchestrator module (which would transitively load
 # ``physics_agent.tuning.runner`` and its optimizer/sim dependencies).
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing only
     from physics_agent.api.refine import RefineInput as RefineInput
     from physics_agent.api.refine import RefineOutput as RefineOutput
     from physics_agent.api.refine import arun_refine as arun_refine

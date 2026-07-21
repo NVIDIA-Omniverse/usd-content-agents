@@ -7,6 +7,8 @@ Tests:
 - StorageConfig env var parsing with PA_ prefix
 """
 
+from pathlib import Path
+
 import pytest
 
 from ...service.storage import LocalSessionStore, StorageConfig
@@ -24,6 +26,15 @@ class TestLocalSessionStoreCRUD:
         assert (tmp_path / "s1").is_dir()
 
     @pytest.mark.asyncio
+    async def test_init_session_rejects_nested_identifier(self, tmp_path: Path) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path))
+
+        with pytest.raises(ValueError, match="storage child"):
+            await store.init_session("nested/session")
+
+        assert not (tmp_path / "nested").exists()
+
+    @pytest.mark.asyncio
     async def test_delete_session_removes_directory(self, tmp_path):
         store = LocalSessionStore(root_dir=str(tmp_path))
         await store.init_session("s1")
@@ -35,6 +46,20 @@ class TestLocalSessionStoreCRUD:
     async def test_delete_nonexistent_session_is_noop(self, tmp_path):
         store = LocalSessionStore(root_dir=str(tmp_path))
         await store.delete_session("nonexistent")  # Should not raise
+
+    @pytest.mark.parametrize(
+        "session_id",
+        ["../outside", "/tmp/outside", r"..\outside", "C:/outside"],
+    )
+    def test_session_directory_rejects_unconfined_legacy_ids(
+        self,
+        tmp_path: Path,
+        session_id: str,
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path))
+
+        with pytest.raises(ValueError, match="storage child"):
+            store._session_dir(session_id)
 
     @pytest.mark.asyncio
     async def test_put_and_get_json(self, tmp_path):
@@ -62,12 +87,24 @@ class TestLocalSessionStoreCRUD:
         stream.close()
 
     @pytest.mark.asyncio
+    async def test_put_bytes_if_absent_is_atomic(self, tmp_path: Path) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path))
+        assert await store.put_bytes_if_absent("s1", "claim", b"first") is True
+        assert await store.put_bytes_if_absent("s1", "claim", b"second") is False
+        stream = await store.open_read("s1", "claim")
+        assert stream.read() == b"first"
+        stream.close()
+
+    @pytest.mark.asyncio
     async def test_exists(self, tmp_path):
         store = LocalSessionStore(root_dir=str(tmp_path))
         await store.init_session("s1")
         assert not await store.exists("s1", "file.txt")
         await store.put_bytes("s1", "file.txt", b"x")
         assert await store.exists("s1", "file.txt")
+        await store.delete_key("s1", "file.txt")
+        assert not await store.exists("s1", "file.txt")
+        await store.delete_key("s1", "file.txt")
 
     @pytest.mark.asyncio
     async def test_list_keys(self, tmp_path):
@@ -159,11 +196,15 @@ class TestLocalSessionStoreCRUD:
         other_file = local_dir / "preview" / "scene.png"
         other_file.parent.mkdir(parents=True)
         other_file.write_bytes(b"png")
+        pipeline_temp = local_dir / "cache" / "nested" / ".pipeline_temp"
+        pipeline_temp.mkdir(parents=True)
+        (pipeline_temp / "config.yaml").write_text("api_key: sentinel")
 
         count = await store.sync_from_local("s1", str(local_dir), prefix="cache/")
 
         assert count == 1
         assert await store.exists("s1", "cache/physics/scene_physics.usda")
+        assert not await store.exists("s1", "cache/nested/.pipeline_temp/config.yaml")
         assert not await store.exists("s1", "preview/scene.png")
 
     @pytest.mark.asyncio
@@ -171,6 +212,15 @@ class TestLocalSessionStoreCRUD:
         store = LocalSessionStore(root_dir=str(tmp_path / "store"))
         await store.init_session("s1")
         await store.put_bytes("s1", "cache/physics/scene_physics.usda", b"#usda 1.0\n")
+        legacy_temp = (
+            store._session_dir("s1")
+            / "cache"
+            / "nested"
+            / ".pipeline_temp"
+            / "config.yaml"
+        )
+        legacy_temp.parent.mkdir(parents=True)
+        legacy_temp.write_bytes(b"api_key: sentinel")
         await store.put_bytes("s1", "preview/scene.png", b"png")
         local_dir = tmp_path / "local"
 
@@ -178,7 +228,94 @@ class TestLocalSessionStoreCRUD:
 
         assert count == 1
         assert (local_dir / "cache" / "physics" / "scene_physics.usda").exists()
+        assert not (
+            local_dir / "cache" / "nested" / ".pipeline_temp" / "config.yaml"
+        ).exists()
         assert not (local_dir / "preview" / "scene.png").exists()
+
+    @pytest.mark.asyncio
+    async def test_sync_from_local_rejects_symlink_alias_to_pipeline_temp(
+        self, tmp_path: Path
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path / "store"))
+        local_dir = tmp_path / "local"
+        secret_path = local_dir / ".pipeline_temp" / "config.yaml"
+        secret_path.parent.mkdir(parents=True)
+        secret_path.write_text("api_key: sentinel", encoding="utf-8")
+        alias = local_dir / "cache" / "export.yaml"
+        alias.parent.mkdir(parents=True)
+        alias.symlink_to(secret_path)
+
+        with pytest.raises(
+            RuntimeError,
+            match="symlinked session artifact",
+        ):
+            await store.sync_from_local("s1", str(local_dir), prefix="cache/")
+
+        assert not await store.exists("s1", "cache/export.yaml")
+
+    @pytest.mark.asyncio
+    async def test_sync_from_local_rejects_directory_symlink_alias(
+        self, tmp_path: Path
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path / "store"))
+        local_dir = tmp_path / "local"
+        secret_dir = local_dir / ".pipeline_temp" / "nested"
+        secret_dir.mkdir(parents=True)
+        (secret_dir / "config.yaml").write_text("api_key: sentinel", encoding="utf-8")
+        alias = local_dir / "cache" / "export"
+        alias.parent.mkdir(parents=True)
+        alias.symlink_to(secret_dir, target_is_directory=True)
+
+        with pytest.raises(
+            RuntimeError,
+            match="symlinked session artifact",
+        ):
+            await store.sync_from_local("s1", str(local_dir), prefix="cache/")
+
+        assert not await store.exists("s1", "cache/export/config.yaml")
+
+    @pytest.mark.asyncio
+    async def test_sync_to_local_rejects_symlink_alias_to_pipeline_temp(
+        self, tmp_path: Path
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path / "store"))
+        secret_path = store._session_dir("s1") / ".pipeline_temp" / "config.yaml"
+        secret_path.parent.mkdir(parents=True)
+        secret_path.write_text("api_key: sentinel", encoding="utf-8")
+        alias = store._session_dir("s1") / "cache" / "export.yaml"
+        alias.parent.mkdir(parents=True)
+        alias.symlink_to(secret_path)
+
+        destination = tmp_path / "local"
+        with pytest.raises(
+            RuntimeError,
+            match="symlinked session artifact",
+        ):
+            await store.sync_to_local("s1", str(destination), prefix="cache/")
+
+        assert not (destination / "cache" / "export.yaml").exists()
+
+    @pytest.mark.asyncio
+    async def test_sync_to_local_rejects_directory_symlink_alias(
+        self, tmp_path: Path
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path / "store"))
+        secret_dir = store._session_dir("s1") / ".pipeline_temp" / "nested"
+        secret_dir.mkdir(parents=True)
+        (secret_dir / "config.yaml").write_text("api_key: sentinel", encoding="utf-8")
+        alias = store._session_dir("s1") / "cache" / "export"
+        alias.parent.mkdir(parents=True)
+        alias.symlink_to(secret_dir, target_is_directory=True)
+
+        destination = tmp_path / "local"
+        with pytest.raises(
+            RuntimeError,
+            match="symlinked session artifact",
+        ):
+            await store.sync_to_local("s1", str(destination), prefix="cache/")
+
+        assert not (destination / "cache" / "export" / "config.yaml").exists()
 
     @pytest.mark.asyncio
     async def test_invalidate_sessions_cache_is_noop(self, tmp_path):
@@ -196,6 +333,46 @@ class TestLocalSessionStoreCRUD:
         await store.init_session("s1")
         await store.put_bytes("s1", "deep/nested/file.txt", b"deep")
         assert await store.exists("s1", "deep/nested/file.txt")
+
+    @pytest.mark.asyncio
+    async def test_reserved_paths_are_invisible_and_writes_fail_loudly(
+        self, tmp_path: Path
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path))
+        session_dir = store._session_dir("s1")
+        reserved = session_dir / "cache" / ".pipeline_temp" / "config.json"
+        reserved.parent.mkdir(parents=True)
+        reserved.write_text('{"api_key": "sentinel"}', encoding="utf-8")
+        alias = session_dir / "cache" / "alias.json"
+        alias.symlink_to(reserved)
+
+        assert await store.list_keys("s1") == []
+        assert await store.list_keys("s1", r"cache\.pipeline_temp") == []
+        assert not await store.exists("s1", "cache/.pipeline_temp/config.json")
+        assert not await store.exists("s1", "cache/alias.json")
+        assert await store.get_json("s1", "cache/.pipeline_temp/config.json") is None
+        with pytest.raises(FileNotFoundError):
+            await store.open_read("s1", r"cache\.pipeline_temp\config.json")
+        with pytest.raises(ValueError, match="reserved"):
+            await store.put_bytes(
+                "s1",
+                "cache/.pipeline_temp/new.json",
+                b"{}",
+            )
+
+        safe_target = session_dir / "cache" / "public.json"
+        safe_target.write_bytes(b"public")
+        safe_alias = session_dir / "cache" / "public-alias.json"
+        safe_alias.symlink_to(safe_target)
+        with pytest.raises(FileNotFoundError):
+            await store.open_read("s1", "cache/public-alias.json")
+
+        outside = tmp_path / "outside.json"
+        outside.write_bytes(b"outside")
+        outside_alias = session_dir / "cache" / "outside-alias.json"
+        outside_alias.symlink_to(outside)
+        with pytest.raises(FileNotFoundError):
+            await store.open_read("s1", "cache/outside-alias.json")
 
 
 @pytest.mark.unit

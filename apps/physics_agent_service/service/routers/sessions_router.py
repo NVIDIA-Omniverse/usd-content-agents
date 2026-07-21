@@ -87,6 +87,7 @@ async def delete_session(session_id: str):
     job_registry = get_job_registry()
     if job_registry.is_running(session_id):
         await job_registry.cancel(session_id)
+        await job_registry.wait_for_quiescence(session_id)
 
     success = await manager.delete_session(session_id)
     if not success:

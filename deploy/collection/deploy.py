@@ -116,6 +116,11 @@ def endpoint(dep: dict[str, Any]) -> str:
     return value.rstrip("/")
 
 
+def model_base_url(dep: dict[str, Any]) -> str:
+    value = setting(dep, "base_url") or endpoint(dep)
+    return value.rstrip("/")
+
+
 def provider(dep: dict[str, Any]) -> str:
     return str(dep.get("provider") or "external").strip().lower()
 
@@ -132,6 +137,10 @@ def api_key(dep: dict[str, Any]) -> str:
     return str(dep.get("api_key") or "").strip()
 
 
+def api_key_env(dep: dict[str, Any]) -> str:
+    return setting(dep, "api_key_env")
+
+
 def setting(dep: dict[str, Any], name: str) -> str:
     value = dep.get(name)
     if value is None:
@@ -142,6 +151,19 @@ def setting(dep: dict[str, Any], name: str) -> str:
 def set_if_value(env: dict[str, str], key: str, value: str | None) -> None:
     if value:
         env[key] = value
+
+
+def set_model_endpoint_env(
+    env: dict[str, str],
+    prefixes: tuple[str, ...],
+    role: str,
+    dep: dict[str, Any],
+    base_url: str,
+) -> None:
+    for prefix in prefixes:
+        env[f"{prefix}_{role}_BASE_URL"] = base_url
+        set_if_value(env, f"{prefix}_{role}_API_KEY", api_key(dep))
+        set_if_value(env, f"{prefix}_{role}_API_KEY_ENV", api_key_env(dep))
 
 
 def brev_settings(config: dict[str, Any]) -> dict[str, Any]:
@@ -262,7 +284,7 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
 
     vlm = dependency(config, "vlm")
     if is_enabled(vlm):
-        vlm_endpoint = endpoint(vlm)
+        vlm_base_url = model_base_url(vlm)
         vlm_backend = backend(vlm, "nim")
         vlm_model = model(vlm, "qwen/qwen3.5-397b-a17b")
         env["MA_VLM_BACKEND"] = vlm_backend
@@ -273,17 +295,24 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
         set_if_value(env, "PA_VLM_MAX_TOKENS", setting(vlm, "max_tokens"))
         set_if_value(env, "MA_VLM_TEMPERATURE", setting(vlm, "temperature"))
         set_if_value(env, "PA_VLM_TEMPERATURE", setting(vlm, "temperature"))
-        if vlm_endpoint:
-            env["MA_VLM_NIM_BASE_URL"] = vlm_endpoint
-            env["PA_VLM_NIM_BASE_URL"] = vlm_endpoint
+        if vlm_base_url and vlm_backend == "nim":
+            env["MA_VLM_NIM_BASE_URL"] = vlm_base_url
+            env["PA_VLM_NIM_BASE_URL"] = vlm_base_url
             env["MA_NIM_API_KEY"] = api_key(vlm) or "not-used"
             env["PA_NIM_API_KEY"] = api_key(vlm) or "not-used"
+        elif vlm_base_url and vlm_backend == "openai":
+            set_model_endpoint_env(env, ("MA", "PA"), "VLM", vlm, vlm_base_url)
+            if not api_key(vlm) and not api_key_env(vlm):
+                errors.append(
+                    "dependencies.vlm.api_key or api_key_env is required when "
+                    "backend=openai uses base_url"
+                )
         elif provider(vlm) in {"brev", "local"}:
             errors.append("dependencies.vlm.endpoint is required after provisioning")
 
     llm = dependency(config, "llm")
     if is_enabled(llm):
-        llm_endpoint = endpoint(llm)
+        llm_base_url = model_base_url(llm)
         llm_backend = backend(llm, "nim")
         llm_model = model(llm, "qwen/qwen3.5-32b-instruct")
         env["MA_LLM_BACKEND"] = llm_backend
@@ -292,12 +321,22 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
         env["TA_LLM_MODEL"] = llm_model
         set_if_value(env, "MA_LLM_MAX_TOKENS", setting(llm, "max_tokens"))
         set_if_value(env, "MA_LLM_TEMPERATURE", setting(llm, "temperature"))
-        if llm_endpoint:
-            env["MA_LLM_NIM_BASE_URL"] = llm_endpoint
-            env["TA_LLM_BASE_URL"] = llm_endpoint
+        if llm_base_url and llm_backend == "nim":
+            env["MA_LLM_NIM_BASE_URL"] = llm_base_url
+            env["TA_LLM_BASE_URL"] = llm_base_url
             env["MA_NIM_API_KEY"] = api_key(llm) or env.get(
                 "MA_NIM_API_KEY", "not-used"
             )
+        elif llm_base_url and llm_backend == "openai":
+            set_model_endpoint_env(env, ("MA",), "LLM", llm, llm_base_url)
+            env["TA_LLM_BASE_URL"] = llm_base_url
+            set_if_value(env, "TA_LLM_API_KEY", api_key(llm))
+            set_if_value(env, "TA_LLM_API_KEY_ENV", api_key_env(llm))
+            if not api_key(llm) and not api_key_env(llm):
+                errors.append(
+                    "dependencies.llm.api_key or api_key_env is required when "
+                    "backend=openai uses base_url"
+                )
         elif provider(llm) in {"brev", "local"}:
             errors.append("dependencies.llm.endpoint is required after provisioning")
 
@@ -311,7 +350,9 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
         env["MA_IMAGE_GEN_BACKEND"] = image_backend
         env["MA_IMAGE_GEN_MODEL"] = image_model
         set_if_value(env, "TA_IMAGE_GEN_API_KEY", api_key(image_gen))
+        set_if_value(env, "TA_IMAGE_GEN_API_KEY_ENV", api_key_env(image_gen))
         set_if_value(env, "MA_IMAGE_GEN_API_KEY", api_key(image_gen))
+        set_if_value(env, "MA_IMAGE_GEN_API_KEY_ENV", api_key_env(image_gen))
         if image_endpoint:
             env["TA_IMAGE_GEN_BASE_URL"] = image_endpoint
             env["MA_IMAGE_GEN_BASE_URL"] = image_endpoint
@@ -328,6 +369,7 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
             embeddings, "nvidia/llama-nemotron-embed-vl-1b-v2"
         )
         set_if_value(env, "MA_CLUSTER_EMBEDDING_API_KEY", api_key(embeddings))
+        set_if_value(env, "MA_CLUSTER_EMBEDDING_API_KEY_ENV", api_key_env(embeddings))
         if embedding_endpoint:
             env["MA_CLUSTER_EMBEDDING_BASE_URL"] = embedding_endpoint
         elif provider(embeddings) in {"brev", "local"}:
@@ -535,7 +577,7 @@ def print_plan(config: dict[str, Any]) -> int:
         data = dependency(config, name)
         enabled = is_enabled(data, name == "render")
         dep_provider = provider(data)
-        dep_endpoint = endpoint(data) or "<not set>"
+        dep_endpoint = model_base_url(data) or endpoint(data) or "<not set>"
         print(
             f"- {name}: {'enabled' if enabled else 'disabled'} "
             f"provider={dep_provider} endpoint={dep_endpoint}"
@@ -670,8 +712,8 @@ def status(config: dict[str, Any], *, strict: bool = False) -> int:
 
     for name in ("vlm", "llm", "image_gen", "embeddings"):
         data = dependency(config, name)
-        if is_enabled(data) and endpoint(data):
-            base = endpoint(data)
+        if is_enabled(data) and model_base_url(data):
+            base = model_base_url(data)
             if base.endswith("/v1"):
                 urls = [
                     url_join(base, "/health/ready"),

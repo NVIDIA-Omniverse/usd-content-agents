@@ -47,7 +47,7 @@ class BaseBenchmark(ABC):
         Returns:
             Path to predictions file
         """
-        pass
+        pass  # pragma: no cover - abstract interface
 
     @abstractmethod
     def evaluate_with_judge(
@@ -62,7 +62,7 @@ class BaseBenchmark(ABC):
         Returns:
             Dictionary with evaluation metrics
         """
-        pass
+        pass  # pragma: no cover - abstract interface
 
     def run_full_benchmark(
         self, dataset_path: Path, output_dir: Path | None = None

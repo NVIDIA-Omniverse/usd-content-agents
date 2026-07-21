@@ -1,0 +1,136 @@
+{
+  "job_id": "fake-issue116-degraded",
+  "status": "completed",
+  "progress": 100,
+  "result": {
+    "variant_asset_uri": "file:///work/ladder/.issue116/prepared/ladder_uv_ready.usd",
+    "variant_name": "ladder_aluminum_scuffed_degraded",
+    "generated_textures": {
+      "albedo": "file:///work/ladder/.issue116/backend/fake-issue116-degraded/albedo.png",
+      "normal": null,
+      "orm": null
+    },
+    "maps": {
+      "albedo": {
+        "uri": "file:///work/ladder/.issue116/backend/fake-issue116-degraded/albedo.png",
+        "width": 1024,
+        "height": 1024,
+        "mime_type": "image/png",
+        "colorspace": "srgb"
+      }
+    },
+    "auxiliary_artifacts": {
+      "masks": [
+        {
+          "label": "target_coverage",
+          "uri": "file:///work/ladder/.issue116/backend/fake-issue116-degraded/coverage_mask.png",
+          "mime_type": "image/png"
+        }
+      ],
+      "debug_previews": [
+        {
+          "label": "projection_preview",
+          "uri": "file:///work/ladder/.issue116/backend/fake-issue116-degraded/projection_preview.png",
+          "mime_type": "image/png"
+        }
+      ],
+      "geometry": [
+        {
+          "label": "backend_replacement_geometry",
+          "uri": "file:///work/ladder/.issue116/backend/fake-issue116-degraded/replacement.usd",
+          "mime_type": "model/vnd.usd"
+        }
+      ]
+    },
+    "metadata": {
+      "backend_name": "fake_projection_backend",
+      "model": "fake-projection-v1",
+      "endpoint_type": "fake_http",
+      "seed": 11631,
+      "texture_size": 1024,
+      "timings_ms": {
+        "total": 118
+      },
+      "custom_parameter_summary": {
+        "variant": "degraded_low_coverage"
+      },
+      "capabilities": {
+        "image_conditioning": false,
+        "multiview": false,
+        "normal_map": false,
+        "orm": false,
+        "masks": true,
+        "coverage": true,
+        "geometry_output": "replacement"
+      },
+      "coverage": {
+        "target_coverage": 0.41,
+        "uv_island_coverage": 0.38
+      },
+      "degraded_channels": [
+        "normal",
+        "orm"
+      ]
+    },
+    "diagnostics": [
+      {
+        "schema_version": "texture-agent-diagnostic.v1",
+        "code": "BACKEND_CONDITIONING_UNSUPPORTED",
+        "severity": "warning",
+        "stage": "generate_textures",
+        "prim_path": "/RootNode/SM_Ladder_A/SM_Ladder_A_Aluminum_0",
+        "material_name": "Aluminum_Matte",
+        "message": "Backend ignored reference image conditioning.",
+        "recommended_action": "Retry with a backend that supports image conditioning.",
+        "details": {
+          "unsupported_fields": [
+            "reference_image_uris"
+          ]
+        }
+      },
+      {
+        "schema_version": "texture-agent-diagnostic.v1",
+        "code": "BACKEND_MAP_MISSING",
+        "severity": "warning",
+        "stage": "generate_textures",
+        "prim_path": "/RootNode/SM_Ladder_A/SM_Ladder_A_Aluminum_0",
+        "material_name": "Aluminum_Matte",
+        "message": "Backend returned albedo only; normal and ORM are missing.",
+        "recommended_action": "Continue with albedo-only output or choose a PBR-capable backend.",
+        "details": {
+          "missing_maps": [
+            "normal",
+            "orm"
+          ]
+        }
+      },
+      {
+        "schema_version": "texture-agent-diagnostic.v1",
+        "code": "BACKEND_LOW_COVERAGE",
+        "severity": "warning",
+        "stage": "generate_textures",
+        "prim_path": "/RootNode/SM_Ladder_A/SM_Ladder_A_Aluminum_0",
+        "material_name": "Aluminum_Matte",
+        "message": "Backend reported low target coverage for selected scope.",
+        "recommended_action": "Inspect coverage_mask.png and retry with a clearer target.",
+        "details": {
+          "target_coverage": 0.41,
+          "threshold": 0.75
+        }
+      },
+      {
+        "schema_version": "texture-agent-diagnostic.v1",
+        "code": "BACKEND_GEOMETRY_IGNORED",
+        "severity": "warning",
+        "stage": "generate_textures",
+        "prim_path": "/RootNode/SM_Ladder_A/SM_Ladder_A_Aluminum_0",
+        "material_name": "Aluminum_Matte",
+        "message": "Backend returned replacement geometry; Texture Agent preserved source geometry.",
+        "recommended_action": "Review the auxiliary geometry artifact manually if needed.",
+        "details": {
+          "geometry_uri": "file:///work/ladder/.issue116/backend/fake-issue116-degraded/replacement.usd"
+        }
+      }
+    ]
+  }
+}

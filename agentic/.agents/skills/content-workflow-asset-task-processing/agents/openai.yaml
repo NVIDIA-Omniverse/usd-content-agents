@@ -1,0 +1,4 @@
+interface:
+  display_name: "Asset Task Processing"
+  short_description: "Plan and run domain tasks over scene assets"
+  default_prompt: "Use $content-workflow-asset-task-processing to plan and process the eligible asset-task inventory."

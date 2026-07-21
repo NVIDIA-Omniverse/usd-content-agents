@@ -10,11 +10,7 @@ try:
         validate_nat_config,
     )
 
-    __all__ = [
-        "NATWorkflow",
-        "query_workflow",
-        "validate_nat_config",
-    ]
+    __all__ = ["NATWorkflow", "query_workflow", "validate_nat_config"]
 except ImportError:
     # NAT runtime is optional
     __all__ = []

@@ -12,6 +12,7 @@ firing) loses the very diagnostics this code path was added to provide.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -90,7 +91,7 @@ async def test_failed_step_persists_structured_errors_in_metadata(
     session_dir.mkdir()
     manager = _StubSessionManager(session_dir)
 
-    bus_module._event_bus = None
+    monkeypatch.setattr(bus_module, "_event_bus", None)
     bus_module.init_event_bus(manager)
 
     with pytest.raises(RuntimeError, match=r"2/2 texture generation requests failed"):
@@ -138,7 +139,7 @@ async def test_failed_step_emits_structured_errors_on_progress_event(
     session_dir.mkdir()
     manager = _StubSessionManager(session_dir)
 
-    bus_module._event_bus = None
+    monkeypatch.setattr(bus_module, "_event_bus", None)
     bus = bus_module.init_event_bus(manager)
 
     captured: list[Any] = []
@@ -193,7 +194,7 @@ async def test_outer_executor_does_not_mask_handled_step_failure(
     session_dir.mkdir()
     manager = _StubSessionManager(session_dir)
 
-    bus_module._event_bus = None
+    monkeypatch.setattr(bus_module, "_event_bus", None)
     bus = bus_module.init_event_bus(manager)
 
     captured: list[Any] = []
@@ -276,8 +277,8 @@ class _UpstreamErrorsCarryingTask:
     """Stand-in for an apply_textures step that ran cleanly but produced
     no output USD (because upstream gen/blend silently emitted zero
     textures with structured error records on context). Mirrors the
-    customer-visible scenario from NVBugs 6126254 when the threshold
-    gate is below 1.0 and partial gen-failures slip past it."""
+    customer-visible scenario where the threshold gate is below 1.0 and
+    partial generation failures slip past it."""
 
     name = "ApplyTextures"
 
@@ -309,6 +310,7 @@ def _validation_factory(context, skip=None, only=None):
 
 async def test_validation_error_path_persists_upstream_errors(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The validation-error branch (apply_textures empty-output) must
     persist ``failed_step_stats`` containing the upstream gen/blend
@@ -320,7 +322,7 @@ async def test_validation_error_path_persists_upstream_errors(
     session_dir.mkdir()
     manager = _StubSessionManager(session_dir)
 
-    bus_module._event_bus = None
+    monkeypatch.setattr(bus_module, "_event_bus", None)
     bus_module.init_event_bus(manager)
 
     with pytest.raises(RuntimeError, match="no output USD files"):
@@ -345,3 +347,39 @@ async def test_validation_error_path_persists_upstream_errors(
     assert "upstream_errors" in stats
     assert stats["upstream_errors"]["generate_textures"]["count"] == 1
     assert stats["upstream_errors"]["generate_textures"]["errors"][0]["status"] == 403
+
+
+async def test_apply_hydration_runs_off_the_asyncio_event_loop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cached-map and plan hydration performs blocking disk/USD work."""
+    session_id = "hydrate-thread-001"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = _StubSessionManager(session_dir)
+    event_loop_thread = threading.get_ident()
+    hydration_threads: list[int] = []
+
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+    monkeypatch.setattr(
+        executor,
+        "_hydrate_cached_apply_context",
+        lambda context: hydration_threads.append(threading.get_ident()),
+    )
+
+    with pytest.raises(RuntimeError, match="no output USD files"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={"input": {"usd_path": "/tmp/in.usd"}},
+            session_manager=manager,
+            event_bus=bus_module.get_event_bus(),
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=_validation_factory,
+        )
+
+    assert len(hydration_threads) == 1
+    assert hydration_threads[0] != event_loop_thread

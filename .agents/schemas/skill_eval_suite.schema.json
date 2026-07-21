@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://developer.nvidia.com/content-agents/skill-eval-suite.schema.json",
+  "title": "Content Agents skill evaluation suite",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "suite_version",
+    "skill",
+    "source",
+    "methodology",
+    "cases"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../../schemas/skill_eval_suite.schema.json"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "suite_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "skill": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "methodology": {
+      "$ref": "#/$defs/methodology"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[\\s\\S]*\\S[\\s\\S]*$"
+    },
+    "nonEmptyStringList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "stringList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "report",
+        "report_date",
+        "iteration",
+        "original_cases_artifact",
+        "reconstruction_note"
+      ],
+      "properties": {
+        "report": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "report_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "iteration": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "original_cases_artifact": {
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "reconstruction_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "methodology": {
+      "type": "object",
+      "required": [
+        "isolation",
+        "portability"
+      ],
+      "properties": {
+        "isolation": {
+          "type": "object",
+          "required": [
+            "fresh_workspace_per_run",
+            "baseline_skill_access",
+            "candidate_skill_access",
+            "cleanup_between_runs",
+            "sibling_skill_stubs"
+          ],
+          "properties": {
+            "fresh_workspace_per_run": {
+              "const": true
+            },
+            "baseline_skill_access": {
+              "const": "none"
+            },
+            "candidate_skill_access": {
+              "const": "target-only"
+            },
+            "cleanup_between_runs": {
+              "const": true
+            },
+            "sibling_skill_stubs": {
+              "$ref": "#/$defs/stringList"
+            }
+          },
+          "additionalProperties": false
+        },
+        "portability": {
+          "type": "object",
+          "required": [
+            "required_cells",
+            "portable_uplift_requires_all_cells"
+          ],
+          "properties": {
+            "required_cells": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "required": [
+                  "harness",
+                  "model"
+                ],
+                "properties": {
+                  "harness": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  "model": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "portable_uplift_requires_all_cells": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "assertion": {
+      "type": "object",
+      "required": [
+        "id",
+        "leg",
+        "evidence",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "leg": {
+          "enum": [
+            "knowledge",
+            "live"
+          ]
+        },
+        "evidence": {
+          "enum": [
+            "response",
+            "command",
+            "artifact",
+            "service-state"
+          ]
+        },
+        "description": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "additionalProperties": false
+    },
+    "live": {
+      "type": "object",
+      "required": [
+        "prerequisites",
+        "side_effects",
+        "cleanup",
+        "timeout_seconds"
+      ],
+      "properties": {
+        "prerequisites": {
+          "$ref": "#/$defs/nonEmptyStringList"
+        },
+        "side_effects": {
+          "$ref": "#/$defs/nonEmptyStringList"
+        },
+        "cleanup": {
+          "$ref": "#/$defs/nonEmptyStringList"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7200
+        }
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": [
+        "id",
+        "source_case",
+        "kind",
+        "legs",
+        "prompt",
+        "fixture_paths",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "source_case": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "positive",
+            "negative"
+          ]
+        },
+        "legs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "knowledge",
+              "live"
+            ]
+          }
+        },
+        "prompt": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "fixture_paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "expected": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/assertion"
+          }
+        },
+        "live": {
+          "$ref": "#/$defs/live"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

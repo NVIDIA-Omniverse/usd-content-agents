@@ -559,7 +559,7 @@ class TestModelProvisioningLLMGuard:
             "config": {
                 "llm_judge": {
                     "backend": "openai",
-                    "model": "gpt-4o",
+                    "model": "example-vlm-model",
                     "api_key": "sk-real-openai-key",
                 },
             }

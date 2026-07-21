@@ -257,6 +257,11 @@ def _find_member_token_stats(
         pred_path = Path(predictions_path)
         if pred_path.parent.name == "predictions":
             candidate_dirs.append(pred_path.parent.parent)
+        elif (
+            pred_path.parent.name == "restored"
+            and pred_path.parent.parent.name == "predictions"
+        ):
+            candidate_dirs.append(pred_path.parent.parent.parent)
 
     seen: set[Path] = set()
     for candidate_dir in candidate_dirs:

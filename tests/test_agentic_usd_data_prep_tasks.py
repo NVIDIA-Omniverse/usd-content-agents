@@ -4,6 +4,7 @@
 
 import builtins
 import os
+import traceback
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
@@ -12,6 +13,7 @@ import pytest
 import yaml
 from PIL import Image, ImageDraw
 
+from world_understanding.agentic.config import ConfigSourceError
 from world_understanding.agentic.usd_tasks import (
     USDDataPrepConfigTask,
     USDDatasetManifestTask,
@@ -20,6 +22,7 @@ from world_understanding.agentic.usd_tasks import (
     USDRendererProvisioningTask,
 )
 from world_understanding.agentic.usd_tasks.prim_traversal import (
+    _zero_image_render_error_message,
     prim_path_to_directory_structure,
 )
 from world_understanding.functions.graphics.render_remote import RenderingStatus
@@ -27,6 +30,9 @@ from world_understanding.functions.graphics.rendering import (
     CameraViewType,
     RemoteRenderingBackend,
     RenderingConfig,
+)
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    create_rendering_backend,
 )
 from world_understanding.utils.object_store import ObjectStore
 from world_understanding.utils.usd.stage import MAX_PATH_COMPONENT_LEN
@@ -116,6 +122,13 @@ class TestUSDDataPrepTasks:
         assert result["num_workers"] == 1
         assert result["max_concurrent_requests"] == 1
 
+    def test_config_task_uses_shared_missing_source_contract(self) -> None:
+        with pytest.raises(
+            ConfigSourceError,
+            match="Either config_path or config_dict must be provided",
+        ):
+            USDDataPrepConfigTask().run({}, Mock(spec=ObjectStore))
+
     @pytest.mark.parametrize(
         ("field_name", "value"),
         [
@@ -178,6 +191,233 @@ class TestUSDDataPrepConfigTask:
         assert result["batch_size"] == 16
         assert result["max_concurrent_requests"] == 4
 
+    def test_run_plumbs_render_evidence_failure_policy(self, tmp_path):
+        """Config should carry render-evidence failure policy into context."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "usd_path": "scene.usd",
+                    "output_dir": "dataset",
+                    "fail_on_blank_dataset_renders": False,
+                    "fail_on_missing_prim_images": False,
+                }
+            ),
+            encoding="utf-8",
+        )
+        context = {"config_path": str(config_path)}
+        object_store = Mock(spec=ObjectStore)
+
+        result = USDDataPrepConfigTask().run(context, object_store)
+
+        assert result["fail_on_blank_dataset_renders"] is False
+        assert result["fail_on_missing_prim_images"] is False
+
+    @pytest.mark.parametrize(
+        "policy_key",
+        ["fail_on_blank_dataset_renders", "fail_on_missing_prim_images"],
+    )
+    def test_run_rejects_non_boolean_render_evidence_failure_policy(
+        self,
+        tmp_path,
+        policy_key,
+    ):
+        """Evidence-policy flags must be booleans, not truthy strings."""
+        sentinel = "api_key=never-echo-render-policy-713"
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "usd_path": "scene.usd",
+                    "output_dir": "dataset",
+                    policy_key: sentinel,
+                }
+            ),
+            encoding="utf-8",
+        )
+        object_store = Mock(spec=ObjectStore)
+
+        with pytest.raises(
+            ValueError,
+            match=f"{policy_key} must be a boolean",
+        ) as exc_info:
+            USDDataPrepConfigTask().run(
+                {"config_path": str(config_path)},
+                object_store,
+            )
+        assert sentinel not in str(exc_info.value)
+
+    def test_run_rejects_non_mapping_yaml_root(self, tmp_path):
+        """Config YAML root must be a mapping so config errors stay clear."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("- not-a-mapping\n", encoding="utf-8")
+        object_store = Mock(spec=ObjectStore)
+
+        with pytest.raises(
+            ValueError,
+            match="must be a mapping at the document root",
+        ):
+            USDDataPrepConfigTask().run(
+                {"config_path": str(config_path)},
+                object_store,
+            )
+
+    @pytest.mark.parametrize(
+        ("config_extra", "error_match"),
+        [
+            ({"batch_size": 0}, "batch_size must be a positive integer"),
+            ({"renderer": {"image_width": 0}}, "renderer.image_width must"),
+            ({"renderer": {"image_height": 0}}, "renderer.image_height must"),
+        ],
+    )
+    def test_run_rejects_non_positive_integer_config(
+        self,
+        tmp_path,
+        config_extra,
+        error_match,
+    ):
+        """Render dimensions and batch sizes should fail at config load time."""
+        config = {
+            "usd_path": "scene.usd",
+            "output_dir": "dataset",
+            **config_extra,
+        }
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+        object_store = Mock(spec=ObjectStore)
+
+        with pytest.raises(ValueError, match=error_match):
+            USDDataPrepConfigTask().run(
+                {"config_path": str(config_path)},
+                object_store,
+            )
+
+    def test_run_does_not_echo_invalid_integer_config_value(self, tmp_path):
+        """Invalid scalar values must not cross the public error boundary."""
+        sentinel = "api_key=never-echo-batch-size-713"
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "usd_path": "scene.usd",
+                    "output_dir": "dataset",
+                    "batch_size": sentinel,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="batch_size must be a positive integer, got str",
+        ) as exc_info:
+            USDDataPrepConfigTask().run(
+                {"config_path": str(config_path)},
+                Mock(spec=ObjectStore),
+            )
+        assert sentinel not in str(exc_info.value)
+
+    def test_run_accepts_config_dict(self, tmp_path, monkeypatch):
+        """Config dictionaries should use the same loader path as YAML files."""
+        monkeypatch.chdir(tmp_path)
+        context = {
+            "config_dict": {
+                "usd_path": "scene.usd",
+                "output_dir": "dataset",
+                "batch_size": 32,
+                "max_concurrent_requests": 8,
+                "renderer": {
+                    "backend": "remote",
+                    "image_width": 256,
+                    "image_height": 256,
+                },
+            }
+        }
+        object_store = Mock(spec=ObjectStore)
+
+        result = USDDataPrepConfigTask().run(context, object_store)
+
+        assert result["usd_path"] == tmp_path / "scene.usd"
+        assert result["output_dir"] == tmp_path / "dataset"
+        assert result["batch_size"] == 32
+        assert result["max_concurrent_requests"] == 8
+        assert result["renderer_config"]["image_width"] == 256
+
+    def test_config_dict_nested_values_are_isolated_from_the_caller(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        source = {
+            "usd_path": "scene.usd",
+            "output_dir": "dataset",
+            "prim_filters": {"types": ["Mesh"]},
+            "renderer": {"backend": "remote"},
+        }
+
+        result = USDDataPrepConfigTask().run(
+            {"config_dict": source},
+            Mock(spec=ObjectStore),
+        )
+        result["prim_filters"]["types"].append("Xform")
+        result["renderer_config"]["backend"] = "mutated"
+
+        assert source["prim_filters"] == {"types": ["Mesh"]}
+        assert source["renderer"] == {"backend": "remote"}
+
+    def test_malformed_yaml_diagnostic_cannot_render_source_credentials(self, tmp_path):
+        sentinel = "ZXCV713SharedUSDConfigAliasSecretQWER"
+        config_path = tmp_path / "malformed.yaml"
+        config_path.write_text(
+            f"renderer:\n  api_key: *{sentinel}\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError) as exc:
+            USDDataPrepConfigTask().run(
+                {"config_path": config_path},
+                Mock(spec=ObjectStore),
+            )
+
+        observable = "".join(traceback.format_exception(exc.value))
+        assert sentinel not in str(exc.value)
+        assert sentinel not in observable
+        assert exc.value.__cause__ is None
+
+    def test_run_uses_missing_config_defaults_with_source_override(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """A missing config file can still be driven by explicit CLI-style paths."""
+        monkeypatch.chdir(tmp_path)
+        config_path = tmp_path / "missing.yaml"
+        context = {
+            "config_path": str(config_path),
+            "source_override": "scene.usd",
+        }
+        object_store = Mock(spec=ObjectStore)
+
+        result = USDDataPrepConfigTask().run(context, object_store)
+
+        assert result["usd_path"] == tmp_path / "scene.usd"
+        assert result["output_dir"] == tmp_path / "output" / "dataset"
+        assert result["render_output_dir"].is_dir()
+        assert "Configuration file not found; using defaults" in caplog.text
+
+    def test_run_resolves_relative_output_dir_override(self, tmp_path, monkeypatch):
+        """CLI-style output overrides are resolved from the current directory."""
+        monkeypatch.chdir(tmp_path)
+        context = {
+            "config_dict": {
+                "usd_path": "scene.usd",
+            },
+            "output_dir_override": "override-dataset",
+        }
+        object_store = Mock(spec=ObjectStore)
+
+        result = USDDataPrepConfigTask().run(context, object_store)
+
+        assert result["output_dir"] == tmp_path / "override-dataset"
+        assert result["render_output_dir"] == tmp_path / "override-dataset" / "renders"
+
 
 class TestUSDRendererProvisioningTask:
     """Functional tests for USDRendererProvisioningTask."""
@@ -234,6 +474,74 @@ class TestUSDRendererProvisioningTask:
         assert backend.bundle_mdl_assets is False
         assert backend.timeout == 42
 
+    def test_run_with_ovrtx_forwards_material_options(self):
+        """OvRTX renderer config should pass material options to backend."""
+        task = USDRendererProvisioningTask()
+        context = {
+            "renderer_config": {
+                "backend": "ovrtx",
+                "log_level": "info",
+                "add_preview_fallbacks": True,
+                "material_target": "auto",
+            }
+        }
+        object_store = Mock(spec=ObjectStore)
+        calls: list[dict[str, Any]] = []
+
+        class FakeOvRTXRenderingBackend:
+            def __init__(self, **kwargs: Any):
+                calls.append(kwargs)
+
+        with patch(
+            "world_understanding.functions.graphics.rendering_backend_factory.OvRTXRenderingBackend",
+            FakeOvRTXRenderingBackend,
+        ):
+            result = task.run(context, object_store)
+
+        assert calls == [
+            {
+                "log_level": "info",
+                "ovrtx_venv_dir": None,
+                "num_sensor_updates": 32,
+                "render_mode": "rt2",
+                "add_preview_fallbacks": True,
+                "material_target": "auto",
+            }
+        ]
+        assert isinstance(result["rendering_backend"], FakeOvRTXRenderingBackend)
+
+    def test_shared_ovrtx_backend_forwards_material_options(self):
+        """The shared factory should forward preview material options."""
+        calls: list[dict[str, Any]] = []
+
+        class FakeOvRTXRenderingBackend:
+            def __init__(self, **kwargs: Any):
+                calls.append(kwargs)
+
+        with patch(
+            "world_understanding.functions.graphics.rendering_backend_factory.OvRTXRenderingBackend",
+            FakeOvRTXRenderingBackend,
+        ):
+            backend = create_rendering_backend(
+                "ovrtx",
+                {
+                    "add_preview_fallbacks": True,
+                    "material_target": "preview_surface",
+                },
+            )
+
+        assert calls == [
+            {
+                "log_level": "warn",
+                "ovrtx_venv_dir": None,
+                "num_sensor_updates": 32,
+                "render_mode": "rt2",
+                "add_preview_fallbacks": True,
+                "material_target": "preview_surface",
+            }
+        ]
+        assert isinstance(backend, FakeOvRTXRenderingBackend)
+
     def test_run_with_unknown_backend_raises_error(self):
         """Test that unknown backend raises ValueError."""
         task = USDRendererProvisioningTask()
@@ -245,7 +553,7 @@ class TestUSDRendererProvisioningTask:
         object_store = Mock(spec=ObjectStore)
 
         with pytest.raises(
-            ValueError, match="Unknown USD renderer backend: unknown_backend"
+            ValueError, match="Unknown rendering backend: unknown_backend"
         ):
             task.run(context, object_store)
 
@@ -792,17 +1100,20 @@ class TestUSDPrimTraversalZeroImages:
         with pytest.raises(ValueError, match="max_concurrent_requests"):
             await task.arun(context, object_store)
 
-    def test_raises_on_zero_images(self, tmp_path):
-        """Task must raise RuntimeError when total_images_rendered is 0."""
-        task = USDPrimTraversalAndRenderingTask()
+    def test_no_matching_prims_fail_before_stage_preparation(self, tmp_path):
+        """A filter mismatch must fail before preparing or uploading stages."""
+        from pxr import Usd, UsdGeom
 
-        mock_stage = Mock()
+        task = USDPrimTraversalAndRenderingTask()
+        stage = Usd.Stage.CreateInMemory()
+        UsdGeom.Xform.Define(stage, "/World")
+        UsdGeom.Cube.Define(stage, "/World/Cube")
         mock_backend = Mock()
         rendering_config = RenderingConfig()
 
         object_store = Mock(spec=ObjectStore)
         object_store.get.side_effect = lambda key, default=None: {
-            "usd_stage": mock_stage,
+            "usd_stage": stage,
             "rendering_backend": mock_backend,
             "rendering_config": rendering_config,
             "usd_model": None,
@@ -817,21 +1128,351 @@ class TestUSDPrimTraversalZeroImages:
             "rendering_modes": ["prim_only"],
         }
 
-        # Patch USD-dependent calls and return no prims → 0 images
+        prepare = Mock()
+        upload = Mock()
         with (
-            patch("world_understanding.agentic.usd_tasks.prim_traversal.UsdGeom"),
-            patch(
-                "world_understanding.agentic.usd_tasks.prim_traversal.get_stage_world_bbox",
-                return_value=None,
-            ),
-            patch.object(task, "_collect_prims", return_value=[]),
-            patch.object(task, "_collect_and_filter_prims", return_value=([], [], 0)),
-            patch.object(task, "_prepare_stages", return_value={}),
-            patch.object(task, "_upload_stages_to_s3", return_value=[]),
-            patch.object(task, "_cleanup_s3"),
+            patch.object(task, "_prepare_stages", prepare),
+            patch.object(task, "_upload_stages_to_s3", upload),
         ):
-            with pytest.raises(RuntimeError, match="Rendering produced 0 images"):
+            with pytest.raises(RuntimeError, match="No USD prims matched") as exc:
                 task.run(context, object_store)
+
+        message = str(exc.value)
+        assert '"types": ["UsdGeom.Mesh"]' in message
+        assert '"Cube": 1' in message
+        assert '"Xform": 1' in message
+        prepare.assert_not_called()
+        upload.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_no_matching_prims_fail_before_stage_preparation(
+        self, tmp_path
+    ) -> None:
+        from pxr import Usd, UsdGeom
+
+        task = USDPrimTraversalAndRenderingTask()
+        stage = Usd.Stage.CreateInMemory()
+        UsdGeom.Xform.Define(stage, "/World")
+        UsdGeom.Sphere.Define(stage, "/World/Sphere")
+        object_store = Mock(spec=ObjectStore)
+        object_store.get.side_effect = lambda key, default=None: {
+            "usd_stage": stage,
+            "rendering_backend": Mock(),
+            "rendering_config": RenderingConfig(),
+            "usd_model": None,
+        }.get(key, default)
+        context = {
+            "prim_filters": {"types": ["UsdGeom.Mesh"]},
+            "render_output_dir": str(tmp_path),
+            "output_dir": str(tmp_path),
+            "batch_size": 10,
+            "rendering_modes": ["prim_only"],
+            "max_concurrent_requests": 1,
+        }
+        prepare = Mock()
+        upload = Mock()
+
+        with (
+            patch.object(task, "_prepare_stages", prepare),
+            patch.object(task, "_upload_stages_to_s3_async", upload),
+        ):
+            with pytest.raises(RuntimeError, match="No USD prims matched") as exc:
+                await task.arun(context, object_store)
+
+        message = str(exc.value)
+        assert '"Sphere": 1' in message
+        assert '"Xform": 1' in message
+        prepare.assert_not_called()
+        upload.assert_not_called()
+
+    def test_zero_image_render_error_uses_local_rest_endpoint(self, monkeypatch):
+        """Local REST renderer failures should not be described as NVCF failures."""
+        monkeypatch.setenv("RENDER_ENDPOINT", "http://host.docker.internal:8001")
+        monkeypatch.delenv("NVCF_RENDER_FUNCTION_ID", raising=False)
+
+        message = _zero_image_render_error_message(RemoteRenderingBackend())
+
+        assert "NVCF" not in message
+        assert "configured render endpoint" in message
+        assert "RENDER_ENDPOINT" in message
+        assert "http://host.docker.internal:8001" in message
+
+    def test_zero_image_render_error_mentions_nvcf_for_function_id(self, monkeypatch):
+        """NVCF wording should remain when the function-id fallback is used."""
+        monkeypatch.delenv("RENDER_ENDPOINT", raising=False)
+        monkeypatch.setenv("NVCF_RENDER_FUNCTION_ID", "render-function")
+
+        message = _zero_image_render_error_message(RemoteRenderingBackend())
+
+        assert "NVCF render function" in message
+        assert "NVCF_RENDER_FUNCTION_ID" in message
+        assert "https://render-function.invocation.api.nvcf.nvidia.com" in message
+
+    def test_zero_image_render_error_sanitizes_endpoint_details(self):
+        """Endpoint diagnostics should omit credentials and query parameters."""
+        backend = RemoteRenderingBackend(
+            base_url="https://user:secret@renderer.example.test:8443/render?token=abc"
+        )
+
+        message = _zero_image_render_error_message(backend)
+
+        assert "https://renderer.example.test:8443/render" in message
+        assert "secret" not in message
+        assert "token=abc" not in message
+
+    def test_zero_image_render_error_sanitizes_scheme_less_endpoint_details(self):
+        """Scheme-less endpoint diagnostics should also omit URL secrets."""
+        backend = RemoteRenderingBackend(
+            base_url="user:secret@renderer.example.test:8443/render?token=abc"
+        )
+
+        message = _zero_image_render_error_message(backend)
+
+        assert "http://renderer.example.test:8443/render" in message
+        assert "secret" not in message
+        assert "token=abc" not in message
+
+    def test_zero_image_render_error_preserves_ipv6_endpoint_details(self):
+        """Endpoint sanitization should preserve IPv6 brackets and ports."""
+        backend = RemoteRenderingBackend(
+            base_url="http://user:secret@[2001:db8::1]:8080/render?token=abc"
+        )
+
+        message = _zero_image_render_error_message(backend)
+
+        assert "http://[2001:db8::1]:8080/render" in message
+        assert "secret" not in message
+        assert "token=abc" not in message
+
+    def test_zero_image_render_error_mentions_nvcf_for_base_url(self):
+        """Explicit NVCF invocation URLs should keep NVCF-specific wording."""
+        backend = RemoteRenderingBackend(
+            base_url="https://render-fn.invocation.api.nvcf.nvidia.com"
+        )
+
+        message = _zero_image_render_error_message(backend)
+
+        assert "NVCF render function" in message
+        assert "base_url" in message
+
+    def test_zero_image_render_error_uses_generic_local_renderer_message(self):
+        """Non-REST renderers should use generic renderer wording."""
+        message = _zero_image_render_error_message(object())
+
+        assert message == (
+            "Rendering produced 0 images. Check renderer availability and logs above."
+        )
+
+    def test_zero_image_render_error_preserves_uppercase_https_endpoint(self):
+        """URL detection should not depend on lowercase schemes."""
+        backend = RemoteRenderingBackend(base_url="HTTPS://renderer.example.test")
+
+        message = _zero_image_render_error_message(backend)
+
+        assert "NVCF" not in message
+        assert "renderer.example.test" in message
+
+    def test_zero_image_render_error_preserves_scheme_less_host_port(self):
+        """Scheme-less host:port endpoints should be treated as REST endpoints."""
+        backend = RemoteRenderingBackend(base_url="host.docker.internal:8001")
+
+        message = _zero_image_render_error_message(backend)
+
+        assert "NVCF" not in message
+        assert "http://host.docker.internal:8001" in message
+
+    def test_zero_image_render_error_handles_malformed_endpoint(self):
+        """Malformed endpoint values should not mask the zero-image failure."""
+        backend = RemoteRenderingBackend(base_url="http://[::1")
+
+        message = _zero_image_render_error_message(backend)
+
+        assert message.startswith("Rendering produced 0 images.")
+        assert "NVCF" not in message
+        assert "http://[::1" in message
+
+    def test_upload_stages_to_s3_forwards_bundle_mdl_assets(self, tmp_path):
+        """Reusable stage upload must honor the remote renderer asset bundle flag."""
+        task = USDPrimTraversalAndRenderingTask()
+        backend = RemoteRenderingBackend(
+            api_key="test-api-key",
+            use_data_uri=True,
+            bundle_mdl_assets=False,
+        )
+        prepared_stages = {
+            "prim_only": {
+                "type": "prim_only",
+                "data": (Mock(), ["/Camera"], 1),
+            },
+            "composition": {
+                "type": "composition",
+                "data": (
+                    (Mock(), ["/HighlightCamera"], 1),
+                    (Mock(), ["/PlainCamera"], 1),
+                ),
+            },
+        }
+        listener = Mock()
+        calls: list[dict[str, Any]] = []
+
+        def fake_export_stage_to_s3(stage, **kwargs):
+            calls.append(kwargs)
+            return "data:application/usd;base64,test", None
+
+        with patch(
+            "world_understanding.functions.graphics.render_remote.export_stage_to_s3",
+            fake_export_stage_to_s3,
+        ):
+            task._upload_stages_to_s3(
+                prepared_stages,
+                backend,
+                {"usd_path": str(tmp_path / "scene.usd")},
+                listener,
+            )
+
+        assert len(calls) == 3
+        assert all(call["bundle_mdl_assets"] is False for call in calls)
+
+    @pytest.mark.asyncio
+    async def test_upload_stages_to_s3_async_forwards_bundle_mdl_assets(self, tmp_path):
+        """Async reusable stage upload must honor the remote renderer asset flag."""
+        task = USDPrimTraversalAndRenderingTask()
+        backend = RemoteRenderingBackend(
+            api_key="test-api-key",
+            use_data_uri=True,
+            bundle_mdl_assets=False,
+        )
+        prepared_stages = {
+            "prim_only": {
+                "type": "prim_only",
+                "data": (Mock(), ["/Camera"], 1),
+            },
+            "composition": {
+                "type": "composition",
+                "data": (
+                    (Mock(), ["/HighlightCamera"], 1),
+                    (Mock(), ["/PlainCamera"], 1),
+                ),
+            },
+        }
+        listener = Mock()
+        calls: list[dict[str, Any]] = []
+
+        def fake_export_stage_to_s3(stage, **kwargs):
+            calls.append(kwargs)
+            return "data:application/usd;base64,test", None
+
+        with patch(
+            "world_understanding.functions.graphics.render_remote.export_stage_to_s3",
+            fake_export_stage_to_s3,
+        ):
+            await task._upload_stages_to_s3_async(
+                prepared_stages,
+                backend,
+                {"usd_path": str(tmp_path / "scene.usd")},
+                listener,
+            )
+
+        assert len(calls) == 3
+        assert all(call["bundle_mdl_assets"] is False for call in calls)
+
+    @pytest.mark.asyncio
+    async def test_process_batch_async_forwards_backend_options_to_composition_render(
+        self, tmp_path
+    ):
+        """Remote composition batches must forward backend request options."""
+        task = USDPrimTraversalAndRenderingTask()
+        backend = RemoteRenderingBackend(
+            api_key="test-api-key",
+            retry_jitter=0.42,
+            material_target="openpbr_materialx",
+        )
+        prepared_stages = {
+            "composition": {
+                "type": "composition",
+                "config": RenderingConfig(image_width=16),
+                "data": (
+                    (Mock(), ["/Camera"], 1),
+                    (Mock(), ["/Camera"], 1),
+                ),
+                "highlight_url": "data:application/usd;base64,highlight",
+                "plain_url": "data:application/usd;base64,plain",
+            },
+        }
+        calls: list[dict[str, Any]] = []
+
+        async def fake_render_composition_from_url(**kwargs):
+            calls.append(kwargs)
+            return {"results": []}, {"results": []}
+
+        with patch(
+            "world_understanding.functions.graphics.render_remote_async.render_composition_from_url",
+            fake_render_composition_from_url,
+        ):
+            await task._process_batch_async(
+                0,
+                1,
+                ["/World/Mesh"],
+                {},
+                prepared_stages,
+                backend,
+                "composition",
+                tmp_path,
+                tmp_path,
+                1,
+                1,
+                Mock(),
+            )
+
+        assert calls[0]["retry_jitter"] == 0.42
+        assert calls[0]["material_target"] == "openpbr_materialx"
+
+    @pytest.mark.asyncio
+    async def test_process_batch_async_forwards_backend_options_to_prim_render(
+        self, tmp_path
+    ):
+        """Remote prim batches must forward backend request options."""
+        task = USDPrimTraversalAndRenderingTask()
+        backend = RemoteRenderingBackend(
+            api_key="test-api-key",
+            retry_jitter=0.42,
+            material_target="openpbr_materialx",
+        )
+        prepared_stages = {
+            "prim_only": {
+                "type": "prim_only",
+                "config": RenderingConfig(image_width=16),
+                "data": (Mock(), ["/Camera"], 1),
+                "stage_url": "data:application/usd;base64,stage",
+            },
+        }
+        calls: list[dict[str, Any]] = []
+
+        async def fake_render_cameras_from_url(**kwargs):
+            calls.append(kwargs)
+            return {"results": []}
+
+        with patch(
+            "world_understanding.functions.graphics.render_remote_async.render_cameras_from_url",
+            fake_render_cameras_from_url,
+        ):
+            await task._process_batch_async(
+                0,
+                1,
+                ["/World/Mesh"],
+                {},
+                prepared_stages,
+                backend,
+                "prim_only",
+                tmp_path,
+                tmp_path,
+                1,
+                1,
+                Mock(),
+            )
+
+        assert calls[0]["retry_jitter"] == 0.42
+        assert calls[0]["material_target"] == "openpbr_materialx"
 
     def test_raises_when_majority_composition_renders_are_blank(self, tmp_path):
         """Dataset rendering must fail before VLM inference on mostly blank views."""
@@ -875,6 +1516,52 @@ class TestUSDPrimTraversalZeroImages:
                 listener=Mock(),
                 context={},
             )
+
+    def test_can_warn_on_majority_blank_renders_when_configured(self, tmp_path):
+        """Low-signal geometry can continue when blank dataset renders are allowed."""
+        task = USDPrimTraversalAndRenderingTask()
+        blank_a = tmp_path / "a_composition.png"
+        blank_b = tmp_path / "b_composition.png"
+        nonblank = tmp_path / "c_composition.png"
+        Image.new("RGB", (32, 32), (0, 0, 0)).save(blank_a)
+        Image.new("RGB", (32, 32), (255, 255, 255)).save(blank_b)
+        self._save_nonblank_image(nonblank)
+        listener = Mock()
+        context = {"fail_on_blank_dataset_renders": False}
+
+        task._check_blank_dataset_renders(
+            [
+                {
+                    "prim_path": "/World/A",
+                    "images": [
+                        {
+                            "path": blank_a.name,
+                            "render_mode": "composition",
+                            "view": "a",
+                        },
+                        {
+                            "path": blank_b.name,
+                            "render_mode": "composition",
+                            "view": "b",
+                        },
+                        {
+                            "path": nonblank.name,
+                            "render_mode": "composition",
+                            "view": "c",
+                        },
+                    ],
+                }
+            ],
+            tmp_path,
+            rgb_modes=["composition"],
+            sensor_modes=[],
+            listener=listener,
+            context=context,
+        )
+
+        listener.warning.assert_called_once()
+        assert context["blank_render_checked_count"] == 3
+        assert len(context["blank_renders"]) == 2
 
     def test_remote_blank_render_failures_count_without_image_payloads(self, tmp_path):
         """HTTP 422 blank_render frames must still trip the dataset guardrail."""

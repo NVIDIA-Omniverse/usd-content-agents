@@ -88,6 +88,8 @@ services:
       # disable the corresponding timeout.
       - OVRTX_DAEMON_START_TIMEOUT=${OVRTX_DAEMON_START_TIMEOUT:-600}
       - OVRTX_DAEMON_RENDER_TIMEOUT=${OVRTX_DAEMON_RENDER_TIMEOUT:-1800}
+      - OVRTX_DAEMON_MAX_RENDERS=${OVRTX_DAEMON_MAX_RENDERS:-64}
+      - OVRTX_DAEMON_MAX_RSS_BYTES=${OVRTX_DAEMON_MAX_RSS_BYTES:-25769803776}
     security_opt:
       - no-new-privileges:true
     cap_drop:

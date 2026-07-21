@@ -22,6 +22,7 @@ python apps/material_agent_service/client/client.py \
   --upload-first \
   --prompt "Metal frames should be aluminum" \
   --generate-ref-prompt "Brushed aluminum frame with matte black plastic steps" \
+  --coverage-policy strict \
   --ref /path/to/ref1.png --ref /path/to/ref2.jpg \
   --ref-desc "Top view" --ref-desc "Side detail" \
   /path/to/scene.usd
@@ -66,6 +67,13 @@ python apps/material_agent_service/client/client.py \
   --cluster-min-prims 50 \
   --no-cluster-report \
   /path/to/large_scene.usd
+
+# Run the large-scene workflow with its currently supported coverage policy
+python apps/material_agent_service/client/client.py \
+  --email user@example.com \
+  --large-scene \
+  --coverage-policy allow_partial \
+  /path/to/large_scene.usd
 ```
 
 Custom Materials ZIP:
@@ -74,10 +82,25 @@ Custom Materials ZIP:
 - Icons in `thumbs/` are optional (for UI previews only)
 - Overrides server default materials for this pipeline run only
 
+Generated materials:
+- Use `--enable-material-generation` with at least one reference image or
+  `--generate-ref-prompt`.
+- The service uses deployment-time `MA_IMAGE_GEN_*` settings for generated
+  material textures.
+
 Exit behavior:
 - Streams live progress (SSE) and prints updates like: `[render] running overall=87%`.
 - Falls back to status polling if SSE is unavailable.
 - Prints artifact URLs on completion.
+- Single-asset runs default to strict material coverage qualification. Use
+  `--coverage-policy allow_partial` only when retaining incomplete artifacts for
+  inspection; the returned status includes exact coverage counts, ratios,
+  missing prim IDs, warnings, and a machine-readable readiness grade.
+- When `--large-scene` is used without `--coverage-policy`, the client derives
+  `allow_partial` and prints a notice. Large-scene runs report `not_evaluated`
+  until scene-wide prim binding evidence is qualified. Passing explicit
+  `--coverage-policy strict` is still rejected by the service so unsupported
+  strict qualification cannot silently proceed.
 
 #### Programmatic Use
 ```python
@@ -95,6 +118,9 @@ session_id, results = client.run_and_monitor(
     camera_views="+x+y+z,-x-y-z",
     upload_first=True,
     materials_zip_path="/path/to/custom_materials.zip",  # Optional
+    enable_material_generation=True,
+    material_generation_guidance="Prioritize the orange enclosure and dark controls",
+    material_generation_texture_size=1024,
     enable_prim_clustering=True,
     cluster_min_prims=50,
     cluster_max_size=25,
@@ -105,6 +131,11 @@ session_id, results = client.run_and_monitor(
 )
 print(session_id, results)
 ```
+
+`get_results(session_id)` preserves normal HTTP error handling and therefore
+raises `requests.HTTPError` when the service returns `202` while a run or its
+terminal diagnostics are still finalizing. Use `run_and_monitor(...)`, or poll
+`get_status(session_id)` until it is terminal before retrying `get_results`.
 
 See `apps/material_agent_service/examples/regenerate_client_usage.py` for a
 focused follow-up example that calls `client.regenerate(...)` and

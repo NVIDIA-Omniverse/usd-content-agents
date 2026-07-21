@@ -1,0 +1,42 @@
+{
+  "source_asset_uri": "file:///work/texture_step1x/cleaning_bucket/prepared/sm_cleaning_bucket_iron_a01_simready_01_uv_ready.usd",
+  "conditioning": {
+    "text_prompt": "worn metal bucket, heavy usage marks, rubbed edges, surface wear, scuffed texture",
+    "reference_image_uris": [],
+    "turntable_video_uri": null,
+    "multiview_image_uris": []
+  },
+  "configuration": {
+    "strength": 0.9,
+    "seed": 42,
+    "variant_name": "cleaning_bucket_opaque_metal_step1x",
+    "engine": "step1x",
+    "texture_size": 1024,
+    "custom_parameters": {
+      "scenario": "cleaning_bucket_step1x_service",
+      "asset": "cleaning_bucket",
+      "steps": 30,
+      "guidance": 10.0,
+      "skip_material_anything": true,
+      "upscale": true
+    }
+  },
+  "target": {
+    "material_name": "opaque__metal__cleaning_bucket_a",
+    "material_path": "/RootNode/Materials/opaque__metal__cleaning_bucket_a",
+    "prim_paths": [
+      "/RootNode/Geometry/sm_cleaning_bucket_a01_01"
+    ],
+    "mode": "per_material",
+    "strict_scope": true
+  },
+  "capabilities": {
+    "image_conditioning": false,
+    "multiview": false,
+    "normal_map": true,
+    "orm": true,
+    "masks": true,
+    "coverage": true,
+    "geometry_output": "none"
+  }
+}

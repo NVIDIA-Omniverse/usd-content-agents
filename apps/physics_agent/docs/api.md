@@ -136,6 +136,9 @@ refine_result = run_refine(
         user_prompt="match this observed motion",
         output_dir=Path("output/refine"),
         reference_videos=[Path("observed_motion.mp4")],
+        reference_video_frames=32,
+        judge_reference_frames=32,
+        judge_generated_frames=32,
         judge_max_tokens=2048,
         judge_temperature=0.0,
     )
@@ -159,7 +162,10 @@ The judge always uses the VLM interface. Reference media and generated frames
 are supplied when available. The media list is empty only when no visual
 evidence is constructed; iterative refine can still send generated best-trial
 frames without user reference media when winning-trial rendering is enabled.
-The judge samples at most 8 reference images and 16 generated frames per call.
+By default, the judge samples up to 8 reference images/video frames and 16
+generated frames per call. Callers can override those caps with
+`reference_video_frames`, `judge_reference_frames`, and
+`judge_generated_frames`.
 Media-backed tune/refine runs persist copied reference media, rendered generated
 frames, and a best-effort `comparison.png` contact sheet; their paths are
 recorded under `judge.extra.visual_evidence` in
@@ -215,6 +221,11 @@ from physics_agent.api import (
     build_default_pipeline_config,
 )
 ```
+
+`build_default_pipeline_config()` never embeds the value of
+`PA_VLM_API_KEY`. When that variable is available, the returned config contains
+`api_key_env: ${PA_VLM_API_KEY}`; keep or forward the environment variable to the
+process that constructs the model client.
 
 For prediction, no separate `llm` backend is injected by default. If
 `predict.llm` is omitted, the runtime falls back to `llm = vlm` for any

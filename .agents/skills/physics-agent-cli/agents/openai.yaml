@@ -1,4 +1,4 @@
 interface:
   display_name: "Physics Agent CLI"
   short_description: "Run the Physics Agent CLI"
-  default_prompt: "Use $physics-agent-cli to run the Physics Agent CLI for VLM-based physics property classification of 3D assets."
+  default_prompt: "Use $physics-agent-cli to run the Physics Agent CLI for VLM-based physics property classification, apply-physics authoring, tuning, and iterative refine of 3D assets."

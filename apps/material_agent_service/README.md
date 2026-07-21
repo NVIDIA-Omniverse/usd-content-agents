@@ -57,6 +57,12 @@ uvicorn service.main:app --reload --port 8000
 
 The pipeline endpoints (`POST /pipeline/upload-usd`, `POST /pipeline`, `GET /pipeline/{id}/status`, etc.) accept a USD file plus optional materials manifest and reference images, then run the multi-step material assignment pipeline. Stream real-time progress over SSE at `GET /pipeline/{id}/events`.
 
+Set `enable_material_generation=true` on `POST /pipeline` to generate an
+asset-specific material library from uploaded reference images or a
+`generated_reference_id`. The service uses deployment-time `MA_IMAGE_GEN_*`
+settings for both generated reference images and generated material-library
+textures; users do not provide image-generation endpoint credentials per run.
+
 ## Configuration
 
 Service configuration is loaded from environment variables at startup. See [`.env_example`](.env_example) for the full list. Key settings:
@@ -69,15 +75,15 @@ Service configuration is loaded from environment variables at startup. See [`.en
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Required if using `gemini` backend |
 | `MA_VLM_BACKEND` | Default: `nim` |
 | `MA_VLM_MODEL` | Default: `qwen/qwen3.5-397b-a17b` |
-| `MA_IMAGE_GEN_BACKEND` | Generated reference image backend (default: `gemini`) |
-| `MA_IMAGE_GEN_MODEL` | Optional generated reference image model override |
-| `MA_IMAGE_GEN_BASE_URL` | Optional generated reference image API base URL |
-| `MA_IMAGE_GEN_API_KEY` | Optional generated reference image API key; use `not-used` only for explicit no-auth local endpoints |
+| `MA_IMAGE_GEN_BACKEND` | Shared image-generation backend for generated reference images and generated material-library textures (default: `gemini`) |
+| `MA_IMAGE_GEN_MODEL` | Optional shared image-generation model override |
+| `MA_IMAGE_GEN_BASE_URL` | Optional shared image-generation API base URL |
+| `MA_IMAGE_GEN_API_KEY` | Optional shared image-generation API key; use `not-used` only for explicit no-auth local endpoints |
 | `MA_RENDERER_BACKEND` | Default: `remote` (resolves via `RENDER_ENDPOINT`) |
 | `RENDER_ENDPOINT` | URL of OVRTX rendering API or compatible service |
 | `MA_SESSION_STORAGE_PATH` | Where session directories are written |
 | `MA_MAX_UPLOAD_SIZE_MB` | Max USD upload size (default: 500) |
-| `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines. Service default: `8`; local Docker Compose default: `1` |
+| `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines. Source fallback: `3`; service image override: `8`; local Docker Compose override: `1`. Invalid or negative values fall back to `3`; `0` permits no active executions. |
 | `MA_MAX_RENDER_NUM_WORKERS` | Max accepted render worker override. Service default: `32`; local Docker Compose default: `1` |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap. Service default: unset/disabled; local Docker Compose default: `1` |
 
@@ -101,6 +107,13 @@ curl -X POST http://localhost:8000/pipeline \
 ```
 
 See [`examples/README.md`](examples/README.md) for the materials ZIP format.
+
+Generated material-library runs write `generated_material_library/materials.yaml`,
+`generated_material_library/material_library.usda`,
+`generated_material_library/material_generation_plan.yaml`, and texture maps in
+the session. If prediction returns `__UNKNOWN__` or an unrepaired invalid
+material, the pipeline binds the canonical `__FALLBACK_MATERIAL__` neutral gray
+matte opaque plastic material.
 
 ## Architecture
 

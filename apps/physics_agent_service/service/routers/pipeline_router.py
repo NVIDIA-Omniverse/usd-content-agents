@@ -8,16 +8,37 @@ import logging
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from physics_agent.api.defaults import build_default_pipeline_config
+from physics_agent.api.defaults import (
+    DEFAULT_RENDER_BACKEND,
+    build_default_pipeline_config,
+)
 from sse_starlette import EventSourceResponse
-from world_understanding.utils.s3_utils import download_file_from_s3
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    RENDERING_BACKEND_NAMES,
+    validate_rendering_backend_name,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.s3_utils import (
+    S3BucketNotAllowedError,
+    authorize_s3_uri_for_extensions,
+    download_file_from_s3,
+)
 
 from ..config import config
+from ..config_persistence import (
+    build_and_validate_pipeline_config,
+    build_and_write_pipeline_config,
+)
 from ..models.requests import RegenerateRequest
 from ..models.responses import (
+    S3_INPUT_ERROR_RESPONSES,
     PipelineError,
     PipelineResults,
     PipelineStatus,
@@ -25,7 +46,11 @@ from ..models.responses import (
 )
 from ..runtime import get_event_bus, get_job_registry
 from ..session.manager import SessionManager
-from ..workers.executor import execute_pipeline_async
+from ..utils import derive_completed_step_names
+from ..workers.executor import (
+    execute_pipeline_async,
+    terminalize_pipeline_cancellation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,27 +125,23 @@ async def _stream_copy(
 _VALID_USD_EXTENSIONS = {".usd", ".usda", ".usdc", ".usdz"}
 
 
-def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
-    """Download a USD file from S3 into session_dir/input/."""
-    if not s3_uri.startswith("s3://") or s3_uri.count("/") < 3:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid S3 URI format: {s3_uri}. "
-            "Expected s3://bucket/path/to/file.ext",
+def _validate_and_authorize_s3_usd_uri(s3_uri: str) -> str:
+    """Validate and authorize a client S3 USD URI without performing I/O."""
+    try:
+        return authorize_s3_uri_for_extensions(
+            s3_uri,
+            config.s3_allowed_buckets,
+            allowed_extensions=_VALID_USD_EXTENSIONS,
         )
+    except S3BucketNotAllowedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    s3_filename = s3_uri.rstrip("/").rsplit("/", 1)[-1]
-    if not s3_filename:
-        raise HTTPException(
-            status_code=400,
-            detail=f"S3 URI must include an object key: {s3_uri}",
-        )
-    ext = Path(s3_filename).suffix.lower()
-    if ext not in _VALID_USD_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid USD file type in S3 URI: {ext}. Allowed: {', '.join(sorted(_VALID_USD_EXTENSIONS))}",
-        )
+
+def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
+    """Reauthorize and download a client-supplied S3 USD into session input."""
+    ext = _validate_and_authorize_s3_usd_uri(s3_uri)
 
     local_path = session_dir / "input" / f"scene{ext}"
     local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,13 +149,33 @@ def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
     try:
         download_file_from_s3(s3_uri, local_path)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"S3 object not found: {s3_uri}")
-    except PermissionError:
-        raise HTTPException(
-            status_code=403, detail=f"Access denied to S3 object: {s3_uri}"
+        log_durable_failure(
+            logger,
+            "pipeline_s3_object_not_found",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
         )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to download from S3: {e}")
+        raise HTTPException(status_code=404, detail="S3 object not found") from None
+    except PermissionError:
+        log_durable_failure(
+            logger,
+            "pipeline_s3_access_denied",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
+        )
+        raise HTTPException(
+            status_code=403, detail="Access denied to S3 object"
+        ) from None
+    except Exception:
+        log_durable_failure(
+            logger,
+            "pipeline_s3_download_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
+        raise HTTPException(
+            status_code=502, detail="Failed to download from S3"
+        ) from None
 
     size_mb = local_path.stat().st_size / (1024 * 1024)
     if size_mb > config.max_upload_size_mb:
@@ -147,7 +188,12 @@ def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
     return local_path
 
 
-@router.post("/upload-usd", response_model=SessionCreated, status_code=201)
+@router.post(
+    "/upload-usd",
+    response_model=SessionCreated,
+    status_code=201,
+    responses=S3_INPUT_ERROR_RESPONSES,
+)
 async def upload_usd_immediate(
     usd_file: UploadFile = File(
         None, description="USD file to upload (provide this OR s3_uri)"
@@ -169,11 +215,15 @@ async def upload_usd_immediate(
             detail="Provide either usd_file or s3_uri, not both",
         )
 
+    if s3_uri:
+        _validate_and_authorize_s3_usd_uri(s3_uri)
+
     manager = get_session_manager()
     session_id = str(uuid.uuid4())
 
     if s3_uri:
         session_dir = await manager.create_session(session_id)
+        failure_phase = FailurePhase.LOCAL_PUBLICATION
         try:
             local_path = _download_s3_to_session(s3_uri, session_dir)
             size_mb = local_path.stat().st_size / (1024 * 1024)
@@ -189,6 +239,7 @@ async def upload_usd_immediate(
             # POST /pipeline routed to another instance would 400 with
             # "Input USD not found for session" despite /sessions
             # showing ready.
+            failure_phase = FailurePhase.SYNC_UPLOAD
             await manager.sync_to_store(session_id)
 
             # Persist the upload outcome so GET /sessions and /sessions/{id}
@@ -200,6 +251,7 @@ async def upload_usd_immediate(
             # so local_path.name would lose the user-facing filename the
             # operator probably recognizes from the bucket.
             s3_basename = s3_uri.rstrip("/").rsplit("/", 1)[-1] or local_path.name
+            failure_phase = FailurePhase.PERSISTENCE_VERIFICATION
             await manager.update_session(
                 session_id,
                 {
@@ -223,12 +275,17 @@ async def upload_usd_immediate(
         except HTTPException:
             await manager.delete_session(session_id)
             raise
-        except Exception as e:
-            logger.error(f"Failed to download USD from S3: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "pipeline_s3_ingest_failed",
+                phase=failure_phase,
+                retryable=True,
+            )
             await manager.delete_session(session_id)
             raise HTTPException(
-                status_code=500, detail=f"Failed to download USD from S3: {e}"
-            )
+                status_code=500, detail="Failed to download USD from S3"
+            ) from None
 
     # File upload path
     if usd_file.filename:
@@ -246,6 +303,7 @@ async def upload_usd_immediate(
     )
     usd_path = session_dir / "input" / f"scene{original_ext}"
 
+    failure_phase = FailurePhase.LOCAL_PUBLICATION
     try:
         total_bytes = await _stream_copy(usd_file, usd_path)
         size_mb = total_bytes / (1024 * 1024)
@@ -264,9 +322,11 @@ async def upload_usd_immediate(
 
         # Sync input to the shared store before advertising ready (see
         # s3 branch above for rationale).
+        failure_phase = FailurePhase.SYNC_UPLOAD
         await manager.sync_to_store(session_id)
 
         # Persist the upload outcome (see s3 branch above for rationale).
+        failure_phase = FailurePhase.PERSISTENCE_VERIFICATION
         await manager.update_session(
             session_id,
             {
@@ -292,10 +352,15 @@ async def upload_usd_immediate(
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to upload USD: {e}")
+    except Exception:
+        log_durable_failure(
+            logger,
+            "pipeline_usd_upload_failed",
+            phase=failure_phase,
+            retryable=True,
+        )
         await manager.delete_session(session_id)
-        raise HTTPException(status_code=500, detail=f"Failed to upload USD: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload USD") from None
 
 
 def _find_input_usd(session_dir: Path) -> Path | None:
@@ -308,19 +373,33 @@ def _find_input_usd(session_dir: Path) -> Path | None:
     return None
 
 
-@router.post("", response_model=SessionCreated, status_code=202)
+@router.post(
+    "",
+    response_model=SessionCreated,
+    status_code=202,
+    responses=S3_INPUT_ERROR_RESPONSES,
+)
 async def create_pipeline(
     usd_file: UploadFile = File(
         None,
-        description="USD file to process (optional if session_id or s3_uri provided)",
+        description=(
+            "USD file to process. Lowest-priority source; used only when neither "
+            "session_id nor s3_uri is provided."
+        ),
     ),
     session_id: str = Form(
         None,
-        description="Existing session ID (from /upload-usd endpoint)",
+        description=(
+            "Existing session ID (from /upload-usd endpoint). Highest-priority "
+            "source when multiple source fields are supplied."
+        ),
     ),
     s3_uri: str = Form(
         None,
-        description="S3 URI to a USD file (e.g. s3://bucket/path/scene.usdz)",
+        description=(
+            "S3 URI to a USD file (e.g. s3://bucket/path/scene.usdz). Used when "
+            "session_id is absent, ahead of usd_file."
+        ),
     ),
     user_prompt: str = Form(
         default="",
@@ -328,7 +407,13 @@ async def create_pipeline(
     ),
     render_backend: str = Form(
         default="",
-        description="Rendering backend: 'remote' (default, HTTP render service; the bundled compose points this at the OVRTX sidecar), 'warp' (local CUDA), or 'ovrtx' (local Vulkan subprocess)",
+        description=(
+            "Rendering backend: 'remote' (default, HTTP render service; the "
+            "bundled compose points this at the OVRTX sidecar), 'warp' "
+            "(local CUDA), 'ovrtx' (local Vulkan subprocess), or 'mock' "
+            "(deterministic CPU-only test images)"
+        ),
+        json_schema_extra={"enum": [*RENDERING_BACKEND_NAMES, ""]},
     ),
     optimize_usd: bool = Form(
         default=False,
@@ -354,22 +439,56 @@ async def create_pipeline(
         "(default: false).",
     ),
 ) -> SessionCreated:
-    """Create and execute a physics agent pipeline."""
-    manager = get_session_manager()
+    """Create and execute a physics agent pipeline.
+
+    At least one input source is required. When more than one is supplied, the
+    selected source is deterministic: ``session_id`` first, then ``s3_uri``,
+    then ``usd_file``. Lower-priority source fields are ignored.
+    """
+    try:
+        render_backend_text = validate_rendering_backend_name(
+            render_backend.strip()
+            if render_backend and render_backend.strip()
+            else DEFAULT_RENDER_BACKEND
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     user_prompt_text = user_prompt.strip() if user_prompt else None
+    session_created_here = False
+
+    # Validate request-only flags before allocating a session.
+    if optimize_usd and not any([enable_deinstance, enable_split, enable_deduplicate]):
+        raise HTTPException(
+            status_code=400,
+            detail="At least one optimization operation must be enabled when "
+            "optimize_usd is true (enable_deinstance, enable_split, or "
+            "enable_deduplicate).",
+        )
+
+    selected_s3_uri = s3_uri if s3_uri and not session_id else None
+    selected_usd_file = (
+        usd_file
+        if usd_file is not None and not session_id and not selected_s3_uri
+        else None
+    )
+    if selected_s3_uri:
+        _validate_and_authorize_s3_usd_uri(selected_s3_uri)
+
+    manager = get_session_manager()
 
     if session_id:
         if not await manager.session_exists(session_id):
             raise HTTPException(status_code=404, detail="Session not found")
         session_dir = manager.get_session_dir(session_id)
 
-    elif s3_uri:
+    elif selected_s3_uri:
         session_id = str(uuid.uuid4())
         session_dir = await manager.create_session(session_id)
+        session_created_here = True
 
         try:
-            local_path = _download_s3_to_session(s3_uri, session_dir)
+            local_path = _download_s3_to_session(selected_s3_uri, session_dir)
             size_mb = local_path.stat().st_size / (1024 * 1024)
             logger.info(
                 f"USD downloaded from S3 for session {session_id[:8]}: "
@@ -378,20 +497,26 @@ async def create_pipeline(
         except HTTPException:
             await manager.delete_session(session_id)
             raise
-        except Exception as e:
-            logger.error(f"Failed to download USD from S3: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "pipeline_s3_ingest_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
             await manager.delete_session(session_id)
             raise HTTPException(
-                status_code=500, detail=f"Failed to download USD from S3: {e}"
-            )
+                status_code=500, detail="Failed to download USD from S3"
+            ) from None
 
-    elif usd_file:
+    elif selected_usd_file:
         session_id = str(uuid.uuid4())
         session_dir = await manager.create_session(session_id)
+        session_created_here = True
 
         try:
-            if usd_file.filename:
-                ext = Path(usd_file.filename).suffix.lower()
+            if selected_usd_file.filename:
+                ext = Path(selected_usd_file.filename).suffix.lower()
                 if ext not in _VALID_USD_EXTENSIONS:
                     raise HTTPException(
                         status_code=400,
@@ -399,15 +524,16 @@ async def create_pipeline(
                     )
 
             original_ext = (
-                Path(usd_file.filename).suffix.lower() if usd_file.filename else ".usd"
+                Path(selected_usd_file.filename).suffix.lower()
+                if selected_usd_file.filename
+                else ".usd"
             )
             usd_path = session_dir / "input" / f"scene{original_ext}"
-            total_bytes = await _stream_copy(usd_file, usd_path)
+            total_bytes = await _stream_copy(selected_usd_file, usd_path)
             size_mb = total_bytes / (1024 * 1024)
 
             if size_mb > config.max_upload_size_mb:
                 usd_path.unlink(missing_ok=True)
-                await manager.delete_session(session_id)
                 raise HTTPException(
                     status_code=413,
                     detail=f"File too large: {size_mb:.1f}MB. Max: {config.max_upload_size_mb}MB",
@@ -418,11 +544,19 @@ async def create_pipeline(
             )
 
         except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Failed to save USD file: {e}")
             await manager.delete_session(session_id)
-            raise HTTPException(status_code=500, detail=f"Failed to save USD file: {e}")
+            raise
+        except Exception:
+            log_durable_failure(
+                logger,
+                "pipeline_usd_local_publication_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
+            await manager.delete_session(session_id)
+            raise HTTPException(
+                status_code=500, detail="Failed to save USD file"
+            ) from None
 
     else:
         raise HTTPException(
@@ -430,6 +564,11 @@ async def create_pipeline(
             detail="One of usd_file, session_id, or s3_uri must be provided",
         )
 
+    if session_id is None:  # defensive guard before derived path/store mutation
+        raise HTTPException(
+            status_code=500,
+            detail="Pipeline session initialization failed",
+        )
     input_usd_path = _find_input_usd(session_dir)
     if not input_usd_path:
         # May be on a different instance — pull input/ from store and retry
@@ -442,94 +581,117 @@ async def create_pipeline(
     if not input_usd_path:
         raise HTTPException(status_code=400, detail="Input USD not found for session")
 
-    render_backend_text = render_backend.strip() if render_backend else None
-
-    if optimize_usd and not any([enable_deinstance, enable_split, enable_deduplicate]):
-        raise HTTPException(
-            status_code=400,
-            detail="At least one optimization operation must be enabled when "
-            "optimize_usd is true (enable_deinstance, enable_split, or "
-            "enable_deduplicate).",
-        )
-
-    pipeline_config = build_default_pipeline_config(
-        session_id=session_id,
-        usd_path=str(input_usd_path),
-        working_dir=str(session_dir / "cache"),
-        user_prompt=user_prompt_text,
-        render_backend=render_backend_text,
-        optimize_usd=optimize_usd,
-        enable_deinstance=enable_deinstance,
-        enable_split=enable_split,
-        enable_deduplicate=enable_deduplicate,
-    )
-    _apply_render_request_limit(pipeline_config)
-
     config_path = session_dir / "input" / "config.yaml"
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_path, "w") as f:
-        yaml.dump(pipeline_config, f, default_flow_style=False)
 
-    # Reset status to "pending" and write the pipeline config before
-    # queueing the job. Two non-obvious requirements:
-    #
-    # 1. Status reset: /pipeline/upload-usd persists status="ready" for
-    #    upload-only sessions, so without an explicit reset here a
-    #    subsequent POST /pipeline against an upload-only session would
-    #    leave the persisted state at "ready" until the executor starts.
-    #    GET /pipeline/{id}/status would lie about a queued job and
-    #    POST /pipeline/{id}/cancel would 400 (cancel only allows
-    #    pending/running).
-    #
-    # 2. Config merge: /pipeline/upload-usd writes upload-only metadata
-    #    (original_filename, size_mb, has_usd_upload) into config that
-    #    operators rely on for /sessions visibility. Replacing config
-    #    wholesale here would erase those fields the moment the user
-    #    starts the pipeline. Spread existing config first, then layer
-    #    the pipeline-specific keys on top, and OR has_usd_upload across
-    #    both writers (start-from-session-id sets usd_file=None, which
-    #    would otherwise flip the flag back to False).
-    #
-    # The single update_session call is atomic so the status reset and
-    # the merged-config write land together.
-    existing = await manager.get_session_metadata(session_id) or {}
-    existing_config = existing.get("config") or {}
-    await manager.update_session(
-        session_id,
-        {
-            "status": "pending",
-            "can_cancel": True,
-            "config": {
-                **existing_config,
-                "project_name": pipeline_config.get("project", {}).get("name", ""),
-                "usd_path": str(input_usd_path),
-                "has_usd_upload": existing_config.get("has_usd_upload", False)
-                or (usd_file is not None and usd_file.filename is not None),
-                "s3_uri": s3_uri or existing_config.get("s3_uri"),
-                "user_prompt": user_prompt_text,
-                "optimize_usd": optimize_usd,
-                "enable_deinstance": enable_deinstance,
-                "enable_split": enable_split,
-                "enable_deduplicate": enable_deduplicate,
-            },
-        },
-    )
+    def prepare_pipeline_config() -> dict[str, Any]:
+        prepared: dict[str, Any] = build_default_pipeline_config(
+            session_id=session_id,
+            usd_path=str(input_usd_path),
+            working_dir=str(session_dir / "cache"),
+            user_prompt=user_prompt_text,
+            render_backend=render_backend_text,
+            optimize_usd=optimize_usd,
+            enable_deinstance=enable_deinstance,
+            enable_split=enable_split,
+            enable_deduplicate=enable_deduplicate,
+        )
+        _apply_render_request_limit(prepared)
+        return prepared
 
     job_registry = get_job_registry()
     try:
-        await job_registry.register(
+        reservation = await job_registry.reserve(session_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+    # Hold the registry slot across config persistence and state reset. A
+    # concurrent request for the same reusable session must lose before it can
+    # clear cancellation, overwrite config.yaml, or erase the live snapshot.
+    async with reservation:
+        pipeline_config = await build_and_write_pipeline_config(
+            config_factory=prepare_pipeline_config,
+            config_path=config_path,
+            session_manager=manager,
+            session_id=session_id,
+            session_created_here=session_created_here,
+        )
+
+        # Reset status to "pending" and write the pipeline config before
+        # queueing the job. Two non-obvious requirements:
+        #
+        # 1. Status reset: /pipeline/upload-usd persists status="ready" for
+        #    upload-only sessions, so without an explicit reset here a
+        #    subsequent POST /pipeline against an upload-only session would
+        #    leave the persisted state at "ready" until the executor starts.
+        #    GET /pipeline/{id}/status would lie about a queued job and
+        #    POST /pipeline/{id}/cancel would 400 (cancel only allows
+        #    pending/running).
+        #
+        # 2. Config merge: /pipeline/upload-usd writes upload-only metadata
+        #    (original_filename, size_mb, has_usd_upload) into config that
+        #    operators rely on for /sessions visibility. Replacing config
+        #    wholesale here would erase those fields the moment the user
+        #    starts the pipeline. Spread existing config first, then layer
+        #    the pipeline-specific keys on top, and OR has_usd_upload across
+        #    both writers (start-from-session-id sets selected_usd_file=None, which
+        #    would otherwise flip the flag back to False).
+        #
+        # The single update_session call is atomic so the status reset and
+        # the merged-config write land together.
+        existing = await manager.get_session_metadata(session_id) or {}
+        existing_config = existing.get("config") or {}
+        if not session_created_here:
+            await manager.clear_cancellation(session_id)
+            await manager.clear_pipeline_terminal_claim(session_id)
+        await manager.update_session(
             session_id,
+            {
+                "status": "pending",
+                "current_step": None,
+                "can_cancel": True,
+                "error": None,
+                "error_diagnostic": None,
+                "failed_step": None,
+                "completed_at": None,
+                "cancelled_at": None,
+                "completed_steps": [],
+                "completed_step_names": [],
+                "partial_results": None,
+                "results": {},
+                "duration_seconds": 0,
+                "config": {
+                    **existing_config,
+                    "project_name": pipeline_config.get("project", {}).get("name", ""),
+                    "usd_path": str(input_usd_path),
+                    "has_usd_upload": existing_config.get("has_usd_upload", False)
+                    or (
+                        selected_usd_file is not None
+                        and selected_usd_file.filename is not None
+                    ),
+                    "s3_uri": selected_s3_uri or existing_config.get("s3_uri"),
+                    "user_prompt": user_prompt_text,
+                    "optimize_usd": optimize_usd,
+                    "enable_deinstance": enable_deinstance,
+                    "enable_split": enable_split,
+                    "enable_deduplicate": enable_deduplicate,
+                },
+            },
+        )
+
+        event_bus = get_event_bus()
+        event_bus.cleanup_session(session_id)
+        await event_bus.seed_pending_session(
+            session_id,
+            created_at=existing.get("created_at"),
+        )
+
+        await reservation.start(
             execute_pipeline_async(
                 session_id=session_id,
                 config_dict=pipeline_config,
                 session_manager=manager,
-            ),
+            )
         )
-    except ValueError as e:
-        # JobRegistry refuses to overwrite a live task on this instance.
-        # /pipeline always allocates a fresh UUID, so reaching this branch
-        # is only possible under a UUID collision; surface 409 anyway.
-        raise HTTPException(status_code=409, detail=str(e)) from e
 
     logger.info(f"Pipeline registered for session {session_id}")
 
@@ -553,6 +715,12 @@ async def get_pipeline_status(session_id: str) -> PipelineStatus:
 
     # Try in-memory state first (active sessions on this instance)
     snapshot = event_bus.get_snapshot(session_id)
+    if (
+        snapshot
+        and snapshot.get("status") in {"pending", "running", "cancelling"}
+        and not get_job_registry().is_running(session_id)
+    ):
+        snapshot = None
 
     if snapshot:
         metadata = snapshot
@@ -589,7 +757,7 @@ async def get_pipeline_status(session_id: str) -> PipelineStatus:
 
 @router.get("/{session_id}/results", response_model=PipelineResults | PipelineError)
 async def get_pipeline_results(session_id: str):
-    """Get pipeline execution results (only available when completed)."""
+    """Get terminal pipeline execution results."""
     manager = get_session_manager()
 
     metadata = await manager.get_session_metadata(session_id)
@@ -598,7 +766,7 @@ async def get_pipeline_results(session_id: str):
 
     status = metadata["status"]
 
-    if status == "completed":
+    if status in {"completed", "cancelled"}:
         return PipelineResults(
             session_id=session_id,
             status=status,
@@ -614,12 +782,16 @@ async def get_pipeline_results(session_id: str):
         )
 
     elif status == "failed":
+        completed_step_names = derive_completed_step_names(
+            metadata.get("completed_step_names"),
+            metadata.get("completed_steps"),
+        )
         return PipelineError(
             session_id=session_id,
             status=status,
             error_message=metadata.get("error", "Unknown error"),
             failed_step=metadata.get("failed_step", "unknown"),
-            completed_steps=[s["name"] for s in metadata.get("completed_steps", [])],
+            completed_steps=completed_step_names,
             partial_results=metadata.get("partial_results"),
         )
 
@@ -650,12 +822,34 @@ async def cancel_pipeline(session_id: str):
             detail=f"Cannot cancel pipeline with status: {metadata['status']}",
         )
 
-    # Write cancel signal to store (visible to all instances)
-    await manager.request_cancellation(session_id)
+    # Atomically claim cancellation against completion/failure before exposing
+    # it locally. The metadata read above is only advisory across replicas.
+    if not await manager.request_pipeline_cancellation(session_id):
+        latest = await manager.get_session_metadata(session_id) or metadata
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Pipeline reached terminal state before cancellation was accepted: "
+                f"{latest.get('status', 'unknown')}"
+            ),
+        )
+    await get_event_bus().mark_cancelling(session_id)
 
     # Also try local cancellation (fast path if this is the executing instance)
     if job_registry.is_running(session_id):
-        await job_registry.cancel(session_id)
+        cancelled = await job_registry.cancel(session_id)
+        if cancelled and not job_registry.is_running(session_id):
+            # A job cancelled while waiting for the registry semaphore never
+            # enters execute_pipeline_async, so its cancellation handler cannot
+            # terminalize the session. Running jobs do so before cancel()
+            # returns; only fill the pre-start gap when state is still active.
+            post_cancel = await manager.get_session_metadata(session_id)
+            if post_cancel and post_cancel.get("status") in (
+                "cancelling",
+                "pending",
+                "running",
+            ):
+                await terminalize_pipeline_cancellation(manager, session_id)
 
     return {
         "session_id": session_id,
@@ -692,7 +886,7 @@ async def stream_progress_events(session_id: str):
                 detail="Pipeline is running on a different instance; use polling instead",
             )
 
-    async def event_generator():
+    async def event_generator():  # pragma: no cover - SSE transport loop
         queue = event_bus.get_queue(session_id)
 
         # Check if already terminal (late connect to same instance after completion).
@@ -789,20 +983,32 @@ async def regenerate_pipeline(
             detail="Original config not found for session",
         )
 
-    with open(config_path) as f:
-        pipeline_config = yaml.safe_load(f)
-    _apply_render_request_limit(pipeline_config)
-
     only_steps = [s.value for s in request.steps]
 
-    if request.user_prompt is not None:
-        steps_section = pipeline_config.get("steps", {})
-        prepare_dataset = steps_section.get("build_dataset_prepare_dataset", {})
-        prompts = prepare_dataset.get("prompts", {})
-        prompts["user"] = request.user_prompt
-        prepare_dataset["prompts"] = prompts
-        steps_section["build_dataset_prepare_dataset"] = prepare_dataset
-        pipeline_config["steps"] = steps_section
+    def prepare_regeneration_config() -> dict[str, Any]:
+        with open(config_path) as config_file:
+            prepared_config = yaml.safe_load(config_file)
+        _apply_render_request_limit(prepared_config)
+
+        if request.user_prompt is not None:
+            steps_section = prepared_config.get("steps", {})
+            prepare_dataset = steps_section.get(
+                "build_dataset_prepare_dataset",
+                {},
+            )
+            prompts = prepare_dataset.get("prompts", {})
+            prompts["user"] = request.user_prompt
+            prepare_dataset["prompts"] = prompts
+            steps_section["build_dataset_prepare_dataset"] = prepare_dataset
+            prepared_config["steps"] = steps_section
+        return prepared_config
+
+    pipeline_config = await build_and_validate_pipeline_config(
+        config_factory=prepare_regeneration_config,
+        session_manager=manager,
+        session_id=session_id,
+        session_created_here=False,
+    )
 
     job_registry = get_job_registry()
 
@@ -815,13 +1021,31 @@ async def regenerate_pipeline(
         raise HTTPException(status_code=409, detail=str(e)) from e
 
     async with reservation:
+        await manager.clear_cancellation(session_id)
+        await manager.clear_pipeline_terminal_claim(session_id)
         await manager.update_session(
             session_id,
             {
                 "status": "pending",
                 "current_step": None,
                 "can_cancel": True,
+                "error": None,
+                "error_diagnostic": None,
+                "failed_step": None,
+                "completed_at": None,
+                "completed_steps": [],
+                "completed_step_names": [],
+                "partial_results": None,
+                "results": {},
+                "duration_seconds": 0,
+                "cancelled_at": None,
             },
+        )
+        event_bus = get_event_bus()
+        event_bus.cleanup_session(session_id)
+        await event_bus.seed_pending_session(
+            session_id,
+            created_at=metadata.get("created_at"),
         )
 
         await reservation.start(
@@ -855,9 +1079,11 @@ async def get_event_log(session_id: str):
         events = await manager.store.get_event_log(session_id)
         return {"events": events, "total": len(events)}
     except Exception:
-        logger.warning(
-            f"Failed to read event log from store for {session_id[:8]}",
-            exc_info=True,
+        log_durable_failure(
+            logger,
+            "event_log_store_read_failed",
+            phase=FailurePhase.PERSISTENCE_VERIFICATION,
+            retryable=True,
         )
 
     # Fall back to local file
@@ -872,6 +1098,14 @@ async def get_event_log(session_id: str):
                 if line.strip():
                     events.append(json.loads(line))
         return {"events": events, "total": len(events)}
-    except Exception as e:
-        logger.error(f"Failed to load event log for {session_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to load event log: {e}")
+    except Exception:
+        log_durable_failure(
+            logger,
+            "event_log_local_read_failed",
+            phase=FailurePhase.PERSISTENCE_VERIFICATION,
+            retryable=False,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to load event log",
+        ) from None

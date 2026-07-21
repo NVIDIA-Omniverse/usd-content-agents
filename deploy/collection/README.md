@@ -14,7 +14,9 @@ Shared GPU/model dependencies are configured by endpoint:
 - OVRTX rendering endpoint, required by material and physics.
 - VLM endpoint, optional for material and physics.
 - LLM endpoint, optional for material and texture.
-- Image generation endpoint, optional for texture and material references.
+- Image generation endpoint, optional for Texture Agent texture generation,
+  Material Agent-generated reference images, and Material Agent-generated
+  material-library textures.
 - Embedding endpoint, optional for material prim clustering.
 
 Brev is supported as an optional way to host any GPU dependency. It is not
@@ -189,6 +191,32 @@ dependencies:
 
 The Brev validation path shares the Qwen VLM endpoint for LLM calls by default.
 
+For OpenAI-compatible endpoints, set `backend: openai` and use `base_url`.
+Use `api_key_env` when the secret should be resolved from an environment
+variable inside the agent container, or `api_key` for an endpoint-scoped inline
+placeholder such as a local no-auth gateway:
+
+```yaml
+dependencies:
+  vlm:
+    enabled: true
+    provider: external
+    backend: openai
+    model: my-custom-vlm
+    base_url: https://vlm-gateway.example/v1
+    api_key_env: CUSTOM_VLM_API_KEY
+  llm:
+    enabled: true
+    provider: external
+    backend: openai
+    model: my-custom-llm
+    base_url: https://llm-gateway.example/v1
+    api_key_env: CUSTOM_LLM_API_KEY
+```
+
+The names in `api_key_env` must be available to the agent services, for example
+through the collection `.env` file used by Docker Compose.
+
 ## Optional Embeddings
 
 Material Agent can use an optional embedding endpoint for prim clustering. Run
@@ -217,9 +245,10 @@ port and use `host.docker.internal:<port>` from the agent containers.
 
 ## Optional Image Generation
 
-Texture Agent, and Material Agent reference-generation flows, can use an
-optional OpenAI-compatible image-generation endpoint. Run the standalone FLUX
-NIM on a GPU host:
+Texture Agent texture generation, Material Agent-generated reference images,
+and Material Agent-generated material-library textures can share an optional
+OpenAI-compatible image-generation endpoint. Run the standalone FLUX NIM on a
+GPU host:
 
 ```bash
 export COLLECTION_IMAGE_GEN_CACHE_VOLUME=/path/to/writable-nim-cache  # optional

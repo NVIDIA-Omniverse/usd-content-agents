@@ -25,7 +25,6 @@ from material_agent.api.defaults import (
     DEFAULT_LLM_BACKEND,
     DEFAULT_LLM_MODEL,
     DEFAULT_VLM_BACKEND,
-    DEFAULT_VLM_LLMGATEWAY_CONFIG,
     DEFAULT_VLM_MAX_TOKENS,
     DEFAULT_VLM_MAX_WORKERS,
     DEFAULT_VLM_MODEL,
@@ -62,10 +61,6 @@ def build_vlm_config(
     if max_tokens is not None:
         config["max_tokens"] = max_tokens
 
-    # Add llmgateway config if using llmgateway backend
-    if backend == "llmgateway_azure_openai" and "llmgateway" not in kwargs:
-        config["llmgateway"] = DEFAULT_VLM_LLMGATEWAY_CONFIG
-
     config.update(kwargs)
     return config
 
@@ -87,8 +82,8 @@ def build_predict_config(
     """Build a minimal prediction configuration.
 
     Args:
-        vlm_backend: VLM backend (e.g., "perflab_azure_openai")
-        vlm_model: VLM model name (e.g., "gpt-4o")
+        vlm_backend: VLM backend (e.g., "nim")
+        vlm_model: VLM model name (e.g., "example-vlm-model")
         dataset_path: Path to dataset JSONL file
         output_dir: Output directory (optional)
         llm_backend: LLM backend for parsing (optional)
@@ -105,8 +100,8 @@ def build_predict_config(
 
     Example:
         >>> config = build_predict_config(
-        ...     vlm_backend="perflab_azure_openai",
-        ...     vlm_model="gpt-4o",
+        ...     vlm_backend="nim",
+        ...     vlm_model="example-vlm-model",
         ...     dataset_path="data/dataset.jsonl",
         ... )
         >>> result = predict(config)
@@ -159,8 +154,8 @@ def build_benchmark_config(
 
     Example:
         >>> config = build_benchmark_config(
-        ...     vlm_backend="perflab_azure_openai",
-        ...     vlm_model="gpt-4o",
+        ...     vlm_backend="nim",
+        ...     vlm_model="example-vlm-model",
         ...     dataset_path="data/dataset.jsonl",
         ... )
         >>> result = benchmark(config)
@@ -191,6 +186,7 @@ def build_apply_config(
     materials_entries: list[dict[str, str]],
     layer_only: bool = False,
     flatten: bool = True,
+    material_profile: str = "auto",
     render_enabled: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
@@ -204,6 +200,7 @@ def build_apply_config(
         materials_entries: List of material definitions
         layer_only: Output layer only (default: False)
         flatten: Flatten output USD (default: True)
+        material_profile: Material authoring profile (default: "auto")
         render_enabled: Enable rendering (default: False)
         **kwargs: Additional config parameters
 
@@ -232,6 +229,7 @@ def build_apply_config(
         },
         "layer_only": layer_only,
         "flatten": flatten,
+        "material_profile": material_profile,
     }
 
     if render_enabled:
@@ -318,8 +316,8 @@ def build_unified_pipeline_config(
         input_usd_path: Path to input USD file
         materials_library_path: Path to materials library
         materials_entries: List of material definitions
-        vlm_backend: VLM backend (default: perflab_azure_openai)
-        vlm_model: VLM model (default: gpt-4o)
+        vlm_backend: VLM backend (default: nim)
+        vlm_model: VLM model (default: example-vlm-model)
         enabled_steps: Steps to enable (default: all)
         enable_prim_clustering: Whether to insert visual prim clustering before
             prediction.

@@ -247,6 +247,19 @@ class TestGenerateMockPredictionsAppend:
 
         assert count == 0
 
+    def test_append_null_stage_returns_zero(self, monkeypatch, tmp_path: Path) -> None:
+        """Null USD stages do not append predictions."""
+        out = tmp_path / "preds.jsonl"
+        monkeypatch.setattr(Usd.Stage, "Open", lambda *_args: None)
+
+        count = generate_mock_predictions_append(
+            tmp_path / "null.usda",
+            ["Mat1"],
+            out,
+        )
+
+        assert count == 0
+
     def test_append_no_new_prims(self, tmp_path: Path) -> None:
         """Returns 0 when all prims already exist in predictions."""
         usd_path = _create_stage_with_meshes(tmp_path / "scene.usda", ["A", "B"])

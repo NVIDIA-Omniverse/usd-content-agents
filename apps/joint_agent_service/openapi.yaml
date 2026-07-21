@@ -1,0 +1,1318 @@
+openapi: "3.1.0"
+info:
+  title: Joint Agent Service
+  description: >
+    REST API for VLM-based asset classification of USD files.
+    Upload a USD scene, run an async pipeline (optimize, render, build dataset, predict),
+    optionally apply the Research Preview Joint Rigger, and stream real-time progress
+    via SSE. The built-in owned_core adapter authors topology only and publishes a
+    self-contained USDZ package; it does not author masses or collision.
+  version: "0.5.0"
+  contact:
+    name: NVIDIA Omniverse GenAI
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: root
+    description: Service info and health check
+  - name: pipeline
+    description: Pipeline lifecycle -- create, monitor, cancel, regenerate
+  - name: artifacts
+    description: Download pipeline outputs (predictions, reports, datasets, generated Joint Rigger artifacts)
+  - name: sessions
+    description: Session CRUD operations
+
+paths:
+  /:
+    get:
+      tags: [root]
+      summary: Root
+      description: Returns service info and all available endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: Service info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiInfo"
+
+  /health:
+    get:
+      tags: [root]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /api:
+    get:
+      tags: [root]
+      summary: API info
+      description: Returns service info and a map of all available endpoints.
+      operationId: apiInfo
+      responses:
+        "200":
+          description: Service info with endpoint map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiInfo"
+
+  /pipeline/upload-usd:
+    post:
+      tags: [pipeline]
+      summary: Upload USD
+      description: >
+        Upload a USD file or authorize and download an S3 URI, then create a
+        session without starting the pipeline. Provide exactly one source.
+        A client S3 URI is admitted only when its exact bucket name is listed in
+        JA_S3_ALLOWED_BUCKETS; an empty allowlist rejects all client S3 inputs
+        before session-manager or S3 I/O.
+        Use the returned session_id with POST /pipeline to start processing later.
+      operationId: uploadUsd
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                usd_file:
+                  type: string
+                  format: binary
+                  description: "USD file (.usd, .usda, .usdc, .usdz). Provide exactly one of usd_file or s3_uri."
+                s3_uri:
+                  type: string
+                  description: S3 URI to a USD file. Its exact bucket name must be listed in JA_S3_ALLOWED_BUCKETS; an empty allowlist rejects all client S3 inputs. Provide exactly one of usd_file or s3_uri.
+      responses:
+        "201":
+          description: Session created with uploaded USD
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionCreated"
+        "400":
+          description: Missing, conflicting, or invalid input source, including an unsupported USD extension.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "403":
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "413":
+          description: File exceeds max upload size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /pipeline:
+    post:
+      tags: [pipeline]
+      summary: Create pipeline
+      description: >
+        Create and execute an asset classification pipeline. Provide at least one
+        of session_id, s3_uri, or usd_file. When multiple sources are supplied,
+        the service selects session_id first, otherwise s3_uri, otherwise usd_file;
+        lower-priority fields are ignored. A selected client S3 URI is admitted
+        only when its exact bucket name is listed in JA_S3_ALLOWED_BUCKETS; an
+        empty allowlist rejects all client S3 inputs before session-manager or
+        S3 I/O.
+        Pipeline execution is async; the endpoint returns 202 immediately.
+      operationId: createPipeline
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                usd_file:
+                  type: string
+                  format: binary
+                  description: "Lowest-priority source. Used only when session_id and s3_uri are both omitted."
+                session_id:
+                  type: string
+                  description: Highest-priority source. Existing session ID from /pipeline/upload-usd; when provided, s3_uri and usd_file are ignored.
+                s3_uri:
+                  type: string
+                  description: Second-priority source, used when session_id is omitted. Its exact bucket name must be listed in JA_S3_ALLOWED_BUCKETS; an empty allowlist rejects all selected client S3 inputs before session-manager or S3 I/O. When selected, usd_file is ignored.
+                user_prompt:
+                  type: string
+                  default: ""
+                  description: Custom user prompt for the VLM prediction step.
+                render_backend:
+                  type: string
+                  default: ""
+                  description: "Rendering backend: 'remote' (default, through RENDER_ENDPOINT), 'warp' (local CUDA), 'ovrtx' (local Vulkan), or 'mock' (deterministic CPU-only test images). Omission uses the configured service default."
+                  enum: [remote, warp, ovrtx, mock, ""]
+                apply_joint_rigger:
+                  type: boolean
+                  default: false
+                  description: Enable the opt-in Research Preview Joint Rigger apply step. Joint Rigger options are rejected unless this is true.
+                joint_rigger_adapter:
+                  type: string
+                  default: ""
+                  description: Joint Rigger adapter to use when apply_joint_rigger is true. Omission selects the built-in owned_core adapter.
+                  enum: [owned_core, mock, usd_joint_rigger, ""]
+                joint_rigger_on_missing_dependency:
+                  type: string
+                  default: ""
+                  description: Missing dependency policy for the Joint Rigger adapter.
+                  enum: [skip, block, ""]
+                joint_rigger_on_unready_candidates:
+                  type: string
+                  default: ""
+                  description: Candidate readiness policy for the Joint Rigger adapter.
+                  enum: [warn, block, ""]
+                joint_rigger_template:
+                  type: string
+                  default: ""
+                  description: Template name for the provisional external usd_joint_rigger adapter.
+                joint_rigger_apply_masses:
+                  type: boolean
+                  nullable: true
+                  description: Whether the Joint Rigger should author masses when supported. The topology-only owned_core adapter requires false; true is rejected.
+                joint_rigger_apply_collision:
+                  type: boolean
+                  nullable: true
+                  description: Whether the Joint Rigger should author collision when supported. The topology-only owned_core adapter requires false; true is rejected.
+      responses:
+        "202":
+          description: Pipeline queued for execution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRunCreated"
+        "400":
+          description: Missing, conflicting, or invalid input source, including an unsupported USD extension.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "403":
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "404":
+          description: Session not found (when using session_id)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "413":
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /pipeline/{session_id}/status:
+    get:
+      tags: [pipeline]
+      summary: Get pipeline status
+      description: >
+        Real-time pipeline status with step-level progress.
+        Reads from the in-memory event bus for active sessions,
+        falls back to disk for completed ones.
+      operationId: getPipelineStatus
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Pipeline status with progress details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStatus"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /pipeline/{session_id}/results:
+    get:
+      tags: [pipeline]
+      summary: Get pipeline results
+      description: >
+        Returns final results when the pipeline has completed,
+        or error details if it failed.
+      operationId: getPipelineResults
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Pipeline completed or failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PipelineResults"
+                  - $ref: "#/components/schemas/PipelineError"
+        "202":
+          description: Pipeline still running -- check /status for progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /pipeline/{session_id}/cancel:
+    post:
+      tags: [pipeline]
+      summary: Cancel pipeline
+      description: Cancel a running or pending pipeline.
+      operationId: cancelPipeline
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+        - name: run_id
+          in: query
+          required: true
+          description: Generation token returned when this exact pipeline run was accepted.
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 32
+            pattern: "^[0-9a-f]{32}$"
+      responses:
+        "200":
+          description: Cancellation requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineCancellationAccepted"
+        "400":
+          description: Pipeline already completed/failed/cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: The supplied run generation no longer owns the session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+
+  /pipeline/{session_id}/events:
+    get:
+      tags: [pipeline]
+      summary: Stream events (SSE)
+      description: >
+        Server-Sent Events stream for real-time pipeline progress.
+        Event types: 'progress' (ProgressEvent payload), 'ping' (keepalive every 30s),
+        'done' (pipeline finished -- stream closes).
+      operationId: streamEvents
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  Server-Sent Events stream. Each event has type 'progress', 'ping', or 'done'.
+                  Progress events contain a JSON-serialized ProgressEvent in the data field.
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /pipeline/{session_id}/regenerate:
+    post:
+      tags: [pipeline]
+      summary: Regenerate pipeline
+      description: >
+        Re-run specific pipeline steps using cached data from a previous run.
+        Useful for re-running the predict step with a different prompt without re-rendering.
+      operationId: regeneratePipeline
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateRequest"
+      responses:
+        "202":
+          description: Regeneration queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRunCreated"
+        "400":
+          description: Pipeline still active or config not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: Regeneration run was superseded or lost its claim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /pipeline/{session_id}/event-log:
+    get:
+      tags: [pipeline]
+      summary: Get event log
+      description: >
+        Get the full persisted event history for a session.
+        Useful for replaying progress after a session completes.
+      operationId: getEventLog
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Event log
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, total]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProgressEvent"
+                  total:
+                    type: integer
+                    description: Total number of events
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/predictions:
+    get:
+      tags: [artifacts]
+      summary: Download predictions
+      description: Download the predictions JSONL file. For the default 0.5 pipeline this file includes post-predict consistency annotations.
+      operationId: downloadPredictions
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Predictions JSONL file
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="predictions.jsonl"'
+        "404":
+          description: Session or predictions not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/articulation-candidates:
+    get:
+      tags: [artifacts]
+      summary: Download articulation candidates
+      description: Download the report-only Stage 2 articulation candidates JSON file.
+      operationId: downloadArticulationCandidates
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Articulation candidates JSON file
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="articulation_candidates.json"'
+        "404":
+          description: Session or articulation candidates not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/articulation-report:
+    get:
+      tags: [artifacts]
+      summary: View articulation report
+      description: View the report-only Stage 2 articulation candidate HTML report.
+      operationId: viewArticulationReport
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: HTML articulation candidate report
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Session or articulation report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/report:
+    get:
+      tags: [artifacts]
+      summary: View report
+      description: >
+        View the HTML prediction report in the browser.
+        The report is generated on-demand if it doesn't already exist.
+      operationId: viewReport
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: HTML prediction report
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Session, predictions, or dataset not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "500":
+          description: Report generation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/dataset:
+    get:
+      tags: [artifacts]
+      summary: Download dataset
+      description: Download the dataset JSONL file.
+      operationId: downloadDataset
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Dataset JSONL file
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="dataset.jsonl"'
+        "404":
+          description: Session or dataset not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/joint-rigger-output:
+    get:
+      tags: [artifacts]
+      summary: Download Joint Rigger output
+      description: Download the generated self-contained rigged.usdz package. Legacy sessions that produced rigged.usd remain readable from this endpoint.
+      operationId: downloadJointRiggerOutput
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Generated USDZ package, or a legacy USD layer
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="rigged.usdz"'
+        "404":
+          description: Session or generated USD not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/joint-rigger-diagnostics:
+    get:
+      tags: [artifacts]
+      summary: Download Joint Rigger diagnostics
+      description: Download diagnostics JSON from the Joint Rigger apply step.
+      operationId: downloadJointRiggerDiagnostics
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Joint Rigger diagnostics JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="joint_rigger_diagnostics.json"'
+        "404":
+          description: Session or diagnostics not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /artifacts/{session_id}/joint-rigger-validation:
+    get:
+      tags: [artifacts]
+      summary: Download Joint Rigger validation
+      description: Download the apply-step result artifact. Successful owned_core authoring returns the shared JointRiggerResultV1 contract; pre-authoring readiness outcomes and legacy adapters may provide compatibility reports.
+      operationId: downloadJointRiggerValidation
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Joint Rigger generated-USD validation JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="joint_rigger_validation.json"'
+        "404":
+          description: Session or validation artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /sessions:
+    get:
+      tags: [sessions]
+      summary: List sessions
+      description: List all sessions sorted by creation time (newest first).
+      operationId: listSessions
+      responses:
+        "200":
+          description: Session list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions, total]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SessionSummary"
+                  total:
+                    type: integer
+
+  /sessions/{session_id}:
+    get:
+      tags: [sessions]
+      summary: Get session
+      description: Get full session metadata.
+      operationId: getSession
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "200":
+          description: Full session metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionMetadata"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+    delete:
+      tags: [sessions]
+      summary: Delete session
+      description: >
+        Delete a session and all its artifacts.
+        Cancels any running pipeline first.
+      operationId: deleteSession
+      parameters:
+        - $ref: "#/components/parameters/sessionId"
+      responses:
+        "204":
+          description: Session deleted
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "500":
+          description: Deletion failed after retries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+components:
+  parameters:
+    sessionId:
+      name: session_id
+      in: path
+      required: true
+      description: UUID session identifier
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    ErrorDetail:
+      properties:
+        detail:
+          type: string
+          title: Detail
+          description: Human-readable error detail
+      type: object
+      required: [detail]
+      title: ErrorDetail
+      description: Standard FastAPI error payload returned by input failures.
+
+    HealthStatus:
+      type: object
+      required: [status, service, version, api_keys_configured, max_active_sessions, capabilities]
+      properties:
+        status:
+          type: string
+          example: healthy
+        service:
+          type: string
+          example: Joint Agent Service
+        version:
+          type: string
+          example: "0.5.0"
+        api_keys_configured:
+          type: boolean
+        max_active_sessions:
+          type: integer
+          example: 1
+        capabilities:
+          type: object
+          required: [joint_rigger]
+          properties:
+            joint_rigger:
+              $ref: "#/components/schemas/JointRiggerCapabilities"
+
+    JointRiggerCapabilities:
+      type: object
+      required: [owned_core_available, usd_joint_rigger_available]
+      properties:
+        owned_core_available:
+          type: boolean
+          description: Whether the built-in repo-owned structured Joint Rigger core can be imported. Authoring viability is validated per request; this does not imply external usd_joint_rigger availability.
+        owned_core_import_error_type:
+          type: string
+          description: Exception class name when the built-in owned core cannot be imported.
+        usd_joint_rigger_available:
+          type: boolean
+          description: Whether the optional external usd_joint_rigger package can be imported.
+        has_apply_joint_rigger:
+          type: boolean
+          description: Whether the package exposes the future native apply_joint_rigger API.
+        has_handoff_create_joints:
+          type: boolean
+          description: Whether the package exposes the provisional create_joints handoff API.
+        import_error_type:
+          type: string
+          description: Exception class name when the optional external usd_joint_rigger package cannot be imported.
+
+    ApiInfo:
+      type: object
+      required: [service, version, docs, health, api]
+      properties:
+        service:
+          type: string
+        version:
+          type: string
+        docs:
+          type: string
+        health:
+          type: string
+        api:
+          type: object
+          properties:
+            pipeline:
+              type: object
+              additionalProperties:
+                type: string
+            artifacts:
+              type: object
+              additionalProperties:
+                type: string
+            sessions:
+              type: object
+              additionalProperties:
+                type: string
+
+    SessionCreated:
+      type: object
+      required: [session_id, status, message]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, ready]
+        message:
+          type: string
+        estimated_duration_minutes:
+          type: integer
+          nullable: true
+      example:
+        session_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        status: pending
+        message: Pipeline queued for execution
+        estimated_duration_minutes: 15
+
+    PipelineRunCreated:
+      allOf:
+        - $ref: "#/components/schemas/SessionCreated"
+        - type: object
+          required: [run_id]
+          properties:
+            run_id:
+              type: string
+              minLength: 32
+              maxLength: 32
+              pattern: "^[0-9a-f]{32}$"
+              description: Generation token required to cancel this exact run.
+
+    PipelineCancellationAccepted:
+      type: object
+      required: [session_id, run_id, status, message]
+      properties:
+        session_id:
+          type: string
+        run_id:
+          type: string
+          minLength: 32
+          maxLength: 32
+          pattern: "^[0-9a-f]{32}$"
+        status:
+          type: string
+          example: cancelling
+        message:
+          type: string
+          example: Pipeline cancellation requested
+
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationError"
+
+    ValidationError:
+      type: object
+      required: [loc, msg, type]
+      properties:
+        loc:
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+        type:
+          type: string
+        input: {}
+        ctx:
+          type: object
+
+    StepProgress:
+      type: object
+      required: [current, total, percent, message]
+      properties:
+        current:
+          type: integer
+          description: Items processed so far
+        total:
+          type: integer
+          description: Total items to process
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Percentage complete
+        message:
+          type: string
+          description: Human-readable progress message
+
+    CurrentStepInfo:
+      type: object
+      required: [name, display_name, started_at, progress, elapsed_seconds]
+      properties:
+        name:
+          type: string
+          description: Internal step name
+        display_name:
+          type: string
+          description: Human-readable step name
+        started_at:
+          type: string
+          format: date-time
+        progress:
+          $ref: "#/components/schemas/StepProgress"
+        elapsed_seconds:
+          type: integer
+
+    CompletedStepInfo:
+      type: object
+      required: [name, display_name, started_at, completed_at, duration_seconds]
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_seconds:
+          type: integer
+        stats:
+          type: object
+          additionalProperties: true
+          default: {}
+
+    OverallProgress:
+      type: object
+      required: [current_step, total_steps, percent]
+      properties:
+        current_step:
+          type: integer
+          description: Current step number (1-indexed)
+        total_steps:
+          type: integer
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        estimated_remaining_seconds:
+          type: integer
+          nullable: true
+
+    PipelineStatus:
+      type: object
+      required: [session_id, status, overall_progress, can_cancel, elapsed_seconds, created_at, updated_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled, cancelling]
+        current_step:
+          $ref: "#/components/schemas/CurrentStepInfo"
+          nullable: true
+        completed_steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompletedStepInfo"
+          default: []
+        overall_progress:
+          $ref: "#/components/schemas/OverallProgress"
+        preview_images:
+          type: array
+          items:
+            type: string
+          description: URLs to rendered preview thumbnails
+          default: []
+        can_cancel:
+          type: boolean
+        elapsed_seconds:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PipelineResults:
+      type: object
+      required: [session_id, status, stats, download_urls, duration_seconds, completed_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [completed]
+        stats:
+          type: object
+          properties:
+            prims_processed:
+              type: integer
+            images_generated:
+              type: integer
+            predictions_made:
+              type: integer
+            articulation_candidates:
+              type: integer
+            joint_rigger_authored_joints:
+              type: integer
+              description: Number of joints authored by the Joint Rigger apply step, when enabled.
+            joint_rigger_status:
+              type: string
+              description: Joint Rigger apply-step status, when enabled.
+            joint_rigger_artifact_keys:
+              type: object
+              additionalProperties:
+                type: string
+              description: Immutable, publication-specific session-relative keys for current-run Joint Rigger artifacts. Absent entries were not produced by this run.
+            joint_rigger_publication_id:
+              type: string
+              description: Opaque identity naming one immutable completed Joint artifact publication during concurrent reruns.
+        download_urls:
+          type: object
+          properties:
+            predictions:
+              type: string
+              example: /artifacts/a1b2c3d4-.../predictions
+            articulation_candidates:
+              type: string
+              example: /artifacts/a1b2c3d4-.../articulation-candidates
+            articulation_report:
+              type: string
+              example: /artifacts/a1b2c3d4-.../articulation-report
+            report:
+              type: string
+              example: /artifacts/a1b2c3d4-.../report
+            dataset:
+              type: string
+              example: /artifacts/a1b2c3d4-.../dataset
+            joint_rigger_output:
+              type: string
+              example: /artifacts/a1b2c3d4-.../joint-rigger-output
+            joint_rigger_diagnostics:
+              type: string
+              example: /artifacts/a1b2c3d4-.../joint-rigger-diagnostics
+            joint_rigger_validation:
+              type: string
+              example: /artifacts/a1b2c3d4-.../joint-rigger-validation
+        duration_seconds:
+          type: integer
+        completed_at:
+          type: string
+          format: date-time
+      example:
+        session_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        status: completed
+        stats:
+          prims_processed: 142
+          images_generated: 284
+          predictions_made: 142
+          articulation_candidates: 12
+          joint_rigger_authored_joints: 1
+          joint_rigger_status: authored
+        download_urls:
+          predictions: /artifacts/a1b2c3d4-.../predictions
+          articulation_candidates: /artifacts/a1b2c3d4-.../articulation-candidates
+          articulation_report: /artifacts/a1b2c3d4-.../articulation-report
+          report: /artifacts/a1b2c3d4-.../report
+          dataset: /artifacts/a1b2c3d4-.../dataset
+          joint_rigger_output: /artifacts/a1b2c3d4-.../joint-rigger-output
+          joint_rigger_diagnostics: /artifacts/a1b2c3d4-.../joint-rigger-diagnostics
+          joint_rigger_validation: /artifacts/a1b2c3d4-.../joint-rigger-validation
+        duration_seconds: 600
+        completed_at: "2026-02-24T10:10:00Z"
+
+    PipelineError:
+      type: object
+      required: [session_id, status, error_message, failed_step]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [failed, cancelled]
+          default: failed
+        error_message:
+          type: string
+        failed_step:
+          type: string
+        completed_steps:
+          type: array
+          items:
+            type: string
+          default: []
+        partial_results:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    PipelineStep:
+      type: string
+      enum:
+        - optimize_usd
+        - identify_asset
+        - analyze_structure
+        - build_dataset_usd
+        - build_dataset_prepare_dataset
+        - predict
+        - consistency_pass
+        - infer_articulation_candidates
+        - restore_usd
+      description: >
+        Available pipeline steps:
+        optimize_usd -- Optimize USD scene structure;
+        identify_asset -- Identify the overall asset;
+        analyze_structure -- Analyze hierarchy and structure;
+        build_dataset_usd -- Render images from USD prims;
+        build_dataset_prepare_dataset -- Prepare dataset with prompts;
+        predict -- Run VLM predictions;
+        consistency_pass -- Annotate repeated-part prediction consistency;
+        infer_articulation_candidates -- Infer report-only Stage 2 articulation candidates;
+        restore_usd -- Restore predictions to original USD paths.
+
+    RegenerateRequest:
+      type: object
+      required: [steps]
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineStep"
+          description: Steps to re-run from cache
+        user_prompt:
+          type: string
+          nullable: true
+          description: Override user prompt for the prediction step
+      example:
+        steps: [predict]
+        user_prompt: Classify each material as metal, plastic, or fabric
+
+    ProgressEvent:
+      type: object
+      required: [session_id, step, state, timestamp]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        step:
+          type: string
+          description: "Step name (e.g., 'build_dataset_usd', 'predict')"
+        state:
+          type: string
+          enum: [queued, running, completed, failed, cancelled]
+        current:
+          type: integer
+          nullable: true
+          description: Items processed
+        total:
+          type: integer
+          nullable: true
+          description: Total items
+        percent:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Step percentage
+        message:
+          type: string
+          nullable: true
+          description: Progress message
+        timestamp:
+          type: string
+          format: date-time
+        extra:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Step-specific data
+        overall_percent:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Pipeline-wide percentage (computed by EventBus)
+      example:
+        session_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        step: predict
+        state: running
+        current: 47
+        total: 95
+        percent: 49
+        message: Predicted /World/Part_47
+        timestamp: "2026-02-24T10:05:00Z"
+        extra:
+          prim_id: /World/Part_47
+        overall_percent: 62
+
+    SessionSummary:
+      type: object
+      required: [session_id, status]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled, unknown]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        elapsed_seconds:
+          type: integer
+          default: 0
+        config:
+          type: object
+          properties:
+            project_name:
+              type: string
+            usd_path:
+              type: string
+            has_usd_upload:
+              type: boolean
+            user_prompt:
+              type: string
+              nullable: true
+
+    SessionMetadata:
+      type: object
+      required: [session_id, created_at, updated_at, status]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled, unknown]
+        current_step:
+          $ref: "#/components/schemas/CurrentStepInfo"
+          nullable: true
+        completed_steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompletedStepInfo"
+          default: []
+        overall_progress:
+          $ref: "#/components/schemas/OverallProgress"
+        preview_images:
+          type: array
+          items:
+            type: string
+          default: []
+        can_cancel:
+          type: boolean
+        elapsed_seconds:
+          type: integer
+        config:
+          type: object
+          properties:
+            project_name:
+              type: string
+            usd_path:
+              type: string
+            has_usd_upload:
+              type: boolean
+            user_prompt:
+              type: string
+              nullable: true
+        ttl_expires_at:
+          type: string
+          format: date-time
+        results:
+          type: object
+          additionalProperties: true
+        duration_seconds:
+          type: integer
+        completed_at:
+          type: string
+          format: date-time
+        timings:
+          type: object
+          additionalProperties:
+            type: number
+          description: Per-step durations in seconds

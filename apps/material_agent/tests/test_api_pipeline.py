@@ -4,6 +4,7 @@
 
 import asyncio
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -97,6 +98,63 @@ class TestRunPipeline:
         assert "predict" in result.step_results
         assert "apply" in result.step_results
         assert result.completed_steps == ["predict", "apply"]
+
+    @pytest.mark.asyncio
+    async def test_arun_pipeline_projects_success_result_without_mutating_runtime(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Successful API results detach diagnostics from the raw workflow context."""
+        sentinel = "material-success-result-credential-713"
+        listener = Mock()
+        config = {
+            "project": {"name": "demo"},
+            "steps": {"predict": {"vlm": {"api_key": sentinel}}},
+        }
+        runtime_results: list[dict[str, Any]] = []
+
+        async def run_with_raw_context(
+            context: dict[str, Any],
+        ) -> dict[str, Any]:
+            context["pipeline_results"] = {
+                "predict": {
+                    "api_key": sentinel,
+                    "num_predictions": 1,
+                }
+            }
+            runtime_results.append(context)
+            return context
+
+        workflow = Mock()
+        workflow.arun = AsyncMock(side_effect=run_with_raw_context)
+        monkeypatch.setattr(
+            "material_agent.workflows.create_unified_pipeline_workflow",
+            lambda: workflow,
+        )
+
+        output = await arun_pipeline(
+            PipelineInput(
+                config=config,
+                skip_steps=[f"https://user:{sentinel}@skip.example.test/predict"],
+                event_listener=listener,
+            )
+        )
+
+        runtime_result = runtime_results[0]
+        assert runtime_result["config_dict"] is config
+        assert (
+            runtime_result["config_dict"]["steps"]["predict"]["vlm"]["api_key"]
+            == sentinel
+        )
+        assert runtime_result["pipeline_results"]["predict"]["api_key"] == sentinel
+        assert runtime_result["event_listener"] is listener
+        assert output.success is True
+        assert output.step_results["predict"]["num_predictions"] == 1
+        assert output.skipped_steps == ["<redacted>"]
+        assert output.raw_result is not runtime_result
+        assert output.raw_result is not None
+        assert "config_dict" not in output.raw_result
+        assert "event_listener" not in output.raw_result
+        assert sentinel not in repr(output)
 
     @patch("material_agent.workflows.create_unified_pipeline_workflow")
     def test_run_pipeline_with_skip_steps(self, mock_create_workflow, tmp_path):
@@ -216,6 +274,7 @@ class TestRunPipeline:
     def test_run_pipeline_no_results(self, mock_create_workflow, tmp_path):
         """Test pipeline when workflow returns None."""
         # Setup
+        sentinel = "material-api-skip-credential-713"
         config_file = tmp_path / "config.yaml"
         config_file.write_text("# test config")
 
@@ -225,23 +284,33 @@ class TestRunPipeline:
         mock_create_workflow.return_value = mock_workflow
 
         # Execute
-        params = PipelineInput(config=config_file)
+        params = PipelineInput(
+            config=config_file,
+            skip_steps=[f"https://user:{sentinel}@skip.example.test/step"],
+        )
         result = run_pipeline(params)
 
         # Verify
         assert result.success is False
         assert "did not complete" in result.error.lower()
+        assert result.skipped_steps == ["<redacted>"]
+        assert sentinel not in repr(result)
 
     @patch("material_agent.workflows.create_unified_pipeline_workflow")
-    def test_run_pipeline_exception(self, mock_create_workflow, tmp_path):
+    def test_run_pipeline_exception(self, mock_create_workflow, tmp_path, caplog):
         """Test pipeline when exception occurs."""
         # Setup
-        config_file = tmp_path / "config.yaml"
+        sentinel = "never-replay-pipeline-exception-713"
+        config_dir = tmp_path / f"api_key={sentinel}"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("# test config")
 
         # Mock workflow that raises exception
         mock_workflow = Mock()
-        mock_workflow.arun = AsyncMock(side_effect=RuntimeError("Pipeline failed"))
+        mock_workflow.arun = AsyncMock(
+            side_effect=RuntimeError(f"backend reflected {sentinel}")
+        )
         mock_create_workflow.return_value = mock_workflow
 
         # Execute
@@ -250,7 +319,8 @@ class TestRunPipeline:
 
         # Verify
         assert result.success is False
-        assert "Pipeline failed" in result.error
+        assert result.error == "Pipeline execution failed"
+        assert sentinel not in caplog.text
 
     @pytest.mark.asyncio
     async def test_arun_pipeline_with_dict_config_and_default_listener(
@@ -298,16 +368,25 @@ class TestRunPipeline:
         self, monkeypatch, tmp_path
     ):
         """Test simulate-mode patching and workflow partial failure handling."""
-        config_file = tmp_path / "config.yaml"
+        sentinel = "never-replay-partial-pipeline-error-713"
+        config_dir = tmp_path / f"access_token={sentinel}"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("project:\n  name: demo\n", encoding="utf-8")
 
         listener = Mock()
         workflow = Mock()
+        runtime_marker = object()
         workflow.arun = AsyncMock(
             return_value={
-                "error": "predict failed",
-                "failed_task": "predict",
-                "pipeline_results": {"build_dataset_usd": {"num_prims": 3}},
+                "error": f"backend reflected {sentinel}",
+                "failed_task": f"api_key={sentinel}",
+                "pipeline_results": {
+                    "build_dataset_usd": {
+                        "num_prims": 3,
+                        "runtime_marker": runtime_marker,
+                    }
+                },
             }
         )
 
@@ -326,21 +405,89 @@ class TestRunPipeline:
         result = await arun_pipeline(params)
 
         assert result.success is False
-        assert result.error == "predict failed"
+        assert result.error == "Pipeline execution failed"
         assert result.completed_steps == ["build_dataset_usd"]
         assert result.step_results == {"build_dataset_usd": {"num_prims": 3}}
+        assert result.raw_result == {
+            "error": "Pipeline execution failed",
+            "failed_task": "<redacted>",
+            "pipeline_results": {"build_dataset_usd": {"num_prims": 3}},
+        }
         call_args = workflow.arun.call_args[0][0]
         assert call_args["config_dict"]["patched"] is True
         assert call_args["config_path"] == str(config_file)
         listener.info.assert_any_call("Simulate mode: all backends patched to 'mock'")
+        listener.info.assert_any_call("Configuration file: <redacted>")
         listener.event.assert_any_call(
             "workflow.failed",
             {
                 "workflow_type": "pipeline",
-                "error": "predict failed",
-                "failed_task": "predict",
+                "error": "Pipeline execution failed",
+                "failed_task": "<redacted>",
             },
         )
+        assert sentinel not in repr(result)
+        assert sentinel not in repr(listener.method_calls)
+
+    @pytest.mark.asyncio
+    async def test_arun_pipeline_simulate_mode_from_config_dict(
+        self, monkeypatch, tmp_path
+    ):
+        """Test simulate mode patches in-memory config dictionaries."""
+        listener = Mock()
+        workflow = Mock()
+        workflow.arun = AsyncMock(return_value={"pipeline_results": {"predict": {}}})
+
+        monkeypatch.setattr(
+            "material_agent.api.simulate_config.patch_config_for_simulate",
+            lambda config: {"patched": True, **config},
+        )
+        monkeypatch.setattr(
+            "material_agent.workflows.create_unified_pipeline_workflow",
+            lambda: workflow,
+        )
+
+        config_anchor = tmp_path / "source" / "config.yaml"
+        result = await arun_pipeline(
+            PipelineInput(
+                config={"project": {"name": "demo"}},
+                config_path=config_anchor,
+                simulate=True,
+                event_listener=listener,
+            )
+        )
+
+        assert result.success is True
+        call_args = workflow.arun.call_args[0][0]
+        assert call_args["config_dict"]["patched"] is True
+        assert call_args["config_path"] == str(config_anchor)
+
+    @pytest.mark.asyncio
+    async def test_arun_pipeline_preserves_dict_config_path_anchor(
+        self, monkeypatch, tmp_path
+    ):
+        """A dict config retains its source path for relative-path resolution."""
+        listener = Mock()
+        workflow = Mock()
+        workflow.arun = AsyncMock(return_value={"pipeline_results": {"predict": {}}})
+        monkeypatch.setattr(
+            "material_agent.workflows.create_unified_pipeline_workflow",
+            lambda: workflow,
+        )
+
+        config_anchor = tmp_path / "source" / "config.yaml"
+        result = await arun_pipeline(
+            PipelineInput(
+                config={"project": {"name": "demo"}},
+                config_path=config_anchor,
+                event_listener=listener,
+            )
+        )
+
+        assert result.success is True
+        call_args = workflow.arun.call_args[0][0]
+        assert call_args["config_dict"] == {"project": {"name": "demo"}}
+        assert call_args["config_path"] == str(config_anchor)
 
     def test_dry_run_pipeline_filters_steps_for_unified_config(self):
         """Test actual dry-run helper for unified config rules."""
@@ -350,6 +497,7 @@ class TestRunPipeline:
                 "steps": {
                     "build_dataset_usd": {"enabled": True},
                     "predict": {"temperature": 0.0},
+                    "evaluate": {"enabled": True},
                     "apply": {"enabled": False},
                 },
             },
@@ -362,7 +510,19 @@ class TestRunPipeline:
 
         assert result.success is True
         assert result.completed_steps == ["predict"]
-        assert result.skipped_steps == ["build_dataset_usd"]
+        assert result.skipped_steps == ["build_dataset_usd", "evaluate"]
+
+    def test_dry_run_pipeline_treats_null_steps_as_empty(self):
+        result = _dry_run_pipeline(
+            PipelineInput(
+                config={"project": {"name": "demo"}, "steps": None},
+                dry_run=True,
+            )
+        )
+
+        assert result.success is True
+        assert result.completed_steps == []
+        assert result.skipped_steps == []
 
     def test_dry_run_pipeline_returns_error_for_invalid_yaml(self, tmp_path):
         """Test dry-run helper wraps YAML parsing errors."""

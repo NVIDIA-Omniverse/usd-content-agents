@@ -36,7 +36,10 @@ from typing import Any
 import numpy as np
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
-from world_understanding.utils.credentials import get_nim_api_key_for_base_url
+from world_understanding.utils.credentials import (
+    get_nim_api_key_for_base_url,
+    resolve_endpoint_api_key,
+)
 
 from material_agent.api.defaults import (
     DEFAULT_CLUSTER_BATCH_SIZE,
@@ -569,10 +572,17 @@ class ClusterPrimsTask(Task):
             "embedding_model"
         ) or _default_embedding_model_for_service(service)
         base_url = config.get("base_url") or config.get("embedding_base_url")
-        explicit_api_key = (
-            config.get("api_key")
-            or config.get("embedding_api_key")
-            or os.environ.get("MA_CLUSTER_EMBEDDING_API_KEY")
+        explicit_api_key = resolve_endpoint_api_key(
+            (
+                config.get("api_key")
+                or config.get("embedding_api_key")
+                or os.environ.get("MA_CLUSTER_EMBEDDING_API_KEY")
+            ),
+            (
+                config.get("api_key_env")
+                or config.get("embedding_api_key_env")
+                or os.environ.get("MA_CLUSTER_EMBEDDING_API_KEY_ENV")
+            ),
         )
         api_key = (
             get_nim_api_key_for_base_url(base_url, explicit_api_key)

@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the chat generation function."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from world_understanding.functions.nlp.chat import generate_chat_response
+from world_understanding.functions.nlp.chat import (
+    agenerate_chat_response,
+    generate_chat_response,
+)
 
 
 class TestGenerateChatResponse:
@@ -307,3 +310,54 @@ class TestGenerateChatResponse:
         # Verify each call got its own response
         for i, result in enumerate(results):
             assert result["response"] == responses[i]
+
+    def test_list_content_response_extracts_text_parts(self, mock_chat_model):
+        mock_response = Mock()
+        mock_response.content = [
+            {"type": "thinking", "text": "hidden"},
+            {"type": "text", "text": "visible 1"},
+            {"type": "text", "text": "visible 2"},
+        ]
+        mock_chat_model.invoke.return_value = mock_response
+
+        result = generate_chat_response(chat_model=mock_chat_model, prompt="Test")
+
+        assert result["response"] == "visible 1\nvisible 2"
+
+    def test_list_content_without_text_parts_falls_back_to_string(
+        self, mock_chat_model
+    ):
+        mock_response = Mock()
+        mock_response.content = [{"type": "thinking", "text": "hidden"}]
+        mock_chat_model.invoke.return_value = mock_response
+
+        result = generate_chat_response(chat_model=mock_chat_model, prompt="Test")
+
+        assert result["response"] == "[{'type': 'thinking', 'text': 'hidden'}]"
+
+    def test_non_string_response_content_falls_back_to_string(self, mock_chat_model):
+        mock_response = Mock()
+        mock_response.content = {"structured": "value"}
+        mock_chat_model.invoke.return_value = mock_response
+
+        result = generate_chat_response(chat_model=mock_chat_model, prompt="Test")
+
+        assert result["response"] == "{'structured': 'value'}"
+
+
+@pytest.mark.asyncio
+async def test_agenerate_chat_response_success_and_error() -> None:
+    chat_model = Mock()
+    response = Mock()
+    response.content = [{"type": "text", "text": "async hello"}]
+    chat_model.ainvoke = AsyncMock(return_value=response)
+
+    result = await agenerate_chat_response(chat_model, "hi", "system")
+
+    assert result == {"response": "async hello"}
+    chat_model.ainvoke.assert_called_once()
+
+    failing_model = Mock()
+    failing_model.ainvoke = AsyncMock(side_effect=RuntimeError("boom"))
+    result = await agenerate_chat_response(failing_model, "hi")
+    assert result["error"] == "Failed to generate response: boom"

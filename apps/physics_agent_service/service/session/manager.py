@@ -9,7 +9,6 @@ All public methods are async.
 import asyncio
 import logging
 import re
-import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any
@@ -17,6 +16,20 @@ from typing import IO, Any
 from physics_agent.config.usd_suffixes import (
     USD_ARTIFACT_EXTENSIONS,
     default_apply_physics_output_suffix,
+)
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    OpenArtifactFile,
+    open_held_confined_artifact,
+    remove_confined_tree,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.session_paths import (
+    confined_session_path,
+    safe_listed_session_ids,
 )
 
 from ..runtime.progress import (
@@ -40,6 +53,8 @@ _SESSION_ID_PATTERN = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
+_TERMINAL_SESSION_STATUSES = {"completed", "failed", "cancelled"}
+_PIPELINE_TERMINAL_CLAIM_KEY = ".pipeline-terminal-claim"
 
 
 class InvalidSessionIdError(ValueError):
@@ -84,6 +99,10 @@ def _configured_output_usd_suffix(config: dict[str, Any]) -> str | None:
     return None
 
 
+def _is_terminal_session(metadata: dict[str, Any]) -> bool:
+    return metadata.get("status") in _TERMINAL_SESSION_STATUSES
+
+
 class SessionManager:
     """Manages pipeline sessions and their artifacts.
 
@@ -112,7 +131,7 @@ class SessionManager:
     ) -> Path:
         """Create a new session with local dirs and store entry."""
         session_id = _validate_session_id(session_id)
-        session_dir = self.storage_path / session_id
+        session_dir = self.get_session_dir(session_id)
 
         # Create local directory structure (pipeline needs fast local I/O)
         (session_dir / "input").mkdir(parents=True, exist_ok=True)
@@ -152,7 +171,10 @@ class SessionManager:
 
     def get_session_dir(self, session_id: str) -> Path:
         """Get path to local session directory."""
-        return self.storage_path / _validate_session_id(session_id)
+        return confined_session_path(
+            self.storage_path,
+            _validate_session_id(session_id),
+        )
 
     async def session_exists(self, session_id: str) -> bool:
         """Check if session exists in the store."""
@@ -184,6 +206,17 @@ class SessionManager:
                 created_at = created_at.replace(tzinfo=UTC)
             metadata["elapsed_seconds"] = int((now - created_at).total_seconds())
 
+            await self.store.put_json(session_id, METADATA_KEY, metadata)
+
+    async def restore_session_metadata(
+        self,
+        session_id: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        """Restore an exact startup snapshot without rewriting its timestamps."""
+        session_id = _validate_session_id(session_id)
+        lock = self._get_lock(session_id)
+        async with lock:
             await self.store.put_json(session_id, METADATA_KEY, metadata)
 
     async def update_step_progress(
@@ -344,6 +377,64 @@ class SessionManager:
         session_id = _validate_session_id(session_id)
         return await self.store.exists(session_id, ".cancel")
 
+    async def clear_cancellation(self, session_id: str) -> None:
+        """Clear a durable cancellation marker before reusing a session."""
+        session_id = _validate_session_id(session_id)
+        await self.store.delete_key(session_id, ".cancel")
+
+    async def claim_pipeline_terminal_state(
+        self,
+        session_id: str,
+        status: str,
+    ) -> str:
+        """Atomically choose one terminal outcome across service instances."""
+        session_id = _validate_session_id(session_id)
+        if status not in _TERMINAL_SESSION_STATUSES:
+            raise ValueError(f"Invalid terminal pipeline status: {status}")
+
+        encoded = status.encode("ascii")
+        if await self.store.put_bytes_if_absent(
+            session_id,
+            _PIPELINE_TERMINAL_CLAIM_KEY,
+            encoded,
+        ):
+            return status
+
+        stream = await self.store.open_read(
+            session_id,
+            _PIPELINE_TERMINAL_CLAIM_KEY,
+        )
+        try:
+            winner = stream.read().decode("ascii")
+        finally:
+            stream.close()
+        if winner not in _TERMINAL_SESSION_STATUSES:
+            raise RuntimeError("Invalid persisted pipeline terminal claim")
+        return winner
+
+    async def clear_pipeline_terminal_claim(self, session_id: str) -> None:
+        """Clear the terminal claim before a terminal session is reused."""
+        session_id = _validate_session_id(session_id)
+        await self.store.delete_key(session_id, _PIPELINE_TERMINAL_CLAIM_KEY)
+
+    async def request_pipeline_cancellation(self, session_id: str) -> bool:
+        """Atomically compete with completion/failure for pipeline termination."""
+        session_id = _validate_session_id(session_id)
+        if not await self.session_exists(session_id):
+            logger.warning(f"Cannot cancel non-existent session: {session_id}")
+            return False
+
+        # Publish the worker signal first. If another terminal writer already
+        # won, remove the losing signal so it cannot affect a later reuse.
+        await self.store.put_bytes(session_id, ".cancel", b"")
+        winner = await self.claim_pipeline_terminal_state(session_id, "cancelled")
+        if winner != "cancelled":
+            await self.store.delete_key(session_id, ".cancel")
+            return False
+
+        logger.info(f"Pipeline cancellation accepted for session: {session_id}")
+        return True
+
     async def request_cancellation(self, session_id: str) -> None:
         """Request cancellation — visible to all instances via store."""
         session_id = _validate_session_id(session_id)
@@ -362,32 +453,81 @@ class SessionManager:
         session_id = _validate_session_id(session_id)
         session_dir = self.get_session_dir(session_id)
 
+        selected = await self.get_local_artifact_stream(session_id, artifact_type)
+        if selected is None:
+            return None
+        artifact, relative_key = selected
+        artifact.stream.close()
+        return session_dir / relative_key
+
+    async def open_local_artifact_key(
+        self,
+        session_id: str,
+        relative_key: str,
+    ) -> OpenArtifactFile | None:
+        """Open one session key through a held, no-follow descriptor chain."""
+
+        session_id = _validate_session_id(session_id)
+        try:
+            session_dir = self.get_session_dir(session_id)
+            return await asyncio.to_thread(
+                open_held_confined_artifact,
+                session_dir,
+                relative_key,
+            )
+        except (ArtifactPathError, OSError, RuntimeError, ValueError):
+            return None
+
+    async def get_local_artifact_stream(
+        self,
+        session_id: str,
+        artifact_type: str,
+    ) -> tuple[OpenArtifactFile, str] | None:
+        """Open one well-known local artifact and return its canonical key."""
+
+        session_id = _validate_session_id(session_id)
+
         artifact_map = {
-            "predictions": session_dir / "cache" / "predictions" / "predictions.jsonl",
-            "dataset": session_dir / "cache" / "dataset" / "dataset.jsonl",
+            "predictions": "cache/predictions/predictions.jsonl",
+            "dataset": "cache/dataset/dataset.jsonl",
         }
 
         if artifact_type == "output_usd":
-            physics_dir = session_dir / "cache" / "physics"
+            session_dir = self.get_session_dir(session_id)
             suffix = await self._expected_output_usd_suffix(session_id, session_dir)
             if suffix:
-                path = physics_dir / f"scene_physics{suffix}"
-                if path.exists():
-                    return path
-                return None
+                relative_key = f"cache/physics/scene_physics{suffix}"
+                artifact = await self.open_local_artifact_key(
+                    session_id,
+                    relative_key,
+                )
+                return (artifact, relative_key) if artifact is not None else None
 
             candidates = [
-                physics_dir / f"scene_physics{candidate_suffix}"
+                f"cache/physics/scene_physics{candidate_suffix}"
                 for candidate_suffix in USD_ARTIFACT_EXTENSIONS
             ]
-            existing = [path for path in candidates if path.exists()]
-            if existing:
-                return max(existing, key=lambda path: path.stat().st_mtime)
-            return None
+            opened: list[tuple[OpenArtifactFile, str]] = []
+            for relative_key in candidates:
+                artifact = await self.open_local_artifact_key(
+                    session_id,
+                    relative_key,
+                )
+                if artifact is not None:
+                    opened.append((artifact, relative_key))
+            if not opened:
+                return None
+            selected = max(opened, key=lambda item: item[0].metadata.st_mtime)
+            for artifact, _ in opened:
+                if artifact is not selected[0]:
+                    artifact.stream.close()
+            return selected
 
-        path = artifact_map.get(artifact_type)
-        if path and path.exists():
-            return path
+        relative_key = artifact_map.get(artifact_type)
+        if relative_key:
+            artifact = await self.open_local_artifact_key(session_id, relative_key)
+            if artifact is not None:
+                return artifact, relative_key
 
         return None
 
@@ -441,6 +581,11 @@ class SessionManager:
             key=lambda key: USD_ARTIFACT_EXTENSIONS.index(Path(key).suffix.lower()),
         )
 
+    async def list_store_keys(self, session_id: str, prefix: str = "") -> list[str]:
+        """List persisted session keys beneath an optional prefix."""
+        session_id = _validate_session_id(session_id)
+        return await self.store.list_keys(session_id, prefix=prefix)
+
     async def _expected_output_usd_suffix(
         self, session_id: str, session_dir: Path
     ) -> str | None:
@@ -485,22 +630,35 @@ class SessionManager:
         session_id = _validate_session_id(session_id)
         try:
             await self.store.delete_session(session_id)
-        except Exception as e:
-            logger.error(f"Failed to delete session {session_id} from store: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "session_store_delete_failed",
+                phase=FailurePhase.ROLLBACK,
+                retryable=True,
+            )
             return False
 
         # Also clean up local directory (with retry for transient failures)
         session_dir = self.get_session_dir(session_id)
-        if session_dir.exists():
-            for attempt in range(3):
-                try:
-                    shutil.rmtree(session_dir)
-                    break
-                except OSError as e:
-                    if attempt == 2:
-                        logger.warning(f"Failed to delete local session dir: {e}")
-                    else:
-                        await asyncio.sleep(0.5 * (attempt + 1))
+        for attempt in range(3):
+            try:
+                await asyncio.to_thread(
+                    remove_confined_tree,
+                    session_dir,
+                    self.storage_path,
+                )
+                break
+            except (OSError, RuntimeError, ValueError):
+                if attempt == 2:
+                    log_durable_failure(
+                        logger,
+                        "session_local_delete_failed",
+                        phase=FailurePhase.ROLLBACK,
+                        retryable=True,
+                    )
+                else:
+                    await asyncio.sleep(0.5 * (attempt + 1))
 
         # Clean up lock
         self._locks.pop(session_id, None)
@@ -510,7 +668,7 @@ class SessionManager:
 
     async def list_sessions(self) -> list[str]:
         """List all session IDs from the store."""
-        return await self.store.list_sessions()
+        return safe_listed_session_ids(await self.store.list_sessions())
 
     async def sync_to_store(self, session_id: str, prefix: str = "") -> int:
         """Sync local session files to the store (uploads to S3 if configured)."""
@@ -532,7 +690,7 @@ class SessionManager:
         )
 
     async def cleanup_expired_sessions(self) -> int:
-        """Remove sessions past their TTL."""
+        """Remove terminal sessions past their TTL."""
         cleaned = 0
         now = datetime.now(UTC)
 
@@ -548,6 +706,14 @@ class SessionManager:
                 if expires_at.tzinfo is None:
                     expires_at = expires_at.replace(tzinfo=UTC)
                 if now > expires_at:
+                    if not _is_terminal_session(metadata):
+                        logger.info(
+                            "Skipping expired active session during cleanup: %s "
+                            "(status=%s)",
+                            session_id,
+                            metadata.get("status"),
+                        )
+                        continue
                     logger.info(f"Cleaning up expired session: {session_id}")
                     if await self.delete_session(session_id):
                         cleaned += 1
@@ -556,3 +722,17 @@ class SessionManager:
             logger.info(f"Cleaned up {cleaned} expired sessions")
 
         return cleaned
+
+    async def cleanup_stale_local_cache(self, max_age_hours: float = 24.0) -> int:
+        """Remove stale local session cache after syncing terminal sessions."""
+        skip_session_ids: set[str] = set()
+        for session_id in await self.list_sessions():
+            metadata = await self.get_session_metadata(session_id)
+            if metadata and not _is_terminal_session(metadata):
+                skip_session_ids.add(session_id)
+
+        return await self.store.cleanup_stale_local_sessions(
+            str(self.storage_path),
+            max_age_hours=max_age_hours,
+            skip_session_ids=skip_session_ids,
+        )

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -47,6 +48,24 @@ def _validate_worker_override(
         raise ValueError(
             f"{name} must be between 1 and {max_value} (set {env_name} to adjust)"
         )
+
+
+def _validate_positive_override(name: str, value: int | None) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer")
+    if value < 1:
+        raise ValueError(f"{name} must be at least 1")
+
+
+def _validate_unit_interval_override(name: str, value: int | float | None) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be an int or float")
+    if value < 0.0 or value > 1.0 or not math.isfinite(value):
+        raise ValueError(f"{name} must be between 0.0 and 1.0")
 
 
 @dataclass(frozen=True)
@@ -185,8 +204,20 @@ class MaterialAgentClient:
         vlm_max_workers: int | None = None,
         render_num_workers: int | None = None,
         generated_reference_id: str | None = None,
-        user_email: str = "",
-        layer_only: bool = False,
+        user_email: str | None = None,
+        layer_only: bool | None = None,
+        enable_prim_clustering: bool | None = None,
+        cluster_min_prims: int | None = None,
+        cluster_embedding_backend: str | None = None,
+        cluster_embedding_model: str | None = None,
+        cluster_embedding_base_url: str | None = None,
+        cluster_embedding_max_workers: int | None = None,
+        cluster_embedding_batch_size: int | None = None,
+        cluster_max_size: int | None = None,
+        cluster_similarity_threshold_low: float | None = None,
+        cluster_similarity_threshold_medium: float | None = None,
+        cluster_similarity_threshold_high: float | None = None,
+        cluster_report: bool | None = None,
     ) -> str:
         """
         Start the pipeline. You can either pass a pre-created session_id (from upload_usd)
@@ -198,6 +229,23 @@ class MaterialAgentClient:
             vlm_model: Optional VLM model override (e.g. "nim/nvidia/cosmos-reason2-8b").
             vlm_max_workers: Optional max parallel VLM workers.
             render_num_workers: Optional max parallel render workers.
+            enable_prim_clustering: Enable or disable image-based clustering of
+                visually similar prims before prediction.
+            cluster_min_prims: Minimum prim count before clustering runs.
+            cluster_embedding_backend: Embedding backend for clustering.
+            cluster_embedding_model: Embedding model for clustering.
+            cluster_embedding_base_url: Optional embedding endpoint base URL.
+            cluster_embedding_max_workers: Optional parallel embedding workers.
+            cluster_embedding_batch_size: Optional embedding batch size.
+            cluster_max_size: Optional maximum prims per cluster.
+            cluster_similarity_threshold_low: Optional low-complexity threshold.
+            cluster_similarity_threshold_medium: Optional medium-complexity threshold.
+            cluster_similarity_threshold_high: Optional high-complexity threshold.
+            cluster_report: Enable or disable the clustering HTML report.
+            user_email: Optional tracking email. Omit or pass blank to use the
+                service fallback.
+            layer_only: Enable or disable material-binding-layer-only output for
+                this initial pipeline submission.
 
         Returns the session_id of the started run.
         """
@@ -212,6 +260,24 @@ class MaterialAgentClient:
             render_num_workers,
             "RENDER_NUM_WORKERS_MAX",
             DEFAULT_MAX_RENDER_NUM_WORKERS,
+        )
+        _validate_positive_override("cluster_min_prims", cluster_min_prims)
+        _validate_positive_override(
+            "cluster_embedding_max_workers", cluster_embedding_max_workers
+        )
+        _validate_positive_override(
+            "cluster_embedding_batch_size", cluster_embedding_batch_size
+        )
+        _validate_positive_override("cluster_max_size", cluster_max_size)
+        _validate_unit_interval_override(
+            "cluster_similarity_threshold_low", cluster_similarity_threshold_low
+        )
+        _validate_unit_interval_override(
+            "cluster_similarity_threshold_medium",
+            cluster_similarity_threshold_medium,
+        )
+        _validate_unit_interval_override(
+            "cluster_similarity_threshold_high", cluster_similarity_threshold_high
         )
 
         url = f"{self.base_url}/pipeline"
@@ -232,7 +298,9 @@ class MaterialAgentClient:
             else:
                 raise ValueError("Either session_id or usd_path must be provided.")
 
-            data["user_email"] = user_email
+            normalized_user_email = (user_email or "").strip()
+            if normalized_user_email:
+                data["user_email"] = normalized_user_email
 
             if reference_images:
                 for p in reference_images:
@@ -287,10 +355,44 @@ class MaterialAgentClient:
                 data["vlm_max_workers"] = str(vlm_max_workers)
             if render_num_workers is not None:
                 data["render_num_workers"] = str(render_num_workers)
+            if enable_prim_clustering is not None:
+                data["enable_prim_clustering"] = (
+                    "true" if enable_prim_clustering else "false"
+                )
+            if cluster_min_prims is not None:
+                data["cluster_min_prims"] = str(cluster_min_prims)
+            if cluster_embedding_backend:
+                data["cluster_embedding_backend"] = cluster_embedding_backend
+            if cluster_embedding_model:
+                data["cluster_embedding_model"] = cluster_embedding_model
+            if cluster_embedding_base_url:
+                data["cluster_embedding_base_url"] = cluster_embedding_base_url
+            if cluster_embedding_max_workers is not None:
+                data["cluster_embedding_max_workers"] = str(
+                    cluster_embedding_max_workers
+                )
+            if cluster_embedding_batch_size is not None:
+                data["cluster_embedding_batch_size"] = str(cluster_embedding_batch_size)
+            if cluster_max_size is not None:
+                data["cluster_max_size"] = str(cluster_max_size)
+            if cluster_similarity_threshold_low is not None:
+                data["cluster_similarity_threshold_low"] = str(
+                    cluster_similarity_threshold_low
+                )
+            if cluster_similarity_threshold_medium is not None:
+                data["cluster_similarity_threshold_medium"] = str(
+                    cluster_similarity_threshold_medium
+                )
+            if cluster_similarity_threshold_high is not None:
+                data["cluster_similarity_threshold_high"] = str(
+                    cluster_similarity_threshold_high
+                )
+            if cluster_report is not None:
+                data["cluster_report"] = "true" if cluster_report else "false"
             if generated_reference_id:
                 data["generated_reference_id"] = generated_reference_id
-            if layer_only:
-                data["layer_only"] = "true"
+            if layer_only is not None:
+                data["layer_only"] = "true" if layer_only else "false"
             if optimize_usd is not None:
                 data["optimize_usd"] = "true" if optimize_usd else "false"
 
@@ -319,7 +421,7 @@ class MaterialAgentClient:
         session_id: str,
         steps: list[str],
         user_prompt: str | None = None,
-        layer_only: bool = False,
+        layer_only: bool | None = None,
     ) -> dict:
         """
         Re-run specific pipeline steps from cached session data.
@@ -328,7 +430,8 @@ class MaterialAgentClient:
             session_id: Session to regenerate
             steps: List of step names to re-run
             user_prompt: Optional prompt override
-            layer_only: Output only a material binding layer when re-running apply
+            layer_only: Enable or disable material-binding-layer-only output.
+                Omit to leave the service default unchanged.
 
         Returns the response JSON.
         """
@@ -336,8 +439,8 @@ class MaterialAgentClient:
         body: dict[str, object] = {"steps": steps}
         if user_prompt is not None:
             body["user_prompt"] = user_prompt
-        if layer_only:
-            body["layer_only"] = True
+        if layer_only is not None:
+            body["layer_only"] = layer_only
         resp = self._http.post(url, json=body, timeout=self.timeout_seconds)
         resp.raise_for_status()
         return resp.json()
@@ -484,8 +587,20 @@ class MaterialAgentClient:
         vlm_model: str | None = None,
         vlm_max_workers: int | None = None,
         render_num_workers: int | None = None,
-        user_email: str = "",
-        layer_only: bool = False,
+        user_email: str | None = None,
+        layer_only: bool | None = None,
+        enable_prim_clustering: bool | None = None,
+        cluster_min_prims: int | None = None,
+        cluster_embedding_backend: str | None = None,
+        cluster_embedding_model: str | None = None,
+        cluster_embedding_base_url: str | None = None,
+        cluster_embedding_max_workers: int | None = None,
+        cluster_embedding_batch_size: int | None = None,
+        cluster_max_size: int | None = None,
+        cluster_similarity_threshold_low: float | None = None,
+        cluster_similarity_threshold_medium: float | None = None,
+        cluster_similarity_threshold_high: float | None = None,
+        cluster_report: bool | None = None,
     ) -> tuple[str, dict | None]:
         """
         High-level helper that starts the pipeline and monitors it until completion.
@@ -496,12 +611,28 @@ class MaterialAgentClient:
             vlm_model: Optional VLM model override (e.g. "nim/nvidia/cosmos-reason2-8b").
             vlm_max_workers: Optional max parallel VLM workers.
             render_num_workers: Optional max parallel render workers.
-            layer_only: If True, output only material bindings (no scene geometry).
+            enable_prim_clustering: Enable or disable image-based prim clustering.
+            cluster_min_prims: Minimum prim count before clustering runs.
+            cluster_embedding_backend: Embedding backend for clustering.
+            cluster_embedding_model: Embedding model for clustering.
+            cluster_embedding_base_url: Optional embedding endpoint base URL.
+            cluster_embedding_max_workers: Optional parallel embedding workers.
+            cluster_embedding_batch_size: Optional embedding batch size.
+            cluster_max_size: Optional maximum prims per cluster.
+            cluster_similarity_threshold_low: Optional low-complexity threshold.
+            cluster_similarity_threshold_medium: Optional medium-complexity threshold.
+            cluster_similarity_threshold_high: Optional high-complexity threshold.
+            cluster_report: Enable or disable the clustering HTML report.
+            user_email: Optional tracking email. Omit or pass blank to use the
+                service fallback.
+            layer_only: Enable or disable material-binding-layer-only output.
             generated_reference_prompt: If set, upload first, wait for the input
                 preview, generate an AI reference image, then start the pipeline.
 
         Returns (session_id, results_dict_or_none).
         """
+        # Validate before upload or reference-generation calls can create
+        # server-side state. start_pipeline repeats these checks for direct callers.
         _validate_worker_override(
             "vlm_max_workers",
             vlm_max_workers,
@@ -513,6 +644,24 @@ class MaterialAgentClient:
             render_num_workers,
             "RENDER_NUM_WORKERS_MAX",
             DEFAULT_MAX_RENDER_NUM_WORKERS,
+        )
+        _validate_positive_override("cluster_min_prims", cluster_min_prims)
+        _validate_positive_override(
+            "cluster_embedding_max_workers", cluster_embedding_max_workers
+        )
+        _validate_positive_override(
+            "cluster_embedding_batch_size", cluster_embedding_batch_size
+        )
+        _validate_positive_override("cluster_max_size", cluster_max_size)
+        _validate_unit_interval_override(
+            "cluster_similarity_threshold_low", cluster_similarity_threshold_low
+        )
+        _validate_unit_interval_override(
+            "cluster_similarity_threshold_medium",
+            cluster_similarity_threshold_medium,
+        )
+        _validate_unit_interval_override(
+            "cluster_similarity_threshold_high", cluster_similarity_threshold_high
         )
 
         generated_reference_id = None
@@ -550,6 +699,20 @@ class MaterialAgentClient:
                 vlm_model=vlm_model,
                 vlm_max_workers=vlm_max_workers,
                 render_num_workers=render_num_workers,
+                enable_prim_clustering=enable_prim_clustering,
+                cluster_min_prims=cluster_min_prims,
+                cluster_embedding_backend=cluster_embedding_backend,
+                cluster_embedding_model=cluster_embedding_model,
+                cluster_embedding_base_url=cluster_embedding_base_url,
+                cluster_embedding_max_workers=cluster_embedding_max_workers,
+                cluster_embedding_batch_size=cluster_embedding_batch_size,
+                cluster_max_size=cluster_max_size,
+                cluster_similarity_threshold_low=cluster_similarity_threshold_low,
+                cluster_similarity_threshold_medium=(
+                    cluster_similarity_threshold_medium
+                ),
+                cluster_similarity_threshold_high=cluster_similarity_threshold_high,
+                cluster_report=cluster_report,
                 generated_reference_id=generated_reference_id,
                 user_email=user_email,
                 layer_only=layer_only,
@@ -570,6 +733,20 @@ class MaterialAgentClient:
                 vlm_model=vlm_model,
                 vlm_max_workers=vlm_max_workers,
                 render_num_workers=render_num_workers,
+                enable_prim_clustering=enable_prim_clustering,
+                cluster_min_prims=cluster_min_prims,
+                cluster_embedding_backend=cluster_embedding_backend,
+                cluster_embedding_model=cluster_embedding_model,
+                cluster_embedding_base_url=cluster_embedding_base_url,
+                cluster_embedding_max_workers=cluster_embedding_max_workers,
+                cluster_embedding_batch_size=cluster_embedding_batch_size,
+                cluster_max_size=cluster_max_size,
+                cluster_similarity_threshold_low=cluster_similarity_threshold_low,
+                cluster_similarity_threshold_medium=(
+                    cluster_similarity_threshold_medium
+                ),
+                cluster_similarity_threshold_high=cluster_similarity_threshold_high,
+                cluster_report=cluster_report,
                 user_email=user_email,
                 layer_only=layer_only,
             )
@@ -743,15 +920,67 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Maximum parallel render workers for build_dataset_usd",
     )
+    clustering_group = parser.add_mutually_exclusive_group()
+    clustering_group.add_argument(
+        "--enable-prim-clustering",
+        dest="enable_prim_clustering",
+        action="store_true",
+        default=None,
+        help="Enable image-based clustering of visually similar prims",
+    )
+    clustering_group.add_argument(
+        "--disable-prim-clustering",
+        dest="enable_prim_clustering",
+        action="store_false",
+        default=None,
+        help="Explicitly disable image-based prim clustering",
+    )
+    parser.add_argument("--cluster-min-prims", type=int, default=None)
+    parser.add_argument("--cluster-embedding-backend", default=None)
+    parser.add_argument("--cluster-embedding-model", default=None)
+    parser.add_argument("--cluster-embedding-base-url", default=None)
+    parser.add_argument("--cluster-embedding-max-workers", type=int, default=None)
+    parser.add_argument("--cluster-embedding-batch-size", type=int, default=None)
+    parser.add_argument("--cluster-max-size", type=int, default=None)
+    parser.add_argument("--cluster-similarity-threshold-low", type=float, default=None)
     parser.add_argument(
-        "--email",
-        required=True,
-        help="User email address for usage tracking (required)",
+        "--cluster-similarity-threshold-medium", type=float, default=None
+    )
+    parser.add_argument("--cluster-similarity-threshold-high", type=float, default=None)
+    cluster_report_group = parser.add_mutually_exclusive_group()
+    cluster_report_group.add_argument(
+        "--cluster-report",
+        dest="cluster_report",
+        action="store_true",
+        default=None,
+        help="Enable the prim-clustering HTML report",
+    )
+    cluster_report_group.add_argument(
+        "--no-cluster-report",
+        dest="cluster_report",
+        action="store_false",
+        default=None,
+        help="Disable the prim-clustering HTML report",
     )
     parser.add_argument(
+        "--email",
+        default=None,
+        help="Optional user email for usage tracking; service fallback if omitted",
+    )
+    layer_only_group = parser.add_mutually_exclusive_group()
+    layer_only_group.add_argument(
         "--layer-only",
+        dest="layer_only",
         action="store_true",
+        default=None,
         help="Output only material bindings layer (preserves original scene structure)",
+    )
+    layer_only_group.add_argument(
+        "--no-layer-only",
+        dest="layer_only",
+        action="store_false",
+        default=None,
+        help="Explicitly disable material-binding-layer-only output",
     )
     parser.add_argument("usd", help="Path to USD file")
     return parser
@@ -788,6 +1017,18 @@ def main(argv: list[str] | None = None) -> int:
         vlm_model=args.vlm_model,
         vlm_max_workers=args.vlm_max_workers,
         render_num_workers=args.render_num_workers,
+        enable_prim_clustering=args.enable_prim_clustering,
+        cluster_min_prims=args.cluster_min_prims,
+        cluster_embedding_backend=args.cluster_embedding_backend,
+        cluster_embedding_model=args.cluster_embedding_model,
+        cluster_embedding_base_url=args.cluster_embedding_base_url,
+        cluster_embedding_max_workers=args.cluster_embedding_max_workers,
+        cluster_embedding_batch_size=args.cluster_embedding_batch_size,
+        cluster_max_size=args.cluster_max_size,
+        cluster_similarity_threshold_low=args.cluster_similarity_threshold_low,
+        cluster_similarity_threshold_medium=args.cluster_similarity_threshold_medium,
+        cluster_similarity_threshold_high=args.cluster_similarity_threshold_high,
+        cluster_report=args.cluster_report,
         user_email=args.email,
         layer_only=args.layer_only,
     )

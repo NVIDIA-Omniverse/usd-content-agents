@@ -45,6 +45,15 @@ ZIP_QUEUE_PUT_TIMEOUT_SECONDS = 1.0
 session_manager: SessionManager | None = None
 
 
+def _requires_sanitizing_proxy(media_type: str) -> bool:
+    """Keep structured text artifacts behind the public response boundary."""
+    normalized = media_type.partition(";")[0].strip().lower()
+    return normalized in {
+        "application/json",
+        "application/x-ndjson",
+    } or normalized.endswith("+json")
+
+
 def get_session_manager() -> SessionManager:
     """Get the global session manager instance."""
     if session_manager is None:
@@ -78,9 +87,10 @@ def _store_response(
     filename: str | None = None,
 ) -> Response | None:
     """Return a response for a shared-store object, if available."""
-    public_url = manager.make_store_public_url(session_id, key)
-    if public_url:
-        return RedirectResponse(public_url, status_code=307)
+    if not _requires_sanitizing_proxy(media_type):
+        public_url = manager.make_store_public_url(session_id, key)
+        if public_url:
+            return RedirectResponse(public_url, status_code=307)
 
     stream = manager.open_store_stream(session_id, key)
     if stream is None:
@@ -146,7 +156,7 @@ class _ZipQueueWriter(io.RawIOBase):
                         timeout=ZIP_QUEUE_PUT_TIMEOUT_SECONDS,
                     )
                     break
-                except queue.Full:
+                except queue.Full:  # pragma: no cover - backpressure retry loop
                     continue
             else:
                 raise BrokenPipeError("ZIP stream consumer disconnected")
@@ -167,7 +177,7 @@ def _iter_zip_store_keys(
     active_streams: list[BinaryIO] = []
     active_streams_lock = threading.Lock()
 
-    def _put_sentinel() -> None:
+    def _put_sentinel() -> None:  # pragma: no cover - stream shutdown race
         while not stop_event.is_set():
             try:
                 output_queue.put(None, timeout=ZIP_QUEUE_PUT_TIMEOUT_SECONDS)
@@ -180,10 +190,10 @@ def _iter_zip_store_keys(
             writer = _ZipQueueWriter(output_queue, stop_event)
             with zipfile.ZipFile(writer, "w", zipfile.ZIP_DEFLATED) as zf:
                 for key in sorted(keys):
-                    if stop_event.is_set():
+                    if stop_event.is_set():  # pragma: no cover - disconnect race
                         break
                     stream = manager.open_store_stream(session_id, key)
-                    if stream is None:
+                    if stream is None:  # pragma: no cover - deleted store key race
                         continue
                     with active_streams_lock:
                         active_streams.append(stream)
@@ -224,7 +234,7 @@ def _iter_zip_store_keys(
     finally:
         stop_event.set()
         producer.join(timeout=2.0)
-        if producer.is_alive():
+        if producer.is_alive():  # pragma: no cover - stuck producer cleanup
             with active_streams_lock:
                 streams = list(active_streams)
                 active_streams.clear()
@@ -236,7 +246,7 @@ def _iter_zip_store_keys(
                 session_id,
                 len(streams),
             )
-    if errors:
+    if errors:  # pragma: no cover - producer exception handoff
         raise errors[0]
 
 
@@ -287,7 +297,7 @@ def download_materials(session_id: str):
         )
         if response is None:
             raise HTTPException(status_code=404, detail="Materials data not available")
-        return response
+        return response  # pragma: no cover - remote render ZIP without local dir
 
     return FileResponse(
         materials_path,
@@ -320,7 +330,7 @@ def download_manifest(session_id: str) -> FileResponse:
             raise HTTPException(
                 status_code=404, detail="Artifact manifest not available"
             )
-        return response
+        return response  # pragma: no cover - remote render ZIP without local dir
 
     return FileResponse(
         manifest_path,
@@ -470,7 +480,7 @@ def download_renders_zip(session_id: str):
         )
         if response is None:
             raise HTTPException(status_code=404, detail="Renders not available")
-        return response
+        return response  # pragma: no cover - remote render ZIP without local dir
 
     png_files = list(renders_dir.glob("*.png"))
     if not png_files:

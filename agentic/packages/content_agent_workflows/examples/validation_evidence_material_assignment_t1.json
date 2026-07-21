@@ -1,0 +1,38 @@
+{
+  "schema_version": "content-agent-workflows.validation-evidence.v1",
+  "workflow": "material_assignment",
+  "asset": ".data/regression/example_asset/source.usd",
+  "target_runtime": "isaac-sim",
+  "validation_tier": "T1_basic_stability",
+  "checks": [
+    {
+      "name": "visual_materials",
+      "status": "pass",
+      "summary": "All visible material candidates have explicit material assignments and final Workbench renders passed visual review.",
+      "evidence_artifacts": [
+        {
+          "kind": "render",
+          "path": "final_renders/final_oblique.png",
+          "description": "Final oblique verification render"
+        }
+      ],
+      "failures": [],
+      "warnings": [],
+      "repair_hints": [],
+      "metadata": {}
+    }
+  ],
+  "evidence_artifacts": [
+    {
+      "kind": "render",
+      "path": "final_renders/final_oblique.png",
+      "description": "Final oblique verification render"
+    }
+  ],
+  "failures": [],
+  "warnings": [],
+  "unresolved_issues": [],
+  "repair_hints": [],
+  "sim_ready_status": "pass",
+  "metadata": {}
+}

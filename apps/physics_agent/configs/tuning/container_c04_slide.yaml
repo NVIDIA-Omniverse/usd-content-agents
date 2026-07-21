@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Text-guided slide scenario for the bundled Container_Gray_C04 example.
+# Run the Material Agent container_blue config first to produce the blue input.
+
+name: freeform
+metric: judge_score
+
+target:
+  description: >
+    A closed blue plastic warehouse storage container receives a gentle
+    horizontal push across a flat, dry industrial floor. It should slide in the
+    +X direction, decelerate smoothly from friction, and come naturally to rest.
+    The lid and body must remain together, and the container must not bounce,
+    tip over, penetrate the floor, or reverse direction unexpectedly.
+  duration_s: 3.0
+  gravity: -9.81
+  sample_fps: 24
+  initial_pose:
+    position: [0.0, 0.0, 0.0]
+    rotation: [0.0, 0.0, 0.0]
+  initial_velocity: [0.8, 0.0, 0.0]
+  initial_angular_velocity: [0.0, 0.0, 0.0]
+  surface:
+    friction: 0.4
+  observations:
+    - "the closed container slides forward in the +X direction"
+    - "the container decelerates smoothly and comes naturally to rest"
+    - "the lid and body remain together as one rigid assembly"
+    - "the container stays in contact with the floor without penetrating it"
+    - "the container does not bounce, tip over, or reverse direction"
+  cameras: ["+x-y+z"]
+  camera_ground_bias_fraction: 0.7
+  record_video: "off"
+  video_image_width: 512
+  video_image_height: 512
+  video_sensor_updates: 32
+  video_render_mode: "rt2"
+
+judge:
+  temperature: 0.0
+  max_tokens: 2048
+
+parameters:
+  - name: dynamic_friction
+    min: 0.08
+    max: 0.6

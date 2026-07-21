@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scene Collection"
+  short_description: "Collect task results onto original USD topology"
+  default_prompt: "Use $content-workflow-scene-collection to collect validated asset-task results onto the original scene topology."

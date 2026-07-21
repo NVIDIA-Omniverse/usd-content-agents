@@ -343,17 +343,30 @@ async def test_prediction_report_hydrates_inputs_from_shared_store(
         dataset_data.encode(),
         "application/x-ndjson",
     )
+    generation_calls = 0
 
     async def fake_generate_report(
         session_dir: Path,
         predictions_path: Path,
         dataset_path: Path,
-    ) -> None:
+        prediction_lineage: str,
+    ) -> Path:
+        nonlocal generation_calls
+        generation_calls += 1
         assert predictions_path.exists()
         assert dataset_path.exists()
-        report_path = session_dir / "cache" / "predictions" / "prediction_report.html"
+        assert prediction_lineage
+        report_path = (
+            session_dir
+            / "cache"
+            / "predictions"
+            / ".report-builds"
+            / prediction_lineage
+            / "prediction_report.html"
+        )
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text("<html>hydrated report</html>")
+        return report_path
 
     monkeypatch.setattr(
         artifacts_router,
@@ -365,6 +378,26 @@ async def test_prediction_report_hydrates_inputs_from_shared_store(
     resp_b = await client.get(f"/artifacts/{session_id}/report")
     assert resp_b.status_code == 200, resp_b.text
     assert "hydrated report" in resp_b.text
+    assert generation_calls == 1
+    metadata = await shared_pod_a.get_session_metadata(session_id)
+    assert metadata is not None
+    publication = metadata["prediction_report_publication"]
+    assert publication["key"].startswith(
+        f"reports/{metadata['prediction_lineage_token']}/"
+    )
+    assert await shared_store.exists(session_id, publication["key"])
+    assert not await shared_store.exists(
+        session_id,
+        "cache/predictions/prediction_report.html",
+    )
+
+    # A second request on a different pod must resolve the immutable pointer;
+    # the lineage-specific staging directory on pod B has already been removed.
+    _switch_to(shared_pod_a)
+    resp_a = await client.get(f"/artifacts/{session_id}/report")
+    assert resp_a.status_code == 200, resp_a.text
+    assert "hydrated report" in resp_a.text
+    assert generation_calls == 1
 
 
 # ===========================================================================

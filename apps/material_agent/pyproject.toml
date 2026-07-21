@@ -7,6 +7,11 @@ requires-python = ">=3.12"
 authors = [
     {name = "Omniverse GenAI Team"},
 ]
+dependencies = [
+    # The shared rendering backend factory first ships in v0.5.0.
+    "world-understanding>=0.5.0",
+    "setuptools>=80.9.0",
+]
 
 [build-system]
 requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
@@ -16,26 +21,29 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
-dependencies = [
-    # Core dependency - the world-understanding package from parent directory
-    "world-understanding>=0.2.0",
-    "setuptools>=80.9.0",
-
-]
-
 [project.optional-dependencies]
 dev = [
-    "world-understanding[dev]>=0.2.0",
+    "world-understanding[dev]>=0.5.0",
+    "texture-gen-service-common>=0.4.2",
+    "texture-gen-step1x-service>=0.4.2",
+]
+step1x = [
+    "texture-gen-service-common>=0.4.2",
+    "texture-gen-step1x-service>=0.4.2",
 ]
 all = [
-    "material-agent[dev]",
+    "material-agent[dev,step1x]",
 ]
+
+[tool.uv.sources]
+texture-gen-service-common = { path = "../texture_gen_service_common", editable = true }
+texture-gen-step1x-service = { path = "../texture_gen_step1x_service", editable = true }
 
 [project.scripts]
 material-agent = "material_agent.cli:app"

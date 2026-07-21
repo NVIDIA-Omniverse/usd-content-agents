@@ -12,6 +12,7 @@ from world_understanding.agentic.dataset.loader import (
     detect_dataset_version,
     load_dataset,
     load_dataset_config,
+    load_dataset_config_v01,
     load_dataset_entries,
 )
 from world_understanding.agentic.dataset.schema import (
@@ -195,6 +196,26 @@ class TestVersionDetection:
         with pytest.raises(ValueError, match="Cannot determine dataset format"):
             detect_dataset_version(temp_dataset_dir)
 
+    def test_detect_malformed_dataset_json_falls_back_to_v01_indicator(
+        self, temp_dataset_dir
+    ):
+        (temp_dataset_dir / "dataset.json").write_text(
+            "{invalid json", encoding="utf-8"
+        )
+        (temp_dataset_dir / "vlm_system_prompt.txt").write_text(
+            "Prompt", encoding="utf-8"
+        )
+
+        assert detect_dataset_version(temp_dataset_dir) == "0.1"
+
+    def test_detect_dataset_json_without_schema_version_as_v01(self, temp_dataset_dir):
+        (temp_dataset_dir / "dataset.json").write_text(
+            json.dumps({"metadata": {"created": "2025-01-15T10:30:00Z"}}),
+            encoding="utf-8",
+        )
+
+        assert detect_dataset_version(temp_dataset_dir) == "0.1"
+
 
 class TestV01Loading:
     """Test loading v0.1 datasets."""
@@ -211,6 +232,39 @@ class TestV01Loading:
             "expert at identifying materials"
             in config.inference.prompts[0].system_prompt
         )
+
+    def test_load_v01_config_counts_jsonl_when_metadata_count_missing(
+        self, temp_dataset_dir
+    ):
+        (temp_dataset_dir / "vlm_system_prompt.txt").write_text(
+            "System prompt", encoding="utf-8"
+        )
+        usd_dir = temp_dataset_dir / "usd"
+        usd_dir.mkdir()
+        (usd_dir / "dataset.json").write_text(
+            json.dumps(
+                {
+                    "metadata": {
+                        "source_usd": "/path/to/model.usd",
+                        "created": "2025-01-15T10:30:00Z",
+                    },
+                    "statistics": {"total_prims": 0},
+                }
+            ),
+            encoding="utf-8",
+        )
+        entries = [
+            {"id": "/prim/one", "text": "Prompt", "images": ["one.png"]},
+            {"id": "/prim/two", "text": "Prompt", "images": ["two.png"]},
+        ]
+        (temp_dataset_dir / "dataset.jsonl").write_text(
+            "\n".join(json.dumps(entry) for entry in entries) + "\n\n",
+            encoding="utf-8",
+        )
+
+        config = load_dataset_config_v01(temp_dataset_dir)
+
+        assert config.metadata.num_entries == 2
 
     def test_load_v01_entries(self, v01_dataset):
         """Test loading v0.1 dataset entries (converted to v0.2)."""
@@ -235,6 +289,17 @@ class TestV01Loading:
             img1.metadata.vlm_prompt
             == "This is a rendered part highlighted with an orange outline."
         )
+
+    def test_load_v01_entries_skips_blank_lines(self, v01_dataset):
+        jsonl_path = v01_dataset / "dataset.jsonl"
+        jsonl_path.write_text(
+            "\n" + jsonl_path.read_text(encoding="utf-8") + "\n",
+            encoding="utf-8",
+        )
+
+        entries = list(load_dataset_entries(v01_dataset))
+
+        assert len(entries) == 2
 
     def test_load_v01_with_filter(self, v01_dataset):
         """Test loading v0.1 entries with filter."""
@@ -288,6 +353,17 @@ class TestV02Loading:
             img1.metadata.vlm_prompt
             == "This is a rendered part highlighted with an orange outline."
         )
+
+    def test_load_v02_entries_skips_blank_lines(self, v02_dataset):
+        jsonl_path = v02_dataset / "dataset.jsonl"
+        jsonl_path.write_text(
+            "\n" + jsonl_path.read_text(encoding="utf-8") + "\n",
+            encoding="utf-8",
+        )
+
+        entries = list(load_dataset_entries(v02_dataset))
+
+        assert len(entries) == 2
 
     def test_load_v02_with_filter(self, v02_dataset):
         """Test loading v0.2 entries with filter."""

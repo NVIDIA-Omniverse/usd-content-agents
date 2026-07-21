@@ -1,0 +1,49 @@
+# Universal Robots UR5e — 6-DOF collaborative arm.
+# Identical kinematic structure to UR10e, smaller scale.
+
+robot_id: ur5e
+aliases:
+  - ur5
+  - "universal_robots_ur5"
+  - "universal_robots_ur5e"
+  - "ur 5"
+  - "ur 5e"
+filename_aliases:
+  - ur5
+  - ur5e
+  - "ur_5"
+  - "ur_5e"
+description: "Universal Robots UR5e — 6-DOF collaborative arm, 7 rigid links"
+topology: serial_chain
+num_dofs: 6
+component_names:
+  - base
+  - shoulder
+  - upper_arm
+  - forearm
+  - wrist_1
+  - wrist_2
+  - wrist_3
+visual_cues:
+  base: >-
+    Lowest, widest housing; flat circular bottom for table/surface mounting.
+  shoulder: >-
+    First revolute housing directly above the base; similar diameter to base.
+  upper_arm: >-
+    Longest cylindrical tube, between shoulder housing and elbow.
+  forearm: >-
+    Second long tube from elbow to first wrist; shorter than upper arm.
+  wrist_1: >-
+    First compact wrist housing right after the forearm.
+  wrist_2: >-
+    Middle wrist housing, oriented at 90° to wrist_1.
+  wrist_3: >-
+    Outermost wrist with circular tool-mounting flange on its free end.
+tiebreakers:
+  - >-
+    Wrist disambiguation by chain position: nearest forearm = wrist_1;
+    flange-bearing = wrist_3; middle = wrist_2.
+  - >-
+    Upper arm vs forearm: longer tube nearer the base is upper_arm.
+completeness_required: true
+self_check: true

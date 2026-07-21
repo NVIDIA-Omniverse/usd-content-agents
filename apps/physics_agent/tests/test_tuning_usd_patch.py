@@ -106,7 +106,7 @@ def test_patch_missing_input_raises(tmp_path: Path) -> None:
 
 def test_make_tuned_usd_path_canonical_name(tmp_path: Path) -> None:
     p = make_tuned_usd_path(tmp_path)
-    assert p.name == "tuned_physics.usda"
+    assert p.name == "tuned_physics.usd"
 
 
 def test_patch_with_no_recognised_keys_is_idempotent_copy(tmp_path: Path) -> None:

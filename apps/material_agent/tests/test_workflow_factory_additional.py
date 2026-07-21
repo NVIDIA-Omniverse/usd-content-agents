@@ -82,6 +82,9 @@ def test_creates_validation_and_apply_family_workflows() -> None:
 
 def test_creates_scene_preview_and_reference_generation_workflows() -> None:
     generate_reference = factory.create_generate_reference_image_workflow_from_config()
+    generate_material_library = (
+        factory.create_generate_material_library_workflow_from_config()
+    )
     render_preview = factory.create_render_preview_workflow_from_config()
     validate_input = factory.create_validate_input_workflow_from_config()
     validate_output = factory.create_validate_output_workflow_from_config()
@@ -90,6 +93,10 @@ def test_creates_scene_preview_and_reference_generation_workflows() -> None:
     assert [task.name for task in generate_reference.tasks] == [
         "GenerateRefImageConfig",
         "GenerateReferenceImage",
+    ]
+    assert [task.name for task in generate_material_library.tasks] == [
+        "GenerateMaterialLibraryConfig",
+        "GenerateMaterialLibrary",
     ]
     assert [task.name for task in render_preview.tasks] == [
         "RenderPreviewConfig",
@@ -106,6 +113,7 @@ def test_creates_scene_preview_and_reference_generation_workflows() -> None:
     assert [task.name for task in identify.tasks] == ["IdentifyAsset"]
 
     assert isinstance(generate_reference.object_store, InMemoryObjectStore)
+    assert isinstance(generate_material_library.object_store, InMemoryObjectStore)
     assert isinstance(render_preview.object_store, InMemoryObjectStore)
 
 

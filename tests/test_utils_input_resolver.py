@@ -10,6 +10,7 @@ import pytest
 from world_understanding.utils.input_resolver import (
     InputResolutionError,
     InputResolver,
+    _resolve_base_dir,
     resolve_input_inventory,
 )
 
@@ -269,3 +270,13 @@ def test_working_dir_file_fails(tmp_path: Path) -> None:
 def test_empty_inputs_fail(tmp_path: Path) -> None:
     with pytest.raises(InputResolutionError, match="At least one input path"):
         resolve_input_inventory([], base_dir=tmp_path)
+
+
+def test_resolve_base_dir_accepts_relative_existing_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    assert _resolve_base_dir("base") == base.resolve()

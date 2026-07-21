@@ -261,6 +261,33 @@ def test_judge_task_run_respects_fail_closed_vlm_decision() -> None:
     assert result["judge_image_decision_parsed"] is True
 
 
+def test_judge_task_refreshes_evaluation_signals_each_run() -> None:
+    context = {
+        "iteration_count": 1,
+        "materials_applied": {},
+        "assignment_stats": {"total_prims": 1},
+        "evaluation_signals": {"schema_version": "stale"},
+        "judge_config": {
+            "score_threshold": 0.7,
+            "prediction_analysis": {"enabled": False},
+            "reference_images": ["/tmp/reference.png"],
+        },
+        "previous_prim_feedback": {"/World/Mesh": "Use darker material."},
+    }
+
+    result = _FixedVlmDecisionJudgeTask("continue").run(context)
+
+    assert result["evaluation_signals"]["schema_version"] == (
+        "material-self-evaluation-signals/v1"
+    )
+    assert result["evaluation_signals"]["visual_evaluation"][
+        "reference_image_paths"
+    ] == ["/tmp/reference.png"]
+    assert result["evaluation_signals"]["prediction_analysis"][
+        "previous_prim_feedback"
+    ] == {"/World/Mesh": "Use darker material."}
+
+
 def test_judge_task_explicit_continue_vetoes_prediction_blend() -> None:
     context = {
         "iteration_count": 1,

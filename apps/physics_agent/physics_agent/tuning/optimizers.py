@@ -22,12 +22,11 @@ from __future__ import annotations
 import logging
 import random as _random_module
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
 
 from .errors import BoTorchUnavailableError
-from .types import Scenario
+from .types import Scenario, TunableParam
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +54,30 @@ def _params_from_vector(scenario: Scenario, x: np.ndarray) -> dict[str, float]:
     for i, tp in enumerate(scenario.params):
         v = float(np.clip(x[i], 0.0, 1.0))
         out[tp.name] = tp.min_value + v * (tp.max_value - tp.min_value)
+
+    friction_pair = _friction_pair(scenario)
+    if friction_pair is not None:
+        static_param, dynamic_param = friction_pair
+        static_index = next(
+            i
+            for i, param in enumerate(scenario.params)
+            if param.name == static_param.name
+        )
+        dynamic_index = next(
+            i
+            for i, param in enumerate(scenario.params)
+            if param.name == dynamic_param.name
+        )
+        static_unit = float(np.clip(x[static_index], 0.0, 1.0))
+        dynamic_unit = float(np.clip(x[dynamic_index], 0.0, 1.0))
+        static_min = max(static_param.min_value, dynamic_param.min_value)
+        static_value = static_min + static_unit * (static_param.max_value - static_min)
+        dynamic_max = min(dynamic_param.max_value, static_value)
+        dynamic_value = dynamic_param.min_value + dynamic_unit * (
+            dynamic_max - dynamic_param.min_value
+        )
+        out[static_param.name] = static_value
+        out[dynamic_param.name] = dynamic_value
     return out
 
 
@@ -64,7 +87,45 @@ def _vector_from_params(scenario: Scenario, params: dict[str, float]) -> np.ndar
     for i, tp in enumerate(scenario.params):
         denom = max(tp.max_value - tp.min_value, 1e-12)
         out[i] = (float(params[tp.name]) - tp.min_value) / denom
+
+    friction_pair = _friction_pair(scenario)
+    if friction_pair is not None:
+        static_param, dynamic_param = friction_pair
+        static_index = next(
+            i
+            for i, param in enumerate(scenario.params)
+            if param.name == static_param.name
+        )
+        dynamic_index = next(
+            i
+            for i, param in enumerate(scenario.params)
+            if param.name == dynamic_param.name
+        )
+        static_value = float(params[static_param.name])
+        dynamic_value = float(params[dynamic_param.name])
+        static_min = max(static_param.min_value, dynamic_param.min_value)
+        static_denom = max(static_param.max_value - static_min, 1e-12)
+        dynamic_max = min(dynamic_param.max_value, static_value)
+        dynamic_denom = max(dynamic_max - dynamic_param.min_value, 1e-12)
+        out[static_index] = (static_value - static_min) / static_denom
+        out[dynamic_index] = (dynamic_value - dynamic_param.min_value) / dynamic_denom
     return np.clip(out, 0.0, 1.0)
+
+
+def _friction_pair(
+    scenario: Scenario,
+) -> tuple[TunableParam, TunableParam] | None:
+    """Return coupled static/dynamic friction parameters when both are tuned."""
+    params = scenario.param_dict()
+    static_param = params.get("static_friction")
+    dynamic_param = params.get("dynamic_friction")
+    if static_param is None or dynamic_param is None:
+        return None
+    if dynamic_param.min_value > static_param.max_value:
+        raise ValueError(
+            "dynamic_friction minimum must not exceed static_friction maximum"
+        )
+    return static_param, dynamic_param
 
 
 def is_botorch_available() -> bool:
@@ -304,6 +365,3 @@ __all__ = [
     "run_cma_es_optimizer",
     "run_botorch_optimizer",
 ]
-
-
-_ = Any  # silence unused-import false-positive when typing is the only consumer

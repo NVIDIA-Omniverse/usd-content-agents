@@ -7,6 +7,30 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class ErrorDetail(BaseModel):
+    """Standard FastAPI error payload returned by input failures."""
+
+    detail: str = Field(description="Human-readable error detail")
+
+
+S3_INPUT_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": (
+            "Missing, conflicting, or invalid input source, including an "
+            "unsupported USD extension."
+        ),
+        "model": ErrorDetail,
+    },
+    403: {
+        "description": (
+            "Client S3 URI rejected by the configured bucket allowlist, "
+            "or S3 access denied."
+        ),
+        "model": ErrorDetail,
+    },
+}
+
+
 class StepProgress(BaseModel):
     """Progress information for a single step."""
 
@@ -50,6 +74,17 @@ class OverallProgress(BaseModel):
     )
 
 
+class TexturePlanStatus(BaseModel):
+    """Compact immutable-plan summary embedded in polling responses."""
+
+    schema_version: str
+    decision_state: str
+    execution_allowed: bool
+    counts: dict[str, int]
+    limits: dict[str, int | None]
+    plan_url: str
+
+
 class PipelineStatus(BaseModel):
     """Pipeline execution status with progress."""
 
@@ -67,6 +102,10 @@ class PipelineStatus(BaseModel):
     elapsed_seconds: int = Field(description="Total elapsed time in seconds")
     created_at: str = Field(description="ISO timestamp when session created")
     updated_at: str = Field(description="ISO timestamp of last update")
+    error: str | None = Field(
+        default=None,
+        description="Sanitized top-level error message (failed runs)",
+    )
     failed_step: str | None = Field(
         default=None, description="Step that failed (only set when status=failed)"
     )
@@ -76,6 +115,13 @@ class PipelineStatus(BaseModel):
             "Structured failed-step stats including any per-unit ``errors`` "
             "and ``textures_failed`` count. Mirrors the SSE FAILED event "
             "extra so polling clients see the same diagnostic detail."
+        ),
+    )
+    texture_plan: TexturePlanStatus | None = Field(
+        default=None,
+        description=(
+            "Bounded plan summary once planning has completed, including the "
+            "decision, audited counts, and exact effective/hard caps."
         ),
     )
 
@@ -148,6 +194,13 @@ class SessionCreated(BaseModel):
     estimated_duration_minutes: int | None = Field(
         default=None, description="Estimated completion time"
     )
+    plan_url: str | None = Field(
+        default=None,
+        description=(
+            "Stable texture-plan endpoint for this session; returns 404 until "
+            "planning has produced texture_plan.json."
+        ),
+    )
 
 
 class SessionConfigSummary(BaseModel):
@@ -155,7 +208,7 @@ class SessionConfigSummary(BaseModel):
 
     Excludes absolute filesystem paths (the input USD lives at a server-
     internal location implied by the session id; surfacing it would leak
-    the container's storage layout -- NVBugs 6127703).
+    the container's storage layout).
     """
 
     project_name: str | None = None
@@ -197,7 +250,7 @@ class SessionDetail(BaseModel):
 
     Whitelists fields that are safe for public surface. Free-form strings
     in ``error`` and ``failed_step_stats`` are sanitized to redact NVCF
-    function URLs and absolute session paths (NVBugs 6127945, 6127703).
+    function URLs and absolute session paths.
     """
 
     session_id: str

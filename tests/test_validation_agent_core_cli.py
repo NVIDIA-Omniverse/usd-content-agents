@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import typer
 from PIL import Image as PILImage
 from PIL import ImageDraw
+from rich.console import Console
 
 from world_understanding.validation import (
     ValidationIssue,
@@ -26,15 +28,23 @@ from world_understanding.validation import (
 from world_understanding.validation.cli import (
     DEPENDENCY_UNAVAILABLE_RECOMMENDED_ACTION,
     PASS_EXIT_CODE,
+    VALIDATION_CLI_ERROR_EXIT_CODE,
     VALIDATION_FAILURE_EXIT_CODE,
     ValidationCliError,
+    ValidationCliRun,
     _apply_expected_result_policy,
     _apply_gate_policy,
+    _dependency_unavailable_recommended_action,
+    _downgrade_expected_failure_issue,
+    _gate_policy_string_sequence,
     _scaffold_policy_from_request,
     build_validation_request_from_inputs,
     load_validation_request_config,
+    print_validation_summary,
+    run_validation_cli_command,
     run_validation_from_config,
     run_validation_from_inputs,
+    run_validation_inputs_cli_command,
     run_validation_request,
     validation_exit_code,
 )
@@ -130,6 +140,49 @@ def _expected_failure_policy_result(
     )
 
 
+def _fake_cli_run(
+    *,
+    verdict: ValidationVerdict = "pass",
+    exit_code: int = PASS_EXIT_CODE,
+    issues: Sequence[ValidationIssue] = (),
+) -> ValidationCliRun:
+    request = ValidationRequest(
+        task_description="Validate CLI output.",
+        inputs=("asset.usd",),
+        requested_templates=("render_valid",),
+    )
+    template_result = ValidationTemplateResult(
+        template_name="render_valid",
+        status="failed" if issues else "passed",
+        issues=tuple(issues),
+    )
+    result = ValidationResult(
+        verdict=verdict,
+        request=request,
+        plan=ValidationPlan(
+            steps=(
+                ValidationPlanStep(
+                    template_name="render_valid",
+                    reason="requested",
+                ),
+            )
+        ),
+        template_results=(template_result,),
+        issues=tuple(issues),
+    )
+    return ValidationCliRun(
+        request=request,
+        result=result,
+        output_dir=Path("/tmp/validation-agent-run"),
+        artifact_paths={
+            "validation_request": "/tmp/validation-agent-run/validation_request.json",
+            "validation_plan": "/tmp/validation-agent-run/validation_plan.json",
+            "validation_result": "/tmp/validation-agent-run/validation_result.json",
+        },
+        exit_code=exit_code,
+    )
+
+
 def test_validation_agent_builds_request_from_direct_inputs(tmp_path: Path) -> None:
     request = build_validation_request_from_inputs(
         task_description="  Validate that the generated asset looks correct.  ",
@@ -182,6 +235,213 @@ def test_validation_agent_direct_inputs_reject_blank_task(tmp_path: Path) -> Non
             output_dir="direct-run",
             base_dir=tmp_path,
         )
+
+
+def test_validation_agent_direct_inputs_default_output_uses_current_directory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    request = build_validation_request_from_inputs(
+        task_description="Validate default output.",
+        inputs="asset.usda",
+    )
+
+    assert request.project.working_dir == str(
+        (tmp_path / ".validation-runs" / "validation-agent").resolve(strict=False)
+    )
+
+
+def test_validation_agent_config_relative_output_uses_current_directory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "asset.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    config_path = tmp_path / "validation.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "task_description": "Validate relative CLI output.",
+                "inputs": ["asset.usda"],
+                "requested_templates": ["render_valid"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    run = run_validation_from_config(
+        config_path,
+        output_dir="relative-run",
+        dry_run=True,
+    )
+
+    assert run.output_dir == (tmp_path / "relative-run").resolve(strict=False)
+
+
+def test_validation_agent_config_command_rejects_unknown_output_format() -> None:
+    console = Console(record=True, width=120)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_validation_cli_command(
+            config_path=Path("validation.yaml"),
+            output_dir=None,
+            dry_run=False,
+            fail_on_warn=False,
+            output_format="xml",
+            console=console,
+        )
+
+    assert exc_info.value.exit_code == VALIDATION_CLI_ERROR_EXIT_CODE
+    assert "Unknown format: xml" in console.export_text()
+
+
+def test_validation_agent_config_command_prints_json_and_propagates_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    console = Console(record=True, width=120)
+    monkeypatch.setattr(
+        "world_understanding.validation.cli.run_validation_from_config",
+        lambda *args, **kwargs: _fake_cli_run(
+            verdict="fail",
+            exit_code=VALIDATION_FAILURE_EXIT_CODE,
+        ),
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_validation_cli_command(
+            config_path=Path("validation.yaml"),
+            output_dir=Path("out"),
+            dry_run=True,
+            template_overrides=("render_valid",),
+            focus_prim_overrides=("/World",),
+            fail_on_warn=True,
+            output_format="json",
+            console=console,
+        )
+
+    assert exc_info.value.exit_code == VALIDATION_FAILURE_EXIT_CODE
+    assert '"verdict": "fail"' in console.export_text()
+
+
+def test_validation_agent_config_command_prints_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    console = Console(record=True, width=120)
+    monkeypatch.setattr(
+        "world_understanding.validation.cli.run_validation_from_config",
+        lambda *args, **kwargs: _fake_cli_run(),
+    )
+
+    run_validation_cli_command(
+        config_path=Path("validation.yaml"),
+        output_dir=None,
+        dry_run=True,
+        fail_on_warn=False,
+        output_format="text",
+        console=console,
+    )
+
+    assert "Validation Agent verdict" in console.export_text()
+
+
+def test_validation_agent_inputs_command_rejects_unknown_output_format() -> None:
+    console = Console(record=True, width=120)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_validation_inputs_cli_command(
+            task_description="Validate inputs.",
+            inputs=(Path("asset.usd"),),
+            output_dir=None,
+            dry_run=False,
+            fail_on_warn=False,
+            output_format="xml",
+            console=console,
+        )
+
+    assert exc_info.value.exit_code == VALIDATION_CLI_ERROR_EXIT_CODE
+    assert "Unknown format: xml" in console.export_text()
+
+
+def test_validation_agent_inputs_command_prints_json_and_propagates_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    console = Console(record=True, width=120)
+    monkeypatch.setattr(
+        "world_understanding.validation.cli.run_validation_from_inputs",
+        lambda **kwargs: _fake_cli_run(
+            verdict="fail",
+            exit_code=VALIDATION_FAILURE_EXIT_CODE,
+        ),
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_validation_inputs_cli_command(
+            task_description="Validate inputs.",
+            inputs=(Path("asset.usd"),),
+            output_dir=Path("out"),
+            dry_run=True,
+            template_overrides=("render_valid",),
+            focus_prim_overrides=("/World",),
+            fail_on_warn=True,
+            output_format="json",
+            console=console,
+            reference_image_paths=(Path("reference.png"),),
+            render_backend="warp",
+            render_views=("front",),
+            render_image_width=64,
+            render_image_height=32,
+        )
+
+    assert exc_info.value.exit_code == VALIDATION_FAILURE_EXIT_CODE
+    assert '"verdict": "fail"' in console.export_text()
+
+
+def test_validation_agent_inputs_command_prints_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    console = Console(record=True, width=120)
+    monkeypatch.setattr(
+        "world_understanding.validation.cli.run_validation_from_inputs",
+        lambda **kwargs: _fake_cli_run(),
+    )
+
+    run_validation_inputs_cli_command(
+        task_description="Validate inputs.",
+        inputs=(Path("asset.usd"),),
+        output_dir=None,
+        dry_run=True,
+        fail_on_warn=False,
+        output_format="text",
+        console=console,
+    )
+
+    assert "Validation Agent verdict" in console.export_text()
+
+
+def test_validation_agent_summary_prints_issue_and_artifact_tables() -> None:
+    issue = ValidationIssue(
+        code="render.no_image",
+        severity="fail",
+        message="No render image was produced.",
+        template_name="render_valid",
+    )
+    console = Console(record=True, width=120)
+
+    print_validation_summary(
+        _fake_cli_run(
+            verdict="fail",
+            exit_code=VALIDATION_FAILURE_EXIT_CODE,
+            issues=(issue,),
+        ),
+        console=console,
+    )
+
+    output = console.export_text()
+    assert "Validation Agent Issues" in output
+    assert "render.no_image" in output
+    assert "validation_result" in output
 
 
 def test_validation_agent_direct_inputs_dry_run_writes_stable_artifacts(
@@ -379,6 +639,112 @@ def test_validation_agent_preserves_scalar_render_hints() -> None:
     assert policy["render_image_height"] == 240
 
 
+def test_validation_agent_typed_render_backend_is_authoritative() -> None:
+    request = ValidationRequest(
+        task_description="Validate render response.",
+        inputs=("render.png",),
+        render=ValidationRenderConfig(backend=" OVRTX "),
+        policy={"render_backend": "ovrtx"},
+    )
+
+    policy = _scaffold_policy_from_request(request)
+
+    assert policy["render_backend"] == " OVRTX "
+
+
+def test_validation_agent_rejects_conflicting_render_backend_fields() -> None:
+    request = ValidationRequest(
+        task_description="Validate render response.",
+        inputs=("render.png",),
+        render=ValidationRenderConfig(backend="ovrtx"),
+        policy={"render_backend": "remote"},
+    )
+
+    with pytest.raises(ValidationCliError, match="Conflicting rendering backends"):
+        _scaffold_policy_from_request(request)
+
+
+def test_validation_agent_rejects_backend_conflict_before_output_side_effects(
+    tmp_path: Path,
+) -> None:
+    request = ValidationRequest(
+        task_description="Validate render response.",
+        inputs=("render.png",),
+        render=ValidationRenderConfig(backend="ovrtx"),
+        policy={"render_backend": "remote"},
+    )
+    reused_output_dir = tmp_path / "reused"
+    reused_output_dir.mkdir()
+    existing_artifacts = {
+        reused_output_dir / "validation_request.json": "existing request",
+        reused_output_dir / "validation_plan.json": "existing plan",
+        reused_output_dir / "validation_result.json": "existing result",
+    }
+    for artifact_path, content in existing_artifacts.items():
+        artifact_path.write_text(content, encoding="utf-8")
+
+    with pytest.raises(ValidationCliError, match="Conflicting rendering backends"):
+        run_validation_request(
+            request,
+            config_base_dir=tmp_path,
+            output_dir=reused_output_dir,
+        )
+
+    assert {
+        artifact_path: artifact_path.read_text(encoding="utf-8")
+        for artifact_path in existing_artifacts
+    } == existing_artifacts
+
+    new_output_dir = tmp_path / "new"
+    with pytest.raises(ValidationCliError, match="Conflicting rendering backends"):
+        run_validation_request(
+            request,
+            config_base_dir=tmp_path,
+            output_dir=new_output_dir,
+        )
+
+    assert not new_output_dir.exists()
+
+
+def test_validation_agent_preserves_tuple_frames_and_render_metadata() -> None:
+    request = ValidationRequest(
+        task_description="Validate sampled render response.",
+        inputs=("render.png",),
+        render=ValidationRenderConfig(
+            animation_frames=(1, 3, 5),
+            metadata={"renderer": "warp"},
+        ),
+    )
+
+    policy = _scaffold_policy_from_request(request)
+
+    assert policy["expected_frames"] == [1, 3, 5]
+    assert policy["render_metadata"] == {"renderer": "warp"}
+
+
+def test_validation_agent_policy_path_edge_values(tmp_path: Path) -> None:
+    absolute_render_dir = (tmp_path / "renders").resolve(strict=False)
+    request = ValidationRequest(
+        task_description="Validate policy path edges.",
+        inputs=("asset.usd",),
+        policy={
+            "reference_image_paths": None,
+            "current_image_paths": "current.png",
+            "physical_behavior_refine_summary_path": None,
+            "render_output_dir": absolute_render_dir,
+        },
+    )
+
+    policy = _scaffold_policy_from_request(request, base_dir=tmp_path)
+
+    assert policy["reference_image_paths"] is None
+    assert policy["current_image_paths"] == [
+        str((tmp_path / "current.png").resolve(strict=False))
+    ]
+    assert policy["physical_behavior_refine_summary_path"] is None
+    assert policy["render_output_dir"] == str(absolute_render_dir)
+
+
 def test_validation_agent_resolves_non_visual_policy_paths_from_config_dir(
     tmp_path: Path,
 ) -> None:
@@ -473,6 +839,61 @@ def test_validation_agent_public_behavior_example_runs(tmp_path: Path) -> None:
     assert behavior.template_name == "physical_behavior"
     assert behavior.status == "passed"
     assert behavior.metrics["judge_decision"] == "approve"
+
+
+def test_validation_agent_required_behavior_at_iteration_cap_fails(
+    tmp_path: Path,
+) -> None:
+    video_path = tmp_path / "behavior.mp4"
+    video_path.write_bytes(b"not decoded by scaffold")
+    summary_path = tmp_path / "refine_summary.json"
+    summary_path.write_text(
+        json.dumps(
+            {
+                "termination_reason": "max_iterations",
+                "final_iteration": 1,
+                "iterations": [
+                    {
+                        "iteration": 1,
+                        "judge_decision": "continue",
+                        "judge_score": 0.3,
+                        "judge_reasoning": "The rollout still tips over.",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    request = ValidationRequest(
+        task_description="Validate required rollout behavior.",
+        inputs=(str(video_path),),
+        requested_templates=("physical_behavior",),
+        policy={
+            "behavior_evidence_required": True,
+            "physical_behavior_refine_summary_path": str(summary_path),
+        },
+    )
+
+    run = run_validation_request(
+        request,
+        config_base_dir=tmp_path,
+        output_dir=tmp_path / "run",
+    )
+
+    assert run.exit_code == VALIDATION_FAILURE_EXIT_CODE
+    assert run.result.verdict == "fail"
+    behavior = run.result.template_results[0]
+    assert behavior.status == "failed"
+    assert behavior.issues[0].code == "physics.behavior_needs_refinement"
+    assert behavior.issues[0].severity == "fail"
+    assert behavior.metrics["termination_reason"] == "max_iterations"
+    assert behavior.metrics["judge_decision"] == "continue"
+    result_data = json.loads(
+        (tmp_path / "run" / "validation_result.json").read_text(encoding="utf-8")
+    )
+    assert result_data["verdict"] == "fail"
+    assert result_data["template_results"][0]["status"] == "failed"
+    assert result_data["issues"][0]["severity"] == "fail"
 
 
 def test_validation_agent_rejects_malformed_policy_path_sequences(
@@ -643,6 +1064,40 @@ def test_validation_agent_renders_usd_inputs_for_visual_templates(
     assert result_data["template_results"][1]["evidence"]["image_caption_pairs"] == [
         {"caption": "Current Render Output - View 1:", "path": rendered_path},
     ]
+
+
+def test_validation_agent_unknown_render_backend_fails_end_to_end(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    usd_path = tmp_path / "asset.usda"
+    usd_path.write_text("#usda 1.0\n", encoding="utf-8")
+    output_dir = tmp_path / "run"
+    request = ValidationRequest(
+        task_description="Validate render evidence.",
+        inputs=(str(usd_path),),
+        render=ValidationRenderConfig(backend="typo"),
+        requested_templates=("render_valid",),
+    )
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering."
+        "_create_rendering_backend_from_factory",
+        lambda *_args, **_kwargs: pytest.fail("factory must not be called"),
+    )
+
+    run = run_validation_request(
+        request,
+        config_base_dir=tmp_path,
+        output_dir=output_dir,
+    )
+
+    assert run.exit_code == VALIDATION_FAILURE_EXIT_CODE
+    assert run.result.verdict == "fail"
+    assert "render.backend_unknown" in {issue.code for issue in run.result.issues}
+    runtime_render = run.result.template_results[0].metadata["runtime_render"]
+    assert runtime_render["status"] == "failed"
+    assert runtime_render["backend"] == "typo"
+    assert not (output_dir / "renders").exists()
 
 
 def test_validation_agent_live_look_right_mock_vlm_writes_invocation(
@@ -887,6 +1342,18 @@ def test_validation_agent_expected_failure_policy_accepts_single_code_string() -
     assert result.verdict == "warn"
     assert result.metadata["expected_result"]["matched"] is True
     assert result.issues[0].details["expected_failure"] is True
+
+
+def test_validation_agent_expected_failure_issue_ignores_non_matching_issue() -> None:
+    issue = ValidationIssue(
+        code="render.no_image",
+        severity="warn",
+        message="No render image was produced.",
+    )
+
+    assert (
+        _downgrade_expected_failure_issue(issue, {"physics.no_physics_scene"}) is issue
+    )
 
 
 def test_validation_agent_expected_failure_empty_code_string_is_missing() -> None:
@@ -1300,6 +1767,27 @@ def test_validation_agent_gate_policy_preserves_existing_recommended_action() ->
     assert gated.recommended_action is not None
     assert DEPENDENCY_UNAVAILABLE_RECOMMENDED_ACTION in gated.recommended_action
     assert "Fix the authored physics metadata." in gated.recommended_action
+
+
+def test_validation_agent_gate_policy_leaves_existing_dependency_action_unchanged() -> (
+    None
+):
+    existing = (
+        f"{DEPENDENCY_UNAVAILABLE_RECOMMENDED_ACTION} Existing recommendation: "
+        "review the fixture."
+    )
+
+    assert _dependency_unavailable_recommended_action(existing) == existing
+
+
+def test_validation_agent_gate_policy_string_sequence_allows_none() -> None:
+    assert (
+        _gate_policy_string_sequence(
+            None,
+            field_name="gate_policy.dependency_unavailable_issue_codes",
+        )
+        == ()
+    )
 
 
 def test_validation_agent_gate_policy_honors_dependency_issue_override(

@@ -26,7 +26,7 @@ from concurrent.futures import (
 )
 from datetime import datetime, timedelta
 from pathlib import Path
-from threading import Lock
+from threading import Event, Lock
 from time import perf_counter
 from typing import Any
 
@@ -38,13 +38,51 @@ from world_understanding.functions.models.vision_language_models import (
 )
 from world_understanding.utils.llm_parsing import (
     extract_json_from_llm_response,
+    extract_last_answer_block,
     extract_material_from_json,
+    iter_json_dicts_from_llm_response,
+)
+from world_understanding.utils.model_auth import (
+    ModelAuthenticationFailure,
+    raise_for_model_authentication,
 )
 from world_understanding.utils.token_tracking import TokenTracker
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_VLM_GENERATE_TIMEOUT_SECONDS = 180.0
+_UNSTRUCTURED_LABEL_PATTERNS = (
+    re.compile(
+        r"\b(?:must|should|would|can|will|is|are)?\s*(?:be\s+)?"
+        r"classified\s+as\s+[\"'`]?"
+        r"(?P<value>[A-Za-z0-9][A-Za-z0-9 _/\-]{0,80})[\"'`]?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        # Avoid bare "class is" because it also appears in incidental prose.
+        r"\b(?:classification|label|answer|(?:final|selected|chosen|predicted|"
+        r"object|component)\s+class)\s*(?:is|:|=)\s*[\"'`]?"
+        r"(?P<value>[A-Za-z0-9][A-Za-z0-9 _/\-]{0,80})[\"'`]?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:falls?|fall)\s+under\s+(?:the\s+)?[\"'`]?"
+        r"(?P<value>[A-Za-z0-9][A-Za-z0-9 _/\-]{0,80}?)[\"'`]?"
+        r"\s+(?:category|class|classification|label)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:belongs?|belong)\s+to\s+(?:the\s+)?[\"'`]?"
+        r"(?P<value>[A-Za-z0-9][A-Za-z0-9 _/\-]{0,80}?)[\"'`]?"
+        r"\s+(?:category|class|classification|label)\b",
+        re.IGNORECASE,
+    ),
+)
+_NEGATED_LABEL_CONTEXT_RE = re.compile(
+    r"\b(?:not|never|no|cannot|can't|couldn't|shouldn't|won't|isn't|aren't|"
+    r"mustn't|must\s+not|should\s+not|could\s+not|would\s+not)\b",
+    re.IGNORECASE,
+)
 
 
 def extract_answer_block(text: str) -> str | None:
@@ -60,16 +98,7 @@ def extract_answer_block(text: str) -> str | None:
     Returns:
         Content within the last answer block, or None if not found
     """
-    # Find ALL <answer>...</answer> blocks (case insensitive)
-    answer_matches = re.findall(
-        r"<answer[^>]*>(.*?)</answer>", text, re.DOTALL | re.IGNORECASE
-    )
-
-    if answer_matches:
-        # Return the LAST answer block (the actual VLM response, not the repeated example)
-        return answer_matches[-1].strip()
-
-    return None
+    return extract_last_answer_block(text)
 
 
 def get_fibonacci_delay(attempt: int, base_delay: float = 1.0) -> float:
@@ -169,18 +198,27 @@ def _invoke_parser_with_chat_model(
         hasattr(parser_model, "model")
         and "gpt-5" in str(getattr(parser_model, "model", "")).lower()
     ):
-        response = parser_model.invoke(messages, max_completion_tokens=max_tokens)
+        try:
+            response = parser_model.invoke(messages, max_completion_tokens=max_tokens)
+        except Exception as e:
+            raise_for_model_authentication(e)
+            raise
     else:
         try:
             response = parser_model.invoke(
                 messages, temperature=0.1, max_tokens=max_tokens
             )
         except Exception as e:
+            raise_for_model_authentication(e)
             error_msg = str(e)
             if "max_tokens" in error_msg and "max_completion_tokens" in error_msg:
-                response = parser_model.invoke(
-                    messages, max_completion_tokens=max_tokens
-                )
+                try:
+                    response = parser_model.invoke(
+                        messages, max_completion_tokens=max_tokens
+                    )
+                except Exception as retry_error:
+                    raise_for_model_authentication(retry_error)
+                    raise
             else:
                 raise
 
@@ -201,11 +239,16 @@ async def _ainvoke_parser_with_chat_model(
                 messages, temperature=0.1, max_tokens=max_tokens
             )
         except Exception as e:
+            raise_for_model_authentication(e)
             error_msg = str(e)
             if "max_tokens" in error_msg and "max_completion_tokens" in error_msg:
-                response = await parser_model.ainvoke(
-                    messages, max_completion_tokens=max_tokens
-                )
+                try:
+                    response = await parser_model.ainvoke(
+                        messages, max_completion_tokens=max_tokens
+                    )
+                except Exception as retry_error:
+                    raise_for_model_authentication(retry_error)
+                    raise
             else:
                 raise
     else:
@@ -345,10 +388,26 @@ async def _invoke_parser_model_async(
     )
 
 
+def _extract_single_result_json_from_response_text(
+    response_text: str,
+    *,
+    output_key: str,
+) -> dict[str, Any] | None:
+    """Extract JSON compatible with the requested single-result output key."""
+    legacy_result = None
+    for candidate in iter_json_dicts_from_llm_response(response_text):
+        if output_key in candidate:
+            return candidate
+        if extract_material_from_json(candidate):
+            legacy_result = candidate
+    return legacy_result
+
+
 def _parse_single_result_from_response_text(
     response_text: str,
     *,
     output_key: str,
+    unknown_sentinel: str | None = None,
 ) -> dict[str, Any] | None:
     """Parse a structured single-object classification result from text."""
     if not response_text or not response_text.strip():
@@ -368,8 +427,9 @@ def _parse_single_result_from_response_text(
                 len(all_answers),
             )
 
-        result = extract_json_from_llm_response(
-            answer_content, expected_keys=[output_key]
+        result = _extract_single_result_json_from_response_text(
+            answer_content,
+            output_key=output_key,
         )
 
         if result:
@@ -403,7 +463,10 @@ def _parse_single_result_from_response_text(
         except json.JSONDecodeError:
             answer_fallback = {output_key: answer_content}
 
-    result = extract_json_from_llm_response(response_text, expected_keys=[output_key])
+    result = _extract_single_result_json_from_response_text(
+        response_text,
+        output_key=output_key,
+    )
     if result:
         value = extract_material_from_json(result)
         if value:
@@ -412,6 +475,14 @@ def _parse_single_result_from_response_text(
                 output_key=output_key,
                 value=value,
             )
+        return result
+
+    result = _explicit_unstructured_label_result(
+        response_text,
+        output_key=output_key,
+        unknown_sentinel=unknown_sentinel,
+    )
+    if result:
         return result
 
     if answer_fallback:
@@ -441,6 +512,50 @@ def _rename_legacy_material_key(
         del result["material"]
         return
     result[output_key] = value
+
+
+def _extract_explicit_unstructured_label(response_text: str) -> str | None:
+    """Extract a plainly stated class label from non-JSON model text."""
+    if not response_text:
+        return None
+
+    matches: list[tuple[int, str]] = []
+    for pattern in _UNSTRUCTURED_LABEL_PATTERNS:
+        for match in pattern.finditer(response_text):
+            if _label_match_is_negated(response_text, match.start()):
+                continue
+            label = _clean_unstructured_label(match.group("value"))
+            if label:
+                matches.append((match.start(), label))
+
+    if not matches:
+        return None
+    return max(matches, key=lambda item: item[0])[1]
+
+
+def _label_match_is_negated(response_text: str, match_start: int) -> bool:
+    # Keep the window local so unrelated earlier negations do not suppress
+    # a later affirmative label.
+    local_context = response_text[max(0, match_start - 48) : match_start]
+    return bool(_NEGATED_LABEL_CONTEXT_RE.search(local_context))
+
+
+def _clean_unstructured_label(value: str) -> str | None:
+    label = value.strip().strip("\"'`")
+    # Preserve conjunctions/prepositions inside labels such as "black and white"
+    # or "adapter for rail".
+    label = re.split(
+        r"\b(?:because|since|when|while|but)\b",
+        label,
+        maxsplit=1,
+    )[0]
+    label = label.strip().strip(" .,:;\"'`")
+
+    if not label or len(label) > 80:
+        return None
+    if not re.search(r"[A-Za-z0-9]", label):
+        return None
+    return label
 
 
 def _explicit_unknown_sentinel_result(
@@ -508,6 +623,26 @@ def _normalize_unknown_sentinel_result(
         value, unknown_sentinel
     ):
         result[output_key] = unknown_sentinel
+
+
+def _explicit_unstructured_label_result(
+    response_text: str,
+    *,
+    output_key: str,
+    unknown_sentinel: str | None,
+) -> dict[str, Any] | None:
+    """Build a normalized result from a plainly stated non-JSON label."""
+    unstructured_label = _extract_explicit_unstructured_label(response_text)
+    if not unstructured_label:
+        return None
+
+    result: dict[str, Any] = {output_key: unstructured_label}
+    _normalize_unknown_sentinel_result(
+        result,
+        output_key=output_key,
+        unknown_sentinel=unknown_sentinel,
+    )
+    return result
 
 
 def classify_object(
@@ -703,6 +838,7 @@ def classify_object(
                     vlm_response = ""
 
         except Exception as e:
+            raise_for_model_authentication(e)
             logger.error(
                 f"VLM inference error on attempt {attempt + 1}/{max_retries}: {e}"
             )
@@ -736,8 +872,9 @@ def classify_object(
         logger.debug(f"Using answer block content: {answer_content[:100]}...")
 
         # Try to extract JSON from the answer block
-        result = extract_json_from_llm_response(
-            answer_content, expected_keys=[output_key]
+        result = _extract_single_result_json_from_response_text(
+            answer_content,
+            output_key=output_key,
         )
 
         if result:
@@ -808,7 +945,10 @@ def classify_object(
     # non-JSON answer block. Some models emit a valid JSON code block followed
     # by a stale prompt placeholder such as "<answer>your answer</answer>".
     logger.debug("Attempting to extract JSON from entire response")
-    result = extract_json_from_llm_response(vlm_response, expected_keys=[output_key])
+    result = _extract_single_result_json_from_response_text(
+        vlm_response,
+        output_key=output_key,
+    )
 
     if result:
         # Use robust extraction to handle various schemas
@@ -847,6 +987,20 @@ def classify_object(
             f"'{unknown_sentinel}'"
         )
         return sentinel_result
+
+    result = _explicit_unstructured_label_result(
+        vlm_response,
+        output_key=output_key,
+        unknown_sentinel=unknown_sentinel,
+    )
+    if result:
+        logger.info(
+            "Extracted explicit unstructured classification from VLM response: %s='%s'",
+            output_key,
+            result.get(output_key),
+        )
+        result["original_response"] = vlm_response
+        return result
 
     if answer_fallback:
         answer_fallback["original_response"] = vlm_response
@@ -980,6 +1134,7 @@ Return ONLY a JSON object with this exact structure:
                         parsed_response = ""
 
             except Exception as e:
+                raise_for_model_authentication(e)
                 logger.error(
                     f"LLM parsing error on attempt {llm_attempt + 1}/{max_retries}: {e}"
                 )
@@ -997,6 +1152,7 @@ Return ONLY a JSON object with this exact structure:
         result = _parse_single_result_from_response_text(
             parsed_response,
             output_key=output_key,
+            unknown_sentinel=unknown_sentinel,
         )
 
         if result:
@@ -1022,6 +1178,7 @@ Return ONLY a JSON object with this exact structure:
             }
 
     except Exception as e:
+        raise_for_model_authentication(e)
         logger.error(f"Error parsing VLM response with LLM: {e}")
         # Fallback: return a dict with the raw response
         return {
@@ -1463,6 +1620,7 @@ def _process_sequential(
                     logger.warning(f"on_result callback failed for {entry_id}: {cb_e}")
 
         except Exception as e:
+            raise_for_model_authentication(e)
             error_msg = str(e)
             logger.error(f"Entry {entry_id} failed: {error_msg}", exc_info=True)
             # Even on failure, record timing and print ETA if we started timing
@@ -1532,6 +1690,7 @@ def _process_parallel(
 ) -> list[dict[str, Any]]:
     """Process entries in parallel using ThreadPoolExecutor."""
     results = []
+    auth_abort = Event()
 
     # Thread-safe statistics
     stats_lock = Lock()
@@ -1552,6 +1711,9 @@ def _process_parallel(
     def _process_entry(entry: dict[str, Any]) -> dict[str, Any]:
         """Process a single entry (executed in thread pool)."""
         nonlocal total_assignment_seconds, timed_assignments, completed_count
+
+        if auth_abort.is_set():
+            raise ModelAuthenticationFailure()
 
         entry_id = entry.get("id", "unknown")
         logger.debug(f"Processing entry: {entry_id}")
@@ -1640,6 +1802,8 @@ def _process_parallel(
                         )
                         break
 
+            if auth_abort.is_set():
+                raise ModelAuthenticationFailure()
             response = classify_object(
                 vlm=vlm,
                 text=text,
@@ -1711,6 +1875,11 @@ def _process_parallel(
             return result
 
         except Exception as e:
+            try:
+                raise_for_model_authentication(e)
+            except ModelAuthenticationFailure:
+                auth_abort.set()
+                raise
             error_msg = str(e)
             logger.error(f"Entry {entry_id} failed: {error_msg}", exc_info=True)
 
@@ -1745,6 +1914,7 @@ def _process_parallel(
             return error_result
 
     # Process entries in parallel using ThreadPoolExecutor
+    auth_failure: ModelAuthenticationFailure | None = None
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_entry = {
@@ -1757,6 +1927,14 @@ def _process_parallel(
                 result = future.result()
                 results.append(result)
             except Exception as e:
+                try:
+                    raise_for_model_authentication(e)
+                except ModelAuthenticationFailure as error:
+                    auth_failure = error
+                    for sibling in future_to_entry:
+                        if sibling is not future:
+                            sibling.cancel()
+                    break
                 entry = future_to_entry[future]
                 entry_id = entry.get("id", "unknown")
                 logger.error(
@@ -1769,6 +1947,9 @@ def _process_parallel(
                     "error": str(e),
                 }
                 results.append(error_result)
+
+    if auth_failure is not None:
+        raise auth_failure from None
 
     # Log summary
     successful = sum(1 for r in results if r["status"] == "success")
@@ -1915,6 +2096,7 @@ def classify_objects_multi_prim(
                     vlm_response = ""
 
         except Exception as e:
+            raise_for_model_authentication(e)
             logger.error(
                 f"VLM inference error on attempt {attempt + 1}/{max_retries}: {e}"
             )
@@ -2220,6 +2402,7 @@ otherwise use your best guess from the available options.
                     time.sleep(get_fibonacci_delay(llm_attempt, base_delay=0.5))
 
             except Exception as e:
+                raise_for_model_authentication(e)
                 logger.error(f"LLM parsing attempt {llm_attempt + 1} failed: {e}")
                 if llm_attempt < max_retries - 1:
                     import time
@@ -2227,6 +2410,7 @@ otherwise use your best guess from the available options.
                     time.sleep(get_fibonacci_delay(llm_attempt, base_delay=0.5))
 
     except Exception as e:
+        raise_for_model_authentication(e)
         logger.error(f"LLM fallback failed entirely: {e}")
 
     logger.error(
@@ -2377,6 +2561,7 @@ async def async_classify_object(
                     vlm_response = ""
 
         except Exception as e:
+            raise_for_model_authentication(e)
             logger.error(
                 f"VLM inference error on attempt {attempt + 1}/{max_retries}: {e}"
             )
@@ -2390,6 +2575,7 @@ async def async_classify_object(
     result = _parse_single_result_from_response_text(
         vlm_response,
         output_key=output_key,
+        unknown_sentinel=unknown_sentinel,
     )
     if result:
         _normalize_unknown_sentinel_result(
@@ -2527,6 +2713,7 @@ Return ONLY a JSON object with this exact structure:
                         parsed_response = ""
 
             except Exception as e:
+                raise_for_model_authentication(e)
                 logger.error(
                     f"LLM parsing error on attempt {llm_attempt + 1}/{max_retries}: {e}"
                 )
@@ -2539,6 +2726,7 @@ Return ONLY a JSON object with this exact structure:
         result = _parse_single_result_from_response_text(
             parsed_response,
             output_key=output_key,
+            unknown_sentinel=unknown_sentinel,
         )
 
         if result:
@@ -2556,6 +2744,7 @@ Return ONLY a JSON object with this exact structure:
             }
 
     except Exception as e:
+        raise_for_model_authentication(e)
         logger.error(f"Error parsing VLM response with LLM: {e}")
         return {
             output_key: "Error during parsing",
@@ -2616,6 +2805,7 @@ async def async_batch_classify_objects(
 
     # Semaphore for concurrency control
     semaphore = asyncio.Semaphore(max_workers or 1)
+    auth_abort = asyncio.Event()
 
     # Running timing stats (protected by lock for concurrent access)
     total_assignment_seconds = 0.0
@@ -2635,6 +2825,9 @@ async def async_batch_classify_objects(
         nonlocal total_assignment_seconds, timed_assignments
 
         async with semaphore:
+            if auth_abort.is_set():
+                raise ModelAuthenticationFailure()
+
             entry_id = entry.get("id", "unknown")
             logger.debug(
                 f"Processing entry {idx}/{len(entries_to_process)}: {entry_id}"
@@ -2710,6 +2903,8 @@ async def async_batch_classify_objects(
                             image_prompts_for_entry = None
                             break
 
+                if auth_abort.is_set():
+                    raise ModelAuthenticationFailure()
                 response = await async_classify_object(
                     vlm=vlm,
                     text=text,
@@ -2777,6 +2972,11 @@ async def async_batch_classify_objects(
                 return result
 
             except Exception as e:
+                try:
+                    raise_for_model_authentication(e)
+                except ModelAuthenticationFailure:
+                    auth_abort.set()
+                    raise
                 error_msg = str(e)
                 logger.error(f"Entry {entry_id} failed: {error_msg}", exc_info=True)
                 if on_error:
@@ -2799,9 +2999,21 @@ async def async_batch_classify_objects(
 
     # Launch all entries with gather (semaphore controls concurrency)
     tasks = [
-        _process_entry(entry, idx) for idx, entry in enumerate(entries_to_process, 1)
+        asyncio.create_task(_process_entry(entry, idx))
+        for idx, entry in enumerate(entries_to_process, 1)
     ]
-    results = await asyncio.gather(*tasks)
+    try:
+        results = await asyncio.gather(*tasks)
+    except Exception as error:
+        try:
+            raise_for_model_authentication(error)
+        except ModelAuthenticationFailure as auth_failure:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise auth_failure from None
+        raise
 
     # Log summary
     results_list = list(results)

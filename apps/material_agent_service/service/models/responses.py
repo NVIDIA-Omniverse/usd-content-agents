@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Response models for Material Agent Service API."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -50,6 +50,33 @@ class OverallProgress(BaseModel):
     )
 
 
+class MaterialCoverage(BaseModel):
+    """Prim-level prediction and material-binding readiness."""
+
+    schema_version: str = "1.0"
+    policy: Literal["strict", "allow_partial"]
+    readiness_grade: Literal[
+        "complete", "complete_with_fallback", "partial", "not_evaluated"
+    ]
+    target_count: int = Field(ge=0)
+    prepared_count: int = Field(ge=0)
+    predicted_count: int = Field(ge=0)
+    usable_prediction_count: int = Field(ge=0)
+    unknown_prediction_count: int = Field(ge=0)
+    fallback_count: int = Field(ge=0)
+    bound_count: int = Field(ge=0)
+    unbound_count: int = Field(ge=0)
+    prediction_coverage_ratio: float = Field(ge=0.0, le=1.0)
+    binding_coverage_ratio: float = Field(ge=0.0, le=1.0)
+    missing_prepared_prim_ids: list[str] = Field(default_factory=list)
+    missing_prediction_prim_ids: list[str] = Field(default_factory=list)
+    unknown_prim_ids: list[str] = Field(default_factory=list)
+    fallback_prim_ids: list[str] = Field(default_factory=list)
+    unbound_prim_ids: list[str] = Field(default_factory=list)
+    extra_prediction_prim_ids: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class PipelineStatus(BaseModel):
     """Enhanced pipeline execution status with progress."""
 
@@ -67,6 +94,9 @@ class PipelineStatus(BaseModel):
     elapsed_seconds: int = Field(description="Total elapsed time in seconds")
     created_at: str = Field(description="ISO timestamp when session created")
     updated_at: str = Field(description="ISO timestamp of last update")
+    coverage: MaterialCoverage | None = Field(
+        default=None, description="Material prediction and binding readiness"
+    )
 
 
 class StageTimings(BaseModel):
@@ -116,6 +146,10 @@ class PipelineResults(BaseModel):
     )
     duration_seconds: int = Field(description="Total pipeline duration in seconds")
     completed_at: str = Field(description="ISO timestamp when completed")
+    coverage: MaterialCoverage | None = Field(
+        default=None,
+        description="Material prediction and binding readiness",
+    )
 
 
 class PipelineError(BaseModel):
@@ -130,6 +164,19 @@ class PipelineError(BaseModel):
     )
     partial_results: dict[str, Any] | None = Field(
         default=None, description="Partial results if available"
+    )
+    download_urls: dict[str, str] = Field(
+        default_factory=dict,
+        description="URLs to download artifacts preserved before failure",
+        examples=[
+            {
+                "output_usd": "/artifacts/abc123/output",
+                "predictions": "/artifacts/abc123/predictions",
+            }
+        ],
+    )
+    coverage: MaterialCoverage | None = Field(
+        default=None, description="Material prediction and binding readiness"
     )
 
 

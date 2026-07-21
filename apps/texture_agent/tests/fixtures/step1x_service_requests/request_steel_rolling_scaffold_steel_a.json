@@ -1,0 +1,43 @@
+{
+  "source_asset_uri": "file:///work/texture_step1x/steel_rolling_scaffold/prepared/SM_SteelRollingScaffold_A01_01_uv_ready.usd",
+  "conditioning": {
+    "text_prompt": "brushed stainless steel scaffold tubes with orange-brown rust at joints, weathered grime, scratches, dull oxidation, and worn edges",
+    "reference_image_uris": [],
+    "turntable_video_uri": null,
+    "multiview_image_uris": []
+  },
+  "configuration": {
+    "strength": 0.85,
+    "seed": 4202,
+    "variant_name": "steel_rolling_scaffold_steel_a_step1x",
+    "engine": "step1x",
+    "texture_size": 1024,
+    "custom_parameters": {
+      "scenario": "steel_rolling_scaffold_step1x_service",
+      "asset": "steel_rolling_scaffold",
+      "steps": 30,
+      "guidance": 10.0,
+      "skip_material_anything": true,
+      "upscale": true
+    }
+  },
+  "target": {
+    "material_name": "Steel_A",
+    "material_path": "/RootNode/Materials/Steel_A",
+    "prim_paths": [
+      "/RootNode/Geometry/M_SteelRollingScaffold_A01_Metal",
+      "/RootNode/Geometry/Steel_A"
+    ],
+    "mode": "per_material",
+    "strict_scope": true
+  },
+  "capabilities": {
+    "image_conditioning": false,
+    "multiview": false,
+    "normal_map": true,
+    "orm": true,
+    "masks": true,
+    "coverage": true,
+    "geometry_output": "none"
+  }
+}

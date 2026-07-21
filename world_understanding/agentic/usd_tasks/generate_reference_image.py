@@ -25,6 +25,7 @@ from world_understanding.utils.credentials import (
     get_nim_api_key_for_base_url,
     get_openai_api_key_for_base_url,
     is_placeholder_api_key,
+    resolve_endpoint_api_key,
 )
 from world_understanding.utils.object_store import ObjectStore
 
@@ -107,7 +108,10 @@ class GenerateReferenceImageTask(Task):
         for key in ("model", "base_url", "timeout"):
             if key in image_gen_config:
                 model_kwargs[key] = image_gen_config[key]
-        explicit_api_key = image_gen_config.get("api_key")
+        explicit_api_key = resolve_endpoint_api_key(
+            image_gen_config.get("api_key"),
+            image_gen_config.get("api_key_env"),
+        )
         api_key: str | None = None
         if backend == "nim":
             api_key = get_nim_api_key_for_base_url(

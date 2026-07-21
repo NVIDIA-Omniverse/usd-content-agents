@@ -1,0 +1,251 @@
+{
+  "$schema": "../../../schemas/skill_eval_suite.schema.json",
+  "schema_version": "1.0",
+  "suite_version": "1.0.1",
+  "skill": "material-agent-cli",
+  "source": {
+    "report": "skill-eval-report-iter1-2026-07-09.md",
+    "report_date": "2026-07-09",
+    "iteration": 1,
+    "original_cases_artifact": "unavailable",
+    "reconstruction_note": "The original generated case file was absent from the report archive. These eight approved case titles, prompts, and iteration-one corrections were reconstructed from the human-readable report."
+  },
+  "methodology": {
+    "isolation": {
+      "fresh_workspace_per_run": true,
+      "baseline_skill_access": "none",
+      "candidate_skill_access": "target-only",
+      "cleanup_between_runs": true,
+      "sibling_skill_stubs": [
+        "deploy-material-agent-docker",
+        "physics-agent-cli",
+        "texture-agent-cli"
+      ]
+    },
+    "portability": {
+      "required_cells": [
+        {
+          "harness": "claude-code",
+          "model": "current-supported-claude"
+        },
+        {
+          "harness": "codex",
+          "model": "current-supported-gpt"
+        }
+      ],
+      "portable_uplift_requires_all_cells": true
+    }
+  },
+  "cases": [
+    {
+      "id": "positive-assign-materials",
+      "source_case": "Positive 1 - Assign materials to a user USD asset",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Use the Material Agent CLI to assign suitable materials to the ladder USD. Prepare a safe config, validate it, run the pipeline, and tell me where the materialized USD was written.",
+      "fixture_paths": [
+        "apps/material_agent/configs/unified_example.yaml",
+        "apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg"
+      ],
+      "expected": [
+        {
+          "id": "plans-supported-run",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Copies the public example config into an isolated workspace, updates input and output paths, checks provider and rendering prerequisites, and runs a dry run before the full material-agent command."
+        },
+        {
+          "id": "reports-materialized-usd",
+          "leg": "live",
+          "evidence": "artifact",
+          "description": "Waits for terminal completion and reports an existing materialized USD and pipeline report instead of inferring success from process startup."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "The repo environment is active and material-agent is installed.",
+          "The selected public VLM provider credential is configured.",
+          "Any rendering or optimizer endpoint enabled by the copied config is reachable."
+        ],
+        "side_effects": [
+          "Creates a copied config and pipeline outputs under a case-specific temporary directory.",
+          "May submit VLM, rendering, and optimizer requests selected by the config."
+        ],
+        "cleanup": [
+          "Remove the case-specific temporary config and output directory.",
+          "Stop only processes started by this case and preserve pre-existing shared services."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-resume-prefailed-pipeline",
+      "source_case": "Positive 2 - Resume a partially failed pipeline from the last checkpoint",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "This Material Agent run failed in predict after saving its checkpoint. Use the provided pre-failed state to explain the exact resume command and how you will preserve completed work.",
+      "fixture_paths": [
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/config.yaml",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/.pipeline_state.json",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/dataset.jsonl",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/dataset.json",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/usd/dataset.json",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/usd/usd_model.json",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/usd/prims.jsonl",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/usd/renders/ladder_side_rail_reference_1.ppm",
+        ".agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/dataset/usd/renders/ladder_side_rail_reference_2.ppm"
+      ],
+      "expected": [
+        {
+          "id": "uses-real-checkpoint",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Inspects the provided pipeline state, identifies predict as failed, uses material-agent run .agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/config.yaml --resume, and does not use --clean or delete the working directory."
+        }
+      ]
+    },
+    {
+      "id": "positive-simready-demo",
+      "source_case": "Positive 3 - Run the public SimReady demo",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Run the public Material Agent SimReady demo on the ladder example and report the generated material assignments and output USD.",
+      "fixture_paths": [
+        ".agents/skills/material-agent-cli/references/simready-quickstart.md",
+        "apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "apps/material_agent/material_agent/simready/data/physicalai_simready_materials_v0_2_0.yaml"
+      ],
+      "expected": [
+        {
+          "id": "follows-public-quickstart",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Uses the public SimReady quickstart, keeps credentials out of command text, verifies required downloads and endpoints, and names the expected output locations."
+        },
+        {
+          "id": "verifies-simready-artifacts",
+          "leg": "live",
+          "evidence": "artifact",
+          "description": "Waits for terminal completion and verifies predictions and an output USD exist before reporting success."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "The repo environment is active and material-agent is installed.",
+          "The selected VLM provider credential and required rendering service are available.",
+          "Any public SimReady asset download described by the quickstart can complete."
+        ],
+        "side_effects": [
+          "Downloads public demo inputs when absent.",
+          "Creates case-specific prediction, report, and materialized USD artifacts."
+        ],
+        "cleanup": [
+          "Remove only the case-specific run directory and transient downloads created by this case.",
+          "Stop only processes started by this case."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-benchmark-predictions",
+      "source_case": "Positive 4 - Benchmark material predictions with LLM-judge scoring",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Show me how to benchmark Material Agent predictions with LLM-judge scoring using a prepared dataset, while keeping execution separate from this knowledge-only evaluation.",
+      "fixture_paths": [
+        ".agents/skills/material-agent-cli/references/commands.md"
+      ],
+      "expected": [
+        {
+          "id": "constructs-benchmark-command",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Uses material-agent benchmark with explicit config, dataset, and output paths; explains judge prerequisites and result artifacts; and does not claim the long-running benchmark executed."
+        }
+      ]
+    },
+    {
+      "id": "negative-deploy-rest-service",
+      "source_case": "Negative 1 - Deploy the Material Agent REST service with Docker",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Deploy the Material Agent REST service with Docker Compose and keep it running for me.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-deployment-skill",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Names deploy-material-agent-docker as the appropriate sibling skill and does not start containers or present local CLI commands as service deployment."
+        }
+      ]
+    },
+    {
+      "id": "negative-author-physics",
+      "source_case": "Negative 2 - Add physics properties to a USD",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Classify the components in this USD and author rigid-body, collision, and mass properties with the local CLI.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-physics-cli",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes the request to physics-agent-cli and does not claim Material Agent authors physics schemas."
+        }
+      ]
+    },
+    {
+      "id": "negative-generate-textures",
+      "source_case": "Negative 3 - Generate textures",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Generate new AI textures for the materials on this USD with the local agent CLI.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-texture-cli",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes the request to texture-agent-cli and distinguishes texture generation from material assignment."
+        }
+      ]
+    },
+    {
+      "id": "negative-general-usd-question",
+      "source_case": "Negative 4 - General question about USD payloads",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "What is a USD payload, and when should I use one?",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "answers-without-skill-workflow",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Answers the conceptual question directly without invoking Material Agent commands or fabricating an asset workflow."
+        }
+      ]
+    }
+  ]
+}

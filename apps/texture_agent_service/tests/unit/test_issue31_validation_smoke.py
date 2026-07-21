@@ -143,7 +143,11 @@ async def test_issue31_service_ladder_smoke_matches_cli_validation_contract(
     uv_report = json.loads(uv_report_path.read_text(encoding="utf-8"))
     assert uv_report["schema_version"] == "texture-agent-uv-report.v1"
 
-    albedo_path = session_dir / "cache" / "textures" / "Aluminum_Matte_albedo.png"
+    texture_plan = json.loads(
+        (session_dir / "cache" / "texture_plan.json").read_text(encoding="utf-8")
+    )
+    texture_unit_id = texture_plan["selected_units"][0]["unit_id"]
+    albedo_path = session_dir / "cache" / "textures" / f"{texture_unit_id}_albedo.png"
     with Image.open(albedo_path) as image:
         assert image.size == (16, 16)
         assert image.getbbox() is not None

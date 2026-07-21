@@ -17,6 +17,13 @@ from world_understanding.functions.physics import (  # noqa: E402
     infer_physics_expected,
     inspect_usd_physics,
 )
+from world_understanding.functions.physics.physics_sanity import (  # noqa: E402
+    PhysicsSanityFinding,
+    PhysicsSanityResult,
+    _authored_number,
+    _check_mass_scale,
+    _world_bbox_info,
+)
 
 
 def _new_stage(path: Path) -> Usd.Stage:
@@ -69,6 +76,46 @@ def test_open_failure_is_reported_cleanly(tmp_path: Path) -> None:
     assert _codes(result) == {"physics.usd_open_failed"}
 
 
+def test_falsey_stage_open_is_reported_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    usd_path = tmp_path / "empty.usda"
+    usd_path.write_text("#usda 1.0\n", encoding="utf-8")
+    monkeypatch.setattr(Usd.Stage, "Open", lambda _path: None)
+
+    result = inspect_usd_physics(usd_path, expect_physics=True)
+
+    assert not result.opened
+    assert not result.passed
+    assert _codes(result) == {"physics.usd_open_failed"}
+
+
+def test_sanity_dataclasses_serialize_passed_state() -> None:
+    finding = PhysicsSanityFinding(
+        code="physics.example",
+        severity="warn",
+        message="example warning",
+        prim_path="/World/Body",
+        details={"answer": 42},
+    )
+    result = PhysicsSanityResult(
+        usd_path="asset.usda",
+        opened=True,
+        physics_expected=True,
+        findings=[finding],
+    )
+
+    assert finding.to_dict() == {
+        "code": "physics.example",
+        "severity": "warn",
+        "message": "example warning",
+        "prim_path": "/World/Body",
+        "details": {"answer": 42},
+    }
+    assert result.to_dict()["passed"] is True
+
+
 def test_valid_simple_physics_usd_passes(tmp_path: Path) -> None:
     usd_path = tmp_path / "valid_physics.usda"
     stage = _new_stage(usd_path)
@@ -83,6 +130,20 @@ def test_valid_simple_physics_usd_passes(tmp_path: Path) -> None:
     assert result.summary["physics_scene_count"] == 1
     assert result.summary["rigid_body_count"] == 1
     assert result.summary["collider_count"] == 1
+
+
+def test_single_mesh_rigid_body_group_is_not_multi_mesh(tmp_path: Path) -> None:
+    usd_path = tmp_path / "single_mesh_body.usda"
+    stage = _new_stage(usd_path)
+    _add_scene(stage)
+    mesh = UsdGeom.Mesh.Define(stage, "/World/SoloMesh").GetPrim()
+    UsdPhysics.RigidBodyAPI.Apply(mesh).CreateRigidBodyEnabledAttr(True)
+    UsdPhysics.CollisionAPI.Apply(mesh).CreateCollisionEnabledAttr(True)
+    _save(stage)
+
+    result = inspect_usd_physics(usd_path, expect_physics=True)
+
+    assert "physics.invalid_rigid_body_authoring" not in _codes(result)
 
 
 def test_usd_validation_runs_basic_and_physics_categories(tmp_path: Path) -> None:
@@ -285,6 +346,56 @@ def test_independent_sibling_mesh_rigid_bodies_pass_by_default(
     assert result.passed
 
 
+def test_root_sibling_mesh_rigid_bodies_are_not_auto_flagged(
+    tmp_path: Path,
+) -> None:
+    usd_path = tmp_path / "root_mesh_bodies.usda"
+    stage = _new_stage(usd_path)
+    _add_scene(stage)
+    for name in ("RootBodyA", "RootBodyB"):
+        mesh = UsdGeom.Mesh.Define(stage, f"/{name}").GetPrim()
+        UsdPhysics.RigidBodyAPI.Apply(mesh).CreateRigidBodyEnabledAttr(True)
+        UsdPhysics.CollisionAPI.Apply(mesh).CreateCollisionEnabledAttr(True)
+    _save(stage)
+
+    result = inspect_usd_physics(usd_path, expect_physics=True)
+
+    assert "physics.invalid_rigid_body_authoring" not in _codes(result)
+
+
+def test_nested_mesh_parent_lookup_skips_mesh_ancestors(tmp_path: Path) -> None:
+    usd_path = tmp_path / "nested_mesh_body.usda"
+    stage = _new_stage(usd_path)
+    _add_scene(stage)
+    UsdGeom.Mesh.Define(stage, "/World/OuterMesh")
+    inner = UsdGeom.Mesh.Define(stage, "/World/OuterMesh/InnerMesh").GetPrim()
+    UsdPhysics.RigidBodyAPI.Apply(inner).CreateRigidBodyEnabledAttr(True)
+    UsdPhysics.CollisionAPI.Apply(inner).CreateCollisionEnabledAttr(True)
+    _save(stage)
+
+    result = inspect_usd_physics(usd_path, expect_physics=True)
+
+    assert "physics.invalid_rigid_body_authoring" not in _codes(result)
+
+
+def test_non_container_scope_sibling_mesh_bodies_are_not_auto_flagged(
+    tmp_path: Path,
+) -> None:
+    usd_path = tmp_path / "scope_mesh_bodies.usda"
+    stage = _new_stage(usd_path)
+    _add_scene(stage)
+    stage.DefinePrim("/World/Parts", "Scope")
+    for name in ("PartA", "PartB"):
+        mesh = UsdGeom.Mesh.Define(stage, f"/World/Parts/{name}").GetPrim()
+        UsdPhysics.RigidBodyAPI.Apply(mesh).CreateRigidBodyEnabledAttr(True)
+        UsdPhysics.CollisionAPI.Apply(mesh).CreateCollisionEnabledAttr(True)
+    _save(stage)
+
+    result = inspect_usd_physics(usd_path, expect_physics=True)
+
+    assert "physics.invalid_rigid_body_authoring" not in _codes(result)
+
+
 def test_single_asset_policy_flags_independent_sibling_mesh_bodies(
     tmp_path: Path,
 ) -> None:
@@ -407,6 +518,62 @@ def test_mass_scale_uses_stage_units(tmp_path: Path) -> None:
     result = inspect_usd_physics(usd_path, expect_physics=True)
 
     assert "physics.mass_scale_suspicious" not in _codes(result)
+
+
+def test_authored_number_ignores_bool_and_non_numeric_values() -> None:
+    class FakeAttr:
+        def __init__(self, value: object) -> None:
+            self.value = value
+
+        def HasAuthoredValueOpinion(self) -> bool:
+            return True
+
+        def Get(self) -> object:
+            return self.value
+
+    assert _authored_number(FakeAttr(True)) is None
+    assert _authored_number(FakeAttr("heavy")) is None
+
+
+def test_mass_scale_ignores_missing_bbox_info() -> None:
+    class FakePrim:
+        def GetPath(self) -> str:
+            return "/World/Body"
+
+    class RaisingBBoxCache:
+        def ComputeWorldBound(self, _prim: object) -> object:
+            raise RuntimeError("bbox unavailable")
+
+    findings: list[PhysicsSanityFinding] = []
+    _check_mass_scale(
+        findings,
+        FakePrim(),
+        mass=1_000.0,
+        bbox_cache=RaisingBBoxCache(),
+        meters_per_unit=1.0,
+        kilograms_per_unit=1.0,
+    )
+
+    assert findings == []
+
+
+def test_world_bbox_info_returns_none_for_empty_range() -> None:
+    class FakePrim:
+        pass
+
+    class EmptyRange:
+        def IsEmpty(self) -> bool:
+            return True
+
+    class FakeBound:
+        def ComputeAlignedRange(self) -> EmptyRange:
+            return EmptyRange()
+
+    class FakeBBoxCache:
+        def ComputeWorldBound(self, _prim: object) -> FakeBound:
+            return FakeBound()
+
+    assert _world_bbox_info(FakePrim(), FakeBBoxCache()) is None
 
 
 def test_disabled_rigid_body_is_excluded(tmp_path: Path) -> None:

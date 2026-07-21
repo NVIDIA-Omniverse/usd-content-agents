@@ -6,7 +6,7 @@ physics-evidence artifacts, then writes stable request, plan, and result JSON
 reports with per-template verdicts.
 
 Validation Agent V1 is scoped to local CLI and Python contracts for release
-0.4. It does not ship a REST service, OpenAPI spec, or hosted deployment
+0.5. It does not ship a REST service, OpenAPI spec, or hosted deployment
 surface in this release.
 
 ## Overview
@@ -39,16 +39,23 @@ uv pip install -e apps/validation_agent
 ## Runtime Dependencies
 
 `physics_sane` and `physical_behavior` can run from local evidence without a
-VLM. Visual USD checks that use `render_valid` or `look_right` may need:
+VLM. Validation Agent runtime USD rendering supports this capability-restricted
+subset of the shared rendering contract:
 
-- A render endpoint: set `RENDER_ENDPOINT` for an OVRTX-compatible service, or
-  set `NVCF_RENDER_FUNCTION_ID` plus `NGC_API_KEY` for NVCF rendering.
+- `remote`: set `RENDER_ENDPOINT` for an OVRTX-compatible REST service, or set
+  `NVCF_RENDER_FUNCTION_ID` plus `NGC_API_KEY` for NVCF rendering.
+- `ovrtx`: render locally through the isolated OVRTX environment. This requires
+  a supported Linux RTX GPU runtime but no REST endpoint.
 - A VLM or final-judge key when live `look_right` judging is enabled. Configure
   this through the request `policy.look_right_vlm` or
   `policy.look_right_llm_judge`.
 
 When required renderer or VLM dependencies are unavailable, Validation Agent
 reports structured warning or failure issues instead of silently passing.
+Canonical shared backends that this surface cannot run, currently `warp` and
+`mock`, return a structured `render.renderer_unavailable` warning. An unknown
+backend name is a configuration error: it returns `render.backend_unknown` as a
+structured failure and makes the validation verdict fail.
 
 ## Quick Start
 
@@ -138,6 +145,13 @@ policy:
 project:
   working_dir: .validation-runs/example
 ```
+
+`render.backend` is the authoritative V1 selector. The legacy free-form
+`policy.render_backend` value remains a compatibility input when
+`render.backend` is omitted. If both are present they must identify the same
+backend; conflicting values are rejected instead of silently selecting one.
+Backend spelling is trimmed and matched case-insensitively for compatibility,
+and an omitted or blank value defaults to `remote`.
 
 Paths in configs are resolved relative to the config file directory unless they
 are absolute. Direct `validate` input paths and `--reference-image` paths are

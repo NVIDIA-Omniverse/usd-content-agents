@@ -1,4 +1,0 @@
-# Runtime dependencies for the isolated OVRTX environment.
-# OVRTX itself is installed separately from NVIDIA PyPI with --no-deps.
-numpy==2.2.6
-pillow==12.2.0

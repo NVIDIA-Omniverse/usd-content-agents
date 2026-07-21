@@ -65,8 +65,10 @@ assignment, monitor progress, and download materialized outputs.
 1. Confirm the service is reachable.
 2. Choose one-step submission with `POST /pipeline`, or two-step submission
    with `POST /pipeline/upload-usd` followed by `POST /pipeline`.
-3. Include `user_email` for tracking and exactly one input source:
-   `usd_file` or an existing `session_id`.
+3. Provide `user_email` only when the caller has one for tracking. When it is
+   omitted or blank, the service uses `MA_DEFAULT_USER_EMAIL`, then
+   `anonymous@nvidia.com` if that fallback is blank. Provide exactly one input
+   source: `usd_file` or an existing `session_id`.
 4. Pass `render_num_workers=1` for a single local OVRTX deployment.
 5. Use `materials_zip` only when the user provides a custom material library.
 6. Use generated reference images only after `GET /assets/{id}/input-render`
@@ -89,7 +91,8 @@ session_id, status = client.run_and_monitor(
     usd_path="scene.usd",
     reference_images=["reference.jpg"],
     render_num_workers=1,
-    user_email="user@example.com",
+    enable_prim_clustering=True,
+    cluster_min_prims=25,
 )
 
 results = client.get_results(session_id)
@@ -129,7 +132,6 @@ curl -fsS "$BASE_URL/health" | jq .
 
 SESSION=$(curl -fsS -X POST "$BASE_URL/pipeline" \
   -F "usd_file=@scene.usd" \
-  -F "user_email=user@example.com" \
   -F "render_num_workers=1" \
   -F "reference_images=@reference.jpg" | jq -r .session_id)
 
@@ -167,7 +169,6 @@ REF_ID=$(curl -fsS -X POST \
 curl -fsS -X POST "$BASE_URL/pipeline" \
   -F "session_id=$SESSION" \
   -F "generated_reference_id=$REF_ID" \
-  -F "user_email=user@example.com" \
   -F "render_num_workers=1" | jq .
 ```
 
@@ -191,7 +192,7 @@ curl -fsS -X POST "$BASE_URL/pipeline" \
 |---|---|---|
 | `usd_file` | Conditional | USD input file. Required unless `session_id` is provided. |
 | `session_id` | Conditional | Existing session from `/pipeline/upload-usd`. |
-| `user_email` | Yes | User email for tracking. |
+| `user_email` | No | Optional tracking email. Omitted or blank uses `MA_DEFAULT_USER_EMAIL`, then `anonymous@nvidia.com`. |
 | `reference_images` | No | One or more reference image files. |
 | `reference_pdfs` | No | One or more reference PDF files. |
 | `materials_zip` | No | ZIP containing `materials.yaml` and the USD material library. |
@@ -203,6 +204,18 @@ curl -fsS -X POST "$BASE_URL/pipeline" \
 | `vlm_max_workers` | No | Max parallel VLM workers. |
 | `render_num_workers` | No | Render concurrency. Use `1` for one local OVRTX instance. |
 | `enable_prim_clustering` | No | Enable image-based prim clustering before prediction. |
+| `cluster_min_prims` | No | Minimum prim count before clustering runs. |
+| `cluster_embedding_backend` | No | Embedding backend for clustering. |
+| `cluster_embedding_model` | No | Embedding model for clustering. |
+| `cluster_embedding_base_url` | No | Optional embedding endpoint base URL. Overrides are limited to hosted NVIDIA URLs or the deployment-configured `MA_CLUSTER_EMBEDDING_BASE_URL`. |
+| `cluster_embedding_max_workers` | No | Maximum parallel embedding workers. |
+| `cluster_embedding_batch_size` | No | Embedding batch size. |
+| `cluster_max_size` | No | Maximum prims sharing one representative prediction. |
+| `cluster_similarity_threshold_low` | No | Similarity threshold for low-complexity clusters. |
+| `cluster_similarity_threshold_medium` | No | Similarity threshold for medium-complexity clusters. |
+| `cluster_similarity_threshold_high` | No | Similarity threshold for high-complexity clusters. |
+| `cluster_report` | No | Enable or disable the clustering HTML report. |
+| `layer_only` | No | On initial submission, output only a material binding layer. |
 
 `GET /pipeline/{id}/events` is the live SSE stream. Use
 `GET /pipeline/{id}/event-log` to replay persisted progress events for a
@@ -215,6 +228,11 @@ completed, failed, or disconnected session.
 | `steps` | Yes | Pipeline steps to re-run from cache, such as `predict`, `apply`, or `render`. |
 | `user_prompt` | No | Override the prompt for the regenerated run. |
 | `layer_only` | No | When re-running `apply`, output only a material binding layer. |
+
+`layer_only` is supported on both the initial multipart `POST /pipeline` and a
+JSON regenerate/apply rerun. In the Python client, `enable_prim_clustering`,
+`cluster_report`, and `layer_only` accept `True` or `False`; `None` omits the
+corresponding field and leaves the service default unchanged.
 
 Status values are `pending`, `running`, `completed`, `failed`, `cancelled`,
 and `cancelling`.

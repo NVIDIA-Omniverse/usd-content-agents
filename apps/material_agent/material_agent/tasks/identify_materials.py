@@ -11,7 +11,9 @@ from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 
 from material_agent.materials import (
+    FALLBACK_MATERIAL_NAME,
     PREDICTION_CONTAINER_KEYS,
+    PREDICTION_ID_KEYS,
     PREDICTION_MATERIAL_KEYS,
     UNKNOWN_MATERIAL_SENTINEL,
     is_actionable_material_name,
@@ -78,8 +80,8 @@ class IdentifyUniqueMaterialsTask(Task):
         if unknown_predictions:
             listener.warning(
                 f"{len(unknown_predictions)} prediction(s) were classified as "
-                f"'{UNKNOWN_MATERIAL_SENTINEL}' and will be excluded from "
-                "material retrieval."
+                f"'{UNKNOWN_MATERIAL_SENTINEL}' and will use "
+                f"'{FALLBACK_MATERIAL_NAME}'."
             )
 
         if logger.isEnabledFor(logging.DEBUG):
@@ -222,7 +224,11 @@ class IdentifyUniqueMaterialsTask(Task):
             return [fallback_id] if is_unknown_material_name(prediction) else []
 
         if self._prediction_contains_unknown_material(prediction):
-            return [str(prediction.get("id", fallback_id))]
+            for key in PREDICTION_ID_KEYS:
+                value = prediction.get(key)
+                if isinstance(value, str) and value:
+                    return [value]
+            return [fallback_id]
 
         prediction_ids: list[str] = []
         for container_key in PREDICTION_CONTAINER_KEYS:
@@ -311,14 +317,25 @@ class IdentifyUniqueMaterialsTask(Task):
         Returns:
             List of material names from this prediction
         """
-        materials = self._extract_all_materials_from_prediction(prediction)
+        selected_material = (
+            self._selected_material_from_prediction(prediction)
+            if isinstance(prediction, dict)
+            else None
+        )
+        materials = (
+            [selected_material]
+            if selected_material is not None
+            else self._extract_all_materials_from_prediction(prediction)
+        )
 
         # Remove duplicates and filter out empty/non-actionable sentinel strings.
-        return [
-            normalize_material_name(m)
-            for m in set(materials)
-            if is_actionable_material_name(m)
-        ]
+        normalized_materials = set()
+        for material in materials:
+            if is_unknown_material_name(material):
+                normalized_materials.add(FALLBACK_MATERIAL_NAME)
+            elif is_actionable_material_name(material):
+                normalized_materials.add(normalize_material_name(material))
+        return sorted(normalized_materials)
 
     def _extract_all_materials_from_prediction(self, prediction: Any) -> list[str]:
         """Extract all material-like strings from a prediction entry."""

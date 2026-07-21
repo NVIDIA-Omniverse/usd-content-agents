@@ -11,9 +11,18 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
-from world_understanding.agentic.config import RendererConfig
+from world_understanding.agentic.config import (
+    RendererConfig,
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    ensure_no_inline_secrets,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 
 from material_agent.api.defaults import (
     ITERATION_DEFAULTS,
@@ -27,6 +36,20 @@ from material_agent.config.schema import (
     get_step_defaults,
 )
 from material_agent.config.validator import ConfigValidator
+from material_agent.materials import (
+    material_entries_with_fallback,
+    material_mapping_with_fallback,
+)
+from material_agent.prompt_security import format_material_names_for_prompt
+from material_agent.simready import (
+    SimReadyCatalogError,
+    build_material_entries,
+    load_manifest,
+)
+from material_agent.tasks.prepare_dataset import (
+    _TRUSTED_PREPARE_SYSTEM_PROMPT_TEMPLATE_CONFIG_KEY,
+    render_system_prompt_from_prepare_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,68 +99,52 @@ class UnifiedPipelineConfigTask(Task):
             ValueError: If configuration is invalid
             FileNotFoundError: If configuration file not found
         """
-        # Handle both config_path and config_dict
-        config_path = context.get("config_path")
-        config_dict = context.get("config_dict")
-
-        if not config_path and not config_dict:
-            raise ValueError("Neither config_path nor config_dict provided in context")
-
-        if config_dict:
-            # Use provided config dictionary
-            logger.info("Loading unified configuration from dictionary")
-            config = config_dict
-            # If a config_path was also provided (e.g. simulate mode patched
-            # the dict but the paths are relative to the original file),
-            # use it so the resolver resolves relative paths correctly.
-            if config_path:
-                config_path = Path(config_path)
-            else:
-                # For dict configs without an original path, use CWD as base
-                config_path = (
-                    Path.cwd() / "config_dict.yaml"
-                )  # Virtual path for resolver
-        else:
-            # Load from file
-            config_path = Path(config_path)
-            if not config_path.exists():
-                raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-            logger.info("Loading unified configuration from %s", config_path)
-
-            # Load YAML configuration
-            try:
-                with open(config_path, encoding="utf-8") as f:
-                    config = yaml.safe_load(f)
-            except yaml.YAMLError as e:
-                raise ValueError(f"Failed to parse YAML configuration: {e}") from e
-
-        if not config:
-            raise ValueError("Configuration is empty")
+        config, config_path = load_config_mapping_from_context(
+            context,
+            default_config_path=Path.cwd() / "config_dict.yaml",
+            missing_path_message="Neither config_path nor config_dict provided in context",
+            parse_error_message="Failed to parse YAML configuration: {config_path}",
+            empty_message="Configuration is empty",
+            config_dict_non_mapping_message=(
+                "config_dict must be a mapping, got {type_name}"
+            ),
+            file_non_mapping_message=(
+                "Configuration must be a mapping, got {type_name}"
+            ),
+        )
+        log_config_source(context, logger.info, label="unified")
 
         # Merge with defaults
         config = self._merge_with_defaults(config)
 
         # Inject session_id from context if provided (for --session-id CLI option)
         if "session_id" in context and context["session_id"]:
+            ensure_no_inline_secrets(
+                context["session_id"],
+                context="session identifier",
+                path_context=True,
+            )
             if "project" not in config:
                 config["project"] = {}
             config["project"]["session_id"] = context["session_id"]
-            logger.debug("Injected session_id from context: %s", context["session_id"])
+            logger.debug(
+                "Injected session_id from context: %s",
+                redact_sensitive_path(context["session_id"]),
+            )
 
         # Validate configuration
         try:
             self.validator.validate(config)
-        except ValueError as e:
-            logger.error("Configuration validation failed: %s", e)
+        except ValueError:
+            logger.error("Configuration validation failed")
             raise
 
         # Create path resolver
         try:
             path_resolver = ProjectPathResolver(config, config_path)
             path_resolver.validate_input_paths()
-        except (FileNotFoundError, ValueError) as e:
-            logger.error("Path resolution failed: %s", e)
+        except (FileNotFoundError, ValueError):
+            logger.error("Path resolution failed")
             raise
 
         # Parse materials data
@@ -168,6 +175,9 @@ class UnifiedPipelineConfigTask(Task):
                 "config_path": config_path,
             }
         )
+        working_dir_base = getattr(path_resolver, "working_dir_base", None)
+        if working_dir_base is not None:
+            context["working_dir_base"] = working_dir_base
 
         return context
 
@@ -233,35 +243,33 @@ class UnifiedPipelineConfigTask(Task):
         materials_yaml_dir: Path | None = None
         if "path" in materials_section:
             materials_file_path = materials_section["path"]
-            logger.info("Loading materials from external file: %s", materials_file_path)
+            logger.info("Loading materials from external file")
 
             # Resolve path relative to config file
             resolved_path = path_resolver._resolve_path(materials_file_path)
 
-            if not resolved_path.exists():
-                raise FileNotFoundError(
-                    f"Materials file not found: {materials_file_path} "
-                    f"(resolved to: {resolved_path})"
-                )
-
             # Remember the materials YAML directory for resolving library_path
             materials_yaml_dir = resolved_path.parent
 
-            # Load materials from external file
-            try:
-                with open(resolved_path, encoding="utf-8") as f:
-                    materials_section = yaml.safe_load(f)
-            except yaml.YAMLError as e:
-                raise ValueError(
-                    f"Failed to parse materials file {materials_file_path}: {e}"
-                ) from e
+            materials_section, _ = load_config_mapping_from_context(
+                {"config_path": resolved_path},
+                missing_file_message="Materials file not found: {config_path}",
+                parse_error_message="Failed to parse materials file: {config_path}",
+                empty_message="Materials file is empty: {config_path}",
+                file_non_mapping_message=(
+                    "Materials file must contain a mapping, got {type_name}"
+                ),
+            )
 
-            if not materials_section:
-                raise ValueError(f"Materials file is empty: {materials_file_path}")
-
-            logger.info("Successfully loaded materials from %s", materials_file_path)
+            logger.info("Successfully loaded materials from external file")
         else:
             pass
+
+        if "simready" in materials_section and not materials_section.get("entries"):
+            return self._parse_simready_materials(
+                materials_section["simready"],
+                path_resolver,
+            )
 
         # Now parse materials (whether from file or inline)
         if not materials_section.get("entries"):
@@ -273,7 +281,12 @@ class UnifiedPipelineConfigTask(Task):
         library_path = materials_section.get("library_path")
         if library_path:
             if materials_yaml_dir is not None:
-                library_path = str((materials_yaml_dir / library_path).resolve())
+                library_path = str(
+                    resolve_path_with_safe_diagnostics(
+                        materials_yaml_dir / library_path,
+                        label="material library path",
+                    )
+                )
             else:
                 library_path = str(path_resolver._resolve_path(library_path))
 
@@ -282,12 +295,111 @@ class UnifiedPipelineConfigTask(Task):
 
         logger.info("Loaded %d materials", len(entries))
         if library_path:
-            logger.info("Material library: %s", library_path)
+            logger.info(
+                "Material library: %s",
+                redact_sensitive_path(library_path),
+            )
 
-        return {
+        parsed_materials = {
             "library_path": library_path,
             "entries": entries,
         }
+        simready = materials_section.get("simready")
+        if isinstance(simready, dict):
+            parsed_materials["simready"] = dict(simready)
+        return parsed_materials
+
+    def _parse_simready_materials(
+        self,
+        simready_config: str | dict[str, Any],
+        path_resolver: ProjectPathResolver,
+    ) -> dict[str, Any]:
+        """Parse a SimReady material-library shortcut from unified config."""
+        if isinstance(simready_config, str):
+            library_id = simready_config
+            options: dict[str, Any] = {}
+        elif isinstance(simready_config, dict):
+            options = dict(simready_config)
+            library_id = str(options.get("library_id") or "").strip()
+        else:
+            raise ValueError("'materials.simready' must be a string or mapping")
+
+        if not library_id:
+            raise ValueError("'materials.simready.library_id' is required")
+        safe_library_id = str(redact_sensitive_config(library_id))
+
+        manifest_path = options.get("manifest_path")
+        if manifest_path:
+            manifest_path = str(path_resolver._resolve_path(manifest_path))
+        cache_dir = options.get("cache_dir")
+        if cache_dir:
+            cache_dir = str(path_resolver._resolve_path(cache_dir))
+        else:
+            cache_dir = str(path_resolver.working_dir / "simready-cache")
+
+        allowed_categories = self._parse_simready_allowed_categories(
+            options.get("allowed_categories")
+        )
+        split_archives_enabled = bool(options.get("split_archives_enabled", False))
+
+        try:
+            manifest = load_manifest(manifest_path)
+            release_tag = options.get("release_tag")
+            if release_tag and str(manifest.get("release_tag")) != str(release_tag):
+                raise SimReadyCatalogError(
+                    f"SimReady manifest release tag {manifest.get('release_tag')!r} "
+                    f"does not match configured tag {release_tag!r}"
+                )
+            entries = build_material_entries(
+                manifest,
+                library_id,
+                allowed_categories=allowed_categories,
+                split_archives_enabled=split_archives_enabled,
+            )
+        except SimReadyCatalogError:
+            raise ValueError(
+                "Unable to load the configured SimReady material library"
+            ) from None
+
+        if not entries:
+            raise ValueError(
+                f"SimReady material library has no entries: {safe_library_id}"
+            )
+
+        simready = {
+            "library_id": library_id,
+            "release_tag": str(manifest.get("release_tag") or ""),
+            "manifest_path": manifest_path,
+            "cache_dir": cache_dir,
+            "split_archives_enabled": split_archives_enabled,
+        }
+        if allowed_categories:
+            simready["allowed_categories"] = sorted(allowed_categories)
+
+        logger.info(
+            "Loaded %d SimReady materials from %s",
+            len(entries),
+            safe_library_id,
+        )
+        return {
+            "library_path": "",
+            "entries": entries,
+            "simready": simready,
+        }
+
+    def _parse_simready_allowed_categories(self, raw: Any) -> set[str] | None:
+        if raw is None:
+            return None
+        if isinstance(raw, str):
+            values = [item.strip() for item in raw.split(",")]
+        elif isinstance(raw, list):
+            values = [str(item).strip() for item in raw]
+        else:
+            raise ValueError(
+                "'materials.simready.allowed_categories' must be a string or list"
+            )
+        categories = {item for item in values if item}
+        return categories or None
 
     def _determine_steps(
         self, config: dict[str, Any], context: dict[str, Any]
@@ -429,8 +541,65 @@ class UnifiedPipelineConfigTask(Task):
                 step_name, step_config, path_resolver, materials_data, config
             )
 
+            if (
+                step_name in ("predict", "benchmark")
+                and "system_prompt" not in step_config
+            ):
+                prepare_config = step_configs.get("build_dataset_prepare_dataset")
+                if prepare_config is not None:
+                    step_config["system_prompt"] = (
+                        render_system_prompt_from_prepare_config(prepare_config)
+                    )
+                elif step_name == "predict":
+                    configured_prepare = steps_section.get(
+                        "build_dataset_prepare_dataset", {}
+                    )
+                    configured_prompts = (
+                        configured_prepare.get("prompts", {})
+                        if isinstance(configured_prepare, dict)
+                        else {}
+                    )
+                    if (
+                        isinstance(configured_prompts, dict)
+                        and "vlm_system" in configured_prompts
+                    ):
+                        # A predict-only run cannot execute the prepare step, but it
+                        # can still authenticate a persisted custom prompt against
+                        # the template from the trusted pipeline configuration. The
+                        # predict loader rebuilds that prompt with the structured
+                        # material names stored in dataset.json before accepting it.
+                        step_config[
+                            _TRUSTED_PREPARE_SYSTEM_PROMPT_TEMPLATE_CONFIG_KEY
+                        ] = configured_prompts["vlm_system"]
+                else:
+                    configured_prepare = steps_section.get(
+                        "build_dataset_prepare_dataset"
+                    )
+                    if isinstance(configured_prepare, dict):
+                        # BenchmarkConfigTask does not reload dataset.json. Rebuild
+                        # the omitted prepare step so a benchmark-only rerun receives
+                        # the same trusted, material-scoped prompt as a full run.
+                        benchmark_prepare_config = self._merge_step_config(
+                            "build_dataset_prepare_dataset",
+                            configured_prepare,
+                        )
+                        benchmark_prepare_config = self._autowire_paths(
+                            "build_dataset_prepare_dataset",
+                            benchmark_prepare_config,
+                            path_resolver,
+                            materials_data,
+                            config,
+                        )
+                        step_config["system_prompt"] = (
+                            render_system_prompt_from_prepare_config(
+                                benchmark_prepare_config
+                            )
+                        )
+
             # Validate step requirements
-            self.validator.validate_step_requirements(step_name, step_config, config)
+            self.validator.validate_step_requirements(
+                step_name, step_config, config, steps_to_run
+            )
 
             step_configs[step_name] = step_config
 
@@ -441,8 +610,8 @@ class UnifiedPipelineConfigTask(Task):
                 path_resolver.input_usd = Path(step_config["output_usd_path"])
                 logger.info(
                     "Auto-wiring: Updated input USD from %s to optimized %s for downstream tasks",
-                    original_input,
-                    path_resolver.input_usd,
+                    redact_sensitive_path(original_input),
+                    redact_sensitive_path(path_resolver.input_usd),
                 )
 
         return step_configs
@@ -558,6 +727,8 @@ class UnifiedPipelineConfigTask(Task):
             )
             if "vlm" in step_config and "vlm_config" not in step_config:
                 step_config["vlm_config"] = step_config["vlm"]
+            if isinstance(step_config.get("vlm"), dict):
+                step_config.pop("vlm", None)
             if "vlm_config" not in step_config:
                 raise ValueError(
                     "steps.identify_asset.vlm is required when identify_asset "
@@ -582,6 +753,30 @@ class UnifiedPipelineConfigTask(Task):
             ):
                 step_config["reference_images"] = [
                     str(img) for img in path_resolver.reference_images
+                ]
+
+        elif step_name == "generate_material_library":
+            step_config["input_usd_path"] = str(path_resolver.input_usd)
+            step_config["output_dir"] = str(
+                path_resolver.get_step_output_dir("generate_material_library")
+            )
+
+            plan_path = step_config.get("material_generation_plan_path")
+            if plan_path:
+                step_config["material_generation_plan_path"] = str(
+                    path_resolver._resolve_path(plan_path)
+                )
+
+            if path_resolver.reference_images and not step_config.get(
+                "reference_images"
+            ):
+                step_config["reference_images"] = [
+                    str(img) for img in path_resolver.reference_images
+                ]
+            elif step_config.get("reference_images"):
+                step_config["reference_images"] = [
+                    str(path_resolver._resolve_path(path))
+                    for path in step_config["reference_images"]
                 ]
 
         elif step_name == "build_dataset_usd":
@@ -646,12 +841,14 @@ class UnifiedPipelineConfigTask(Task):
                         len(sensor_modes),
                     )
 
-                except ValueError as e:
-                    logger.error("Failed to parse rendering config: %s", e)
-                    raise
-                except Exception as e:
-                    logger.error("Failed to create RendererConfig: %s", e)
-                    raise
+                except ValueError:
+                    logger.error("Failed to parse rendering config")
+                    raise ValueError("Invalid renderer configuration") from None
+                except Exception:
+                    logger.error("Failed to create RendererConfig")
+                    raise RuntimeError(
+                        "Unable to create renderer configuration"
+                    ) from None
 
         elif step_name == "build_dataset_pdf_vectorstore":
             # Source is user-provided (external data)
@@ -694,13 +891,16 @@ class UnifiedPipelineConfigTask(Task):
             # Inject materials list
             if materials_data:
                 step_config["materials_list"] = [
-                    entry["name"] for entry in materials_data["entries"]
+                    entry["name"]
+                    for entry in material_entries_with_fallback(
+                        materials_data["entries"]
+                    )
                 ]
 
                 # Inject formatted materials for prompts
                 if "prompts" in step_config:
                     materials_formatted = self._format_materials_for_prompt(
-                        materials_data["entries"]
+                        material_entries_with_fallback(materials_data["entries"])
                     )
                     step_config["_materials_formatted"] = materials_formatted
 
@@ -710,8 +910,9 @@ class UnifiedPipelineConfigTask(Task):
             )
             step_config["output_dir"] = str(path_resolver.get_predictions_dir())
 
-            # System prompt is stored in dataset.json (v0.2 format)
-            # The predict task will read it from there
+            # A trusted prepare-step prompt is injected by _build_step_configs when
+            # both steps run together. Reused default dataset prompts are rebuilt and
+            # completely validated by the predict task.
             # Remove legacy system_prompt_file if present in user config
             step_config.pop("system_prompt_file", None)
 
@@ -722,7 +923,10 @@ class UnifiedPipelineConfigTask(Task):
             # Inject material names from materials_data
             if materials_data and "material_names" not in step_config:
                 step_config["material_names"] = [
-                    entry["name"] for entry in materials_data["entries"]
+                    entry["name"]
+                    for entry in material_entries_with_fallback(
+                        materials_data["entries"]
+                    )
                 ]
 
         elif step_name == "harmonize_predictions":
@@ -732,8 +936,41 @@ class UnifiedPipelineConfigTask(Task):
             # Inject material names from materials_data (same as validate_predictions)
             if materials_data and "material_names" not in step_config:
                 step_config["material_names"] = [
-                    entry["name"] for entry in materials_data["entries"]
+                    entry["name"]
+                    for entry in material_entries_with_fallback(
+                        materials_data["entries"]
+                    )
                 ]
+
+        elif step_name == "create_materials":
+            step_config["source_usd"] = str(path_resolver.input_usd)
+            config_dir = getattr(path_resolver, "config_dir", None)
+            if config_dir is not None:
+                step_config["_config_dir"] = str(config_dir)
+            step_config["predictions_path"] = str(
+                path_resolver.get_step_predictions_file()
+            )
+            output_dir = path_resolver.get_step_output_dir("create_materials")
+            step_config["output_dir"] = str(output_dir)
+            step_config["output_predictions_path"] = str(
+                output_dir / "created_predictions.jsonl"
+            )
+            if not any(
+                key in step_config
+                for key in (
+                    "material_profile",
+                    "shader_target",
+                    "material_authoring_target",
+                )
+            ):
+                output_config = full_config.get("output") or {}
+                step_config["material_profile"] = (
+                    getattr(path_resolver, "material_profile", None)
+                    or output_config.get("material_profile")
+                    or output_config.get("shader_target")
+                    or output_config.get("material_authoring_target")
+                    or "auto"
+                )
 
         elif step_name == "apply":
             step_config["input_usd_path"] = str(path_resolver.input_usd)
@@ -743,6 +980,22 @@ class UnifiedPipelineConfigTask(Task):
             step_config["output_usd_path"] = str(path_resolver.output_usd)
             step_config["layer_only"] = path_resolver.layer_only
             step_config["flatten_output"] = path_resolver.flatten_output
+            if not any(
+                key in step_config
+                for key in (
+                    "material_profile",
+                    "shader_target",
+                    "material_authoring_target",
+                )
+            ):
+                output_config = full_config.get("output") or {}
+                step_config["material_profile"] = (
+                    getattr(path_resolver, "material_profile", None)
+                    or output_config.get("material_profile")
+                    or output_config.get("shader_target")
+                    or output_config.get("material_authoring_target")
+                    or "auto"
+                )
 
             # Inject materials mapping
             if materials_data:
@@ -832,9 +1085,26 @@ class UnifiedPipelineConfigTask(Task):
                     step_config["llm_judge"] = step_config["judge"]
 
             # Inject materials into nested apply config
+            if "apply" not in step_config:
+                step_config["apply"] = {}
+            if not any(
+                key in step_config["apply"]
+                for key in (
+                    "material_profile",
+                    "shader_target",
+                    "material_authoring_target",
+                )
+            ):
+                output_config = full_config.get("output") or {}
+                step_config["apply"]["material_profile"] = (
+                    getattr(path_resolver, "material_profile", None)
+                    or output_config.get("material_profile")
+                    or output_config.get("shader_target")
+                    or output_config.get("material_authoring_target")
+                    or "auto"
+                )
+
             if materials_data:
-                if "apply" not in step_config:
-                    step_config["apply"] = {}
                 step_config["apply"]["materials_mapping"] = (
                     self._build_materials_mapping(materials_data)
                 )
@@ -900,13 +1170,13 @@ class UnifiedPipelineConfigTask(Task):
             mapping["material_library_path"] = materials_data["library_path"]
 
         # Add name -> binding mappings
-        for entry in materials_data["entries"]:
+        for entry in material_entries_with_fallback(materials_data["entries"]):
             mapping[entry["name"]] = entry["binding"]
 
-        return mapping
+        return material_mapping_with_fallback(mapping)
 
     def _format_materials_for_prompt(self, entries: list[dict[str, Any]]) -> str:
-        """Format materials list for prompt injection.
+        """Format material names as untrusted prompt data.
 
         Args:
             entries: List of material entries
@@ -914,19 +1184,7 @@ class UnifiedPipelineConfigTask(Task):
         Returns:
             Formatted string for prompt substitution
         """
-        lines = []
-        for entry in entries:
-            name = entry["name"]
-            description = entry.get("description", "")
-            if description:
-                # Make it clear what is the name vs description
-                lines.append(
-                    f"- **Material name**: {name}\n  **Description**: {description}"
-                )
-            else:
-                lines.append(f"- **Material name**: {name}")
-
-        return "\n".join(lines)
+        return format_material_names_for_prompt(entries)
 
     def _log_summary(
         self,
@@ -946,22 +1204,44 @@ class UnifiedPipelineConfigTask(Task):
         logger.info("=" * 70)
         logger.info("Configuration Summary")
         logger.info("=" * 70)
-        logger.info("Project: %s", config["project"]["name"])
+        logger.info("Project: %s", redact_sensitive_path(config["project"]["name"]))
         logger.info("")
-        logger.info("🔑 Session ID: %s", path_resolver.session_id)
+        logger.info(
+            "🔑 Session ID: %s",
+            redact_sensitive_path(path_resolver.session_id),
+        )
         logger.info("")
         if config["project"].get("description"):
-            logger.info("Description: %s", config["project"]["description"])
-        logger.info("Working directory: %s", path_resolver.working_dir)
-        logger.info("Input USD: %s", path_resolver.input_usd)
-        logger.info("Output USD: %s", path_resolver.output_usd)
+            logger.info(
+                "Description: %s",
+                redact_sensitive_path(config["project"]["description"]),
+            )
+        logger.info(
+            "Working directory: %s",
+            redact_sensitive_path(path_resolver.working_dir),
+        )
+        logger.info(
+            "Input USD: %s",
+            (
+                redact_sensitive_path(path_resolver.input_usd)
+                if path_resolver.input_usd is not None
+                else None
+            ),
+        )
+        logger.info("Output USD: %s", redact_sensitive_path(path_resolver.output_usd))
         if path_resolver.output_usd:
-            logger.info("Output directory: %s", path_resolver.output_usd.parent)
+            logger.info(
+                "Output directory: %s",
+                redact_sensitive_path(path_resolver.output_usd.parent),
+            )
 
         if materials_data:
             logger.info("Materials: %d defined", len(materials_data["entries"]))
             if materials_data.get("library_path"):
-                logger.info("  Library: %s", materials_data["library_path"])
+                logger.info(
+                    "  Library: %s",
+                    redact_sensitive_path(materials_data["library_path"]),
+                )
 
         logger.info("Steps to run: %s", ", ".join(steps_to_run))
         logger.info("=" * 70)

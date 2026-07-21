@@ -3,7 +3,6 @@
 """Command-line interface for World Understanding."""
 
 import asyncio
-import importlib.util
 import json
 import logging
 import os
@@ -18,6 +17,12 @@ from rich.logging import RichHandler
 from rich.table import Table
 
 from world_understanding.registry import get_display_registry, get_tool_registry
+from world_understanding.render_usd_backend_policy import RENDER_USD_BACKEND_NAMES
+from world_understanding.rendering_backend_contract import (
+    MAX_REMOTE_RENDER_WORKERS,
+    validate_remote_render_max_workers,
+    validate_rendering_backend_for_surface,
+)
 from world_understanding.tools import register_all_tools
 from world_understanding.utils.misc_utils import get_version
 
@@ -37,22 +42,35 @@ logger = logging.getLogger("world_understanding.cli")
 app = typer.Typer(help="World Understanding CLI (wu)")
 console = Console()
 
+_RENDER_USD_DEPRECATED_BACKEND_ALIASES = {"local-ovrtx": "ovrtx"}
+_RENDER_USD_ALIAS_REMOVAL_VERSION = "0.6.0"
+
 # Global log level option
 
 
-def _has_world_understanding_internal() -> bool:
-    """Return whether optional internal backend package is installed."""
-    try:
-        return importlib.util.find_spec("world_understanding_internal") is not None
-    except ModuleNotFoundError:
-        return False
+def _backend_help(public_backends: str) -> str:
+    """Build provider help while keeping optional plugins discoverable at runtime."""
+    return f"{public_backends}; installed plugins may add providers"
 
 
-def _backend_help(public_backends: str, *, internal_backend: str) -> str:
-    """Build backend help text without advertising internal names publicly."""
-    if _has_world_understanding_internal():
-        return f"{public_backends}, {internal_backend}"
-    return public_backends
+def _resolve_render_usd_backend(backend: str) -> str:
+    """Return the canonical backend selected by ``wu render-usd``."""
+    requested_name = backend.strip().lower()
+    canonical_name = _RENDER_USD_DEPRECATED_BACKEND_ALIASES.get(
+        requested_name,
+        requested_name,
+    )
+    if canonical_name != requested_name:
+        console.print(
+            "[yellow]Warning:[/yellow] "
+            f"--backend {requested_name} is deprecated and will be removed in "
+            f"{_RENDER_USD_ALIAS_REMOVAL_VERSION}; use --backend {canonical_name}."
+        )
+    return validate_rendering_backend_for_surface(
+        canonical_name,
+        RENDER_USD_BACKEND_NAMES,
+        surface="wu render-usd",
+    )
 
 
 def set_log_level(level: str) -> None:
@@ -550,10 +568,7 @@ def vision(
         "nim",
         "--backend",
         "-b",
-        help=_backend_help(
-            "VLM backend: nim, gemini, openai, anthropic",
-            internal_backend="nvidia_inference",
-        ),
+        help=_backend_help("VLM backend: nim, gemini, openai, anthropic"),
     ),
     model: str | None = typer.Option(None, "--model", "-m", help="Model to use"),
     system_prompt: str = typer.Option(
@@ -1447,17 +1462,33 @@ def render_usd(
         "remote",
         "--backend",
         "-b",
-        help="Rendering backend: remote (default)",
+        help=(
+            "Rendering backend: "
+            f"{', '.join(RENDER_USD_BACKEND_NAMES)} (default: remote). "
+            "local-ovrtx is a deprecated compatibility alias for ovrtx."
+        ),
     ),
     sensors: str | None = typer.Option(
         None,
         "--sensors",
-        help="Comma-separated sensor outputs (remote rendering only): linear_depth,depth,instance_id_segmentation",
+        help=(
+            "Comma-separated sensor outputs "
+            "(remote only: linear_depth,depth,instance_id_segmentation)"
+        ),
     ),
     all_cameras: bool = typer.Option(
         False,
         "--all-cameras",
         help="Render all cameras (requires --output-dir)",
+    ),
+    remote_max_workers: int = typer.Option(
+        4,
+        "--remote-max-workers",
+        help=(
+            "Maximum parallel remote camera requests for --all-cameras "
+            "(1-32; default: 4). Set WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS "
+            "to the endpoint capacity."
+        ),
     ),
     output_dir: str = typer.Option(
         None,
@@ -1545,10 +1576,41 @@ def render_usd(
         "--distant-light",
         help="Add a distant light with the given intensity (e.g. 800). Replaces existing lights.",
     ),
+    ovrtx_log_level: str = typer.Option(
+        "warn",
+        "--ovrtx-log-level",
+        help="OvRTX log level when --backend ovrtx is used.",
+    ),
+    ovrtx_venv_dir: str | None = typer.Option(
+        None,
+        "--ovrtx-venv-dir",
+        help="Override the isolated OvRTX virtualenv directory.",
+    ),
+    ovrtx_num_sensor_updates: int | None = typer.Option(
+        None,
+        "--ovrtx-num-sensor-updates",
+        help="OvRTX progressive renderer steps per frame. Higher is cleaner but slower.",
+    ),
+    ovrtx_render_mode: str | None = typer.Option(
+        None,
+        "--ovrtx-render-mode",
+        help="OvRTX render mode: rt1, rt2, or pt.",
+    ),
+    material_target: str | None = typer.Option(
+        None,
+        "--material-target",
+        help=(
+            "Render material target: auto, preview_surface, openpbr_materialx, "
+            "omnipbr_mdl, or display_color. Use openpbr_materialx to avoid "
+            "render-export PreviewSurface fallbacks."
+        ),
+    ),
 ) -> None:
     """Render USD files.
 
-    Uses a remote rendering endpoint by default (set RENDER_ENDPOINT).
+    Uses a remote rendering endpoint by default (set RENDER_ENDPOINT). Use
+    ``--backend ovrtx`` for the local OvRTX subprocess backend. The legacy
+    ``local-ovrtx`` alias is deprecated and will be removed in 0.6.0.
 
     For single frame + single camera: Use either --output or --output-dir
     For multiple frames or cameras: Use --output-dir only
@@ -1566,8 +1628,11 @@ def render_usd(
         # All cameras (requires --output-dir)
         wu render-usd scene.usd --all-cameras --output-dir renders/
 
-        # With sensor outputs (remote rendering only)
+        # With remote sensor outputs
         wu render-usd scene.usd --output render.png --sensors linear_depth
+
+        # With local OvRTX color rendering
+        wu render-usd scene.usd --backend ovrtx --output render.png
 
         # Render focused on a specific prim (auto-frames camera)
         wu render-usd scene.usd --focus /World/Chair --output chair.png
@@ -1584,13 +1649,20 @@ def render_usd(
     if verbose:
         set_log_level("DEBUG")
 
-    # Import here to avoid circular imports
-    from world_understanding.functions.graphics.usd_camera import (
-        extract_camera_parameters,
-        save_camera_json,
-    )
-
     try:
+        # Resolve the selector before stage, renderer, network, or output work.
+        backend_name = _resolve_render_usd_backend(backend)
+        try:
+            remote_max_workers = validate_remote_render_max_workers(remote_max_workers)
+        except ValueError:
+            raise ValueError(
+                "--remote-max-workers must be between 1 and "
+                f"{MAX_REMOTE_RENDER_WORKERS}"
+            ) from None
+
+        # Import here to avoid circular imports.
+        from world_understanding.functions.graphics import usd_camera
+
         # Determine if we're rendering multiple frames
         is_multi_frame = ":" in frames or "," in frames
 
@@ -1650,8 +1722,38 @@ def render_usd(
             "distant_light": distant_light,
         }
 
-        if backend == "remote":
+        if backend_name == "remote":
             _render_remote(
+                usd_path=usd_path,
+                camera=camera,
+                output=output,
+                width=width,
+                height=height or width,
+                frames=frames,
+                sensors=sensors,
+                all_cameras=all_cameras,
+                remote_max_workers=remote_max_workers,
+                output_dir=output_dir,
+                verbose=verbose,
+                save_camera_json_flag=save_camera_json,
+                extract_camera_parameters_fn=usd_camera.extract_camera_parameters,
+                save_camera_json_fn=usd_camera.save_camera_json,
+                focus=focus,
+                isolate_paths=isolate_paths,
+                hide_paths=hide_paths,
+                direction=direction,
+                material_target=material_target,
+                **cam_overrides,
+                **light_overrides,
+            )
+        else:
+            if sensors:
+                console.print(
+                    "[red]Error:[/red] OvRTX currently supports color renders only; "
+                    "--sensors is not supported with --backend ovrtx."
+                )
+                raise typer.Exit(1)
+            _render_ovrtx(
                 usd_path=usd_path,
                 camera=camera,
                 output=output,
@@ -1663,21 +1765,20 @@ def render_usd(
                 output_dir=output_dir,
                 verbose=verbose,
                 save_camera_json_flag=save_camera_json,
-                extract_camera_parameters_fn=extract_camera_parameters,
-                save_camera_json_fn=save_camera_json,
+                extract_camera_parameters_fn=usd_camera.extract_camera_parameters,
+                save_camera_json_fn=usd_camera.save_camera_json,
                 focus=focus,
                 isolate_paths=isolate_paths,
                 hide_paths=hide_paths,
                 direction=direction,
+                ovrtx_log_level=ovrtx_log_level,
+                ovrtx_venv_dir=ovrtx_venv_dir,
+                ovrtx_num_sensor_updates=ovrtx_num_sensor_updates,
+                ovrtx_render_mode=ovrtx_render_mode,
+                material_target=material_target,
                 **cam_overrides,
                 **light_overrides,
             )
-        else:
-            console.print(
-                f"[red]Error:[/red] Unknown backend '{backend}'. Use 'remote'."
-            )
-            raise typer.Exit(1)
-
     except ValueError as e:
         console.print(f"[red]Invalid parameters:[/red] {str(e)}")
         raise typer.Exit(1) from e
@@ -1803,6 +1904,15 @@ def _apply_camera_clip_overrides(
     return updated
 
 
+def _collect_camera_paths(stage: Any) -> list[str]:
+    """Return all composed camera prim paths in traversal order."""
+    from pxr import UsdGeom
+
+    return [
+        str(prim.GetPath()) for prim in stage.Traverse() if prim.IsA(UsdGeom.Camera)
+    ]
+
+
 def _export_rendered_stage_for_camera_metadata(
     stage: Any,
     fallback_usd_path: str,
@@ -1826,46 +1936,36 @@ def _export_rendered_stage_for_camera_metadata(
     return metadata_path
 
 
-def _render_remote(
+def _prepare_render_stage(
+    *,
     usd_path: str,
     camera: str,
-    output: str | None,
     width: int,
     height: int,
-    frames: str,
-    sensors: str | None,
     all_cameras: bool,
-    output_dir: str | None,
-    verbose: bool,
-    save_camera_json_flag: bool,
-    extract_camera_parameters_fn: Any,
-    save_camera_json_fn: Any,
-    focus: str | None = None,
-    isolate_paths: list[str] | None = None,
-    hide_paths: list[str] | None = None,
-    direction: str = "+x+y+z",
-    margin: float | None = None,
-    focal_length: float | None = None,
-    aperture: float | None = None,
-    cam_x: float | None = None,
-    cam_y: float | None = None,
-    cam_z: float | None = None,
-    target_x: float | None = None,
-    target_y: float | None = None,
-    target_z: float | None = None,
-    near_clip: float | None = None,
-    far_clip: float | None = None,
-    dome_light: float | None = None,
-    distant_light: float | None = None,
-) -> None:
-    """Render USD files using the REST API-based remote rendering backend."""
-    import os
-
+    focus: str | None,
+    isolate_paths: list[str] | None,
+    hide_paths: list[str] | None,
+    direction: str,
+    margin: float | None,
+    focal_length: float | None,
+    aperture: float | None,
+    cam_x: float | None,
+    cam_y: float | None,
+    cam_z: float | None,
+    target_x: float | None,
+    target_y: float | None,
+    target_z: float | None,
+    near_clip: float | None,
+    far_clip: float | None,
+    dome_light: float | None,
+    distant_light: float | None,
+    stage_label: str,
+    prepare_message: str,
+) -> tuple[Any, str]:
+    """Open, duplicate, and apply shared render-stage mutations."""
     from pxr import Usd, UsdGeom
 
-    from world_understanding.functions.graphics.render_remote import (
-        render_all_cameras,
-    )
     from world_understanding.utils.usd import stage as stage_utils
     from world_understanding.utils.usd.camera import (
         add_corner_view_camera,
@@ -1875,37 +1975,25 @@ def _render_remote(
         disable_visibility_except_for_selected_mesh_prims,
     )
 
-    # Normalize camera path (remote renderers expect paths like "/Camera")
     camera_path = camera if camera.startswith("/") else f"/{camera}"
 
-    # Parse sensor list
-    sensor_list = (
-        [s.strip() for s in sensors.split(",") if s.strip()] if sensors else None
-    )
-
-    # Open USD stage
     usd_stage = Usd.Stage.Open(usd_path)
     if not usd_stage:
         console.print(f"[red]Error:[/red] Failed to open USD file: {usd_path}")
         raise typer.Exit(1)
 
-    # Duplicate through the shared helper so instance proxies are de-instanced
-    # before camera/light/isolation edits are authored.
-    console.print("[dim]Preparing stage for remote rendering upload...[/dim]")
+    console.print(f"[dim]{prepare_message}[/dim]")
     original_up_axis = UsdGeom.GetStageUpAxis(usd_stage)
-    usd_stage = stage_utils.duplicate_stage(usd_stage, "remote_render")
+    usd_stage = stage_utils.duplicate_stage(usd_stage, stage_label)
     UsdGeom.SetStageUpAxis(usd_stage, original_up_axis)
 
     _apply_light_overrides(usd_stage, dome_light, distant_light)
 
-    # Apply --isolate: hide all geometry except specified prims
     if isolate_paths:
         console.print(f"[dim]Isolating {len(isolate_paths)} prim(s)...[/dim]")
         expanded = _expand_isolate_paths(usd_stage, isolate_paths)
         disable_visibility_except_for_selected_mesh_prims(usd_stage, expanded)
 
-    # Apply --hide after --isolate so callers can subtract blockers from an
-    # isolated region.
     if hide_paths:
         hidden_count, missing = _hide_render_paths(usd_stage, hide_paths)
         console.print(f"[dim]Hid {hidden_count} requested prim(s)/subtree(s).[/dim]")
@@ -1915,15 +2003,7 @@ def _render_remote(
                 + ", ".join(missing)
             )
 
-    # Apply --focus: create a camera auto-framed on the target prim
-    camera_configured_by_helper = False
-    if focus:
-        focus_prim = usd_stage.GetPrimAtPath(focus)
-        if not focus_prim or not focus_prim.IsValid():
-            console.print(f"[red]Error:[/red] Focus prim not found: {focus}")
-            raise typer.Exit(1)
-
-        # Resolve camera parameters with user overrides
+    def _camera_lens() -> tuple[float, float, float]:
         effective_focal = focal_length or 50.0
         effective_h_aperture = aperture or 36.0
         aspect_ratio = width / height
@@ -1933,7 +2013,16 @@ def _render_remote(
         else:
             v_aperture = effective_h_aperture
             h_aperture = effective_h_aperture * aspect_ratio
+        return effective_focal, h_aperture, v_aperture
 
+    camera_configured_by_helper = False
+    if focus:
+        focus_prim = usd_stage.GetPrimAtPath(focus)
+        if not focus_prim or not focus_prim.IsValid():
+            console.print(f"[red]Error:[/red] Focus prim not found: {focus}")
+            raise typer.Exit(1)
+
+        effective_focal, h_aperture, v_aperture = _camera_lens()
         camera_path = "/Cameras/FocusedCamera"
         console.print(f"[dim]Creating focused camera on '{focus}'...[/dim]")
         add_focused_corner_view_camera(
@@ -1955,22 +2044,11 @@ def _render_remote(
         )
         camera_configured_by_helper = True
     elif not all_cameras and not usd_stage.GetPrimAtPath(camera_path).IsValid():
-        # Auto-create camera if the specified camera doesn't exist in the scene
         console.print(
             f"[dim]Camera '{camera_path}' not found in scene. "
             f"Auto-creating corner view camera...[/dim]"
         )
-        # Resolve camera parameters with user overrides
-        effective_focal = focal_length or 50.0
-        effective_h_aperture = aperture or 36.0
-        aspect_ratio = width / height
-        if aspect_ratio >= 1.0:
-            h_aperture = effective_h_aperture
-            v_aperture = effective_h_aperture / aspect_ratio
-        else:
-            v_aperture = effective_h_aperture
-            h_aperture = effective_h_aperture * aspect_ratio
-
+        effective_focal, h_aperture, v_aperture = _camera_lens()
         add_corner_view_camera(
             usd_stage,
             camera_path=camera_path,
@@ -2002,25 +2080,263 @@ def _render_remote(
                 f"[dim]Applied clipping overrides to {updated_cameras} camera(s).[/dim]"
             )
 
+    return usd_stage, camera_path
+
+
+def _print_multi_camera_render_summary(
+    result: dict[str, Any],
+    *,
+    output_dir: str,
+    backend_label: str | None = None,
+) -> None:
+    console.print("\n[bold green]Rendering Complete![/bold green]")
+    if backend_label:
+        console.print(f"Backend: {backend_label}")
+    console.print(f"Total cameras: {result['total_cameras']}")
+    console.print(f"Successful: {result['successful_cameras']}")
+    console.print(f"Failed: {result['failed_cameras']}")
+    console.print(f"Total render time: {result['total_render_time']:.2f} seconds")
+    console.print(f"Output directory: {output_dir}")
+
+
+def _save_all_camera_render_outputs(
+    *,
+    result: dict[str, Any],
+    output_dir: str,
+    usd_stage: Any,
+    usd_path: str,
+    width: int,
+    verbose: bool,
+    save_camera_json_flag: bool,
+    extract_camera_parameters_fn: Any,
+    save_camera_json_fn: Any,
+) -> None:
+    import os
+
+    from world_understanding.utils.usd import stage as stage_utils
+
+    os.makedirs(output_dir, exist_ok=True)
+    camera_metadata_usd_path = _export_rendered_stage_for_camera_metadata(
+        usd_stage,
+        usd_path,
+        save_camera_json_flag,
+    )
+    try:
+        for cam_result in result["results"]:
+            if cam_result.get("status") != "success" or not cam_result.get("images"):
+                continue
+            camera_name = stage_utils.sanitize_name_for_filesystem(cam_result["camera"])
+            for idx, img in enumerate(cam_result["images"]):
+                if len(cam_result["images"]) > 1:
+                    filename = f"render_{camera_name}_{idx:04d}.png"
+                else:
+                    filename = f"render_{camera_name}.png"
+                filepath = os.path.join(output_dir, filename)
+                img.save(filepath)
+                if verbose:
+                    console.print(f"  Saved: {filepath}")
+
+                if (
+                    save_camera_json_flag
+                    and len(cam_result["images"]) == 1
+                    and idx == 0
+                ):
+                    try:
+                        camera_params = extract_camera_parameters_fn(
+                            usd_path=camera_metadata_usd_path,
+                            camera_path=cam_result["camera"],
+                            image_width=width,
+                            image_height=img.height,
+                        )
+                        json_filename = f"render_{camera_name}.json"
+                        json_path = os.path.join(output_dir, json_filename)
+                        save_camera_json_fn(camera_params, json_path)
+                        if verbose:
+                            console.print(f"  Camera JSON: {json_path}")
+                    except Exception as e:
+                        if verbose:
+                            console.print(
+                                "[yellow]  Warning: Failed to save camera JSON: "
+                                f"{e}[/yellow]"
+                            )
+
+        if verbose and result["results"]:
+            console.print("\n[bold]Camera Results:[/bold]")
+            for cam_result in result["results"]:
+                status_icon = "ok" if cam_result.get("status") == "success" else "FAIL"
+                console.print(
+                    f"  [{status_icon}] {cam_result['camera']}: "
+                    f"{cam_result['frame_count']} frames in "
+                    f"{cam_result['render_time']:.2f}s"
+                )
+                if cam_result.get("error"):
+                    console.print(f"    Error: {cam_result['error']}")
+    finally:
+        if camera_metadata_usd_path != usd_path:
+            Path(camera_metadata_usd_path).unlink(missing_ok=True)
+
+
+def _get_single_camera_result_or_exit(multi_result: dict[str, Any]) -> dict[str, Any]:
+    if multi_result.get("successful_cameras", 0) == 0 or not multi_result.get(
+        "results"
+    ):
+        error_msg = "Rendering failed"
+        for result in multi_result.get("results", []):
+            if result.get("error"):
+                error_msg = result["error"]
+                break
+        console.print(f"[red]Rendering failed:[/red] {error_msg}")
+        raise typer.Exit(1)
+
+    return multi_result["results"][0]
+
+
+def _print_single_camera_render_summary(
+    result: dict[str, Any],
+    *,
+    backend_label: str | None = None,
+) -> None:
+    console.print("\n[bold green]Rendering Complete![/bold green]")
+    if backend_label:
+        console.print(f"Backend: {backend_label}")
+    console.print(f"Camera: {result['camera']}")
+    console.print(f"Frames rendered: {result['frame_count']}")
+    console.print(f"Render time: {result['render_time']:.2f} seconds")
+    console.print("Output files:")
+
+
+def _render_ovrtx(
+    usd_path: str,
+    camera: str,
+    output: str | None,
+    width: int,
+    height: int,
+    frames: str,
+    sensors: str | None,
+    all_cameras: bool,
+    output_dir: str | None,
+    verbose: bool,
+    save_camera_json_flag: bool,
+    extract_camera_parameters_fn: Any,
+    save_camera_json_fn: Any,
+    focus: str | None = None,
+    isolate_paths: list[str] | None = None,
+    hide_paths: list[str] | None = None,
+    direction: str = "+x+y+z",
+    margin: float | None = None,
+    focal_length: float | None = None,
+    aperture: float | None = None,
+    cam_x: float | None = None,
+    cam_y: float | None = None,
+    cam_z: float | None = None,
+    target_x: float | None = None,
+    target_y: float | None = None,
+    target_z: float | None = None,
+    near_clip: float | None = None,
+    far_clip: float | None = None,
+    dome_light: float | None = None,
+    distant_light: float | None = None,
+    ovrtx_log_level: str = "warn",
+    ovrtx_venv_dir: str | None = None,
+    ovrtx_num_sensor_updates: int | None = None,
+    ovrtx_render_mode: str | None = None,
+    material_target: str | None = None,
+) -> None:
+    """Render USD files using the local OvRTX backend."""
+    from world_understanding.functions.graphics.rendering_backend_factory import (
+        create_rendering_backend,
+    )
+
+    sensor_list = (
+        [s.strip() for s in sensors.split(",") if s.strip()] if sensors else None
+    )
+
+    usd_stage, camera_path = _prepare_render_stage(
+        usd_path=usd_path,
+        camera=camera,
+        width=width,
+        height=height,
+        all_cameras=all_cameras,
+        focus=focus,
+        isolate_paths=isolate_paths,
+        hide_paths=hide_paths,
+        direction=direction,
+        margin=margin,
+        focal_length=focal_length,
+        aperture=aperture,
+        cam_x=cam_x,
+        cam_y=cam_y,
+        cam_z=cam_z,
+        target_x=target_x,
+        target_y=target_y,
+        target_z=target_z,
+        near_clip=near_clip,
+        far_clip=far_clip,
+        dome_light=dome_light,
+        distant_light=distant_light,
+        stage_label="ovrtx_render",
+        prepare_message="Preparing stage for local OvRTX rendering...",
+    )
+
+    ovrtx_kwargs: dict[str, Any] = {
+        "log_level": ovrtx_log_level,
+        "ovrtx_venv_dir": ovrtx_venv_dir,
+    }
+    if ovrtx_num_sensor_updates is not None:
+        ovrtx_kwargs["num_sensor_updates"] = ovrtx_num_sensor_updates
+    if ovrtx_render_mode is not None:
+        ovrtx_kwargs["render_mode"] = ovrtx_render_mode
+    if material_target is not None:
+        ovrtx_kwargs["material_target"] = material_target
+
+    backend = create_rendering_backend("ovrtx", ovrtx_kwargs)
+    render_kwargs: dict[str, Any] = {"base_dir": str(Path(usd_path).resolve().parent)}
+
     if all_cameras:
-        console.print(f"[dim]Rendering all cameras from {usd_path}...[/dim]")
-        result = render_all_cameras(
+        console.print(f"[dim]Rendering all cameras from {usd_path} with OvRTX...[/dim]")
+        camera_paths = _collect_camera_paths(usd_stage)
+        result = backend.render(
             stage=usd_stage,
             image_width=width,
             image_height=height,
-            cameras=None,
+            cameras=camera_paths,
             frames=frames,
             sensors=sensor_list,
+            **render_kwargs,
         )
 
-        os.makedirs(output_dir, exist_ok=True)
+        _print_multi_camera_render_summary(
+            result,
+            output_dir=str(output_dir),
+            backend_label="ovrtx",
+        )
+        _save_all_camera_render_outputs(
+            result=result,
+            output_dir=str(output_dir),
+            usd_stage=usd_stage,
+            usd_path=usd_path,
+            width=width,
+            verbose=verbose,
+            save_camera_json_flag=save_camera_json_flag,
+            extract_camera_parameters_fn=extract_camera_parameters_fn,
+            save_camera_json_fn=save_camera_json_fn,
+        )
+    else:
+        console.print(
+            f"[dim]Rendering camera '{camera_path}' from {usd_path} with OvRTX...[/dim]"
+        )
+        multi_result = backend.render(
+            stage=usd_stage,
+            image_width=width,
+            image_height=height,
+            cameras=[camera_path],
+            frames=frames,
+            sensors=sensor_list,
+            **render_kwargs,
+        )
 
-        console.print("\n[bold green]Rendering Complete![/bold green]")
-        console.print(f"Total cameras: {result['total_cameras']}")
-        console.print(f"Successful: {result['successful_cameras']}")
-        console.print(f"Failed: {result['failed_cameras']}")
-        console.print(f"Total render time: {result['total_render_time']:.2f} seconds")
-        console.print(f"Output directory: {output_dir}")
+        result = _get_single_camera_result_or_exit(multi_result)
+        _print_single_camera_render_summary(result, backend_label="ovrtx")
 
         camera_metadata_usd_path = _export_rendered_stage_for_camera_metadata(
             usd_stage,
@@ -2028,93 +2344,144 @@ def _render_remote(
             save_camera_json_flag,
         )
         try:
-            for cam_result in result["results"]:
-                if cam_result.get("status") == "success" and cam_result.get("images"):
-                    camera_name = stage_utils.sanitize_name_for_filesystem(
-                        cam_result["camera"]
-                    )
-                    for idx, img in enumerate(cam_result["images"]):
-                        if len(cam_result["images"]) > 1:
-                            filename = f"render_{camera_name}_{idx:04d}.png"
-                        else:
-                            filename = f"render_{camera_name}.png"
-                        filepath = os.path.join(output_dir, filename)
-                        img.save(filepath)
-                        if verbose:
-                            console.print(f"  Saved: {filepath}")
-
-                        if (
-                            save_camera_json_flag
-                            and len(cam_result["images"]) == 1
-                            and idx == 0
-                        ):
-                            try:
-                                camera_params = extract_camera_parameters_fn(
-                                    usd_path=camera_metadata_usd_path,
-                                    camera_path=cam_result["camera"],
-                                    image_width=width,
-                                    image_height=img.height,
-                                )
-                                json_filename = f"render_{camera_name}.json"
-                                json_path = os.path.join(output_dir, json_filename)
-                                save_camera_json_fn(camera_params, json_path)
-                                if verbose:
-                                    console.print(f"  Camera JSON: {json_path}")
-                            except Exception as e:
-                                if verbose:
-                                    console.print(
-                                        f"[yellow]  Warning: Failed to save camera JSON: {e}[/yellow]"
-                                    )
-
-            if verbose and result["results"]:
-                console.print("\n[bold]Camera Results:[/bold]")
-                for cam_result in result["results"]:
-                    status_icon = (
-                        "ok" if cam_result.get("status") == "success" else "FAIL"
-                    )
-                    console.print(
-                        f"  [{status_icon}] {cam_result['camera']}: "
-                        f"{cam_result['frame_count']} frames in "
-                        f"{cam_result['render_time']:.2f}s"
-                    )
-                    if cam_result.get("error"):
-                        console.print(f"    Error: {cam_result['error']}")
+            _save_render_images(
+                result=result,
+                output=output,
+                output_dir=output_dir,
+                camera=camera_path,
+                usd_path=camera_metadata_usd_path,
+                width=width,
+                verbose=verbose,
+                save_camera_json_flag=save_camera_json_flag,
+                extract_camera_parameters_fn=extract_camera_parameters_fn,
+                save_camera_json_fn=save_camera_json_fn,
+            )
         finally:
             if camera_metadata_usd_path != usd_path:
                 Path(camera_metadata_usd_path).unlink(missing_ok=True)
+
+
+def _render_remote(
+    usd_path: str,
+    camera: str,
+    output: str | None,
+    width: int,
+    height: int,
+    frames: str,
+    sensors: str | None,
+    all_cameras: bool,
+    output_dir: str | None,
+    verbose: bool,
+    save_camera_json_flag: bool,
+    extract_camera_parameters_fn: Any,
+    save_camera_json_fn: Any,
+    remote_max_workers: int = 4,
+    focus: str | None = None,
+    isolate_paths: list[str] | None = None,
+    hide_paths: list[str] | None = None,
+    direction: str = "+x+y+z",
+    margin: float | None = None,
+    focal_length: float | None = None,
+    aperture: float | None = None,
+    cam_x: float | None = None,
+    cam_y: float | None = None,
+    cam_z: float | None = None,
+    target_x: float | None = None,
+    target_y: float | None = None,
+    target_z: float | None = None,
+    near_clip: float | None = None,
+    far_clip: float | None = None,
+    dome_light: float | None = None,
+    distant_light: float | None = None,
+    material_target: str | None = None,
+) -> None:
+    """Render USD files using the REST API-based remote rendering backend."""
+    from world_understanding.functions.graphics.rendering_backend_factory import (
+        create_rendering_backend,
+    )
+
+    sensor_list = (
+        [s.strip() for s in sensors.split(",") if s.strip()] if sensors else None
+    )
+
+    usd_stage, camera_path = _prepare_render_stage(
+        usd_path=usd_path,
+        camera=camera,
+        width=width,
+        height=height,
+        all_cameras=all_cameras,
+        focus=focus,
+        isolate_paths=isolate_paths,
+        hide_paths=hide_paths,
+        direction=direction,
+        margin=margin,
+        focal_length=focal_length,
+        aperture=aperture,
+        cam_x=cam_x,
+        cam_y=cam_y,
+        cam_z=cam_z,
+        target_x=target_x,
+        target_y=target_y,
+        target_z=target_z,
+        near_clip=near_clip,
+        far_clip=far_clip,
+        dome_light=dome_light,
+        distant_light=distant_light,
+        stage_label="remote_render",
+        prepare_message="Preparing stage for remote rendering upload...",
+    )
+
+    backend_config: dict[str, Any] = {"bundle_mdl_assets": True}
+    if material_target is not None:
+        backend_config["material_target"] = material_target
+    backend = create_rendering_backend("remote", backend_config)
+    render_kwargs: dict[str, Any] = {
+        "base_dir": str(Path(usd_path).resolve().parent),
+    }
+
+    if all_cameras:
+        console.print(f"[dim]Rendering all cameras from {usd_path}...[/dim]")
+        camera_paths = _collect_camera_paths(usd_stage)
+        effective_max_workers = min(remote_max_workers, max(1, len(camera_paths)))
+        result = backend.render(
+            stage=usd_stage,
+            image_width=width,
+            image_height=height,
+            cameras=camera_paths,
+            frames=frames,
+            sensors=sensor_list,
+            max_workers=effective_max_workers,
+            **render_kwargs,
+        )
+
+        _print_multi_camera_render_summary(result, output_dir=str(output_dir))
+        _save_all_camera_render_outputs(
+            result=result,
+            output_dir=str(output_dir),
+            usd_stage=usd_stage,
+            usd_path=usd_path,
+            width=width,
+            verbose=verbose,
+            save_camera_json_flag=save_camera_json_flag,
+            extract_camera_parameters_fn=extract_camera_parameters_fn,
+            save_camera_json_fn=save_camera_json_fn,
+        )
     else:
-        # Single camera render - use render_all_cameras with a single camera
-        # to get proper asset bundling (MDL + textures) for USDZ and complex scenes
+        # The shared remote backend bundles MDL and texture assets for USDZ and
+        # complex scenes before rendering this single camera.
         console.print(f"[dim]Rendering camera '{camera_path}' from {usd_path}...[/dim]")
-        multi_result = render_all_cameras(
+        multi_result = backend.render(
             stage=usd_stage,
             image_width=width,
             image_height=height,
             cameras=[camera_path],
             frames=frames,
             sensors=sensor_list,
-            bundle_mdl_assets=True,
+            **render_kwargs,
         )
 
-        # Extract single camera result from multi-camera format
-        if multi_result.get("successful_cameras", 0) == 0 or not multi_result.get(
-            "results"
-        ):
-            error_msg = "Rendering failed"
-            for r in multi_result.get("results", []):
-                if r.get("error"):
-                    error_msg = r["error"]
-                    break
-            console.print(f"[red]Rendering failed:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-        result = multi_result["results"][0]
-
-        console.print("\n[bold green]Rendering Complete![/bold green]")
-        console.print(f"Camera: {result['camera']}")
-        console.print(f"Frames rendered: {result['frame_count']}")
-        console.print(f"Render time: {result['render_time']:.2f} seconds")
-        console.print("Output files:")
+        result = _get_single_camera_result_or_exit(multi_result)
+        _print_single_camera_render_summary(result)
 
         camera_metadata_usd_path = _export_rendered_stage_for_camera_metadata(
             usd_stage,
@@ -2244,10 +2611,7 @@ def image_gen(
         "gemini",
         "--backend",
         "-b",
-        help=_backend_help(
-            "Image generation backend: gemini, openai, nim",
-            internal_backend="nvidia_inference",
-        ),
+        help=_backend_help("Image generation backend: gemini, openai, nim"),
     ),
     model: str | None = typer.Option(
         None, "--model", "-m", help="Model to use (backend-specific default if omitted)"
@@ -2308,23 +2672,6 @@ def image_gen(
         if base_url:
             kwargs["base_url"] = base_url
 
-        if backend == "nvidia_inference" and not _has_world_understanding_internal():
-            console.print(
-                "[red]Error: The requested image generation backend requires "
-                "the world_understanding_internal package.[/red]"
-            )
-            raise typer.Exit(1)
-
-        if backend == "nvidia_inference" and "api_key" not in kwargs:
-            api_key = os.getenv("INFERENCE_NVIDIA_API_KEY")
-            if not api_key:
-                console.print(
-                    "[red]Error: INFERENCE_NVIDIA_API_KEY "
-                    "environment variable is not set[/red]"
-                )
-                raise typer.Exit(1)
-            kwargs["api_key"] = api_key
-
         if backend == "openai" and "api_key" not in kwargs:
             # Resolve through the endpoint-aware helper instead of writing
             # ``OPENAI_API_KEY`` directly into kwargs: a hosted key against
@@ -2378,9 +2725,29 @@ def image_gen(
                 console.print(
                     "[red]Error: --base-url points at a custom NIM endpoint and "
                     "no endpoint-scoped API key was provided. Set MA_NIM_API_KEY "
-                    "or pass --api-key for the endpoint.[/red]"
+                    "for that endpoint.[/red]"
                 )
                 raise typer.Exit(1)
+
+        if backend not in {"gemini", "nim", "openai"} and "api_key" not in kwargs:
+            import world_understanding.functions.models.backends  # noqa: F401
+            from world_understanding.functions.models.backends.registry import (
+                image_gen_backend_requires_api_key,
+            )
+            from world_understanding.utils.credentials import (
+                get_env_api_key_for_backend,
+            )
+
+            if image_gen_backend_requires_api_key(backend):
+                resolved = get_env_api_key_for_backend(backend)
+                if resolved:
+                    kwargs["api_key"] = resolved
+                else:
+                    console.print(
+                        "[red]Error: No API key is configured for image generation "
+                        f"backend {backend!r}.[/red]"
+                    )
+                    raise typer.Exit(1)
 
         gen_model = create_image_generation_model(backend, **kwargs)
         logger.info("Using %s backend (model=%s)", backend, gen_model.model_name)
@@ -2884,7 +3251,7 @@ def optimize(
             )
             raise typer.Exit(1)
 
-        _eval_fn = module.evaluate
+        _module_evaluate = module.evaluate
 
         class _ModuleGoal(Goal):
             @property
@@ -2908,7 +3275,7 @@ def optimize(
                 return tuple(module.BOUNDS)  # type: ignore[return-value]
 
             def evaluate(self, **context: Any) -> float:
-                return _eval_fn(**context)
+                return _module_evaluate(**context)
 
         goal_instance = _ModuleGoal()
 

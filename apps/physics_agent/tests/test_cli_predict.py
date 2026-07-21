@@ -151,6 +151,7 @@ def test_run_only_predict_compat_path_still_works(tmp_path, monkeypatch):
     legacy compatibility path. We confirm the CLI calls run_pipeline with
     only_steps=['predict'].
     """
+    monkeypatch.setenv("NVIDIA_API_KEY", "test-provider-key")
     config_path = _write_minimal_config(tmp_path)
 
     captured: dict[str, object] = {}

@@ -1,0 +1,211 @@
+# Integrated local Step1X + OVRTX validation overlay.
+#
+# Usage from the repo root:
+#   export TEXTURE_STEP1X_HOST_RUNTIME=/path/to/texture-editing-runtime
+#   docker compose --env-file .env \
+#     -f apps/texture_agent_service/docker-compose.yml \
+#     -f apps/texture_agent_service/docker-compose.step1x.yml \
+#     up --build
+#
+# This overlay intentionally starts both GPU services. On one-GPU hosts, run
+# Step1X and OVRTX serially with their standalone compose files instead.
+# It is an overlay for docker-compose.yml, which declares the shared session
+# volume and default network.
+
+services:
+  texture-agent-service:
+    depends_on:
+      texture-gen-simple:
+        condition: service_healthy
+      texture-gen-step1x:
+        condition: service_healthy
+      ovrtx-rendering-api:
+        condition: service_healthy
+    environment:
+      - TA_TEXTURE_BACKEND=service
+      - TA_TEXTURE_ENDPOINT=http://texture-gen-step1x:8000
+      - TA_BACKEND_ENGINE=step1x
+      - TA_SIMPLE_TEXTURE_ENDPOINT=http://texture-gen-simple:8000
+      - TA_SIMPLE_BACKEND_ENGINE=simple_image_gen
+      - TA_SIMPLE_TEXTURE_WORKERS=${TEXTURE_GEN_MAX_WORKERS:-4}
+      - TA_SIMPLE_TEXTURE_JOB_TIMEOUT_SEC=${TA_SIMPLE_TEXTURE_JOB_TIMEOUT_SEC:-3600}
+      - TA_SIMPLE_UV_SCOPE=${TA_SIMPLE_UV_SCOPE:-stage}
+      - TA_SIMPLE_UV_REBAKE_SOURCE_ALBEDO=${TA_SIMPLE_UV_REBAKE_SOURCE_ALBEDO:-false}
+      - TA_TEXTURE_WORKERS=${TA_TEXTURE_WORKERS:-1}
+      - TA_TEXTURE_PLAN_DEFAULT_CAP=${TA_TEXTURE_PLAN_DEFAULT_CAP:-32}
+      - TA_TEXTURE_PLAN_UV_AWARE_DEFAULT_CAP=${TA_TEXTURE_PLAN_UV_AWARE_DEFAULT_CAP:-16}
+      - TA_TEXTURE_PLAN_HARD_CAP=${TA_TEXTURE_PLAN_HARD_CAP:-64}
+      - TA_MAX_TEXTURE_UNITS=${TA_MAX_TEXTURE_UNITS:-64}
+      - TA_UV_POLICY=${TA_UV_POLICY:-generate_missing}
+      - TA_UV_BACKEND=${TA_UV_BACKEND:-python}
+      - TA_UV_PROJECTION=${TA_UV_PROJECTION:-box}
+      - TA_UV_OVERWRITE_EXISTING=${TA_UV_OVERWRITE_EXISTING:-false}
+      - TA_RENDER_ENABLED=${TA_RENDER_ENABLED:-true}
+      - TA_RENDER_PREVIEWS_ENABLED=${TA_RENDER_PREVIEWS_ENABLED:-false}
+      - TA_RENDER_IMAGE_WIDTH=${TA_RENDER_IMAGE_WIDTH:-512}
+      - TA_RENDER_IMAGE_HEIGHT=${TA_RENDER_IMAGE_HEIGHT:-512}
+      - RENDER_ENDPOINT=http://ovrtx-rendering-api:8000
+      - WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS=${WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS:-1}
+
+  texture-gen-simple:
+    build:
+      context: ../..
+      dockerfile: apps/texture_agent_service/Dockerfile
+    image: texture-agent-service:local
+    command:
+      [
+        "python",
+        "-m",
+        "uvicorn",
+        "apps.texture_gen_simple_service.app:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+      ]
+    ports:
+      - "${TEXTURE_SIMPLE_PORT:-8019}:8000"
+    env_file:
+      - path: ../../.env
+        required: false
+      - path: ${TEXTURE_GEN_SIMPLE_ENV_FILE:-/dev/null}
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - TEXTURE_OUTPUT_DIR=/var/texture-agent/sessions/texture_gen_simple_outputs
+      - TEXTURE_GEN_MAX_WORKERS=${TEXTURE_GEN_MAX_WORKERS:-4}
+    volumes:
+      - session-storage:/var/texture-agent/sessions
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+        reservations:
+          cpus: "1"
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/livez"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  texture-gen-step1x:
+    build:
+      context: ../..
+      dockerfile: apps/texture_gen_step1x_service/Dockerfile
+    image: texture-gen-step1x-service:local
+    ports:
+      - "${TEXTURE_STEP1X_PORT:-8018}:8000"
+    environment:
+      - TEXTURE_STEP1X_RUNTIME_DIR=/opt/texture-editing
+      - TEXTURE_STEP1X_EDIT_SCRIPT=${TEXTURE_STEP1X_EDIT_SCRIPT:-/opt/texture-editing/edit_texture.py}
+      - TEXTURE_STEP1X_PYTHON=${TEXTURE_STEP1X_PYTHON:-}
+      - TEXTURE_STEP1X_COMMAND_TEMPLATE=${TEXTURE_STEP1X_COMMAND_TEMPLATE:-}
+      - TEXTURE_STEP1X_MODEL_DIR=${TEXTURE_STEP1X_MODEL_DIR:-}
+      - TEXTURE_STEP1X_CACHE_DIR=/var/texture-agent/sessions/step1x_cache
+      - TEXTURE_OUTPUT_DIR=/var/texture-agent/sessions/texture_gen_step1x_outputs
+      - TEXTURE_STEP1X_MAX_WORKERS=${TEXTURE_STEP1X_MAX_WORKERS:-1}
+      - TEXTURE_STEP1X_SKIP_MA=${TEXTURE_STEP1X_SKIP_MA:-true}
+      - TEXTURE_STEP1X_REQUIRE_UPSCALER=${TEXTURE_STEP1X_REQUIRE_UPSCALER:-false}
+      - TEXTURE_STEP1X_VALIDATE_ASSETS=${TEXTURE_STEP1X_VALIDATE_ASSETS:-true}
+      - TEXTURE_STEP1X_REQUIRED_EXECUTABLES=${TEXTURE_STEP1X_REQUIRED_EXECUTABLES:-uv}
+      - TEXTURE_STEP1X_TIMEOUT_SEC=${TEXTURE_STEP1X_TIMEOUT_SEC:-3600}
+      - TEXTURE_UPSCALER_BACKEND=${TEXTURE_UPSCALER_BACKEND:-swin2sr}
+      - TEXTURE_SWIN2SR_DEVICE=${TEXTURE_SWIN2SR_DEVICE:-auto}
+      - TEXTURE_SWIN2SR_TILE_SIZE=${TEXTURE_SWIN2SR_TILE_SIZE:-512}
+      - TEXTURE_SWIN2SR_TILE_OVERLAP=${TEXTURE_SWIN2SR_TILE_OVERLAP:-16}
+      - TEXTURE_REALESRGAN_VK_ICD=${TEXTURE_REALESRGAN_VK_ICD:-/etc/vulkan/icd.d/nvidia_icd.json}
+      - TEXTURE_REALESRGAN_GPU_ID=${TEXTURE_REALESRGAN_GPU_ID:-0}
+      - TEXTURE_REALESRGAN_ALLOW_LLVMPIPE_FALLBACK=${TEXTURE_REALESRGAN_ALLOW_LLVMPIPE_FALLBACK:-false}
+      - HOME=${TEXTURE_STEP1X_CONTAINER_HOME:-/home/appuser}
+      - HF_HOME=${TEXTURE_STEP1X_HF_HOME:-/home/appuser/.cache/huggingface}
+      - PYTHONPATH=/workspace/world-understanding:${TEXTURE_STEP1X_EXTRA_PYTHONPATH:-}
+      - TEXTURE_STEP1X_LD_LIBRARY_PATH=${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}
+      - LD_LIBRARY_PATH=${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}
+      - TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS=${TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS:-true}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-compute,utility,graphics}
+      - NVIDIA_VISIBLE_DEVICES=${TEXTURE_STEP1X_GPU_DEVICE:-0}
+    volumes:
+      - session-storage:/var/texture-agent/sessions
+      - type: bind
+        source: "${TEXTURE_STEP1X_HOST_RUNTIME:?set TEXTURE_STEP1X_HOST_RUNTIME to your Step1X runtime path}"
+        target: /opt/texture-editing
+        read_only: true
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${TEXTURE_STEP1X_GPU_DEVICE:-0}"]
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "/healthcheck.py"]
+      interval: 30s
+      timeout: ${TEXTURE_STEP1X_HEALTHCHECK_TIMEOUT:-180s}
+      retries: 12
+      start_period: 120s
+
+  ovrtx-rendering-api:
+    build:
+      context: ../..
+      dockerfile: apps/ovrtx_rendering_api/Dockerfile
+    image: ovrtx-rendering-api:local
+    ports:
+      - "${OVRTX_HOST_PORT:-8002}:8000"
+    environment:
+      - OVRTX_LOG_LEVEL=${OVRTX_LOG_LEVEL:-warn}
+      - OVRTX_NUM_SENSOR_UPDATES=${OVRTX_NUM_SENSOR_UPDATES:-500}
+      - OVRTX_RENDER_MODE=${OVRTX_RENDER_MODE:-pt}
+      - OVRTX_DAEMON_START_TIMEOUT=${OVRTX_DAEMON_START_TIMEOUT:-600}
+      - OVRTX_DAEMON_RENDER_TIMEOUT=${OVRTX_DAEMON_RENDER_TIMEOUT:-1800}
+      - OVRTX_DAEMON_MAX_RENDERS=${OVRTX_DAEMON_MAX_RENDERS:-64}
+      - OVRTX_DAEMON_MAX_RSS_BYTES=${OVRTX_DAEMON_MAX_RSS_BYTES:-25769803776}
+      - WU_OVRTX_DEFAULT_HDRI=${WU_OVRTX_DEFAULT_HDRI:-}
+      - WU_OVRTX_DEFAULT_HDRI_INTENSITY=${WU_OVRTX_DEFAULT_HDRI_INTENSITY:-}
+      - WU_OVRTX_DUMP_COMBINED=${WU_OVRTX_DUMP_COMBINED:-}
+      - NVIDIA_VISIBLE_DEVICES=${OVRTX_GPU_DEVICE:-1}
+    volumes:
+      - session-storage:/var/texture-agent/sessions:ro
+      - /tmp:/host_tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${OVRTX_GPU_DEVICE:-1}"]
+              capabilities: [gpu]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:8000/health | grep -q '\"gpu_initialized\":true'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 12
+      start_period: 120s

@@ -1,0 +1,86 @@
+
+[project]
+name = "texture-gen-simple-service"
+dynamic = ["version"]
+description = "Lightweight Texture Variation API service using image gen models"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+
+dependencies = [
+    # FastAPI and web framework
+    "fastapi>=0.115.8",
+    "starlette>=1.3.1,<2.0.0",
+    "uvicorn[standard]>=0.34.0",
+
+    # Data validation
+    "pydantic>=2.9.0",
+
+    # Configuration
+    "python-dotenv>=1.0.0",
+
+    # Image processing
+    "numpy",
+    "pillow>=10.1.0",
+
+    # Core dependency
+    "world-understanding>=0.4.2",
+    "texture-gen-service-common>=0.5.0",
+]
+
+[project.scripts]
+texture-gen-simple-service = "service.main:main"
+
+[tool.uv.sources]
+world-understanding = { path = "../..", editable = true }
+texture-gen-service-common = { path = "../texture_gen_service_common", editable = true }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "httpx>=0.27.0",
+    "ruff>=0.6.0",
+]
+
+[build-system]
+requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.5.0"
+from-file = { source = "../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["service*", "client*"]
+
+[tool.hatch.build.targets.wheel]
+ignore-vcs = true
+packages = ["service", "client"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"apps_namespace_init.py" = "apps/__init__.py"
+"__init__.py" = "apps/texture_gen_simple_service/__init__.py"
+"app.py" = "apps/texture_gen_simple_service/app.py"
+"client/__init__.py" = "apps/texture_gen_simple_service/client/__init__.py"
+"client/client.py" = "apps/texture_gen_simple_service/client/client.py"
+"service/__init__.py" = "apps/texture_gen_simple_service/service/__init__.py"
+"service/main.py" = "apps/texture_gen_simple_service/service/main.py"
+"README.md" = "apps/texture_gen_simple_service/README.md"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = [
+    "E501",  # Line too long (Black handles this)
+]

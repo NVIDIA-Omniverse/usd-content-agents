@@ -10,6 +10,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from material_agent.materials import (
+    DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+    FALLBACK_MATERIAL_NAME,
+)
 from material_agent.tasks.config_validate_predictions import (
     ValidatePredictionsConfigTask,
 )
@@ -17,6 +21,11 @@ from material_agent.tasks.validate_predictions import (
     ValidatePredictionsTask,
     _best_fuzzy_match,
     _extract_material_name,
+    _load_jsonl_predictions,
+    _load_predictions_for_validation,
+    _mark_materials_disallowed_unknown,
+    _noop_disallowed_unknown_marker,
+    _noop_fallback_marker,
     _prediction_material_records,
     _set_material_name,
     _write_predictions_atomically,
@@ -100,6 +109,106 @@ class TestPredictionMaterialRecords:
         records[0].set_material("Gold Polished")
 
         assert pred["materials"]["material"] == "Gold Polished"
+
+    def test_direct_marker_helpers_cover_top_level_and_noop_paths(self):
+        string_material_pred = {"materials": "unknown"}
+        _mark_materials_disallowed_unknown(string_material_pred)
+        assert string_material_pred["materials"] == {
+            "material": "unknown",
+            "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+        }
+
+        non_string_material_pred = {"materials": ["not", "a", "material"]}
+        _mark_materials_disallowed_unknown(non_string_material_pred)
+        assert non_string_material_pred["materials"] == {
+            "material": "",
+            "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+        }
+
+        top_level_pred = {"id": "/top", "material": "__unknown__"}
+        record = _prediction_material_records(top_level_pred)[0]
+        record.mark_disallowed_unknown()
+        record.set_material("Gold Polished")
+        record.mark_fallback("__unknown__", "unknown_material")
+
+        assert top_level_pred == {
+            "id": "/top",
+            "material": "Gold Polished",
+            "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+            "fallback_source": "validation",
+            "fallback_reason": "unknown_material",
+            "fallback_original_material": "__unknown__",
+        }
+
+        assert _noop_disallowed_unknown_marker() is None
+        assert _noop_fallback_marker(None, "unused") is None
+
+    def test_container_item_markers_persist_list_and_dict_records(self):
+        payload = {
+            "predictions": ["bad list material"],
+            "/World/DictMaterial": "bad dict material",
+        }
+        list_record, dict_record = _prediction_material_records(payload)
+
+        list_record.set_material("Gold Polished")
+        assert payload["predictions"][0] == "Gold Polished"
+        payload["predictions"][0] = "bad list material"
+        list_record.mark_disallowed_unknown()
+        dict_record.mark_disallowed_unknown()
+        assert payload["predictions"][0] == {
+            "material": "",
+            "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+        }
+        assert payload["/World/DictMaterial"] == {
+            "material": "",
+            "validation_status": DISALLOWED_UNKNOWN_VALIDATION_STATUS,
+        }
+
+        payload = {"predictions": ["bad list material"]}
+        record = _prediction_material_records(payload)[0]
+        record.mark_fallback("bad list material", "missing_material")
+        assert payload["predictions"][0] == {
+            "material": "bad list material",
+            "fallback_source": "validation",
+            "fallback_reason": "missing_material",
+            "fallback_original_material": "bad list material",
+        }
+
+        payload = {"predictions": [123]}
+        assert _prediction_material_records(payload) == []
+
+
+class TestPredictionLoading:
+    def test_empty_predictions_file_loads_empty_list(self, tmp_path):
+        path = tmp_path / "predictions.jsonl"
+        path.write_text("  \n", encoding="utf-8")
+        listener = MagicMock()
+
+        predictions, json_document = _load_predictions_for_validation(path, listener)
+
+        assert predictions == []
+        assert json_document is False
+        listener.warning.assert_called_once_with("Predictions file is empty")
+
+    def test_json_suffix_falls_back_to_jsonl_and_skips_blank_lines(self, tmp_path):
+        path = tmp_path / "predictions.json"
+        path.write_text(
+            '{"id": "/a", "materials": {"material": "Gold Polished"}}\n\n'
+            '{"id": "/b", "materials": {"material": "Plastic White"}}\n',
+            encoding="utf-8",
+        )
+
+        predictions, json_document = _load_predictions_for_validation(path, MagicMock())
+
+        assert predictions == [
+            {"id": "/a", "materials": {"material": "Gold Polished"}},
+            {"id": "/b", "materials": {"material": "Plastic White"}},
+        ]
+        assert json_document is False
+
+    def test_invalid_jsonl_reports_line_number(self):
+        with pytest.raises(ValueError, match="line 2"):
+            _load_jsonl_predictions('{"id": "/a"}\nnot-json\n')
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +297,10 @@ class TestValidatePredictionsTaskRun:
         stats = result["validation_stats"]
         assert stats["no_material"] == 1
         assert stats["valid"] == 1
+        assert stats["fallback_applied"] == 1
+        assert _read_predictions(path)[0]["materials"]["material"] == (
+            FALLBACK_MATERIAL_NAME
+        )
 
     def test_idless_jsonl_prediction_missing_material_is_counted(self, tmp_path):
         preds = [
@@ -202,7 +315,10 @@ class TestValidatePredictionsTaskRun:
         stats = result["validation_stats"]
         assert stats["total"] == 1
         assert stats["no_material"] == 1
-        assert _read_predictions(path) == preds
+        assert stats["fallback_applied"] == 1
+        assert _read_predictions(path)[0]["materials"]["material"] == (
+            FALLBACK_MATERIAL_NAME
+        )
 
     def test_mixed_top_level_and_nested_predictions_are_validated(self, tmp_path):
         preds = [
@@ -235,7 +351,7 @@ class TestValidatePredictionsTaskRun:
             == "Stainless Steel Polished"
         )
 
-    def test_unknown_material_sentinel_is_preserved_and_reported(self, tmp_path):
+    def test_unknown_material_sentinel_is_preserved_when_allowed(self, tmp_path):
         preds = [
             {
                 "id": "/a",
@@ -250,24 +366,74 @@ class TestValidatePredictionsTaskRun:
         _write_predictions(path, preds)
 
         ctx = self._make_context(path)
-        task = ValidatePredictionsTask()
-        result = task.run(ctx)
+        ctx["unknown_material_predictions"] = "from previous task"
+        result = ValidatePredictionsTask().run(ctx)
 
         stats = result["validation_stats"]
         assert stats["unknown"] == 1
         assert stats["valid"] == 1
         assert stats["failed"] == 0
+        assert stats["fallback_applied"] == 0
+        assert result["unknown_material_predictions"] == 1
 
         reloaded = _read_predictions(path)
-        assert reloaded[0]["materials"]["material"] == "__UNKNOWN__"
-        assert reloaded[0]["materials"]["reason"] == "no visible geometry"
+        assert reloaded[0]["materials"]["material"] == "__unknown__"
 
         report = json.loads((tmp_path / "validate_report.json").read_text())
         assert report["unknown"] == [
             {"index": 0, "id": "/a", "reason": "no visible geometry"}
         ]
+        assert report["fallback_applied"] == []
 
-    def test_string_materials_unknown_sentinel_is_normalized(self, tmp_path):
+    def test_unknown_material_sentinel_uses_fallback_when_disallowed(self, tmp_path):
+        preds = [
+            {
+                "id": "/a",
+                "materials": {
+                    "material": "__unknown__",
+                    "reason": "no visible geometry",
+                },
+            },
+            {"id": "/b", "materials": {"material": "Gold Polished"}},
+        ]
+        path = tmp_path / "predictions.jsonl"
+        _write_predictions(path, preds)
+
+        ctx = self._make_context(path)
+        ctx["allow_unknown_material"] = False
+        task = ValidatePredictionsTask()
+        result = task.run(ctx)
+
+        stats = result["validation_stats"]
+        assert stats["unknown"] == 0
+        assert stats["unknown_disallowed"] == 1
+        assert stats["valid"] == 1
+        assert stats["failed"] == 0
+        assert stats["fallback_applied"] == 1
+
+        reloaded = _read_predictions(path)
+        assert reloaded[0]["materials"]["material"] == FALLBACK_MATERIAL_NAME
+        assert reloaded[0]["materials"]["reason"] == "no visible geometry"
+        assert reloaded[0]["materials"]["fallback_source"] == "validation"
+        assert reloaded[0]["materials"]["fallback_reason"] == "unknown_material"
+        assert reloaded[0]["materials"]["fallback_original_material"] == "__unknown__"
+
+        report = json.loads((tmp_path / "validate_report.json").read_text())
+        assert report["unknown"] == []
+        assert report["unknown_disallowed"] == [
+            {"index": 0, "id": "/a", "reason": "no visible geometry"}
+        ]
+        assert report["fallback_applied"] == [
+            {
+                "index": 0,
+                "new": FALLBACK_MATERIAL_NAME,
+                "reason": "unknown_material",
+                "id": "/a",
+                "old": "__unknown__",
+            }
+        ]
+
+    def test_string_materials_unknown_sentinel_uses_fallback(self, tmp_path):
         preds = [
             {"id": "/a", "materials": "__unknown__"},
             {"id": "/b", "materials": "Gold Polished"},
@@ -276,15 +442,19 @@ class TestValidatePredictionsTaskRun:
         _write_predictions(path, preds)
 
         ctx = self._make_context(path)
+        ctx["allow_unknown_material"] = False
         task = ValidatePredictionsTask()
         result = task.run(ctx)
 
         stats = result["validation_stats"]
-        assert stats["unknown"] == 1
+        assert stats["unknown"] == 0
+        assert stats["unknown_disallowed"] == 1
         assert stats["valid"] == 1
+        assert stats["fallback_applied"] == 1
 
         reloaded = _read_predictions(path)
-        assert reloaded[0]["materials"] == "__UNKNOWN__"
+        assert reloaded[0]["materials"]["material"] == FALLBACK_MATERIAL_NAME
+        assert reloaded[0]["materials"]["fallback_source"] == "validation"
 
     def test_string_materials_auto_correction_preserves_shape(self, tmp_path):
         preds = [{"id": "/a", "materials": "Gold Polishd"}]
@@ -296,7 +466,7 @@ class TestValidatePredictionsTaskRun:
         assert result["validation_stats"]["auto_corrected"] == 1
         assert _read_predictions(path)[0]["materials"] == "Gold Polished"
 
-    def test_unknown_material_is_not_fuzzy_repaired_when_disallowed(self, tmp_path):
+    def test_unknown_material_uses_fallback_even_when_disallowed(self, tmp_path):
         preds = [
             {"id": "/a", "materials": {"material": "__UNKNOWN__"}},
             {"id": "/b", "materials": {"material": "Gold Polished"}},
@@ -312,22 +482,22 @@ class TestValidatePredictionsTaskRun:
         stats = result["validation_stats"]
         assert stats["unknown"] == 0
         assert stats["unknown_disallowed"] == 1
-        assert stats["no_material"] == 1
+        assert stats["no_material"] == 0
         assert stats["valid"] == 1
         assert stats["auto_corrected"] == 0
         assert stats["llm_repaired"] == 0
-        assert result["unknown_material_predictions"] == 1
+        assert stats["fallback_applied"] == 1
+        assert result["unknown_material_predictions"] == 0
 
         reloaded = _read_predictions(path)
-        assert reloaded[0]["materials"]["material"] == ""
-        assert reloaded[0]["materials"]["validation_status"] == "disallowed_unknown"
+        assert reloaded[0]["materials"]["material"] == FALLBACK_MATERIAL_NAME
+        assert reloaded[0]["materials"]["fallback_reason"] == "unknown_material"
 
         report = json.loads((tmp_path / "validate_report.json").read_text())
+        assert report["unknown"] == []
         assert report["unknown_disallowed"] == [{"index": 0, "id": "/a"}]
 
-    def test_disallowed_path_key_unknown_material_is_durably_marked(
-        self, tmp_path: Path
-    ) -> None:
+    def test_path_key_unknown_material_uses_fallback(self, tmp_path: Path) -> None:
         path = tmp_path / "predictions.json"
         path.write_text(
             json.dumps({"/World/Hidden": "__unknown__"}),
@@ -338,14 +508,18 @@ class TestValidatePredictionsTaskRun:
         ctx["allow_unknown_material"] = False
         result = ValidatePredictionsTask().run(ctx)
 
+        assert result["validation_stats"]["unknown"] == 0
         assert result["validation_stats"]["unknown_disallowed"] == 1
+        assert result["validation_stats"]["fallback_applied"] == 1
         reloaded = json.loads(path.read_text(encoding="utf-8"))
         assert reloaded["/World/Hidden"] == {
-            "material": "",
-            "validation_status": "disallowed_unknown",
+            "material": FALLBACK_MATERIAL_NAME,
+            "fallback_source": "validation",
+            "fallback_reason": "unknown_material",
+            "fallback_original_material": "__unknown__",
         }
 
-    def test_disallowed_list_record_unknown_material_preserves_metadata(
+    def test_list_record_unknown_material_uses_fallback_and_preserves_metadata(
         self, tmp_path: Path
     ) -> None:
         path = tmp_path / "predictions.json"
@@ -366,13 +540,17 @@ class TestValidatePredictionsTaskRun:
         ctx["allow_unknown_material"] = False
         result = ValidatePredictionsTask().run(ctx)
 
+        assert result["validation_stats"]["unknown"] == 0
         assert result["validation_stats"]["unknown_disallowed"] == 1
+        assert result["validation_stats"]["fallback_applied"] == 1
         reloaded = json.loads(path.read_text(encoding="utf-8"))
         assert reloaded[0] == {
             "id": "/World/Hidden",
             "materials": {
-                "material": "",
-                "validation_status": "disallowed_unknown",
+                "material": FALLBACK_MATERIAL_NAME,
+                "fallback_source": "validation",
+                "fallback_reason": "unknown_material",
+                "fallback_original_material": "__unknown__",
             },
             "reason": "no visible geometry",
         }
@@ -396,6 +574,76 @@ class TestValidatePredictionsTaskRun:
         assert stats["llm_repaired"] == 0
         assert stats["failed"] == 1
         assert _read_predictions(path) == preds
+
+    def test_known_but_unrequested_llm_repair_index_skips_fuzzy_fallback(
+        self, tmp_path: Path
+    ) -> None:
+        class UnexpectedExistingIndexRepairTask(ValidatePredictionsTask):
+            def _llm_repair(self, items, valid_names, llm_config, listener):
+                return [(1, "Gold Polished", None)]
+
+        preds = [
+            {"id": "/invalid", "materials": {"material": "Gold"}},
+            {"id": "/valid", "materials": {"material": "Gold Polished"}},
+        ]
+        path = tmp_path / "predictions.jsonl"
+        _write_predictions(path, preds)
+
+        ctx = self._make_context(path)
+        ctx["llm_config"] = {"backend": "mock"}
+        result = UnexpectedExistingIndexRepairTask().run(ctx)
+
+        stats = result["validation_stats"]
+        assert stats["valid"] == 1
+        assert stats["llm_repaired"] == 0
+        assert stats["failed"] == 1
+        assert _read_predictions(path) == preds
+
+    def test_invalid_material_failed_llm_repair_uses_fallback(
+        self, tmp_path: Path
+    ) -> None:
+        class FailedRepairTask(ValidatePredictionsTask):
+            def _llm_repair(self, items, valid_names, llm_config, listener):
+                return [(idx, old, None) for idx, old, _ in items]
+
+        preds = [
+            {
+                "id": "/a",
+                "materials": {"material": "Xylophone Unicorn"},
+            },
+        ]
+        path = tmp_path / "predictions.jsonl"
+        _write_predictions(path, preds)
+
+        ctx = self._make_context(path)
+        ctx["llm_config"] = {"backend": "mock"}
+        result = FailedRepairTask().run(ctx)
+
+        stats = result["validation_stats"]
+        assert stats["llm_repaired"] == 0
+        assert stats["failed"] == 1
+        assert stats["fallback_applied"] == 1
+
+        reloaded = _read_predictions(path)
+        assert reloaded[0]["materials"]["material"] == FALLBACK_MATERIAL_NAME
+        assert (
+            reloaded[0]["materials"]["fallback_reason"] == "unrepaired_invalid_material"
+        )
+        assert (
+            reloaded[0]["materials"]["fallback_original_material"]
+            == "Xylophone Unicorn"
+        )
+
+        report = json.loads((tmp_path / "validate_report.json").read_text())
+        assert report["fallback_applied"] == [
+            {
+                "index": 0,
+                "new": FALLBACK_MATERIAL_NAME,
+                "reason": "unrepaired_invalid_material",
+                "id": "/a",
+                "old": "Xylophone Unicorn",
+            }
+        ]
 
     def test_json_array_nested_and_path_keyed_predictions_are_validated(
         self, tmp_path: Path
@@ -436,7 +684,7 @@ class TestValidatePredictionsTaskRun:
             == "Stainless Steel Polished"
         )
         assert reloaded[1]["/World/PathKeyed"] == "Gold Polished"
-        assert reloaded[2]["/World/Hidden"] == "__UNKNOWN__"
+        assert reloaded[2]["/World/Hidden"] == "__unknown__"
 
         report = json.loads((tmp_path / "validate_report.json").read_text())
         assert report["unknown"] == [{"index": 2, "id": "/World/Hidden"}]

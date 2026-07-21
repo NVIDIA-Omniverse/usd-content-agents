@@ -1,7 +1,7 @@
 ---
 name: deploy-physics-agent-brev
-description: Deploy or smoke-test the Physics Agent with Brev-hosted dependency endpoints. Use when the user asks to test physics agent on Brev, deploy physics agent with Brev, use RTX/L40S for rendering and A100/H100-grade GPU for VLM, run a Brev hybrid physics-agent test, or recreate the Brev physics-agent deployment. This workflow keeps the main pipeline local and uses Brev port-forwards to reach OVRTX and Qwen-family VLM endpoints.
-version: "0.1.0"
+description: Deploy or smoke-test the Physics Agent with Brev-hosted dependency endpoints. Use when the user asks to test physics agent on Brev, deploy physics agent with Brev, use RTX/L40S for rendering and A100/H100-grade GPU for VLM, run a Brev hybrid physics-agent test, recreate the Brev physics-agent deployment, or validate service-side refine with a registered provider. This workflow keeps the main pipeline local and uses Brev port-forwards to reach OVRTX and Qwen-family VLM endpoints.
+version: "0.1.1"
 author: NVIDIA Content Agents
 tags:
   - content-agents
@@ -43,6 +43,9 @@ Use the credit-conscious hybrid path:
   permissions; never print or commit them.
 - Prefer local port-forwards for this hybrid path; do not assume Brev
   instance-to-instance networking is available.
+- Physics Agent service `/refine` requires the `tuning` dependencies, an
+  OvPhysX runtime, and a registered chat/VLM provider configured through
+  `PA_REFINE_BACKEND`, `PA_REFINE_MODEL`, and that provider's credential.
 - Delete GPU nodes after validation unless the user asks to keep them.
 
 ## Prerequisites

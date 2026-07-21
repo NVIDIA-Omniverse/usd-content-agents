@@ -21,16 +21,18 @@ import bisect
 import json
 import logging
 import os
+import tempfile
 from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Sdf
 
-from .manifest import PayloadGroup, SceneManifest
+from .manifest import PayloadGroup, SceneManifest, SubAsset
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,29 @@ class _PathIndex:
             if prim_path == pfx or prim_path.startswith(pfx + "/"):
                 return True
         return False
+
+
+def _prune_nested_prefixes(prefixes: set[str]) -> list[str]:
+    """Remove prefixes already covered by an earlier ancestor prefix."""
+    pruned: list[str] = []
+    for prefix in sorted(prefixes):
+        if any(prefix == kept or prefix.startswith(kept + "/") for kept in pruned):
+            continue
+        pruned.append(prefix)
+    return pruned
+
+
+def _relative_path_under_any_member(
+    prim_path: str,
+    member_paths: list[str],
+) -> str | None:
+    """Return the relative suffix when *prim_path* is inside an IG member."""
+    for member_path in member_paths:
+        if prim_path == member_path:
+            return ""
+        if prim_path.startswith(member_path + "/"):
+            return prim_path[len(member_path) :]
+    return None
 
 
 def _copy_layer_stage_metadata(source: Sdf.Layer, target: Sdf.Layer) -> None:
@@ -230,6 +255,7 @@ def apply_and_compose(
 
     # --- 6. Handle payload groups (bottom-up approach) ---
     payload_arcs = 0
+    instance_bindings = 0
     proto_bindings = 0
     if manifest.payload_groups:
         # The bottom-up pipeline already produced output.usd for each payload.
@@ -272,7 +298,7 @@ def apply_and_compose(
             )
     else:
         # No payload groups — propagate bindings via instance groups (legacy)
-        payload_arcs = _propagate_instance_bindings(
+        instance_bindings = _propagate_instance_bindings(
             manifest,
             prim_to_material,
             name_to_prim,
@@ -303,9 +329,167 @@ def apply_and_compose(
         f"({bindings_written} direct bindings, "
         f"{len(used_materials)} materials, "
         f"{payload_arcs} scene sublayers, "
+        f"{instance_bindings} instance bindings, "
         f"{proto_bindings} prototype bindings)"
     )
     return output_usd_path
+
+
+def author_projected_material_layer(
+    scene_usd_path: Path,
+    output_layer_path: Path,
+    material_library_yaml: Path,
+    prim_to_material: Mapping[str, str],
+) -> dict[str, Any]:
+    """Author canonical material bindings without changing the source scene.
+
+    Workflow 3 performs projection, representative propagation, and conflict
+    harmonization before calling this helper. This function reuses the fixed
+    pipeline's material-library copy and binding authoring implementation to
+    produce one independently composable material layer.
+    """
+    from pxr import Sdf, Tf, Usd, UsdShade
+
+    scene_path = scene_usd_path.expanduser().resolve()
+    output_path = output_layer_path.expanduser().resolve()
+    library_yaml = material_library_yaml.expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    source_layer = Sdf.Layer.FindOrOpen(str(scene_path))
+    if source_layer is None:
+        raise RuntimeError(f"Failed to open source scene layer: {scene_path}")
+    source_stage = Usd.Stage.Open(str(scene_path), Usd.Stage.LoadNone)
+    if source_stage is None:
+        raise RuntimeError(f"Failed to open source scene stage: {scene_path}")
+
+    library_usd_path, name_to_prim = _load_material_library(library_yaml)
+    if library_usd_path is None or not library_usd_path.is_file():
+        raise RuntimeError(f"Material library USD is unavailable: {library_usd_path}")
+    unknown_materials = sorted(set(prim_to_material.values()) - set(name_to_prim))
+    if unknown_materials:
+        raise ValueError(f"Unknown projected materials: {unknown_materials}")
+
+    target_prims: dict[str, Any] = {}
+    for path in sorted(prim_to_material):
+        prim = source_stage.GetPrimAtPath(path)
+        if not prim.IsValid():
+            try:
+                source_stage.Load(path)
+            except Tf.ErrorException:
+                pass
+            prim = source_stage.GetPrimAtPath(path)
+        target_prims[path] = prim
+
+    missing_targets = sorted(
+        path for path, prim in target_prims.items() if not prim.IsValid()
+    )
+    if missing_targets:
+        preview = missing_targets[:10]
+        raise ValueError(
+            "Projected material targets do not exist in the composed source scene: "
+            f"{preview}"
+        )
+    instance_proxy_targets = sorted(
+        path
+        for path, prim in target_prims.items()
+        if prim.IsInstanceProxy() or prim.IsInPrototype()
+    )
+    if instance_proxy_targets:
+        raise ValueError(
+            "Projected material targets must be mapped out of instance/prototype "
+            f"namespace before authoring: {instance_proxy_targets[:10]}"
+        )
+
+    used_materials = {
+        name: name_to_prim[name] for name in sorted(set(prim_to_material.values()))
+    }
+    with tempfile.NamedTemporaryFile(
+        dir=output_path.parent,
+        prefix=f".{output_path.stem}.",
+        suffix=output_path.suffix,
+        delete=False,
+    ) as stream:
+        temporary_path = Path(stream.name)
+    temporary_path.unlink()
+    try:
+        output_layer = Sdf.Layer.CreateNew(str(temporary_path))
+        if output_layer is None:
+            raise RuntimeError(f"Failed to create material layer: {temporary_path}")
+        _copy_layer_stage_metadata(source_layer, output_layer)
+        scene_default_prim = source_layer.defaultPrim or ""
+        path_remap = _copy_materials_from_library(
+            output_layer,
+            library_usd_path,
+            used_materials,
+            output_path,
+            scene_default_prim=scene_default_prim,
+        )
+        material_paths: dict[str, str] = {}
+        for name, source_path in used_materials.items():
+            target_path = path_remap.get(source_path)
+            if target_path is None:
+                raise RuntimeError(
+                    f"Failed to copy material '{name}' from {source_path}"
+                )
+            material_paths[name] = target_path
+
+        blocking_bindings: set[tuple[str, str]] = set()
+        for prim_path in prim_to_material:
+            ancestor = target_prims[prim_path].GetParent()
+            while ancestor.IsValid() and not ancestor.IsPseudoRoot():
+                for relationship in ancestor.GetRelationships():
+                    relationship_name = relationship.GetName()
+                    if (
+                        relationship_name == "material:binding"
+                        or relationship_name.startswith("material:binding:")
+                    ) and relationship.GetMetadata("bindMaterialAs") == (
+                        UsdShade.Tokens.strongerThanDescendants
+                    ):
+                        blocking_bindings.add(
+                            (str(ancestor.GetPath()), relationship_name)
+                        )
+                ancestor = ancestor.GetParent()
+
+        for ancestor_path, relationship_name in sorted(blocking_bindings):
+            ancestor_spec = Sdf.CreatePrimInLayer(output_layer, ancestor_path)
+            if ancestor_spec is None:
+                raise RuntimeError(
+                    "Failed to author material binding-strength override at "
+                    f"{ancestor_path}"
+                )
+            ancestor_spec.specifier = Sdf.SpecifierOver
+            relationship_spec = ancestor_spec.relationships.get(
+                relationship_name
+            ) or Sdf.RelationshipSpec(ancestor_spec, relationship_name)
+            relationship_spec.SetInfo(
+                "bindMaterialAs", UsdShade.Tokens.weakerThanDescendants
+            )
+
+        bindings_written = 0
+        for prim_path, material_name in sorted(prim_to_material.items()):
+            bindings_written += _write_binding_over(
+                output_layer,
+                prim_path,
+                material_paths[material_name],
+                scene_layer=source_layer,
+            )
+        output_layer.Save()
+        del output_layer
+        os.replace(temporary_path, output_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+    return {
+        "output_layer_path": str(output_path),
+        "source_scene_path": str(scene_path),
+        "material_library_yaml": str(library_yaml),
+        "material_library_usd": str(library_usd_path.resolve()),
+        "projected_target_count": len(prim_to_material),
+        "bindings_written": bindings_written,
+        "weakened_ancestor_binding_count": len(blocking_bindings),
+        "used_material_count": len(used_materials),
+        "material_paths": material_paths,
+    }
 
 
 def _merge_predictions(
@@ -504,10 +688,12 @@ def _fill_prediction_gaps(
     assets = manifest.get_processable_assets(names_filter)
     asset_prefixes = []
     selected_asset_ids: set[str] = set()
+    selected_assets_by_id: dict[str, SubAsset] = {}
     for sa in assets:
         if sa.status == "completed" and sa.prim_path:
             asset_prefixes.append(sa.prim_path)
             selected_asset_ids.add(sa.id)
+            selected_assets_by_id[sa.id] = sa
 
     filled = 0
     # For each asset, find meshes under its prim_path that have no prediction
@@ -611,12 +797,23 @@ def _fill_prediction_gaps(
     for ig in manifest.instance_groups:
         if not ig.representative_id or ig.representative_id not in selected_asset_ids:
             continue
-        suffix_target_prefixes.update(ig.member_paths)
+        representative = selected_assets_by_id.get(ig.representative_id)
+        if not representative or not representative.prim_path:
+            continue
+        relative = _relative_path_under_any_member(
+            representative.prim_path,
+            ig.member_paths,
+        )
+        if relative is None:
+            continue
+        suffix_target_prefixes.update(
+            f"{member_path}{relative}" for member_path in ig.member_paths
+        )
 
     if any(unanimous_suffix_materials.values()) and suffix_target_prefixes:
         predicted_paths = set(prim_to_material.keys())
         visited_paths: set[str] = set()
-        for prefix in sorted(suffix_target_prefixes):
+        for prefix in _prune_nested_prefixes(suffix_target_prefixes):
             root_prim = stage.GetPrimAtPath(prefix)
             if not root_prim or not root_prim.IsValid():
                 continue
@@ -1050,7 +1247,7 @@ def _propagate_instance_bindings(
     Returns:
         Number of propagated bindings written.
     """
-    from pxr import Sdf, Usd
+    from pxr import Usd
 
     written = 0
     _path_idx = _PathIndex(prim_to_material)
@@ -1059,6 +1256,7 @@ def _propagate_instance_bindings(
         if scene_usd_path
         else None
     )
+    scene_layer = scene_stage.GetRootLayer() if scene_stage is not None else None
 
     for ig in manifest.instance_groups:
         if not ig.representative_id:
@@ -1091,6 +1289,7 @@ def _propagate_instance_bindings(
             if member_path == source_prefix:
                 continue
 
+            this_member = 0
             direct_targets: set[str] = set()
             member_bindings = _path_idx.get_paths_under(member_path)
             if member_bindings:
@@ -1106,11 +1305,14 @@ def _propagate_instance_bindings(
                     ):
                         continue
                     direct_targets.add(target_prim)
-                    written += _write_binding_over(
+                    count = _write_binding_over(
                         layer,
                         target_prim,
                         material_prim_path,
+                        scene_layer=scene_layer,
                     )
+                    written += count
+                    this_member += count
 
             for src_prim, mat_name in source_bindings.items():
                 material_prim_path = name_to_prim.get(mat_name)
@@ -1130,26 +1332,36 @@ def _propagate_instance_bindings(
                 ):
                     continue
 
-                prim_spec = Sdf.CreatePrimInLayer(layer, target_prim)
-                if not prim_spec:
-                    continue
-                prim_spec.specifier = Sdf.SpecifierOver
+                count = _write_binding_over(
+                    layer,
+                    target_prim,
+                    material_prim_path,
+                    scene_layer=scene_layer,
+                )
+                written += count
+                this_member += count
 
-                api_name = "MaterialBindingAPI"
-                api_schemas = prim_spec.GetInfo("apiSchemas")
-                if not api_schemas or api_name not in api_schemas.prependedItems:
-                    prim_spec.SetInfo(
-                        "apiSchemas",
-                        Sdf.TokenListOp.Create(prependedItems=[api_name]),
+            if this_member == 0 and source_bindings and scene_stage is not None:
+                source_meshes = _collect_mesh_paths_from_stage(
+                    scene_stage, source_prefix
+                )
+                member_meshes = _collect_mesh_paths_from_stage(scene_stage, member_path)
+                this_member = _write_ordered_mesh_bindings(
+                    layer=layer,
+                    source_meshes=source_meshes,
+                    target_meshes=member_meshes,
+                    source_bindings=source_bindings,
+                    name_to_prim=name_to_prim,
+                    scene_layer=scene_layer,
+                    scene_stage=scene_stage,
+                    skip_targets=direct_targets,
+                )
+                written += this_member
+                if this_member:
+                    logger.debug(
+                        f"Fallback: propagated {this_member} ordered mesh "
+                        f"bindings to renamed member {member_path}"
                     )
-
-                binding_rel = prim_spec.relationships.get(
-                    "material:binding"
-                ) or Sdf.RelationshipSpec(prim_spec, "material:binding")
-                binding_rel.targetPathList.explicitItems = [
-                    Sdf.Path(material_prim_path)
-                ]
-                written += 1
 
         if source_bindings:
             logger.info(
@@ -1295,6 +1507,249 @@ def _collect_mesh_paths_from_layer(layer: Sdf.Layer, root_path: str) -> list[str
     return result
 
 
+def _collect_mesh_paths_from_stage(stage: Any, root_path: str) -> list[str]:
+    """Collect composed Mesh prim paths from a USD stage under *root_path*."""
+    from pxr import Usd, UsdGeom
+
+    root_prim = stage.GetPrimAtPath(root_path)
+    if not root_prim or not root_prim.IsValid():
+        return []
+    return [
+        str(prim.GetPath())
+        for prim in Usd.PrimRange(root_prim, Usd.TraverseInstanceProxies())
+        if prim.IsA(UsdGeom.Mesh)
+    ]
+
+
+def _material_for_source_mesh(
+    source_mesh: str,
+    source_bindings: dict[str, str],
+) -> str | None:
+    """Return the material assigned to *source_mesh*, descendants, or ancestors."""
+    material = source_bindings.get(source_mesh)
+    if material:
+        return material
+
+    ancestor = source_mesh.rsplit("/", 1)[0]
+    while ancestor:
+        material = source_bindings.get(ancestor)
+        if material:
+            return material
+        if "/" not in ancestor.strip("/"):
+            break
+        ancestor = ancestor.rsplit("/", 1)[0]
+
+    prefix = source_mesh + "/"
+    child_materials = [
+        mat for path, mat in source_bindings.items() if path.startswith(prefix)
+    ]
+    if not child_materials:
+        return None
+    return Counter(child_materials).most_common(1)[0][0]
+
+
+def _mesh_attr_len(attr: Any) -> int | None:
+    """Return the authored value length for a mesh topology attribute."""
+    try:
+        value = attr.Get()
+    except (RuntimeError, TypeError, ValueError):
+        return None
+    if value is None:
+        return None
+    try:
+        return len(value)
+    except TypeError:
+        return 1
+
+
+def _mesh_structural_fingerprint(
+    scene_stage: Any | None,
+    mesh_path: str,
+) -> tuple[int | None, int | None, int | None] | None:
+    """Return a cheap mesh-shape fingerprint from composed topology counts."""
+    if scene_stage is None:
+        return None
+
+    from pxr import UsdGeom
+
+    prim = scene_stage.GetPrimAtPath(mesh_path)
+    if not prim or not prim.IsValid() or not prim.IsA(UsdGeom.Mesh):
+        return None
+
+    mesh = UsdGeom.Mesh(prim)
+    fingerprint = (
+        _mesh_attr_len(mesh.GetPointsAttr()),
+        _mesh_attr_len(mesh.GetFaceVertexCountsAttr()),
+        _mesh_attr_len(mesh.GetFaceVertexIndicesAttr()),
+    )
+    if all(part is None for part in fingerprint):
+        return None
+    return fingerprint
+
+
+def _ordered_mesh_fingerprint_mismatches(
+    scene_stage: Any | None,
+    source_meshes: list[str],
+    target_meshes: list[str],
+) -> tuple[list[tuple[str, str, tuple[int | None, ...], tuple[int | None, ...]]], int]:
+    """Compare same-position mesh fingerprints for ordered fallback mapping."""
+    if scene_stage is None:
+        return [], 0
+
+    mismatches = []
+    checked = 0
+    for source_mesh, target_mesh in zip(source_meshes, target_meshes, strict=False):
+        source_fp = _mesh_structural_fingerprint(scene_stage, source_mesh)
+        target_fp = _mesh_structural_fingerprint(scene_stage, target_mesh)
+        if source_fp is None or target_fp is None:
+            continue
+        checked += 1
+        if source_fp != target_fp:
+            mismatches.append((source_mesh, target_mesh, source_fp, target_fp))
+    return mismatches, checked
+
+
+def _write_dominant_mesh_bindings(
+    *,
+    layer: Sdf.Layer,
+    target_meshes: list[str],
+    source_bindings: dict[str, str],
+    name_to_prim: dict[str, str],
+    scene_layer: Sdf.Layer | None,
+    skip_targets: set[str],
+    reason: str,
+) -> int:
+    """Apply the dominant source material when ordered mesh mapping is unsafe."""
+    if not source_bindings:
+        return 0
+    dominant_material = Counter(source_bindings.values()).most_common(1)[0][0]
+    material_prim_path = name_to_prim.get(dominant_material)
+    if not material_prim_path:
+        return 0
+
+    logger.warning(
+        "Fallback: %s; applying dominant material '%s' to %d target mesh(es)",
+        reason,
+        dominant_material,
+        len(target_meshes),
+    )
+
+    written = 0
+    for target_mesh in target_meshes:
+        if target_mesh in skip_targets:
+            continue
+        existing = layer.GetPrimAtPath(target_mesh)
+        if existing and existing.relationships.get("material:binding"):
+            continue
+        written += _write_binding_over(
+            layer,
+            target_mesh,
+            material_prim_path,
+            scene_layer=scene_layer,
+        )
+    return written
+
+
+def _write_ordered_mesh_bindings(
+    *,
+    layer: Sdf.Layer,
+    source_meshes: list[str],
+    target_meshes: list[str],
+    source_bindings: dict[str, str],
+    name_to_prim: dict[str, str],
+    scene_layer: Sdf.Layer | None = None,
+    scene_stage: Any | None = None,
+    skip_targets: set[str] | None = None,
+) -> int:
+    """Propagate renamed duplicate bindings by traversal order.
+
+    Some CAD exports duplicate the same sub-asset with different numbered node
+    and mesh names.  Exact relative-path remapping then writes nothing even
+    though the source and target contain the same mesh sequence.  In that case,
+    preserve the representative's per-mesh material detail by mapping source
+    mesh N to target mesh N instead of collapsing the member to one dominant
+    material.
+    """
+    if not source_meshes or not target_meshes:
+        return 0
+
+    skip_targets = skip_targets or set()
+
+    if len(source_meshes) != len(target_meshes):
+        return _write_dominant_mesh_bindings(
+            layer=layer,
+            target_meshes=target_meshes,
+            source_bindings=source_bindings,
+            name_to_prim=name_to_prim,
+            scene_layer=scene_layer,
+            skip_targets=skip_targets,
+            reason=(
+                "ordered mesh count mismatch "
+                f"({len(source_meshes)} source, {len(target_meshes)} target)"
+            ),
+        )
+
+    mismatches, checked = _ordered_mesh_fingerprint_mismatches(
+        scene_stage,
+        source_meshes,
+        target_meshes,
+    )
+    if mismatches:
+        source_mesh, target_mesh, source_fp, target_fp = mismatches[0]
+        return _write_dominant_mesh_bindings(
+            layer=layer,
+            target_meshes=target_meshes,
+            source_bindings=source_bindings,
+            name_to_prim=name_to_prim,
+            scene_layer=scene_layer,
+            skip_targets=skip_targets,
+            reason=(
+                "ordered mesh structural fingerprint mismatch "
+                f"({len(mismatches)}/{checked} checked; "
+                f"{source_mesh} {source_fp} != {target_mesh} {target_fp})"
+            ),
+        )
+
+    if checked:
+        logger.debug(
+            "Fallback: propagating %d ordered mesh bindings after %d "
+            "matching structural fingerprint check(s)",
+            len(source_meshes),
+            checked,
+        )
+    else:
+        logger.debug(
+            "Fallback: propagating %d ordered mesh bindings without "
+            "structural fingerprint checks; topology attributes unavailable",
+            len(source_meshes),
+        )
+
+    written = 0
+    for source_mesh, target_mesh in zip(source_meshes, target_meshes, strict=False):
+        if target_mesh in skip_targets:
+            continue
+
+        material = _material_for_source_mesh(source_mesh, source_bindings)
+        if not material:
+            continue
+        material_prim_path = name_to_prim.get(material)
+        if not material_prim_path:
+            continue
+
+        existing = layer.GetPrimAtPath(target_mesh)
+        if existing and existing.relationships.get("material:binding"):
+            continue
+
+        written += _write_binding_over(
+            layer,
+            target_mesh,
+            material_prim_path,
+            scene_layer=scene_layer,
+        )
+
+    return written
+
+
 def _remap_instance_group_bindings(
     scene_usd_path: Path,
     manifest: SceneManifest,
@@ -1377,6 +1832,7 @@ def _remap_instance_group_bindings(
                 if member_path == source_prefix:
                     continue
 
+                this_member = 0
                 # If gap filling or restoration produced exact predictions
                 # under this member path, bind those paths directly.  This
                 # handles structural duplicates whose instance container names
@@ -1397,12 +1853,14 @@ def _remap_instance_group_bindings(
                         existing = composed_layer.GetPrimAtPath(target)
                         if existing and existing.relationships.get("material:binding"):
                             continue
-                        written += _write_binding_over(
+                        count = _write_binding_over(
                             composed_layer,
                             target,
                             material_prim_path,
                             scene_layer=root_layer,
                         )
+                        written += count
+                        this_member += count
 
                 for src_prim, mat_name in source_bindings.items():
                     material_prim_path = name_to_prim.get(mat_name)
@@ -1416,12 +1874,33 @@ def _remap_instance_group_bindings(
                         stage, target, member_path
                     ):
                         continue
-                    written += _write_binding_over(
+                    count = _write_binding_over(
                         composed_layer,
                         target,
                         material_prim_path,
                         scene_layer=root_layer,
                     )
+                    written += count
+                    this_member += count
+
+                if this_member == 0 and source_bindings:
+                    source_meshes = _collect_mesh_paths_from_stage(stage, source_prefix)
+                    member_meshes = _collect_mesh_paths_from_stage(stage, member_path)
+                    this_member = _write_ordered_mesh_bindings(
+                        layer=composed_layer,
+                        source_meshes=source_meshes,
+                        target_meshes=member_meshes,
+                        source_bindings=source_bindings,
+                        name_to_prim=name_to_prim,
+                        scene_layer=root_layer,
+                        scene_stage=stage,
+                    )
+                    written += this_member
+                    if this_member:
+                        logger.debug(
+                            f"Fallback: propagated {this_member} ordered mesh "
+                            f"bindings to renamed member {member_path}"
+                        )
 
             logger.info(
                 f"Direct-propagated {len(source_bindings)} bindings to "
@@ -1503,31 +1982,25 @@ def _remap_instance_group_bindings(
                 )
 
             # Fallback: if 1:1 path mapping found nothing (different internal
-            # structure), assign the dominant material from the rep's predictions
-            # to all mesh prims in the member's prototype source.
+            # structure), preserve per-mesh detail by mapping the representative
+            # mesh traversal order to the member prototype mesh traversal order.
             if this_member == 0 and source_bindings:
-                dominant_mat = Counter(source_bindings.values()).most_common(1)[0][0]
-                dominant_prim = name_to_prim.get(dominant_mat)
-                if dominant_prim:
-                    member_meshes = _collect_mesh_paths_from_layer(
-                        root_layer, member_proto
+                source_meshes = _collect_mesh_paths_from_stage(stage, source_prefix)
+                member_meshes = _collect_mesh_paths_from_layer(root_layer, member_proto)
+                this_member = _write_ordered_mesh_bindings(
+                    layer=composed_layer,
+                    source_meshes=source_meshes,
+                    target_meshes=member_meshes,
+                    source_bindings=source_bindings,
+                    name_to_prim=name_to_prim,
+                    scene_layer=root_layer,
+                    scene_stage=stage,
+                )
+                if this_member:
+                    logger.debug(
+                        f"Fallback: propagated {this_member} ordered mesh "
+                        f"bindings to renamed member proto {member_proto}"
                     )
-                    for mesh_path in member_meshes:
-                        existing = composed_layer.GetPrimAtPath(mesh_path)
-                        if existing and existing.relationships.get("material:binding"):
-                            continue
-                        this_member += _write_binding_over(
-                            composed_layer,
-                            mesh_path,
-                            dominant_prim,
-                            scene_layer=root_layer,
-                        )
-                    if this_member:
-                        logger.debug(
-                            f"Fallback: assigned dominant material "
-                            f"'{dominant_mat}' to {this_member} meshes "
-                            f"in member proto {member_proto}"
-                        )
 
             member_written += this_member
 
@@ -2341,6 +2814,59 @@ def _remap_layer_prims(
     new_layer.Save()
 
 
+def _camera_config_number(
+    camera_config: dict[str, Any] | None,
+    *keys: str,
+) -> float | None:
+    if not camera_config:
+        return None
+    for key in keys:
+        value = camera_config.get(key)
+        if value is None:
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            logger.warning("Ignoring non-numeric camera config value %s=%r", key, value)
+    return None
+
+
+def _camera_config_int(
+    camera_config: dict[str, Any] | None,
+    *keys: str,
+) -> int | None:
+    value = _camera_config_number(camera_config, *keys)
+    return int(value) if value is not None else None
+
+
+def _safe_render_suffix(value: str) -> str:
+    suffix = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in value)
+    return suffix.strip("_") or "configured"
+
+
+def _apply_render_light_overrides(
+    stage: Any,
+    *,
+    dome_light: float | None,
+    distant_light: float | None,
+) -> None:
+    if dome_light is None and distant_light is None:
+        return
+
+    from pxr import Gf, UsdGeom, UsdLux
+    from world_understanding.utils.usd.prim import remove_all_lights
+
+    remove_all_lights(stage)
+    if dome_light is not None:
+        dome = UsdLux.DomeLight.Define(stage, "/RenderLights/DomeLight")
+        dome.GetIntensityAttr().Set(dome_light)
+    if distant_light is not None:
+        distant = UsdLux.DistantLight.Define(stage, "/RenderLights/DistantLight")
+        distant.GetIntensityAttr().Set(distant_light)
+        xform = UsdGeom.Xformable(distant)
+        xform.AddRotateXYZOp().Set(Gf.Vec3f(315, 45, 0))
+
+
 def render_composed_scene(
     composed_usd_path: Path,
     output_dir: Path,
@@ -2350,6 +2876,7 @@ def render_composed_scene(
     camera_margin: float = 1.0,
     background_color: tuple[float, float, float] = (1.0, 1.0, 1.0),
     clear_materials: bool = False,
+    camera_config: dict[str, Any] | None = None,
 ) -> list[Path]:
     """Render the composed scene from multiple camera angles.
 
@@ -2363,6 +2890,11 @@ def render_composed_scene(
         background_color: Background RGB color (0-1 range).
         clear_materials: If True, strip original material bindings before
             rendering so only the newly-assigned materials are visible.
+        camera_config: Optional explicit camera/light config. Supports the
+            JSON shape used by legacy scene camera files, e.g.
+            ``focal_length_mm``, ``cam_x/y/z``, ``target_x/y/z``,
+            ``dome_light``, ``distant_light``, ``image_width``, and
+            ``image_height``.
 
     Returns:
         List of paths to rendered images.
@@ -2381,6 +2913,16 @@ def render_composed_scene(
 
     if camera_corners is None:
         camera_corners = ["+x+y+z", "-x-y-z"]
+
+    if camera_config:
+        configured_width = _camera_config_int(camera_config, "image_width")
+        configured_height = _camera_config_int(camera_config, "image_height")
+        if configured_width is not None:
+            image_width = configured_width
+        if configured_height is not None:
+            image_height = configured_height
+    if image_width <= 0 or image_height <= 0:
+        raise ValueError("camera_config image_width and image_height must be positive")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2446,16 +2988,77 @@ def render_composed_scene(
     if not flat_stage:
         raise RuntimeError(f"Failed to open flattened stage: {flat_path}")
 
-    # Add cameras
-    for corner in camera_corners:
-        camera_path = (
-            f"/Cameras/SceneCamera_{corner.replace('+', 'p').replace('-', 'n')}"
+    _apply_render_light_overrides(
+        flat_stage,
+        dome_light=_camera_config_number(camera_config, "dome_light"),
+        distant_light=_camera_config_number(camera_config, "distant_light"),
+    )
+
+    camera_specs: list[tuple[str, str, str, dict[str, float | None]]] = []
+    if camera_config:
+        direction = str(camera_config.get("direction") or "+x+y+z")
+        camera_name = str(camera_config.get("name") or "configured")
+        camera_specs.append(
+            (
+                direction,
+                "/Cameras/SceneCamera_configured",
+                _safe_render_suffix(camera_name),
+                {
+                    "focal_length": _camera_config_number(
+                        camera_config, "focal_length_mm", "focal_length"
+                    ),
+                    "horizontal_aperture": _camera_config_number(
+                        camera_config,
+                        "aperture",
+                        "horizontal_aperture",
+                        "horizontal_aperture_mm",
+                    ),
+                    "cam_x": _camera_config_number(camera_config, "cam_x"),
+                    "cam_y": _camera_config_number(camera_config, "cam_y"),
+                    "cam_z": _camera_config_number(camera_config, "cam_z"),
+                    "target_x": _camera_config_number(camera_config, "target_x"),
+                    "target_y": _camera_config_number(camera_config, "target_y"),
+                    "target_z": _camera_config_number(camera_config, "target_z"),
+                    "margin": _camera_config_number(
+                        camera_config, "margin", "camera_margin"
+                    ),
+                },
+            )
         )
+    else:
+        for corner in camera_corners:
+            camera_path = (
+                f"/Cameras/SceneCamera_{corner.replace('+', 'p').replace('-', 'n')}"
+            )
+            camera_specs.append(
+                (corner, camera_path, format_direction_for_filename(corner), {})
+            )
+
+    # Add cameras
+    for direction, camera_path, _suffix, overrides in camera_specs:
+        focal_length = overrides.get("focal_length") or 60.0
+        horizontal_aperture = overrides.get("horizontal_aperture") or 36.0
+        aspect_ratio = image_width / image_height
+        if aspect_ratio >= 1.0:
+            vertical_aperture = horizontal_aperture / aspect_ratio
+        else:
+            vertical_aperture = horizontal_aperture
+            horizontal_aperture = vertical_aperture * aspect_ratio
+
         add_corner_view_camera(
             flat_stage,
             camera_path=camera_path,
-            direction=corner,
-            margin=camera_margin,
+            direction=direction,
+            margin=overrides.get("margin") or camera_margin,
+            focal_length=focal_length,
+            horizontal_aperture=horizontal_aperture,
+            vertical_aperture=vertical_aperture,
+            cam_x=overrides.get("cam_x"),
+            cam_y=overrides.get("cam_y"),
+            cam_z=overrides.get("cam_z"),
+            target_x=overrides.get("target_x"),
+            target_y=overrides.get("target_y"),
+            target_z=overrides.get("target_z"),
         )
     flat_stage.Save()
 
@@ -2463,14 +3066,10 @@ def render_composed_scene(
     rendering_backend = RemoteRenderingBackend()
     rendered_paths: list[Path] = []
 
-    for corner in camera_corners:
-        camera_path = (
-            f"/Cameras/SceneCamera_{corner.replace('+', 'p').replace('-', 'n')}"
-        )
-        suffix = format_direction_for_filename(corner)
+    for direction, camera_path, suffix, _overrides in camera_specs:
         output_path = output_dir / f"composed_scene_{suffix}.png"
 
-        logger.info(f"Rendering {corner} -> {output_path.name}")
+        logger.info(f"Rendering {direction} -> {output_path.name}")
         try:
             render_result = rendering_backend.render(
                 stage=flat_stage,
@@ -2497,7 +3096,7 @@ def render_composed_scene(
                             img_bytes = base64.b64decode(img_bytes)
                         image = Image.open(BytesIO(img_bytes))
                     else:
-                        logger.warning(f"Unexpected image format for {corner}")
+                        logger.warning(f"Unexpected image format for {direction}")
                         continue
 
                     # Apply background
@@ -2510,7 +3109,7 @@ def render_composed_scene(
                     rendered_paths.append(output_path)
                     logger.info(f"Saved render: {output_path.name}")
                 else:
-                    logger.warning(f"No image data for {corner}")
+                    logger.warning(f"No image data for {direction}")
             else:
                 error = "Unknown error"
                 if render_result and render_result.get("results"):
@@ -2518,11 +3117,11 @@ def render_composed_scene(
                         if "error" in r:
                             error = r["error"]
                             break
-                logger.error(f"Render failed for {corner}: {error}")
+                logger.error(f"Render failed for {direction}: {error}")
         except Exception:
-            logger.exception(f"Error rendering {corner}")
+            logger.exception(f"Error rendering {direction}")
 
-    logger.info(f"Rendered {len(rendered_paths)}/{len(camera_corners)} camera views")
+    logger.info(f"Rendered {len(rendered_paths)}/{len(camera_specs)} camera views")
     return rendered_paths
 
 

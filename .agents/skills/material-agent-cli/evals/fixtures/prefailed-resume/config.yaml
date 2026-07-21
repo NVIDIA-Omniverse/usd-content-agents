@@ -1,0 +1,29 @@
+# Deterministic evaluation fixture for resuming a failed Material Agent run.
+project:
+  name: skill-eval-ladder
+  working_dir: "."
+
+input:
+  usd_path: "../../../../../../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd"
+
+output:
+  layer_only: false
+  flatten_output: false
+
+materials:
+  path: "../../../../../../apps/material_agent/data/materials/material_libs_default/materials.yaml"
+
+steps:
+  build_dataset_usd:
+    enabled: true
+    renderer:
+      backend: remote
+  build_dataset_prepare_dataset:
+    enabled: true
+  predict:
+    enabled: true
+    vlm:
+      backend: nim
+      model: qwen/qwen3.5-397b-a17b
+  apply:
+    enabled: true

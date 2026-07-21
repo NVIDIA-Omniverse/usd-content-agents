@@ -14,7 +14,6 @@ from physics_agent.api.defaults import (
     DEFAULT_USER_PROMPT,
     DEFAULT_VLM_BACKEND,
     DEFAULT_VLM_IMAGE_PROMPTS,
-    DEFAULT_VLM_LLMGATEWAY_CONFIG,
     DEFAULT_VLM_MAX_TOKENS,
     DEFAULT_VLM_MODEL,
     DEFAULT_VLM_REASONING_EFFORT,
@@ -158,7 +157,6 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
                 "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
             },
             "llm": {},  # Optional LLM for response parsing

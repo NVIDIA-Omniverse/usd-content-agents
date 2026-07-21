@@ -45,6 +45,9 @@ import os
 from pathlib import Path
 from typing import Any
 
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    RENDERING_BACKEND_NAMES,
+)
 from world_understanding.functions.nlp.chat import generate_chat_response
 
 from physics_agent.tuning.scenario import ScenarioParseError, parse_scenario
@@ -59,11 +62,9 @@ __all__ = ["InterpreterError", "infer_scenario_from_prompt"]
 
 logger = logging.getLogger(__name__)
 
-# Default model + backend per #51 spec. Resolved via
-# ``world_understanding.functions.models.chat_models.create_chat_model`` when
-# the caller does not supply a ``chat_model``. The string also goes into the
-# cache file's ``_meta`` block so audit can tell which model produced an
-# inferred scenario.
+# Public fallback model + backend per #51 spec. Service deployments override
+# these with PA_TUNE_*, PA_REFINE_*, or PA_VLM_* environment settings so
+# prompt-only /tune uses the same internal model backend as the service.
 _DEFAULT_CHAT_MODEL_NAME = "qwen/qwen3.5-397b-a17b"
 _DEFAULT_CHAT_BACKEND = "nim"
 
@@ -89,6 +90,19 @@ _DROP_SETTLE_RESTITUTION_EXAMPLE = {
         {"name": "mass_scale", "min": 0.7, "max": 1.3},
     ],
 }
+
+
+def _render_target_prompt_lines() -> str:
+    """Return the shared video-evidence target schema for both scenarios."""
+    backend_names = " / ".join(f'"{name}"' for name in RENDERING_BACKEND_NAMES)
+    return f"""    record_video  : "off" | "end_of_tune" | "always" (default "off").
+                    Writes the trial's recording to PNG sequence + mp4 for
+                    visual inspection without requiring a VLM call.
+    video_renderer: backend name override for the render driver
+                    ({backend_names}). Falls back to
+                    vlm_renderer, then "ovrtx". ``mock`` creates deterministic
+                    test evidence, not production visual evidence."""
+
 
 _DROP_SETTLE_CONTACT_EXAMPLE = {
     "name": "drop_settle",
@@ -277,6 +291,7 @@ def _build_system_prompt(
     )
     drop_settle_example = _drop_settle_example_for_params(active_param_keys)
     parameter_guidance = _parameter_guidance(active_param_keys)
+    render_target_lines = _render_target_prompt_lines()
 
     return f"""You are a physics-tuning scenario interpreter. The user wants to
 tune the physical-material parameters of a single rigid-body asset and has
@@ -316,7 +331,7 @@ omit ones the prompt does not constrain):
     duration_s    : float, simulated duration in seconds (default ~2.0)
     gravity       : float, signed gravity in m/s^2 (default -9.81)
     sample_fps    : int, recording frame rate (default 30, max 60).
-                    Drives how dense recording.usda time samples are.
+                    Drives how dense recording.usd time samples are.
     cameras       : list of camera directions (default ["+x+y+z"], a
                     tilted corner view that shows all three axes) for
                     the scale-aware cameras authored on the scene.
@@ -330,15 +345,7 @@ omit ones the prompt does not constrain):
                     Optional VLM verdict on the final-state render.
                     Never replaces the programmatic settle_distance
                     objective; only attaches a verdict for audit.
-    record_video  : "off" | "end_of_tune" | "always" (default "off").
-                    Independent of vlm_check — when on, the trial's
-                    recording.usda is rendered to PNG sequence + mp4
-                    under ``trial_dir/render/`` for visual inspection,
-                    no VLM call required. Useful for eyeballing tune
-                    behavior without paying for VLM tokens.
-    video_renderer: backend name override for the render driver
-                    ("ovrtx" / "nvcf" / "warp"). Falls back to
-                    vlm_renderer, then "ovrtx".
+{render_target_lines}
 
 ## freeform
 
@@ -358,13 +365,14 @@ specific pose, linear velocity, angular velocity, or surface friction
                                (consumed by the hybrid programmatic
                                 score AND the VLM judge)
     sample_fps               : int, recording frame rate (default 30,
-                               max 60). Drives recording.usda density.
+                               max 60). Drives recording.usd density.
     cameras                  : list of camera directions (default
                                ["+x+y+z"], a tilted corner view).
                                Cardinal directions author side views;
                                corner triples author tilted isometric
                                views. Corner is the default because it
                                works on both Y-up and Z-up assets.
+{render_target_lines}
 
 When uncertain between drop_settle and freeform, prefer drop_settle — it is
 the validated path with a fixed target schema.
@@ -521,6 +529,25 @@ def _merge_explicit_wins(
 # ---------------------------------------------------------------------------
 
 
+def _first_env(*names: str) -> str | None:
+    for name in names:
+        value = os.getenv(name)
+        if value and value.strip():
+            return value.strip()
+    return None
+
+
+def _default_chat_backend_and_model() -> tuple[str, str | None]:
+    backend = _first_env("PA_TUNE_BACKEND", "PA_REFINE_BACKEND", "PA_VLM_BACKEND")
+    if not backend:
+        backend = _DEFAULT_CHAT_BACKEND
+
+    model = _first_env("PA_TUNE_MODEL", "PA_REFINE_MODEL", "PA_VLM_MODEL")
+    if not model and backend == _DEFAULT_CHAT_BACKEND:
+        model = _DEFAULT_CHAT_MODEL_NAME
+    return backend, model
+
+
 def _resolve_default_chat_model() -> Any:
     """Resolve the default chat model.
 
@@ -535,7 +562,7 @@ def _resolve_default_chat_model() -> Any:
     """
     try:
         from world_understanding.functions.models.chat_models import (
-            create_chat_model,
+            create_chat_model_from_config,
         )
     except ImportError as e:  # pragma: no cover — defensive
         raise InterpreterError(
@@ -543,13 +570,38 @@ def _resolve_default_chat_model() -> Any:
             "explicitly to infer_scenario_from_prompt()."
         ) from e
 
+    backend, model = _default_chat_backend_and_model()
+    llm_config: dict[str, Any] = {
+        "backend": backend,
+        "temperature": float(os.getenv("PA_TUNE_TEMPERATURE", "0.0")),
+        "max_tokens": int(os.getenv("PA_TUNE_MAX_TOKENS", "4096")),
+    }
+    if model:
+        llm_config["model"] = model
+    base_url = _first_env("PA_TUNE_BASE_URL", "PA_REFINE_BASE_URL", "PA_VLM_BASE_URL")
+    api_key_env = _first_env(
+        "PA_TUNE_API_KEY_ENV",
+        "PA_REFINE_API_KEY_ENV",
+        "PA_VLM_API_KEY_ENV",
+    )
+    api_key = _first_env("PA_TUNE_API_KEY", "PA_REFINE_API_KEY", "PA_VLM_API_KEY")
+    if base_url:
+        llm_config["base_url"] = base_url
+    if api_key_env:
+        llm_config["api_key_env"] = api_key_env
+    elif api_key:
+        llm_config["api_key"] = api_key
+
     try:
-        return create_chat_model(
-            backend=_DEFAULT_CHAT_BACKEND,
-            model=_DEFAULT_CHAT_MODEL_NAME,
-            temperature=0.0,
-        )
+        chat_model = create_chat_model_from_config(llm_config)
+        if chat_model is None:
+            raise InterpreterError(
+                f"No API key available for tune scenario interpreter backend {backend!r}."
+            )
+        return chat_model
     except Exception as e:
+        if isinstance(e, InterpreterError):
+            raise
         # Codex round 4: default-model construction can raise provider
         # exceptions carrying endpoints, deployment names, or auth
         # config. Log the verbose form server-side only and raise a
@@ -560,8 +612,8 @@ def _resolve_default_chat_model() -> Any:
             e,
         )
         raise InterpreterError(
-            "Failed to instantiate default chat model; see server logs "
-            "for provider detail."
+            "Failed to instantiate default chat model for backend "
+            f"{backend!r}; see server logs for provider detail."
         ) from e
 
 
@@ -706,8 +758,13 @@ def infer_scenario_from_prompt(
         )
 
     if chat_model is None:
+        default_backend, default_model = _default_chat_backend_and_model()
         chat_model = _resolve_default_chat_model()
-        model_name = f"{_DEFAULT_CHAT_BACKEND}/{_DEFAULT_CHAT_MODEL_NAME}"
+        model_name = (
+            getattr(chat_model, "model_name", None)
+            or getattr(chat_model, "model", None)
+            or f"{default_backend}/{default_model}"
+        )
     else:
         # Best-effort introspection — only used for the cache _meta block.
         model_name = (

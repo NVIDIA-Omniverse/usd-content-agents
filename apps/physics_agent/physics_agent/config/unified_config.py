@@ -11,9 +11,16 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
-from world_understanding.agentic.config import RendererConfig
+from world_understanding.agentic.config import (
+    RendererConfig,
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    ensure_no_inline_secrets,
+    redact_sensitive_path,
+)
 
 from physics_agent.api.defaults import PREDICT_DEFAULTS
 from physics_agent.config.path_resolver import ProjectPathResolver
@@ -71,60 +78,40 @@ class UnifiedPipelineConfigTask(Task):
             ValueError: If configuration is invalid
             FileNotFoundError: If configuration file not found
         """
-        # Handle both config_path and config_dict
-        config_path = context.get("config_path")
-        config_dict = context.get("config_dict")
-
-        if not config_path and not config_dict:
-            raise ValueError("Neither config_path nor config_dict provided in context")
-
-        if config_dict:
-            # Use provided config dictionary
-            logger.info("Loading unified configuration from dictionary")
-            config = config_dict
-            # For dict configs, use current working directory as base
-            config_path = Path.cwd() / "config_dict.yaml"  # Virtual path for resolver
-        else:
-            # Load from file
-            config_path = Path(config_path)
-            if not config_path.exists():
-                raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-            logger.info("Loading unified configuration from %s", config_path)
-
-            # Load YAML configuration
-            try:
-                with open(config_path, encoding="utf-8") as f:
-                    config = yaml.safe_load(f)
-            except yaml.YAMLError as e:
-                raise ValueError(f"Failed to parse YAML configuration: {e}") from e
-
-        if not config:
-            raise ValueError("Configuration is empty")
+        config, config_path = self._load_config(context)
+        log_config_source(context, logger.info, label="unified")
 
         # Merge with defaults
         config = self._merge_with_defaults(config)
 
         # Inject session_id from context if provided (for --session-id CLI option)
         if "session_id" in context and context["session_id"]:
-            if "project" not in config:
+            ensure_no_inline_secrets(
+                context["session_id"],
+                context="session identifier",
+                path_context=True,
+            )
+            if "project" not in config:  # pragma: no cover - defaults ensure project
                 config["project"] = {}
             config["project"]["session_id"] = context["session_id"]
-            logger.debug("Injected session_id from context: %s", context["session_id"])
+            logger.debug(
+                "Injected session_id from context: %s",
+                redact_sensitive_path(context["session_id"]),
+            )
 
         # Validate configuration
         try:
             self.validator.validate(config)
-        except ValueError as e:
-            logger.error("Configuration validation failed: %s", e)
+        except ValueError:
+            logger.error("Configuration validation failed")
             raise
 
         # Create path resolver
         try:
             path_resolver = ProjectPathResolver(config, config_path)
             path_resolver.validate_input_paths()
-        except (FileNotFoundError, ValueError) as e:
-            logger.error("Path resolution failed: %s", e)
+        except (FileNotFoundError, ValueError):
+            logger.error("Path resolution failed")
             raise
 
         # Determine which steps to run
@@ -149,8 +136,27 @@ class UnifiedPipelineConfigTask(Task):
                 "config_path": config_path,
             }
         )
+        working_dir_base = getattr(path_resolver, "working_dir_base", None)
+        if working_dir_base is not None:
+            context["working_dir_base"] = working_dir_base
 
         return context
+
+    def _load_config(self, context: dict[str, Any]) -> tuple[dict[str, Any], Path]:
+        """Load an isolated unified config and its relative-path anchor."""
+        return load_config_mapping_from_context(
+            context,
+            default_config_path=Path.cwd() / "config_dict.yaml",
+            missing_path_message=(
+                "Neither config_path nor config_dict provided in context"
+            ),
+            parse_error_message="Failed to parse YAML configuration: {config_path}",
+            empty_message="Configuration is empty",
+            config_dict_non_mapping_message="config_dict must be a mapping",
+            file_non_mapping_message=(
+                "Configuration must be a YAML mapping, got {type_name}"
+            ),
+        )
 
     def _merge_with_defaults(self, config: dict[str, Any]) -> dict[str, Any]:
         """Merge user config with defaults.
@@ -398,12 +404,14 @@ class UnifiedPipelineConfigTask(Task):
                         len(sensor_modes),
                     )
 
-                except ValueError as e:
-                    logger.error("Failed to parse rendering config: %s", e)
-                    raise
-                except Exception as e:
-                    logger.error("Failed to create RendererConfig: %s", e)
-                    raise
+                except ValueError:
+                    logger.error("Failed to parse rendering config")
+                    raise ValueError("Invalid renderer configuration") from None
+                except Exception:
+                    logger.error("Failed to create RendererConfig")
+                    raise RuntimeError(
+                        "Unable to create renderer configuration"
+                    ) from None
 
         elif step_name == "identify_asset":
             step_config["usd_path"] = str(path_resolver.input_usd)
@@ -535,14 +543,23 @@ class UnifiedPipelineConfigTask(Task):
         logger.info("=" * 70)
         logger.info("Configuration Summary")
         logger.info("=" * 70)
-        logger.info("Project: %s", config["project"]["name"])
+        logger.info("Project: %s", redact_sensitive_path(config["project"]["name"]))
         logger.info("")
-        logger.info("Session ID: %s", path_resolver.session_id)
+        logger.info(
+            "Session ID: %s",
+            redact_sensitive_path(path_resolver.session_id),
+        )
         logger.info("")
         if config["project"].get("description"):
-            logger.info("Description: %s", config["project"]["description"])
-        logger.info("Working directory: %s", path_resolver.working_dir)
-        logger.info("Input USD: %s", path_resolver.input_usd)
+            logger.info(
+                "Description: %s",
+                redact_sensitive_path(config["project"]["description"]),
+            )
+        logger.info(
+            "Working directory: %s",
+            redact_sensitive_path(path_resolver.working_dir),
+        )
+        logger.info("Input USD: %s", redact_sensitive_path(path_resolver.input_usd))
 
         logger.info("Steps to run: %s", ", ".join(steps_to_run))
         logger.info("=" * 70)

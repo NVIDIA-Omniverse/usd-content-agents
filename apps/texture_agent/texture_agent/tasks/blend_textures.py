@@ -73,8 +73,9 @@ class BlendTexturesTask(Task):
         - Roughness: blended with material's specular_roughness
         - Metalness: blended with material's base_metalness
         """
-        orm_img = Image.open(orm_path).resize(output_size, Image.Resampling.LANCZOS)
-        orm_arr = np.array(orm_img, dtype=np.float32)
+        with Image.open(orm_path) as orm_source:
+            orm_img = orm_source.resize(output_size, Image.Resampling.LANCZOS)
+            orm_arr = np.array(orm_img, dtype=np.float32)
 
         # Create base ORM from material constants
         # NumPy uses (height, width, channels); PIL size is (width, height)
@@ -160,22 +161,23 @@ class BlendTexturesTask(Task):
             # stats payload (the `except` block extracts step stats from
             # context, so any soft errors recorded so far are still surfaced
             # alongside the propagated exception).
-            albedo_img = Image.open(gen_textures.albedo)
-            blended_albedo = blend_texture_onto_constant(
-                base_color=mat.base_color,
-                texture=albedo_img,
-                output_size=output_size,
-                opacity=opacity,
-            )
+            with Image.open(gen_textures.albedo) as albedo_img:
+                blended_albedo = blend_texture_onto_constant(
+                    base_color=mat.base_color,
+                    texture=albedo_img,
+                    output_size=output_size,
+                    opacity=opacity,
+                )
             albedo_path = out_dir / f"{key}_albedo.png"
             blended_albedo.save(str(albedo_path))
 
             # --- Normal: use directly (no blending) ---
             normal_path = out_dir / f"{key}_normal.png"
             if gen_textures.normal and Path(gen_textures.normal).exists():
-                normal_img = Image.open(gen_textures.normal).resize(
-                    output_size, Image.Resampling.LANCZOS
-                )
+                with Image.open(gen_textures.normal) as normal_source:
+                    normal_img = normal_source.resize(
+                        output_size, Image.Resampling.LANCZOS
+                    )
                 normal_img.save(str(normal_path))
             else:
                 Image.new("RGB", output_size, (128, 128, 255)).save(str(normal_path))

@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-# Generated from service.main:app via PYTHONPATH=../texture_agent:..:../.. python -c "from service.main import app; import sys, yaml; yaml.safe_dump(app.openapi(), sys.stdout, sort_keys=False)"
 openapi: 3.1.0
 info:
   title: Texture Agent Service
@@ -25,48 +22,72 @@ info:
     \ (local FLUX.2 NIM sidecar \u2014\n>   same model, but exposes `images.edit`\
     \ and supports conditioning), **or**\n> - set `TA_IMAGE_GEN_BACKEND=gemini` or\
     \ `TA_IMAGE_GEN_BACKEND=openai`\n>   (both support img2img, but leave the NVIDIA-only\
-    \ stack).\n>\n> See `.agents/skills/deploy-texture-agent-docker/SKILL.md` for\
-    \ the full\n> deployment matrix.\n\n## Quick Start (Docker)\n\nRequires **Docker\
-    \ Compose v2.24+** (for `env_file: required: false` support).\n\n```bash\n# From\
-    \ the repo root -- set your image-gen provider key\n# (NIM or Gemini). The compose\
-    \ file reads .env at the repo root\n# via env_file.\necho 'NVIDIA_API_KEY=your_key'\
-    \ > .env\n\n# Build and run. `--env-file .env` is required so that any `${VAR}`\n\
-    # overrides in compose (e.g. `TA_IMAGE_GEN_BACKEND=gemini`) read from\n# the repo-root\
-    \ `.env`. Without it, Compose's variable substitution\n# looks for `.env` next\
-    \ to the compose file\n# (`apps/texture_agent_service/.env`) and silently falls\
-    \ back to the\n# built-in defaults.\ndocker compose --env-file .env \\\n  -f apps/texture_agent_service/docker-compose.yml\
-    \ up --build\n\n# Service available at http://localhost:8001\n```\n\nUnlike the\
-    \ material and physics services, the texture service does not bundle a GPU rendering\
-    \ sidecar \u2014 texture generation runs against the configured image-gen backend.\
-    \ Cold start is fast (no GPU warm-up step).\n\n## Quick Start (Local Dev)\n\n\
-    ```bash\n# From repo root\nsource .venv/bin/activate\n\n# Install\nuv pip install\
-    \ -e \".[dev]\"\nuv pip install -e apps/texture_agent -e apps/texture_agent_service\n\
+    \ stack).\n>\n> See the [root README](../../README.md) system requirements and\n> [`../texture_agent/examples/`](../texture_agent/examples/)\
+    \ for the runnable\n> simple image-gen example.\n\n## Quick Start (Docker)\n\n\
+    Requires **Docker Compose v2.24+** (for `env_file: required: false` support).\n\
+    \n```bash\n# From the repo root -- set your image-gen provider key\n# (NIM or\
+    \ Gemini). The compose file reads .env at the repo root\n# via env_file.\necho\
+    \ 'NVIDIA_API_KEY=your_key' > .env\n\n# Build and run. `--env-file .env` is required\
+    \ so that any `${VAR}`\n# overrides in compose (e.g. `TA_IMAGE_GEN_BACKEND=gemini`)\
+    \ read from\n# the repo-root `.env`. Without it, Compose's variable substitution\n\
+    # looks for `.env` next to the compose file\n# (`apps/texture_agent_service/.env`)\
+    \ and silently falls back to the\n# built-in defaults.\ndocker compose --env-file\
+    \ .env \\\n  -f apps/texture_agent_service/docker-compose.yml up --build\n\n#\
+    \ Service available at http://localhost:8001\n```\n\nBy default the texture service\
+    \ does not start GPU sidecars; texture generation\nruns against the configured\
+    \ image-gen backend and cold start is fast.\n\n### Texture Variation API Backend\n\
+    \nThe public 0.5 source release ships the service backend contract and the\nStep1X-compatible\
+    \ adapter, but does not ship a managed Step1X runtime,\ndownloader/setup package,\
+    \ model checkpoints, or runtime cache layout. To use a\nTexture Variation API-compatible\
+    \ backend, deploy that backend separately after\nyour own security and legal review,\
+    \ then configure Texture Agent to call it:\n\n```bash\nTA_TEXTURE_BACKEND=service\
+    \ \\\nTA_TEXTURE_ENDPOINT=http://texture-variation-backend:8000 \\\nTA_BACKEND_ENGINE=step1x\
+    \ \\\ndocker compose --env-file .env \\\n  -f apps/texture_agent_service/docker-compose.yml\
+    \ \\\n  up --build\n```\n\nUse the optional `docker-compose.step1x.yml` overlay\
+    \ only when you have already\nmounted a complete external runtime for `texture-gen-step1x`:\n\
+    \n```bash\nTEXTURE_STEP1X_HOST_RUNTIME=/path/to/reviewed/texture-editing-runtime\
+    \ \\\ndocker compose --env-file .env \\\n  -f apps/texture_agent_service/docker-compose.yml\
+    \ \\\n  -f apps/texture_agent_service/docker-compose.step1x.yml \\\n  up --build\n\
+    ```\n\nThat overlay starts the API adapter and OVRTX sidecar, routes\n`TA_TEXTURE_ENDPOINT=http://texture-gen-step1x:8000`,\
+    \ and requires the runtime\nto be supplied through `TEXTURE_STEP1X_HOST_RUNTIME`.\
+    \ It does not download or\ninstall Step1X, Material Anything, Swin2SR, Kaolin,\
+    \ nvdiffrast, or model\ncheckpoints.\n\n## Quick Start (Local Dev)\n\n```bash\n\
+    # From repo root\nsource .venv/bin/activate\n\n# Install\nuv pip install -e \"\
+    .[dev]\"\nuv pip install -e apps/texture_agent -e apps/texture_agent_service\n\
     \n# Configure\ncp .env_example .env\n# Edit .env to set NVIDIA_API_KEY or GOOGLE_API_KEY\n\
     \n# Run\ntexture-agent-service\n# or: uvicorn service.main:app --host 0.0.0.0\
     \ --port 8001\n```\n\n## API\n\n- **Interactive docs:** http://localhost:8001/docs\
     \ (Swagger UI) once the service is running.\n- **Full reference:** [`docs/api.md`](docs/api.md).\n\
-    - **OpenAPI spec:** [`openapi.yaml`](openapi.yaml).\n\nThe pipeline endpoints\
-    \ (`POST /pipeline/upload-usd`, `POST /pipeline`, `GET /pipeline/{id}/status`,\
-    \ etc.) accept a materialized USD file (typically the output of the Material Agent)\
-    \ and a per-material texture prompt map, then run the texture discovery / generation\
-    \ / apply pipeline. Stream real-time progress over SSE at `GET /pipeline/{id}/events`.\
-    \ Download textured output USDZ, textures, and the run manifest via `/artifacts/{id}/output`,\
-    \ `/artifacts/{id}/textures`, and `/artifacts/{id}/manifest`.\n\n### Session\
-    \ Cleanup\n\nLong-lived deployments\
-    \ should delete sessions after downloading required artifacts so session storage\
-    \ does not grow indefinitely:\n\n```bash\ncurl -X DELETE http://localhost:8001/sessions/$SESSION_ID\n\
-    ```\n\n`DELETE /sessions/{session_id}` returns `204 No Content` when the session,\
-    \ stored artifacts, and in-memory progress state are removed. It returns JSON\
-    \ `404 Not Found` when the session does not exist, and JSON `409 Conflict` when\
-    \ a live pipeline job is still active or a worker lock shows artifact writes are\
-    \ still in progress; cancel the pipeline and wait for the worker to stop before\
-    \ deleting it. If a service restart leaves a persisted `cancelling` status with\
-    \ no live worker lock, deletion is allowed so stale artifacts can be cleaned up.\n\
-    \n### Artifact Response Types\n\nThe `/artifacts/{session_id}/...` routes use\
-    \ per-kind response media types:\n\n| Endpoint | Success media type | Payload\
-    \ |\n|----------|--------------------|---------|\n| `GET /artifacts/{session_id}/materials`\
-    \ | `application/json` | Discovered material metadata |\n| `GET /artifacts/{session_id}/manifest`\
-    \ | `application/json` | Schema-versioned artifact manifest |\n| `GET /artifacts/{session_id}/textures`\
+    - **Brev deployment planning:** [`docs/brev.md`](docs/brev.md).\n- **OpenAPI spec:**\
+    \ [`openapi.yaml`](openapi.yaml).\n\nThe pipeline endpoints (`POST /pipeline/upload-usd`,\
+    \ `POST /pipeline`, `GET /pipeline/{id}/status`, etc.) accept a materialized USD\
+    \ file (typically the output of the Material Agent) and a per-material texture\
+    \ prompt map, then run the texture discovery / generation / apply pipeline. Stream\
+    \ real-time progress over SSE at `GET /pipeline/{id}/events`. Download textured\
+    \ output USDZ, textures, and the run manifest via `/artifacts/{id}/output`, `/artifacts/{id}/textures`,\
+    \ and `/artifacts/{id}/manifest`.\n\nFor release validation, the service path should\
+    \ agree with the CLI path on the\nprimary ladder fixture: four discovered materials,\
+    \ one generated texture set\nwhen only `Aluminum_Matte` is provided in `material_textures_json`\
+    \ with\n`auto_prompt_enabled=false`, matching output USD counts, and the same\
+    \ UV/report\ndiagnostics. Omitting `auto_prompt_enabled` preserves the service's\
+    \ legacy\nauto-prompting behavior. The repeatable fake-backend smoke test is\n\
+    `apps/texture_agent_service/tests/unit/test_issue31_validation_smoke.py`;\nreal\
+    \ NIM/Gemini service runs should be recorded as manual evidence, not as the\n\
+    only gate.\n\n### Session Cleanup\n\nLong-lived deployments should delete sessions\
+    \ after downloading required artifacts so session storage does not grow indefinitely:\n\
+    \n```bash\ncurl -X DELETE http://localhost:8001/sessions/$SESSION_ID\n```\n\n\
+    `DELETE /sessions/{session_id}` returns `204 No Content` when the session, stored\
+    \ artifacts, and in-memory progress state are removed. It returns JSON `404 Not\
+    \ Found` when the session does not exist, and JSON `409 Conflict` when a live\
+    \ pipeline job is still active or a worker lock shows artifact writes are still\
+    \ in progress; cancel the pipeline and wait for the worker to stop before deleting\
+    \ it. If a service restart leaves a persisted `cancelling` status with no live\
+    \ worker lock, deletion is allowed so stale artifacts can be cleaned up.\n\n###\
+    \ Artifact Response Types\n\nThe `/artifacts/{session_id}/...` routes use per-kind\
+    \ response media types:\n\n| Endpoint | Success media type | Payload |\n|----------|--------------------|---------|\n\
+    | `GET /artifacts/{session_id}/materials` | `application/json` | Discovered material\
+    \ metadata |\n| `GET /artifacts/{session_id}/manifest` | `application/json` |\
+    \ Schema-versioned artifact manifest |\n| `GET /artifacts/{session_id}/textures`\
     \ | `application/zip` | ZIP containing generated textures under `textures/` |\n\
     | `GET /artifacts/{session_id}/textures/{filename}` | `image/png` | Single texture\
     \ image |\n| `GET /artifacts/{session_id}/output` | `model/vnd.usdz+zip` | Self-contained\
@@ -77,32 +98,118 @@ info:
     \ missing artifacts, are JSON.\n\n## Python Client\n\n```python\nfrom client.client\
     \ import TextureAgentClient\n\nclient = TextureAgentClient(\"http://localhost:8001\"\
     )\n\n# Upload and run\nsession_id, status = client.run_and_monitor(\n    usd_path=\"\
-    scene.usd\",\n    material_textures={\n        \"Steel_Carbon\": {\"prompt\":\
-    \ \"rusted steel\", \"opacity\": 0.85},\n    },\n)\n\n# Download artifacts\nclient.download_output(session_id,\
-    \ \"output.usdz\")\nclient.download_textures(session_id, \"./textures/\")\n\n\
-    # Delete the session after required artifacts are downloaded\nclient.delete_session(session_id)\n\
-    ```\n\n## Configuration\n\nService configuration is loaded from environment variables\
-    \ at startup. Key settings:\n\n| Variable | Default | Description |\n|----------|---------|-------------|\n\
+    scene.usd\",\n    material_textures={\n        \"Steel_Carbon\": {\n         \
+    \   \"prompt\": \"rusted steel\",\n            \"opacity\": 0.85,\n        },\n\
+    \    },\n    auto_prompt_enabled=False,  # strict material_textures scope\n)\n\
+    \n# Download artifacts\nclient.download_output(session_id, \"output.usdz\")\n\
+    client.download_textures(session_id, \"./textures/\")\n\n# Delete the session\
+    \ after required artifacts are downloaded\nclient.delete_session(session_id)\n\
+    ```\n\nThe bundled CLI exits with status `0` only after the final pipeline status\
+    \ is\n`completed`. Scripted callers that intentionally stop client polling early\n\
+    should keep the printed session ID and poll `GET /pipeline/{id}/status` before\n\
+    deciding whether a nonzero client exit is a hard failure.\n\nProjection backend\
+    \ runs use the same client helper with the `service` texture\nbackend and an endpoint.\
+    \ Global conditioning is merged with material-specific\nconditioning before each\
+    \ Issue #116 texture variation request:\n\n```python\nsession_id, status = client.run_and_monitor(\n\
+    \    usd_path=\"ladder.usd\",\n    material_textures={\n        \"Aluminum_Matte\"\
+    : {\n            \"prompt\": \"matte aluminum\",\n            \"reference_image_uris\"\
+    : [\"file:///refs/aluminum.png\"],\n        },\n    },\n    auto_prompt_enabled=False,\n\
+    \    texture_backend=\"service\",\n    texture_endpoint=\"http://localhost:8011\"\
+    ,\n    backend_engine=\"fake_projection\",\n    backend_custom_parameters={\"\
+    variant\": \"success_full_pbr\"},\n    reference_image_uris=[\"file:///refs/ladder.png\"\
+    ],\n    reference_image_path=\"reference.png\",\n    multiview_image_uris=[\"\
+    file:///refs/view0.png\"],\n    seed=11631,\n    strength=0.8,\n    strict_scope=True,\n\
+    )\n```\n\nFor AOI, CAD, PCB, or SimReady-style assets where traces, vias, pads,\
+    \ labels,\nholes, seams, components, or markings already exist as modeled geometry,\
+    \ pass\n`detail_policy=\"surface_only\"` globally or set `detail_policy` inside\
+    \ a material\nor per-prim entry in `material_textures`. This adds conservative\
+    \ prompt\nconditioning for simple image generation and passes policy metadata\
+    \ to\nprojection backends.\n\nFor the command-line client wrapper, pass `--disable-auto-prompt`\
+    \ to send\n`auto_prompt_enabled=false` and keep the run scoped to `material_textures`.\n\
+    Use `--detail-policy surface_only` for the global conservative/AOI policy.\n\n\
+    ## Configuration\n\nService configuration is loaded from environment variables\
+    \ at startup. Key\nsettings are below. Docker Compose packages may set topology-specific\
+    \ overrides\nsuch as external Texture Variation API or OVRTX sidecar endpoints.\n\
+    \n| Variable | Default | Description |\n|----------|---------|-------------|\n\
     | `NVIDIA_API_KEY` | - | API key for NIM image generation |\n| `GOOGLE_API_KEY`\
     \ | - | API key for Gemini image generation |\n| `TA_TEXTURE_BACKEND` | `simple_image_gen`\
-    \ | Texture gen backend |\n| `TA_IMAGE_GEN_BACKEND` | `nim` | Image gen backend\
-    \ (`nim`, `gemini`, `openai`) |\n| `TA_TEXTURE_SIZE` | `1024` | Texture resolution\
-    \ |\n| `TA_TEXTURE_WORKERS` | `4` | Parallel gen workers |\n| `TA_BLEND_OPACITY`\
-    \ | `0.85` | Default blend opacity |\n| `TA_SESSION_STORAGE_PATH` | `/var/texture-agent/sessions`\
-    \ | Session storage |\n| `TA_SESSION_TTL_HOURS` | `24` | Session expiry |\n| `TA_MAX_ACTIVE_SESSIONS`\
-    \ | `4` | Max concurrent pipelines |\n| `TA_CANCEL_DRAIN_TIMEOUT_SECONDS` | `30.0`\
-    \ | Seconds a cancelled request waits for a synchronous worker thread to stop\
-    \ before marking the session failed with a stalled-worker deletion guard |\n|\
-    \ `TA_MAX_UPLOAD_SIZE_MB` | `500` | Max USD upload size |\n\n## Project Structure\n\
-    \n```\ntexture_agent_service/\n\u251C\u2500\u2500 client/                    \
-    \ # Python client (client.py)\n\u251C\u2500\u2500 docs/                      \
-    \ # Documentation (api.md REST reference)\n\u251C\u2500\u2500 service/       \
-    \             # FastAPI app, routers, runtime, storage\n\u251C\u2500\u2500 tests/\
-    \                      # Test suite\n\u251C\u2500\u2500 docker-compose.yml   \
-    \       # Docker Compose\n\u251C\u2500\u2500 Dockerfile                  # Service\
-    \ image\n\u251C\u2500\u2500 openapi.yaml                # API specification\n\u2514\
-    \u2500\u2500 pyproject.toml              # Install metadata\n```\n"
-  version: 0.0.1-dev
+    \ | Texture gen backend |\n| `TA_TEXTURE_ENDPOINT` | - | Default Texture Variation\
+    \ API endpoint when `TA_TEXTURE_BACKEND=service` |\n| `TA_BACKEND_ENGINE` | -\
+    \ | Default Texture Variation API engine/model hint, e.g. `step1x` |\n| `TA_IMAGE_GEN_BACKEND`\
+    \ | `nim` | Image gen backend (`nim`, `gemini`, `openai`) |\n| `TA_IMAGE_GEN_BASE_URL`\
+    \ | - | Override image-gen base URL; used by the multi-gpu overlay to route to\
+    \ the local FLUX sidecar |\n| `TA_IMAGE_GEN_API_KEY` | - | Endpoint-specific image-gen\
+    \ key; the local NIM overlay sets `not-used` in Compose |\n| `TA_TEXTURE_SIZE`\
+    \ | `1024` | Texture resolution |\n| `TA_TEXTURE_WORKERS` | `4` | Parallel gen\
+    \ workers |\n| `TA_TEXTURE_JOB_TIMEOUT_SEC` | `3600` | Per-material service backend\
+    \ wait timeout; raise for slow Step1X GPU jobs |\n| `TA_AUTO_PROMPT_MAX_GENERATED_MATERIALS`\
+    \ | `64` | Maximum missing materials auto-prompt may select before requiring explicit\
+    \ scope; `0` disables the guard |\n| `TA_TEXTURE_PLAN_DEFAULT_CAP` | `32` | Generic/simple-image-gen\
+    \ planning default from `texture-agent-plan.v1` |\n| `TA_TEXTURE_PLAN_UV_AWARE_DEFAULT_CAP`\
+    \ | `16` | UV-aware/service and Step1X planning default from `texture-agent-plan.v1`\
+    \ |\n| `TA_TEXTURE_PLAN_HARD_CAP` | `64` | Immutable planning maximum; plans above\
+    \ it require consolidation or narrower scope before backend work |\n| `TA_MAX_TEXTURE_UNITS`\
+    \ | `64` | Compatibility executor guard from issue #463; keep aligned with the\
+    \ planning hard cap. It is not the normal selection default |\n| `TA_BLEND_OPACITY`\
+    \ | `0.85` | Default blend opacity |\n| `TA_UV_POLICY` | `generate_missing` |\
+    \ UV prep policy for service-created pipelines (`generate_missing`, `force_projection`,\
+    \ etc.) |\n| `TA_UV_SCOPE` | `stage` | UV preparation scope; use `target_prims`\
+    \ only with explicit prim targets |\n| `TA_UV_BACKEND` | `python` | UV prep backend\
+    \ |\n| `TA_UV_PROJECTION` | `box` | Projection mode used when UVs are generated\
+    \ |\n| `TA_UV_OVERWRITE_EXISTING` | `false` | Whether generated UVs overwrite\
+    \ existing UV primvars |\n| `TA_UV_REBAKE_SOURCE_ALBEDO` | `false` | Rebake source\
+    \ albedo when scoped projection UVs are generated |\n| `TA_UV_REBAKE_SIZE` | -\
+    \ | Optional source texture rebake resolution |\n| `TA_UV_NORMALIZE_OUT_OF_RANGE`\
+    \ | `false` | Whether out-of-range UVs are normalized during UV prep |\n| `TA_RENDER_ENABLED`\
+    \ | `false` | Enable final render step for service-created pipelines |\n| `RENDER_ENDPOINT`\
+    \ | - | Remote renderer endpoint used by final render tasks |\n| `TEXTURE_STEP1X_HOST_RUNTIME`\
+    \ | - | Host runtime directory for the optional external Step1X-compatible adapter\
+    \ overlay |\n| `TEXTURE_GEN_SIMPLE_ENV_FILE` | `/dev/null` | Optional extra env\
+    \ file for the simple sidecar, useful when provider keys live outside this checkout\
+    \ |\n| `TEXTURE_STEP1X_GPU_DEVICE` | `0` | GPU device ID for the Step1X sidecar\
+    \ |\n| `OVRTX_GPU_DEVICE` | `1` | GPU device ID for the OVRTX sidecar; set both\
+    \ GPU vars to `0` on one-GPU hosts |\n| `TEXTURE_STEP1X_PYTHON` | - | Advanced\
+    \ override for custom mounted runtimes |\n| `TEXTURE_STEP1X_LD_LIBRARY_PATH` |\
+    \ reference `.venv_gen` torch/CUDA libs | Advanced override when a custom mounted\
+    \ runtime stores CUDA libraries outside the reference layout |\n| `TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS`\
+    \ | readiness healthcheck `true` | Enables cached torch/CuPy/NVRTC runtime preflight\
+    \ when `healthcheck.py` checks `/health` |\n| `TEXTURE_STEP1X_HEALTHCHECK_TIMEOUT`\
+    \ | `180s` | Docker healthcheck timeout; relevant to cold runtime imports only\
+    \ for readiness healthchecks |\n| `TA_RENDER_PREVIEWS_ENABLED` | `false` | Enable\
+    \ material preview render step |\n| `TA_RENDER_IMAGE_WIDTH` / `TA_RENDER_IMAGE_HEIGHT`\
+    \ | `1024` / `1024` | Final render dimensions |\n| `TA_RENDER_PREVIEW_IMAGE_WIDTH`\
+    \ / `TA_RENDER_PREVIEW_IMAGE_HEIGHT` | `512` / `512` | Material preview render\
+    \ dimensions |\n| `TA_SESSION_STORAGE_PATH` | `/var/texture-agent/sessions` |\
+    \ Session storage |\n| `TA_SESSION_TTL_HOURS` | `24` | Session expiry |\n| `TA_STORAGE_KIND`\
+    \ | `local` | Session store backend (`local` or `s3`) |\n| `TA_STORAGE_S3_BUCKET`\
+    \ | `WU_S3_BUCKET` | S3 bucket for shared sessions |\n| `TA_STORAGE_S3_PREFIX`\
+    \ | - | Prefix for shared session objects |\n| `TA_STORAGE_S3_REGION` | `WU_S3_REGION`\
+    \ | S3 region |\n| `TA_STORAGE_S3_PROFILE` | `WU_S3_PROFILE` | Optional AWS profile\
+    \ for local/dev runs |\n| `TA_STORAGE_S3_ENDPOINT_URL` | - | Optional S3-compatible\
+    \ endpoint URL |\n| `TA_STORAGE_S3_PRESIGN` | `true` | Return presigned artifact\
+    \ URLs when possible |\n| `TA_STORAGE_S3_MAX_POOL_CONNECTIONS` | `64` | S3 client\
+    \ connection pool size |\n| `TA_MAX_ACTIVE_SESSIONS` | `4` | Max concurrent pipelines,\
+    \ read when the registry starts. Invalid or negative values fall back to `4`; `0` permits\
+    \ no active executions. |\n| `TA_CANCEL_DRAIN_TIMEOUT_SECONDS` | `30.0` | Seconds a cancelled request\
+    \ waits for a synchronous worker thread to stop before marking the session failed\
+    \ with a stalled-worker deletion guard |\n| `TA_MAX_UPLOAD_SIZE_MB` | `500` |\
+    \ Max USD upload size |\n\nFor multi-instance deployments, use `TA_STORAGE_KIND=s3`\
+    \ and configure the S3\nbucket, prefix, region, and credentials before increasing\
+    \ replicas. Local\nstorage is single-instance only because each pod sees only\
+    \ its own session\ndirectory. The Helm chart exposes the same settings under `sessionStorage.*`;\n\
+    keep `replicaCount: 1` unless `sessionStorage.kind` is `s3`. If both explicit\n\
+    S3 credentials and `TA_STORAGE_S3_PROFILE` are configured, the explicit\ncredentials\
+    \ take precedence; if the named profile is unavailable, the service\nfalls back\
+    \ to the default boto3 credential chain.\n\n## Project Structure\n\n```\ntexture_agent_service/\n\
+    \u251C\u2500\u2500 client/                     # Python client (client.py)\n\u251C\
+    \u2500\u2500 docs/                       # Documentation (api.md REST reference)\n\
+    \u251C\u2500\u2500 service/                    # FastAPI app, routers, runtime,\
+    \ storage\n\u251C\u2500\u2500 tests/                      # Test suite\n\u251C\
+    \u2500\u2500 docker-compose.yml          # Docker Compose\n\u251C\u2500\u2500\
+    \ Dockerfile                  # Service image\n\u251C\u2500\u2500 openapi.yaml\
+    \                # API specification\n\u2514\u2500\u2500 pyproject.toml      \
+    \        # Install metadata\n```\n"
+  version: 0.5.0
 paths:
   /pipeline/upload-usd:
     post:
@@ -112,11 +219,18 @@ paths:
       description: 'Upload a USD file and create a session for later pipeline execution.
 
 
-        Two input modes:
+        Provide exactly one of these two input modes:
 
         1. **File upload**: Provide ``usd_file`` (multipart).
 
         2. **S3 reference**: Provide ``s3_uri`` -- the service downloads server-side.
+
+
+        Client S3 access is fail-closed: the exact bucket name must be listed in
+
+        ``TA_S3_ALLOWED_BUCKETS``, and an empty allowlist rejects every client S3 URI
+
+        before session-manager or S3 I/O.
 
 
         Use the returned session_id with ``POST /pipeline`` to start processing.'
@@ -133,6 +247,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionCreated'
+        '400':
+          description: Missing, conflicting, or invalid input source, including an unsupported USD extension.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '403':
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
         '422':
           description: Validation Error
           content:
@@ -147,13 +273,24 @@ paths:
       description: 'Create and execute a texture generation pipeline.
 
 
-        Three input modes:
+        Provide at least one of these three input modes:
 
         1. **Existing session**: Provide ``session_id`` (from ``/upload-usd``).
 
-        2. **File upload**: Provide ``usd_file``, creates new session.
+        2. **S3 reference**: Provide ``s3_uri``, downloads from S3 server-side.
 
-        3. **S3 reference**: Provide ``s3_uri``, downloads from S3 server-side.
+        3. **File upload**: Provide ``usd_file``, creates new session.
+
+
+        When multiple sources are supplied, selection follows the legacy precedence
+
+        ``session_id`` > ``s3_uri`` > ``usd_file`` and lower-priority fields are
+
+        ignored. A selected S3 source is admitted only when its exact bucket name is
+
+        listed in ``TA_S3_ALLOWED_BUCKETS``; an empty allowlist rejects every client
+
+        S3 input before session-manager or S3 I/O.
 
 
         Optionally provide ``material_textures_json`` to specify per-material
@@ -172,6 +309,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionCreated'
+        '400':
+          description: Missing, conflicting, or invalid input source, including an unsupported USD extension.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '403':
+          description: Client S3 URI rejected by the configured bucket allowlist, or S3 access denied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /pipeline/{session_id}/plan:
+    get:
+      tags:
+      - pipeline
+      summary: Get Pipeline Plan
+      description: Return the validated immutable texture plan when planning is complete.
+      operationId: get_pipeline_plan_pipeline__session_id__plan_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TexturePlan'
+        '404':
+          content:
+            application/json:
+              schema: {}
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -787,21 +968,47 @@ paths:
               schema: {}
 components:
   schemas:
+    ErrorDetail:
+      properties:
+        detail:
+          type: string
+          title: Detail
+          description: Human-readable error detail
+      type: object
+      required:
+      - detail
+      title: ErrorDetail
+      description: Standard FastAPI error payload returned by input failures.
     Body_create_pipeline_pipeline_post:
       properties:
         usd_file:
-          type: string
-          contentMediaType: application/octet-stream
+          anyOf:
+          - type: string
+            contentMediaType: application/octet-stream
+          - type: 'null'
           title: Usd File
-          description: USD file to process (optional if session_id or s3_uri provided)
+          description: Lowest-priority USD source. Used only when session_id and s3_uri
+            are both omitted.
+        reference_image_file:
+          anyOf:
+          - type: string
+            contentMediaType: application/octet-stream
+          - type: 'null'
+          title: Reference Image File
+          description: Optional global reference image upload for projection backend
+            conditioning. Added to reference_image_uris.
         session_id:
           type: string
           title: Session Id
-          description: Existing session ID (from /upload-usd endpoint)
+          description: 'Highest-priority source: an existing session ID from /upload-usd.
+            When provided, s3_uri and usd_file are ignored.'
         s3_uri:
           type: string
           title: S3 Uri
-          description: S3 URI to a USD file (e.g. s3://bucket/path/scene.usdz)
+          description: Second-priority source, used when session_id is omitted. Its
+            exact bucket name must be listed in TA_S3_ALLOWED_BUCKETS; an empty allowlist
+            rejects all selected client S3 inputs before session-manager or S3 I/O.
+            When selected, usd_file is ignored.
         material_textures_json:
           type: string
           title: Material Textures Json
@@ -826,19 +1033,184 @@ components:
           description: Whether to auto-generate prompts for discovered materials missing
             from material_textures_json. Defaults to true for legacy service behavior;
             set false for strict material_textures_json scope.
+        texture_backend:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Texture Backend
+          description: Texture backend override, for example 'service'.
+        texture_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Texture Endpoint
+          description: Texture variation backend endpoint for texture_backend='service'.
+        backend_engine:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Backend Engine
+          description: Projection backend engine/model route hint.
+        backend_custom_parameters_json:
+          type: string
+          title: Backend Custom Parameters Json
+          description: Backend custom parameters JSON object.
+          default: ''
+        detail_policy:
+          anyOf:
+          - $ref: '#/components/schemas/TextureDetailPolicy-Input'
+          - type: 'null'
+          description: Texture detail policy. Use 'surface_only' for AOI/CAD assets
+            where traces, labels, holes, seams, or other semantic details already
+            exist as geometry and textures should stay limited to subtle material
+            surface variation.
+        reference_image_uris_json:
+          type: string
+          title: Reference Image Uris Json
+          description: Global reference image URI JSON list.
+          default: ''
+        turntable_video_uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Turntable Video Uri
+          description: Global turntable video URI for projection backend conditioning.
+        multiview_image_uris_json:
+          type: string
+          title: Multiview Image Uris Json
+          description: Global multi-view image URI JSON list.
+          default: ''
+        seed:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Seed
+          description: Texture backend seed override.
+        strength:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Strength
+          description: Texture edit strength override.
+        strict_scope:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Strict Scope
+          description: Whether projection backend requests must preserve selected
+            scope.
+        uv_policy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uv Policy
+          description: UV preparation policy override, for example 'force_projection'
+            for UV-aware texture backends.
+        uv_scope:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uv Scope
+          description: UV projection scope override, for example 'target_prims'.
+        uv_backend:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uv Backend
+          description: UV preparation backend override.
+        uv_projection:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uv Projection
+          description: UV projection mode override, for example 'box'.
+        uv_overwrite_existing:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Uv Overwrite Existing
+          description: Whether UV preparation may overwrite existing UV coordinates.
+        uv_rebake_source_albedo:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Uv Rebake Source Albedo
+          description: Whether scoped UV projection should rebake source albedo, normal,
+            and ORM maps into the generated UV layout.
+        uv_rebake_size:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Uv Rebake Size
+          description: Optional scoped source texture rebake resolution.
+        uv_normalize_out_of_range:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Uv Normalize Out Of Range
+          description: Whether UV preparation should normalize out-of-range UVs.
+        render_timeout_sec:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Render Timeout Sec
+          description: Optional final render request timeout in seconds. Texture generation
+            and USD packaging can still complete when the renderer is unavailable
+            or slow.
+        plan_only:
+          type: boolean
+          title: Plan Only
+          description: Discover and persist texture_plan.json without invoking prompt,
+            image-generation, application, or render backends.
+          default: false
+        discovery_mode:
+          $ref: '#/components/schemas/TextureDiscoveryMode'
+          description: 'Planning scope: effective_bound, explicit, or all_authored.'
+          default: effective_bound
+        unit_mode:
+          anyOf:
+          - $ref: '#/components/schemas/TextureUnitMode'
+          - type: 'null'
+          description: 'Planning unit mode: per_material, per_group, or per_prim.'
+        explicit_material_paths_json:
+          type: string
+          title: Explicit Material Paths Json
+          description: JSON list of absolute material paths for explicit discovery.
+          default: ''
+        explicit_prim_paths_json:
+          type: string
+          title: Explicit Prim Paths Json
+          description: JSON list of absolute prim/subset paths for explicit discovery.
+          default: ''
+        operator_override_cap:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Operator Override Cap
+          description: Intentional generation-unit cap override. Values above the
+            backend default and no greater than 64 are recorded in the plan.
       type: object
       title: Body_create_pipeline_pipeline_post
     Body_upload_usd_immediate_pipeline_upload_usd_post:
       properties:
         usd_file:
-          type: string
-          contentMediaType: application/octet-stream
+          anyOf:
+          - type: string
+            contentMediaType: application/octet-stream
+          - type: 'null'
           title: Usd File
-          description: USD file to upload (provide this OR s3_uri)
+          description: USD file to upload. Provide exactly one of usd_file or s3_uri.
         s3_uri:
           type: string
           title: S3 Uri
-          description: S3 URI to a USD file (e.g. s3://bucket/path/scene.usdz)
+          description: S3 URI to a USD file. Its exact bucket name must be listed
+            in TA_S3_ALLOWED_BUCKETS; an empty allowlist rejects all client S3 inputs.
+            Provide exactly one of usd_file or s3_uri.
       type: object
       title: Body_upload_usd_immediate_pipeline_upload_usd_post
     CompletedStepInfo:
@@ -928,6 +1300,46 @@ components:
             minimum: 0.0
           - type: 'null'
           title: Opacity
+        detail_policy:
+          anyOf:
+          - $ref: '#/components/schemas/TextureDetailPolicy-Input'
+          - type: 'null'
+        material_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Material Path
+        prim_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prim Path
+        prim_paths:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Prim Paths
+        reference_image_uris:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Reference Image Uris
+        turntable_video_uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Turntable Video Uri
+        multiview_image_uris:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Multiview Image Uris
         per_prim:
           anyOf:
           - additionalProperties:
@@ -1041,8 +1453,8 @@ components:
           title: Download Urls
           description: URLs to download artifacts
           examples:
-          - materials: /artifacts/abc123/materials
-            manifest: /artifacts/abc123/manifest
+          - manifest: /artifacts/abc123/manifest
+            materials: /artifacts/abc123/materials
             output: /artifacts/abc123/output
             renders: /artifacts/abc123/renders
             textures: /artifacts/abc123/textures
@@ -1105,6 +1517,12 @@ components:
           type: string
           title: Updated At
           description: ISO timestamp of last update
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+          description: Sanitized top-level error message (failed runs)
         failed_step:
           anyOf:
           - type: string
@@ -1120,6 +1538,12 @@ components:
           description: Structured failed-step stats including any per-unit ``errors``
             and ``textures_failed`` count. Mirrors the SSE FAILED event extra so polling
             clients see the same diagnostic detail.
+        texture_plan:
+          anyOf:
+          - $ref: '#/components/schemas/TexturePlanStatus'
+          - type: 'null'
+          description: Bounded plan summary once planning has completed, including
+            the decision, audited counts, and exact effective/hard caps.
       type: object
       required:
       - session_id
@@ -1146,6 +1570,10 @@ components:
             minimum: 0.0
           - type: 'null'
           title: Opacity
+        detail_policy:
+          anyOf:
+          - $ref: '#/components/schemas/TextureDetailPolicy-Input'
+          - type: 'null'
       additionalProperties: false
       type: object
       title: PrimTextureOverride
@@ -1167,6 +1595,15 @@ components:
           - type: 'null'
           title: Material Textures
           description: Override per-material prompt/opacity for regeneration
+        texture_unit_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Texture Unit Ids
+          description: Exact approved texture-plan unit IDs to regenerate. Omit to
+            regenerate every approved unit when generate_textures is selected.
       type: object
       required:
       - steps
@@ -1217,7 +1654,7 @@ components:
 
         internal location implied by the session id; surfacing it would leak
 
-        the container''s storage layout -- NVBugs 6127703).'
+        the container''s storage layout).'
     SessionCreated:
       properties:
         session_id:
@@ -1237,6 +1674,13 @@ components:
           - type: 'null'
           title: Estimated Duration Minutes
           description: Estimated completion time
+        plan_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plan Url
+          description: Stable texture-plan endpoint for this session; returns 404
+            until planning has produced texture_plan.json.
       type: object
       required:
       - session_id
@@ -1345,7 +1789,7 @@ components:
 
         in ``error`` and ``failed_step_stats`` are sanitized to redact NVCF
 
-        function URLs and absolute session paths (NVBugs 6127945, 6127703).'
+        function URLs and absolute session paths.'
     SessionListResponse:
       properties:
         sessions:
@@ -1416,11 +1860,34 @@ components:
       - message
       title: StepProgress
       description: Progress information for a single step.
+    TextureDetailPolicy-Input:
+      type: string
+      enum:
+      - default
+      - surface_only
+      title: TextureDetailPolicy
+      description: Texture detail policy values accepted by the service API.
+    TextureDetailPolicy-Output:
+      type: string
+      enum:
+      - default
+      - surface_only
+      title: TextureDetailPolicy
+      description: Semantic-detail policy recorded in a plan.
+    TextureDiscoveryMode:
+      type: string
+      enum:
+      - effective_bound
+      - explicit
+      - all_authored
+      title: TextureDiscoveryMode
+      description: How candidate materials are discovered for a plan.
     TexturePipelineStep:
       type: string
       enum:
       - prepare_uvs
       - discover_materials
+      - plan_textures
       - generate_prompts
       - render_previews
       - generate_textures
@@ -1429,6 +1896,443 @@ components:
       - render
       title: TexturePipelineStep
       description: Available pipeline steps.
+    TexturePlan:
+      properties:
+        schema_version:
+          type: string
+          const: texture-agent-plan.v1
+          title: Schema Version
+          default: texture-agent-plan.v1
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        request:
+          $ref: '#/components/schemas/TexturePlanRequest'
+        limits:
+          $ref: '#/components/schemas/TexturePlanLimits'
+        execution:
+          $ref: '#/components/schemas/TexturePlanExecution'
+        counts:
+          $ref: '#/components/schemas/TexturePlanCounts'
+        selected_units:
+          items:
+            $ref: '#/components/schemas/TexturePlanUnit'
+          type: array
+          title: Selected Units
+          default: []
+        skipped_items:
+          items:
+            $ref: '#/components/schemas/TexturePlanSkippedItem'
+          type: array
+          title: Skipped Items
+          default: []
+        decision:
+          $ref: '#/components/schemas/TexturePlanDecision'
+      additionalProperties: false
+      type: object
+      required:
+      - request
+      - limits
+      - execution
+      - counts
+      - decision
+      title: TexturePlan
+      description: Immutable plan artifact shared across all Texture Agent surfaces.
+    TexturePlanCounts:
+      properties:
+        authored_material_count:
+          type: integer
+          minimum: 0.0
+          title: Authored Material Count
+        renderable_prim_count:
+          type: integer
+          minimum: 0.0
+          title: Renderable Prim Count
+        renderable_subset_count:
+          type: integer
+          minimum: 0.0
+          title: Renderable Subset Count
+        effective_bound_material_count:
+          type: integer
+          minimum: 0.0
+          title: Effective Bound Material Count
+        selected_material_count:
+          type: integer
+          minimum: 0.0
+          title: Selected Material Count
+        selected_unit_count:
+          type: integer
+          minimum: 0.0
+          title: Selected Unit Count
+        skipped_item_count:
+          type: integer
+          minimum: 0.0
+          title: Skipped Item Count
+        planned_generation_job_count:
+          type: integer
+          minimum: 0.0
+          title: Planned Generation Job Count
+      additionalProperties: false
+      type: object
+      required:
+      - authored_material_count
+      - renderable_prim_count
+      - renderable_subset_count
+      - effective_bound_material_count
+      - selected_material_count
+      - selected_unit_count
+      - skipped_item_count
+      - planned_generation_job_count
+      title: TexturePlanCounts
+      description: Auditable discovery, selection, and backend-job counts.
+    TexturePlanDecision:
+      properties:
+        state:
+          $ref: '#/components/schemas/TexturePlanDecisionState'
+        execution_allowed:
+          type: boolean
+          title: Execution Allowed
+        consolidation_required:
+          type: boolean
+          title: Consolidation Required
+          default: false
+        explicit_narrowing_required:
+          type: boolean
+          title: Explicit Narrowing Required
+          default: false
+        reasons:
+          items:
+            type: string
+          type: array
+          title: Reasons
+          default: []
+        recommended_actions:
+          items:
+            type: string
+          type: array
+          title: Recommended Actions
+          default: []
+      additionalProperties: false
+      type: object
+      required:
+      - state
+      - execution_allowed
+      title: TexturePlanDecision
+      description: Whether the immutable plan is approved for bounded execution.
+    TexturePlanDecisionState:
+      type: string
+      enum:
+      - ready
+      - requires_operator_override
+      - requires_narrowing
+      - requires_consolidation
+      - unsupported
+      title: TexturePlanDecisionState
+      description: Planner decision before any LLM or image-generation work starts.
+    TexturePlanExecution:
+      properties:
+        backend:
+          type: string
+          minLength: 1
+          title: Backend
+        texture_size:
+          type: integer
+          maximum: 16384.0
+          minimum: 1.0
+          title: Texture Size
+        max_concurrency:
+          type: integer
+          maximum: 64.0
+          minimum: 1.0
+          title: Max Concurrency
+        unit_timeout_seconds:
+          type: integer
+          maximum: 86400.0
+          minimum: 1.0
+          title: Unit Timeout Seconds
+      additionalProperties: false
+      type: object
+      required:
+      - backend
+      - texture_size
+      - max_concurrency
+      - unit_timeout_seconds
+      title: TexturePlanExecution
+      description: Bounded execution settings frozen into the plan.
+    TexturePlanLimits:
+      properties:
+        global_default_cap:
+          type: integer
+          const: 32
+          title: Global Default Cap
+          default: 32
+        backend_default_cap:
+          type: integer
+          maximum: 32.0
+          minimum: 1.0
+          title: Backend Default Cap
+        operator_override_cap:
+          anyOf:
+          - type: integer
+            maximum: 64.0
+            minimum: 1.0
+          - type: 'null'
+          title: Operator Override Cap
+        effective_cap:
+          type: integer
+          maximum: 64.0
+          minimum: 1.0
+          title: Effective Cap
+        hard_cap:
+          type: integer
+          const: 64
+          title: Hard Cap
+          default: 64
+      additionalProperties: false
+      type: object
+      required:
+      - backend_default_cap
+      - effective_cap
+      title: TexturePlanLimits
+      description: Default, backend, override, and hard limits recorded in a plan.
+    TexturePlanRequest:
+      properties:
+        schema_version:
+          type: string
+          const: texture-agent-plan-request.v1
+          title: Schema Version
+          default: texture-agent-plan-request.v1
+        source:
+          $ref: '#/components/schemas/TexturePlanSource'
+        discovery_mode:
+          $ref: '#/components/schemas/TextureDiscoveryMode'
+          default: effective_bound
+        unit_mode:
+          $ref: '#/components/schemas/TextureUnitMode'
+          default: per_material
+        explicit_material_paths:
+          items:
+            type: string
+          type: array
+          title: Explicit Material Paths
+          default: []
+        explicit_prim_paths:
+          items:
+            type: string
+          type: array
+          title: Explicit Prim Paths
+          default: []
+        detail_policy:
+          $ref: '#/components/schemas/TextureDetailPolicy-Output'
+          default: default
+        texture_size:
+          type: integer
+          maximum: 16384.0
+          minimum: 1.0
+          title: Texture Size
+          default: 1024
+        backend:
+          type: string
+          minLength: 1
+          title: Backend
+          default: simple_image_gen
+        backend_default_cap:
+          type: integer
+          maximum: 32.0
+          minimum: 1.0
+          title: Backend Default Cap
+          default: 32
+        operator_override_cap:
+          anyOf:
+          - type: integer
+            maximum: 64.0
+            minimum: 1.0
+          - type: 'null'
+          title: Operator Override Cap
+        max_concurrency:
+          type: integer
+          maximum: 64.0
+          minimum: 1.0
+          title: Max Concurrency
+          default: 4
+        unit_timeout_seconds:
+          type: integer
+          maximum: 86400.0
+          minimum: 1.0
+          title: Unit Timeout Seconds
+          default: 600
+      additionalProperties: false
+      type: object
+      required:
+      - source
+      title: TexturePlanRequest
+      description: Normalized deterministic request consumed by a texture planner.
+    TexturePlanSkippedItem:
+      properties:
+        item_kind:
+          $ref: '#/components/schemas/TextureSelectionKind'
+        canonical_id:
+          type: string
+          minLength: 1
+          title: Canonical Id
+        display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Display Name
+        reason_code:
+          type: string
+          minLength: 1
+          title: Reason Code
+        reason:
+          type: string
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - item_kind
+      - canonical_id
+      - reason_code
+      - reason
+      title: TexturePlanSkippedItem
+      description: One candidate omitted from selection, with a machine-readable reason.
+    TexturePlanSource:
+      properties:
+        source_asset:
+          type: string
+          minLength: 1
+          title: Source Asset
+        upstream_assignment_artifact:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Upstream Assignment Artifact
+        source_asset_sha256:
+          anyOf:
+          - type: string
+            pattern: ^[0-9a-f]{64}$
+          - type: 'null'
+          title: Source Asset Sha256
+          description: Optional lowercase SHA-256 for durable source identity.
+      additionalProperties: false
+      type: object
+      required:
+      - source_asset
+      title: TexturePlanSource
+      description: Input asset and optional upstream Material Agent assignment artifact.
+    TexturePlanStatus:
+      properties:
+        schema_version:
+          type: string
+          title: Schema Version
+        decision_state:
+          type: string
+          title: Decision State
+        execution_allowed:
+          type: boolean
+          title: Execution Allowed
+        counts:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Counts
+        limits:
+          additionalProperties:
+            anyOf:
+            - type: integer
+            - type: 'null'
+          type: object
+          title: Limits
+        plan_url:
+          type: string
+          title: Plan Url
+      type: object
+      required:
+      - schema_version
+      - decision_state
+      - execution_allowed
+      - counts
+      - limits
+      - plan_url
+      title: TexturePlanStatus
+      description: Compact immutable-plan summary embedded in polling responses.
+    TexturePlanUnit:
+      properties:
+        unit_id:
+          type: string
+          pattern: ^tu_[0-9a-f]{20}$
+          title: Unit Id
+        unit_mode:
+          $ref: '#/components/schemas/TextureUnitMode'
+        material_prim_paths:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Material Prim Paths
+        member_prim_paths:
+          items:
+            type: string
+          type: array
+          title: Member Prim Paths
+          default: []
+        member_subset_paths:
+          items:
+            type: string
+          type: array
+          title: Member Subset Paths
+          default: []
+        group_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Key
+        display_name:
+          type: string
+          minLength: 1
+          title: Display Name
+        selection_reason_code:
+          type: string
+          minLength: 1
+          title: Selection Reason Code
+        selection_reason:
+          type: string
+          minLength: 1
+          title: Selection Reason
+        detail_policy:
+          $ref: '#/components/schemas/TextureDetailPolicy-Output'
+      additionalProperties: false
+      type: object
+      required:
+      - unit_id
+      - unit_mode
+      - material_prim_paths
+      - display_name
+      - selection_reason_code
+      - selection_reason
+      - detail_policy
+      title: TexturePlanUnit
+      description: One selected material, appearance group, or scoped-prim texture
+        job.
+    TextureSelectionKind:
+      type: string
+      enum:
+      - material
+      - group
+      - prim
+      - subset
+      title: TextureSelectionKind
+      description: Kinds of candidates that may be selected or skipped.
+    TextureUnitMode:
+      type: string
+      enum:
+      - per_material
+      - per_group
+      - per_prim
+      title: TextureUnitMode
+      description: How selected scene members are reduced to generation units.
     ValidationError:
       properties:
         loc:

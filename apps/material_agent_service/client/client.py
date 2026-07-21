@@ -7,14 +7,22 @@ import json
 import os
 import sys
 import time
+import warnings
 from collections.abc import Generator, Iterable
 from contextlib import ExitStack
 from dataclasses import dataclass
+from typing import Any
 
 import requests
 
 DEFAULT_MAX_VLM_WORKERS = 64
 DEFAULT_MAX_RENDER_NUM_WORKERS = 32
+MATERIAL_COVERAGE_POLICIES = ("strict", "allow_partial")
+_LARGE_SCENE_COVERAGE_NOTICE = (
+    "large_scene defaults coverage_policy to allow_partial because scene-wide "
+    "prim binding evidence is not yet qualified; explicit strict requests are "
+    "forwarded and rejected by the service"
+)
 
 
 def _max_from_env(env_name: str, default: int) -> int:
@@ -61,6 +69,41 @@ def _validate_unit_interval_override(name: str, value: float | None) -> None:
         raise ValueError(f"{name} must be between 0.0 and 1.0")
     if value < 0.0 or value > 1.0:
         raise ValueError(f"{name} must be between 0.0 and 1.0")
+
+
+def _validate_texture_size(name: str, value: int | None) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer between 64 and 4096")
+    if value < 64 or value > 4096:
+        raise ValueError(f"{name} must be between 64 and 4096")
+
+
+def _validate_large_scene_material_generation(
+    large_scene: bool,
+    enable_material_generation: bool | None,
+) -> None:
+    if large_scene and enable_material_generation:
+        raise ValueError(
+            "large_scene is not compatible with enable_material_generation"
+        )
+
+
+def _validate_coverage_policy(value: str) -> None:
+    if value not in MATERIAL_COVERAGE_POLICIES:
+        allowed = ", ".join(MATERIAL_COVERAGE_POLICIES)
+        raise ValueError(f"coverage_policy must be one of: {allowed}")
+
+
+def _resolve_coverage_policy(value: str | None, *, large_scene: bool) -> str:
+    if value is not None:
+        _validate_coverage_policy(value)
+        return value
+    if large_scene:
+        warnings.warn(_LARGE_SCENE_COVERAGE_NOTICE, UserWarning, stacklevel=3)
+        return "allow_partial"
+    return "strict"
 
 
 def _parse_json_object_arg(value: str | None, name: str) -> dict[str, object] | None:
@@ -223,6 +266,10 @@ class MaterialAgentClient:
         cluster_similarity_threshold_high: float | None = None,
         cluster_report: bool | None = None,
         generated_reference_id: str | None = None,
+        enable_material_generation: bool | None = None,
+        material_generation_guidance: str | None = None,
+        material_generation_texture_size: int | None = None,
+        coverage_policy: str | None = None,
         user_email: str = "",
         layer_only: bool = False,
         large_scene: bool = False,
@@ -265,6 +312,16 @@ class MaterialAgentClient:
                 high-complexity prim clusters.
             cluster_report: Whether the service should generate the cluster
                 HTML report when clustering runs.
+            enable_material_generation: Generate an asset-specific material
+                library before prediction.
+            material_generation_guidance: Optional guidance for generated
+                material planning.
+            material_generation_texture_size: Optional generated texture size
+                in pixels (64-4096).
+            coverage_policy: Optional explicit policy. Omitted single-asset runs
+                use strict; omitted large-scene runs use allow_partial with a
+                warning. Explicit strict remains a service-side validation error
+                for large-scene runs.
             large_scene: If True, run the large-scene workflow.
             scene_simulate: If True, run large-scene smoke mode with mock
                 render/VLM backends and generated predictions.
@@ -304,6 +361,18 @@ class MaterialAgentClient:
             "cluster_similarity_threshold_high", cluster_similarity_threshold_high
         )
         _validate_positive_override("scene_workers", scene_workers)
+        _validate_texture_size(
+            "material_generation_texture_size",
+            material_generation_texture_size,
+        )
+        _validate_large_scene_material_generation(
+            large_scene,
+            enable_material_generation,
+        )
+        coverage_policy = _resolve_coverage_policy(
+            coverage_policy,
+            large_scene=large_scene,
+        )
 
         url = f"{self.base_url}/pipeline"
         files: list[tuple[str, tuple[str, object, str]]] = []
@@ -326,6 +395,7 @@ class MaterialAgentClient:
             user_email = user_email.strip()
             if user_email:
                 data["user_email"] = user_email
+            data["coverage_policy"] = coverage_policy
 
             if reference_images:
                 for p in reference_images:
@@ -416,6 +486,16 @@ class MaterialAgentClient:
                 data["cluster_report"] = "true" if cluster_report else "false"
             if generated_reference_id:
                 data["generated_reference_id"] = generated_reference_id
+            if enable_material_generation is not None:
+                data["enable_material_generation"] = (
+                    "true" if enable_material_generation else "false"
+                )
+            if material_generation_guidance:
+                data["material_generation_guidance"] = material_generation_guidance
+            if material_generation_texture_size is not None:
+                data["material_generation_texture_size"] = str(
+                    material_generation_texture_size
+                )
             if layer_only:
                 data["layer_only"] = "true"
             if large_scene:
@@ -472,6 +552,7 @@ class MaterialAgentClient:
         steps: list[str],
         user_prompt: str | None = None,
         layer_only: bool = False,
+        coverage_policy: str | None = None,
     ) -> dict:
         """
         Re-run specific pipeline steps from cached session data.
@@ -481,6 +562,7 @@ class MaterialAgentClient:
             steps: List of step names to re-run
             user_prompt: Optional prompt override
             layer_only: Output only a material binding layer when re-running apply
+            coverage_policy: Optional strict or allow_partial policy override
 
         Returns the response JSON.
         """
@@ -490,6 +572,9 @@ class MaterialAgentClient:
             body["user_prompt"] = user_prompt
         if layer_only:
             body["layer_only"] = True
+        if coverage_policy is not None:
+            _validate_coverage_policy(coverage_policy)
+            body["coverage_policy"] = coverage_policy
         resp = self._http.post(url, json=body, timeout=self.timeout_seconds)
         resp.raise_for_status()
         return resp.json()
@@ -584,9 +669,21 @@ class MaterialAgentClient:
         return resp.json()
 
     def get_results(self, session_id: str) -> dict:
+        """Return final results once authoritative metadata is available.
+
+        The service returns HTTP 202 while a pipeline is running or final
+        success/failure diagnostics are still being persisted. This helper
+        preserves ``raise_for_status`` behavior, so callers should poll
+        :meth:`get_status` or use :meth:`run_and_monitor` before retrying.
+        """
         url = f"{self.base_url}/pipeline/{session_id}/results"
         resp = self._http.get(url, timeout=self.timeout_seconds)
         resp.raise_for_status()
+        if resp.status_code == requests.codes.accepted:
+            raise requests.HTTPError(
+                f"202 Client Error: pipeline results are not ready for url: {url}",
+                response=resp,
+            )
         return resp.json()
 
     def get_event_log(self, session_id: str) -> dict:
@@ -648,6 +745,10 @@ class MaterialAgentClient:
         cluster_similarity_threshold_medium: float | None = None,
         cluster_similarity_threshold_high: float | None = None,
         cluster_report: bool | None = None,
+        enable_material_generation: bool | None = None,
+        material_generation_guidance: str | None = None,
+        material_generation_texture_size: int | None = None,
+        coverage_policy: str | None = None,
         user_email: str = "",
         layer_only: bool = False,
         large_scene: bool = False,
@@ -688,6 +789,16 @@ class MaterialAgentClient:
             cluster_similarity_threshold_high: Optional similarity threshold for
                 high-complexity prim clusters.
             cluster_report: Whether to generate the cluster HTML report.
+            enable_material_generation: Generate an asset-specific material
+                library before prediction.
+            material_generation_guidance: Optional guidance for generated
+                material planning.
+            material_generation_texture_size: Optional generated texture size
+                in pixels (64-4096).
+            coverage_policy: Optional explicit policy. Omitted single-asset runs
+                use strict; omitted large-scene runs use allow_partial with a
+                warning. Explicit strict remains a service-side validation error
+                for large-scene runs.
             layer_only: If True, output only material bindings (no scene geometry).
             large_scene: If True, run the large-scene workflow.
             scene_simulate: If True, run large-scene smoke mode with mock
@@ -730,13 +841,25 @@ class MaterialAgentClient:
             "cluster_similarity_threshold_high", cluster_similarity_threshold_high
         )
         _validate_positive_override("scene_workers", scene_workers)
-
+        _validate_texture_size(
+            "material_generation_texture_size",
+            material_generation_texture_size,
+        )
+        _validate_large_scene_material_generation(
+            large_scene,
+            enable_material_generation,
+        )
         generated_reference_id = None
         if large_scene and (upload_first or generated_reference_prompt):
             raise ValueError(
                 "large_scene is not compatible with upload_first or "
                 "generated_reference_prompt because upload-usd renders a preview"
             )
+
+        coverage_policy = _resolve_coverage_policy(
+            coverage_policy,
+            large_scene=large_scene,
+        )
 
         if upload_first or generated_reference_prompt:
             session_id = self.upload_usd(usd_path)
@@ -785,6 +908,10 @@ class MaterialAgentClient:
                 cluster_similarity_threshold_high=cluster_similarity_threshold_high,
                 cluster_report=cluster_report,
                 generated_reference_id=generated_reference_id,
+                enable_material_generation=enable_material_generation,
+                material_generation_guidance=material_generation_guidance,
+                material_generation_texture_size=material_generation_texture_size,
+                coverage_policy=coverage_policy,
                 user_email=user_email,
                 layer_only=layer_only,
                 large_scene=large_scene,
@@ -827,6 +954,10 @@ class MaterialAgentClient:
                 cluster_similarity_threshold_medium=cluster_similarity_threshold_medium,
                 cluster_similarity_threshold_high=cluster_similarity_threshold_high,
                 cluster_report=cluster_report,
+                enable_material_generation=enable_material_generation,
+                material_generation_guidance=material_generation_guidance,
+                material_generation_texture_size=material_generation_texture_size,
+                coverage_policy=coverage_policy,
                 user_email=user_email,
                 layer_only=layer_only,
                 large_scene=large_scene,
@@ -886,6 +1017,19 @@ class MaterialAgentClient:
                 time.sleep(reconnect_backoff_seconds)
                 attempts_left -= 1
 
+        status: dict[str, Any] | None = None
+        if saw_done:
+            # Treat SSE ``done`` as a notification to confirm terminal state,
+            # not as authority. Older or intermediate services can close a
+            # stream before result persistence and coverage qualification.
+            try:
+                status = self.get_status(session_id)
+            except Exception:
+                saw_done = False
+            else:
+                if status.get("status") not in {"completed", "failed", "cancelled"}:
+                    saw_done = False
+
         if not saw_done:
             # Polling fallback until terminal state
             if print_stream:
@@ -902,11 +1046,6 @@ class MaterialAgentClient:
                     break
                 time.sleep(2)
 
-        # Try to fetch results (may only exist on completion)
-        try:
-            status = self.get_status(session_id)
-        except Exception:
-            status = None
         return session_id, status
 
 
@@ -944,6 +1083,31 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=600,
         help="Seconds to wait for input preview when --generate-ref-prompt is used",
+    )
+    parser.add_argument(
+        "--enable-material-generation",
+        action="store_true",
+        help="Generate an asset-specific material library before prediction",
+    )
+    parser.add_argument(
+        "--material-generation-guidance",
+        default=None,
+        help="Optional guidance for generated material planning",
+    )
+    parser.add_argument(
+        "--material-generation-texture-size",
+        type=int,
+        default=None,
+        help="Texture map size for generated materials (64-4096)",
+    )
+    parser.add_argument(
+        "--coverage-policy",
+        choices=MATERIAL_COVERAGE_POLICIES,
+        default=None,
+        help=(
+            "Material coverage qualification policy (default: strict for "
+            "single assets, allow_partial for --large-scene)"
+        ),
     )
     parser.add_argument(
         "--ref", action="append", default=None, help="Reference image path (repeatable)"
@@ -1160,6 +1324,23 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _cli_run_succeeded(
+    status: dict[str, Any] | None,
+    *,
+    coverage_policy: str,
+) -> bool:
+    """Return whether a CLI run reached its requested success contract."""
+    if not isinstance(status, dict) or status.get("status") != "completed":
+        return False
+    if coverage_policy != "strict":
+        return True
+    coverage = status.get("coverage")
+    return isinstance(coverage, dict) and coverage.get("readiness_grade") in {
+        "complete",
+        "complete_with_fallback",
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
@@ -1186,6 +1367,16 @@ def main(argv: list[str] | None = None) -> int:
             "--large-scene is not compatible with --upload-first or "
             "--generate-ref-prompt"
         )
+    if args.large_scene and args.enable_material_generation:
+        parser.error(
+            "--large-scene is not compatible with --enable-material-generation"
+        )
+
+    coverage_policy = args.coverage_policy
+    if coverage_policy is None:
+        coverage_policy = "allow_partial" if args.large_scene else "strict"
+        if args.large_scene:
+            print(f"Notice: {_LARGE_SCENE_COVERAGE_NOTICE}", file=sys.stderr)
 
     session_id, status = client.run_and_monitor(
         usd_path=args.usd,
@@ -1218,6 +1409,10 @@ def main(argv: list[str] | None = None) -> int:
         cluster_similarity_threshold_medium=args.cluster_similarity_threshold_medium,
         cluster_similarity_threshold_high=args.cluster_similarity_threshold_high,
         cluster_report=False if args.no_cluster_report else None,
+        enable_material_generation=args.enable_material_generation,
+        material_generation_guidance=args.material_generation_guidance,
+        material_generation_texture_size=args.material_generation_texture_size,
+        coverage_policy=coverage_policy,
         user_email=args.email,
         layer_only=args.layer_only,
         large_scene=args.large_scene,
@@ -1236,6 +1431,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nSession: {session_id}")
     if status is not None:
         print(f"Pipeline status: {status['status']}")
+        coverage = status.get("coverage")
+        if isinstance(coverage, dict):
+            print(
+                "Material readiness: "
+                f"{coverage.get('readiness_grade', 'not_evaluated')} "
+                f"(predictions={coverage.get('prediction_coverage_ratio', 0):.1%}, "
+                f"bindings={coverage.get('binding_coverage_ratio', 0):.1%})"
+            )
         # Useful artifact endpoints
         print("\nArtifacts:")
         print(f"- Pipeline Status:    {client.base_url}/pipeline/{session_id}/status")
@@ -1263,6 +1466,12 @@ def main(argv: list[str] | None = None) -> int:
             )
     else:
         print("No results available yet.")
+    if not _cli_run_succeeded(status, coverage_policy=coverage_policy):
+        print(
+            "Pipeline did not satisfy the requested completion contract.",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

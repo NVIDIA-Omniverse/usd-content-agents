@@ -1,0 +1,4 @@
+interface:
+  display_name: "Large Scene Workflow"
+  short_description: "Run all large-scene phases with durable gates"
+  default_prompt: "Use $content-workflow-large-scene to process this large scene through decomposition, asset tasks, and collection."

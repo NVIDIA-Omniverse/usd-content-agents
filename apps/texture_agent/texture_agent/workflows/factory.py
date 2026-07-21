@@ -7,12 +7,14 @@ from __future__ import annotations
 from typing import Any
 
 from texture_agent.config.schema import STEP_ORDER
+from texture_agent.functions.cached_apply import is_cached_apply_context
 from texture_agent.tasks import (
     ApplyTexturesTask,
     BlendTexturesTask,
     DiscoverMaterialsTask,
+    ExecuteTexturePlanTask,
     GeneratePromptsTask,
-    GenerateTexturesTask,
+    PlanTexturesTask,
     PrepareUVsTask,
     RenderMaterialPreviewsTask,
     RenderOutputTask,
@@ -22,9 +24,10 @@ from texture_agent.tasks import (
 _STEP_TASKS = {
     "prepare_uvs": PrepareUVsTask,
     "discover_materials": DiscoverMaterialsTask,
+    "plan_textures": PlanTexturesTask,
     "generate_prompts": GeneratePromptsTask,
     "render_previews": RenderMaterialPreviewsTask,
-    "generate_textures": GenerateTexturesTask,
+    "generate_textures": ExecuteTexturePlanTask,
     "blend_textures": BlendTexturesTask,
     "apply_textures": ApplyTexturesTask,
     "render": RenderOutputTask,
@@ -114,7 +117,31 @@ def create_texture_pipeline_workflow(
         if task_cls:
             tasks.append(task_cls())
 
+    selected_task_names = {task.name for task in tasks}
+    backend_task_names = {
+        "GeneratePrompts",
+        "GenerateTextures",
+        "ExecuteTexturePlan",
+    }
+    if (
+        only_set is None
+        and selected_task_names.intersection(backend_task_names)
+        and "PlanTextures" not in selected_task_names
+    ):
+        raise ValueError(
+            "plan_textures cannot be skipped or disabled when the workflow "
+            "includes prompt or image-generation backend work"
+        )
+
     return tasks
+
+
+def _task_step_name(task: Any) -> str:
+    """Return the configured step name for a task instance."""
+    for step_name, task_cls in _STEP_TASKS.items():
+        if isinstance(task_cls, type) and isinstance(task, task_cls):
+            return step_name
+    return str(getattr(task, "name", task.__class__.__name__))
 
 
 def run_pipeline(
@@ -147,9 +174,49 @@ def run_pipeline(
         return context
 
     logger.info("Running texture pipeline (%d steps)", len(tasks))
+    completed_steps: list[str] = []
+    context["pipeline_completed_steps"] = completed_steps
+    context.pop("pipeline_failed_step", None)
     for i, task in enumerate(tasks, 1):
+        step_name = _task_step_name(task)
         logger.info("[%d/%d] %s", i, len(tasks), task.name)
-        context = task.run(context)
+        try:
+            requires_plan = task.name in {
+                "GeneratePrompts",
+                "GenerateTextures",
+                "ExecuteTexturePlan",
+            }
+            if task.name == "GeneratePrompts" and is_cached_apply_context(context):
+                requires_plan = False
+            if requires_plan:
+                from texture_agent.tasks.plan_textures import (
+                    require_executable_texture_plan,
+                )
+
+                require_executable_texture_plan(context)
+            context = task.run(context)
+        except Exception:
+            context["pipeline_failed_step"] = step_name
+            if "working_dir" in context:
+                try:
+                    from texture_agent.functions.artifact_manifest import (
+                        write_failed_artifacts_manifest,
+                    )
+
+                    manifest_path = write_failed_artifacts_manifest(
+                        context,
+                        failed_step=step_name,
+                        completed_steps=completed_steps,
+                    )
+                    logger.info("Wrote failed artifact manifest: %s", manifest_path)
+                except Exception:
+                    logger.warning(
+                        "Failed to write the failed artifact manifest; "
+                        "preserving the original pipeline exception."
+                    )
+            raise
+        completed_steps.append(step_name)
+        context["pipeline_completed_steps"] = list(completed_steps)
         logger.info("[%d/%d] %s complete", i, len(tasks), task.name)
 
     if "working_dir" in context:

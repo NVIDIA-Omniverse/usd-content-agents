@@ -6,11 +6,28 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
+from world_understanding.utils.credentials import path_exists_with_safe_diagnostics
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+    retain_safe_result_text,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
+
+from material_agent.api.diagnostics import diagnostic_path
 from material_agent.api.types import APIResult
 
 logger = logging.getLogger(__name__)
+
+_CONFIGURE_FAILURE_MESSAGE = "Configuration creation failed"
+_CONFIG_EXISTS_MESSAGE = "Configuration file already exists; use force=True"
+
+
+def _raise_config_exists() -> NoReturn:
+    """Raise the fixed conflict from a frame with no caller-owned paths."""
+    raise FileExistsError(_CONFIG_EXISTS_MESSAGE) from None
 
 
 @dataclass
@@ -40,15 +57,16 @@ class ConfigureInput:
         self.output_config_path = Path(self.output_config_path)
 
         # Check if file already exists and force is not set
-        if self.output_config_path.exists() and not self.force:
-            raise FileExistsError(
-                f"Configuration file already exists: "
-                f"{self.output_config_path}. Use force=True to overwrite."
-            )
+        if not self.force and path_exists_with_safe_diagnostics(
+            self.output_config_path,
+            label="output configuration file",
+        ):
+            del self
+            _raise_config_exists()
 
 
-@dataclass
-class ConfigureOutput(APIResult):
+@dataclass(repr=False)
+class ConfigureOutput(SecretSafeReprMixin, APIResult):
     """Output results from configure API."""
 
     config_path: Path | None = None
@@ -75,8 +93,16 @@ async def arun_configure(params: ConfigureInput) -> ConfigureOutput:
         ConfigureOutput with results or error information
     """
     logger.info("Starting configuration creation via API")
-    logger.info(f"Output configuration path: {params.output_config_path}")
+    logger.info(
+        "Output configuration path: %s",
+        diagnostic_path(params.output_config_path),
+    )
 
+    workflow: Any = None
+    initial_context: dict[str, Any] | None = None
+    result: Any = None
+    safe_result: dict[str, Any] | None = None
+    config_exists = False
     try:
         # Import workflow factory
         from material_agent.workflows import create_configure_workflow
@@ -86,7 +112,7 @@ async def arun_configure(params: ConfigureInput) -> ConfigureOutput:
         workflow = create_configure_workflow()
 
         # Prepare initial context
-        initial_context: dict[str, Any] = {
+        initial_context = {
             "output_config_path": str(params.output_config_path),
             "force": params.force,
             "verbose": params.verbose,
@@ -99,29 +125,40 @@ async def arun_configure(params: ConfigureInput) -> ConfigureOutput:
         # Run the workflow
         logger.info("Running configuration wizard...")
         result = await workflow.arun(initial_context=initial_context)
+        safe_result = project_result_metadata(result)
 
         # Check if configuration was created successfully
         if result.get("config_created"):
-            config_path = result.get("config_path")
-            pipeline_name = result.get("pipeline_name")
-            input_usd_path = result.get("input_usd_path")
-            materials_library_path = result.get("materials_library_path")
-            output_usd_path = result.get("output_usd_path")
-            dataset_dir = result.get("dataset_dir")
-            predictions_dir = result.get("predictions_dir")
+            config_path = retain_safe_result_path(result.get("config_path"))
+            pipeline_name = retain_safe_result_text(safe_result.get("pipeline_name"))
+            input_usd_path = retain_safe_result_text(
+                result.get("input_usd_path"), path_context=True
+            )
+            materials_library_path = retain_safe_result_text(
+                result.get("materials_library_path"), path_context=True
+            )
+            output_usd_path = retain_safe_result_text(
+                result.get("output_usd_path"), path_context=True
+            )
+            dataset_dir = retain_safe_result_text(
+                result.get("dataset_dir"), path_context=True
+            )
+            predictions_dir = retain_safe_result_text(
+                result.get("predictions_dir"), path_context=True
+            )
 
             logger.info("Configuration file created successfully")
 
             return ConfigureOutput(
                 success=True,
-                config_path=Path(config_path) if config_path else None,
+                config_path=config_path,
                 pipeline_name=pipeline_name,
                 input_usd_path=input_usd_path,
                 materials_library_path=materials_library_path,
                 output_usd_path=output_usd_path,
                 dataset_dir=dataset_dir,
                 predictions_dir=predictions_dir,
-                raw_result=result,
+                raw_result=safe_result,
             )
         else:
             error_msg = "Configuration workflow did not complete successfully"
@@ -129,17 +166,21 @@ async def arun_configure(params: ConfigureInput) -> ConfigureOutput:
             return ConfigureOutput(
                 success=False,
                 error=error_msg,
+                raw_result=safe_result,
             )
 
     except FileExistsError:
-        # Re-raise FileExistsError so it can be caught by caller
-        raise
-    except Exception as e:
-        logger.error(f"Error creating configuration: {str(e)}", exc_info=True)
+        config_exists = True
+    except Exception:
+        logger.error(_CONFIGURE_FAILURE_MESSAGE)
         return ConfigureOutput(
             success=False,
-            error=str(e),
+            error=_CONFIGURE_FAILURE_MESSAGE,
         )
+
+    assert config_exists
+    del initial_context, params, result, safe_result, workflow
+    _raise_config_exists()
 
 
 def run_configure(params: ConfigureInput) -> ConfigureOutput:

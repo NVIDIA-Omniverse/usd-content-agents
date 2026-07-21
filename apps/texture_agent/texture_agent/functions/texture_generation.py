@@ -12,7 +12,6 @@ See: docs/texture_variation_api.md for the full API specification.
 from __future__ import annotations
 
 import logging
-import os
 import tempfile
 import threading
 import uuid
@@ -21,7 +20,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from apps.texture_gen_service_common.artifacts import local_path_from_file_uri
+from apps.texture_gen_service_common.prompting import (
+    NIM_MAX_PROMPT_CHARS,
+    PromptBudgetError,
+    append_bounded_instruction,
+)
 from PIL import Image
+from world_understanding.utils.credentials import (
+    get_env_api_key_for_backend,
+    get_nim_api_key_for_base_url,
+    get_openai_api_key_for_base_url,
+    resolve_endpoint_api_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +43,25 @@ _TEXTURE_PROMPT_SUFFIX = (
     "no lighting effects -- just a flat, front-facing material "
     "texture that tiles seamlessly."
 )
+_NORMAL_PROMPT_SUFFIX = (
+    "Generate a tangent-space normal map texture. "
+    "The image should be predominantly blue-purple (RGB ~128,128,255) "
+    "with subtle red/green variations encoding surface bumps, "
+    "scratches, and surface detail. "
+    "No 3D objects, no perspective -- just a flat normal map texture."
+)
+_ROUGHNESS_PROMPT_SUFFIX = (
+    "Generate a PBR roughness texture map as a grayscale image. "
+    "White = rough/matte areas, black = smooth/glossy areas. "
+    "Worn, scratched, or corroded areas should be brighter (rougher). "
+    "Clean, polished areas should be darker (smoother). "
+    "No 3D objects, no perspective -- just a flat grayscale texture."
+)
+_NORMAL_PROMPT_PREFIX = "Normal map for: "
+_ROUGHNESS_PROMPT_PREFIX = "Roughness map for: "
+# Keep this alias for compatibility with internal diagnostics/tests while the
+# provider contract itself lives in the shared service helper.
+_NIM_MAX_PROMPT_CHARS = NIM_MAX_PROMPT_CHARS
 
 
 # ---------------------------------------------------------------------------
@@ -55,16 +85,41 @@ class Conditioning:
     turntable_video_uri: str | None = None
     """Video of the asset for multi-view conditioning."""
 
+    multiview_image_uris: list[str] = field(default_factory=list)
+    """Ordered still images for multi-view conditioning."""
+
     def validate(self) -> None:
         """Raise ValueError if no conditioning input is provided."""
         has_prompt = bool(self.text_prompt and self.text_prompt.strip())
         has_refs = bool(self.reference_image_uris)
         has_video = bool(self.turntable_video_uri and self.turntable_video_uri.strip())
-        if not (has_prompt or has_refs or has_video):
+        has_multiview = bool(self.multiview_image_uris)
+        if not (has_prompt or has_refs or has_video or has_multiview):
             raise ValueError(
                 "At least one non-empty conditioning input is required "
-                "(text_prompt, reference_image_uris, or turntable_video_uri)."
+                "(text_prompt, reference_image_uris, turntable_video_uri, "
+                "or multiview_image_uris)."
             )
+
+
+@dataclass
+class TextureTarget:
+    """Selected Texture Agent material/prim scope for projection backends."""
+
+    material_name: str | None = None
+    """Texture Agent material key, for example ``Aluminum_Matte``."""
+
+    material_path: str | None = None
+    """USD material prim path selected by Texture Agent."""
+
+    prim_paths: list[str] = field(default_factory=list)
+    """Geometry prim paths bound to this generation unit."""
+
+    mode: str = "per_material"
+    """Generation mode: ``per_material`` or ``per_prim``."""
+
+    strict_scope: bool = True
+    """If true, the backend must not broaden beyond this target."""
 
 
 @dataclass
@@ -83,21 +138,53 @@ class TextureVariationConfig:
     engine: str | None = None
     """Route to a specific backend engine. None = server default."""
 
+    texture_size: int | None = None
+    """Requested square texture resolution. None = backend/source default."""
+
     custom_parameters: dict[str, Any] = field(default_factory=dict)
     """Engine-specific overrides."""
 
 
 @dataclass
-class GeneratedTextures:
-    """Paths to the generated PBR texture set."""
+class BackendCapabilities:
+    """Projection backend capability hints or resolved response capabilities."""
 
-    albedo: str
+    image_conditioning: bool | None = None
+    multiview: bool | None = None
+    normal_map: bool | None = None
+    orm: bool | None = None
+    masks: bool | None = None
+    coverage: bool | None = None
+    geometry_output: str | None = None
+
+
+@dataclass
+class MapArtifact:
+    """Normalized backend map artifact metadata."""
+
+    uri: str
+    width: int | None = None
+    height: int | None = None
+    mime_type: str = "image/png"
+    colorspace: str | None = None
+    packing: str | None = None
+
+
+@dataclass
+class GeneratedTextures:
+    """Paths to the generated texture set.
+
+    Projection backends may return degraded albedo-only results. Missing maps
+    are represented as ``None`` and should be paired with diagnostics.
+    """
+
+    albedo: str | None = None
     """Path/URI to the albedo (base color) texture."""
 
-    normal: str
+    normal: str | None = None
     """Path/URI to the normal map texture."""
 
-    orm: str
+    orm: str | None = None
     """Path/URI to the packed ORM texture (Occlusion=R, Roughness=G, Metallic=B)."""
 
 
@@ -113,6 +200,18 @@ class GenerationResult:
 
     generated_textures: GeneratedTextures
     """Paths to the generated PBR texture files."""
+
+    maps: dict[str, MapArtifact] = field(default_factory=dict)
+    """Canonical map artifacts keyed by channel."""
+
+    auxiliary_artifacts: dict[str, Any] = field(default_factory=dict)
+    """Optional masks, debug previews, and ignored geometry artifacts."""
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+    """Backend/model/capability/seed/size/timing/coverage metadata."""
+
+    diagnostics: list[dict[str, Any]] = field(default_factory=list)
+    """Structured texture-agent-diagnostic.v1 diagnostics."""
 
 
 @dataclass
@@ -194,11 +293,13 @@ class ImageGenEngine(BaseTextureEngine):
         model: str | None = None,
         base_url: str | None = None,
         api_key: str | None = None,
+        api_key_env: str | None = None,
     ) -> None:
         self._backend = backend
         self._model = model
         self._base_url = base_url
         self._api_key = api_key
+        self._api_key_env = api_key_env
         self._model_instance: Any = None
         self._conditioning_warning_emitted = False
         self._conditioning_warning_lock = threading.Lock()
@@ -219,13 +320,27 @@ class ImageGenEngine(BaseTextureEngine):
                 kwargs["model"] = self._model
             if self._base_url:
                 kwargs["base_url"] = self._base_url
-            if self._api_key:
-                kwargs["api_key"] = self._api_key
-
-            if self._backend == "nvidia_inference" and not kwargs.get("api_key"):
-                api_key = os.environ.get("INFERENCE_NVIDIA_API_KEY")
-                if api_key:
-                    kwargs["api_key"] = api_key
+            explicit_api_key = resolve_endpoint_api_key(
+                self._api_key,
+                self._api_key_env,
+            )
+            if self._backend == "nim":
+                api_key = get_nim_api_key_for_base_url(
+                    self._base_url,
+                    explicit_api_key,
+                )
+            elif self._backend == "openai":
+                api_key = get_openai_api_key_for_base_url(
+                    self._base_url,
+                    explicit_api_key,
+                )
+            else:
+                api_key = get_env_api_key_for_backend(
+                    self._backend,
+                    explicit_api_key,
+                )
+            if api_key:
+                kwargs["api_key"] = api_key
 
             logger.info(
                 "Initializing image gen model: backend=%s, model=%s, base_url=%s",
@@ -273,10 +388,66 @@ class ImageGenEngine(BaseTextureEngine):
         output_dir: Path,
         source_resolution: tuple[int, int] | None = None,
     ) -> GeneratedTextures:
-        model = self._ensure_model()
         size = source_resolution or (1024, 1024)
         job_prefix = config.variant_name or "texture"
         base_prompt = conditioning.text_prompt or ""
+
+        # Build every channel prompt before initializing or calling the model.
+        # A channel-specific prefix can make the normal/roughness prompt exceed
+        # a provider limit even when the albedo prompt still fits.  Preflighting
+        # the complete set prevents a partial PBR result after an albedo request
+        # has already been launched.
+        max_prompt_chars = (
+            _NIM_MAX_PROMPT_CHARS if self._backend.strip().lower() == "nim" else None
+        )
+        channel_specs = (
+            (
+                base_prompt,
+                _TEXTURE_PROMPT_SUFFIX,
+                "Flat PBR albedo/base-color texture map.",
+                0,
+            ),
+            (
+                f"{_NORMAL_PROMPT_PREFIX}{base_prompt}",
+                _NORMAL_PROMPT_SUFFIX,
+                "Tangent-space normal texture map.",
+                len(_NORMAL_PROMPT_PREFIX),
+            ),
+            (
+                f"{_ROUGHNESS_PROMPT_PREFIX}{base_prompt}",
+                _ROUGHNESS_PROMPT_SUFFIX,
+                "Grayscale PBR roughness texture map.",
+                len(_ROUGHNESS_PROMPT_PREFIX),
+            ),
+        )
+        channel_prompts: list[str] = []
+        prompt_errors: list[PromptBudgetError] = []
+        for (
+            prompt,
+            instruction,
+            minimum_instruction,
+            service_prefix_chars,
+        ) in channel_specs:
+            try:
+                channel_prompts.append(
+                    append_bounded_instruction(
+                        prompt,
+                        instruction,
+                        max_chars=max_prompt_chars,
+                        minimum_instruction=minimum_instruction,
+                        service_prefix_chars=service_prefix_chars,
+                    )
+                )
+            except PromptBudgetError as exc:
+                prompt_errors.append(exc)
+                channel_prompts.append("")
+
+        if prompt_errors:
+            raise min(prompt_errors, key=lambda exc: exc.max_text_prompt_chars)
+
+        albedo_prompt, normal_prompt, roughness_prompt = channel_prompts
+
+        model = self._ensure_model()
 
         # If the backend can't accept img2img conditioning (e.g. the cloud
         # NIM GenAI endpoint), don't pass the albedo as a reference for
@@ -290,27 +461,19 @@ class ImageGenEngine(BaseTextureEngine):
         # Load reference images for conditioning
         ref_images: list[Image.Image] | None = None
         if conditioning.reference_image_uris:
-            from urllib.parse import urlparse
-
             ref_images = []
             for uri in conditioning.reference_image_uris:
-                parsed = urlparse(uri)
-                if parsed.scheme == "file":
-                    path = parsed.path
-                elif parsed.scheme == "":
-                    # Plain filesystem path (no scheme)
-                    path = uri
-                else:
+                path = local_path_from_file_uri(uri)
+                if path is None:
                     raise ValueError(
-                        f"Unsupported URI scheme '{parsed.scheme}' in "
-                        f"reference_image_uris: {uri}"
+                        f"Unsupported URI scheme in reference_image_uris: {uri}"
                     )
-                ref_images.append(Image.open(path).convert("RGB"))
+                with Image.open(path) as image:
+                    ref_images.append(image.convert("RGB").copy())
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # --- Albedo ---
-        albedo_prompt = f"{base_prompt}. {_TEXTURE_PROMPT_SUFFIX}"
         logger.info("Generating albedo texture (size=%s)", size)
         albedo_img = self._generate_image(model, albedo_prompt, size, ref_images)
         albedo_path = output_dir / f"{job_prefix}_albedo.png"
@@ -321,14 +484,6 @@ class ImageGenEngine(BaseTextureEngine):
         # surface features (scratches, dents, etc.) -- skipped when the
         # backend can't accept reference images (see supports_conditioning
         # check above).
-        normal_prompt = (
-            f"Normal map for: {base_prompt}. "
-            "Generate a tangent-space normal map texture. "
-            "The image should be predominantly blue-purple (RGB ~128,128,255) "
-            "with subtle red/green variations encoding surface bumps, "
-            "scratches, and surface detail. "
-            "No 3D objects, no perspective -- just a flat normal map texture."
-        )
         logger.info("Generating normal map")
         normal_ref = [albedo_img] if supports_conditioning else None
         normal_img = self._generate_image(model, normal_prompt, size, normal_ref)
@@ -337,14 +492,6 @@ class ImageGenEngine(BaseTextureEngine):
 
         # --- ORM (Occlusion, Roughness, Metallic) ---
         # Generate a roughness map, then pack into ORM
-        roughness_prompt = (
-            f"Roughness map for: {base_prompt}. "
-            "Generate a PBR roughness texture map as a grayscale image. "
-            "White = rough/matte areas, black = smooth/glossy areas. "
-            "Worn, scratched, or corroded areas should be brighter (rougher). "
-            "Clean, polished areas should be darker (smoother). "
-            "No 3D objects, no perspective -- just a flat grayscale texture."
-        )
         logger.info("Generating roughness map")
         roughness_ref = [albedo_img] if supports_conditioning else None
         roughness_img = self._generate_image(
@@ -428,6 +575,7 @@ class TextureVariationClient:
         config: TextureVariationConfig | None = None,
         wait: bool = True,
         timeout_sec: int = 600,
+        target: TextureTarget | None = None,
     ) -> JobStatus:
         """Submit a texture variation job.
 
@@ -439,6 +587,7 @@ class TextureVariationClient:
             config: Generation configuration.
             wait: Ignored in local mode (always synchronous).
             timeout_sec: Ignored in local mode.
+            target: Optional selected material/prim scope. Ignored in local mode.
 
         Returns:
             JobStatus with status='completed' and result, or 'failed'.
@@ -468,17 +617,27 @@ class TextureVariationClient:
         )
 
         try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+
             # Run the engine
             textures = self._engine.generate(
                 conditioning=conditioning,
                 config=config,
                 output_dir=output_dir,
+                source_resolution=(config.texture_size, config.texture_size)
+                if config.texture_size
+                else None,
             )
 
             result = GenerationResult(
                 variant_asset_uri=source_asset_uri,  # In v1, no USD rewrite
                 variant_name=variant_name,
                 generated_textures=textures,
+                metadata={
+                    "engine": self._engine.name,
+                    "texture_size": config.texture_size,
+                    "target": target.__dict__ if target else {},
+                },
             )
 
             return JobStatus(
@@ -585,9 +744,9 @@ class ImageGenTextureGenerator(BaseTextureGenerator):
                 output_dir=Path(tmpdir),
                 source_resolution=request.size,
             )
-            image = Image.open(
-                textures.albedo
-            ).copy()  # Load into memory before temp cleanup
+            with Image.open(textures.albedo) as generated:
+                # Load into memory before temp cleanup.
+                image = generated.copy()
 
         return TextureResult(
             image=image,

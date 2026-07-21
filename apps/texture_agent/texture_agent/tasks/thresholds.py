@@ -37,3 +37,41 @@ def validate_failure_threshold(value: Any, *, config_key: str) -> float:
             f"{config_key} must be a finite number in [0.0, 1.0], got {value!r}"
         )
     return threshold
+
+
+def raise_if_failure_threshold_exceeded(
+    *,
+    attempted_count: int,
+    errors: list[dict[str, Any]],
+    backend_label: str,
+    failure_threshold: float,
+) -> None:
+    """Raise when ``errors / attempted_count`` reaches ``failure_threshold``."""
+    if attempted_count <= 0 or not errors:
+        return
+
+    failed_materials = {
+        str(error.get("material"))
+        for error in errors
+        if error.get("material") is not None
+    }
+    failed_count = len(failed_materials) if failed_materials else len(errors)
+    failure_rate = failed_count / attempted_count
+    if failure_rate < failure_threshold:
+        return
+
+    sample_lines = [
+        f"{e['material']}: [{e['type']}"
+        + (f" {e['status']}" if e.get("status") is not None else "")
+        + f"] {e['message']}"
+        for e in errors[:3]
+    ]
+    sample = "\n  - ".join(sample_lines)
+    more = f"\n  ... ({len(errors) - 3} more)" if len(errors) > 3 else ""
+    threshold_pct = int(failure_threshold * 100)
+    raise RuntimeError(
+        f"{failed_count}/{attempted_count} texture generation requests "
+        f"failed via {backend_label} "
+        f"(failure rate {failure_rate:.0%} >= threshold {threshold_pct}%). "
+        f"First errors:\n  - {sample}{more}"
+    )

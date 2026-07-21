@@ -27,8 +27,8 @@ dependencies = [
     "pyyaml>=6.0",
 
     # Physics Agent dependencies (from parent)
-    "physics-agent",
-    "world-understanding",
+    "physics-agent>=0.5.0",
+    "world-understanding>=0.5.0",
 
     # Storage backends (S3 for multi-instance NVCF deployment)
     "aioboto3>=13.0.0",
@@ -36,7 +36,7 @@ dependencies = [
 
     # other
     "httpx>=0.27.0",
-    "requests>=2.31",  # Used by client/client.py, client/client_v2.py, and tests/test_integration.py
+    "requests>=2.33.0",  # Used by client/client.py, client/client_v2.py, and tests/test_integration.py
     "setuptools>=80.9.0",
     "pillow>=10.1.0",
 ]
@@ -69,7 +69,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]

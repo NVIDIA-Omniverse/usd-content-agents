@@ -24,6 +24,7 @@ from pxr import (  # type: ignore[import-untyped]  # noqa: E402
     Usd,
     UsdGeom,
     UsdPhysics,
+    UsdShade,
 )
 
 from physics_agent.tuning.scenarios._scene_builder import (  # noqa: E402
@@ -89,6 +90,197 @@ def _patched_physics_usd(tmp_path: Path) -> Path:
     return p
 
 
+def _nested_rigid_body_usd(tmp_path: Path) -> Path:
+    """RoboCasa-style topology: wrapper rigid body, nested object rigid
+    body, and collision/visible mesh under the nested object."""
+    from pxr import Gf, Vt
+
+    p = tmp_path / "nested_rigid_body.usda"
+    stage = Usd.Stage.CreateNew(str(p))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+
+    world = UsdGeom.Xform.Define(stage, "/World")
+    stage.SetDefaultPrim(world.GetPrim())
+
+    wrapper = UsdGeom.Xform.Define(stage, "/World/Body")
+    UsdPhysics.RigidBodyAPI.Apply(wrapper.GetPrim())
+
+    obj = UsdGeom.Xform.Define(stage, "/World/Body/Object")
+    UsdPhysics.RigidBodyAPI.Apply(obj.GetPrim())
+
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Body/Object/Geom")
+    pts = [
+        (-0.05, -0.05, 0.0),
+        (0.05, -0.05, 0.0),
+        (0.05, 0.05, 0.0),
+        (-0.05, 0.05, 0.0),
+        (-0.05, -0.05, 0.155),
+        (0.05, -0.05, 0.155),
+        (0.05, 0.05, 0.155),
+        (-0.05, 0.05, 0.155),
+    ]
+    mesh.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(*pt) for pt in pts]))
+    mesh.CreateFaceVertexCountsAttr([4] * 6)
+    mesh.CreateFaceVertexIndicesAttr(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            0,
+            1,
+            5,
+            4,
+            2,
+            3,
+            7,
+            6,
+            0,
+            3,
+            7,
+            4,
+            1,
+            2,
+            6,
+            5,
+        ]
+    )
+    mesh.CreateExtentAttr([Gf.Vec3f(-0.05, -0.05, 0.0), Gf.Vec3f(0.05, 0.05, 0.155)])
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
+    UsdPhysics.MassAPI.Apply(mesh.GetPrim()).CreateMassAttr().Set(1.0)
+
+    stage.GetRootLayer().Save()
+    return p
+
+
+def _patched_physics_usd_with_helper_bbox(tmp_path: Path) -> Path:
+    from pxr import Gf
+
+    p = tmp_path / "helper_bbox.usda"
+    stage = Usd.Stage.CreateNew(str(p))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    world = UsdGeom.Xform.Define(stage, "/World")
+    stage.SetDefaultPrim(world.GetPrim())
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    UsdPhysics.RigidBodyAPI.Apply(body.GetPrim())
+    UsdPhysics.MassAPI.Apply(body.GetPrim()).CreateMassAttr().Set(1.0)
+
+    collider = UsdGeom.Cube.Define(stage, "/World/Body/Collider")
+    collider.CreateSizeAttr(1.0)
+    UsdPhysics.CollisionAPI.Apply(collider.GetPrim()).CreateCollisionEnabledAttr(True)
+
+    helper = UsdGeom.Cube.Define(stage, "/World/Body/reg_bbox")
+    helper.CreateSizeAttr(4.0)
+    UsdGeom.Xformable(helper.GetPrim()).AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -2.0))
+    stage.GetRootLayer().Save()
+    return p
+
+
+def test_freeform_scene_uses_first_rigid_body_by_traversal_order(
+    tmp_path: Path,
+) -> None:
+    """Tune assumes the patched USD is a clean single-body asset.
+
+    Nested/multi-body inputs preserve the historical traversal-order
+    selection contract instead of trying to infer intent from descendant
+    collision topology.
+    """
+    patched = _nested_rigid_body_usd(tmp_path)
+    out = tmp_path / "scene.usda"
+
+    info = build_freeform_scene(
+        patched,
+        out,
+        target={"duration_s": 1.0, "initial_pose": {"position": [0.0, 0.0, 0.155]}},
+    )
+
+    assert info["body_prim_path"] == "/World/Body"
+    assert info["body_pattern"] == "/World/Body"
+    assert info["world_up"] == [0.0, 0.0, 1.0]
+    assert info["bbox_min_local_stage"][2] == pytest.approx(0.0, abs=1e-6)
+    assert info["bbox_max_local_stage"][2] == pytest.approx(0.155, abs=1e-6)
+
+    rec = Usd.Stage.Open(str(out))
+    assert rec.GetPrimAtPath(Sdf.Path("/SceneRoot/GroundPlane")).IsValid()
+
+
+def test_freeform_scene_records_bbox_after_selected_body_transform(
+    tmp_path: Path,
+) -> None:
+    """Selection stays traversal-order based, while bbox metadata still
+    reflects transforms on the selected rigid-body subtree."""
+    from pxr import Gf
+
+    patched = _nested_rigid_body_usd(tmp_path)
+    stage = Usd.Stage.Open(str(patched))
+    body = stage.GetPrimAtPath("/World/Body")
+    xformable = UsdGeom.Xformable(body)
+    xformable.AddRotateZOp().Set(90.0)
+    xformable.AddScaleOp().Set(Gf.Vec3f(2.0, 1.0, 1.0))
+    stage.GetRootLayer().Save()
+    out = tmp_path / "scene.usda"
+
+    info = build_freeform_scene(
+        patched,
+        out,
+        target={"duration_s": 1.0, "initial_pose": {"position": [0.0, 0.0, 0.155]}},
+    )
+
+    assert info["body_prim_path"] == "/World/Body"
+    assert info["body_pattern"] == "/World/Body"
+    assert info["bbox_min_local_stage"] == pytest.approx([-0.05, -0.05, 0.0])
+    assert info["bbox_max_local_stage"] == pytest.approx([0.05, 0.05, 0.155])
+    assert info["bbox_local_stage_scale"] == pytest.approx([2.0, 1.0, 1.0])
+    assert info["meters_per_unit"] == pytest.approx(1.0)
+
+
+def test_drop_settle_scene_uses_collider_bounds_for_pose_local_acceptance(
+    tmp_path: Path,
+) -> None:
+    patched = _patched_physics_usd_with_helper_bbox(tmp_path)
+
+    info = build_drop_settle_scene(
+        patched,
+        tmp_path / "scene.usda",
+        drop_height_m=1.0,
+        gravity=-9.81,
+    )
+
+    assert info["bbox_min_local_stage"] == pytest.approx([-0.5, -0.5, -0.5])
+    assert info["bbox_max_local_stage"] == pytest.approx([0.5, 0.5, 0.5])
+
+
+def test_drop_settle_scene_reports_composed_scale_for_pose_local_bounds(
+    tmp_path: Path,
+) -> None:
+    from pxr import Gf
+
+    patched = _patched_physics_usd(tmp_path)
+    stage = Usd.Stage.Open(str(patched))
+    UsdGeom.Xformable(stage.GetPrimAtPath("/World")).AddScaleOp().Set(
+        Gf.Vec3f(2.0, 3.0, 4.0)
+    )
+    body_xformable = UsdGeom.Xformable(stage.GetPrimAtPath("/World/Body"))
+    matrix = Gf.Matrix4d(1.0)
+    matrix.SetScale(Gf.Vec3d(0.5, 2.0, 1.5))
+    body_xformable.AddTransformOp().Set(matrix)
+    stage.GetRootLayer().Save()
+
+    info = build_drop_settle_scene(
+        patched,
+        tmp_path / "scene.usda",
+        drop_height_m=1.0,
+        gravity=-9.81,
+    )
+
+    assert info["bbox_local_stage_scale"] == pytest.approx([1.0, 6.0, 6.0])
+
+
 def test_freeform_scene_with_rotation_authors_rotate_op(tmp_path: Path) -> None:
     """A freeform target with ``initial_pose.rotation`` exercises
     ``_set_body_rotation``. The previous code referenced a non-existent
@@ -135,9 +327,11 @@ def test_freeform_scene_without_rotation_skips_rotate_op(tmp_path: Path) -> None
 
     target = {
         "duration_s": 1.0,
+        "gravity": -1.25,
         "initial_pose": {"position": [0.0, 0.5, 0.0]},
     }
     info = build_freeform_scene(patched, out, target=target)
+    assert info["gravity_magnitude_m_per_s2"] == pytest.approx(1.25)
 
     rec = Usd.Stage.Open(str(out))
     body = rec.GetPrimAtPath(Sdf.Path(info["body_prim_path"]))
@@ -271,6 +465,12 @@ def test_drop_settle_scene_handles_z_up_cm_stage(tmp_path: Path) -> None:
     assert info["rest_position"][0] == pytest.approx(0.0)
     assert info["rest_position"][1] == pytest.approx(0.0)
     assert info["rest_position"][2] == pytest.approx(0.0, abs=1e-6)
+    assert info["bbox_local_stage_space"] == "pose_local"
+    assert info["bbox_local_stage_scale"] == pytest.approx([1.0, 1.0, 1.0])
+    assert info["meters_per_unit"] == pytest.approx(1.0)
+    assert info["gravity_magnitude_m_per_s2"] == pytest.approx(9.81)
+    assert info["bbox_min_local_stage"][2] == pytest.approx(0.0, abs=1e-6)
+    assert info["bbox_max_local_stage"][2] == pytest.approx(2.0, abs=1e-3)
 
     # ``world_up`` must be authoritative — Z-up here regardless of the
     # rest_position carrying no signal. Downstream consumers (the judge's
@@ -306,6 +506,9 @@ def test_drop_settle_scene_y_up_centered_unchanged(tmp_path: Path) -> None:
 
     # Centered sphere: rest translate = +bbox_h/2 on the up-axis.
     assert info["rest_position"][1] == pytest.approx(0.25, abs=1e-3)
+    assert info["bbox_local_stage_space"] == "pose_local"
+    assert info["bbox_min_local_stage"][1] == pytest.approx(-0.25, abs=1e-3)
+    assert info["bbox_max_local_stage"][1] == pytest.approx(0.25, abs=1e-3)
 
     # Y-up stage → world_up reports Y.
     assert info["world_up"] == [0.0, 1.0, 0.0]
@@ -1009,6 +1212,49 @@ def test_ground_plane_is_outside_body_subtree(tmp_path: Path) -> None:
         "no static collider authored outside the rigid-body subtree; "
         "the ground plane is missing or wrongly nested under the body"
     )
+
+
+def test_ground_plane_material_is_matte_preview_surface(tmp_path: Path) -> None:
+    """The synthetic physics ground must also carry a visual material.
+
+    A physics-only ``UsdShade.Material`` leaves RTX renderers to infer
+    visual defaults, which can turn the ground plane glossy under the
+    default HDRI dome. Keep the turntable-style dark matte preview
+    shader while preserving the physics material attributes.
+    """
+    patched = _patched_physics_usd(tmp_path)
+    out = tmp_path / "scene.usda"
+
+    build_drop_settle_scene(patched, out, drop_height_m=0.5)
+
+    rec = Usd.Stage.Open(str(out))
+    material = UsdShade.Material.Get(rec, Sdf.Path("/SceneRoot/GroundPlaneMaterial"))
+    assert material
+
+    surface = material.GetSurfaceOutput()
+    assert surface.GetAttr().GetConnections() == [
+        Sdf.Path("/SceneRoot/GroundPlaneMaterial/PreviewSurface.outputs:surface")
+    ]
+
+    shader = UsdShade.Shader.Get(
+        rec, Sdf.Path("/SceneRoot/GroundPlaneMaterial/PreviewSurface")
+    )
+    assert shader
+    assert shader.GetIdAttr().Get() == "UsdPreviewSurface"
+    assert tuple(shader.GetInput("diffuseColor").Get()) == pytest.approx(
+        (0.14, 0.14, 0.14)
+    )
+    assert shader.GetInput("roughness").Get() == pytest.approx(0.86)
+    assert shader.GetInput("metallic").Get() == pytest.approx(0.0)
+    assert shader.GetInput("useSpecularWorkflow").Get() == 1
+    assert tuple(shader.GetInput("specularColor").Get()) == pytest.approx(
+        (0.0, 0.0, 0.0)
+    )
+
+    physics_material = UsdPhysics.MaterialAPI(material.GetPrim())
+    assert physics_material.GetStaticFrictionAttr().Get() == pytest.approx(0.5)
+    assert physics_material.GetDynamicFrictionAttr().Get() == pytest.approx(0.5)
+    assert physics_material.GetRestitutionAttr().Get() == pytest.approx(0.0)
 
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pxr import Sdf, Usd
+    from pxr import Sdf, Usd  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 

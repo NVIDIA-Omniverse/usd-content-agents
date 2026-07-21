@@ -4,7 +4,7 @@
 """Practical test to demonstrate concurrency fixes.
 
 This script simulates real-world concurrent pipeline execution to verify:
-1. Temp config files have unique paths (no collisions)
+1. Child workflow configs stay isolated in memory without transport files
 2. State file I/O is protected by locking (no corruption)
 3. Concurrent pipelines with different session IDs work correctly
 """
@@ -195,35 +195,13 @@ def test_concurrent_pipelines(num_processes=10, num_steps=5):
 
         print()
 
-        # Check for temp file uniqueness
-        print("TEMP FILE CHECKS:")
-        all_temp_files = []
-        for session_dir in working_dir.glob(".session_*"):
-            temp_dir = session_dir / ".pipeline_temp"
-            if temp_dir.exists():
-                temp_files = list(temp_dir.glob("*.yaml"))
-                all_temp_files.extend(temp_files)
-
-        if all_temp_files:
-            print(f"  Total temp files created: {len(all_temp_files)}")
-
-            # Check for uniqueness
-            file_names = [f.name for f in all_temp_files]
-            unique_names = set(file_names)
-
-            if len(file_names) == len(unique_names):
-                print("  ✓ All temp file names are unique")
-            else:
-                duplicates = len(file_names) - len(unique_names)
-                print(f"  ✗ Found {duplicates} duplicate temp file names")
-
-            # Check for UUID pattern in names
-            uuid_pattern_count = sum(
-                1 for name in file_names if len(name.split("_")) >= 3
-            )
-            print(f"  ✓ {uuid_pattern_count}/{len(file_names)} files have UUID pattern")
+        print("CONFIG ARTIFACT CHECKS:")
+        temp_dirs = list(working_dir.rglob(".pipeline_temp"))
+        if temp_dirs:
+            corrupted += len(temp_dirs)
+            print(f"  ✗ Found {len(temp_dirs)} unexpected config transport directories")
         else:
-            print("  No temp files found (expected for this test)")
+            print("  ✓ No config transport files or directories found")
 
         print()
 
@@ -242,44 +220,24 @@ def test_concurrent_pipelines(num_processes=10, num_steps=5):
             return False
 
 
-def test_temp_file_uniqueness():
-    """Test that temp config files have unique names."""
+def test_in_memory_config_isolation() -> None:
+    """Test that child config copies are independent and preserve secrets."""
     print("=" * 80)
-    print("TESTING TEMP FILE UNIQUENESS")
+    print("TESTING IN-MEMORY CONFIG ISOLATION")
     print("=" * 80)
 
     from material_agent.tasks.unified_pipeline_executor import (
-        UnifiedPipelineExecutorTask,
+        _build_child_config_dict,
     )
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        working_dir = Path(tmpdir)
-        executor = UnifiedPipelineExecutorTask()
+    source = {"credentials": {"api_key": "x", "nested": [{"token": "tiny"}]}}
+    first = _build_child_config_dict(source)
+    second = _build_child_config_dict(source)
+    first["credentials"]["nested"][0]["token"] = "mutated"
 
-        print("Creating 100 temp config files with same step name...")
-
-        paths = []
-        for i in range(100):
-            path = executor._create_temp_config_file(
-                step_name="predict",  # Same name for all
-                step_config={"model": f"test_{i}"},
-                working_dir=working_dir,
-            )
-            paths.append(path)
-
-        print(f"Created {len(paths)} files")
-        print(f"Unique paths: {len(set(paths))}")
-
-        if len(paths) == len(set(paths)):
-            print("✅ All paths are unique!")
-            print()
-            print("Sample paths:")
-            for path in paths[:5]:
-                print(f"  {path.name}")
-            return True
-        else:
-            print(f"❌ Found {len(paths) - len(set(paths))} duplicate paths!")
-            return False
+    assert second["credentials"]["nested"][0]["token"] == "tiny"
+    assert source["credentials"]["api_key"] == "x"
+    assert source["credentials"]["nested"][0]["token"] == "tiny"
 
 
 if __name__ == "__main__":
@@ -289,8 +247,9 @@ if __name__ == "__main__":
     print("╚════════════════════════════════════════════════════════════════════════╝")
     print()
 
-    # Test 1: Temp file uniqueness
-    test1_pass = test_temp_file_uniqueness()
+    # Test 1: In-memory config isolation
+    test_in_memory_config_isolation()
+    test1_pass = True
     print()
 
     # Test 2: Concurrent pipeline execution
@@ -302,7 +261,7 @@ if __name__ == "__main__":
     print("║                           FINAL RESULTS                                ║")
     print("╚════════════════════════════════════════════════════════════════════════╝")
     print()
-    print(f"  Temp File Uniqueness: {'✅ PASS' if test1_pass else '❌ FAIL'}")
+    print(f"  In-Memory Config Isolation: {'✅ PASS' if test1_pass else '❌ FAIL'}")
     print(f"  Concurrent Execution: {'✅ PASS' if test2_pass else '❌ FAIL'}")
     print()
 

@@ -198,6 +198,7 @@ async def health() -> HealthResponse:
         gpu_initialized=gpu_initialized,
         renderer_initialized=renderer_initialized,
         daemon_running=daemon_running,
+        **renderer.daemon_lifecycle,
     )
 
 
@@ -249,5 +250,6 @@ def render(request: RenderRequest) -> dict[str, Any]:
         sensors=settings.sensors,
         num_sensor_updates=settings.num_sensor_updates,
         render_mode=settings.render_mode,
+        material_target=settings.material_target,
     )
     return result

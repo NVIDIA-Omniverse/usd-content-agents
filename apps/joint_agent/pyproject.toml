@@ -1,0 +1,117 @@
+[project]
+name = "joint-agent"
+dynamic = ["version"]
+description = "Articulated body joint classification agent for robot arms built on world-understanding framework"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    # The public joint_rigger package first ships in v0.5.0.
+    "world-understanding>=0.5.0",
+    "setuptools>=80.9.0",
+]
+
+
+[build-system]
+requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.5.0"
+from-file = { source = "../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[project.optional-dependencies]
+dev = [
+    "world-understanding[dev]>=0.5.0",
+]
+all = [
+    "joint-agent[dev]",
+]
+
+[project.scripts]
+joint-agent = "joint_agent.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["joint_agent"]
+
+[tool.ruff]
+# Match world-understanding's ruff configuration
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+]
+ignore = [
+    "E501",  # line too long
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["F401", "F811"]
+
+[tool.mypy]
+# Match world-understanding's mypy configuration
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+asyncio_mode = "auto"
+addopts = [
+    "--verbose",
+    "--cov=joint_agent",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["joint_agent"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@abstract",
+    "@abstractmethod",
+]
+
+[tool.uv.sources]
+world-understanding = { path = "../..", editable = true }

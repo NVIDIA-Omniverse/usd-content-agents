@@ -1,0 +1,269 @@
+{
+  "$schema": "../../../schemas/skill_eval_suite.schema.json",
+  "schema_version": "1.0",
+  "suite_version": "1.0.1",
+  "skill": "material-agent-client",
+  "source": {
+    "report": "skill-eval-report-iter1-2026-07-13.md",
+    "report_date": "2026-07-13",
+    "iteration": 1,
+    "original_cases_artifact": "unavailable",
+    "reconstruction_note": "The original generated case file was absent from the report archive. These nine approved case titles, prompts, and iteration-one corrections were reconstructed from the human-readable report."
+  },
+  "methodology": {
+    "isolation": {
+      "fresh_workspace_per_run": true,
+      "baseline_skill_access": "none",
+      "candidate_skill_access": "target-only",
+      "cleanup_between_runs": true,
+      "sibling_skill_stubs": [
+        "deploy-material-agent-docker",
+        "material-agent-cli",
+        "texture-agent-client"
+      ]
+    },
+    "portability": {
+      "required_cells": [
+        {
+          "harness": "claude-code",
+          "model": "current-supported-claude"
+        },
+        {
+          "harness": "codex",
+          "model": "current-supported-gpt"
+        }
+      ],
+      "portable_uplift_requires_all_cells": true
+    }
+  },
+  "cases": [
+    {
+      "id": "positive-upload-run-download",
+      "source_case": "Positive 1 - Upload a USD, run material assignment, and download output",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Use the running Material Agent REST service to upload the ladder USD, run material assignment, monitor it to completion, and download the materialized USD and predictions.",
+      "fixture_paths": [
+        "apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "apps/material_agent_service/client/client.py",
+        "apps/material_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "uses-service-client-flow",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Checks GET /health, uses exactly one supported input source, monitors terminal service status, and names the predictions and output-USD downloads without starting the service."
+        },
+        {
+          "id": "verifies-one-service-submission",
+          "leg": "live",
+          "evidence": "service-state",
+          "description": "Derives the new session count from GET /sessions before and after submission, verifies exactly one case-owned pipeline session reached completed, and downloads existing artifacts."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "A Material Agent service is already running and GET /health succeeds.",
+          "Any bearer token is available through MATERIAL_AGENT_TOKEN without exposing it.",
+          "The service has working VLM, rendering, optimizer, and storage configuration for the request."
+        ],
+        "side_effects": [
+          "Creates one service pipeline session and server-side session artifacts.",
+          "Downloads predictions and a materialized USD into a case-specific temporary directory."
+        ],
+        "cleanup": [
+          "Delete the case-owned session through DELETE /sessions/{id} when supported.",
+          "Remove the case-specific download directory and leave the pre-existing service running."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-python-client-reference-image",
+      "source_case": "Positive 2 - Write a Python client script with a reference image and monitoring",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Write a Python client example that submits the ladder USD plus its reference image to an existing Material Agent service, monitors status, handles failure, and downloads results.",
+      "fixture_paths": [
+        "apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg",
+        ".agents/skills/material-agent-client/references/client.py"
+      ],
+      "expected": [
+        {
+          "id": "writes-bounded-client-script",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Uses the bundled client contract, supplies reference_images with the provided image path, polls with a timeout, handles failed and cancelled terminal states, and keeps authentication in environment variables."
+        }
+      ]
+    },
+    {
+      "id": "positive-regenerate-predict-step",
+      "source_case": "Positive 3 - Regenerate the predict step with a prompt",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "For a completed Material Agent service session, regenerate only the predict step with a prompt emphasizing painted steel, wait for completion, and compare the new predictions.",
+      "fixture_paths": [
+        "apps/material_agent_service/examples/regenerate_request.json",
+        "apps/material_agent_service/examples/regenerate_client_usage.py",
+        "apps/material_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "uses-regenerate-endpoint",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Uses POST /pipeline/{id}/regenerate with the supported step and prompt fields, monitors the returned session, and does not resubmit the original upload as a new pipeline."
+        },
+        {
+          "id": "verifies-in-place-regeneration",
+          "leg": "live",
+          "evidence": "service-state",
+          "description": "Uses GET /sessions to verify regeneration does not create another session, waits for the same session ID to complete, and retrieves its updated predictions before comparison."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "A Material Agent service is already healthy.",
+          "A completed case-owned pipeline session with reusable inputs exists.",
+          "The service provider and rendering dependencies required by regeneration are available."
+        ],
+        "side_effects": [
+          "Mutates the prerequisite pipeline session in place and writes regenerated prediction artifacts on the service.",
+          "Downloads regenerated predictions into a case-specific temporary directory."
+        ],
+        "cleanup": [
+          "Delete the case-owned pipeline session after regeneration.",
+          "Remove downloaded comparison artifacts and leave the service running."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-generate-reference-image",
+      "source_case": "Positive 4 - Generate an AI reference image before the pipeline",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Plan, but do not execute, the exact provided Material Agent client workflow for an already running service: upload the ladder USD, wait for its input preview, generate an AI reference image with the prompt 'Satin red painted metal with black rubber feet', and start the pipeline with that generated reference.",
+      "fixture_paths": [
+        "apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "apps/material_agent_service/openapi.yaml",
+        ".agents/skills/material-agent-client/references/client.py"
+      ],
+      "expected": [
+        {
+          "id": "uses-service-generated-reference",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Plans the service-native generated-reference flow: upload the USD, wait for its input preview, POST /pipeline/{session_id}/generate-reference-image, read the returned reference_id, and submit it as generated_reference_id; or plans run_and_monitor with generated_reference_prompt for the equivalent bundled sequence. Does not contact the service or claim execution."
+        }
+      ]
+    },
+    {
+      "id": "positive-custom-materials-zip",
+      "source_case": "Positive 5 - Submit a custom materials ZIP",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Show the exact client workflow for submitting the ladder USD with the provided custom-materials ZIP and downloading the materialized result from an existing Material Agent service.",
+      "fixture_paths": [
+        "apps/material_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "apps/material_agent_service/examples/custom_materials.zip",
+        "apps/material_agent_service/examples/custom_materials/materials.yaml"
+      ],
+      "expected": [
+        {
+          "id": "uses-custom-materials-input",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Validates the ZIP fixture, supplies it through the supported custom-materials field, monitors the pipeline, and explains how to confirm the result used the custom catalog without claiming execution."
+        }
+      ]
+    },
+    {
+      "id": "negative-deploy-service",
+      "source_case": "Negative 1 - Deploy the service with Docker",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Build and start the Material Agent service containers with Docker Compose.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-deployment-skill",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes to deploy-material-agent-docker and performs no Docker mutation because this client skill requires an already running service."
+        }
+      ]
+    },
+    {
+      "id": "negative-use-local-cli",
+      "source_case": "Negative 2 - Run the local CLI without a service",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "There is no REST service. Run material assignment directly with the local Material Agent CLI.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-local-cli",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes to material-agent-cli and does not invent a service URL or start service containers."
+        }
+      ]
+    },
+    {
+      "id": "negative-generate-textures",
+      "source_case": "Negative 3 - Generate textures",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Call a service to generate new AI textures for this USD.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-texture-client",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes to texture-agent-client and distinguishes texture generation from Material Agent material assignment."
+        }
+      ]
+    },
+    {
+      "id": "negative-general-usd-question",
+      "source_case": "Negative 4 - General question about USD payloads",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "What is a USD payload, and how does composition work?",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "answers-without-service-workflow",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Answers directly without invoking the Material Agent service or fabricating a session."
+        }
+      ]
+    }
+  ]
+}

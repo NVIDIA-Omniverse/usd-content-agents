@@ -9,8 +9,10 @@ require both a local SO package and NVCF access.
 """
 
 import base64
+import importlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -23,6 +25,8 @@ from world_understanding.functions.graphics.uv_generation import (
     generate_atlas_uvs,
     generate_projection_uvs,
 )
+
+uv = importlib.import_module("world_understanding.functions.graphics.uv_generation")
 
 # ---------------------------------------------------------------------------
 # ProjectionType enum tests
@@ -242,6 +246,18 @@ class TestGenerateProjectionUvsMocked:
             input_path.touch()
             with pytest.raises(RuntimeError, match="UV generation subprocess failed"):
                 generate_projection_uvs(input_path, tmp_path / "out.usd")
+
+    def test_subprocess_timeout(self, env_setup, tmp_path):
+        """TimeoutExpired is normalized to RuntimeError."""
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["so-python"], timeout=3),
+        ):
+            with pytest.raises(RuntimeError, match="timed out after 3s"):
+                generate_projection_uvs(input_path, tmp_path / "out.usd", timeout=3)
 
     def test_subprocess_env_includes_python_libdir(self, env_setup, tmp_path):
         """The UV worker subprocess gets the SO Python's LIBDIR injected.
@@ -528,6 +544,39 @@ class TestGenerateAtlasUvsMocked:
         assert op["scaleUnits"] == 1.0
         assert op["overwriteExisting"] is False
 
+    def test_paths_filter(self, env_setup, tmp_path):
+        """Specific prim paths are passed through for atlas UVs."""
+        captured = {}
+
+        def mock_run(cmd, **kwargs):
+            params = json.loads(cmd[-1])
+            captured.update(params)
+            with open(params["manifest_path"], "w") as f:
+                json.dump(
+                    {
+                        "status": "success",
+                        "operation": "generateAtlasUVs",
+                        "operation_time": 0.1,
+                        "total_time": 0.2,
+                        "stage_size_bytes": 0,
+                        "mesh_count": 1,
+                        "meshes_with_uvs": 1,
+                    },
+                    f,
+                )
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = ""
+            result.stderr = ""
+            return result
+
+        with patch("subprocess.run", side_effect=mock_run):
+            input_path = tmp_path / "input.usd"
+            input_path.touch()
+            generate_atlas_uvs(input_path, tmp_path / "out.usd", paths=["/World/Mesh"])
+
+        assert captured["op_params"]["paths"] == ["/World/Mesh"]
+
 
 # ---------------------------------------------------------------------------
 # Integration tests (require an unpacked Scene Optimizer Core package)
@@ -660,6 +709,128 @@ class TestBuildUvGenerationSettings:
 
 class TestNvcfBackendMocked:
     """Test NVCF backend with mocked execute_nvcf_request_async."""
+
+    @pytest.mark.asyncio
+    async def test_generate_uvs_from_url_reports_missing_stage_base64(self, tmp_path):
+        """Successful transport without payload returns an error result."""
+
+        async def mock_execute(*args, **kwargs):
+            return {"success": True, "operations_executed": ["generateProjectionUVs"]}
+
+        with (
+            patch(
+                "world_understanding.utils.nvcf_utils.get_nvcf_api_key",
+                return_value="test-key",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_base_url",
+                return_value="https://api.nvcf.nvidia.com/v2/func/123",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.execute_nvcf_request_async",
+                side_effect=mock_execute,
+            ),
+        ):
+            result = await uv._generate_uvs_from_url(
+                "https://example.test/input.usd",
+                tmp_path / "output.usdc",
+                "generateProjectionUVs",
+                {"projectionType": 4},
+            )
+
+        assert result["status"] == "error"
+        assert result["error"] == "No generated_stage_base64 in response"
+
+    @pytest.mark.asyncio
+    async def test_generate_uvs_from_url_counts_meshes_with_uvs(self, tmp_path):
+        """NVCF helper counts mesh UVs in the returned stage when pxr can open it."""
+        generated_usd = b"""#usda 1.0
+def Mesh "Mesh"
+{
+    int[] faceVertexCounts = [3]
+    int[] faceVertexIndices = [0, 1, 2]
+    point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+    texCoord2f[] primvars:st = [(0, 0), (1, 0), (0, 1)] (
+        interpolation = "faceVarying"
+    )
+}
+"""
+        fake_b64 = base64.b64encode(generated_usd).decode()
+
+        async def mock_execute(*args, **kwargs):
+            return {
+                "success": True,
+                "operations_executed": ["generateProjectionUVs"],
+                "generated_stage_base64": fake_b64,
+            }
+
+        with (
+            patch(
+                "world_understanding.utils.nvcf_utils.get_nvcf_api_key",
+                return_value="test-key",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_base_url",
+                return_value="https://api.nvcf.nvidia.com/v2/func/123",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.execute_nvcf_request_async",
+                side_effect=mock_execute,
+            ),
+        ):
+            result = await uv._generate_uvs_from_url(
+                "https://example.test/input.usd",
+                tmp_path / "output.usda",
+                "generateProjectionUVs",
+                {"projectionType": 4},
+            )
+
+        assert result["status"] == "success"
+        assert result["mesh_count"] == 1
+        assert result["meshes_with_uvs"] == 1
+
+    @pytest.mark.asyncio
+    async def test_generate_uvs_from_path_uploads_to_s3_and_cleans_up(self, tmp_path):
+        """S3 upload path delegates to URL helper and deletes the temporary object."""
+        input_path = tmp_path / "input.txt"
+        input_path.write_bytes(b"usd")
+        deleted: list[str] = []
+        captured: dict[str, object] = {}
+
+        async def fake_generate_from_url(**kwargs):
+            captured.update(kwargs)
+            return {"status": "success", "operation": kwargs["operation"]}
+
+        with (
+            patch(
+                "world_understanding.utils.s3_utils.upload_file_to_s3",
+                return_value="s3://bucket/key",
+            ) as upload,
+            patch(
+                "world_understanding.utils.nvcf_utils.s3_uri_to_https_url",
+                return_value="https://bucket.example/key",
+            ),
+            patch(
+                "world_understanding.utils.s3_utils.delete_s3_path",
+                side_effect=lambda s3_uri, profile_name=None: deleted.append(s3_uri),
+            ),
+            patch(
+                "world_understanding.functions.graphics.uv_generation._generate_uvs_from_url",
+                new=fake_generate_from_url,
+            ),
+        ):
+            result = await uv._generate_uvs_from_path(
+                input_path,
+                tmp_path / "out.usd",
+                "generateProjectionUVs",
+                {"projectionType": 4},
+                use_data_uri=False,
+            )
+
+        assert result == {"status": "success", "operation": "generateProjectionUVs"}
+        assert upload.call_args.kwargs["s3_path"].endswith("/input.usd")
+        assert captured["input_url"] == "https://bucket.example/key"
+        assert deleted == ["s3://bucket/key"]
 
     def test_nvcf_projection_uvs(self, tmp_path):
         """backend='remote' calls NVCF /generate-uvs and writes output."""

@@ -1981,6 +1981,68 @@ def test_physical_behavior_refine_summary_continue_needs_refinement(
     assert physical_behavior.metrics["judge_decision"] == "continue"
 
 
+def test_physical_behavior_required_continue_summary_fails(tmp_path: Path) -> None:
+    video_path = tmp_path / "behavior.mp4"
+    video_path.write_bytes(b"not decoded by scaffold")
+    refine_dir = _write_physical_behavior_refine_output(
+        tmp_path / "refine",
+        termination_reason="max_iterations",
+        judge_decision="continue",
+        judge_score=0.3,
+    )
+    request = create_draft_validation_request(
+        task_description="Reject a rollout that tips over.",
+        inputs=(video_path,),
+        working_dir=tmp_path / "run",
+        requested_templates=("physical_behavior",),
+        policy={
+            "behavior_evidence_required": True,
+            "physical_behavior_refine_output_dir": str(refine_dir),
+        },
+    )
+
+    result = run_validation_scaffold(request)
+
+    assert result.verdict == "fail"
+    physical_behavior = result.template_results[0]
+    assert physical_behavior.status == "failed"
+    assert physical_behavior.issues[0].code == "physics.behavior_needs_refinement"
+    assert physical_behavior.issues[0].severity == "fail"
+    assert physical_behavior.metrics["termination_reason"] == "max_iterations"
+    assert physical_behavior.metrics["judge_decision"] == "continue"
+
+
+def test_physical_behavior_required_rejected_summary_fails(tmp_path: Path) -> None:
+    video_path = tmp_path / "behavior.mp4"
+    video_path.write_bytes(b"not decoded by scaffold")
+    refine_dir = _write_physical_behavior_refine_output(
+        tmp_path / "refine",
+        termination_reason="max_iterations_reached",
+        judge_decision="reject",
+        judge_score=0.3,
+    )
+    request = create_draft_validation_request(
+        task_description="Reject a rollout that tips over.",
+        inputs=(video_path,),
+        working_dir=tmp_path / "run",
+        requested_templates=("physical_behavior",),
+        policy={
+            "behavior_evidence_required": True,
+            "physical_behavior_refine_output_dir": str(refine_dir),
+        },
+    )
+
+    result = run_validation_scaffold(request)
+
+    assert result.verdict == "fail"
+    physical_behavior = result.template_results[0]
+    assert physical_behavior.status == "failed"
+    assert physical_behavior.issues[0].code == "physics.behavior_rejected"
+    assert physical_behavior.issues[0].severity == "fail"
+    assert physical_behavior.metrics["termination_reason"] == "max_iterations_reached"
+    assert physical_behavior.metrics["judge_decision"] == "reject"
+
+
 def test_physical_behavior_completed_judge_continue_needs_refinement(
     tmp_path: Path,
 ) -> None:

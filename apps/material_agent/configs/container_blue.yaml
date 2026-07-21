@@ -1,0 +1,152 @@
+# Public Material Agent example: recolor the bundled warehouse container blue.
+#
+# Requirements:
+#   - NVIDIA_API_KEY from https://build.nvidia.com
+#   - Local OVRTX rendering support
+#
+# Usage:
+#   material-agent run apps/material_agent/configs/container_blue.yaml --clean
+
+project:
+  name: container_blue
+  session_id: container_blue
+  description: Assign blue molded-plastic materials to the example container.
+
+input:
+  usd_path: ../../physics_agent/data/examples/Container_Gray_C04/container.usdc
+
+output:
+  layer_only: false
+  flatten_output: false
+
+materials:
+  path: ../data/materials/material_libs_default/materials.yaml
+
+steps:
+  validate_input:
+    enabled: true
+    on_failure: warn
+
+  optimize_usd:
+    enabled: false
+
+  build_dataset_usd:
+    enabled: true
+    renderer:
+      backend: ovrtx
+      image_width: 512
+      image_height: 512
+      log_level: warn
+      camera_view_type: corner
+      rendering_modes:
+        composition:
+          margin: 6.0
+          cameras: ["+x", "+y"]
+          camera_focus_mode: stage
+          skip_occluded_images: false
+          use_original_materials: true
+        prim_only_original:
+          margin: 1.2
+          cameras: ["+x+y+z", "-x-y-z"]
+          camera_focus_mode: prim
+          use_original_materials: true
+      should_highlight_prim: false
+      should_assign_random_colors: true
+    prim_filters:
+      types: [UsdGeom.Mesh]
+      skip_instances: true
+      skip_prototypes: false
+      skip_invisible: true
+    extract_material_bindings: true
+    extract_hierarchy: true
+    extract_metadata: true
+    skip_existing: false
+    batch_size: 1
+    num_workers: 1
+
+  build_dataset_prepare_dataset:
+    enabled: true
+    include_ground_truth: false
+    include_prim_path_context: true
+    prompts:
+      vlm_system: |
+        You are an expert at identifying object parts and their visual
+        materials from rendered images. Use visible appearance, geometry,
+        hierarchy, prim names, and metadata to select the closest real-world
+        material from the supplied list. When the user requests a target
+        appearance, treat that request as authoritative even when the source
+        render shows a different color.
+
+        Asset metadata:
+        Object label: industrial warehouse storage container
+        Source: NVIDIA Isaac SimReady Container_Gray_C04
+        Parts: separate lid and container body meshes
+        Default prim: /RootNode
+        Up axis: Z
+        Meters per unit: 1.0
+        Approximate size: 0.600 m x 0.400 m x 0.428 m
+        Existing appearance: textured dark gray molded plastic
+        Requested target appearance: blue molded plastic
+
+        Available materials:
+        {materials_list}
+
+        Respond in this exact structure:
+        <reasoning>brief reasoning</reasoning>
+        <answer>{{"material": "material name"}}</answer>
+      vlm_user: "Blue container"
+      vlm_image_prompts:
+        composition: Orthographic view of the container with the target part in context.
+        prim_only_original: Isolated render showing the target part's original appearance.
+
+  predict:
+    enabled: true
+    prediction_batch_size: 1
+    vlm:
+      backend: nim
+      model: qwen/qwen3.5-397b-a17b
+      temperature: 0.3
+      max_completion_tokens: 4096
+    llm:
+      backend: nim
+      model: qwen/qwen3.5-397b-a17b
+      temperature: 0.1
+      max_tokens: 2048
+    max_workers: 1
+    allow_empty_predictions: false
+    report:
+      image_max_size: 256
+      image_format: jpeg
+      image_quality: 75
+
+  validate_predictions:
+    enabled: false
+
+  harmonize_predictions:
+    enabled: false
+
+  apply:
+    enabled: true
+    layer_only: false
+    flatten_output: false
+    allow_empty_predictions: false
+    fail_on_unknown_material: false
+
+  validate_output:
+    enabled: true
+    on_failure: warn
+
+  render:
+    enabled: true
+    backend: ovrtx
+    image_width: 512
+    image_height: 512
+    camera_corners: ["+x+y+z", "-x-y-z"]
+    camera_margin: 1.2
+    background_color: [1.0, 1.0, 1.0]
+    flatten_before_render: false
+    max_workers: 1
+
+advanced:
+  keep_temp_files: true
+  log_level: INFO

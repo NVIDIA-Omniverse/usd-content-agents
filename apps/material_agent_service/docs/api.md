@@ -42,12 +42,17 @@ Health check. Includes backend credential readiness, image-generation readiness,
 {
   "status": "healthy",
   "service": "Material Agent Service",
-  "version": "0.3.7",
+  "version": "0.5.0",
   "api_keys_configured": true,
   "image_gen_configured": true,
-  "max_active_sessions": 4
+  "max_active_sessions": 3
 }
 ```
+
+The example shows the source fallback of `3`. The service image sets
+`MA_MAX_ACTIVE_SESSIONS=8`, while local OVRTX Compose sets it to `1` unless an
+operator overrides it. `/health` always reports the value enforced by the
+process-wide registry.
 
 ---
 
@@ -96,6 +101,44 @@ Start a material assignment pipeline on an existing session.
 ```
 
 **Response** `202` — [`SessionCreated`](#sessioncreated)
+
+#### Generated Material Library Mode
+
+Generated material-library mode is opt-in per pipeline request. It asks the
+pipeline VLM to describe asset-level material needs from reference imagery,
+uses the deployment image-generation model to create texture maps, authors a
+temporary USD material library, and then runs the normal material prediction and
+apply pipeline with generated materials preferred over the default library.
+
+Supported `multipart/form-data` fields:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `enable_material_generation` | `false` | Enable generated material-library mode for this run. |
+| `material_generation_guidance` | unset | Optional text guidance, for example "orange glossy enclosure, black rubber feet, brushed metal lid insert". |
+| `material_generation_texture_size` | `1024` | Generated texture size in pixels. Accepted range: 64-4096. |
+
+When enabled, the request must include at least one uploaded
+`reference_images` entry or a `generated_reference_id` from
+`POST /pipeline/{session_id}/generate-reference-image`. The service rejects the
+request before queueing if `MA_IMAGE_GEN_*` deployment configuration is not
+ready.
+
+Generated material artifacts are written under
+`generated_material_library/` in the session:
+
+| Artifact | Description |
+|----------|-------------|
+| `materials.yaml` | Canonical manifest for the generated material library. |
+| `material_library.usda` | USD layer containing the generated materials. |
+| `material_generation_plan.yaml` | VLM-derived material plan used to drive texture generation. |
+| texture maps | Generated albedo/roughness/normal or related maps referenced by the USD library. |
+
+If prediction emits `__UNKNOWN__`, an empty material, or an invalid material
+name that cannot be repaired, the pipeline binds the canonical
+`__FALLBACK_MATERIAL__`: neutral mid-gray, matte, non-metallic, opaque plastic.
+This fallback applies to default, custom, generated, regenerate, and refine
+workflows.
 
 #### Prim Clustering
 
@@ -453,17 +496,18 @@ The material-agent pipeline runs the following steps (some opt-in):
 2. `optimize_usd` — Flatten and deinstance via scene optimizer
 3. `render_preview` — Lightweight whole-scene preview rendering
 4. `generate_reference_image` — Generate photorealistic reference images (opt-in)
-5. `build_dataset_usd` — Render prim views for VLM input
-6. `build_dataset_prepare_dataset` — Prepare dataset entries with material specs
-7. `cluster_prims` — Cluster visually similar prims before prediction (opt-in)
-8. `predict` — VLM inference for material assignment
-9. `expand_cluster_predictions` — Expand representative predictions to cluster members (auto-enabled when needed)
-10. `validate_predictions` — Validate/repair predicted material names against the library
-11. `harmonize_predictions` — Resolve conflicts for instanced parts
-12. `apply` — Apply predicted materials to USD
-13. `restore_usd` — Restore the original USD hierarchy (reverses optimize_usd changes)
-14. `validate_output` — Sanity-check the output USD
-15. `render` — Final render of the materialized asset
+5. `generate_material_library` — Generate an asset-specific material library from reference images (opt-in)
+6. `build_dataset_usd` — Render prim views for VLM input
+7. `build_dataset_prepare_dataset` — Prepare dataset entries with material specs
+8. `cluster_prims` — Cluster visually similar prims before prediction (opt-in)
+9. `predict` — VLM inference for material assignment
+10. `expand_cluster_predictions` — Expand representative predictions to cluster members (auto-enabled when needed)
+11. `validate_predictions` — Validate/repair predicted material names against the library
+12. `harmonize_predictions` — Resolve conflicts for instanced parts
+13. `apply` — Apply predicted materials to USD
+14. `restore_usd` — Restore the original USD hierarchy (reverses optimize_usd changes)
+15. `validate_output` — Sanity-check the output USD
+16. `render` — Final render of the materialized asset
 
 ---
 
@@ -479,15 +523,15 @@ The service reads its configuration from environment variables at startup. See `
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Required if using `gemini` backend |
 | `MA_SESSION_STORAGE_PATH` | Where session directories are written |
 | `MA_MAX_UPLOAD_SIZE_MB` | Max USD file size for `/pipeline/upload-usd` |
-| `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines; local OVRTX compose defaults to `1` |
+| `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines, read when the registry starts. The source fallback is `3`; invalid or negative values fall back to `3`; `0` permits no active executions. The service image sets `8`; local OVRTX Compose sets `1`. |
 | `MA_MAX_RENDER_NUM_WORKERS` | Max accepted `render_num_workers` override; local OVRTX compose defaults to `1` |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap; local OVRTX compose defaults to `1` |
 | `MA_VLM_BACKEND`, `MA_VLM_MODEL` | Default VLM backend + model |
 | `MA_LLM_BACKEND`, `MA_LLM_MODEL` | Default LLM backend + model for validate/harmonize |
-| `MA_IMAGE_GEN_BACKEND` | Image generation backend for generated reference images (default `gemini`) |
-| `MA_IMAGE_GEN_MODEL` | Optional image generation model override |
-| `MA_IMAGE_GEN_BASE_URL` | Optional image generation API base URL override |
-| `MA_IMAGE_GEN_API_KEY` | Optional image generation API key; use `not-used` only for explicit no-auth local endpoints |
+| `MA_IMAGE_GEN_BACKEND` | Image generation backend for generated reference images and generated material-library textures (default `gemini`) |
+| `MA_IMAGE_GEN_MODEL` | Optional shared image-generation model override |
+| `MA_IMAGE_GEN_BASE_URL` | Optional shared image-generation API base URL override |
+| `MA_IMAGE_GEN_API_KEY` | Optional shared image-generation API key; use `not-used` only for explicit no-auth local endpoints |
 | `MA_CLUSTER_EMBEDDING_BACKEND` | Default embedding backend for opt-in prim clustering (default `nim`) |
 | `MA_CLUSTER_EMBEDDING_MODEL` | Default embedding model for opt-in prim clustering |
 | `MA_CLUSTER_EMBEDDING_BASE_URL` | Optional clustering embedding API base URL override |

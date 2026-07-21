@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import builtins
 import hashlib
 import importlib
+import sys
+import types
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +47,7 @@ class FakeBackend:
                 "image_width": image_width,
                 "image_height": image_height,
                 "stage_fps": stage.GetTimeCodesPerSecond(),
+                "extra_kwargs": dict(kwargs),
             }
         )
 
@@ -146,6 +150,27 @@ def test_explicit_frames_are_rendered_chronologically(
     assert all(path.exists() for path in paths)
 
 
+def test_mock_backend_renders_time_sampled_evidence(tmp_path: Path) -> None:
+    usd_path = _write_time_sampled_usd(tmp_path / "mock.usda")
+
+    paths = render_time_sampled_usd(
+        usd_path,
+        tmp_path / "renders",
+        renderer="mock",
+        frames="0:2",
+        image_width=8,
+        image_height=6,
+        make_mp4=False,
+    )
+
+    assert [path.name for path in paths] == [
+        "frame_0000.png",
+        "frame_0001.png",
+        "frame_0002.png",
+    ]
+    assert all(path.exists() for path in paths)
+
+
 def test_infers_stage_range(tmp_path: Path, fake_backend: FakeBackend) -> None:
     usd_path = _write_time_sampled_usd(
         tmp_path / "range.usda", start=2.0, end=4.0, samples=(2.0, 3.0, 4.0)
@@ -225,6 +250,76 @@ def test_fps_override_does_not_modify_input_usd(
     assert _sha256(usd_path) == before
 
 
+def test_backend_specific_options_are_forwarded(
+    tmp_path: Path, fake_backend: FakeBackend
+) -> None:
+    usd_path = _write_time_sampled_usd(tmp_path / "options.usda")
+
+    render_time_sampled_usd(
+        usd_path,
+        tmp_path / "renders",
+        frames="0",
+        image_width=4,
+        image_height=4,
+        make_mp4=False,
+        num_sensor_updates=7,
+        render_mode="rt2",
+    )
+
+    assert fake_backend.calls[0]["extra_kwargs"] == {
+        "num_sensor_updates": 7,
+        "render_mode": "rt2",
+    }
+
+
+def test_make_mp4_invokes_sequence_writer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fake_backend: FakeBackend,
+) -> None:
+    usd_path = _write_time_sampled_usd(tmp_path / "mp4.usda")
+    calls: list[tuple[list[tuple[str, list[Path]]], Path, float]] = []
+
+    def fake_write_mp4_sequences(
+        image_sequences: list[tuple[str, list[Path]]],
+        output_path: Path,
+        fps_value: float,
+    ) -> None:
+        calls.append((image_sequences, output_path, fps_value))
+
+    monkeypatch.setattr(rt, "_write_mp4_sequences", fake_write_mp4_sequences)
+
+    render_time_sampled_usd(
+        usd_path,
+        tmp_path / "renders",
+        frames="0",
+        image_width=4,
+        image_height=4,
+        make_mp4=True,
+    )
+
+    assert calls
+    assert calls[0][1] == tmp_path / "renders"
+    assert calls[0][2] == 24.0
+
+
+def test_infers_start_frame_when_no_range_or_samples(
+    tmp_path: Path, fake_backend: FakeBackend
+) -> None:
+    usd_path = _write_time_sampled_usd(tmp_path / "static.usda", samples=())
+
+    paths = render_time_sampled_usd(
+        usd_path,
+        tmp_path / "renders",
+        image_width=4,
+        image_height=4,
+        make_mp4=False,
+    )
+
+    assert fake_backend.calls[0]["frames"] == "0"
+    assert [path.name for path in paths] == ["frame_0000.png"]
+
+
 def test_frame_cap_warns_but_does_not_block_extra_frames(
     tmp_path: Path,
     fake_backend: FakeBackend,
@@ -301,12 +396,12 @@ def test_frame_count_beyond_tolerance_raises(
     assert fake_backend.calls == []
 
 
-def test_nvcf_sparse_frames_are_rejected(
+def test_remote_sparse_frames_are_rejected(
     tmp_path: Path, fake_backend: FakeBackend
 ) -> None:
-    """NVCF rejects sparse frame strings up front.
+    """The remote renderer rejects sparse frame strings up front.
 
-    The remote NVCF frame parser only accepts ``"N"`` or ``"start:end"``;
+    The remote frame parser only accepts ``"N"`` or ``"start:end"``;
     a sparse spec like ``"0,5,10"`` would otherwise raise mid-request
     inside ``int("0,5,10")`` with an opaque message. The driver guards
     this case explicitly before constructing the backend.
@@ -322,7 +417,7 @@ def test_nvcf_sparse_frames_are_rejected(
         render_time_sampled_usd(
             usd_path,
             tmp_path / "renders",
-            renderer="nvcf",
+            renderer="remote",
             frames="0,5,10",
             image_width=4,
             image_height=4,
@@ -331,6 +426,24 @@ def test_nvcf_sparse_frames_are_rejected(
 
     # Guard trips pre-backend; no backend call should land.
     assert fake_backend.calls == []
+
+
+def test_time_sampled_render_rejects_legacy_nvcf_backend(tmp_path: Path) -> None:
+    usd_path = _write_time_sampled_usd(tmp_path / "legacy_nvcf.usda")
+    output_dir = tmp_path / "renders"
+
+    with pytest.raises(ValueError, match="Unknown rendering backend: nvcf"):
+        render_time_sampled_usd(
+            usd_path,
+            output_dir,
+            renderer="nvcf",
+            frames="0",
+            image_width=4,
+            image_height=4,
+            make_mp4=False,
+        )
+
+    assert not output_dir.exists()
 
 
 def test_non_integer_time_samples_are_rejected(
@@ -356,6 +469,148 @@ def test_render_time_sampled_usd_is_exported_from_graphics_package() -> None:
     )
 
     assert exported is render_time_sampled_usd
+
+
+def test_authored_time_sample_scan_skips_instance_proxy() -> None:
+    class FakePath:
+        pathString = "/World/Cube.xformOp:translate"
+
+    class FakeAttr:
+        def GetTimeSamples(self) -> list[float]:
+            return [4.0]
+
+        def GetPath(self) -> FakePath:
+            return FakePath()
+
+    class FakePrim:
+        def __init__(self, *, instance_proxy: bool) -> None:
+            self.instance_proxy = instance_proxy
+
+        def IsInstanceProxy(self) -> bool:
+            return self.instance_proxy
+
+        def GetAttributes(self) -> list[FakeAttr]:
+            return [FakeAttr()]
+
+    class FakeStage:
+        def TraverseAll(self) -> list[FakePrim]:
+            return [FakePrim(instance_proxy=True), FakePrim(instance_proxy=False)]
+
+    assert rt._authored_time_sample_frames(FakeStage()) == [4]
+
+
+def test_backend_factory_delegates_all_supported_renderers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from world_understanding.functions.graphics.rendering_backend_factory import (
+        RENDERING_BACKEND_NAMES,
+    )
+
+    sentinel = object()
+    calls: list[str] = []
+
+    def fake_create_rendering_backend(renderer: str) -> object:
+        calls.append(renderer)
+        return sentinel
+
+    monkeypatch.setattr(rt, "create_rendering_backend", fake_create_rendering_backend)
+
+    for renderer in RENDERING_BACKEND_NAMES:
+        assert rt._make_backend(renderer) is sentinel
+
+    assert calls == list(RENDERING_BACKEND_NAMES)
+
+
+def test_save_rendered_images_rejects_frame_count_mismatch(tmp_path: Path) -> None:
+    with pytest.raises(RuntimeError, match="expected 1"):
+        rt._save_rendered_images(
+            {"results": [{"camera": "/Camera", "images": []}]},
+            [0],
+            tmp_path,
+        )
+
+
+def test_write_mp4_sequences_handles_single_and_multi_camera(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[tuple[list[Path], Path, float]] = []
+
+    def fake_write_mp4(
+        png_paths: list[Path], output_path: Path, fps_value: float
+    ) -> None:
+        calls.append((png_paths, output_path, fps_value))
+
+    monkeypatch.setattr(rt, "_maybe_write_mp4", fake_write_mp4)
+
+    rt._write_mp4_sequences([("Camera", [tmp_path / "frame.png"])], tmp_path, 12.0)
+    rt._write_mp4_sequences(
+        [
+            ("Camera_A", [tmp_path / "a.png"]),
+            ("Camera_B", [tmp_path / "b.png"]),
+        ],
+        tmp_path,
+        24.0,
+    )
+
+    assert calls == [
+        ([tmp_path / "frame.png"], tmp_path / "render.mp4", 12.0),
+        ([tmp_path / "a.png"], tmp_path / "Camera_A__render.mp4", 24.0),
+        ([tmp_path / "b.png"], tmp_path / "Camera_B__render.mp4", 24.0),
+    ]
+
+
+def test_maybe_write_mp4_skips_when_imageio_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    real_import = builtins.__import__
+
+    def fake_import(
+        name: str,
+        globals: dict[str, object] | None = None,
+        locals: dict[str, object] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if name == "imageio.v3":
+            raise ImportError("missing imageio")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    rt._maybe_write_mp4([], tmp_path / "render.mp4", 24.0)
+
+
+def test_maybe_write_mp4_reads_pngs_and_calls_writer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    png_path = tmp_path / "frame.png"
+    Image.new("RGB", (2, 2), (255, 0, 0)).save(png_path)
+    fake_imageio = types.ModuleType("imageio")
+    fake_iio = types.ModuleType("imageio.v3")
+    fake_numpy = types.ModuleType("numpy")
+    writes: list[tuple[Path, list[tuple[int, int]], float]] = []
+
+    def fake_asarray(image: Image.Image) -> tuple[int, int]:
+        return image.size
+
+    def fake_imwrite(
+        output_path: Path, frames: list[tuple[int, int]], fps: float
+    ) -> None:
+        writes.append((output_path, frames, fps))
+
+    fake_numpy.asarray = fake_asarray  # type: ignore[attr-defined]
+    fake_iio.imwrite = fake_imwrite  # type: ignore[attr-defined]
+    fake_imageio.v3 = fake_iio  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "imageio", fake_imageio)
+    monkeypatch.setitem(sys.modules, "imageio.v3", fake_iio)
+    monkeypatch.setitem(sys.modules, "numpy", fake_numpy)
+
+    rt._maybe_write_mp4([png_path], tmp_path / "render.mp4", 1.0)
+
+    assert writes == [(tmp_path / "render.mp4", [(2, 2)], 1.0)]
 
 
 def test_authored_single_frame_range_is_honored(

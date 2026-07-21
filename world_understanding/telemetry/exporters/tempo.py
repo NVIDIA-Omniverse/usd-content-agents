@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing import.
     from opentelemetry.sdk.trace.export import SpanProcessor
 
 logger = logging.getLogger(__name__)

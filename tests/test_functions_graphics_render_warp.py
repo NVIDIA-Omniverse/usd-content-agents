@@ -6,10 +6,14 @@ Unit tests run without GPU/warp. Integration tests require warp + CUDA GPU.
 """
 
 import math
+import sys
+import types
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+from world_understanding.functions.graphics import render_warp
 from world_understanding.functions.graphics.render_warp import (
     _extract_meshes,
     _gf_matrix_to_transform_7f,
@@ -18,11 +22,67 @@ from world_understanding.functions.graphics.render_warp import (
     _triangulate,
     _unpack_color_image,
     _unpack_depth_image,
+    _unpack_normal_image,
 )
 
 # ---------------------------------------------------------------------------
 # Unit tests (no GPU required)
 # ---------------------------------------------------------------------------
+
+
+class _FakeWarpArray:
+    def __init__(self, data):
+        self.data = np.asarray(data)
+
+    def numpy(self):
+        return self.data
+
+    def reshape(self, shape):
+        return self
+
+    def zero_(self):
+        self.data[...] = 0
+
+    def fill_(self, value):
+        self.data[...] = value
+
+
+class _FakeWarp:
+    bool = "bool"
+    float32 = "float32"
+    int32 = "int32"
+    uint32 = "uint32"
+    uint64 = "uint64"
+    vec2f = "vec2f"
+    vec3f = "vec3f"
+    vec3i = "vec3i"
+    vec4f = "vec4f"
+    transformf = "transformf"
+    transform = "transform"
+
+    def __init__(self):
+        self.mesh_ids = 0
+
+    def array(self, data, **kwargs):
+        return _FakeWarpArray(data)
+
+    def empty(self, shape, **kwargs):
+        return _FakeWarpArray(np.empty(shape, dtype=object))
+
+    def zeros(self, shape, **kwargs):
+        if isinstance(shape, tuple):
+            return _FakeWarpArray(np.zeros(shape))
+        return _FakeWarpArray(np.zeros((shape,)))
+
+    def Mesh(self, **kwargs):
+        self.mesh_ids += 1
+        return SimpleNamespace(id=self.mesh_ids, kwargs=kwargs)
+
+    def init(self):
+        return None
+
+    def synchronize_device(self, device):
+        return None
 
 
 class TestTriangulate:
@@ -221,6 +281,733 @@ class TestUnpackDepthImage:
         assert depth[0, 0, 0, 0] == 1.0  # Original unchanged
 
 
+class TestUnpackNormalImage:
+    """Test _unpack_normal_image() extracts correct slice."""
+
+    def test_returns_copy(self):
+        normal = np.ones((1, 1, 2, 2, 3), dtype=np.float32)
+        result = _unpack_normal_image(normal, 0, 0)
+        assert result.shape == (2, 2, 3)
+        result[0, 0, 0] = 9.0
+        assert normal[0, 0, 0, 0, 0] == 1.0
+
+
+def test_gf_matrix_zero_quaternion_falls_back_to_identity(monkeypatch):
+    from pxr import Gf
+
+    class ZeroQuat:
+        def GetReal(self):
+            return 0.0
+
+        def GetImaginary(self):
+            return [0.0, 0.0, 0.0]
+
+    class ZeroRotation:
+        def GetQuat(self):
+            return ZeroQuat()
+
+    class ZeroTransform:
+        def GetRotation(self):
+            return ZeroRotation()
+
+    class ZeroMatrix:
+        def ExtractTranslation(self):
+            return [1.0, 2.0, 3.0]
+
+    monkeypatch.setattr(Gf, "Transform", lambda matrix: ZeroTransform())
+
+    assert _gf_matrix_to_transform_7f(ZeroMatrix()) == [
+        1.0,
+        2.0,
+        3.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    ]
+
+
+def test_import_warp_uses_legacy_render_shape_type(monkeypatch):
+    fake_warp = types.ModuleType("warp")
+    fake_newton = types.ModuleType("newton")
+    fake_src = types.ModuleType("newton._src")
+    fake_sensors = types.ModuleType("newton._src.sensors")
+    fake_raytrace = types.ModuleType("newton._src.sensors.warp_raytrace")
+    fake_raytrace_types = types.ModuleType("newton._src.sensors.warp_raytrace.types")
+
+    class MeshValue:
+        def __int__(self):
+            return 42
+
+    fake_raytrace.RenderContext = object
+    fake_raytrace.RenderShapeType = SimpleNamespace(MESH=MeshValue())
+    fake_raytrace_types.RenderLightType = SimpleNamespace(DIRECTIONAL=3)
+    fake_newton._src = fake_src
+    fake_src.sensors = fake_sensors
+    fake_sensors.warp_raytrace = fake_raytrace
+    fake_raytrace.types = fake_raytrace_types
+
+    for name, module in {
+        "warp": fake_warp,
+        "newton": fake_newton,
+        "newton._src": fake_src,
+        "newton._src.sensors": fake_sensors,
+        "newton._src.sensors.warp_raytrace": fake_raytrace,
+        "newton._src.sensors.warp_raytrace.types": fake_raytrace_types,
+    }.items():
+        monkeypatch.setitem(sys.modules, name, module)
+
+    wp, render_context, mesh_shape_type_int, render_light_type = _import_warp()
+
+    assert wp is fake_warp
+    assert render_context is object
+    assert mesh_shape_type_int == 42
+    assert render_light_type.DIRECTIONAL == 3
+
+
+def test_import_warp_uses_geotype_when_render_shape_type_is_missing(monkeypatch):
+    fake_warp = types.ModuleType("warp")
+    fake_newton = types.ModuleType("newton")
+    fake_src = types.ModuleType("newton._src")
+    fake_sensors = types.ModuleType("newton._src.sensors")
+    fake_raytrace = types.ModuleType("newton._src.sensors.warp_raytrace")
+    fake_raytrace_types = types.ModuleType("newton._src.sensors.warp_raytrace.types")
+    fake_geometry = types.ModuleType("newton._src.geometry")
+
+    class MeshValue:
+        def __int__(self):
+            return 99
+
+    fake_raytrace.RenderContext = object
+    fake_raytrace_types.RenderLightType = SimpleNamespace(DIRECTIONAL=7)
+    fake_geometry.GeoType = SimpleNamespace(MESH=MeshValue())
+    fake_newton._src = fake_src
+    fake_src.sensors = fake_sensors
+    fake_sensors.warp_raytrace = fake_raytrace
+    fake_raytrace.types = fake_raytrace_types
+
+    for name, module in {
+        "warp": fake_warp,
+        "newton": fake_newton,
+        "newton._src": fake_src,
+        "newton._src.sensors": fake_sensors,
+        "newton._src.sensors.warp_raytrace": fake_raytrace,
+        "newton._src.sensors.warp_raytrace.types": fake_raytrace_types,
+        "newton._src.geometry": fake_geometry,
+    }.items():
+        monkeypatch.setitem(sys.modules, name, module)
+
+    wp, render_context, mesh_shape_type_int, render_light_type = _import_warp()
+
+    assert wp is fake_warp
+    assert render_context is object
+    assert mesh_shape_type_int == 99
+    assert render_light_type.DIRECTIONAL == 7
+
+
+def test_extract_meshes_skips_non_renderable_meshes(monkeypatch):
+    from pxr import Gf, Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/Group")
+
+    guide_mesh = UsdGeom.Mesh.Define(stage, "/Guide")
+    guide_mesh.GetPointsAttr().Set(
+        [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(0, 1, 0)]
+    )
+    guide_mesh.GetFaceVertexCountsAttr().Set([3])
+    guide_mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2])
+    UsdGeom.Imageable(guide_mesh.GetPrim()).CreatePurposeAttr().Set(
+        UsdGeom.Tokens.guide
+    )
+
+    UsdGeom.Mesh.Define(stage, "/MissingAttrs")
+
+    empty_mesh = UsdGeom.Mesh.Define(stage, "/Empty")
+    empty_mesh.GetPointsAttr().Set([])
+    empty_mesh.GetFaceVertexCountsAttr().Set([])
+    empty_mesh.GetFaceVertexIndicesAttr().Set([])
+
+    line_mesh = UsdGeom.Mesh.Define(stage, "/Line")
+    line_mesh.GetPointsAttr().Set([Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0)])
+    line_mesh.GetFaceVertexCountsAttr().Set([2])
+    line_mesh.GetFaceVertexIndicesAttr().Set([0, 1])
+
+    valid_mesh = UsdGeom.Mesh.Define(stage, "/Valid")
+    valid_mesh.GetPointsAttr().Set(
+        [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(0, 1, 0)]
+    )
+    valid_mesh.GetFaceVertexCountsAttr().Set([3])
+    valid_mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2])
+    valid_mesh.GetDisplayColorAttr().Set([(0.25, 0.5, 0.75)])
+
+    monkeypatch.setattr(
+        render_warp, "_import_warp", lambda: (_FakeWarp(), None, None, None)
+    )
+
+    render_meshes, mesh_prims = _extract_meshes(stage, Usd.TimeCode.Default(), "cpu")
+    assert len(render_meshes) == 1
+    assert [str(prim.GetPath()) for prim in mesh_prims] == ["/Valid"]
+    assert render_warp._get_display_color(
+        valid_mesh.GetPrim(), Usd.TimeCode.Default()
+    ) == (0.75, 1.0, 1.0, 1.0)
+    assert render_warp._get_display_color(
+        stage.GetPrimAtPath("/MissingAttrs"), Usd.TimeCode.Default()
+    ) == (0.8, 0.8, 0.8, 1.0)
+
+
+def test_setup_lights_uses_existing_distant_light(monkeypatch):
+    from pxr import Usd, UsdLux
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdLux.DistantLight.Define(stage, "/Key")
+    ctx = SimpleNamespace()
+
+    monkeypatch.setattr(
+        render_warp,
+        "_import_warp",
+        lambda: (_FakeWarp(), None, None, SimpleNamespace(DIRECTIONAL=5)),
+    )
+
+    render_warp._setup_lights(stage, ctx, Usd.TimeCode.Default(), "cpu")
+
+    assert ctx.lights_active.data.tolist() == [True]
+    assert ctx.lights_type.data.tolist() == [5]
+    assert ctx.lights_orientation.data.shape == (1, 3)
+
+
+def test_setup_lights_uses_default_light_rig(monkeypatch):
+    from pxr import Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/NonLight")
+    ctx = SimpleNamespace()
+
+    monkeypatch.setattr(
+        render_warp,
+        "_import_warp",
+        lambda: (_FakeWarp(), None, None, SimpleNamespace(DIRECTIONAL=5)),
+    )
+
+    render_warp._setup_lights(stage, ctx, Usd.TimeCode.Default(), "cpu")
+
+    assert ctx.lights_active.data.tolist() == [True, True, True]
+    assert ctx.lights_type.data.tolist() == [5, 5, 5]
+    assert ctx.lights_orientation.data.shape == (3, 3)
+
+
+def test_setup_render_context_legacy_api(monkeypatch):
+    from pxr import Gf, Usd, UsdGeom
+
+    class LegacyRenderContext:
+        class Options:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        def __init__(self, *, world_count, options, device):
+            self.world_count = world_count
+            self.options = options
+            self.device = device
+            self.bounds_computed = False
+            self.utils = SimpleNamespace(compute_mesh_bounds=self.compute_mesh_bounds)
+
+        def compute_mesh_bounds(self):
+            self.bounds_computed = True
+
+    stage = Usd.Stage.CreateInMemory()
+    mesh = UsdGeom.Mesh.Define(stage, "/Mesh")
+    mesh.GetPointsAttr().Set([Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(0, 1, 0)])
+    mesh.GetFaceVertexCountsAttr().Set([3])
+    mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2])
+    render_mesh = render_warp._RenderMesh(
+        warp_mesh=SimpleNamespace(id=77),
+        vertices=np.zeros((3, 3), dtype=np.float32),
+        indices=np.array([0, 1, 2], dtype=np.int32),
+    )
+
+    monkeypatch.setattr(
+        render_warp,
+        "_import_warp",
+        lambda: (_FakeWarp(), LegacyRenderContext, 9, None),
+    )
+
+    ctx = _setup_render_context(
+        [render_mesh],
+        [mesh.GetPrim()],
+        Usd.TimeCode.Default(),
+        device="cpu",
+        enable_shadows=False,
+        enable_backface_culling=False,
+    )
+
+    assert ctx.options.kwargs["enable_shadows"] is False
+    assert ctx.options.kwargs["enable_backface_culling"] is False
+    assert ctx.bounds_computed is True
+    assert ctx.mesh_ids.data.tolist() == [77]
+    assert ctx.shape_count_total == 1
+    assert ctx.shape_count_enabled == 1
+    assert ctx.shape_colors.data.tolist() == [[0.8, 0.8, 0.8, 1.0]]
+
+
+def test_newton_model_render_context_paths(monkeypatch):
+    from pxr import Gf, Usd, UsdGeom
+
+    class FakeRenderContext:
+        class Config:
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        def __init__(self, *, world_count, config, device):
+            self.world_count = world_count
+            self.config = config
+            self.device = device
+            self.utils = SimpleNamespace()
+
+        def init_from_model(self, model, load_textures):
+            model.load_textures = load_textures
+
+    class FakeWarpWithTransform(_FakeWarp):
+        def __init__(self):
+            super().__init__()
+            self.transform = lambda position, rotation: tuple(position) + tuple(
+                rotation
+            )
+
+    class FakeModel:
+        def __init__(self, count: int):
+            self.shape_flags = _FakeWarpArray(np.zeros(count, dtype=np.int32))
+
+        def state(self):
+            return SimpleNamespace(name="state")
+
+    class FakeModelBuilder:
+        class ShapeConfig:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        def __init__(self):
+            self.shapes = []
+
+        def add_shape_mesh(self, **kwargs):
+            self.shapes.append(kwargs)
+
+        def finalize(self, device):
+            model = FakeModel(len(self.shapes))
+            model.device = device
+            return model
+
+    fake_newton = types.ModuleType("newton")
+    fake_newton.ModelBuilder = FakeModelBuilder
+    fake_newton.Mesh = lambda vertices, indices, **kwargs: SimpleNamespace(
+        vertices=vertices, indices=indices, kwargs=kwargs
+    )
+    fake_geometry = types.ModuleType("newton.geometry")
+    fake_src = types.ModuleType("newton._src")
+    fake_src_geometry = types.ModuleType("newton._src.geometry")
+    fake_src_geometry.ShapeFlags = SimpleNamespace(VISIBLE=1)
+
+    def fake_build_bvh_shape(model, state):
+        model.bvh_built_for = state
+
+    fake_geometry.build_bvh_shape = fake_build_bvh_shape
+    fake_newton._src = fake_src
+    fake_src.geometry = fake_src_geometry
+    monkeypatch.setitem(sys.modules, "newton", fake_newton)
+    monkeypatch.setitem(sys.modules, "newton.geometry", fake_geometry)
+    monkeypatch.setitem(sys.modules, "newton._src", fake_src)
+    monkeypatch.setitem(sys.modules, "newton._src.geometry", fake_src_geometry)
+    monkeypatch.setattr(
+        render_warp,
+        "_import_warp",
+        lambda: (FakeWarpWithTransform(), FakeRenderContext, None, None),
+    )
+
+    stage = Usd.Stage.CreateInMemory()
+    visible_mesh = UsdGeom.Mesh.Define(stage, "/Visible")
+    hidden_mesh = UsdGeom.Mesh.Define(stage, "/Hidden")
+    for mesh in (visible_mesh, hidden_mesh):
+        mesh.GetPointsAttr().Set(
+            [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(0, 1, 0)]
+        )
+        mesh.GetFaceVertexCountsAttr().Set([3])
+        mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2])
+    UsdGeom.Imageable(hidden_mesh.GetPrim()).CreateVisibilityAttr().Set(
+        UsdGeom.Tokens.invisible
+    )
+
+    render_meshes = [
+        render_warp._RenderMesh(
+            warp_mesh=SimpleNamespace(id=index),
+            vertices=np.zeros((3, 3), dtype=np.float32),
+            indices=np.array([0, 1, 2], dtype=np.int32),
+        )
+        for index in (1, 2)
+    ]
+    ctx = _setup_render_context(
+        warp_meshes=render_meshes,
+        mesh_prims=[visible_mesh.GetPrim(), hidden_mesh.GetPrim()],
+        time_code=Usd.TimeCode.Default(),
+        device="cpu",
+        enable_shadows=False,
+        enable_backface_culling=False,
+        color_boost=1.0,
+    )
+
+    assert ctx._wu_render_config.enable_global_world is True
+    assert ctx._wu_render_model.load_textures is False
+    assert ctx._wu_render_model.bvh_built_for is ctx._wu_render_state
+    assert ctx._wu_render_model.shape_flags.data.tolist() == [1, 0]
+    assert ctx.shape_colors.data.shape == (2, 3)
+    assert (
+        render_warp._update_render_context_for_frame(
+            ctx,
+            mesh_prims=[visible_mesh.GetPrim(), hidden_mesh.GetPrim()],
+            time_code=Usd.TimeCode.Default(),
+            device="cpu",
+            color_boost=1.0,
+        )
+        == 1
+    )
+
+
+def test_newton_1_4_render_context_contract(monkeypatch):
+    class FakeRenderContext:
+        class Config:
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        def __init__(self, *, world_count, device):
+            self.world_count = world_count
+            self.device = device
+            self.render_calls = []
+
+        def render(self, *args, **kwargs):
+            self.render_calls.append((args, kwargs))
+
+    class FakeUtils:
+        def __init__(self, render_context, render_config):
+            self.render_context = render_context
+            self.render_config = render_config
+
+    fake_raytrace = types.ModuleType("newton._src.sensors.warp_raytrace")
+    fake_raytrace.Utils = FakeUtils
+    monkeypatch.setitem(sys.modules, "newton._src.sensors.warp_raytrace", fake_raytrace)
+    monkeypatch.setattr(
+        render_warp,
+        "_import_warp",
+        lambda: (_FakeWarp(), FakeRenderContext, None, None),
+    )
+    monkeypatch.setattr(
+        render_warp,
+        "_setup_newton_model_render_context",
+        lambda *, ctx, **kwargs: ctx,
+    )
+
+    ctx = _setup_render_context(
+        warp_meshes=[],
+        mesh_prims=[],
+        time_code=None,
+        device="cpu",
+        enable_shadows=False,
+        enable_backface_culling=False,
+    )
+
+    assert ctx.world_count == 1
+    assert ctx.device == "cpu"
+    assert ctx.utils.render_context is ctx
+    assert ctx.utils.render_config is ctx._wu_render_config
+    assert ctx._wu_render_config.enable_shadows is False
+    assert ctx._wu_render_config.enable_backface_culling is False
+    assert ctx._wu_render_config_on_render is True
+
+    model = object()
+    state = object()
+    ctx._wu_render_model = model
+    ctx._wu_render_state = state
+    render_warp._render_context_render(ctx, color_image="color")
+
+    assert ctx.render_calls == [
+        (
+            (model, state),
+            {"color_image": "color", "config": ctx._wu_render_config},
+        )
+    ]
+
+
+def test_update_render_context_legacy_api(monkeypatch):
+    from pxr import Gf, Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    visible_mesh = UsdGeom.Mesh.Define(stage, "/Visible")
+    hidden_mesh = UsdGeom.Mesh.Define(stage, "/Hidden")
+    for mesh in (visible_mesh, hidden_mesh):
+        mesh.GetPointsAttr().Set(
+            [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(0, 1, 0)]
+        )
+        mesh.GetFaceVertexCountsAttr().Set([3])
+        mesh.GetFaceVertexIndicesAttr().Set([0, 1, 2])
+    UsdGeom.Imageable(hidden_mesh.GetPrim()).CreateVisibilityAttr().Set(
+        UsdGeom.Tokens.invisible
+    )
+
+    monkeypatch.setattr(
+        render_warp, "_import_warp", lambda: (_FakeWarp(), None, None, None)
+    )
+    ctx = SimpleNamespace()
+
+    visible_count = render_warp._update_render_context_for_frame(
+        ctx,
+        mesh_prims=[visible_mesh.GetPrim(), hidden_mesh.GetPrim()],
+        time_code=Usd.TimeCode.Default(),
+        device="cpu",
+        color_boost=1.0,
+    )
+
+    assert visible_count == 1
+    assert ctx.shape_enabled.data.tolist() == [0]
+    assert ctx.shape_count_enabled == 1
+    assert ctx.bvh_shapes is None
+    assert ctx.shape_colors.data.tolist() == [
+        [0.8, 0.8, 0.8, 1.0],
+        [0.8, 0.8, 0.8, 1.0],
+    ]
+
+
+def test_render_context_render_without_newton_model():
+    calls = []
+    ctx = SimpleNamespace(render=lambda **kwargs: calls.append(kwargs))
+
+    render_warp._render_context_render(ctx, color_image="color")
+
+    assert calls == [{"color_image": "color"}]
+
+
+def test_render_context_render_with_newton_model():
+    calls = []
+    model = object()
+    state = object()
+    ctx = SimpleNamespace(
+        _wu_render_model=model,
+        _wu_render_state=state,
+        render=lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    render_warp._render_context_render(ctx, color_image="color")
+
+    assert calls == [((model, state), {"color_image": "color"})]
+
+
+def test_clear_render_outputs_zeros_present_outputs():
+    color = _FakeWarpArray(np.ones((1, 1), dtype=np.float32))
+    depth = _FakeWarpArray(np.ones((1, 1), dtype=np.float32))
+
+    render_warp._clear_render_outputs(
+        {"color_image": color, "depth_image": depth, "normal_image": None}
+    )
+
+    assert color.data.sum() == 0
+    assert depth.data.sum() == 0
+
+
+def test_camera_helpers_fallbacks():
+    from pxr import Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    camera = UsdGeom.Camera.Define(stage, "/Camera")
+    camera.GetFocalLengthAttr().Set(0.0)
+    camera.GetVerticalApertureAttr().Set(24.0)
+
+    assert render_warp._compute_camera_fov(
+        stage, "/Camera", Usd.TimeCode.Default()
+    ) == pytest.approx(math.radians(45.0))
+    assert render_warp._get_camera_transforms(
+        stage, ["/Missing"], Usd.TimeCode.Default()
+    ) == [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]]
+
+    camera.GetFocalLengthAttr().Set(50.0)
+    assert render_warp._compute_camera_fov(
+        stage, "/Camera", Usd.TimeCode.Default()
+    ) == pytest.approx(2.0 * math.atan(24.0 / 100.0))
+    assert (
+        len(
+            render_warp._get_camera_transforms(
+                stage, ["/Camera"], Usd.TimeCode.Default()
+            )
+        )
+        == 1
+    )
+
+
+def test_render_all_cameras_with_fake_warp_no_meshes(monkeypatch):
+    from pxr import Usd
+
+    monkeypatch.setattr(
+        render_warp, "_import_warp", lambda: (_FakeWarp(), None, None, None)
+    )
+    monkeypatch.setattr(render_warp, "_extract_meshes", lambda *args: ([], []))
+
+    result = render_warp.render_all_cameras(
+        stage=Usd.Stage.CreateInMemory(),
+        image_width=1,
+        image_height=1,
+        cameras=["/Camera"],
+        frames="0",
+        device="cpu",
+    )
+
+    assert result["successful_cameras"] == 0
+    assert result["failed_cameras"] == 1
+    assert result["results"][0]["error"] == "No meshes found in stage"
+
+
+def test_render_all_cameras_with_fake_warp_normal_sensor(monkeypatch):
+    from pxr import Usd
+
+    class FakeContext:
+        def __init__(self):
+            self.utils = SimpleNamespace(
+                compute_pinhole_camera_rays=lambda *args: "camera-rays",
+                create_color_image_output=lambda width, height, num_cameras: (
+                    _FakeWarpArray(
+                        np.zeros((1, num_cameras, height, width), dtype=np.uint32)
+                    )
+                ),
+                create_depth_image_output=lambda width, height, num_cameras: (
+                    _FakeWarpArray(
+                        np.zeros((1, num_cameras, height, width), dtype=np.float32)
+                    )
+                ),
+                create_normal_image_output=lambda width, height, num_cameras: (
+                    _FakeWarpArray(
+                        np.zeros((1, num_cameras, height, width, 3), dtype=np.float32)
+                    )
+                ),
+            )
+
+    def fake_render(ctx, **kwargs):
+        kwargs["color_image"].data[...] = 1 | (2 << 8) | (3 << 16)
+        kwargs["normal_image"].data[...] = [0.0, 1.0, 0.0]
+
+    monkeypatch.setattr(
+        render_warp, "_import_warp", lambda: (_FakeWarp(), None, None, None)
+    )
+    monkeypatch.setattr(
+        render_warp,
+        "_extract_meshes",
+        lambda stage, time_code, device: ([object()], [object()]),
+    )
+    monkeypatch.setattr(
+        render_warp, "_setup_render_context", lambda **kwargs: FakeContext()
+    )
+    monkeypatch.setattr(render_warp, "_setup_lights", lambda *args: None)
+    monkeypatch.setattr(render_warp, "_compute_camera_fov", lambda *args: 0.5)
+    monkeypatch.setattr(
+        render_warp,
+        "_get_camera_transforms",
+        lambda stage, cameras, time_code: [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0] for _ in cameras
+        ],
+    )
+    monkeypatch.setattr(
+        render_warp, "_update_render_context_for_frame", lambda *args, **kwargs: 1
+    )
+    monkeypatch.setattr(render_warp, "_render_context_render", fake_render)
+
+    result = render_warp.render_all_cameras(
+        stage=Usd.Stage.CreateInMemory(),
+        image_width=2,
+        image_height=2,
+        cameras=None,
+        frames="0",
+        sensors=["normal"],
+        device="cpu",
+    )
+
+    assert result["successful_cameras"] == 1
+    assert result["failed_cameras"] == 0
+    assert result["results"][0]["camera"] == "/Camera"
+    assert result["results"][0]["images"][0].size == (2, 2)
+    np.testing.assert_allclose(
+        result["results"][0]["sensors"]["normal"][0], np.full((2, 2, 3), [0, 1, 0])
+    )
+
+    empty_frames = render_warp.render_all_cameras(
+        stage=Usd.Stage.CreateInMemory(),
+        image_width=1,
+        image_height=1,
+        cameras=["/Camera"],
+        frames=",",
+        device="cpu",
+    )
+    assert empty_frames["successful_cameras"] == 0
+    assert empty_frames["failed_cameras"] == 1
+    assert empty_frames["results"][0]["error"] == "No images produced"
+
+
+def test_render_all_cameras_with_fake_warp_depth_and_hidden_frame(monkeypatch):
+    from pxr import Usd
+
+    class FakeContext:
+        def __init__(self):
+            self.utils = SimpleNamespace(
+                compute_pinhole_camera_rays=lambda *args: "camera-rays",
+                create_color_image_output=lambda width, height, num_cameras: (
+                    _FakeWarpArray(np.full((1, num_cameras, height, width), 255))
+                ),
+                create_depth_image_output=lambda width, height, num_cameras: (
+                    _FakeWarpArray(np.ones((1, num_cameras, height, width)))
+                ),
+                create_normal_image_output=lambda width, height, num_cameras: (
+                    _FakeWarpArray(np.ones((1, num_cameras, height, width, 3)))
+                ),
+            )
+
+    monkeypatch.setattr(
+        render_warp, "_import_warp", lambda: (_FakeWarp(), None, None, None)
+    )
+    monkeypatch.setattr(
+        render_warp,
+        "_extract_meshes",
+        lambda stage, time_code, device: ([object()], [object()]),
+    )
+    monkeypatch.setattr(
+        render_warp, "_setup_render_context", lambda **kwargs: FakeContext()
+    )
+    monkeypatch.setattr(render_warp, "_setup_lights", lambda *args: None)
+    monkeypatch.setattr(render_warp, "_compute_camera_fov", lambda *args: 0.5)
+    monkeypatch.setattr(
+        render_warp,
+        "_get_camera_transforms",
+        lambda stage, cameras, time_code: [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0] for _ in cameras
+        ],
+    )
+    monkeypatch.setattr(
+        render_warp, "_update_render_context_for_frame", lambda *args, **kwargs: 0
+    )
+    monkeypatch.setattr(
+        render_warp,
+        "_render_context_render",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("hidden frames should not render")
+        ),
+    )
+
+    result = render_warp.render_all_cameras(
+        stage=Usd.Stage.CreateInMemory(),
+        image_width=2,
+        image_height=2,
+        cameras=["/Camera"],
+        frames="0",
+        sensors=["depth"],
+        device="cpu",
+    )
+
+    assert result["successful_cameras"] == 1
+    assert np.asarray(result["results"][0]["images"][0])[:, :, :3].sum() == 0
+    assert result["results"][0]["sensors"]["depth"][0].shape == (2, 2)
+
+
 class TestWarpBackendSensorSupport:
     """Test sensor capability methods without requiring warp."""
 
@@ -285,6 +1072,32 @@ class TestWarpBackendInit:
         assert backend._enable_backface_culling is False
 
 
+def test_warp_backend_backface_culling_back_mode(monkeypatch):
+    from pxr import Usd
+
+    from world_understanding.functions.graphics.rendering import WarpRenderingBackend
+
+    captured: dict[str, object] = {}
+
+    def fake_render_all_cameras(**kwargs):
+        captured.update(kwargs)
+        return {"successful_cameras": 1}
+
+    monkeypatch.setattr(render_warp, "render_all_cameras", fake_render_all_cameras)
+
+    backend = WarpRenderingBackend()
+    result = backend.render(
+        stage=Usd.Stage.CreateInMemory(),
+        cameras=["/Camera"],
+        image_width=1,
+        image_height=1,
+        cull_style="back",
+    )
+
+    assert result["successful_cameras"] == 1
+    assert captured["enable_backface_culling"] is True
+
+
 # ---------------------------------------------------------------------------
 # Integration tests (require CUDA GPU + warp + Newton warp_raytrace)
 # ---------------------------------------------------------------------------
@@ -327,7 +1140,7 @@ def test_setup_render_context_supports_newton_model_api_without_cuda():
 
     if not hasattr(ctx.utils, "compute_mesh_bounds"):
         assert hasattr(ctx, "_wu_render_model")
-        assert ctx.config.enable_global_world is True
+        assert ctx._wu_render_config.enable_global_world is True
         assert ctx._wu_render_model.bvh_shape_count_enabled == 1
         assert ctx._wu_render_model.bvh_shapes is not None
 

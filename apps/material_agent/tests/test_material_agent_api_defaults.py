@@ -18,6 +18,7 @@ from material_agent.api.defaults import (
     DEFAULT_VLM_MODEL,
     PREDICT_DEFAULTS,
     apply_defaults,
+    get_apply_config_with_defaults,
     get_benchmark_config_with_defaults,
     get_minimal_required_fields,
     get_predict_config_with_defaults,
@@ -41,18 +42,18 @@ class TestApplyDefaults:
 
     def test_apply_defaults_nested(self):
         """Test applying defaults to nested dict."""
-        user_config = {"vlm": {"model": "gpt-4o"}}
+        user_config = {"vlm": {"model": "example-vlm-model"}}
         defaults = {
-            "vlm": {"model": "default", "backend": "perflab_azure_openai"},
+            "vlm": {"model": "default", "backend": "nim"},
             "max_workers": 16,
         }
 
         result = apply_defaults(user_config, defaults)
 
         # User nested value preserved
-        assert result["vlm"]["model"] == "gpt-4o"
+        assert result["vlm"]["model"] == "example-vlm-model"
         # Default nested value added
-        assert result["vlm"]["backend"] == "perflab_azure_openai"
+        assert result["vlm"]["backend"] == "nim"
         # Default top-level added
         assert result["max_workers"] == 16
 
@@ -137,6 +138,21 @@ class TestBenchmarkDefaults:
         assert full["judge"]["backend"] == DEFAULT_JUDGE_BACKEND
         assert full["judge"]["model"] == DEFAULT_JUDGE_MODEL
         assert full["allow_empty_predictions"] is False
+
+
+class TestApplyConfigDefaults:
+    """Tests for apply config defaults."""
+
+    def test_get_apply_config_with_defaults_preserves_user_values(self):
+        minimal = {"input_usd": "scene.usd", "output_usd": "scene_out.usd"}
+
+        full = get_apply_config_with_defaults(minimal)
+
+        assert full["input_usd"] == "scene.usd"
+        assert full["output_usd"] == "scene_out.usd"
+        assert full["layer_only"] is False
+        assert full["flatten"] is True
+        assert full["render"]["enabled"] is False
 
 
 class TestMinimalRequiredFields:

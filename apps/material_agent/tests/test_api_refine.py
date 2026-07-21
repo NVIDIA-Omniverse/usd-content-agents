@@ -40,6 +40,11 @@ class TestRefineInput:
         with pytest.raises(FileNotFoundError, match="Config file not found"):
             RefineInput(config=config_file)
 
+    def test_refine_input_rejects_empty_config_dict(self):
+        """Test RefineInput raises error for empty config dictionaries."""
+        with pytest.raises(ValueError, match="Config dictionary cannot be empty"):
+            RefineInput(config={})
+
 
 class TestIterationResult:
     """Tests for IterationResult dataclass."""
@@ -167,6 +172,53 @@ class TestRunRefine:
     @patch(
         "material_agent.workflows.factory.create_iterative_apply_workflow_from_config"
     )
+    def test_run_refine_with_config_dict(self, mock_create_workflow, tmp_path):
+        """Test refine with an in-memory config dictionary."""
+        sentinel = "api_key=refine-public-result-secret-713"
+        source = {"refine": {"enabled": True, "api_key": sentinel}}
+
+        async def mutate_isolated_config(*, initial_context):
+            initial_context["config_dict"]["refine"]["enabled"] = False
+            return {
+                "iteration_count": 1,
+                "iteration_results": [
+                    {
+                        "iteration": 1,
+                        "judge_score": 3.0,
+                        "continue_iteration": False,
+                        "api_key": sentinel,
+                    }
+                ],
+                "final_iteration": {"judge_score": 3.0},
+                "final_output_path": str(tmp_path / sentinel / "final.usd"),
+                "config_dict": initial_context["config_dict"],
+                "runtime_collaborator": object(),
+            }
+
+        mock_workflow = Mock()
+        mock_workflow.arun = AsyncMock(side_effect=mutate_isolated_config)
+        mock_create_workflow.return_value = mock_workflow
+
+        config_anchor = tmp_path / "source" / "config.yaml"
+        result = run_refine(RefineInput(config=source, config_path=config_anchor))
+
+        call_args = mock_workflow.arun.call_args.kwargs["initial_context"]
+        assert call_args["config_dict"]["refine"]["enabled"] is False
+        assert call_args["config_dict"]["refine"]["api_key"] == sentinel
+        assert call_args["config_path"] == str(config_anchor)
+        assert source["refine"]["enabled"] is True
+        assert source["refine"]["api_key"] == sentinel
+        assert result.success is True
+        assert result.final_output_path is None
+        assert result.iteration_results[0].iteration == 1
+        assert result.raw_result is not None
+        assert "config_dict" not in result.raw_result
+        assert "runtime_collaborator" not in result.raw_result
+        assert sentinel not in repr(result)
+
+    @patch(
+        "material_agent.workflows.factory.create_iterative_apply_workflow_from_config"
+    )
     def test_run_refine_no_iterations(self, mock_create_workflow, tmp_path):
         """Test refine when no iterations completed."""
         # Setup
@@ -185,19 +237,25 @@ class TestRunRefine:
         # Verify
         assert result.success is False
         assert "did not complete" in result.error.lower()
+        assert result.raw_result == {"iteration_count": 0}
 
     @patch(
         "material_agent.workflows.factory.create_iterative_apply_workflow_from_config"
     )
-    def test_run_refine_exception(self, mock_create_workflow, tmp_path):
+    def test_run_refine_exception(self, mock_create_workflow, tmp_path, caplog):
         """Test refine when exception occurs."""
         # Setup
-        config_file = tmp_path / "config.yaml"
+        sentinel = "never-replay-refine-exception-713"
+        config_dir = tmp_path / f"client_secret={sentinel}"
+        config_dir.mkdir()
+        config_file = config_dir / "config.yaml"
         config_file.write_text("# test config")
 
         # Mock workflow that raises exception
         mock_workflow = Mock()
-        mock_workflow.arun = AsyncMock(side_effect=RuntimeError("Refinement failed"))
+        mock_workflow.arun = AsyncMock(
+            side_effect=RuntimeError(f"backend reflected {sentinel}")
+        )
         mock_create_workflow.return_value = mock_workflow
 
         # Execute
@@ -206,7 +264,9 @@ class TestRunRefine:
 
         # Verify
         assert result.success is False
-        assert "Refinement failed" in result.error
+        assert result.error == "Material refinement failed"
+        assert sentinel not in caplog.text
+        assert all(record.exc_info is None for record in caplog.records)
 
 
 class TestRefineOutput:

@@ -13,6 +13,7 @@ from sklearn.exceptions import ConvergenceWarning
 from world_understanding.tools.cv.get_dominant_colors import (
     GetDominantColorsInput,
     GetDominantColorsOutput,
+    _display_color_analysis,
     get_dominant_colors_tool,
 )
 
@@ -64,6 +65,40 @@ class TestGetDominantColorsInput:
             n_colors=5,
         )
         assert input_obj.image_path == ""
+
+
+class RecordingConsole:
+    """Minimal console double that records print calls."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def print(self, *args, **kwargs) -> None:
+        self.calls.append((args, kwargs))
+
+
+def test_display_color_analysis_renders_dominant_colors() -> None:
+    console = RecordingConsole()
+
+    _display_color_analysis(
+        {
+            "average_brightness": 127.5,
+            "color_diversity": 0.42,
+            "dominant_colors": [
+                {"hex": "#ff0000", "rgb": [255, 0, 0], "percentage": 0.6},
+                {"hex": "#0000ff", "rgb": [0, 0, 255], "percentage": 0.4},
+            ],
+        },
+        console,
+        indent="  ",
+    )
+
+    rendered = "\n".join(str(call[0][0]) for call in console.calls)
+    assert "Color Analysis Results" in rendered
+    assert "Average Brightness: 127.5/255" in rendered
+    assert "Color Diversity: 0.420" in rendered
+    assert "#0000ff RGB(0, 0, 255) - 40.0%" in rendered
+    assert any(kwargs.get("style") == "on #ff0000" for _, kwargs in console.calls)
 
 
 class TestGetDominantColorsTool:

@@ -1,6 +1,6 @@
 # Physics Agent Service API Reference
 
-REST API for VLM-based asset classification and physics auto-tuning of USD files. The service accepts USD scene uploads, runs async pipeline and predict workflows, and exposes single-shot tuning over physics-authored USDs.
+REST API for VLM-based asset classification and physics auto-tuning of USD files. The service accepts USD scene uploads, runs async pipeline and predict workflows, exposes single-shot tuning over physics-authored USDs, and exposes an iterative refine loop using server-configured judge/refiner models.
 
 When launched with the bundled Docker Compose stack, the CPU-only main service
 waits for the `ovrtx-rendering-api` sidecar to finish GPU warm-up. Expect cold
@@ -19,6 +19,7 @@ reachable.
 - [Pipeline](#pipeline)
 - [Predict](#predict)
 - [Tune](#tune)
+- [Refine](#refine)
 - [Artifacts](#artifacts)
 - [Sessions](#sessions)
 - [Server-Sent Events (SSE)](#server-sent-events-sse)
@@ -50,7 +51,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Physics Agent Service",
-  "version": "0.2.23",
+  "version": "0.5.0",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -77,6 +78,14 @@ Returns service info and a map of all available endpoints.
       "cancel": "POST /tune/{session_id}/cancel",
       "artifact": "GET /tune/{session_id}/artifacts/{name}"
     },
+    "refine": {
+      "create": "POST /refine",
+      "status": "GET /refine/{session_id}/status",
+      "results": "GET /refine/{session_id}/results",
+      "events": "GET /refine/{session_id}/events",
+      "cancel": "POST /refine/{session_id}/cancel",
+      "artifact": "GET /refine/{session_id}/artifacts/{name}"
+    },
     "artifacts": {
       "predictions": "GET /artifacts/{session_id}/predictions",
       "report": "GET /artifacts/{session_id}/report",
@@ -100,11 +109,17 @@ Health check.
 {
   "status": "healthy",
   "service": "Physics Agent Service",
-  "version": "0.2.23",
+  "version": "0.5.0",
   "api_keys_configured": true,
-  "max_active_sessions": 8
+  "max_active_sessions": 1,
+  "tuning_extra_available": true,
+  "ovphysx_runtime_available": true
 }
 ```
+
+`tuning_extra_available` confirms that BoTorch can be imported in the service
+environment. `ovphysx_runtime_available` confirms that the isolated OvPhysX
+daemon environment is provisioned.
 
 ---
 
@@ -116,13 +131,16 @@ Health check.
 POST /pipeline/upload-usd
 ```
 
-Upload a USD file and create a session without starting the pipeline. Use the returned `session_id` with `POST /pipeline` to start processing later.
+Upload a USD file or import one from an authorized S3 bucket and create a
+session without starting the pipeline. Use the returned `session_id` with
+`POST /pipeline` to start processing later.
 
 **Request:** `multipart/form-data`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `usd_file` | file | yes | USD file (`.usd`, `.usda`, `.usdc`, `.usdz`) |
+| `usd_file` | file | conditional | USD file (`.usd`, `.usda`, `.usdc`, `.usdz`). Required when `s3_uri` is absent. |
+| `s3_uri` | string | conditional | S3 URI to a USD file in a bucket allowed by `PA_S3_ALLOWED_BUCKETS`. Required when `usd_file` is absent. |
 
 **Response** `201`
 ```json
@@ -135,7 +153,8 @@ Upload a USD file and create a session without starting the pipeline. Use the re
 ```
 
 **Errors:**
-- `400` Invalid file extension
+- `400` Neither or both of `usd_file` and `s3_uri` provided; invalid file extension
+- `403` S3 URI is not permitted by the configured bucket allowlist, or S3 access is denied
 - `413` File exceeds `PA_MAX_UPLOAD_SIZE_MB` (default 500 MB)
 
 ---
@@ -151,17 +170,26 @@ Create and execute an asset classification pipeline. Supports three modes:
 2. **Existing session:** provide `session_id` (from `/pipeline/upload-usd`) to start processing a previously uploaded file.
 3. **S3 source:** provide `s3_uri` to let the service download the USD and start processing.
 
+At least one source field is required. If a request supplies more than one,
+the service selects `session_id` first, otherwise `s3_uri`, otherwise
+`usd_file`; lower-priority fields are ignored. This precedence is specific to
+`POST /pipeline`. The `/tune` and `/refine` create endpoints retain their
+documented exact-one source validation. `/predict` accepts exactly one primary
+USD source (`usd_file`, `session_id`, or `s3_uri`), but also accepts
+`dataset_path` by itself or together with `session_id` as a prepared-dataset
+override.
+
 Pipeline execution is async -- the endpoint returns `202` immediately.
 
 **Request:** `multipart/form-data`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `usd_file` | file | conditional | USD file. Required if `session_id` is not provided. |
-| `session_id` | string | conditional | Existing session ID. Required if `usd_file` is not provided. |
-| `s3_uri` | string | conditional | S3 URI to a USD file. Required if neither `usd_file` nor `session_id` is provided. |
+| `usd_file` | file | conditional | Lowest-priority USD source. Used only when neither `session_id` nor `s3_uri` is provided. |
+| `session_id` | string | conditional | Highest-priority source: an existing session ID. |
+| `s3_uri` | string | conditional | S3 URI to a USD file in a bucket allowed by `PA_S3_ALLOWED_BUCKETS`. Used when `session_id` is absent and takes precedence over `usd_file`. |
 | `user_prompt` | string | no | Custom prompt for the VLM prediction step. |
-| `render_backend` | string | no | Rendering backend: `remote` (default, HTTP render service; the bundled compose points this at the OVRTX sidecar), `warp` (local CUDA), or `ovrtx` (local Vulkan subprocess). |
+| `render_backend` | string | no | Rendering backend: `remote` (default, HTTP render service; the bundled compose points this at the OVRTX sidecar), `warp` (local CUDA), `ovrtx` (local Vulkan subprocess), or `mock` (deterministic CPU-only test images). |
 | `optimize_usd` | boolean | no | Enable Scene Optimizer before rendering and prediction. Default: `false`. |
 | `enable_deinstance` | boolean | no | Enable deinstance when `optimize_usd=true`. Default: `true`; required for instanced assets that use shared prototypes. |
 | `enable_split` | boolean | no | Enable split meshes when `optimize_usd=true`. Default: `false`. |
@@ -181,7 +209,8 @@ FastAPI accepts common boolean form values for the optimizer flags, including
 ```
 
 **Errors:**
-- `400` Neither `usd_file`, `session_id`, nor `s3_uri` provided; invalid file extension; input USD not found for session; `optimize_usd=true` with all optimizer operation flags disabled
+- `400` Neither `usd_file`, `session_id`, nor `s3_uri` provided; invalid file extension; unknown `render_backend`; input USD not found for session; `optimize_usd=true` with all optimizer operation flags disabled
+- `403` S3 URI is not permitted by the configured bucket allowlist, or S3 access is denied
 - `404` Session not found (when using `session_id`)
 - `413` File too large
 
@@ -247,7 +276,8 @@ Real-time pipeline status with step-level progress. Reads from the in-memory eve
 GET /pipeline/{session_id}/results
 ```
 
-Returns final results when the pipeline has completed, or error details if it failed.
+Returns final results when the pipeline has completed or was cancelled, or error
+details if it failed.
 
 **Response** `200` (completed) -- [PipelineResults](#pipelineresults)
 ```json
@@ -269,12 +299,16 @@ Returns final results when the pipeline has completed, or error details if it fa
 }
 ```
 
+Cancelled pipelines return the same response shape with `status` set to
+`"cancelled"`; statistics may be empty when cancellation occurred before a step
+produced results.
+
 **Response** `200` (failed) -- [PipelineError](#pipelineerror)
 ```json
 {
   "session_id": "a1b2c3d4-...",
   "status": "failed",
-  "error_message": "VLM inference timeout",
+  "error_message": "physics_pipeline_execution_failed",
   "failed_step": "predict",
   "completed_steps": ["optimize_usd", "build_dataset_usd"],
   "partial_results": null
@@ -282,7 +316,7 @@ Returns final results when the pipeline has completed, or error details if it fa
 ```
 
 **Errors:**
-- `202` Pipeline still running (check `/status` for progress)
+- `202` Pipeline still pending, running, or cancelling (check `/status` for progress)
 - `404` Session not found
 
 ---
@@ -411,11 +445,13 @@ with `steps=["predict"]` keep working exactly as before.
 `POST /predict` auto-picks one of two modes at job start, based on what's
 already on disk for the session:
 
-* **Mode A — `dataset_only`.** A prepared `dataset.jsonl` is already
-  available (either at the session's `cache/dataset/dataset.jsonl`, or
-  supplied via the `dataset_path` form field). Only the `predict` step runs.
-* **Mode B — `full_predict`.** No prepared dataset is present. The minimum
-  upstream steps run before predicting:
+* **Mode A — `dataset_only`.** A readable `dataset_path` is supplied, or the
+  session's `cache/dataset/dataset.jsonl` exists and all referenced images for
+  a usable entry resolve. Only the `predict` step runs.
+* **Mode B — `full_predict`.** No runnable session dataset is present. This
+  includes a cached JSONL whose referenced images are missing, provided an
+  input USD is available for rebuilding. The minimum upstream steps run before
+  predicting:
   `optimize_usd` (optional) → `identify_asset` → `build_dataset_usd` →
   `build_dataset_prepare_dataset` → `predict`. **`apply_physics` is
   intentionally not part of `/predict`.**
@@ -424,6 +460,10 @@ The detected mode is persisted to session metadata under `predict_mode` and
 returned by `GET /predict/{id}/results` as `mode`. Required upstream steps
 are never silently skipped — Mode B always runs the prep listed above before
 prediction.
+
+If a cached JSONL's images do not resolve and no input USD is available,
+`POST /predict` returns `400` with guidance to re-supply the original
+`dataset_path` or USD source.
 
 ### Create Predict
 
@@ -438,11 +478,11 @@ Create and execute a prediction job.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `usd_file` | file | conditional | USD file (Mode B). Required if no other input source is provided. |
-| `session_id` | string | conditional | Existing session ID (e.g. from `/pipeline/upload-usd`). If the session already has a prepared dataset, runs Mode A. |
-| `s3_uri` | string | conditional | S3 URI to a USD file. |
+| `session_id` | string | conditional | Existing session ID (e.g. from `/pipeline/upload-usd`). A cached dataset selects Mode A only when its referenced images resolve; otherwise the request falls back to Mode B when an input USD is available. |
+| `s3_uri` | string | conditional | S3 URI to a USD file in a bucket allowed by `PA_S3_ALLOWED_BUCKETS`. |
 | `dataset_path` | string | conditional | Absolute path to a prepared `dataset.jsonl` on the server. When set and readable, forces Mode A. The path must resolve inside the session-storage root or one of the colon-separated locations listed in the `PA_DATASET_ALLOWED_ROOTS` env var; anything else is rejected with `403`. |
 | `user_prompt` | string | no | Custom prompt for the VLM (Mode B). |
-| `render_backend` | string | no | Mode B only: `remote` (default), `warp`, or `ovrtx`. |
+| `render_backend` | string | no | Mode B only: `remote` (default), `warp`, `ovrtx`, or `mock`. |
 | `optimize_usd` | boolean | no | Mode B only: enable Scene Optimizer. Default `false`. |
 | `enable_deinstance` | boolean | no | Mode B only: enable deinstance op. Default `true`. |
 | `enable_split` | boolean | no | Mode B only: enable split-meshes op. Default `false`. |
@@ -471,8 +511,8 @@ required.
 ```
 
 **Errors:**
-- `400` No input source provided; ambiguous combination (more than one of `usd_file`/`session_id`/`s3_uri`, or `dataset_path` paired with `usd_file`/`s3_uri`); invalid USD extension; missing `dataset_path`; invalid optimizer config; no input USD or prepared dataset for this session
-- `403` S3 access denied (when `s3_uri` is provided)
+- `400` No input source provided; ambiguous combination (more than one of `usd_file`/`session_id`/`s3_uri`, or `dataset_path` paired with `usd_file`/`s3_uri`); invalid USD extension; unknown `render_backend` in Mode B; missing `dataset_path`; invalid optimizer config; no input USD or runnable prepared dataset for this session; cached dataset images are missing and no USD source is available for rebuilding
+- `403` S3 URI is not permitted by the configured bucket allowlist, or S3 access is denied
 - `404` `session_id` provided but session does not exist; S3 object not found
 - `409` Predict already `pending`/`running`/`cancelling` for the supplied `session_id`, or the same-pod `JobRegistry` race-guard fired
 - `413` File too large; S3 file too large
@@ -623,10 +663,11 @@ Exactly one source field is required. For raw USD classification and physics
 authoring, run `/pipeline` first and then pass its completed session id as
 `source_session_id`.
 
-`/tune` is single-shot. The Physics Agent CLI/Python API also provide iterative
-`refine`, but the service does not currently expose a first-class `/refine`
-route. `judge_max_iterations` is accepted for compatibility and audit metadata;
-single-shot `/tune` does not re-run tuning when the judge returns `continue`.
+`/tune` is single-shot. Use `/refine` when the caller needs the judge/refiner
+loop to run additional tuning iterations until approval or an iteration cap.
+`judge_max_iterations` is accepted here only for compatibility and audit
+metadata; single-shot `/tune` does not re-run tuning when the judge returns
+`continue`.
 
 ### Create Tune
 
@@ -642,7 +683,7 @@ job is registered.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `physics_usd` | file | conditional | Physics-authored USD. Required if `s3_uri` and `source_session_id` are absent. |
-| `s3_uri` | string | conditional | S3 URI to a physics-authored USD. |
+| `s3_uri` | string | conditional | S3 URI to a physics-authored USD in a bucket allowed by `PA_S3_ALLOWED_BUCKETS`. |
 | `source_session_id` | string | conditional | Completed pipeline session whose `output_usd` should be tuned. |
 | `scenario_yaml` | string | conditional | Tuning scenario YAML body. Optional when `user_prompt` is supplied. |
 | `user_prompt` | string | conditional | Natural-language description such as `make this object bouncy`. Optional when full `scenario_yaml` is supplied. |
@@ -650,6 +691,9 @@ job is registered.
 | `reference_videos` | file[] | no | Optional reference videos for the visual/VLM judge. |
 | `reference_descriptions` | JSON string[] | no | Descriptions parallel to `reference_images`. |
 | `reference_video_descriptions` | JSON string[] | no | Descriptions parallel to `reference_videos`. |
+| `reference_video_frames` | int | no | Frames to extract from each reference video. Default `8`; valid range `1-64`. |
+| `judge_reference_frames` | int | no | Max reference images/video frames sent to the VLM judge. Default `8`; valid range `1-64`. |
+| `judge_generated_frames` | int | no | Max generated render frames sent to the VLM judge. Default `16`; valid range `1-64`. |
 | `optimizer` | string | no | `auto` (default, resolves to BoTorch), `botorch`, `random`, or `cma-es`. |
 | `engine` | string | no | `ovphysx` (default) or `fake` for tests. |
 | `max_trials` | int | no | Trial budget. Must be between 1 and 1000. |
@@ -682,7 +726,7 @@ poll status/results to inspect those asynchronous failures.
 
 **Errors:**
 - `400` Missing or ambiguous source; missing scenario/prompt; invalid scenario YAML; unsupported engine/scenario pair when explicit `scenario_yaml` names a known scenario; invalid trial, judge, reference-description, source-session-id, or USD-extension value
-- `403` S3 object access denied
+- `403` S3 URI is not permitted by the configured bucket allowlist, or S3 access is denied
 - `404` `source_session_id` not found, or S3 object not found
 - `413` Upload, scenario YAML, prompt, or reference media too large
 - `422` Multipart/form parsing or FastAPI validation failed before route logic, for example a non-coercible integer, boolean, or float form value
@@ -729,7 +773,8 @@ GET /tune/{session_id}/results
 
 Returns final tune results when the job is terminal. Completed, failed-with-
 partial-results, and cancelled-after-trials sessions use the same `TuneResults`
-shape so callers can discover artifact URLs.
+shape so callers can discover artifact URLs. `download_urls` contains only
+files that were produced and published to the configured session store.
 
 **Response** `200` -- [TuneResults](#tuneresults)
 ```json
@@ -751,7 +796,7 @@ shape so callers can discover artifact URLs.
     "tune_results": "/tune/a1b2c3d4-.../artifacts/tune_results.json",
     "history": "/tune/a1b2c3d4-.../artifacts/history.jsonl",
     "report": "/tune/a1b2c3d4-.../artifacts/report.md",
-    "tuned_usd": "/tune/a1b2c3d4-.../artifacts/tuned_physics.usda",
+    "tuned_usd": "/tune/a1b2c3d4-.../artifacts/tuned_physics.usd",
     "visual_comparison": "/tune/a1b2c3d4-.../artifacts/comparison.png"
   },
   "duration_seconds": 420,
@@ -819,8 +864,249 @@ does not already have the file.
 | `tune_results.json` | Full result payload, including judge data when enabled |
 | `history.jsonl` | One JSON object per optimizer trial |
 | `report.md` | Human-readable Markdown report |
-| `tuned_physics.usda` | Physics USD patched with best parameters |
+| `tuned_physics.usd` | Physics USD patched with best parameters |
 | `comparison.png` | Optional VLM judge contact sheet when visual comparison ran |
+
+**Errors:**
+- `404` Session not found, artifact unavailable, or unknown artifact name
+
+---
+
+## Refine
+
+`/refine` is the service entry point for the iterative Physics Agent refine loop.
+It runs the same core API as `physics-agent refine`: tune parameters, judge the
+simulated behavior against a user objective and optional reference media, ask the
+scenario refiner for a revised scenario when the judge says `continue`, and stop
+when the judge score reaches `score_threshold`, the loop hits `max_iterations`,
+or cancellation is requested.
+
+Refine expects a physics-authored USD, not a raw asset USD. Supply exactly one
+of the same source fields used by `/tune`: `physics_usd`, `s3_uri`, or
+`source_session_id`.
+
+Deployments build the judge and scenario-refiner models server-side from service
+configuration. Clients do not submit model backend credentials or provider
+configuration through this route.
+
+### Create Refine
+
+```http
+POST /refine
+```
+
+Create and queue an iterative refine session. Execution is async and returns
+`202` once the job is registered.
+
+**Request:** `multipart/form-data`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `physics_usd` | file | conditional | Physics-authored USD. Required if `s3_uri` and `source_session_id` are absent. |
+| `s3_uri` | string | conditional | S3 URI to a physics-authored USD in a bucket allowed by `PA_S3_ALLOWED_BUCKETS`. |
+| `source_session_id` | string | conditional | Completed pipeline session whose `output_usd` should be refined. |
+| `scenario_yaml` | string | yes | Initial tuning scenario YAML body. Must validate for the selected engine. |
+| `user_prompt` | string | yes | Natural-language target behavior/objective for judge and scenario-refine calls. |
+| `reference_images` | file[] | no | Optional reference images for the visual/VLM judge. |
+| `reference_videos` | file[] | no | Optional reference videos for the visual/VLM judge. |
+| `reference_descriptions` | JSON string[] | no | Descriptions parallel to `reference_images`. |
+| `reference_video_descriptions` | JSON string[] | no | Descriptions parallel to `reference_videos`. |
+| `reference_video_frames` | int | no | Frames to extract from each reference video. Default `8`; valid range `1-64`. |
+| `judge_reference_frames` | int | no | Max reference images/video frames sent to the VLM judge. Default `8`; valid range `1-64`. |
+| `judge_generated_frames` | int | no | Max generated render frames sent to the VLM judge. Default `16`; valid range `1-64`. |
+| `optimizer` | string | no | `botorch` by default; also accepts `auto`, `random`, or `cma-es`. |
+| `engine` | string | no | `ovphysx` by default; `fake` is available for tests. |
+| `max_trials` | int | no | Trial budget per refine iteration. Default `30`; must be 1-1000. |
+| `max_iterations` | int | no | Refine loop cap. Default `5`; must be 1-12. |
+| `score_threshold` | float | no | Judge approval threshold. Default `0.9`; must be finite and in `[0, 1]`. |
+| `seed` | int | no | Seed for optimizer and backend. Default `42`. |
+| `judge_max_tokens` | int or null | no | Optional judge response token cap. |
+| `judge_temperature` | float or null | no | Optional judge temperature. |
+| `visual_evidence_enabled` | bool | no | Include generated/reference media in judge calls. Default `true`. |
+| `llm_timeout_seconds` | float | no | Per-call judge/refiner timeout. Default `180`. |
+
+Unlike `/tune`, both `scenario_yaml` and `user_prompt` are required. Explicit
+YAML anchors the initial search space; the prompt supplies the target objective
+that the judge and scenario-refiner use between iterations.
+
+**Response** `202` -- [SessionCreated](#sessioncreated)
+```json
+{
+  "session_id": "a1b2c3d4-...",
+  "status": "pending",
+  "message": "Refine queued for execution",
+  "estimated_duration_minutes": 15
+}
+```
+
+**Errors:**
+- `400` Missing or ambiguous source; missing scenario/prompt; invalid scenario YAML; unsupported engine/scenario/parameter pair; invalid optimizer, trial, iteration, threshold, judge, reference-description, source-session-id, or USD-extension value
+- `403` S3 URI is not permitted by the configured bucket allowlist, or S3 access is denied
+- `404` `source_session_id` not found, or S3 object not found
+- `413` Upload, scenario YAML, prompt, or reference media too large
+- `422` Multipart/form parsing or FastAPI validation failed before route logic
+- `502` S3 download failed
+
+### Get Refine Status
+
+```http
+GET /refine/{session_id}/status
+```
+
+Returns current iteration, per-iteration trial progress, best parameters for the
+current or final iteration, latest judge score, and terminal reason when known.
+
+**Response** `200` -- [RefineStatus](#refinestatus)
+```json
+{
+  "session_id": "a1b2c3d4-...",
+  "status": "running",
+  "iteration": 2,
+  "max_iterations": 5,
+  "n_trials": 9,
+  "max_trials": 30,
+  "best_score": 0.071,
+  "best_params": {
+    "mass_scale": 1.0,
+    "static_friction": 0.25,
+    "dynamic_friction": 0.2,
+    "restitution": 0.9
+  },
+  "judge_score": 0.72,
+  "termination_reason": null,
+  "elapsed_seconds": 180,
+  "can_cancel": true,
+  "created_at": "2026-02-24T10:00:00Z",
+  "updated_at": "2026-02-24T10:03:00Z"
+}
+```
+
+**Errors:**
+- `404` Session not found
+
+### Get Refine Results
+
+```http
+GET /refine/{session_id}/results
+```
+
+Returns terminal refine results. Completed, failed-with-partial-results, and
+cancelled sessions use the same `RefineResults` shape when iteration artifacts
+exist. `download_urls` contains only files that were produced and published to
+the configured session store.
+
+**Response** `200` -- [RefineResults](#refineresults)
+```json
+{
+  "session_id": "a1b2c3d4-...",
+  "status": "completed",
+  "termination_reason": "approved",
+  "iteration_count": 2,
+  "final_iteration": 2,
+  "final_judge_score": 0.93,
+  "iterations": [
+    {
+      "iteration": 1,
+      "best_score": 0.11,
+      "judge_score": 0.72,
+      "decision": "continue"
+    },
+    {
+      "iteration": 2,
+      "best_score": 0.071,
+      "judge_score": 0.93,
+      "decision": "approve"
+    }
+  ],
+  "download_urls": {
+    "refine_summary": "/refine/a1b2c3d4-.../artifacts/refine_summary.json",
+    "final_scenario": "/refine/a1b2c3d4-.../artifacts/final/scenario.yaml",
+    "final_best_params": "/refine/a1b2c3d4-.../artifacts/final/best_params.json",
+    "final_tune_results": "/refine/a1b2c3d4-.../artifacts/final/tune_results.json",
+    "final_history": "/refine/a1b2c3d4-.../artifacts/final/history.jsonl",
+    "final_judge_result": "/refine/a1b2c3d4-.../artifacts/final/judge_result.json",
+    "final_tuned_usd": "/refine/a1b2c3d4-.../artifacts/final/tuned_physics.usd",
+    "final_recording_usd": "/refine/a1b2c3d4-.../artifacts/final/recording.usd",
+    "final_report": "/refine/a1b2c3d4-.../artifacts/final/report.md",
+    "final_visual_comparison": "/refine/a1b2c3d4-.../artifacts/final/comparison.png"
+  },
+  "duration_seconds": 900,
+  "completed_at": "2026-02-24T10:15:00Z",
+  "error_message": null
+}
+```
+
+When the winning trial persisted a simulation recording, the service flattens
+that composed stage into `final/recording.usd` and publishes it as
+`final_recording_usd`. This time-sampled USD is the canonical motion artifact;
+the Physics Agent service does not produce or expose MP4 renders.
+
+**Errors:**
+- `202` Refine still pending or running
+- `404` Session not found
+
+### Stream Refine Events
+
+```http
+GET /refine/{session_id}/events
+```
+
+SSE stream of refine progress events. Same-instance clients receive `progress`
+frames for iteration start, trial completion, tune completion, judge decisions,
+terminal failure/cancel, and artifact-ready completion. In multi-instance
+deployments, use `GET /refine/{session_id}/status` polling when the SSE endpoint
+returns `503`.
+
+**Errors:**
+- `404` Session not found
+- `503` Refine is running on a different instance; poll status instead
+
+### Cancel Refine
+
+```http
+POST /refine/{session_id}/cancel
+```
+
+Cooperatively cancels a pending or running refine session. The worker shares a
+cancellation marker with the active tune run and checks it between tune, judge,
+and scenario-refine phases. Cancelling a non-refine session is rejected.
+
+**Response** `200`
+```json
+{
+  "session_id": "a1b2c3d4-...",
+  "status": "cancelling",
+  "message": "Refine cancellation requested"
+}
+```
+
+**Errors:**
+- `400` Refine already completed, failed, or cancelled
+- `404` Session not found
+- `409` Session is not a refine session
+
+### Download Refine Artifact
+
+```http
+GET /refine/{session_id}/artifacts/{name}
+```
+
+Downloads one canonical refine artifact. Unknown names are rejected to avoid
+path traversal. Artifact reads pull from the shared store when the local
+instance does not already have the file.
+
+| Name | Content |
+|------|---------|
+| `refine_summary.json` | Full refine summary across iterations |
+| `final/scenario.yaml` | Final scenario YAML used for the terminal iteration |
+| `final/best_params.json` | Final iteration best parameter set |
+| `final/tune_results.json` | Final iteration tune result payload |
+| `final/history.jsonl` | Final iteration optimizer trial history |
+| `final/judge_result.json` | Final judge verdict |
+| `final/tuned_physics.usd` | Physics USD patched with final best parameters |
+| `final/recording.usd` | Flattened winning time-sampled simulation recording |
+| `final/report.md` | Final iteration Markdown report |
+| `final/comparison.png` | Optional VLM judge contact sheet |
 
 **Errors:**
 - `404` Session not found, artifact unavailable, or unknown artifact name
@@ -1136,6 +1422,7 @@ Returned by `GET /tune/{id}/status`.
 | `best_params` | object or null | Best parameter set so far |
 | `elapsed_seconds` | int | Total elapsed time |
 | `can_cancel` | bool | Whether tune can be cancelled |
+| `error_message` | string or null | Failure reason for failed sessions |
 | `created_at` | string | ISO 8601 timestamp |
 | `updated_at` | string | ISO 8601 timestamp |
 
@@ -1153,8 +1440,49 @@ failed or cancelled sessions when partial tune artifacts are available.
 | `n_trials` | int | Number of trials evaluated |
 | `optimizer_used` | string | Resolved optimizer name, e.g. `botorch` |
 | `engine_used` | string | Engine used, e.g. `ovphysx` |
-| `download_urls` | object | Tune artifact URLs |
+| `download_urls` | object | URLs for tune artifacts that were produced and published |
 | `duration_seconds` | int | Total tune duration |
+| `completed_at` | string | ISO 8601 timestamp |
+| `error_message` | string or null | Failure reason for failed sessions with partial artifacts |
+
+### RefineStatus
+
+Returned by `GET /refine/{id}/status`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `session_id` | string | Session identifier |
+| `status` | string | `pending`, `running`, `completed`, `failed`, `cancelled`, or `cancelling` |
+| `iteration` | int | Current or final refine iteration number |
+| `max_iterations` | int | Configured refine iteration cap |
+| `n_trials` | int | Trials completed in the current iteration |
+| `max_trials` | int | Configured trial budget per iteration |
+| `best_score` | float or null | Best score observed in the current/final iteration; lower is better |
+| `best_params` | object or null | Best parameter set observed in the current/final iteration |
+| `judge_score` | float or null | Latest judge score, when available |
+| `termination_reason` | string or null | `approved`, `max_iterations`, `cancelled`, `error`, or null while running |
+| `elapsed_seconds` | int | Total elapsed time |
+| `can_cancel` | bool | Whether refine can be cancelled |
+| `error_message` | string or null | Failure reason for failed sessions |
+| `created_at` | string | ISO 8601 timestamp |
+| `updated_at` | string | ISO 8601 timestamp |
+
+### RefineResults
+
+Returned by `GET /refine/{id}/results` for terminal refine sessions, including
+failed or cancelled sessions when partial iteration artifacts are available.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `session_id` | string | Session identifier |
+| `status` | string | Terminal status: `completed`, `failed`, or `cancelled` |
+| `termination_reason` | string | `approved`, `max_iterations`, `cancelled`, or `error` |
+| `iteration_count` | int | Number of refine iterations run |
+| `final_iteration` | int | Iteration number used for final artifacts |
+| `final_judge_score` | float or null | Final judge score, when available |
+| `iterations` | object[] | Per-iteration summary dictionaries |
+| `download_urls` | object | URLs for refine artifacts that were produced and published |
+| `duration_seconds` | int | Total refine duration |
 | `completed_at` | string | ISO 8601 timestamp |
 | `error_message` | string or null | Failure reason for failed sessions with partial artifacts |
 
@@ -1166,7 +1494,7 @@ Returned when the pipeline fails.
 |-------|------|-------------|
 | `session_id` | string | Session identifier |
 | `status` | string | `"failed"` |
-| `error_message` | string | Error description |
+| `error_message` | string | Stable value-free diagnostic code, such as `physics_pipeline_execution_failed` or `physics_pipeline_model_authentication_failed` |
 | `failed_step` | string | Step that failed |
 | `completed_steps` | string[] | Steps completed before failure |
 | `partial_results` | object or null | Any partial results available |
@@ -1226,8 +1554,8 @@ Full session metadata stored on disk (`session.json`).
 | `preview_images` | string[] | Preview image filenames |
 | `can_cancel` | bool | Cancellation availability |
 | `elapsed_seconds` | int | Elapsed time |
-| `kind` | string or null | `tune` for `/tune` sessions; absent for older or non-tune sessions |
-| `config` | object | Route-specific request metadata. Pipeline/predict sessions include `{project_name, usd_path, has_usd_upload, user_prompt, predict_route?}`. Tune sessions include `{kind: "tune", engine, optimizer, max_trials, seed, physics_usd, scenario_path?, user_prompt?, reference_images, reference_videos, enable_judge, judge_*}`. |
+| `kind` | string or null | `tune` for `/tune` sessions, `refine` for `/refine` sessions; absent for older pipeline/predict sessions |
+| `config` | object | Route-specific request metadata. Pipeline/predict sessions include `{project_name, usd_path, has_usd_upload, user_prompt, predict_route?}`. Tune sessions include `{kind: "tune", engine, optimizer, max_trials, seed, physics_usd, scenario_path?, user_prompt?, reference_images, reference_videos, reference_video_frames, judge_*, enable_judge}`. Refine sessions include `{kind: "refine", engine, optimizer, max_trials, max_iterations, score_threshold, seed, physics_usd, scenario_path, user_prompt, reference_images, reference_videos, reference_video_frames, judge_*, visual_evidence_enabled}`. |
 | `ttl_expires_at` | string | Expiration timestamp |
 | `results` | object | Final stats |
 | `duration_seconds` | int | Total duration |
@@ -1257,6 +1585,7 @@ All errors return JSON with a `detail` field:
 | `202` | Accepted -- pipeline queued or still running |
 | `204` | Deleted successfully (no body) |
 | `400` | Bad request (missing params, invalid state) |
+| `403` | Client-supplied S3 URI is outside the configured bucket allowlist, or S3 access is denied |
 | `404` | Session or artifact not found |
 | `409` | Route/session kind conflict or active job race |
 | `413` | File too large |
@@ -1275,9 +1604,32 @@ All settings use the `PA_` environment variable prefix.
 |----------|---------|-------------|
 | `PA_SESSION_STORAGE_PATH` | `/var/physics-agent/sessions` | Session storage directory (falls back to `./sessions` in dev) |
 | `PA_SESSION_TTL_HOURS` | `24` | Hours before sessions are auto-cleaned |
-| `PA_MAX_ACTIVE_SESSIONS` | `1` | Max concurrent pipeline executions (semaphore) |
+| `PA_MAX_ACTIVE_SESSIONS` | `1` | Max concurrent pipeline executions, read when the registry starts. Invalid or negative values fall back to `1`; `0` permits no active executions. |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | `1` | Process-wide render request cap for local OVRTX compose |
 | `PA_MAX_UPLOAD_SIZE_MB` | `500` | Max upload file size in MB |
+| `PA_S3_ALLOWED_BUCKETS` | empty | Comma- or whitespace-separated exact bucket names allowed for client-supplied `s3_uri` inputs. Empty rejects all such inputs. |
+
+### Client-supplied S3 authorization
+
+`PA_S3_ALLOWED_BUCKETS` applies to S3 inputs on `pipeline`, `predict`, `tune`,
+and `refine`. It is deliberately fail-closed: an unset or empty value, or a
+bucket that is not an exact match, is rejected before `HeadObject`, download,
+or any other S3 operation. These cases return HTTP `403` with the same generic
+detail, `S3 URI is not permitted by the service's configured bucket
+allowlist`, and do not reveal whether an object exists.
+
+Upgrade deployments that already accept `s3_uri` by setting this variable
+before rollout, or migrate callers to file uploads or existing-session inputs.
+Otherwise all S3 URI requests begin returning `403`. Restart the service after
+changing the value.
+The Helm chart exposes the same setting as `s3AllowedBuckets`.
+
+Entries are bucket names only (for example, `content-agent-intake`), not
+`s3://` URIs, wildcards, or key prefixes. The application policy does not
+restrict key prefixes, so use a dedicated intake bucket that contains no
+unrelated or sensitive objects. Restrict the service IAM role to only the
+required bucket and prefixes as defense in depth; IAM scoping does not replace
+request authorization.
 
 ### VLM/LLM Settings
 
@@ -1286,8 +1638,16 @@ All settings use the `PA_` environment variable prefix.
 | `PA_VLM_BACKEND` | `nim` | VLM inference backend |
 | `PA_VLM_MODEL` | `qwen/qwen3.5-397b-a17b` | VLM model identifier |
 | `PA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
-| `PA_RENDER_BACKEND` | `remote` | Rendering backend: `remote`, `warp`, or `ovrtx` |
+| `PA_TUNE_BACKEND` | unset; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` | Optional `/tune` prompt-to-scenario interpreter backend override |
+| `PA_TUNE_MODEL` | unset; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` or the deployment default | Optional `/tune` prompt-to-scenario interpreter model override |
+| `PA_REFINE_BACKEND` | unset; falls back to `PA_VLM_BACKEND` | Optional `/refine` judge/refiner backend override |
+| `PA_REFINE_MODEL` | unset; falls back to `PA_VLM_MODEL` or the deployment default | Optional `/refine` judge/refiner model override |
+| `PA_RENDER_BACKEND` | `remote` | Rendering backend: `remote`, `warp`, `ovrtx`, or `mock` |
 | `RENDER_ENDPOINT` | `http://ovrtx-rendering-api:8000` in bundled Docker Compose | Base URL for the remote HTTP renderer used when `PA_RENDER_BACKEND=remote` |
+
+Public Docker deployments default to the `nim` backend. Configure
+`PA_VLM_BACKEND`, `PA_TUNE_BACKEND`, and `PA_REFINE_BACKEND` explicitly when
+using another documented public provider.
 
 ### API Keys
 
@@ -1304,6 +1664,10 @@ All settings use the `PA_` environment variable prefix.
 | `AWS_ACCESS_KEY_ID` | AWS access key |
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key |
 | `AWS_DEFAULT_REGION` | AWS region |
+| `PA_STORAGE_KIND` | Session store backend: `local` or `s3` |
+| `PA_STORAGE_S3_BUCKET` | S3 bucket for shared session storage |
+| `PA_STORAGE_S3_PREFIX` | S3 key prefix for sessions |
+| `PA_STORAGE_S3_REGION` | S3 region |
 
 ---
 
@@ -1349,5 +1713,21 @@ Tune a completed pipeline output:
 5. GET /tune/{id}/results            Get best params and artifact URLs
        ↓
 6. GET /tune/{id}/artifacts/report.md
-   GET /tune/{id}/artifacts/tuned_physics.usda
+   GET /tune/{id}/artifacts/tuned_physics.usd
+```
+
+Refine a completed pipeline output:
+
+```text
+1. POST /pipeline                    Produce apply_physics output_usd
+       ↓
+2. POST /refine                      Send source_session_id, scenario_yaml, and user_prompt
+       ↓
+3. GET /refine/{id}/events           Stream iteration/trial/judge progress
+       ↓                             (or poll GET /refine/{id}/status)
+4. GET /refine/{id}/results          Get iteration summaries and artifact URLs
+       ↓
+5. GET /refine/{id}/artifacts/final/scenario.yaml
+   GET /refine/{id}/artifacts/final/tuned_physics.usd
+   GET /refine/{id}/artifacts/final/recording.usd
 ```

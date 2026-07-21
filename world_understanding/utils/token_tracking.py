@@ -118,7 +118,7 @@ class TokenTracker:
 
         # During VLM inference
         response = vlm.chat_model.invoke(messages)
-        usage = TokenUsage.from_langchain_response(response, model_name="gpt-4o")
+        usage = TokenUsage.from_langchain_response(response, model_name="example-vlm-model")
         tracker.add_usage(usage)
 
         # Get aggregated stats

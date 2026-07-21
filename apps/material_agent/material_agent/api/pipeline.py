@@ -10,10 +10,28 @@ from pathlib import Path
 from typing import Any
 
 from world_understanding.agentic.events import EventListener
+from world_understanding.utils.credentials import redact_sensitive_config
+from world_understanding.utils.model_auth import (
+    MODEL_AUTHENTICATION_FAILURE_MESSAGE,
+    is_model_authentication_error,
+    public_model_failure_message,
+)
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_text,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
 
+from material_agent.api.diagnostics import (
+    diagnostic_path,
+    normalize_required_config,
+)
 from material_agent.api.types import APIResult
 
 logger = logging.getLogger(__name__)
+
+_PIPELINE_FAILURE_MESSAGE = "Pipeline execution failed"
+_DRY_RUN_FAILURE_MESSAGE = "Unable to build pipeline execution plan"
 
 
 @dataclass
@@ -22,6 +40,7 @@ class PipelineInput:
 
     Args:
         config: Either a Path to a YAML config file or a dict with config contents
+        config_path: Optional source path used to anchor relative paths for dict config
         skip_steps: List of step names to skip
         only_steps: List of step names to run exclusively
         resume: Resume from last checkpoint
@@ -44,21 +63,17 @@ class PipelineInput:
     session_id: str | None = None
     simulate: bool = False
     cancel_checker: Callable[[], bool] | None = None
+    config_path: Path | None = None
 
     def __post_init__(self) -> None:
         """Validate inputs."""
-        # Handle config as either Path or dict
-        if isinstance(self.config, dict):
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
+        if self.config_path is not None:
+            self.config_path = Path(self.config_path)
 
 
-@dataclass
-class PipelineOutput(APIResult):
+@dataclass(repr=False)
+class PipelineOutput(SecretSafeReprMixin, APIResult):
     """Output results from pipeline API."""
 
     step_results: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -97,14 +112,21 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
 
         listener = create_default_listener(verbose=params.verbose)
 
+    safe_skip_steps = redact_sensitive_config(params.skip_steps)
+    if not isinstance(safe_skip_steps, list):
+        safe_skip_steps = []
+    safe_only_steps = redact_sensitive_config(params.only_steps)
+    if not isinstance(safe_only_steps, list):
+        safe_only_steps = []
+
     # Emit workflow started event
     listener.event(
         "workflow.started",
         {
             "workflow_type": "pipeline",
             "config_type": "dict" if isinstance(params.config, dict) else "file",
-            "skip_steps": params.skip_steps,
-            "only_steps": params.only_steps,
+            "skip_steps": safe_skip_steps,
+            "only_steps": safe_only_steps,
         },
     )
 
@@ -112,12 +134,12 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
     if isinstance(params.config, dict):
         listener.info("Using in-memory config dictionary")
     else:
-        listener.info(f"Configuration file: {params.config}")
+        listener.info(f"Configuration file: {diagnostic_path(params.config)}")
 
     if params.skip_steps:
-        listener.info(f"Skip steps: {', '.join(params.skip_steps)}")
+        listener.info(f"Skip steps: {', '.join(safe_skip_steps)}")
     if params.only_steps:
-        listener.info(f"Only steps: {', '.join(params.only_steps)}")
+        listener.info(f"Only steps: {', '.join(safe_only_steps)}")
     if params.resume:
         listener.info("Resume mode enabled")
     if params.clean:
@@ -140,23 +162,24 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
     # --- Simulate mode: patch all backends to "mock" ---
     simulate_config_dict: dict[str, Any] | None = None
     simulate_config_path: Path | None = None
-    if params.simulate:
-        import yaml
-
-        from material_agent.api.simulate_config import patch_config_for_simulate
-
-        if isinstance(params.config, dict):
-            raw_dict = params.config
-        else:
-            with open(params.config, encoding="utf-8") as f:
-                raw_dict = yaml.safe_load(f)
-            # Keep the original path so the path resolver can resolve
-            # relative paths (usd_path, materials, etc.) from the config dir.
-            simulate_config_path = params.config
-        simulate_config_dict = patch_config_for_simulate(raw_dict)
-        listener.info("Simulate mode: all backends patched to 'mock'")
-
     try:
+        if params.simulate:
+            import yaml
+
+            from material_agent.api.simulate_config import patch_config_for_simulate
+
+            if isinstance(params.config, dict):
+                raw_dict = params.config
+                simulate_config_path = params.config_path
+            else:
+                with open(params.config, encoding="utf-8") as f:
+                    raw_dict = yaml.safe_load(f)
+                # Keep the original path so the path resolver can resolve
+                # relative paths (usd_path, materials, etc.) from the config dir.
+                simulate_config_path = params.config
+            simulate_config_dict = patch_config_for_simulate(raw_dict)
+            listener.info("Simulate mode: all backends patched to 'mock'")
+
         # Import workflow factory
         from material_agent.workflows import create_unified_pipeline_workflow
 
@@ -177,7 +200,11 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
         # Add session_id if provided
         if params.session_id:
             initial_context["session_id"] = params.session_id
-            listener.info(f"Using provided session ID: {params.session_id}")
+            safe_session_id = redact_sensitive_config(
+                params.session_id,
+                _path_context=True,
+            )
+            listener.info(f"Using provided session ID: {safe_session_id}")
 
         # Add config as either path or dict
         if simulate_config_dict is not None:
@@ -188,6 +215,8 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
                 initial_context["config_path"] = str(simulate_config_path)
         elif isinstance(params.config, dict):
             initial_context["config_dict"] = params.config
+            if params.config_path is not None:
+                initial_context["config_path"] = str(params.config_path)
         else:
             initial_context["config_path"] = str(params.config)
 
@@ -208,38 +237,60 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
                 error=error_msg,
                 step_results={},
                 completed_steps=[],
-                skipped_steps=params.skip_steps,
+                skipped_steps=safe_skip_steps,
                 raw_result=result,
             )
 
         # Check for workflow errors even if result exists
         if result.get("error") or result.get("workflow_terminated"):
+            failure_message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(result.get("error"))
+                else _PIPELINE_FAILURE_MESSAGE
+            )
             failed_task = result.get("failed_task", "unknown")
-            error_msg = result.get("error", "Pipeline failed without error message")
-            listener.error(f"Pipeline failed at task '{failed_task}': {error_msg}")
+            safe_failed_task = (
+                retain_safe_result_text(
+                    failed_task,
+                    path_context=True,
+                )
+                or "<redacted>"
+            )
+            listener.error(
+                f"Pipeline failed at task '{safe_failed_task}': {failure_message}"
+            )
             listener.event(
                 "workflow.failed",
                 {
                     "workflow_type": "pipeline",
-                    "error": error_msg,
-                    "failed_task": failed_task,
+                    "error": failure_message,
+                    "failed_task": safe_failed_task,
                 },
             )
             # Still extract partial results if available
-            pipeline_results = result.get("pipeline_results", {})
-            completed_steps = list(pipeline_results.keys())
+            safe_result = project_result_metadata(result)
+            safe_result["error"] = failure_message
+            safe_result["failed_task"] = safe_failed_task
+            safe_pipeline_results = safe_result.get("pipeline_results", {})
+            if not isinstance(safe_pipeline_results, dict):
+                safe_pipeline_results = {}
+            completed_steps = list(safe_pipeline_results.keys())
             return PipelineOutput(
                 success=False,
-                error=error_msg,
-                step_results=pipeline_results,
+                error=failure_message,
+                step_results=safe_pipeline_results,
                 completed_steps=completed_steps,
-                skipped_steps=params.skip_steps,
-                raw_result=result,
+                skipped_steps=safe_skip_steps,
+                raw_result=safe_result,
             )
 
-        # Pipeline succeeded - extract results
-        pipeline_results = result.get("pipeline_results", {})
-        completed_steps = list(pipeline_results.keys())
+        # Pipeline succeeded. Keep the workflow context raw while tasks execute,
+        # then publish only a detached diagnostic projection of its results.
+        safe_result = project_result_metadata(result)
+        safe_pipeline_results = safe_result.get("pipeline_results", {})
+        if not isinstance(safe_pipeline_results, dict):
+            safe_pipeline_results = {}
+        completed_steps = list(safe_pipeline_results.keys())
 
         # Emit completion event
         listener.event(
@@ -247,27 +298,29 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             {
                 "workflow_type": "pipeline",
                 "completed_steps": completed_steps,
-                "step_results": pipeline_results,
+                "step_results": safe_pipeline_results,
             },
         )
         listener.info("Pipeline completed successfully")
 
         return PipelineOutput(
             success=True,
-            step_results=pipeline_results,
+            step_results=safe_pipeline_results,
             completed_steps=completed_steps,
-            skipped_steps=params.skip_steps,
-            raw_result=result,
+            skipped_steps=safe_skip_steps,
+            raw_result=safe_result,
         )
 
-    except Exception as e:
-        listener.error(f"Error running pipeline: {str(e)}")
+    except Exception as error:
+        failure_message = public_model_failure_message(error, _PIPELINE_FAILURE_MESSAGE)
+        listener.error(failure_message)
         listener.event(
-            "workflow.failed", {"workflow_type": "pipeline", "error": str(e)}
+            "workflow.failed",
+            {"workflow_type": "pipeline", "error": failure_message},
         )
         return PipelineOutput(
             success=False,
-            error=str(e),
+            error=failure_message,
         )
 
 
@@ -293,9 +346,11 @@ def _dry_run_pipeline(params: PipelineInput) -> PipelineOutput:
         # Detect config format (unified vs old)
         is_unified = "project" in pipeline_config
 
-        steps_section = (
-            pipeline_config.get("steps", {}) if is_unified else pipeline_config
-        )
+        steps_section = pipeline_config.get("steps") if is_unified else pipeline_config
+        if steps_section is None:
+            steps_section = {}
+        elif not isinstance(steps_section, dict):
+            raise ValueError("Pipeline configuration 'steps' must be a mapping")
 
         # Use centralized step names
         from material_agent.api.defaults import PIPELINE_STEP_NAMES
@@ -337,11 +392,11 @@ def _dry_run_pipeline(params: PipelineInput) -> PipelineOutput:
             skipped_steps=skipped_steps,
         )
 
-    except Exception as e:
-        logger.error(f"Error during dry run: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_DRY_RUN_FAILURE_MESSAGE)
         return PipelineOutput(
             success=False,
-            error=str(e),
+            error=_DRY_RUN_FAILURE_MESSAGE,
         )
 
 

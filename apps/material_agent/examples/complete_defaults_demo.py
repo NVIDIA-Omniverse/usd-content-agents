@@ -74,7 +74,7 @@ def show_partial_override():
     print("=" * 70)
 
     # User overrides just VLM model
-    partial = {"dataset": "data.jsonl", "vlm": {"model": "gpt-4o-mini"}}
+    partial = {"dataset": "data.jsonl", "vlm": {"model": "example-vlm-model"}}
 
     print("\nUser config (partial VLM):")
     import json
@@ -86,7 +86,7 @@ def show_partial_override():
     print("\nEnriched config:")
     print(json.dumps(enriched, indent=2))
 
-    print("\n✓ User VLM model preserved: gpt-4o-mini")
+    print("\n✓ User VLM model preserved: example-vlm-model")
     print("✓ VLM backend defaulted: nim")
     print("✓ VLM temperature defaulted: 0.7")
     print("✓ LLM fully defaulted")

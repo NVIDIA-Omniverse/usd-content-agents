@@ -38,3 +38,72 @@ def test_static_openapi_documents_regenerate_and_event_log() -> None:
 
     step_values = spec["components"]["schemas"]["PipelineStep"]["enum"]
     assert {"predict", "apply", "render"}.issubset(step_values)
+
+
+def test_static_openapi_documents_material_generation_fields() -> None:
+    spec = _load_openapi()
+
+    pipeline = spec["paths"]["/pipeline"]["post"]
+    properties = pipeline["requestBody"]["content"]["multipart/form-data"]["schema"][
+        "properties"
+    ]
+
+    assert properties["enable_material_generation"]["default"] == "false"
+    assert properties["material_generation_texture_size"]["minimum"] == 64
+    assert properties["material_generation_texture_size"]["maximum"] == 4096
+    assert "material_generation_guidance" in properties
+    assert "503" in pipeline["responses"]
+
+
+def test_static_openapi_documents_initial_layer_only_field() -> None:
+    spec = _load_openapi()
+
+    pipeline = spec["paths"]["/pipeline"]["post"]
+    properties = pipeline["requestBody"]["content"]["multipart/form-data"]["schema"][
+        "properties"
+    ]
+
+    assert properties["layer_only"]["type"] == "string"
+    assert properties["layer_only"]["default"] == "false"
+
+
+def test_static_openapi_documents_material_coverage_contract() -> None:
+    spec = _load_openapi()
+
+    pipeline = spec["paths"]["/pipeline"]["post"]
+    properties = pipeline["requestBody"]["content"]["multipart/form-data"]["schema"][
+        "properties"
+    ]
+    assert properties["coverage_policy"]["enum"] == ["strict", "allow_partial"]
+
+    coverage = spec["components"]["schemas"]["MaterialCoverage"]
+    assert coverage["properties"]["readiness_grade"]["enum"] == [
+        "complete",
+        "complete_with_fallback",
+        "partial",
+        "not_evaluated",
+    ]
+    assert "missing_prediction_prim_ids" in coverage["properties"]
+    assert "unbound_prim_ids" in coverage["properties"]
+    assert set(coverage["required"]) == set(coverage["properties"])
+
+    pipeline_error = spec["components"]["schemas"]["PipelineError"]
+    assert pipeline_error["properties"]["completed_steps"]["items"] == {
+        "type": "string"
+    }
+    failure_artifacts = pipeline_error["properties"]["download_urls"]["properties"]
+    scene_artifacts = {
+        "scene_manifest",
+        "scene_validation_report",
+        "scene_predictions",
+        "final_render",
+    }
+    assert {"output_usd", "predictions", "report", *scene_artifacts}.issubset(
+        failure_artifacts
+    )
+    result_artifacts = spec["components"]["schemas"]["PipelineResults"]["properties"][
+        "download_urls"
+    ]["properties"]
+    assert scene_artifacts.issubset(result_artifacts)
+    partial = pipeline_error["properties"]["partial_results"]
+    assert set(partial["properties"]) == {"stats", "coverage"}

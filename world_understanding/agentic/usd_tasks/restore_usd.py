@@ -29,6 +29,10 @@ class RestorationStats:
     predictions_written: int = 0
     uncovered_originals: list[str] = field(default_factory=list)
     unconsumed_predictions: list[str] = field(default_factory=list)
+    restored_prim_sources: dict[str, str] = field(default_factory=dict)
+    expected_target_count: int = 0
+    mapping_complete: bool = True
+    mapping_warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to serializable dictionary."""
@@ -42,6 +46,10 @@ class RestorationStats:
             "predictions_written": self.predictions_written,
             "uncovered_originals": self.uncovered_originals,
             "unconsumed_predictions": self.unconsumed_predictions,
+            "restored_prim_sources": self.restored_prim_sources,
+            "expected_target_count": self.expected_target_count,
+            "mapping_complete": self.mapping_complete,
+            "mapping_warnings": self.mapping_warnings,
         }
 
 
@@ -197,12 +205,22 @@ class RestoreUSDTask(Task):
         stats = RestorationStats()
 
         # Extract mappings from correspondence_map
+        if not isinstance(optimization_metadata, dict):
+            optimization_metadata = {}
         correspondence_map = optimization_metadata.get("correspondence_map", {})
+        if not isinstance(correspondence_map, dict):
+            correspondence_map = {}
         full_mapping = correspondence_map.get("full_mapping", {})
+        if not isinstance(full_mapping, dict):
+            full_mapping = {}
         original_to_prototype = full_mapping.get("original_to_prototype", {})
         split_mapping = correspondence_map.get("split_mapping", {})
 
-        if not original_to_prototype:
+        if not isinstance(original_to_prototype, dict) or not original_to_prototype:
+            stats.mapping_complete = False
+            stats.mapping_warnings.append(
+                "No usable original_to_prototype correspondence mapping was available."
+            )
             listener.warning(
                 "No original_to_prototype mapping found - "
                 "predictions will be copied as-is"
@@ -216,6 +234,13 @@ class RestoreUSDTask(Task):
                             f_out.write(line + "\n")
                             stats.predictions_written += 1
             return stats.predictions_written, stats
+
+        if not isinstance(split_mapping, dict):
+            stats.mapping_complete = False
+            stats.mapping_warnings.append(
+                "split_mapping was malformed; restored target scope is unqualified."
+            )
+            split_mapping = {}
 
         # Load all predictions keyed by their ID (optimized prim path)
         predictions_by_id: dict[str, dict] = {}
@@ -236,6 +261,8 @@ class RestoreUSDTask(Task):
 
         # Log operations that were run
         summary = correspondence_map.get("summary", {})
+        if not isinstance(summary, dict):
+            summary = {}
         ops_run = summary.get("operations_run", {})
         listener.info(f"Optimizer operations: {ops_run}")
 
@@ -247,12 +274,44 @@ class RestoreUSDTask(Task):
         # Process each original prim
         with open(output_predictions_path, "w", encoding="utf-8") as f_out:
             for original_path, prototype_paths in original_to_prototype.items():
+                if not self._is_absolute_prim_path(original_path):
+                    stats.mapping_complete = False
+                    stats.mapping_warnings.append(
+                        f"Invalid original prim path in correspondence map: {original_path!r}."
+                    )
+                    continue
+
                 # Normalize to list
                 if not isinstance(prototype_paths, list):
                     prototype_paths = [prototype_paths]
 
+                if not prototype_paths or not all(
+                    self._is_absolute_prim_path(path) for path in prototype_paths
+                ):
+                    stats.mapping_complete = False
+                    stats.mapping_warnings.append(
+                        f"Invalid prototype mapping for original prim {original_path}."
+                    )
+                    continue
+
                 is_split = original_path in split_mapping
                 unique_prototypes = list(dict.fromkeys(prototype_paths))
+
+                if is_split:
+                    split_paths = split_mapping.get(original_path)
+                    if not isinstance(split_paths, list) or len(split_paths) != len(
+                        prototype_paths
+                    ):
+                        stats.mapping_complete = False
+                        stats.mapping_warnings.append(
+                            "Split correspondence count mismatch for "
+                            f"{original_path}: expected {len(prototype_paths)} entries."
+                        )
+                elif len(unique_prototypes) != 1:
+                    stats.mapping_complete = False
+                    stats.mapping_warnings.append(
+                        f"Multiple prototypes for {original_path} lacked split metadata."
+                    )
 
                 if not is_split and len(unique_prototypes) == 1:
                     # Single prototype: identity or dedup case
@@ -280,6 +339,13 @@ class RestoreUSDTask(Task):
         stats.unconsumed_predictions = sorted(
             set(predictions_by_id.keys()) - stats.predictions_consumed
         )
+        if len(stats.restored_prim_sources) != stats.expected_target_count:
+            stats.mapping_complete = False
+            stats.mapping_warnings.append(
+                "Restored target mapping did not contain every expected target: "
+                f"expected {stats.expected_target_count}, recorded "
+                f"{len(stats.restored_prim_sources)}."
+            )
 
         listener.info(f"Wrote {stats.predictions_written} restored predictions")
         return stats.predictions_written, stats
@@ -303,6 +369,15 @@ class RestoreUSDTask(Task):
             f_out: Output file handle
             listener: Event listener
         """
+        mapping_accepted = self._record_restored_prim_source(
+            stats,
+            restored_prim_id=original_path,
+            optimized_prim_id=prototype_path,
+        )
+        if not mapping_accepted:
+            stats.uncovered_originals.append(original_path)
+            return
+
         if prototype_path in predictions_by_id:
             prediction = predictions_by_id[prototype_path].copy()
             prediction["id"] = original_path
@@ -361,7 +436,13 @@ class RestoreUSDTask(Task):
             self._get_geomsubset_paths(stage, original_path, listener) if stage else []
         )
 
-        if geomsubset_paths and len(geomsubset_paths) != len(prototype_paths):
+        if len(geomsubset_paths) != len(prototype_paths):
+            stats.mapping_complete = False
+            stats.mapping_warnings.append(
+                f"GeomSubset count mismatch for {original_path}: "
+                f"{len(prototype_paths)} prototypes vs "
+                f"{len(geomsubset_paths)} GeomSubsets."
+            )
             listener.warning(
                 f"Count mismatch for {original_path}: "
                 f"{len(prototype_paths)} prototypes vs "
@@ -370,14 +451,24 @@ class RestoreUSDTask(Task):
 
         any_found = False
         for i, prototype_path in enumerate(prototype_paths):
+            restored_prim_id = (
+                geomsubset_paths[i]
+                if i < len(geomsubset_paths)
+                else f"{original_path}_part_{i}"
+            )
+            mapping_accepted = self._record_restored_prim_source(
+                stats,
+                restored_prim_id=restored_prim_id,
+                optimized_prim_id=prototype_path,
+            )
+            if not mapping_accepted:
+                continue
+
             if prototype_path in predictions_by_id:
                 prediction = predictions_by_id[prototype_path].copy()
 
                 # Assign the restored ID: GeomSubset path or indexed fallback
-                if i < len(geomsubset_paths):
-                    prediction["id"] = geomsubset_paths[i]
-                else:
-                    prediction["id"] = f"{original_path}_part_{i}"
+                prediction["id"] = restored_prim_id
 
                 f_out.write(json.dumps(prediction) + "\n")
                 stats.predictions_written += 1
@@ -391,6 +482,40 @@ class RestoreUSDTask(Task):
 
         if not any_found:
             stats.uncovered_originals.append(original_path)
+
+    @staticmethod
+    def _is_absolute_prim_path(value: object) -> bool:
+        """Return whether *value* is an absolute USD prim path string."""
+        return isinstance(value, str) and value.startswith("/")
+
+    def _record_restored_prim_source(
+        self,
+        stats: RestorationStats,
+        *,
+        restored_prim_id: str,
+        optimized_prim_id: str,
+    ) -> bool:
+        """Record a canonical restored mapping and return whether it was accepted."""
+        stats.expected_target_count += 1
+        if not self._is_absolute_prim_path(
+            restored_prim_id
+        ) or not self._is_absolute_prim_path(optimized_prim_id):
+            stats.mapping_complete = False
+            stats.mapping_warnings.append(
+                "Invalid restored/source prim mapping: "
+                f"{restored_prim_id!r} -> {optimized_prim_id!r}."
+            )
+            return False
+
+        if restored_prim_id in stats.restored_prim_sources:
+            stats.mapping_complete = False
+            stats.mapping_warnings.append(
+                f"Duplicate restored target prim ID: {restored_prim_id}."
+            )
+            return False
+
+        stats.restored_prim_sources[restored_prim_id] = optimized_prim_id
+        return True
 
     def _open_stage(self, usd_path: Path, listener: EventListener) -> Usd.Stage | None:
         """Open a USD stage, returning None on failure.

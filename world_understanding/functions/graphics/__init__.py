@@ -65,12 +65,12 @@ _logger = logging.getLogger(__name__)
 
 try:
     from . import render_ovrtx
-except ImportError:
+except ImportError:  # pragma: no cover - optional GPU backend dependency
     _logger.debug("render_ovrtx unavailable (ovrtx not installed)")
 
 try:
     from . import render_warp
-except ImportError:
+except ImportError:  # pragma: no cover - optional GPU backend dependency
     _logger.debug("render_warp unavailable (warp-lang not installed)")
 
 __all__ = [

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 logger = logging.getLogger(__name__)
 
 # Type checking imports - these are only imported for type hints
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static type checker only.
     pass
 
 

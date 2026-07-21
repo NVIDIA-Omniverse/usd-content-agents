@@ -4,6 +4,9 @@
 
 import importlib
 
+import pytest
+from world_understanding.utils.credentials import ensure_no_inline_secrets
+
 from physics_agent.api import defaults
 
 
@@ -29,6 +32,28 @@ def test_remote_default_pipeline_uses_remote_rendering_tuning():
     assert config["steps"]["predict"]["allow_empty_predictions"] is False
     assert config["steps"]["apply_physics"]["mass_scale_policy"] == "skip_mass"
     assert config["steps"]["apply_physics"]["allow_empty_predictions"] is False
+
+
+def test_default_pipeline_accepts_mock_rendering_backend() -> None:
+    config = defaults.build_default_pipeline_config(
+        session_id="session-123",
+        usd_path="/tmp/scene.usd",
+        working_dir="/tmp/work",
+        render_backend="mock",
+    )
+
+    assert config["steps"]["identify_asset"]["renderer"]["backend"] == "mock"
+    assert config["steps"]["build_dataset_usd"]["renderer"]["backend"] == "mock"
+
+
+def test_default_pipeline_rejects_unknown_rendering_backend() -> None:
+    with pytest.raises(ValueError, match="Unknown rendering backend: typo"):
+        defaults.build_default_pipeline_config(
+            session_id="session-123",
+            usd_path="/tmp/scene.usd",
+            working_dir="/tmp/work",
+            render_backend="typo",
+        )
 
 
 def test_default_pipeline_can_enable_deinstance_optimizer_path():
@@ -92,6 +117,91 @@ def test_vlm_model_can_be_overridden_from_env(monkeypatch):
         )
     finally:
         monkeypatch.delenv("PA_VLM_MODEL", raising=False)
+        importlib.reload(reloaded_defaults)
+
+
+def test_vlm_openai_base_url_can_be_overridden_from_env(monkeypatch):
+    resolved_secret = "physics-default-runtime-only-key"
+    monkeypatch.setenv("PA_VLM_BACKEND", "openai")
+    monkeypatch.setenv("PA_VLM_MODEL", "my-custom-vlm")
+    monkeypatch.setenv("PA_VLM_BASE_URL", "https://api.openai-compatible.example/v1")
+    monkeypatch.setenv("PA_VLM_API_KEY_ENV", "OPENAI_API_KEY")
+    monkeypatch.setenv("OPENAI_API_KEY", resolved_secret)
+
+    reloaded_defaults = importlib.reload(defaults)
+    try:
+        config = reloaded_defaults.build_default_pipeline_config(
+            session_id="session-123",
+            usd_path="/tmp/scene.usd",
+            working_dir="/tmp/work",
+        )
+
+        vlm_config = config["steps"]["predict"]["vlm"]
+        assert vlm_config["backend"] == "openai"
+        assert vlm_config["model"] == "my-custom-vlm"
+        assert vlm_config["base_url"] == "https://api.openai-compatible.example/v1"
+        assert vlm_config["api_key_env"] == "${OPENAI_API_KEY}"
+        ensure_no_inline_secrets(config, context="physics default publication")
+        assert resolved_secret not in repr(config)
+    finally:
+        monkeypatch.delenv("PA_VLM_BACKEND", raising=False)
+        monkeypatch.delenv("PA_VLM_MODEL", raising=False)
+        monkeypatch.delenv("PA_VLM_BASE_URL", raising=False)
+        monkeypatch.delenv("PA_VLM_API_KEY_ENV", raising=False)
+        importlib.reload(reloaded_defaults)
+
+
+def test_vlm_temperature_can_be_overridden_from_env(monkeypatch):
+    """All generated Physics VLM defaults should honor PA_VLM_TEMPERATURE."""
+    monkeypatch.setenv("PA_VLM_BACKEND", "openai")
+    monkeypatch.setenv("PA_VLM_MODEL", "gpt-5.5")
+    monkeypatch.setenv("PA_VLM_TEMPERATURE", "1.0")
+
+    reloaded_defaults = importlib.reload(defaults)
+    try:
+        config = reloaded_defaults.build_default_pipeline_config(
+            session_id="session-123",
+            usd_path="/tmp/scene.usd",
+            working_dir="/tmp/work",
+        )
+
+        assert reloaded_defaults.DEFAULT_VLM_TEMPERATURE == 1.0
+        assert reloaded_defaults.IDENTIFY_ASSET_DEFAULTS["vlm"] == {
+            "backend": "openai",
+            "model": "gpt-5.5",
+            "temperature": 1.0,
+            "max_tokens": 4096,
+        }
+        assert config["steps"]["predict"]["vlm"] == {
+            "backend": "openai",
+            "model": "gpt-5.5",
+            "temperature": 1.0,
+            "max_tokens": 24576,
+        }
+    finally:
+        monkeypatch.delenv("PA_VLM_BACKEND", raising=False)
+        monkeypatch.delenv("PA_VLM_MODEL", raising=False)
+        monkeypatch.delenv("PA_VLM_TEMPERATURE", raising=False)
+        importlib.reload(reloaded_defaults)
+
+
+def test_vlm_max_tokens_override_reaches_default_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PA_VLM_MAX_TOKENS", "8192")
+
+    reloaded_defaults = importlib.reload(defaults)
+    try:
+        config = reloaded_defaults.build_default_pipeline_config(
+            session_id="session-123",
+            usd_path="/tmp/scene.usd",
+            working_dir="/tmp/work",
+        )
+
+        assert reloaded_defaults.DEFAULT_VLM_MAX_TOKENS == 8192
+        assert config["steps"]["predict"]["vlm"]["max_tokens"] == 8192
+    finally:
+        monkeypatch.delenv("PA_VLM_MAX_TOKENS", raising=False)
         importlib.reload(reloaded_defaults)
 
 

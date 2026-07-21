@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import unquote, urlparse
 
 import numpy as np
 import requests
@@ -29,8 +30,14 @@ from PIL import Image
 from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 
 from world_understanding.config.s3 import WU_S3_BUCKET, WU_S3_PROFILE, WU_S3_REGION
+from world_understanding.functions.graphics.material_targets import (
+    preview_fallbacks_enabled_for_material_target,
+)
+from world_understanding.rendering_backend_contract import (
+    validate_remote_render_max_workers,
+)
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pxr import Usd
 
 from world_understanding.utils.data_uri import should_use_data_uri
@@ -47,7 +54,9 @@ from world_understanding.utils.nvcf_utils import (
 )
 from world_understanding.utils.s3_utils import delete_s3_path, upload_file_to_s3
 from world_understanding.utils.usd.material import (
+    add_ovrtx_preview_fallbacks_for_texture_file_materials,
     add_ovrtx_preview_fallbacks_to_stage_file,
+    bake_texture_file_materials_to_display_color_for_render,
     get_local_mdl_assets,
     get_local_texture_file_assets,
 )
@@ -275,11 +284,56 @@ def _prefer_preview_surface_for_remote_export(stage_path: Path) -> int:
     return removed_count
 
 
+def _add_texture_file_fallbacks_for_remote_export(
+    stage_path: Path,
+    *,
+    connect_diffuse_texture: bool = False,
+    preserve_mdl_surface: bool = False,
+) -> tuple[int, int]:
+    """Bake local texture-file materials into a renderer-safe preview fallback.
+
+    OVRTX service builds can load geometry and UsdPreviewSurface materials even
+    when authored SimReady/MDL-style texture inputs are not evaluated directly.
+    For self-contained bundles, ``connect_diffuse_texture`` keeps the generated
+    albedo as a simple ``UsdUVTexture`` graph. USD-only fallbacks still bake
+    sampled albedo to ``primvars:displayColor`` because the texture files are
+    not uploaded with that export path. ``preserve_mdl_surface`` skips fallback
+    authoring for materials that already have a connected MDL surface, which
+    preserves richer OmniPBR/MDL texture response when bundled assets resolve.
+    """
+    from pxr import Usd
+
+    stage = Usd.Stage.Open(str(stage_path))
+    if stage is None:
+        return 0, 0
+
+    display_color_bakes = 0
+    if not connect_diffuse_texture:
+        display_color_bakes = bake_texture_file_materials_to_display_color_for_render(
+            stage,
+        )
+    textured_fallbacks = add_ovrtx_preview_fallbacks_for_texture_file_materials(
+        stage,
+        override_existing_surface=True,
+        connect_diffuse_texture=connect_diffuse_texture,
+        diffuse_color_primvar=(
+            "displayColor"
+            if display_color_bakes and not connect_diffuse_texture
+            else None
+        ),
+        skip_connected_mdl_surface=preserve_mdl_surface,
+    )
+    if display_color_bakes or textured_fallbacks:
+        stage.GetRootLayer().Save()
+    return display_color_bakes, textured_fallbacks
+
+
 def _bundle_stage_with_local_assets(
     stage: "Usd.Stage",
     temp_dir: Path,
     base_dir: str | Path | None = None,
     has_local_composition_arcs: bool | None = None,
+    add_preview_fallbacks: bool | None = None,
 ) -> tuple[Path | None, bool]:
     """Bundle USD stage with local MDL and texture assets into a ZIP archive.
 
@@ -296,6 +350,10 @@ def _bundle_stage_with_local_assets(
                  uses the stage's root layer directory.
         has_local_composition_arcs: Precomputed composition-arc guard result.
                  If None, the guard is evaluated here.
+        add_preview_fallbacks: If True, author render-export UsdPreviewSurface
+                 bridges for MaterialX OpenPBR materials. If None or False, no
+                 PreviewSurface fallbacks are authored by this helper; higher
+                 level callers derive this from ``material_target``.
 
     Returns:
         Tuple of (zip_path, was_bundled):
@@ -422,7 +480,7 @@ def _bundle_stage_with_local_assets(
     copied_texture_attrs: dict[tuple[str, str], str] = {}
     for tex in local_textures:
         resolved = tex.get("resolved_path")
-        if not resolved:
+        if not resolved:  # pragma: no cover - local_textures is already prefiltered
             continue
         rel_path = copied_textures.get(str(Path(resolved).resolve()))
         if rel_path is not None:
@@ -441,19 +499,13 @@ def _bundle_stage_with_local_assets(
     temp_usda = bundle_dir / "stage.usda"
     root_layer.Export(str(temp_usda))
 
-    preview_fallbacks = add_ovrtx_preview_fallbacks_to_stage_file(temp_usda)
-    if preview_fallbacks:
-        logger.info(
-            "Updated %d OpenPBR material fallback(s) for remote render export",
-            preview_fallbacks,
-        )
-
-    removed_mdl_outputs = _prefer_preview_surface_for_remote_export(temp_usda)
-    if removed_mdl_outputs:
-        logger.info(
-            "Removed %d MDL material outputs from remote render export",
-            removed_mdl_outputs,
-        )
+    if add_preview_fallbacks:
+        preview_fallbacks = add_ovrtx_preview_fallbacks_to_stage_file(temp_usda)
+        if preview_fallbacks:
+            logger.info(
+                "Updated %d OpenPBR material fallback(s) for remote render export",
+                preview_fallbacks,
+            )
 
     # Reopen the exported layer to update paths
     exported_layer = Sdf.Layer.FindOrOpen(str(temp_usda))
@@ -483,7 +535,7 @@ def _bundle_stage_with_local_assets(
 
                 try:
                     asset_path = value.path if hasattr(value, "path") else str(value)
-                except Exception:
+                except Exception:  # pragma: no cover - defensive Sdf.AssetPath access
                     continue
 
                 if not asset_path:
@@ -491,10 +543,10 @@ def _bundle_stage_with_local_assets(
 
                 # --- MDL path rewriting ---
                 if attr_name == "info:mdl:sourceAsset":
-                    candidate_path = Path(asset_path)
-                    if not candidate_path.is_absolute():
-                        candidate_path = asset_base_dir / candidate_path
-                    resolved_mdl_path = str(candidate_path.resolve())
+                    resolved_mdl_path = _resolve_export_asset_path(
+                        asset_path,
+                        asset_base_dir,
+                    )
 
                     new_path = copied_mdl_files.get(resolved_mdl_path)
                     if new_path is None:
@@ -545,6 +597,41 @@ def _bundle_stage_with_local_assets(
     # Save the modified layer
     exported_layer.Save()
 
+    if add_preview_fallbacks:
+        display_color_bakes, textured_fallbacks = (
+            _add_texture_file_fallbacks_for_remote_export(
+                temp_usda,
+                connect_diffuse_texture=True,
+                preserve_mdl_surface=True,
+            )
+        )
+        if display_color_bakes:
+            logger.info(
+                "Baked %d textured mesh(es) to displayColor for remote render export",
+                display_color_bakes,
+            )
+        if textured_fallbacks:
+            logger.info(
+                "Updated %d texture-file material fallback(s) for remote render export",
+                textured_fallbacks,
+            )
+
+        removed_mdl_outputs = _prefer_preview_surface_for_remote_export(temp_usda)
+        if removed_mdl_outputs:
+            logger.info(
+                "Removed %d MDL material outputs from remote render export",
+                removed_mdl_outputs,
+            )
+        exported_layer = Sdf.Layer.FindOrOpen(str(temp_usda))
+        if exported_layer:
+            post_fallback_updates = update_asset_paths_in_layer(exported_layer)
+            if post_fallback_updates:
+                exported_layer.Save()
+                logger.info(
+                    "Updated %d fallback-authored asset path(s) to relative paths",
+                    post_fallback_updates,
+                )
+
     # Create ZIP archive
     zip_path = temp_dir / "bundle.zip"
 
@@ -562,8 +649,23 @@ def _bundle_stage_with_local_assets(
 
 
 def _resolve_export_asset_path(asset_path: str, asset_base_dir: Path) -> str:
-    candidate_path = Path(asset_path)
-    if not candidate_path.is_absolute():
+    parsed = urlparse(asset_path)
+    if parsed.scheme.lower() == "file":
+        normalized_path = unquote(parsed.path)
+        if parsed.netloc and parsed.netloc.lower() != "localhost":
+            normalized_path = f"//{parsed.netloc}{normalized_path}"
+        if (
+            len(normalized_path) >= 4
+            and normalized_path[0] == "/"
+            and normalized_path[2] == ":"
+        ):
+            normalized_path = normalized_path[1:]
+        candidate_path = Path(normalized_path)
+    else:
+        candidate_path = Path(asset_path)
+    if not candidate_path.is_absolute() and not is_windows_drive_path(
+        str(candidate_path),
+    ):
         candidate_path = asset_base_dir / candidate_path
     try:
         return str(candidate_path.resolve(strict=False))
@@ -632,6 +734,8 @@ def export_stage_to_s3(
     use_data_uri: bool | None = None,
     bundle_mdl_assets: bool = True,
     base_dir: str | Path | None = None,
+    add_preview_fallbacks: bool | None = None,
+    material_target: str | None = None,
 ) -> tuple[str, str | None]:
     """Export a USD stage for REST rendering, returning URL and optional S3 URI.
 
@@ -665,6 +769,13 @@ def export_stage_to_s3(
                           Default: True
         base_dir: Base directory for resolving relative texture paths. If None,
                  uses the stage's root layer directory.
+        add_preview_fallbacks: Legacy compatibility flag. If explicitly True,
+                     author render-export UsdPreviewSurface bridges for
+                     MaterialX OpenPBR materials. If None, follows
+                     ``material_target`` policy.
+        material_target: Explicit material target for render export. ``auto``
+                     preserves authored/native material outputs. Use
+                     ``preview_surface`` to request preview fallback authoring.
 
     Returns:
         Tuple containing:
@@ -685,6 +796,10 @@ def export_stage_to_s3(
         ...     delete_s3_path(s3_uri, profile_name="your-aws-profile")
     """
     use_data_uri = should_use_data_uri(use_data_uri)
+    effective_add_preview_fallbacks = preview_fallbacks_enabled_for_material_target(
+        material_target,
+        legacy_add_preview_fallbacks=add_preview_fallbacks,
+    )
 
     # Try bundling MDL assets if requested
     temp_dir = None
@@ -708,6 +823,7 @@ def export_stage_to_s3(
                 temp_dir,
                 base_dir=base_dir,
                 has_local_composition_arcs=has_local_composition_arcs,
+                add_preview_fallbacks=effective_add_preview_fallbacks,
             )
         except Exception as e:
             logger.warning(f"MDL bundling failed, falling back to USD-only: {e}")
@@ -761,19 +877,37 @@ def export_stage_to_s3(
         if not stage.GetRootLayer().Export(tmp_path):
             raise RuntimeError("Failed to export USD stage")
 
-        preview_fallbacks = add_ovrtx_preview_fallbacks_to_stage_file(tmp_path)
-        if preview_fallbacks:
-            logger.info(
-                "Updated %d OpenPBR material fallback(s) for remote render export",
-                preview_fallbacks,
-            )
+        if effective_add_preview_fallbacks:
+            preview_fallbacks = add_ovrtx_preview_fallbacks_to_stage_file(tmp_path)
+            if preview_fallbacks:
+                logger.info(
+                    "Updated %d OpenPBR material fallback(s) for remote render export",
+                    preview_fallbacks,
+                )
 
-        removed_mdl_outputs = _prefer_preview_surface_for_remote_export(Path(tmp_path))
-        if removed_mdl_outputs:
-            logger.info(
-                "Removed %d MDL material outputs from remote render export",
-                removed_mdl_outputs,
+        if effective_add_preview_fallbacks:
+            display_color_bakes, textured_fallbacks = (
+                _add_texture_file_fallbacks_for_remote_export(Path(tmp_path))
             )
+            if display_color_bakes:
+                logger.info(
+                    "Baked %d textured mesh(es) to displayColor for remote render export",
+                    display_color_bakes,
+                )
+            if textured_fallbacks:
+                logger.info(
+                    "Updated %d texture-file material fallback(s) for remote render export",
+                    textured_fallbacks,
+                )
+
+            removed_mdl_outputs = _prefer_preview_surface_for_remote_export(
+                Path(tmp_path),
+            )
+            if removed_mdl_outputs:
+                logger.info(
+                    "Removed %d MDL material outputs from remote render export",
+                    removed_mdl_outputs,
+                )
 
         asset_url, s3_uri = _export_stage_and_get_url(
             stage_path=tmp_path,
@@ -863,6 +997,8 @@ def render_single_camera(
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
     retry_jitter: float = 0.1,
+    add_preview_fallbacks: bool | None = None,
+    material_target: str | None = None,
 ) -> dict[str, Any]:
     """
     Render a single camera view from an in-memory USD Stage using a REST renderer.
@@ -900,6 +1036,12 @@ def render_single_camera(
         retry_delay: Initial delay between retries in seconds. Default: 1.0
         retry_backoff_factor: Factor to multiply delay by after each retry. Default: 2.0
         retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1
+        add_preview_fallbacks: Accepted for API compatibility with export-based
+            remote rendering, but this helper does not apply PreviewSurface
+            fallbacks to its temporary export.
+        material_target: Explicit material target sent in the REST request so
+            the renderer can choose material handling. This helper does not
+            rewrite the temporary stage export before sending that request.
 
     Returns:
         Dict containing:
@@ -991,6 +1133,7 @@ def render_single_camera(
             retry_delay=retry_delay,
             retry_backoff_factor=retry_backoff_factor,
             retry_jitter=retry_jitter,
+            material_target=material_target,
         )
         return result
     finally:
@@ -1019,6 +1162,7 @@ def render_single_camera_from_url(
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
     retry_jitter: float = 0.1,
+    material_target: str | None = None,
 ) -> dict[str, Any]:
     """
     Render a single camera view from a USD file URL using a REST renderer.
@@ -1046,6 +1190,9 @@ def render_single_camera_from_url(
         retry_delay: Initial delay between retries in seconds. Default: 1.0
         retry_backoff_factor: Factor to multiply delay by after each retry. Default: 2.0
         retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1
+        material_target: Explicit material target forwarded to the REST renderer.
+            Use ``openpbr_materialx`` to render native OpenPBR/MaterialX without
+            requesting render-export PreviewSurface fallbacks.
 
     Returns:
         Dict containing:
@@ -1109,6 +1256,8 @@ def render_single_camera_from_url(
             "apply_background_mask": apply_background_mask,
         },
     }
+    if material_target is not None:
+        params["render_settings"]["material_target"] = material_target
 
     # Create headers using common utility
     headers = create_nvcf_headers(api_key, timeout)
@@ -1398,6 +1547,10 @@ def render_all_cameras(
     retry_jitter: float = 0.1,
     bundle_mdl_assets: bool = True,
     base_dir: str | Path | None = None,
+    add_preview_fallbacks: bool | None = None,
+    material_target: str | None = None,
+    use_global_render_slots: bool = False,
+    render_slot_timeout_sec: float | None = None,
 ) -> dict[str, Any]:
     """
     Render multiple cameras from an in-memory USD Stage using a REST renderer.
@@ -1429,7 +1582,8 @@ def render_all_cameras(
                   Default: WU_S3_REGION env var or "us-east-2"
         s3_profile: AWS profile for S3 upload (ignored if use_data_uri=True).
                    Default: WU_S3_PROFILE env var (required for S3 mode).
-        max_workers: Maximum number of parallel render threads. Default: 8
+        max_workers: Maximum number of parallel render threads, from 1 through
+                     32. Default: 8
         max_retries: Maximum number of retry attempts. Default: 3
         retry_delay: Initial delay between retries in seconds. Default: 1.0
         retry_backoff_factor: Factor to multiply delay by after each retry. Default: 2.0
@@ -1440,6 +1594,17 @@ def render_all_cameras(
                           Default: True
         base_dir: Base directory for resolving relative MDL and texture asset paths.
                   If None, uses the stage root layer directory.
+        add_preview_fallbacks: Legacy compatibility flag. If explicitly True,
+                  author render-export UsdPreviewSurface bridges for MaterialX
+                  OpenPBR materials. If None, follows ``material_target`` policy.
+        material_target: Explicit material target for render export. ``auto``
+                  preserves authored/native material outputs. Use
+                  ``preview_surface`` to request preview fallback authoring.
+        use_global_render_slots: Acquire one process-wide remote-render slot
+                  around each camera request. Use this when ``max_workers`` is
+                  greater than one so the shared request cap remains exact.
+        render_slot_timeout_sec: Optional timeout for each process-wide slot
+                  acquisition when ``use_global_render_slots`` is enabled.
 
     Returns:
         Dict containing:
@@ -1470,6 +1635,18 @@ def render_all_cameras(
         ... )
         >>> print(f"Rendered {result['successful_cameras']} cameras")
     """
+    max_workers = validate_remote_render_max_workers(max_workers)
+
+    # Resolve the slot provider before starting worker threads. The call-time
+    # import avoids the render_remote_async -> render_remote module cycle.
+    global_render_slot = None
+    if use_global_render_slots:
+        from world_understanding.functions.graphics.render_remote_async import (
+            global_remote_render_slot,
+        )
+
+        global_render_slot = global_remote_render_slot
+
     # Default camera if none specified
     if cameras is None or len(cameras) == 0:
         cameras = ["/Camera"]
@@ -1490,6 +1667,8 @@ def render_all_cameras(
             use_data_uri=use_data_uri,
             bundle_mdl_assets=bundle_mdl_assets,
             base_dir=base_dir,
+            add_preview_fallbacks=add_preview_fallbacks,
+            material_target=material_target,
         )
     except Exception as exc:
         error_msg = f"Failed to export stage for remote rendering: {exc}"
@@ -1516,28 +1695,46 @@ def render_all_cameras(
 
     # Render cameras and clean up S3 file afterwards
     try:
+
+        def render_camera(camera: str) -> dict[str, Any]:
+            def issue_request() -> dict[str, Any]:
+                return render_single_camera_from_url(
+                    usd_url=asset_url,
+                    camera=camera,
+                    image_width=image_width,
+                    image_height=image_height,
+                    frames=frames,
+                    api_key=api_key,
+                    base_url=base_url,
+                    timeout=timeout,
+                    sensors=sensors,
+                    apply_background_mask=apply_background_mask,
+                    max_retries=max_retries,
+                    retry_delay=retry_delay,
+                    retry_backoff_factor=retry_backoff_factor,
+                    retry_jitter=retry_jitter,
+                    material_target=material_target,
+                )
+
+            if global_render_slot is None:
+                return issue_request()
+
+            with global_render_slot(
+                timeout_seconds=render_slot_timeout_sec,
+            ) as queue_wait:
+                if queue_wait > 0.05:
+                    logger.info(
+                        "Remote camera %s waited %.2fs for global render slot",
+                        camera,
+                        queue_wait,
+                    )
+                return issue_request()
+
         # Render cameras in parallel if max_workers > 1
         if max_workers > 1:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
-                    executor.submit(
-                        render_single_camera_from_url,
-                        usd_url=asset_url,
-                        camera=camera,
-                        image_width=image_width,
-                        image_height=image_height,
-                        frames=frames,
-                        api_key=api_key,
-                        base_url=base_url,
-                        timeout=timeout,
-                        sensors=sensors,
-                        apply_background_mask=apply_background_mask,
-                        max_retries=max_retries,
-                        retry_delay=retry_delay,
-                        retry_backoff_factor=retry_backoff_factor,
-                        retry_jitter=retry_jitter,
-                    ): camera
-                    for camera in cameras
+                    executor.submit(render_camera, camera): camera for camera in cameras
                 }
 
                 for future in as_completed(futures):
@@ -1566,22 +1763,7 @@ def render_all_cameras(
             # Sequential rendering
             for camera in cameras:
                 try:
-                    result = render_single_camera_from_url(
-                        usd_url=asset_url,
-                        camera=camera,
-                        image_width=image_width,
-                        image_height=image_height,
-                        frames=frames,
-                        api_key=api_key,
-                        base_url=base_url,
-                        timeout=timeout,
-                        sensors=sensors,
-                        apply_background_mask=apply_background_mask,
-                        max_retries=max_retries,
-                        retry_delay=retry_delay,
-                        retry_backoff_factor=retry_backoff_factor,
-                        retry_jitter=retry_jitter,
-                    )
+                    result = render_camera(camera)
                     results.append(result)
                     if result.get("status") == RenderingStatus.success:
                         successful_cameras += 1
@@ -1632,6 +1814,11 @@ def render_all_cameras_from_url(
     sensors: list[str] | None = None,
     apply_background_mask: bool = False,
     max_workers: int = 1,
+    max_retries: int = 3,
+    retry_delay: float = 1.0,
+    retry_backoff_factor: float = 2.0,
+    retry_jitter: float = 0.1,
+    material_target: str | None = None,
 ) -> dict[str, Any]:
     """
     Render multiple cameras from a USD file URL using a REST renderer.
@@ -1651,6 +1838,11 @@ def render_all_cameras_from_url(
         sensors: Additional sensors to render (e.g., ["linear_depth", "instance_id_segmentation"])
         apply_background_mask: If True, apply background masking during rendering. Default: False
         max_workers: Maximum number of parallel render threads. Default: 1
+        max_retries: Maximum number of retry attempts per camera. Default: 3
+        retry_delay: Initial delay between retries in seconds. Default: 1.0
+        retry_backoff_factor: Factor to multiply delay by after each retry. Default: 2.0
+        retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1
+        material_target: Explicit material target forwarded to the REST renderer.
 
     Returns:
         Dict containing:
@@ -1698,6 +1890,11 @@ def render_all_cameras_from_url(
                     timeout=timeout,
                     sensors=sensors,
                     apply_background_mask=apply_background_mask,
+                    max_retries=max_retries,
+                    retry_delay=retry_delay,
+                    retry_backoff_factor=retry_backoff_factor,
+                    retry_jitter=retry_jitter,
+                    material_target=material_target,
                 ): camera
                 for camera in cameras
             }
@@ -1739,6 +1936,11 @@ def render_all_cameras_from_url(
                     timeout=timeout,
                     sensors=sensors,
                     apply_background_mask=apply_background_mask,
+                    max_retries=max_retries,
+                    retry_delay=retry_delay,
+                    retry_backoff_factor=retry_backoff_factor,
+                    retry_jitter=retry_jitter,
+                    material_target=material_target,
                 )
                 results.append(result)
                 if result.get("status") == RenderingStatus.success:
@@ -1782,6 +1984,7 @@ def batch_render_assets(
     sensors: list[str] | None = None,
     apply_background_mask: bool = False,
     max_workers: int = 32,
+    material_target: str | None = None,
 ) -> dict[str, Any]:
     """
     Batch render multiple USD assets with specified cameras using a REST renderer.
@@ -1802,6 +2005,7 @@ def batch_render_assets(
         sensors: Additional sensors to render (e.g., ["linear_depth", "instance_id_segmentation"])
         apply_background_mask: If True, apply background masking during rendering. Default: False
         max_workers: Maximum number of parallel render threads. Default: 32
+        material_target: Explicit material target forwarded to the REST renderer.
 
     Returns:
         Dict containing:
@@ -1865,6 +2069,7 @@ def batch_render_assets(
                 timeout=timeout,
                 sensors=sensors,
                 apply_background_mask=apply_background_mask,
+                material_target=material_target,
             ): (asset_url, camera)
             for asset_url, camera in render_tasks
         }

@@ -62,7 +62,7 @@ class TuningBackend(Protocol):
 
     def tuning_capabilities(self) -> tuple[BindingCapability, ...]:
         """Return backend-supported parameter binding capabilities."""
-        ...
+        ...  # pragma: no cover - protocol declaration
 
     def evaluate(
         self,
@@ -82,7 +82,7 @@ class TuningBackend(Protocol):
             ``raw_log`` (path to a raw simulator log),
             anything scenario-specific.
         """
-        ...
+        ...  # pragma: no cover - protocol declaration
 
 
 class FakeBackend:

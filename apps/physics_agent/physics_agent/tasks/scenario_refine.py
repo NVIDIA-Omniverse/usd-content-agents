@@ -320,6 +320,7 @@ def _build_user_message(
     iteration: int,
     backend_name: str | None,
     supported_param_keys: tuple[str, ...],
+    prior_refine_history: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build the user-side prompt body. JSON-shaped for easy LLM consumption."""
     payload: dict[str, Any] = {
@@ -342,6 +343,8 @@ def _build_user_message(
         },
         "top_trials": _summarise_history(history_summary),
     }
+    if prior_refine_history is not None:
+        payload["prior_refine_history"] = list(prior_refine_history)
     body = json.dumps(payload, sort_keys=True, indent=2)
     return (
         "Refine the scenario for the next iteration. Respond with strict "
@@ -421,6 +424,7 @@ def run_scenario_refine(
     chat_model: Any | None = None,
     backend_name: str | None = None,
     supported_param_keys: tuple[str, ...] | list[str] | None = None,
+    prior_refine_history: list[dict[str, Any]] | None = None,
 ) -> RefineResult:
     """Refine ``current_scenario`` for the next iteration of the refine loop.
 
@@ -439,6 +443,8 @@ def run_scenario_refine(
         supported_param_keys: Optional backend-specific tunable parameter
             allowlist. Refined scenarios using names outside this set are
             rejected and the loop reuses the current scenario.
+        prior_refine_history: Optional compact summaries of prior outer-loop
+            iterations. Included as prompt context for the refiner.
 
     Returns:
         A :class:`RefineResult`. On any LLM/parse/validation failure the
@@ -447,6 +453,8 @@ def run_scenario_refine(
     current_dict = _scenario_to_dict(current_scenario)
     current_yaml = yaml.safe_dump(current_dict, sort_keys=False)
     history = list(history_summary or [])
+    prior_history = None if prior_refine_history is None else list(prior_refine_history)
+    prior_history_size = len(prior_history) if prior_history is not None else 0
     active_param_keys = _normalize_supported_param_keys(supported_param_keys)
 
     if chat_model is None:
@@ -455,7 +463,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning="LLM unavailable: no chat_model supplied",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
 
     user_message = _build_user_message(
@@ -466,6 +477,7 @@ def run_scenario_refine(
         iteration=iteration,
         backend_name=backend_name,
         supported_param_keys=active_param_keys,
+        prior_refine_history=prior_history,
     )
     system_prompt = _build_system_prompt(
         backend_name=backend_name,
@@ -487,7 +499,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning=f"LLM unavailable: invoke raised ({type(exc).__name__})",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
 
     if not isinstance(result, dict) or "error" in result:
@@ -498,7 +513,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning="LLM unavailable: provider error",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
     response = result.get("response")
     if not isinstance(response, str) or not response.strip():
@@ -507,7 +525,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning="LLM unavailable: empty response",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
 
     try:
@@ -519,7 +540,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning=f"LLM unavailable: {exc}",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
 
     refined_dict = parsed.get("scenario")
@@ -530,7 +554,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning="LLM unavailable: response missing 'scenario' key",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
 
     # Hard rule: refining must not change the scenario kind.
@@ -609,7 +636,10 @@ def run_scenario_refine(
             scenario=current_scenario,
             llm_unavailable=True,
             reasoning=f"LLM unavailable: refined scenario invalid ({exc})",
-            notes={"history_size": len(history)},
+            notes={
+                "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
+            },
         )
 
     invalid_params = sorted(
@@ -630,6 +660,7 @@ def run_scenario_refine(
             ),
             notes={
                 "history_size": len(history),
+                "prior_refine_history_size": prior_history_size,
                 "supported_param_keys": list(active_param_keys),
             },
         )
@@ -648,6 +679,7 @@ def run_scenario_refine(
         reasoning=reasoning,
         notes={
             "history_size": len(history),
+            "prior_refine_history_size": prior_history_size,
             "supported_param_keys": list(active_param_keys),
         },
     )

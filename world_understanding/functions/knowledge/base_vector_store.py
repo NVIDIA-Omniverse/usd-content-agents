@@ -337,7 +337,7 @@ class BaseVectorStore:
             embedding_type: Embedding type ("text" or "image")
             caption_prompt: Prompt to use for image captioning
             system_prompt: System instructions for the VLM
-            vlm_backend: VLM backend to use ("azure_openai", "perflab_azure_openai", or "nim")
+            vlm_backend: Registered VLM backend to use
             vlm_model: Model to use (uses backend default if None)
             vlm_api_key: API key for the VLM backend (uses env var if None)
             kwargs: Additional arguments to pass to the VLM
@@ -411,7 +411,7 @@ class BaseVectorStore:
             embedding_type: List of embedding types (one per image)
             caption_prompt: Prompt to use for image captioning
             system_prompt: System instructions for the VLM
-            vlm_backend: VLM backend to use ("azure_openai", "perflab_azure_openai", or "nim")
+            vlm_backend: Registered VLM backend to use
             vlm_model: Model to use (uses backend default if None)
             vlm_api_key: API key for the VLM backend (uses env var if None)
             kwargs: Additional arguments to pass to the VLM
@@ -1045,7 +1045,7 @@ class BaseVectorStore:
                 "image" for direct embedding)
             caption_prompt: Prompt to use for image captioning
             system_prompt: System instructions for the VLM
-            vlm_backend: VLM backend to use ("azure_openai", "perflab_azure_openai", or "nim")
+            vlm_backend: Registered VLM backend to use
             vlm_model: Model to use (uses backend default if None)
             vlm_api_key: API key for the VLM backend (uses env var if None)
 

@@ -27,20 +27,26 @@ from material_agent.api.defaults import (
     DEFAULT_LLM_MODEL,
     DEFAULT_LLM_TEMPERATURE,
     DEFAULT_VLM_BACKEND,
-    DEFAULT_VLM_LLMGATEWAY_CONFIG,
     DEFAULT_VLM_MAX_TOKENS,
     DEFAULT_VLM_MODEL,
     DEFAULT_VLM_TEMPERATURE,
 )
+from material_agent.simready import (
+    DEFAULT_SIMREADY_RELEASE_TAG,
+    SimReadyCatalogError,
+    build_material_entries,
+    is_simready_library_id,
+    load_manifest,
+)
 from pydantic import Field
 from pydantic_settings import BaseSettings
 from world_understanding.utils.credentials import (
-    API_KEY_ENV_VAR_MAP,
     get_env_api_key_for_backend,
     get_nim_api_key_for_base_url,
     get_openai_api_key_for_base_url,
     is_nvidia_provider_base_url,
     is_placeholder_api_key,
+    resolve_endpoint_api_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,36 +74,47 @@ def _is_local_render_endpoint(endpoint: str | None) -> bool:
     return host.lower() in _LOCAL_RENDER_HOSTS
 
 
+def _display_name_from_library_id(library_id: str) -> str:
+    if library_id.startswith("simready-category:"):
+        return f"simready category {library_id.removeprefix('simready-category:')}"
+    return library_id.replace("_", " ").replace("-", " ")
+
+
 def _backend_has_credentials(
     backend: str | None,
     *,
     nvidia_api_key: str | None,
-    nstorage_api_key: str | None,
     nim_base_url: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> bool:
     """Check whether the active backend has the credential it needs."""
     backend_name = (backend or "").lower()
 
-    if backend_name in ("", "echo", "mock"):
+    if not backend_name:
         return True
-    if "llmgateway" in backend_name:
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        vlm_backend_requires_api_key,
+    )
+
+    try:
+        requires_api_key = vlm_backend_requires_api_key(backend_name)
+    except ValueError:
+        return bool(get_env_api_key_for_backend(backend_name, api_key))
+    if not requires_api_key:
         return True
     if backend_name == "nim":
-        explicit_key = (
-            nvidia_api_key if is_nvidia_provider_base_url(nim_base_url) else None
-        )
-        return bool(get_nim_api_key_for_base_url(nim_base_url, explicit_key))
+        base_url = nim_base_url or base_url
+        explicit_key = api_key
+        if explicit_key is None and is_nvidia_provider_base_url(base_url):
+            explicit_key = nvidia_api_key
+        return bool(get_nim_api_key_for_base_url(base_url, explicit_key))
     if backend_name == "openai":
-        # Mirror the runtime factory: ``OPENAI_BASE_URL`` / ``OPENAI_API_BASE``
-        # can redirect the SDK to a custom OpenAI-compatible endpoint, in
-        # which case a hosted ``OPENAI_API_KEY`` alone is not enough.
-        return bool(get_openai_api_key_for_base_url(None, None))
-    if backend_name in ("nvidia_inference", "anthropic", "gemini"):
-        return bool(get_env_api_key_for_backend(backend_name))
-    if backend_name in ("azure_openai", "perflab_azure_openai"):
-        return bool(get_env_api_key_for_backend(backend_name, nstorage_api_key))
-
-    return True
+        return bool(get_openai_api_key_for_base_url(base_url, api_key))
+    if backend_name in ("anthropic", "gemini"):
+        return bool(get_env_api_key_for_backend(backend_name, api_key))
+    return bool(get_env_api_key_for_backend(backend_name, api_key))
 
 
 def _image_gen_backend_has_credentials(
@@ -110,7 +127,18 @@ def _image_gen_backend_has_credentials(
     """Check image-generation credentials using constructor-equivalent rules."""
     backend_name = (backend or "").lower()
 
-    if backend_name in ("", "echo", "mock"):
+    if not backend_name:
+        return True
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        image_gen_backend_requires_api_key,
+    )
+
+    try:
+        requires_api_key = image_gen_backend_requires_api_key(backend_name)
+    except ValueError:
+        return bool(get_env_api_key_for_backend(backend_name, api_key))
+    if not requires_api_key:
         return True
     if backend_name == "openai":
         return bool(get_openai_api_key_for_base_url(base_url, api_key))
@@ -123,15 +151,7 @@ def _image_gen_backend_has_credentials(
         ):
             explicit_key = nvidia_api_key
         return bool(get_nim_api_key_for_base_url(base_url, explicit_key))
-    if backend_name in API_KEY_ENV_VAR_MAP:
-        return bool(get_env_api_key_for_backend(backend_name, api_key))
-
-    # Unknown / custom registry-provided backends (e.g. nvidia_inference in
-    # internal builds): trust an explicit non-placeholder ``api_key`` from
-    # ``MA_IMAGE_GEN_API_KEY`` and let the registered factory perform any
-    # backend-specific resolution at construction time. Without a key,
-    # readiness stays False so /health still surfaces unconfigured states.
-    return _has_real_api_key(api_key)
+    return bool(get_env_api_key_for_backend(backend_name, api_key))
 
 
 @dataclass
@@ -171,6 +191,14 @@ class ServiceConfig(BaseSettings):
     # Multi-library support
     material_libraries: dict[str, MaterialLibrary] = {}
     default_library_id: str = "default"
+
+    # SimReady material libraries
+    simready_enabled: bool = False
+    simready_release_tag: str = DEFAULT_SIMREADY_RELEASE_TAG
+    simready_manifest_path: str | None = None
+    simready_cache_dir: str = "/var/material-agent/simready-cache"
+    simready_allowed_categories: str | None = None
+    simready_split_archives_enabled: bool = False
 
     # Session settings (FastAPI-specific)
     session_storage_path: str = "/var/material-agent/sessions"
@@ -221,7 +249,6 @@ class ServiceConfig(BaseSettings):
 
     # API Keys (from environment)
     nvidia_api_key: str | None = None
-    nstorage_api_key: str | None = None
     nvcf_api_key: str | None = None
 
     # VLM/LLM settings
@@ -229,6 +256,18 @@ class ServiceConfig(BaseSettings):
         default=DEFAULT_VLM_BACKEND, description="VLM backend to use"
     )
     vlm_model: str = Field(default=DEFAULT_VLM_MODEL, description="VLM model to use")
+    vlm_base_url: str | None = Field(
+        default=None,
+        description="Optional VLM API base URL for non-NIM endpoint routing",
+    )
+    vlm_api_key: str | None = Field(
+        default=None,
+        description="Optional endpoint-scoped VLM API key",
+    )
+    vlm_api_key_env: str | None = Field(
+        default=None,
+        description="Environment variable containing the endpoint-scoped VLM API key",
+    )
     vlm_temperature: float = Field(
         default=DEFAULT_VLM_TEMPERATURE, description="VLM temperature to use"
     )
@@ -241,6 +280,18 @@ class ServiceConfig(BaseSettings):
         default=DEFAULT_LLM_BACKEND, description="LLM backend to use"
     )
     llm_model: str = Field(default=DEFAULT_LLM_MODEL, description="LLM model to use")
+    llm_base_url: str | None = Field(
+        default=None,
+        description="Optional LLM API base URL for non-NIM endpoint routing",
+    )
+    llm_api_key: str | None = Field(
+        default=None,
+        description="Optional endpoint-scoped LLM API key",
+    )
+    llm_api_key_env: str | None = Field(
+        default=None,
+        description="Environment variable containing the endpoint-scoped LLM API key",
+    )
     llm_temperature: float = Field(
         default=DEFAULT_LLM_TEMPERATURE, description="LLM temperature to use"
     )
@@ -249,18 +300,23 @@ class ServiceConfig(BaseSettings):
         ge=1,
         description="Maximum LLM completion tokens to request",
     )
-    llmgateway_config: dict[str, str | list[str] | None] = Field(
-        default=DEFAULT_VLM_LLMGATEWAY_CONFIG, description="LLM gateway config to use"
+    vlm_backend_options: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional provider-specific VLM constructor options",
     )
     image_gen_backend: str = Field(
         default="gemini",
-        description="Image generation backend for interactive reference images",
+        description=(
+            "Image generation backend for interactive reference images and "
+            "generated material textures"
+        ),
     )
     image_gen_model: str | None = Field(
         default=None,
         description=(
-            "Optional image generation model for interactive reference images. "
-            "If unset, the selected backend default is used."
+            "Optional image generation model for interactive reference images "
+            "and generated material textures. If unset, the selected backend "
+            "default is used."
         ),
     )
     image_gen_base_url: str | None = Field(
@@ -273,6 +329,10 @@ class ServiceConfig(BaseSettings):
             "Optional image generation API key. Use 'not-used' only for explicit "
             "no-auth local endpoints."
         ),
+    )
+    image_gen_api_key_env: str | None = Field(
+        default=None,
+        description="Environment variable containing the image generation API key",
     )
     cluster_embedding_backend: str = Field(
         default=DEFAULT_CLUSTER_EMBEDDING_BACKEND,
@@ -292,6 +352,10 @@ class ServiceConfig(BaseSettings):
             "Optional API key for the prim clustering embedding endpoint. "
             "Use 'not-used' only for explicit no-auth local endpoints."
         ),
+    )
+    cluster_embedding_api_key_env: str | None = Field(
+        default=None,
+        description="Environment variable containing the clustering embedding API key",
     )
     cluster_embedding_max_workers: int = Field(
         default=DEFAULT_CLUSTER_MAX_WORKERS,
@@ -326,10 +390,6 @@ class ServiceConfig(BaseSettings):
         if not self.nvidia_api_key:
             self.nvidia_api_key = os.getenv(
                 "MA_NVIDIA_API_KEY", os.getenv("NVIDIA_API_KEY")
-            )
-        if not self.nstorage_api_key:
-            self.nstorage_api_key = os.getenv(
-                "MA_NSTORAGE_API_KEY", os.getenv("NSTORAGE_API_KEY")
             )
         if not self.nvcf_api_key:
             self.nvcf_api_key = os.getenv("NGC_API_KEY")
@@ -432,7 +492,7 @@ class ServiceConfig(BaseSettings):
                         icons[entry["name"]] = entry["icon"]
 
                 # Generate a display name from directory name
-                display_name = library_id.replace("_", " ").replace("-", " ")
+                display_name = _display_name_from_library_id(library_id)
 
                 lib = MaterialLibrary(
                     id=library_id,
@@ -504,6 +564,66 @@ class ServiceConfig(BaseSettings):
         """Get a material library by ID."""
         return self.material_libraries.get(library_id)
 
+    def resolve_material_library(self, library_id: str) -> MaterialLibrary | None:
+        """Resolve a material library ID, including SimReady namespace IDs."""
+        if is_simready_library_id(library_id):
+            return self._resolve_simready_library(library_id)
+        return self.get_library(library_id)
+
+    def _resolve_simready_library(self, library_id: str) -> MaterialLibrary:
+        """Resolve a metadata-only SimReady library view."""
+        if not self.simready_enabled:
+            raise ValueError(
+                "SimReady material libraries are disabled in this deployment."
+            )
+
+        try:
+            manifest = load_manifest(self.simready_manifest_path)
+            release_tag = str(manifest.get("release_tag") or "")
+            if release_tag != self.simready_release_tag:
+                raise SimReadyCatalogError(
+                    f"SimReady manifest release tag {release_tag!r} does not "
+                    f"match configured tag {self.simready_release_tag!r}"
+                )
+            entries = build_material_entries(
+                manifest,
+                library_id,
+                allowed_categories=self._simready_allowed_categories(),
+                split_archives_enabled=self.simready_split_archives_enabled,
+            )
+        except (
+            SimReadyCatalogError,
+            OSError,
+            yaml.YAMLError,
+        ) as exc:
+            raise ValueError(str(exc)) from exc
+
+        if not entries:
+            raise ValueError(
+                f"SimReady material library has no enabled entries: {library_id}"
+            )
+
+        display_name = _display_name_from_library_id(library_id)
+        return MaterialLibrary(
+            id=library_id,
+            name=display_name,
+            yaml_path=self.simready_manifest_path or "",
+            # This is metadata-only until the lazy hydrator materializes a
+            # session-local library USD before apply.
+            library_path="",
+            entries=entries,
+            icons={},
+            base_dir="",
+        )
+
+    def _simready_allowed_categories(self) -> set[str] | None:
+        """Return configured SimReady category allowlist, if any."""
+        raw = self.simready_allowed_categories
+        if not raw:
+            return None
+        categories = {item.strip() for item in raw.split(",") if item.strip()}
+        return categories or None
+
     @property
     def has_required_api_keys(self) -> bool:
         """Check if the active backend and render settings are configured."""
@@ -511,18 +631,34 @@ class ServiceConfig(BaseSettings):
         llm_nim_base_url = os.getenv("MA_LLM_NIM_BASE_URL") or vlm_nim_base_url
         vlm_backend = "nim" if vlm_nim_base_url else self.vlm_backend
         llm_backend = "nim" if llm_nim_base_url else self.llm_backend
+        vlm_api_key = (
+            None
+            if vlm_nim_base_url
+            else resolve_endpoint_api_key(
+                self.vlm_api_key, self.vlm_api_key_env, prefer_env=True
+            )
+        )
+        llm_api_key = (
+            None
+            if llm_nim_base_url
+            else resolve_endpoint_api_key(
+                self.llm_api_key, self.llm_api_key_env, prefer_env=True
+            )
+        )
 
         vlm_ready = _backend_has_credentials(
             vlm_backend,
             nvidia_api_key=self.nvidia_api_key,
-            nstorage_api_key=self.nstorage_api_key,
             nim_base_url=vlm_nim_base_url,
+            base_url=self.vlm_base_url,
+            api_key=vlm_api_key,
         )
         llm_ready = _backend_has_credentials(
             llm_backend,
             nvidia_api_key=self.nvidia_api_key,
-            nstorage_api_key=self.nstorage_api_key,
             nim_base_url=llm_nim_base_url,
+            base_url=self.llm_base_url,
+            api_key=llm_api_key,
         )
 
         render_endpoint = os.getenv("RENDER_ENDPOINT")
@@ -539,9 +675,14 @@ class ServiceConfig(BaseSettings):
     @property
     def image_gen_ready(self) -> bool:
         """Check if the interactive image-generation backend is configured."""
+        api_key = resolve_endpoint_api_key(
+            self.image_gen_api_key,
+            self.image_gen_api_key_env,
+            prefer_env=True,
+        )
         return _image_gen_backend_has_credentials(
             self.image_gen_backend,
-            api_key=self.image_gen_api_key,
+            api_key=api_key,
             nvidia_api_key=self.nvidia_api_key,
             base_url=self.image_gen_base_url,
         )

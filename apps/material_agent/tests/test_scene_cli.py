@@ -375,5 +375,77 @@ class TestRunCommand:
         assert params.max_workers == 2
         assert params.skip_existing is True
         assert params.no_render is True
+        assert params.fail_on_validation_error is True
         assert params.resume is True
         assert params.predict_max_workers == 3
+
+    def test_run_command_exits_on_validation_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        from material_agent.api import ScenePipelineOutput
+        from material_agent.scene.cli import run_cmd
+
+        config = tmp_path / "scene.yaml"
+        config.write_text("project:\n  name: test\n")
+        captured = {}
+
+        def fake_run_scene_pipeline(params):
+            captured["params"] = params
+            return ScenePipelineOutput(
+                success=False,
+                error="Output validation failed",
+                validation_passed=False,
+            )
+
+        monkeypatch.setattr(
+            "material_agent.api.run_scene_pipeline",
+            fake_run_scene_pipeline,
+        )
+
+        with pytest.raises(typer.Exit) as exc_info:
+            run_cmd(config=config)
+
+        params = captured["params"]
+        output = capsys.readouterr().out
+        assert exc_info.value.exit_code == 1
+        assert params.fail_on_validation_error is True
+        assert "Scene pipeline failed" in output
+        assert "Scene pipeline complete" not in output
+
+    def test_run_command_can_warn_on_validation_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        from material_agent.api import ScenePipelineOutput
+        from material_agent.scene.cli import run_cmd
+
+        config = tmp_path / "scene.yaml"
+        config.write_text("project:\n  name: test\n")
+        captured = {}
+
+        def fake_run_scene_pipeline(params):
+            captured["params"] = params
+            return ScenePipelineOutput(
+                success=True,
+                validation_passed=False,
+                output_usd_path=str(tmp_path / "out.usd"),
+                completed_assets=1,
+                failed_assets=0,
+            )
+
+        monkeypatch.setattr(
+            "material_agent.api.run_scene_pipeline",
+            fake_run_scene_pipeline,
+        )
+
+        run_cmd(config=config, fail_on_validation=False)
+
+        params = captured["params"]
+        output = capsys.readouterr().out
+        assert params.fail_on_validation_error is False
+        assert "Scene pipeline complete" in output

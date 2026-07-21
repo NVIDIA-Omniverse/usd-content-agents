@@ -2,10 +2,95 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests for executor terminal-state validation."""
 
+import asyncio
+from pathlib import Path
+
+import pytest
+
+from ...service.routers import pipeline_router
+from ...service.session.manager import SessionManager
 from ...service.workers.executor import (
     _extract_step_stats,
     _get_step_validation_error,
+    execute_pipeline_async,
 )
+
+pytest.importorskip("pxr")
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade  # noqa: E402
+
+
+def _write_multi_prim_material_stage(path: Path, *, prim_count: int) -> Path:
+    stage = Usd.Stage.CreateNew(str(path))
+    world = stage.DefinePrim("/World", "Xform")
+    stage.SetDefaultPrim(world)
+    UsdGeom.Scope.Define(stage, "/World/Looks")
+
+    material = UsdShade.Material.Define(stage, "/World/Looks/Paint")
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Paint/PreviewSurface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(0.1, 0.3, 0.1)
+    )
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.7)
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+
+    for index in range(prim_count):
+        cube = UsdGeom.Cube.Define(stage, f"/World/Panel_{index}")
+        cube.CreateSizeAttr(0.1)
+        UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(material)
+
+    stage.GetRootLayer().Save()
+    return path
+
+
+def test_service_generated_pipeline_fails_before_backend_on_texture_unit_fanout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipeline_router.config, "max_texture_units", 2)
+    usd_path = _write_multi_prim_material_stage(
+        tmp_path / "multi_prim.usda", prim_count=3
+    )
+    manager = SessionManager(tmp_path / "sessions", ttl_hours=2)
+    session_id = "fanout-guard-local-smoke"
+    session_dir = manager.create_session(session_id)
+    config = pipeline_router.build_default_pipeline_config(
+        session_id=session_id,
+        usd_path=str(usd_path),
+        working_dir=str(session_dir / "cache"),
+        material_textures={
+            "Paint": {
+                "prompt": "slightly worn green paint",
+                "per_prim": {"/World/Panel_0": {"prompt": "worn left panel"}},
+            }
+        },
+        auto_prompt_enabled=False,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Texture generation would create 3 expanded texture units, exceeding "
+            "texture.max_texture_units=2"
+        ),
+    ):
+        asyncio.run(
+            execute_pipeline_async(
+                session_id,
+                config,
+                manager,
+                only_steps=[
+                    "discover_materials",
+                    "plan_textures",
+                    "generate_prompts",
+                ],
+            )
+        )
+
+    metadata = manager.get_session_metadata(session_id)
+    assert metadata["status"] == "failed"
+    assert metadata["failed_step"] == "generate_prompts"
+    assert "texture.max_texture_units=2" in metadata["error"]
 
 
 class TestGetStepValidationError:

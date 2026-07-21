@@ -5,16 +5,25 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
+from collections import deque
+from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
 
 from ..json_utils import to_json_safe
 from .events import ProgressEvent, StepState
 
-if TYPE_CHECKING:
-    from ..session.manager import SessionManager
+if TYPE_CHECKING:  # pragma: no cover
+    from ..session.manager import RegenerationClaim, SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +78,18 @@ SCENE_STEP_METADATA: dict[str, dict[str, int | str | tuple[int, int]]] = {
 }
 
 
+@dataclass(frozen=True)
+class EventBusSessionSnapshot:
+    """Restorable EventBus state captured before transactional preparation."""
+
+    state_present: bool
+    state: dict[str, Any] | None
+    queue_present: bool
+    queue: asyncio.Queue[ProgressEvent] | None
+    queued_events: tuple[ProgressEvent, ...]
+    regeneration_claim: RegenerationClaim | None
+
+
 class EventBus:
     """Central event bus for pipeline progress.
 
@@ -91,6 +112,7 @@ class EventBus:
 
         # Session manager reference (set by main app during startup)
         self._session_manager: SessionManager | None = None
+        self._regeneration_claims: dict[str, RegenerationClaim] = {}
 
     def set_session_manager(self, manager: SessionManager) -> None:
         """Set the session manager instance for persistence.
@@ -119,8 +141,13 @@ class EventBus:
                 storage_path=config.session_storage_path,
                 ttl_hours=config.session_ttl_hours,
             )
-        except Exception as e:
-            logger.warning(f"Failed to create fallback session manager: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "event_bus_session_manager_unavailable",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
             return None
 
     def get_queue(self, session_id: str) -> asyncio.Queue[ProgressEvent]:
@@ -136,6 +163,14 @@ class EventBus:
             self._queues[session_id] = asyncio.Queue()
         return self._queues[session_id]
 
+    def bind_regeneration_claim(
+        self,
+        session_id: str,
+        claim: RegenerationClaim,
+    ) -> None:
+        """Fence durable EventBus status writes to one regeneration claim."""
+        self._regeneration_claims[session_id] = claim
+
     def get_snapshot(self, session_id: str) -> dict[str, Any] | None:
         """Get current in-memory state snapshot for a session.
 
@@ -149,6 +184,246 @@ class EventBus:
         """
         return self._state.get(session_id)
 
+    async def _unbound_state_is_current(self, session_id: str) -> bool:
+        """Reject an old standard-run cache once any regeneration owns history."""
+        manager = self._session_manager
+        if manager is None or not hasattr(manager, "get_session_metadata"):
+            # Preserve legacy standalone EventBus use where no durable session
+            # manager is configured. Production wires one during app startup.
+            return True
+        metadata = await manager.get_session_metadata(session_id)
+        if metadata is None:
+            return False
+        return not isinstance(metadata.get("regeneration_claim"), Mapping)
+
+    async def _bound_claim_is_current(self, session_id: str) -> bool:
+        """Return whether this pod's bound claim owns a live session lease."""
+        claim = self._regeneration_claims.get(session_id)
+        if claim is None:
+            return await self._unbound_state_is_current(session_id)
+        manager = self._get_session_manager()
+        if manager is None:
+            return False
+        metadata = await manager.get_session_metadata(session_id)
+        if metadata is None:
+            return False
+        from ..session.manager import RegenerationClaim
+
+        current = RegenerationClaim.from_metadata(metadata)
+        raw_claim = metadata.get("regeneration_claim")
+        if (
+            current is None
+            or not isinstance(raw_claim, Mapping)
+            or current.generation != claim.generation
+            or current.token != claim.token
+        ):
+            return False
+        return raw_claim.get("active") is True and (
+            current.lease_expires_at > datetime.now(UTC)
+        )
+
+    async def event_is_current(self, event: ProgressEvent) -> bool:
+        """Allow live claim events or a persisted matching terminal event."""
+        claim = self._regeneration_claims.get(event.session_id)
+        if claim is None:
+            manager = self._session_manager
+            if manager is None or not hasattr(manager, "get_session_metadata"):
+                # Preserve legacy standalone EventBus use where no durable
+                # manager is configured. Production wires one at startup.
+                return True
+            metadata = await manager.get_session_metadata(event.session_id)
+            if metadata is None or isinstance(
+                metadata.get("regeneration_claim"), Mapping
+            ):
+                return False
+            persisted_status = metadata.get("status")
+            if persisted_status not in _TERMINAL_STATUSES:
+                return True
+            # A standard or scene run has no claim token, so durable terminal
+            # metadata is its close barrier. Only the executor-authored event
+            # matching that terminal state may pass after persistence; delayed
+            # listener events must not reopen the snapshot or event log.
+            return self._event_matches_persisted_terminal(event, persisted_status)
+        manager = self._get_session_manager()
+        if manager is None:
+            return False
+        metadata = await manager.get_session_metadata(event.session_id)
+        if metadata is None:
+            return False
+        from ..session.manager import RegenerationClaim
+
+        current = RegenerationClaim.from_metadata(metadata)
+        raw_claim = metadata.get("regeneration_claim")
+        if (
+            current is None
+            or not isinstance(raw_claim, Mapping)
+            or current.generation != claim.generation
+            or current.token != claim.token
+        ):
+            return False
+        if raw_claim.get("active") is True:
+            return current.lease_expires_at > datetime.now(UTC)
+
+        return self._event_matches_persisted_terminal(
+            event,
+            metadata.get("status"),
+        )
+
+    @staticmethod
+    def _event_matches_persisted_terminal(
+        event: ProgressEvent,
+        persisted_status: object,
+    ) -> bool:
+        """Accept only an executor-authored event matching durable terminal state."""
+        if event.state == StepState.CANCELLED:
+            return persisted_status in {"cancelled", "canceled"} and bool(
+                event.extra and event.extra.get("pipeline_cancelled")
+            )
+        if event.state == StepState.FAILED:
+            return persisted_status == "failed" and bool(
+                event.extra and event.extra.get("pipeline_failed")
+            )
+        return (
+            event.state == StepState.COMPLETED
+            and persisted_status in {"completed", "succeeded"}
+            and bool(
+                event.extra
+                and event.extra.get("pipeline_completed")
+                and "coverage" in event.extra
+            )
+        )
+
+    async def queued_event_is_current(self, event: ProgressEvent) -> bool:
+        """Validate an already-queued event without dropping same-run backlog."""
+        claim = self._regeneration_claims.get(event.session_id)
+        if claim is None:
+            return await self._unbound_state_is_current(event.session_id)
+        manager = self._get_session_manager()
+        if manager is None:
+            return False
+        metadata = await manager.get_session_metadata(event.session_id)
+        if metadata is None:
+            return False
+        from ..session.manager import RegenerationClaim
+
+        current = RegenerationClaim.from_metadata(metadata)
+        raw_claim = metadata.get("regeneration_claim")
+        if (
+            current is None
+            or not isinstance(raw_claim, Mapping)
+            or current.generation != claim.generation
+            or current.token != claim.token
+        ):
+            return False
+        if raw_claim.get("active") is True:
+            return current.lease_expires_at > datetime.now(UTC)
+        if raw_claim.get("aborted_at"):
+            return False
+        finalized_at_value = raw_claim.get("finalized_at")
+        if not isinstance(finalized_at_value, str):
+            return False
+        try:
+            finalized_at = datetime.fromisoformat(
+                finalized_at_value.replace("Z", "+00:00")
+            )
+        except ValueError:
+            return False
+        # A normal worker finalizes before its lease expires. Expired-claim
+        # recovery finalizes after expiry and must not drain the old pod's queue.
+        return current.lease_expires_at > finalized_at and metadata.get("status") in {
+            "completed",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "canceled",
+        }
+
+    async def get_fenced_snapshot(self, session_id: str) -> dict[str, Any] | None:
+        """Return local state only while its regeneration claim is current."""
+        if not await self._bound_claim_is_current(session_id):
+            return None
+        return self.get_snapshot(session_id)
+
+    async def seed_pending_session(
+        self,
+        session_id: str,
+        regeneration_claim: RegenerationClaim | None = None,
+    ) -> None:
+        """Seed a lightweight local status snapshot for an accepted pipeline.
+
+        This intentionally avoids event-log persistence and SSE queue writes so
+        /pipeline can make same-instance /status polling independent of the
+        backing metadata store immediately after the job is accepted.
+        """
+        timestamp = datetime.now(UTC).isoformat()
+        async with self._lock:
+            state = self._new_state(session_id, timestamp)
+            existing = self._state.get(session_id)
+            if existing and existing.get("created_at"):
+                state["created_at"] = existing["created_at"]
+            self._state[session_id] = state
+            if regeneration_claim is None:
+                self._regeneration_claims.pop(session_id, None)
+            else:
+                self._regeneration_claims[session_id] = regeneration_claim
+            queue = self.get_queue(session_id)
+            while not queue.empty():
+                queue.get_nowait()
+
+    async def capture_session(self, session_id: str) -> EventBusSessionSnapshot:
+        """Capture one session's state and queue for transactional rollback."""
+        async with self._lock:
+            queue = self._queues.get(session_id)
+            queued_events = (
+                tuple(
+                    cast(
+                        deque[ProgressEvent],
+                        getattr(queue, "_queue"),
+                    )
+                )
+                if queue is not None
+                else ()
+            )
+            return EventBusSessionSnapshot(
+                state_present=session_id in self._state,
+                state=copy.deepcopy(self._state.get(session_id)),
+                queue_present=queue is not None,
+                queue=queue,
+                queued_events=queued_events,
+                regeneration_claim=self._regeneration_claims.get(session_id),
+            )
+
+    async def restore_session(
+        self,
+        session_id: str,
+        snapshot: EventBusSessionSnapshot,
+    ) -> None:
+        """Restore state captured by :meth:`capture_session`."""
+        async with self._lock:
+            if snapshot.state_present:
+                assert snapshot.state is not None
+                self._state[session_id] = copy.deepcopy(snapshot.state)
+            else:
+                self._state.pop(session_id, None)
+
+            current_queue = self._queues.get(session_id)
+            if snapshot.queue_present:
+                assert snapshot.queue is not None
+                queue = snapshot.queue
+                self._queues[session_id] = queue
+                while not queue.empty():
+                    queue.get_nowait()
+                for event in snapshot.queued_events:
+                    queue.put_nowait(event)
+            elif current_queue is not None:
+                while not current_queue.empty():
+                    current_queue.get_nowait()
+                self._queues.pop(session_id, None)
+            if snapshot.regeneration_claim is None:
+                self._regeneration_claims.pop(session_id, None)
+            else:
+                self._regeneration_claims[session_id] = snapshot.regeneration_claim
+
     async def emit(self, event: ProgressEvent) -> None:
         """Emit an event: update state and queue for subscribers.
 
@@ -156,31 +431,81 @@ class EventBus:
             event: Progress event to emit
         """
         async with self._lock:
-            # Update canonical state
-            await self._apply_event_to_state(event)
-
-            # Enrich event with overall progress from state
-            state = self._state.get(event.session_id)
-            if state:
-                event.overall_percent = state.get("overall_progress", {}).get(
-                    "percent", 0
-                )
+            if not await self.event_is_current(event):
                 logger.info(
-                    f"[EventBus] {event.session_id[:8]}... {event.step}: "
-                    f"step={event.percent}% → overall={event.overall_percent}% (state={event.state.value})"
+                    "Dropped stale claimed event for session %s",
+                    event.session_id[:8],
                 )
-            else:
-                event.overall_percent = 0
-                logger.warning(
-                    f"[EventBus] No state found for {event.session_id[:8]}... - setting overall_percent=0"
+                return
+            await self._emit_locked(event)
+
+    @staticmethod
+    def _claim_identity_matches(
+        bound_claim: RegenerationClaim | None,
+        expected_claim: RegenerationClaim | None,
+    ) -> bool:
+        """Compare an EventBus binding with an explicit originating owner."""
+        if bound_claim is None or expected_claim is None:
+            return bound_claim is expected_claim
+        return (
+            bound_claim.generation == expected_claim.generation
+            and bound_claim.token == expected_claim.token
+        )
+
+    async def emit_for_owner(
+        self,
+        event: ProgressEvent,
+        *,
+        regeneration_claim: RegenerationClaim | None,
+    ) -> bool:
+        """Emit a run-scoped event only for its still-bound owner.
+
+        ``None`` explicitly means an unbound standard or scene run.  Ownership
+        is checked under the same lock used to seed a later regeneration so an
+        old event cannot poison a newly rebound queue or snapshot.
+        """
+        async with self._lock:
+            bound_claim = self._regeneration_claims.get(event.session_id)
+            if not self._claim_identity_matches(bound_claim, regeneration_claim):
+                logger.info(
+                    "Dropped event from superseded owner for session %s",
+                    event.session_id[:8],
                 )
+                return False
+            if not await self.event_is_current(event):
+                logger.info(
+                    "Dropped stale claimed event for session %s",
+                    event.session_id[:8],
+                )
+                return False
+            await self._emit_locked(event)
+            return True
 
-            # Queue enriched event for SSE subscribers
-            queue = self.get_queue(event.session_id)
-            await queue.put(event)
+    async def _emit_locked(self, event: ProgressEvent) -> None:
+        """Apply, enqueue, and persist an event while ``_lock`` is held."""
+        # Update canonical state
+        await self._apply_event_to_state(event)
 
-            # Persist event to disk for replay when viewing old sessions
-            await self._save_event_to_log(event)
+        # Enrich event with overall progress from state
+        state = self._state.get(event.session_id)
+        if state:
+            event.overall_percent = state.get("overall_progress", {}).get("percent", 0)
+            logger.info(
+                f"[EventBus] {event.session_id[:8]}... {event.step}: "
+                f"step={event.percent}% → overall={event.overall_percent}% (state={event.state.value})"
+            )
+        else:
+            event.overall_percent = 0
+            logger.warning(
+                f"[EventBus] No state found for {event.session_id[:8]}... - setting overall_percent=0"
+            )
+
+        # Queue enriched event for SSE subscribers
+        queue = self.get_queue(event.session_id)
+        await queue.put(event)
+
+        # Persist event to disk for replay when viewing old sessions
+        await self._save_event_to_log(event)
 
     async def _apply_event_to_state(self, event: ProgressEvent) -> None:
         """Apply event to update canonical in-memory state.
@@ -200,6 +525,14 @@ class EventBus:
             total_steps = event.extra.get("total_steps")
             if isinstance(total_steps, int) and total_steps > 0:
                 state["overall_progress"]["total_steps"] = total_steps
+            rendered_images = event.extra.get("rendered_images")
+            if isinstance(rendered_images, list):
+                for image in rendered_images:
+                    if not isinstance(image, str):
+                        continue
+                    image_name = image.rstrip("/").rsplit("/", 1)[-1]
+                    if image_name and image_name not in state["preview_images"]:
+                        state["preview_images"].append(image_name)
 
         # Handle state transitions
         if event.state == StepState.RUNNING:
@@ -254,6 +587,16 @@ class EventBus:
             self._update_overall_progress(state, event.step, event.percent or 0)
 
         elif event.state == StepState.COMPLETED:
+            # A workflow-level completion marker is provisional until the
+            # executor attaches the persisted coverage contract. Do not count
+            # that synthetic ``pipeline`` marker as a completed workflow step.
+            if (
+                event.extra
+                and event.extra.get("pipeline_completed")
+                and "coverage" not in event.extra
+            ):
+                return
+
             # Step completed
             if (
                 state.get("current_step")
@@ -284,9 +627,17 @@ class EventBus:
                 # Update overall progress
                 await self._update_overall_progress_on_completion(state, event.step)
 
-            # Handle pipeline completion event (marked with pipeline_completed=True in extra)
-            elif event.extra and event.extra.get("pipeline_completed"):
-                # This is a pipeline completion event - force progress to 100%
+            # Only executor-authored completion events carrying the persisted
+            # coverage contract are authoritative.  Underlying workflows also
+            # emit ``pipeline_completed`` before the service has qualified and
+            # atomically stored its final result.
+            elif (
+                event.extra
+                and event.extra.get("pipeline_completed")
+                and "coverage" in event.extra
+            ):
+                # This is the authoritative pipeline completion event - force
+                # progress to 100%.
                 state["overall_progress"]["percent"] = 100
                 state["status"] = "completed"
                 state["completed_at"] = datetime.now(UTC).isoformat()
@@ -350,6 +701,7 @@ class EventBus:
             "updated_at": timestamp,
             "current_step": None,
             "completed_steps": [],
+            "preview_images": [],
             "overall_progress": {
                 "current_step": 0,
                 "total_steps": 3,  # render, predict, apply
@@ -365,6 +717,7 @@ class EventBus:
         state["updated_at"] = timestamp
         state["current_step"] = None
         state["completed_steps"] = []
+        state["preview_images"] = []
         state["overall_progress"] = {
             "current_step": 0,
             "total_steps": 3,
@@ -519,13 +872,10 @@ class EventBus:
             state["overall_progress"]["current_step"] = completed_count
             state["overall_progress"]["total_steps"] = total_steps
 
-        # Check if all steps done (apply or render completes the pipeline)
-        if state["overall_progress"]["percent"] >= 100:
-            state["status"] = "completed"
-            state["completed_at"] = datetime.now(UTC).isoformat()
-
-            # Persist completion status to disk so /sessions endpoint reflects it
-            await self._persist_status(state["session_id"], "completed")
+        # A step reaching 100% is progress, not authoritative pipeline
+        # completion.  Coverage qualification and result persistence still run
+        # after apply/render, and the executor emits the terminal event only
+        # after those artifacts have been stored atomically.
 
     async def _persist_status(self, session_id: str, status: str) -> None:
         """Persist session status to SessionManager on disk.
@@ -541,11 +891,28 @@ class EventBus:
                 return
 
             if await manager.session_exists(session_id):
-                await manager.update_session(session_id, {"status": status})
-                logger.info(f"Persisted {status} status for session {session_id[:8]}")
+                claim = self._regeneration_claims.get(session_id)
+                if claim is None:
+                    await manager.update_session(session_id, {"status": status})
+                    persisted = True
+                else:
+                    persisted = await manager.update_session_for_claim(
+                        session_id,
+                        claim,
+                        {"status": status},
+                    )
+                if persisted:
+                    logger.info(
+                        f"Persisted {status} status for session {session_id[:8]}"
+                    )
 
-        except Exception as e:
-            logger.warning(f"Failed to persist {status} status: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "event_bus_status_persistence_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
 
     async def _save_event_to_log(self, event: ProgressEvent) -> None:
         """Save event to persistent log file for replay.
@@ -571,8 +938,13 @@ class EventBus:
 
                 await asyncio.to_thread(_write)
 
-        except Exception as e:
-            logger.debug(f"Failed to save event to log: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "event_log_persistence_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
 
     def cleanup_session(self, session_id: str) -> None:
         """Clean up session from event bus.
@@ -584,6 +956,7 @@ class EventBus:
             del self._queues[session_id]
         if session_id in self._state:
             del self._state[session_id]
+        self._regeneration_claims.pop(session_id, None)
 
 
 # Global singleton event bus

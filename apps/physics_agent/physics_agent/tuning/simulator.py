@@ -34,7 +34,7 @@ class Simulator(Protocol):
 
     The trajectory shape matches what
     :func:`physics_agent.recording.recorder.author_trajectory_usda` expects
-    so scenarios author ``recording.usda`` + ``trajectory.jsonl`` uniformly
+    so scenarios author ``recording.usd`` + ``trajectory.jsonl`` uniformly
     across engines. This matches the OvPhysX rigid-body velocity tensor and
     Newton's public ``body_qd`` convention.
     """

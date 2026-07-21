@@ -1,4 +1,4 @@
 interface:
   display_name: "Deploy Physics Agent Brev"
   short_description: "Run the hybrid Brev physics-agent deployment."
-  default_prompt: "Use $deploy-physics-agent-brev to deploy or smoke-test Physics Agent with Brev-hosted OVRTX rendering and a Qwen VLM endpoint."
+  default_prompt: "Use $deploy-physics-agent-brev to deploy or smoke-test Physics Agent with Brev-hosted OVRTX rendering and a Qwen VLM endpoint, including service-side refine with a registered provider."

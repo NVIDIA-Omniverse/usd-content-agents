@@ -8,6 +8,9 @@ texture per geometry prim via material cloning).
 
 from __future__ import annotations
 
+import filecmp
+import hashlib
+import json
 import logging
 import os
 import re
@@ -16,13 +19,17 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from pxr import Sdf, Usd, UsdGeom, UsdShade
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 from world_understanding.agentic.tasks import Task
 
 from texture_agent.functions.artifact_manifest import (
     validate_output_texture_portability,
 )
-from texture_agent.functions.material_discovery import PrimTextureUnit
+from texture_agent.functions.cached_apply import (
+    is_cached_apply_context,
+    is_valid_cached_texture_png,
+)
+from texture_agent.functions.material_discovery import MaterialInfo, PrimTextureUnit
 from texture_agent.tasks.blend_textures import BlendedTextures
 
 logger = logging.getLogger(__name__)
@@ -48,6 +55,26 @@ def _load_cached_blended_textures(
         if textures:
             cached[unit.key] = textures
     return cached
+
+
+def _missing_cached_blended_artifacts(
+    blended: dict[str, BlendedTextures],
+    units: list[PrimTextureUnit],
+) -> list[str]:
+    """Return missing unit/channel labels for an all-or-nothing cached apply."""
+    missing: list[str] = []
+    for unit in units:
+        textures = blended.get(unit.key)
+        if not isinstance(textures, BlendedTextures):
+            missing.extend(
+                f"{unit.key}:{channel}" for channel in ("albedo", "normal", "orm")
+            )
+            continue
+        for channel in ("albedo", "normal", "orm"):
+            value = getattr(textures, channel)
+            if not value or not is_valid_cached_texture_png(value):
+                missing.append(f"{unit.key}:{channel}")
+    return list(dict.fromkeys(missing))
 
 
 def _clone_material(
@@ -88,6 +115,23 @@ def _set_texture_attr(
         prim.CreateAttribute(attr_name, Sdf.ValueTypeNames.Asset).Set(
             Sdf.AssetPath(texture_path)
         )
+
+
+def _editable_prim_for_path(stage: Usd.Stage, prim_path: str) -> Usd.Prim:
+    """Return a prim that can accept authored properties at ``prim_path``."""
+    prim = stage.GetPrimAtPath(prim_path)
+    if not prim.IsValid():
+        return prim
+    if not (prim.IsInstanceProxy() or prim.IsInstance() or prim.IsInstanceable()):
+        return prim
+
+    cursor = prim
+    while cursor.IsValid() and not cursor.GetPath().IsAbsoluteRootPath():
+        if cursor.IsInstance() or cursor.IsInstanceable():
+            cursor.SetInstanceable(False)
+            break
+        cursor = cursor.GetParent()
+    return stage.GetPrimAtPath(prim_path)
 
 
 def _can_define_parent_scope(stage: Usd.Stage, parent: Usd.Prim) -> bool:
@@ -166,6 +210,179 @@ def _author_texture_reference(texture_path: str, output_usd_path: Path) -> str:
         return texture_path
 
 
+def _is_portable_texture_reference(raw: str, output_usd_path: Path) -> bool:
+    """Return whether an authored texture ref already resolves inside the run."""
+    if not raw or _is_unbundleable_asset_path(raw) or Path(raw).is_absolute():
+        return False
+    try:
+        resolved = (output_usd_path.parent / raw).resolve()
+        resolved.relative_to(output_usd_path.parent.parent.resolve())
+    except (OSError, ValueError):
+        return False
+    return resolved.is_file()
+
+
+def _allowed_texture_source_roots(
+    usd_path: str,
+    working_dir: Path,
+    context: dict[str, Any],
+) -> list[Path]:
+    roots = [Path(usd_path).resolve().parent, working_dir.resolve()]
+    uv_preparation = context.get("uv_preparation")
+    if isinstance(uv_preparation, dict):
+        report_path = uv_preparation.get("uv_report_path")
+        if isinstance(report_path, str) and report_path.strip():
+            try:
+                payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                payload = {}
+            input_usd = payload.get("input_usd")
+            if isinstance(input_usd, str) and input_usd.strip():
+                roots.append(Path(input_usd).resolve().parent)
+
+    deduped: list[Path] = []
+    for root in roots:
+        if root not in deduped:
+            deduped.append(root)
+    return deduped
+
+
+def _is_under_any_root(path: Path, roots: list[Path]) -> bool:
+    try:
+        resolved = path.resolve()
+    except (OSError, ValueError):
+        return False
+    for root in roots:
+        try:
+            resolved.relative_to(root.resolve())
+            return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def _localized_texture_copy_path(candidate: Path, tex_dir: Path) -> Path:
+    """Choose a de-duplicated bundle-local path for an existing texture."""
+    target = tex_dir / candidate.name
+    if not target.exists():
+        return target
+    try:
+        if target.resolve() == candidate.resolve():
+            return target
+    except (OSError, ValueError):
+        pass
+    try:
+        filecmp.clear_cache()
+        if target.stat().st_size == candidate.stat().st_size and filecmp.cmp(
+            target,
+            candidate,
+            shallow=False,
+        ):
+            return target
+    except OSError:
+        pass
+    digest = hashlib.sha256(str(candidate.resolve()).encode("utf-8")).hexdigest()[:8]
+    return tex_dir / f"{candidate.stem}_{digest}{candidate.suffix.lower()}"
+
+
+def _localize_stage_texture_references(
+    stage: Usd.Stage,
+    *,
+    usd_path: str,
+    working_dir: Path,
+    output_usd_path: Path,
+    context: dict[str, Any],
+) -> list[str]:
+    """Rewrite all local PNG refs to bundle-local sibling-relative paths.
+
+    Scoped texture edits leave unedited materials untouched. For SimReady assets
+    those untouched materials can still point back to the original source
+    package, which renders locally but fails the downloadable package
+    portability check. This pass copies each existing local PNG dependency once
+    into ``working_dir/textures`` and authors a path relative to the output USD.
+    """
+    tex_dir = working_dir / "textures"
+    bundle_root = output_usd_path.parent.parent.resolve()
+    allowed_roots = _allowed_texture_source_roots(usd_path, working_dir, context)
+    localized: list[str] = []
+
+    for prim in stage.Traverse():
+        if prim.IsInstanceProxy():
+            continue
+        is_shader = prim.IsA(UsdShade.Shader)
+        for attr in prim.GetAttributes():
+            value = attr.Get()
+            raw: str | None = None
+            set_asset = False
+            if isinstance(value, Sdf.AssetPath) and value.path:
+                raw = value.path
+                set_asset = True
+            elif isinstance(value, str) and value and is_shader:
+                attr_name = attr.GetName()
+                if attr_name.startswith("inputs:") and attr_name.endswith("_texture"):
+                    raw = value
+            if not raw or not raw.lower().endswith(".png"):
+                continue
+            if _is_unbundleable_asset_path(raw):
+                continue
+            if _is_portable_texture_reference(raw, output_usd_path):
+                continue
+
+            candidate = _resolve_layer_anchored_path(
+                attr,
+                raw,
+                Path(usd_path).resolve().parent,
+            )
+            if candidate is None:
+                continue
+            try:
+                candidate = candidate.resolve()
+            except (OSError, ValueError):
+                continue
+            if not candidate.is_file() or candidate.suffix.lower() != ".png":
+                continue
+
+            try:
+                candidate.relative_to(bundle_root)
+                target = candidate
+            except ValueError:
+                if not _is_under_any_root(candidate, allowed_roots):
+                    continue
+                tex_dir.mkdir(parents=True, exist_ok=True)
+                target = _localized_texture_copy_path(candidate, tex_dir)
+                try:
+                    if not target.exists() or target.resolve() != candidate:
+                        shutil.copyfile(candidate, target)
+                except OSError as err:
+                    logger.warning(
+                        "Failed to localize stage texture %s -> %s: %s",
+                        candidate,
+                        target,
+                        err,
+                    )
+                    continue
+
+            authored = _author_texture_reference(str(target), output_usd_path)
+            try:
+                if prim.IsInstance() or prim.IsInstanceable():
+                    prim.SetInstanceable(False)
+                if set_asset:
+                    attr.Set(Sdf.AssetPath(authored))
+                else:
+                    attr.Set(authored)
+            except Exception as err:
+                logger.warning(
+                    "Failed to rewrite texture reference %s = %r: %s",
+                    attr.GetPath(),
+                    authored,
+                    err,
+                )
+                continue
+            localized.append(f"{prim.GetPath()}:{attr.GetName()}")
+
+    return localized
+
+
 # SimReady/OmniPBR MDL texture-input names → channel of the BlendedTextures bundle.
 # Keys are lowercased so we can match case-insensitively (e.g. SimReady's
 # "ORM_texture" alongside OmniPBR's "ORM_texture" and OmniPBR-derived
@@ -176,6 +393,7 @@ _MDL_TEXTURE_INPUT_MAP = {
     "base_color_texture": "albedo",
     "diffuse_color_texture": "albedo",
     "normalmap_texture": "normal",
+    "detail_normalmap_texture": "normal",
     "normal_texture": "normal",
     "normal_map_texture": "normal",
     "orm_texture": "orm",
@@ -186,12 +404,53 @@ _MDL_TEXTURE_INPUT_MAP = {
     "metalness_texture": "metalness",
 }
 
+_PREVIEW_SURFACE_TEXTURE_INPUT_MAP = {
+    "diffusecolor": "albedo",
+    "basecolor": "albedo",
+    "normal": "normal",
+    "occlusion": "orm",
+    "roughness": "roughness",
+    "metallic": "metalness",
+}
+_PREVIEW_SURFACE_SCALAR_CHANNELS = frozenset({"orm", "roughness", "metalness"})
+_PACKED_ORM_PREVIEW_OUTPUTS = {
+    "orm": "r",
+    "roughness": "g",
+    "metalness": "b",
+}
+
+_AUTHORED_PREVIEW_SHADER_NAMES = {
+    "st": "TextureAgentSTReader",
+    "albedo": "TextureAgentAlbedoTexture",
+    "normal": "TextureAgentNormalTexture",
+    "orm": "TextureAgentORMTexture",
+    "roughness": "TextureAgentRoughnessTexture",
+    "metalness": "TextureAgentMetalnessTexture",
+}
+
 
 def _is_mdl_shader(prim: Usd.Prim) -> bool:
     if not prim.IsA(UsdShade.Shader):
         return False
     attr = prim.GetAttribute("info:mdl:sourceAsset")
-    return bool(attr and attr.IsValid() and attr.HasAuthoredValue())
+    if attr and attr.IsValid() and attr.HasAuthoredValue():
+        return True
+
+    # Some Omniverse-authored assets leave the MDL source asset empty while
+    # still marking the shader as a sourceAsset implementation with a concrete
+    # MDL sub-identifier, commonly "OmniPBR". Treat that as an MDL shader so
+    # texture inputs are still rewritten to generated maps.
+    implementation_attr = prim.GetAttribute("info:implementationSource")
+    implementation_source = (
+        implementation_attr.Get()
+        if implementation_attr and implementation_attr.IsValid()
+        else None
+    )
+    if str(implementation_source or "") != "sourceAsset":
+        return False
+
+    sub_attr = prim.GetAttribute("info:mdl:sourceAsset:subIdentifier")
+    return bool(sub_attr and sub_attr.IsValid() and sub_attr.Get())
 
 
 _UNBUNDLEABLE_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://")
@@ -487,6 +746,346 @@ def _override_mdl_texture_inputs(
     return overridden, cleared, localized
 
 
+def _shader_id(shader: UsdShade.Shader) -> str:
+    value = shader.GetIdAttr().Get()
+    return str(value) if value else ""
+
+
+def _preview_source_output_name(source_name: object) -> str:
+    value = str(source_name or "").strip().lower()
+    if value.startswith("outputs:"):
+        return value.split(":", 1)[1]
+    return value
+
+
+def _connected_usd_uv_texture_source(
+    inp: UsdShade.Input,
+) -> tuple[UsdShade.Shader, str] | None:
+    connected = inp.GetConnectedSource()
+    if connected is None:
+        return None
+    source, source_name, _source_type = connected
+    if not source:
+        return None
+    prim = source.GetPrim()
+    if not prim or not prim.IsValid() or not prim.IsA(UsdShade.Shader):
+        return None
+    shader = UsdShade.Shader(prim)
+    if _shader_id(shader) != "UsdUVTexture":
+        return None
+    return shader, _preview_source_output_name(source_name)
+
+
+def _preview_graph_shader(
+    stage: Usd.Stage,
+    mat_path: str,
+    base_name: str,
+    shader_id: str,
+) -> UsdShade.Shader:
+    """Return a reserved shader node without retyping existing material prims."""
+    material_prim = stage.GetPrimAtPath(mat_path)
+    # There are one more candidate names than direct children, so a free name
+    # must exist even when many earlier Texture Agent names are occupied by
+    # incompatible prims. This keeps the search bounded without silently
+    # emitting a partially connected preview graph.
+    for suffix in range(len(material_prim.GetAllChildren()) + 1):
+        name = base_name if suffix == 0 else f"{base_name}_{suffix}"
+        shader_path = f"{mat_path}/{name}"
+        prim = stage.GetPrimAtPath(shader_path)
+        if not prim.IsValid():
+            shader = UsdShade.Shader.Define(stage, shader_path)
+            shader.CreateIdAttr(shader_id)
+            return shader
+        if (
+            not prim.IsActive()
+            or not prim.IsDefined()
+            or prim.IsAbstract()
+            or not prim.IsA(UsdShade.Shader)
+        ):
+            continue
+        shader = UsdShade.Shader(prim)
+        if _shader_id(shader) == shader_id:
+            return shader
+
+    raise RuntimeError(
+        f"Could not reserve a {shader_id} shader below material {mat_path}"
+    )
+
+
+def _configure_preview_uv_texture(
+    shader: UsdShade.Shader,
+    *,
+    texture_path: str,
+    st_output: UsdShade.Output,
+    source_color_space: str,
+    fallback: Gf.Vec4f,
+) -> None:
+    """Configure one package-local UsdUVTexture node."""
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(texture_path)
+    )
+    shader.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set(
+        source_color_space
+    )
+    shader.CreateInput("wrapS", Sdf.ValueTypeNames.Token).Set("repeat")
+    shader.CreateInput("wrapT", Sdf.ValueTypeNames.Token).Set("repeat")
+    shader.CreateInput("fallback", Sdf.ValueTypeNames.Float4).Set(fallback)
+    shader.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(st_output)
+
+
+def _author_usd_preview_texture_graph(
+    stage: Usd.Stage,
+    mat_path: str,
+    preview_shader_channels: list[tuple[UsdShade.Shader, frozenset[str]]],
+    channel_paths: dict[str, str],
+) -> list[str]:
+    """Author missing PreviewSurface texture connections.
+
+    Texture backends are normalized to ``BlendedTextures`` before this point,
+    so this graph is shared by simple image generation, projection services,
+    and any future backend. Existing connections are preserved; each shader is
+    connected only for the generated channels it does not already source.
+    """
+    needed_channels = {
+        channel
+        for _preview_shader, channels in preview_shader_channels
+        for channel in channels
+        if channel_paths.get(channel)
+    }
+    if not needed_channels:
+        return []
+
+    st_reader = _preview_graph_shader(
+        stage,
+        mat_path,
+        _AUTHORED_PREVIEW_SHADER_NAMES["st"],
+        "UsdPrimvarReader_float2",
+    )
+    st_reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+    st_reader.CreateInput("fallback", Sdf.ValueTypeNames.Float2).Set(Gf.Vec2f(0.0, 0.0))
+    st_output = st_reader.CreateOutput("result", Sdf.ValueTypeNames.Float2)
+
+    texture_outputs: dict[str, UsdShade.Output] = {}
+    authored: list[str] = []
+    for channel, source_color_space, fallback, output_name, output_type in (
+        (
+            "albedo",
+            "sRGB",
+            Gf.Vec4f(0.18, 0.18, 0.18, 1.0),
+            "rgb",
+            Sdf.ValueTypeNames.Float3,
+        ),
+        (
+            "normal",
+            "raw",
+            Gf.Vec4f(0.5, 0.5, 1.0, 1.0),
+            "rgb",
+            Sdf.ValueTypeNames.Float3,
+        ),
+        (
+            "orm",
+            "raw",
+            Gf.Vec4f(1.0, 1.0, 0.0, 1.0),
+            "r",
+            Sdf.ValueTypeNames.Float,
+        ),
+        (
+            "roughness",
+            "raw",
+            Gf.Vec4f(0.5, 0.5, 0.5, 1.0),
+            "r",
+            Sdf.ValueTypeNames.Float,
+        ),
+        (
+            "metalness",
+            "raw",
+            Gf.Vec4f(0.0, 0.0, 0.0, 1.0),
+            "r",
+            Sdf.ValueTypeNames.Float,
+        ),
+    ):
+        if channel not in needed_channels:
+            continue
+        texture_path = channel_paths.get(channel)
+        if not texture_path:
+            continue
+        texture = _preview_graph_shader(
+            stage,
+            mat_path,
+            _AUTHORED_PREVIEW_SHADER_NAMES[channel],
+            "UsdUVTexture",
+        )
+        _configure_preview_uv_texture(
+            texture,
+            texture_path=texture_path,
+            st_output=st_output,
+            source_color_space=source_color_space,
+            fallback=fallback,
+        )
+        if channel == "normal":
+            # UsdPreviewSurface expects tangent-space normals in [-1, 1], while
+            # normal-map texels are stored in [0, 1].
+            texture.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(
+                Gf.Vec4f(2.0, 2.0, 2.0, 2.0)
+            )
+            texture.CreateInput("bias", Sdf.ValueTypeNames.Float4).Set(
+                Gf.Vec4f(-1.0, -1.0, -1.0, 0.0)
+            )
+        texture_outputs[channel] = texture.CreateOutput(output_name, output_type)
+        authored.append(f"{texture.GetPrim().GetPath()}:file")
+
+    for preview_shader, missing_channels in preview_shader_channels:
+        albedo_output = texture_outputs.get("albedo")
+        if albedo_output and "albedo" in missing_channels:
+            preview_shader.CreateInput(
+                "diffuseColor", Sdf.ValueTypeNames.Color3f
+            ).ConnectToSource(albedo_output)
+        normal_output = texture_outputs.get("normal")
+        if normal_output and "normal" in missing_channels:
+            preview_shader.CreateInput(
+                "normal", Sdf.ValueTypeNames.Normal3f
+            ).ConnectToSource(normal_output)
+        orm_output = texture_outputs.get("orm")
+        if orm_output and "orm" in missing_channels:
+            preview_shader.CreateInput(
+                "occlusion", Sdf.ValueTypeNames.Float
+            ).ConnectToSource(orm_output)
+        roughness_output = texture_outputs.get("roughness")
+        if roughness_output and "roughness" in missing_channels:
+            preview_shader.CreateInput(
+                "roughness", Sdf.ValueTypeNames.Float
+            ).ConnectToSource(roughness_output)
+        metalness_output = texture_outputs.get("metalness")
+        if metalness_output and "metalness" in missing_channels:
+            preview_shader.CreateInput(
+                "metallic", Sdf.ValueTypeNames.Float
+            ).ConnectToSource(metalness_output)
+
+    return authored
+
+
+def _shared_preview_texture_uses_packed_orm(
+    outputs_by_channel: dict[str, set[str]],
+) -> bool:
+    if len(outputs_by_channel) <= 1:
+        return False
+    for channel, expected_output in _PACKED_ORM_PREVIEW_OUTPUTS.items():
+        outputs = outputs_by_channel.get(channel)
+        if outputs is not None and expected_output not in outputs:
+            return False
+    return True
+
+
+def _override_usd_preview_texture_inputs(
+    stage: Usd.Stage,
+    mat_path: str,
+    channel_paths: dict[str, str],
+) -> list[str]:
+    """Point existing UsdPreviewSurface texture nodes at generated maps.
+
+    Some renderers fall back to the UsdPreviewSurface graph when they cannot
+    resolve OmniPBR/MDL. SimReady assets often carry both graphs, so updating
+    only OpenPBR/MDL inputs can leave fallback renders showing the original
+    texture set. This routine rewrites existing connected UsdUVTexture ``file``
+    inputs and authors package-local nodes only for generated channels that are
+    still unconnected.
+    """
+    mat_prim = stage.GetPrimAtPath(mat_path)
+    if not mat_prim.IsValid():
+        return []
+
+    overridden: list[str] = []
+    touched_files: set[str] = set()
+    preview_shader_channels: list[tuple[UsdShade.Shader, frozenset[str]]] = []
+    material_prefix = mat_path.rstrip("/") + "/"
+    for prim in Usd.PrimRange(mat_prim):
+        if not prim.IsA(UsdShade.Shader):
+            continue
+        preview_shader = UsdShade.Shader(prim)
+        if _shader_id(preview_shader) != "UsdPreviewSurface":
+            continue
+
+        connected_inputs: list[tuple[UsdShade.Input, UsdShade.Shader, str, str]] = []
+        channels_by_texture: dict[str, set[str]] = defaultdict(set)
+        scalar_outputs_by_texture: dict[str, dict[str, set[str]]] = defaultdict(
+            lambda: defaultdict(set)
+        )
+        connected_preview_channels: set[str] = set()
+        for inp in preview_shader.GetInputs():
+            channel = _PREVIEW_SURFACE_TEXTURE_INPUT_MAP.get(inp.GetBaseName().lower())
+            if channel is None:
+                continue
+            if inp.GetConnectedSource() is not None:
+                connected_preview_channels.add(channel)
+            source = _connected_usd_uv_texture_source(inp)
+            if source is None:
+                continue
+            uv_texture, source_output = source
+            texture_node_path = str(uv_texture.GetPrim().GetPath())
+            if not texture_node_path.startswith(material_prefix):
+                continue
+            connected_inputs.append((inp, uv_texture, channel, source_output))
+            channels_by_texture[texture_node_path].add(channel)
+            if channel in _PREVIEW_SURFACE_SCALAR_CHANNELS:
+                scalar_outputs_by_texture[texture_node_path][channel].add(source_output)
+
+        for _inp, uv_texture, channel, _source_output in connected_inputs:
+            texture_node_path = str(uv_texture.GetPrim().GetPath())
+            connected_channels = channels_by_texture.get(texture_node_path, set())
+            if len(connected_channels) > 1:
+                scalar_outputs = scalar_outputs_by_texture.get(texture_node_path, {})
+                if (
+                    connected_channels <= _PREVIEW_SURFACE_SCALAR_CHANNELS
+                    and _shared_preview_texture_uses_packed_orm(scalar_outputs)
+                    and channel_paths.get("orm")
+                ):
+                    # A shared scalar node is only safe to rewrite to packed ORM
+                    # when the existing graph already samples ORM-style channels.
+                    channel = "orm"
+                else:
+                    # Ambiguous shared nodes cannot represent separate generated
+                    # maps without changing graph topology; preserve the source.
+                    continue
+            texture_path = channel_paths.get(channel)
+            if not texture_path:
+                continue
+            file_input = uv_texture.GetInput("file")
+            if file_input:
+                file_input.Set(Sdf.AssetPath(texture_path))
+            else:
+                uv_texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+                    Sdf.AssetPath(texture_path)
+                )
+            file_path = str(uv_texture.GetPrim().GetPath())
+            record = f"{file_path}:file"
+            if record not in touched_files:
+                touched_files.add(record)
+                overridden.append(record)
+
+        # Preserve every authored connection, including custom and external
+        # sources, while filling any remaining generated channels. Treating a
+        # partially connected shader as all-or-nothing leaves generated maps
+        # inactive and prevents later runs from enriching an albedo-only graph.
+        missing_channels = frozenset(
+            channel
+            for channel in _PREVIEW_SURFACE_TEXTURE_INPUT_MAP.values()
+            if channel_paths.get(channel) and channel not in connected_preview_channels
+        )
+        if missing_channels:
+            preview_shader_channels.append((preview_shader, missing_channels))
+
+    for record in _author_usd_preview_texture_graph(
+        stage,
+        mat_path,
+        preview_shader_channels,
+        channel_paths,
+    ):
+        if record not in touched_files:
+            touched_files.add(record)
+            overridden.append(record)
+    return overridden
+
+
 def _read_texture_input_string(
     inp: UsdShade.Input, type_name: Sdf.ValueTypeName
 ) -> str | None:
@@ -548,16 +1147,30 @@ def _apply_pbr_textures(
     key: str,
     usd_path: str,
     output_usd_path: Path,
-) -> tuple[int, list[str], list[str]]:
+) -> tuple[int, list[str], list[str], list[str]]:
     """Apply albedo, normal, and ORM textures to a material prim.
 
     Returns:
-        (mdl_inputs_overridden, mdl_inputs_cleared, mdl_inputs_localized)
+        (
+            mdl_inputs_overridden,
+            mdl_inputs_cleared,
+            mdl_inputs_localized,
+            preview_texture_inputs_overridden,
+        )
     """
-    prim = stage.GetPrimAtPath(mat_path)
+    prim = _editable_prim_for_path(stage, mat_path)
     if not prim.IsValid():
         logger.warning("Material prim not found: %s", mat_path)
-        return 0, [], []
+        return 0, [], [], []
+    if (
+        prim.IsInstanceProxy()
+        or prim.IsInstance()
+        or prim.IsInstanceable()
+        or prim.IsPrototype()
+        or prim.IsInPrototype()
+    ):
+        logger.warning("Material prim is not editable: %s", mat_path)
+        return 0, [], [], []
 
     # Ensure the material container is a typed Scope for NVCF traversal and
     # usd-validation-nvidia's Basic TypeChecker.
@@ -600,8 +1213,8 @@ def _apply_pbr_textures(
 
         channel_paths["orm"] = _author_texture_reference(textures.orm, output_usd_path)
 
-        orm_img = Image.open(textures.orm)
-        orm_arr = np.array(orm_img)
+        with Image.open(textures.orm) as orm_img:
+            orm_arr = np.array(orm_img)
         tex_dir = working_dir / "textures"
 
         roughness_arr = orm_arr[:, :, 1]
@@ -630,9 +1243,25 @@ def _apply_pbr_textures(
         )
         channel_paths["metalness"] = metalness_ref
 
-    return _override_mdl_texture_inputs(
-        stage, mat_path, channel_paths, usd_path, working_dir, output_usd_path
+    preview_texture_inputs_overridden = _override_usd_preview_texture_inputs(
+        stage, mat_path, channel_paths
     )
+    mdl_inputs_overridden, mdl_inputs_cleared, mdl_inputs_localized = (
+        _override_mdl_texture_inputs(
+            stage, mat_path, channel_paths, usd_path, working_dir, output_usd_path
+        )
+    )
+    return (
+        mdl_inputs_overridden,
+        mdl_inputs_cleared,
+        mdl_inputs_localized,
+        preview_texture_inputs_overridden,
+    )
+
+
+def _material_apply_paths(mat: MaterialInfo) -> list[str]:
+    """Return material paths that should receive one per-material unit's maps."""
+    return sorted({mat.prim_path, *mat.material_alias_paths})
 
 
 class ApplyTexturesTask(Task):
@@ -669,6 +1298,9 @@ class ApplyTexturesTask(Task):
             ``working_dir/textures`` so the bundle's path-rewrite step
             keeps them packageable). Consumed by the texture-agent service
             to surface a per-step warning in ``/status`` / ``/results``.
+            The stats also include ``preview_texture_inputs_overridden``:
+            connected `UsdUVTexture` nodes in existing UsdPreviewSurface
+            fallback graphs that were pointed at generated maps.
     """
 
     def __init__(self) -> None:
@@ -680,8 +1312,30 @@ class ApplyTexturesTask(Task):
         blended: dict[str, BlendedTextures] = context.get("blended_textures", {})
         units: list[PrimTextureUnit] = context.get("prim_texture_units", [])
         working_dir = Path(context["working_dir"])
+        cached_apply = is_cached_apply_context(context)
 
-        if not blended and context.get("resume"):
+        if cached_apply:
+            cached = _load_cached_blended_textures(working_dir, units)
+            blended = {**cached, **blended}
+            if cached:
+                logger.info(
+                    "Loaded %d cached blended texture sets from %s",
+                    len(cached),
+                    working_dir / "textures",
+                )
+                context["blended_textures"] = blended
+            if not units:
+                raise RuntimeError(
+                    "Cached apply reconstructed no texture units; refusing to "
+                    "produce an untextured output"
+                )
+            missing = _missing_cached_blended_artifacts(blended, units)
+            if missing:
+                raise RuntimeError(
+                    "Cached apply requires complete albedo, normal, and ORM maps "
+                    "for every texture unit; missing: " + ", ".join(missing)
+                )
+        elif not blended and context.get("resume"):
             blended = _load_cached_blended_textures(working_dir, units)
             if blended:
                 logger.info(
@@ -704,16 +1358,21 @@ class ApplyTexturesTask(Task):
         if not stage:
             raise FileNotFoundError(f"Failed to open USD stage: {usd_path}")
 
-        # Group units by material for cloning decisions
+        # Group by canonical material path, not display name. Distinct Looks
+        # scopes commonly contain materials with the same leaf name, and
+        # grouping those together would incorrectly enter the per-prim clone
+        # path and apply both units to whichever material appeared first.
         units_by_material: dict[str, list[PrimTextureUnit]] = defaultdict(list)
         for unit in units:
             if unit.key in blended:
-                units_by_material[unit.material_info.name].append(unit)
+                units_by_material[unit.material_info.prim_path].append(unit)
 
         applied_count = 0
         mdl_inputs_overridden = 0
         mdl_inputs_cleared: list[str] = []
         mdl_inputs_localized: list[str] = []
+        stage_texture_refs_localized: list[str] = []
+        preview_texture_inputs_overridden: list[str] = []
 
         for _mat_name, mat_units in units_by_material.items():
             mat = mat_units[0].material_info
@@ -721,19 +1380,29 @@ class ApplyTexturesTask(Task):
             if len(mat_units) == 1 and not mat_units[0].prim_path:
                 # Per-material mode (or single prim): apply directly
                 unit = mat_units[0]
-                overridden, cleared, localized = _apply_pbr_textures(
-                    stage,
-                    mat.prim_path,
-                    blended[unit.key],
-                    working_dir,
+                apply_paths = _material_apply_paths(mat)
+                for mat_path in apply_paths:
+                    overridden, cleared, localized, preview_overridden = (
+                        _apply_pbr_textures(
+                            stage,
+                            mat_path,
+                            blended[unit.key],
+                            working_dir,
+                            unit.key,
+                            usd_path,
+                            output_usd_path,
+                        )
+                    )
+                    mdl_inputs_overridden += overridden
+                    mdl_inputs_cleared.extend(cleared)
+                    mdl_inputs_localized.extend(localized)
+                    preview_texture_inputs_overridden.extend(preview_overridden)
+                logger.info(
+                    "Applied textures to %s (direct, %d material path%s)",
                     unit.key,
-                    usd_path,
-                    output_usd_path,
+                    len(apply_paths),
+                    "" if len(apply_paths) == 1 else "s",
                 )
-                mdl_inputs_overridden += overridden
-                mdl_inputs_cleared.extend(cleared)
-                mdl_inputs_localized.extend(localized)
-                logger.info("Applied textures to %s (direct)", unit.key)
                 applied_count += 1
 
             else:
@@ -743,18 +1412,21 @@ class ApplyTexturesTask(Task):
                     clone_path = _clone_material(stage, mat.prim_path, clone_name)
 
                     # Apply textures to the clone
-                    overridden, cleared, localized = _apply_pbr_textures(
-                        stage,
-                        clone_path,
-                        blended[unit.key],
-                        working_dir,
-                        unit.key,
-                        usd_path,
-                        output_usd_path,
+                    overridden, cleared, localized, preview_overridden = (
+                        _apply_pbr_textures(
+                            stage,
+                            clone_path,
+                            blended[unit.key],
+                            working_dir,
+                            unit.key,
+                            usd_path,
+                            output_usd_path,
+                        )
                     )
                     mdl_inputs_overridden += overridden
                     mdl_inputs_cleared.extend(cleared)
                     mdl_inputs_localized.extend(localized)
+                    preview_texture_inputs_overridden.extend(preview_overridden)
 
                     # Re-bind the geometry prim to the cloned material
                     if unit.prim_path:
@@ -777,6 +1449,14 @@ class ApplyTexturesTask(Task):
                             )
 
                     applied_count += 1
+
+        stage_texture_refs_localized = _localize_stage_texture_references(
+            stage,
+            usd_path=usd_path,
+            working_dir=working_dir,
+            output_usd_path=output_usd_path,
+            context=context,
+        )
 
         stage.GetRootLayer().Export(str(output_usd_path))
         logger.info(
@@ -804,6 +1484,17 @@ class ApplyTexturesTask(Task):
                 len(mdl_inputs_localized),
                 ", ".join(mdl_inputs_localized),
             )
+        if stage_texture_refs_localized:
+            logger.info(
+                "Localized %d stage texture references for portable output: %s",
+                len(stage_texture_refs_localized),
+                ", ".join(stage_texture_refs_localized),
+            )
+        if preview_texture_inputs_overridden:
+            logger.info(
+                "Overrode %d UsdPreviewSurface texture inputs with generated maps",
+                len(preview_texture_inputs_overridden),
+            )
 
         context["output_usd_paths"] = [str(output_usd_path)]
         context["output_portability"] = validate_output_texture_portability(
@@ -814,5 +1505,7 @@ class ApplyTexturesTask(Task):
             "mdl_inputs_overridden": mdl_inputs_overridden,
             "mdl_inputs_cleared": mdl_inputs_cleared,
             "mdl_inputs_localized": mdl_inputs_localized,
+            "stage_texture_refs_localized": stage_texture_refs_localized,
+            "preview_texture_inputs_overridden": preview_texture_inputs_overridden,
         }
         return context

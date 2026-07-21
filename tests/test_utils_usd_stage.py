@@ -14,6 +14,12 @@ from pxr import Sdf, Usd, UsdGeom  # noqa: E402
 
 from world_understanding.utils.usd.stage import (  # noqa: E402
     MAX_PATH_COMPONENT_LEN,
+    _disable_all_instancing,
+    _is_relative_render_asset_path,
+    _render_layer_has_relative_composition_paths,
+    _resolve_render_asset_path,
+    _resolve_render_composition_item,
+    _resolve_render_layer_composition_paths,
     _resolve_render_sublayer_path,
     create_stage,
     create_stage_with_file,
@@ -124,6 +130,23 @@ def test_shorten_for_filesystem_distinguishes_colliding_prefixes():
     assert shortened_a != shortened_b
     assert len(shortened_a) <= 64
     assert len(shortened_b) <= 64
+
+
+def test_shorten_for_filesystem_hash_only_when_budget_is_tiny():
+    shortened = shorten_for_filesystem("very-long-name", max_len=4, hash_len=8)
+
+    assert len(shortened) == 4
+    assert "_" not in shortened
+
+
+def test_disable_all_instancing_clears_authored_instanceable_prims():
+    stage = Usd.Stage.CreateInMemory()
+    prim = stage.DefinePrim("/Instanced", "Xform")
+    prim.SetInstanceable(True)
+
+    assert _disable_all_instancing(stage) == 1
+    assert prim.HasAuthoredInstanceable()
+    assert not prim.IsInstanceable()
 
 
 def test_create_stage():
@@ -306,6 +329,14 @@ def test_get_stage_info_from_path(tmp_path):
     assert info is not None
     assert info["prim_count"] == 2
     assert get_stage_info_from_path(tmp_path / "missing.usda") is None
+
+
+def test_get_stage_info_from_path_returns_none_when_open_returns_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(Usd.Stage, "Open", lambda _path: None)
+
+    assert get_stage_info_from_path("unopenable.usda") is None
 
 
 def test_flatten_stage(tmp_path):
@@ -632,6 +663,137 @@ def test_prepare_stage_for_render_anchors_without_material_normalization(
     }
 
 
+def test_prepare_stage_for_render_anchors_file_backed_session_layer(
+    tmp_path: Path,
+) -> None:
+    reference_path = tmp_path / "session_ref.usda"
+    reference_stage = Usd.Stage.CreateNew(str(reference_path))
+    reference_stage.DefinePrim("/SessionRoot", "Xform")
+    reference_stage.Save()
+
+    root_path = tmp_path / "root.usda"
+    root_layer = Sdf.Layer.CreateNew(str(root_path))
+    root_layer.Save()
+    session_layer = Sdf.Layer.CreateNew(str(tmp_path / "session.usda"))
+    session_layer.Save()
+    source_stage = Usd.Stage.Open(root_layer, session_layer)
+    with Usd.EditContext(source_stage, source_stage.GetSessionLayer()):
+        source_stage.OverridePrim(
+            "/World/SessionReference"
+        ).GetReferences().AddReference(
+            "./session_ref.usda",
+            "/SessionRoot",
+        )
+    source_stage.GetSessionLayer().Save()
+
+    prepared_stage, metadata = prepare_stage_for_render(
+        source_stage,
+        flatten=False,
+        normalize_materials=False,
+    )
+
+    prepared_spec = prepared_stage.GetRootLayer().GetPrimAtPath(
+        "/World/SessionReference"
+    )
+    assert [item.assetPath for item in prepared_spec.referenceList.prependedItems] == [
+        reference_path.as_posix()
+    ]
+    assert metadata == {
+        "flattened": False,
+        "material_normalized": False,
+        "asset_base_dir": str(tmp_path),
+    }
+
+
+def test_render_layer_relative_composition_path_helpers(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    layer = Sdf.Layer.CreateAnonymous("composition.usda")
+    layer.subLayerPaths.append("./sub.usda")
+    stage = Usd.Stage.Open(layer)
+    stage.DefinePrim("/World/Reference", "Xform").GetReferences().AddReference(
+        "./ref.usda"
+    )
+    stage.DefinePrim("/World/Payload", "Xform").GetPayloads().AddPayload(
+        "./payload.usda"
+    )
+
+    assert _render_layer_has_relative_composition_paths(layer)
+    _resolve_render_layer_composition_paths(layer, source_dir)
+
+    assert layer.subLayerPaths == [(source_dir / "sub.usda").resolve().as_posix()]
+    ref_spec = layer.GetPrimAtPath("/World/Reference")
+    payload_spec = layer.GetPrimAtPath("/World/Payload")
+    assert [item.assetPath for item in ref_spec.referenceList.prependedItems] == [
+        (source_dir / "ref.usda").resolve().as_posix()
+    ]
+    assert [item.assetPath for item in payload_spec.payloadList.prependedItems] == [
+        (source_dir / "payload.usda").resolve().as_posix()
+    ]
+
+
+def test_render_layer_detects_relative_payload_without_sublayers() -> None:
+    layer = Sdf.Layer.CreateAnonymous("payload-only.usda")
+    stage = Usd.Stage.Open(layer)
+    stage.DefinePrim("/World/Payload", "Xform").GetPayloads().AddPayload("payload.usda")
+
+    assert _render_layer_has_relative_composition_paths(layer)
+
+
+def test_render_asset_path_helpers_cover_non_relative_inputs(tmp_path: Path) -> None:
+    absolute = (tmp_path / "abs.usda").resolve().as_posix()
+
+    assert not _is_relative_render_asset_path("")
+    assert not _is_relative_render_asset_path("anon:layer")
+    assert not _is_relative_render_asset_path(absolute)
+    assert not _is_relative_render_asset_path("C:/assets/scene.usda")
+    assert not _is_relative_render_asset_path("s3://bucket/scene.usda")
+    assert _is_relative_render_asset_path("relative.usda")
+
+    assert _resolve_render_sublayer_path("", tmp_path) == ""
+    assert _resolve_render_sublayer_path("anon:layer", tmp_path) == "anon:layer"
+    assert _resolve_render_sublayer_path(absolute, tmp_path) == absolute
+    assert (
+        _resolve_render_sublayer_path("s3://bucket/scene.usda", tmp_path)
+        == "s3://bucket/scene.usda"
+    )
+
+    assert _resolve_render_asset_path("", tmp_path) == ""
+    assert _resolve_render_asset_path("C:/assets/scene.usda", tmp_path) == (
+        "C:/assets/scene.usda"
+    )
+    assert _resolve_render_asset_path(absolute, tmp_path) == absolute
+    assert _resolve_render_asset_path("anon:layer", tmp_path) == "anon:layer"
+    assert (
+        _resolve_render_asset_path("s3://bucket/scene.usda", tmp_path)
+        == "s3://bucket/scene.usda"
+    )
+
+
+def test_resolve_render_composition_item_preserves_or_rewrites_by_type(
+    tmp_path: Path,
+) -> None:
+    absolute_reference = Sdf.Reference((tmp_path / "abs.usda").resolve().as_posix())
+    assert _resolve_render_composition_item(absolute_reference, tmp_path) is (
+        absolute_reference
+    )
+
+    payload = Sdf.Payload("payload.usda", "/PayloadRoot")
+    resolved_payload = _resolve_render_composition_item(payload, tmp_path)
+
+    assert isinstance(resolved_payload, Sdf.Payload)
+    assert (
+        resolved_payload.assetPath == (tmp_path / "payload.usda").resolve().as_posix()
+    )
+    assert resolved_payload.primPath == Sdf.Path("/PayloadRoot")
+
+    class UnknownCompositionItem:
+        assetPath = "relative.usda"
+
+    unknown = UnknownCompositionItem()
+    assert _resolve_render_composition_item(unknown, tmp_path) is unknown
+
+
 def test_merge_stages():
     """Test merging stages."""
     # Create base stage
@@ -658,6 +820,41 @@ def test_merge_stages():
     # The merge should have created the parent prim for the overlay content
     merged_prim = result.GetPrimAtPath("/World/Merged")
     assert merged_prim.IsValid()
+
+
+def test_merge_stages_copies_authored_data_and_creates_nested_target():
+    base_stage = Usd.Stage.CreateInMemory()
+    overlay_stage = Usd.Stage.CreateInMemory()
+    root = overlay_stage.DefinePrim("/Overlay", "Xform")
+    child = overlay_stage.DefinePrim("/Overlay/Child", "Xform")
+    attr = root.CreateAttribute("user:label", Sdf.ValueTypeNames.String)
+    attr.Set("default")
+    attr.Set("animated", Usd.TimeCode(1))
+    root.CreateRelationship("user:child").SetTargets([child.GetPath()])
+
+    merged = merge_stages(base_stage, overlay_stage, "/World/Nested")
+    copied = merged.GetPrimAtPath("/World/Nested/Overlay")
+
+    assert merged.GetPrimAtPath("/World").IsValid()
+    assert merged.GetPrimAtPath("/World/Nested").IsValid()
+    copied_attr = copied.GetAttribute("user:label")
+    assert copied_attr.Get() == "default"
+    assert copied_attr.Get(Usd.TimeCode(1)) == "animated"
+    assert copied_attr.GetTimeSamples() == [1.0]
+    assert copied.GetRelationship("user:child").GetTargets() == [
+        Sdf.Path("/Overlay/Child")
+    ]
+    assert merged.GetPrimAtPath("/World/Nested/Overlay/Child").IsValid()
+
+
+def test_merge_stages_can_copy_overlay_at_root():
+    base_stage = Usd.Stage.CreateInMemory()
+    overlay_stage = Usd.Stage.CreateInMemory()
+    overlay_stage.DefinePrim("/Overlay", "Xform")
+
+    merged = merge_stages(base_stage, overlay_stage, "/")
+
+    assert merged.GetPrimAtPath("/Overlay").IsValid()
 
 
 def test_remove_animation_basic():
@@ -740,6 +937,24 @@ def test_remove_animation_default_time_code():
     value = attr.Get()
     assert value is not None
     assert value == (15.0, 15.0, 15.0)
+
+
+def test_remove_animation_skips_instance_proxy_like_prims():
+    class ProxyPrim:
+        def IsInstanceProxy(self):
+            return True
+
+        def GetAttributes(self):
+            raise AssertionError("instance proxies should be skipped")
+
+    class FakeStage:
+        def GetStartTimeCode(self):
+            return Usd.TimeCode.Default()
+
+        def TraverseAll(self):
+            return [ProxyPrim()]
+
+    assert remove_animation(FakeStage()) == 0
 
 
 def test_remove_animation_multiple_attributes():

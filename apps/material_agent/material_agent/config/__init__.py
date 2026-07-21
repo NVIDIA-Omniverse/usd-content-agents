@@ -9,11 +9,21 @@ This module provides a centralized configuration system where:
 """
 
 from material_agent.config.path_resolver import ProjectPathResolver
+from material_agent.config.real_smoke_guardrails import (
+    RealSmokeDisqualifier,
+    RealSmokeGuardrailError,
+    collect_real_smoke_disqualifiers,
+    validate_real_smoke_guardrails,
+)
 from material_agent.config.unified_config import UnifiedPipelineConfigTask
 from material_agent.config.validator import ConfigValidator
 
 __all__ = [
     "ProjectPathResolver",
+    "RealSmokeDisqualifier",
+    "RealSmokeGuardrailError",
     "UnifiedPipelineConfigTask",
     "ConfigValidator",
+    "collect_real_smoke_disqualifiers",
+    "validate_real_smoke_guardrails",
 ]

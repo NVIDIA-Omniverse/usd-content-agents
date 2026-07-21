@@ -473,6 +473,7 @@ def run_agent_cmd(
     _setup_logging(verbose)
 
     scene_config = _load_scene_config(config)
+    source_scene_config = scene_config
 
     # Simulate mode: patch all backends to "mock"
     if simulate:
@@ -548,6 +549,8 @@ def run_agent_cmd(
         resume=resume,
         from_step=from_step,
         predict_max_workers=predict_max_workers,
+        scene_config=source_scene_config,
+        scene_config_dir=config.parent.resolve(),
     )
 
     # Run payload pipelines (bottom-up by depth)
@@ -563,7 +566,7 @@ def run_agent_cmd(
         manifest = run_all_payloads_bottomup(
             manifest=manifest,
             manifest_path=manifest_path,
-            scene_config=scene_config,
+            scene_config=source_scene_config,
             configs_dir=configs_dir,
             scene_config_dir=config.parent.resolve(),
             skip_steps=skip_steps,
@@ -887,6 +890,16 @@ def run_cmd(
         bool,
         typer.Option("--no-render", help="Skip rendering the composed scene"),
     ] = False,
+    fail_on_validation: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-validation/--warn-on-validation",
+            help=(
+                "Exit nonzero when composed-scene validation fails. "
+                "Use --warn-on-validation to keep legacy warning-only behavior."
+            ),
+        ),
+    ] = True,
     resume: Annotated[
         bool,
         typer.Option(
@@ -959,7 +972,7 @@ def run_cmd(
             no_render=no_render,
             clear_materials=clear_materials,
             validate_output=True,
-            fail_on_validation_error=False,
+            fail_on_validation_error=fail_on_validation,
             simulate=simulate,
             simulate_mock_analyze=simulate_mock_analyze,
             predict_max_workers=predict_max_workers,
@@ -1062,6 +1075,16 @@ def _run_cmd_legacy(
         bool,
         typer.Option("--no-render", help="Skip rendering the composed scene"),
     ] = False,
+    fail_on_validation: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-validation/--warn-on-validation",
+            help=(
+                "Exit nonzero when composed-scene validation fails. "
+                "Use --warn-on-validation to keep legacy warning-only behavior."
+            ),
+        ),
+    ] = True,
     resume: Annotated[
         bool,
         typer.Option(
@@ -1313,6 +1336,8 @@ def _run_cmd_legacy(
         resume=resume,
         from_step=from_step,
         predict_max_workers=predict_max_workers,
+        scene_config=scene_config,
+        scene_config_dir=config.parent.resolve(),
     )
 
     # Run payload pipelines (bottom-up by depth)
@@ -1504,7 +1529,10 @@ def _run_cmd_legacy(
     if validation_exit == 0:
         console.print("  [green]Validation passed[/green]")
     else:
-        console.print("  [yellow]Validation found issues (see above)[/yellow]")
+        if fail_on_validation:
+            console.print("  [red]Validation failed (see above)[/red]")
+            raise typer.Exit(validation_exit)
+        console.print("  [yellow]Validation failed (see above)[/yellow]")
 
     console.print("\n[bold green]Scene pipeline complete![/bold green]")
 

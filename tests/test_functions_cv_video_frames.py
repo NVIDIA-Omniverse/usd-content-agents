@@ -13,6 +13,7 @@ import pytest
 from world_understanding.functions.cv.video_frames import (
     MAX_FRAMES,
     _pick_timestamps,
+    _seek_and_save,
     extract_frames,
 )
 
@@ -270,6 +271,32 @@ class TestExtractFrames:
             f"partial seek success must trigger sequential retry; got {len(paths)}"
         )
 
+    def test_partial_seek_cleanup_ignores_unlink_errors(
+        self,
+        short_video: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        real_set = cv2.VideoCapture.set
+        real_unlink = Path.unlink
+
+        def picky_set(self: cv2.VideoCapture, prop: int, value: float) -> bool:
+            if prop == cv2.CAP_PROP_POS_MSEC:
+                return value == 0.0
+            return bool(real_set(self, prop, value))
+
+        def flaky_unlink(self: Path, *args: object, **kwargs: object) -> None:
+            if self.suffix == ".png":
+                raise OSError("temporary unlink failure")
+            return real_unlink(self, *args, **kwargs)
+
+        monkeypatch.setattr(cv2.VideoCapture, "set", picky_set)
+        monkeypatch.setattr(Path, "unlink", flaky_unlink)
+
+        paths = extract_frames(short_video, tmp_path / "out", n=8, stride_ms=500)
+
+        assert len(paths) >= 2
+
     def test_reopen_after_zero_frame_seek_path(
         self,
         short_video: Path,
@@ -384,6 +411,45 @@ class TestExtractFrames:
         assert out.exists() and out.is_dir()
         assert marker.exists()
         assert marker.read_text() == "do not delete"
+
+    def test_failure_cleanup_ignores_unlink_errors(
+        self,
+        short_video: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        real_imwrite = cv2.imwrite
+
+        def flaky_imwrite(path: str, frame: object) -> bool:
+            if Path(path).name.startswith("frame_001"):
+                return False
+            return bool(real_imwrite(path, frame))
+
+        monkeypatch.setattr(cv2, "imwrite", flaky_imwrite)
+        monkeypatch.setattr(
+            Path, "unlink", lambda self: (_ for _ in ()).throw(OSError("busy"))
+        )
+
+        with pytest.raises(RuntimeError, match=r"Failed to write frame"):
+            extract_frames(short_video, tmp_path / "out", n=3)
+
+    def test_fresh_output_dir_cleanup_ignores_rmdir_errors(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        bad = tmp_path / "bad.mp4"
+        bad.write_bytes(b"not a real video")
+        out = tmp_path / "frames-rmdir-fails"
+
+        monkeypatch.setattr(
+            Path, "rmdir", lambda self: (_ for _ in ()).throw(OSError("busy"))
+        )
+
+        with pytest.raises(RuntimeError, match=r"Could not open video"):
+            extract_frames(bad, out, n=2)
+
+        assert out.exists()
 
     def test_seek_path_falls_back_when_counters_stuck(
         self,
@@ -719,8 +785,25 @@ class TestPickTimestamps:
         ts = _pick_timestamps(duration_ms=350.0, n=8, stride_ms=100)
         assert ts == [0.0, 100.0, 200.0, 300.0]
 
+    def test_even_non_positive_n_returns_empty(self) -> None:
+        assert _pick_timestamps(duration_ms=350.0, n=0, stride_ms=None) == []
+
     def test_even_strictly_interior(self) -> None:
         # No timestamp at or beyond duration_ms; no timestamp at exactly 0.
         ts = _pick_timestamps(duration_ms=10.0, n=64, stride_ms=None)
         assert all(0.0 < t < 10.0 for t in ts)
         assert ts == sorted(ts)
+
+
+def test_seek_and_save_returns_false_when_read_after_seek_fails(tmp_path: Path) -> None:
+    class FakeCapture:
+        def set(self, _prop: int, _value: float) -> bool:
+            return True
+
+        def read(self) -> tuple[bool, None]:
+            return False, None
+
+    paths: list[Path] = []
+
+    assert _seek_and_save(FakeCapture(), [0.0], tmp_path, paths) is False
+    assert paths == []

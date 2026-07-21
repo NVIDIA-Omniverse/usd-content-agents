@@ -20,6 +20,13 @@ app = cli.app
 runner = CliRunner()
 
 
+def test_validation_agent_validate_help_lists_render_backend_subset() -> None:
+    result = runner.invoke(app, ["validate", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "remote, ovrtx" in result.output
+
+
 def test_load_cli_dotenv_searches_up_from_cwd(monkeypatch) -> None:
     dotenv_path = "/repo/.env"
     find_dotenv = Mock(return_value=dotenv_path)

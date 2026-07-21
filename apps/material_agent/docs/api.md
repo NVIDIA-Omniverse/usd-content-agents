@@ -20,7 +20,7 @@ result = benchmark(Path("config.yaml"), verbose=True, resume=True)
 
 # With dict config
 result = benchmark({
-    "model": {"service": "openai", "name": "gpt-4o"},
+    "model": {"service": "openai", "name": "example-vlm-model"},
     "dataset_path": "data.jsonl"
 })
 
@@ -70,7 +70,7 @@ result = predict(config)  # Only 1 required param
 config = {
     "vlm": {                              # REQUIRED
         "backend": "openai", # REQUIRED
-        "model": "gpt-4o"                  # REQUIRED
+        "model": "example-vlm-model"                  # REQUIRED
     },
     "dataset": "data.jsonl"               # REQUIRED
 }
@@ -82,7 +82,8 @@ config = {
 - `apply`: Input USD, predictions, output USD, materials library
 - `pipeline`: Project name, input/output USD paths, materials, step configs
 
-See [`docs/required_config_fields.md`](required_config_fields.md) for complete details.
+See the checked-in [`configs/`](../configs/) examples for complete, runnable
+configurations covering these required fields.
 
 ### Config Builders (Recommended)
 
@@ -94,7 +95,7 @@ from material_agent.api import build_predict_config, predict
 # Builder guides you through required fields
 config = build_predict_config(
     vlm_backend="openai",  # Required param
-    vlm_model="gpt-4o",                  # Required param
+    vlm_model="example-vlm-model",                  # Required param
     dataset_path="data.jsonl",           # Required param
 )
 
@@ -170,8 +171,8 @@ Dynamic approach for programmatic usage:
 config_dict = {
     "model": {
         "service": "openai",
-        "name": "gpt-4o",
-        "api_key": "${OPENAI_API_KEY}"
+        "name": "example-vlm-model",
+        "api_key_env": "${OPENAI_API_KEY}"
     },
     "dataset_path": "data.jsonl",
     "output_dir": "output/"
@@ -401,7 +402,7 @@ config = {
     },
     "steps": {
         "predict": {
-            "vlm": {"backend": "openai", "model": "gpt-4o"},
+            "vlm": {"backend": "openai", "model": "example-vlm-model"},
             "max_workers": 8,
         }
     },
@@ -599,7 +600,7 @@ def run_benchmark_dynamic(model_name: str, dataset_path: str):
         },
         "judge": {
             "service": "openai",
-            "name": "gpt-4o",
+            "name": "example-vlm-model",
         },
         "dataset_path": dataset_path,
         "output_dir": f"output/{model_name}",
@@ -612,7 +613,7 @@ def run_benchmark_dynamic(model_name: str, dataset_path: str):
     return result
 
 # Run benchmarks for multiple models
-for model in ["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet"]:
+for model in ["example-vlm-model", "example-vlm-model-small", "claude-3-5-sonnet"]:
     result = run_benchmark_dynamic(model, "data/benchmark.jsonl")
     print(f"{model}: FCS = {result.metrics.functional_correctness_score}")
 ```
@@ -679,7 +680,7 @@ def test_benchmark_with_file():
 def test_benchmark_with_dict():
     """Test with in-memory config."""
     config = {
-        "model": {"service": "openai", "name": "gpt-4o"},
+        "model": {"service": "openai", "name": "example-vlm-model"},
         "dataset_path": "tests/fixtures/data.jsonl",
         "output_dir": "tests/output",
     }

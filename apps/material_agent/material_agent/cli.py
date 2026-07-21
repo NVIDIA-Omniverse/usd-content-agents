@@ -17,14 +17,18 @@ from typing import Annotated, Any
 
 # Ensure stdout/stderr use UTF-8 on Windows (avoids charmap errors with Unicode
 # characters such as arrows printed by Rich tables).
-if hasattr(sys.stdout, "buffer") and (sys.stdout.encoding or "").lower() not in (
+if hasattr(sys.stdout, "buffer") and (
+    sys.stdout.encoding or ""
+).lower() not in (  # pragma: no cover - interpreter encoding guard
     "utf-8",
     "utf8",
 ):
     sys.stdout = io.TextIOWrapper(
         sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True
     )
-if hasattr(sys.stderr, "buffer") and (sys.stderr.encoding or "").lower() not in (
+if hasattr(sys.stderr, "buffer") and (
+    sys.stderr.encoding or ""
+).lower() not in (  # pragma: no cover - interpreter encoding guard
     "utf-8",
     "utf8",
 ):
@@ -49,6 +53,11 @@ from rich import print
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from world_understanding.agentic.cli import (
+    load_cli_config_mapping,
+    normalize_cli_step_filters,
+    sever_cli_exception_graph,
+)
 from world_understanding.agentic.config import (
     API_KEY_ENV_VAR_MAP,
     is_local_base_url,
@@ -66,11 +75,24 @@ from world_understanding.telemetry import (
 )
 from world_understanding.telemetry.attributes import MAAttributes
 from world_understanding.utils.credentials import (
+    OPENAI_ENV_REDIRECT_CREDENTIAL_MESSAGE,
     drop_stale_endpoint_credentials,
     get_nim_api_key_for_base_url,
     get_openai_api_key_for_base_url,
     is_nvidia_provider_base_url,
     is_openai_provider_base_url,
+    parse_env_reference,
+    path_exists_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_effective_openai_base_url,
+    resolve_endpoint_api_key,
+    resolve_path_with_safe_diagnostics,
+)
+from world_understanding.utils.model_auth import (
+    MODEL_AUTHENTICATION_FAILURE_MESSAGE,
+    is_model_authentication_error,
+    public_model_failure_message,
 )
 
 from .scene.cli import scene_app  # noqa: E402
@@ -84,6 +106,9 @@ app = typer.Typer(
     help="Material Agent - VLM-based material assignment for 3D objects",
     add_completion=False,
     rich_markup_mode="rich",
+    # Config and path locals can hold runtime credentials. Unexpected errors
+    # may render a traceback, but never its frame locals.
+    pretty_exceptions_show_locals=False,
 )
 console = Console()
 
@@ -101,7 +126,10 @@ _ENV_OVERRIDE_LLM_MODEL = "MA_LLM_MODEL"
 
 _MODEL_BACKEND_ENV_VARS = API_KEY_ENV_VAR_MAP
 _LOCAL_NIM_CREDENTIAL_HINTS = ("MA_NIM_API_KEY", "api_key: not-used")
-_LOCAL_OPENAI_CREDENTIAL_HINTS = ("OPENAI_API_KEY", "api_key: not-used")
+_LOCAL_OPENAI_CREDENTIAL_HINTS = (
+    "endpoint-scoped api_key or api_key_env paired with base_url",
+    "api_key: not-used for a documented local no-auth endpoint",
+)
 _MODEL_CONFIG_KEYS = {"vlm", "llm", "vlm_judge", "llm_judge", "image_gen"}
 _EMBEDDING_SERVICE_KEYS = {"embedding_service"}
 
@@ -208,7 +236,56 @@ def _resolve_config_relative_path(
     path = Path(value)
     if path.is_absolute():
         return path
-    return (config_path.parent / path).resolve()
+    return resolve_path_with_safe_diagnostics(
+        config_path.parent / path,
+        label="configuration-relative path",
+    )
+
+
+def _load_preflight_config(
+    config: Path | dict[str, Any], source_config_path: Path | None = None
+) -> tuple[Any, Path]:
+    """Return effective config data and the path used for relative resolution."""
+    if isinstance(config, dict):
+        anchor = source_config_path or (Path.cwd() / "config_dict.yaml")
+        return config, Path(anchor)
+
+    config_path = Path(config)
+    safe_config_path = redact_sensitive_path(config_path)
+    failure_kind: str | None = None
+    os_error_type: type[OSError] = OSError
+    os_error_errno: int | None = None
+    fh = None
+    try:
+        with open(config_path, encoding="utf-8") as fh:
+            return yaml.safe_load(fh) or {}, config_path
+    except yaml.YAMLError:
+        # Parser diagnostics can echo source lines, including credentials.
+        failure_kind = "yaml"
+    except UnicodeError:
+        failure_kind = "unicode"
+    except OSError as error:
+        failure_kind = "os"
+        os_error_type = type(error)
+        os_error_errno = error.errno
+
+    # Raise only after the rejected parser/I/O exception has left the active
+    # handler, and remove raw path/file references from the public traceback.
+    del config
+    del config_path
+    del source_config_path
+    del fh
+    if failure_kind == "yaml":
+        raise ValueError(f"Unable to parse configuration file: {safe_config_path}")
+    if failure_kind == "unicode":
+        raise ValueError(f"Unable to read configuration file: {safe_config_path}")
+    if os_error_errno is None:
+        raise OSError(f"Unable to read configuration file: {safe_config_path}")
+    raise os_error_type(
+        os_error_errno,
+        "Unable to read configuration file",
+        safe_config_path,
+    )
 
 
 def _get_resume_completed_steps(
@@ -228,7 +305,10 @@ def _get_resume_completed_steps(
     working_dir = _resolve_config_relative_path(project.get("working_dir"), config_path)
     effective_session_id = session_id or project.get("session_id")
     if working_dir is None and isinstance(effective_session_id, str):
-        working_dir = (config_path.parent / f".{effective_session_id}").resolve()
+        working_dir = _resolve_config_relative_path(
+            f".{effective_session_id}",
+            config_path,
+        )
     if working_dir is None:
         return set()
 
@@ -265,12 +345,19 @@ def _scene_optimizer_package_issue() -> str | None:
     package_dir_env = os.environ.get("WU_SO_PACKAGE_DIR")
     if package_dir_env:
         package_dir = Path(package_dir_env)
-        missing = [
-            sub for sub in SO_PACKAGE_SUBDIRS if not (package_dir / sub).is_dir()
-        ]
+        safe_package_dir = redact_sensitive_path(package_dir)
+        try:
+            missing = [
+                sub for sub in SO_PACKAGE_SUBDIRS if not (package_dir / sub).is_dir()
+            ]
+        except OSError:
+            return (
+                f"Unable to inspect Scene Optimizer Core package at {safe_package_dir}."
+            )
         if missing:
             return (
-                f"Scene Optimizer Core package at WU_SO_PACKAGE_DIR={package_dir} "
+                "Scene Optimizer Core package at WU_SO_PACKAGE_DIR="
+                f"{safe_package_dir} "
                 f"is missing expected subdirectories: {', '.join(missing)}."
             )
         return None
@@ -279,20 +366,22 @@ def _scene_optimizer_package_issue() -> str | None:
     if _is_valid_so_package_dir(default_dir):
         return None
     return (
-        f"Scene Optimizer Core package not found at {default_dir}. Run "
+        "Scene Optimizer Core package not found at "
+        f"{redact_sensitive_path(default_dir)}. Run "
         "`./scripts/fetch_build_resources.sh` from the repo root inside WSL/Linux, "
         "or set WU_SO_PACKAGE_DIR to an unpacked scene_optimizer_core package."
     )
 
 
 def _validate_run_config_windows_prerequisites(
-    config_path: Path,
+    config_path: Path | dict[str, Any],
     skip_steps: list[str],
     only_steps: list[str],
     *,
     resume: bool = False,
     clean: bool = False,
     session_id: str | None = None,
+    source_config_path: Path | None = None,
 ) -> None:
     """Fail fast for native-Windows full-pipeline prerequisites."""
     if sys.platform != "win32":
@@ -300,8 +389,9 @@ def _validate_run_config_windows_prerequisites(
     if os.getenv("NVCF_OPTIMIZER_FUNCTION_ID") or os.getenv("OPTIMIZER_ENDPOINT"):
         return
 
-    with open(config_path, encoding="utf-8") as fh:
-        raw_config = yaml.safe_load(fh) or {}
+    raw_config, effective_config_path = _load_preflight_config(
+        config_path, source_config_path
+    )
     if not isinstance(raw_config, dict):
         return
 
@@ -315,7 +405,7 @@ def _validate_run_config_windows_prerequisites(
 
     completed_steps = _get_resume_completed_steps(
         raw_config,
-        config_path,
+        effective_config_path,
         resume=resume,
         clean=clean,
         session_id=session_id,
@@ -336,8 +426,9 @@ def _validate_run_config_windows_prerequisites(
     if package_issue:
         issues.append(package_issue)
 
+    safe_config_path = redact_sensitive_path(effective_config_path)
     lines = [
-        f"Config '{config_path}' selects optimize_usd with the local Scene "
+        f"Config '{safe_config_path}' selects optimize_usd with the local Scene "
         "Optimizer backend on native Windows.",
         "The full Material Agent CLI pipeline must run inside WSL/Linux for "
         "this path, because the local Scene Optimizer package is a Linux "
@@ -439,6 +530,10 @@ def _has_config_api_key(
     backend: str, model_path: str, model_config: dict[str, Any]
 ) -> bool:
     api_key = model_config.get("api_key")
+    api_key_env = model_config.get("api_key_env")
+    if not _is_truthy_config_value(api_key) and _is_truthy_config_value(api_key_env):
+        env_name = parse_env_reference(api_key_env, allow_legacy_bare=True)
+        api_key = os.getenv(env_name) if env_name else None
     if not _is_truthy_config_value(api_key):
         return False
     if not is_placeholder_api_key(api_key):
@@ -487,26 +582,32 @@ def _has_local_nim_api_key(model_config: dict[str, Any]) -> bool:
 
 
 def _has_local_openai_api_key(model_config: dict[str, Any]) -> bool:
+    api_key = resolve_endpoint_api_key(
+        model_config.get("api_key"),
+        model_config.get("api_key_env"),
+    )
     return bool(
         get_openai_api_key_for_base_url(
             model_config.get("base_url"),
-            model_config.get("api_key"),
+            api_key,
         )
     )
 
 
 def _validate_run_config_model_credentials(
-    config_path: Path,
+    config_path: Path | dict[str, Any],
     skip_steps: list[str],
     only_steps: list[str],
     *,
     resume: bool = False,
     clean: bool = False,
     session_id: str | None = None,
+    source_config_path: Path | None = None,
 ) -> None:
     """Fail fast when selected model backends lack their required API keys."""
-    with open(config_path, encoding="utf-8") as fh:
-        raw_config = yaml.safe_load(fh) or {}
+    raw_config, effective_config_path = _load_preflight_config(
+        config_path, source_config_path
+    )
     if not isinstance(raw_config, dict):
         return
 
@@ -516,13 +617,14 @@ def _validate_run_config_model_credentials(
 
     completed_steps = _get_resume_completed_steps(
         raw_config,
-        config_path,
+        effective_config_path,
         resume=resume,
         clean=clean,
         session_id=session_id,
     )
 
     missing: list[tuple[str, str, tuple[str, ...]]] = []
+    env_redirected_openai = False
     for step_name, step_config in steps.items():
         if not isinstance(step_config, dict):
             continue
@@ -547,27 +649,54 @@ def _validate_run_config_model_credentials(
             env_vars = _MODEL_BACKEND_ENV_VARS.get(backend)
             if not env_vars:
                 continue
+            if not _is_truthy_config_value(
+                model_config.get("api_key")
+            ) and _is_truthy_config_value(model_config.get("api_key_env")):
+                env_name = parse_env_reference(
+                    model_config.get("api_key_env"), allow_legacy_bare=True
+                )
+                if not env_name or not os.getenv(env_name):
+                    missing.append(
+                        (
+                            _model_backend_selector_path(model_path, model_config),
+                            backend,
+                            ("the configured api_key_env to be set and non-empty",),
+                        )
+                    )
+                    continue
             if backend == "openai":
                 # Route OpenAI through the same endpoint-aware resolver the
                 # runtime factory uses so preflight cannot greenlight a
                 # config that runtime will then reject — including when
                 # ``OPENAI_BASE_URL`` / ``OPENAI_API_BASE`` redirects an
                 # otherwise-hosted config to a custom endpoint.
-                if get_openai_api_key_for_base_url(
-                    model_config.get("base_url"),
-                    model_config.get("api_key"),
-                ):
+                if _has_local_openai_api_key(model_config):
                     continue
-                if is_local_base_url(model_config.get("base_url")):
+                effective_base_url = resolve_effective_openai_base_url(
+                    model_config.get("base_url")
+                )
+                if is_local_base_url(effective_base_url):
                     credential_hints = _LOCAL_OPENAI_CREDENTIAL_HINTS
-                elif model_config.get("base_url"):
+                elif effective_base_url:
                     credential_hints = (
                         env_vars
-                        if is_openai_provider_base_url(model_config.get("base_url"))
-                        else ("explicit api_key in config",)
+                        if is_openai_provider_base_url(effective_base_url)
+                        else (
+                            "endpoint-scoped api_key or api_key_env paired "
+                            "with base_url",
+                        )
                     )
                 else:
                     credential_hints = env_vars
+                configured_base_url = model_config.get("base_url")
+                has_explicit_base_url = isinstance(configured_base_url, str) and bool(
+                    configured_base_url.strip()
+                )
+                env_redirected_openai = env_redirected_openai or bool(
+                    effective_base_url
+                    and not has_explicit_base_url
+                    and not is_openai_provider_base_url(effective_base_url)
+                )
                 missing.append(
                     (
                         _model_backend_selector_path(model_path, model_config),
@@ -618,12 +747,18 @@ def _validate_run_config_model_credentials(
     if not missing:
         return
 
+    safe_config_path = redact_sensitive_path(effective_config_path)
     lines = [
-        f"Config '{config_path}' selects model backend(s) without required API keys:"
+        f"Config '{safe_config_path}' selects model backend(s) without required API keys:"
     ]
     for model_path, backend, env_vars in missing:
         env_text = " or ".join(env_vars)
-        lines.append(f"- {model_path}={backend!r} requires {env_text}")
+        safe_model_path = redact_sensitive_config(model_path, _path_context=True)
+        safe_backend = redact_sensitive_config(backend)
+        lines.append(f"- {safe_model_path}={safe_backend!r} requires {env_text}")
+
+    if env_redirected_openai:
+        lines.append(OPENAI_ENV_REDIRECT_CREDENTIAL_MESSAGE)
 
     if any(
         backend == "nim" and "NVIDIA_API_KEY" in env_vars
@@ -639,26 +774,26 @@ def _validate_run_config_model_credentials(
         "running."
     )
     lines.append(
-        "OpenAI example: MA_VLM_BACKEND=openai MA_VLM_MODEL=gpt-4o "
-        "MA_LLM_BACKEND=openai MA_LLM_MODEL=gpt-4o"
+        "OpenAI example: MA_VLM_BACKEND=openai MA_VLM_MODEL=example-vlm-model "
+        "MA_LLM_BACKEND=openai MA_LLM_MODEL=example-vlm-model"
     )
     raise ValueError("\n".join(lines))
 
 
-def _maybe_apply_backend_env_overrides(config_path: Path) -> Path:
+def _maybe_apply_backend_env_overrides(
+    config_path: Path,
+    config_data: dict[str, Any] | None = None,
+) -> Path | dict[str, Any]:
     """Apply MA_VLM_* / MA_LLM_* env overrides to the pipeline config.
 
     CI jobs and local users commonly prepend ``MA_VLM_BACKEND=…`` to
     ``material-agent run`` expecting the config's VLM/LLM backend+model
     to be overridden at runtime (the service already honors these env
     vars). If any override is set, load the YAML, patch every step's
-    ``vlm`` and ``llm`` subsections, write the patched config to a
-    temp file in the same directory as the original (so relative
-    ``input.usd_path`` and ``materials.path`` entries still resolve),
-    and return that temp path. Otherwise return ``config_path``
-    unchanged.
-
-    The temp file is registered with atexit for cleanup.
+    ``vlm`` and ``llm`` subsections, and return the patched dictionary.
+    Callers retain ``config_path`` as the relative-path anchor. When a caller
+    already passed validated ``config_data``, return that mapping unchanged if
+    no overrides are present so the CLI does not parse the same file twice.
     """
     overrides: dict[str, str] = {}
     for env_var, field in (
@@ -672,14 +807,25 @@ def _maybe_apply_backend_env_overrides(config_path: Path) -> Path:
             overrides[f"{field[0]}.{field[1]}"] = value
 
     if not overrides:
-        return config_path
+        return config_data if config_data is not None else config_path
 
-    import tempfile
+    raw = config_data
+    if raw is None:
+        raw, _ = _load_preflight_config(config_path)
+    if not isinstance(raw, dict):
+        raise ValueError("Pipeline configuration must be a mapping")
 
-    with open(config_path, encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh) or {}
-
-    steps = raw.get("steps", {}) or {}
+    if "steps" not in raw:
+        # Legacy pipeline configs store step mappings at the document root.
+        steps = raw
+    else:
+        steps = raw["steps"]
+    if steps is None:
+        steps = {}
+        if "steps" in raw:
+            raw["steps"] = steps
+    elif not isinstance(steps, dict):
+        raise ValueError("Pipeline configuration 'steps' must be a mapping")
     for step_config in steps.values():
         if not isinstance(step_config, dict):
             continue
@@ -698,27 +844,88 @@ def _maybe_apply_backend_env_overrides(config_path: Path) -> Path:
                 # fields belonged to the prior backend.
                 drop_stale_endpoint_credentials(section_config)
 
-    temp_dir = config_path.parent
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f"{config_path.stem}.env-override.",
-        suffix=config_path.suffix,
-        dir=str(temp_dir),
+    summary = ", ".join(
+        f"{key}={redact_sensitive_config(value, _path_context=True)}"
+        for key, value in overrides.items()
     )
-    temp_path = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            yaml.safe_dump(raw, fh, sort_keys=False)
-    except Exception:
-        temp_path.unlink(missing_ok=True)
-        raise
-    atexit.register(lambda p=temp_path: p.unlink(missing_ok=True))
-
-    summary = ", ".join(f"{k}={v}" for k, v in overrides.items())
     print(
         f"[yellow][run] Applied backend env overrides:[/yellow] {summary} "
-        f"[dim](temp config: {temp_path.name})[/dim]"
+        "[dim](in-memory config)[/dim]"
     )
-    return temp_path
+    return raw
+
+
+def _prepare_cli_config_payload(
+    config_path: Path,
+    logger: logging.Logger,
+    config_data: dict[str, Any] | None = None,
+) -> Path | dict[str, Any]:
+    """Apply runtime overrides or terminate with a value-free CLI diagnostic."""
+    try:
+        return _maybe_apply_backend_env_overrides(config_path, config_data)
+    except (OSError, ValueError) as exc:
+        logger.error("Unable to load configuration: %s", exc)
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from None
+
+
+def _require_cli_config_file(
+    config_path: Path,
+    logger: logging.Logger,
+    *,
+    label: str = "Configuration",
+) -> str:
+    """Require a CLI config while keeping its runtime path out of diagnostics."""
+    return _require_cli_path(
+        config_path,
+        logger,
+        display_label=f"{label} file",
+        inspection_label=f"{label.lower()} file",
+    )
+
+
+def _require_cli_path(
+    path: Path,
+    logger: logging.Logger,
+    *,
+    display_label: str,
+    inspection_label: str | None = None,
+) -> str:
+    """Require a runtime path through one value-safe CLI diagnostic boundary."""
+    safe_path = redact_sensitive_path(path)
+    inspection_failed = False
+    path_exists = False
+    try:
+        path_exists = path_exists_with_safe_diagnostics(
+            path,
+            label=inspection_label or display_label,
+        )
+    except OSError:
+        message = f"Unable to inspect {inspection_label or display_label}: {safe_path}"
+        logger.error("%s", message)
+        console.print(f"[red]Error:[/red] {message}")
+        inspection_failed = True
+
+    if inspection_failed:
+        # Raise outside the handler so a third-party path implementation
+        # cannot retain credential-bearing exception context.
+        raise typer.Exit(1) from None
+
+    if not path_exists:
+        message = f"{display_label} not found: {safe_path}"
+        logger.error("%s", message)
+        console.print(f"[red]Error:[/red] {message}")
+        raise typer.Exit(1)
+    return safe_path
+
+
+def _report_cli_operation_failure(
+    logger: logging.Logger,
+    message: str,
+) -> None:
+    """Emit a fixed, value-free operation failure at the CLI boundary."""
+    logger.error("%s", message)
+    console.print(f"[red]Error:[/red] {message}")
 
 
 def _get_cli_telemetry_session_id(session_id: str | None) -> str:
@@ -827,10 +1034,11 @@ def main(
         logger.debug("Verbose mode enabled")
         logger.debug(f"Log level: {log_level}")
         if log_file:
-            logger.debug(f"Logging to file: {log_file}")
+            logger.debug("Logging to file: %s", redact_sensitive_path(log_file))
 
 
 @app.command()
+@sever_cli_exception_graph
 def benchmark(
     config: Annotated[
         Path,
@@ -892,13 +1100,13 @@ def benchmark(
     Example usage:
     ```bash
     # Using config file
-    material-agent benchmark configs/benchmark_azure.yaml
+    material-agent benchmark path/to/benchmark_config.yaml
 
     # Override dataset from command line
-    material-agent benchmark configs/benchmark_azure.yaml --dataset data/custom.jsonl
+    material-agent benchmark path/to/benchmark_config.yaml --dataset data/custom.jsonl
 
     # Override output directory
-    material-agent benchmark configs/benchmark_azure.yaml --output results/
+    material-agent benchmark path/to/benchmark_config.yaml --output results/
     ```
     """
     # Setup logging for this command
@@ -906,30 +1114,30 @@ def benchmark(
 
     logger.info("Starting Material Agent Benchmark")
 
-    # Check if config file exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(1)
+    safe_config_path = _require_cli_config_file(config, logger)
 
-    config = _maybe_apply_backend_env_overrides(config)
+    config_path = config
+    config_payload = _prepare_cli_config_payload(config_path, logger)
 
     console.print(
         Panel.fit(
             "[bold]Material Agent Benchmark[/bold]\n\n"
-            f"Configuration: {config}\n"
-            f"Dataset override: {dataset or 'None'}\n"
-            f"Output override: {output or 'None'}\n"
+            f"Configuration: {safe_config_path}\n"
+            f"Dataset override: {redact_sensitive_path(dataset)}\n"
+            f"Output override: {redact_sensitive_path(output)}\n"
             f"Verbose mode: {'ON' if verbose else 'OFF'}",
             border_style="blue",
         )
     )
 
-    logger.info(f"Configuration file: {config}")
+    logger.info("Configuration file: %s", safe_config_path)
     if dataset:
-        logger.info(f"Dataset override: {dataset}")
+        logger.info("Dataset override: %s", redact_sensitive_path(dataset))
     if output:
-        logger.info(f"Output directory override: {output}")
+        logger.info(
+            "Output directory override: %s",
+            redact_sensitive_path(output),
+        )
 
     if verbose:
         logger.debug("Verbose mode enabled - detailed logging active")
@@ -940,7 +1148,8 @@ def benchmark(
     try:
         # Create API parameters
         api_params = BenchmarkInput(
-            config=config,
+            config=config_payload,
+            config_path=config_path if isinstance(config_payload, dict) else None,
             dataset_override=dataset,
             output_dir_override=output,
             resume=resume,
@@ -1004,24 +1213,36 @@ def benchmark(
 
             # Get output paths from API result
             if result.evaluation_path:
-                logger.info(f"Evaluation results saved to: {result.evaluation_path}")
+                safe_evaluation_path = redact_sensitive_path(result.evaluation_path)
+                logger.info(
+                    "Evaluation results saved to: %s",
+                    safe_evaluation_path,
+                )
                 console.print(
-                    f"[dim]Evaluation results saved to: {result.evaluation_path}[/dim]"
+                    f"[dim]Evaluation results saved to: {safe_evaluation_path}[/dim]"
                 )
             if result.predictions_path:
-                logger.info(f"Predictions saved to: {result.predictions_path}")
+                safe_predictions_path = redact_sensitive_path(result.predictions_path)
+                logger.info("Predictions saved to: %s", safe_predictions_path)
                 console.print(
-                    f"[dim]Predictions saved to: {result.predictions_path}[/dim]"
+                    f"[dim]Predictions saved to: {safe_predictions_path}[/dim]"
                 )
         else:
-            # Handle API error
-            logger.error(f"Benchmark failed: {result.error}")
-            console.print(f"[red]Error:[/red] {result.error}")
+            message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(result.error)
+                else "Benchmark failed"
+            )
+            _report_cli_operation_failure(logger, message)
             raise typer.Exit(1)
-    except Exception as e:
-        logger.error(f"Error running benchmark: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error running benchmark: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        raise
+    except Exception as error:
+        _report_cli_operation_failure(
+            logger,
+            public_model_failure_message(error, "Benchmark failed"),
+        )
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -1058,7 +1279,7 @@ def predict(
 
     Example usage:
     ```bash
-    material-agent predict configs/unified_ladder.yaml
+    material-agent predict apps/material_agent/configs/unified_example.yaml
     ```
 
     Output:
@@ -1079,6 +1300,7 @@ def predict(
 
 
 @app.command()
+@sever_cli_exception_graph
 def evaluate(
     config: Annotated[
         Path,
@@ -1128,10 +1350,10 @@ def evaluate(
     Example usage:
     ```bash
     # Evaluate using config file
-    material-agent evaluate configs/evaluate_azure.yaml
+    material-agent evaluate path/to/evaluation_config.yaml
 
     # Evaluate with predictions override
-    material-agent evaluate configs/evaluate.yaml output/predictions.jsonl
+    material-agent evaluate path/to/evaluation_config.yaml output/predictions.jsonl
     ```
     """
     # Setup logging for this command
@@ -1139,19 +1361,16 @@ def evaluate(
 
     logger.info("Starting Material Agent Evaluation")
 
-    # Check if config exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(1)
+    safe_config_path = _require_cli_config_file(config, logger)
 
-    config = _maybe_apply_backend_env_overrides(config)
+    config_path = config
+    config_payload = _prepare_cli_config_payload(config_path, logger)
 
     # Display evaluation info
     panel_content = "[bold]Material Agent Evaluation[/bold]\n\n"
-    panel_content += f"Configuration: {config}\n"
+    panel_content += f"Configuration: {safe_config_path}\n"
     if predictions:
-        panel_content += f"Predictions override: {predictions}\n"
+        panel_content += f"Predictions override: {redact_sensitive_path(predictions)}\n"
     panel_content += f"Verbose mode: {'ON' if verbose else 'OFF'}"
 
     console.print(
@@ -1161,16 +1380,19 @@ def evaluate(
         )
     )
 
-    logger.info(f"Configuration file: {config}")
+    logger.info("Configuration file: %s", safe_config_path)
     if predictions:
         # Validate predictions file exists if provided as override
-        if not predictions.exists():
-            logger.error(f"Predictions file not found: {predictions}")
-            console.print(
-                f"[red]Error:[/red] Predictions file not found: {predictions}"
-            )
-            raise typer.Exit(1)
-        logger.info(f"Predictions override: {predictions}")
+        safe_predictions_path = _require_cli_path(
+            predictions,
+            logger,
+            display_label="Predictions file",
+            inspection_label="predictions file",
+        )
+        logger.info(
+            "Predictions override: %s",
+            safe_predictions_path,
+        )
 
     if verbose:
         logger.debug("Verbose mode enabled - detailed logging active")
@@ -1181,7 +1403,8 @@ def evaluate(
     try:
         # Create API parameters
         api_params = EvaluateInput(
-            config=config,
+            config=config_payload,
+            config_path=config_path if isinstance(config_payload, dict) else None,
             predictions_override=predictions,
             verbose=verbose,
         )
@@ -1240,24 +1463,36 @@ def evaluate(
             )
 
             if result.evaluation_path:
-                logger.info(f"Evaluation results saved to: {result.evaluation_path}")
-                console.print(f"Evaluation results saved to: {result.evaluation_path}")
+                safe_evaluation_path = redact_sensitive_path(result.evaluation_path)
+                logger.info(
+                    "Evaluation results saved to: %s",
+                    safe_evaluation_path,
+                )
+                console.print(f"Evaluation results saved to: {safe_evaluation_path}")
 
             # Display HTML report path if generated
             if result.html_report_path:
+                safe_html_report_path = redact_sensitive_path(result.html_report_path)
                 console.print(
-                    f"[cyan]HTML report generated: {result.html_report_path}[/cyan]"
+                    f"[cyan]HTML report generated: {safe_html_report_path}[/cyan]"
                 )
         else:
-            # Handle API error
-            logger.error(f"Evaluation failed: {result.error}")
-            console.print(f"[red]Error:[/red] {result.error}")
+            message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(result.error)
+                else "Evaluation failed"
+            )
+            _report_cli_operation_failure(logger, message)
             raise typer.Exit(1)
 
-    except Exception as e:
-        logger.error(f"Error running evaluation: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error running evaluation: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        raise
+    except Exception as error:
+        _report_cli_operation_failure(
+            logger,
+            public_model_failure_message(error, "Evaluation failed"),
+        )
+        raise typer.Exit(1) from None
 
 
 # Create a sub-app for build-dataset commands
@@ -1272,6 +1507,7 @@ app.add_typer(build_dataset_app, name="build-dataset")
 
 
 @build_dataset_app.command(name="pdf_vectorstore")
+@sever_cli_exception_graph
 def build_pdf_vectorstore(
     config: Annotated[
         Path,
@@ -1320,13 +1556,13 @@ def build_pdf_vectorstore(
     Example usage:
     ```bash
     # Using config file
-    material-agent build-dataset pdf_vectorstore configs/pdf_vectorstore.yaml
+    material-agent build-dataset pdf_vectorstore path/to/pdf_vectorstore_config.yaml
 
     # Override source path
-    material-agent build-dataset pdf_vectorstore configs/pdf_vectorstore.yaml --source docs/
+    material-agent build-dataset pdf_vectorstore path/to/pdf_vectorstore_config.yaml --source docs/
 
     # Override output directory
-    material-agent build-dataset pdf_vectorstore configs/pdf_vectorstore.yaml --output ./vectorstore/
+    material-agent build-dataset pdf_vectorstore path/to/pdf_vectorstore_config.yaml --output ./vectorstore/
     ```
     """
     # Setup logging for this command
@@ -1334,29 +1570,28 @@ def build_pdf_vectorstore(
 
     logger.info("Starting PDF to VectorStore workflow")
 
-    # Check if config exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(1)
+    safe_config_path = _require_cli_config_file(config, logger)
 
     # Display configuration info
     console.print(
         Panel.fit(
             "[bold]PDF to VectorStore Builder[/bold]\n\n"
-            f"Configuration: {config}\n"
-            f"Source override: {source or 'None'}\n"
-            f"Output override: {output or 'None'}\n"
+            f"Configuration: {safe_config_path}\n"
+            f"Source override: {redact_sensitive_path(source)}\n"
+            f"Output override: {redact_sensitive_path(output)}\n"
             f"Verbose mode: {'ON' if verbose else 'OFF'}",
             border_style="blue",
         )
     )
 
-    logger.info(f"Configuration file: {config}")
+    logger.info("Configuration file: %s", safe_config_path)
     if source:
-        logger.info(f"Source override: {source}")
+        logger.info("Source override: %s", redact_sensitive_path(source))
     if output:
-        logger.info(f"Output directory override: {output}")
+        logger.info(
+            "Output directory override: %s",
+            redact_sensitive_path(output),
+        )
 
     if verbose:
         logger.debug("Verbose mode enabled - detailed logging active")
@@ -1398,7 +1633,10 @@ def build_pdf_vectorstore(
                     f"  • Documents processed: {extraction.get('document_count', 0)}"
                 )
                 if "content_types" in extraction:
-                    console.print(f"  • Content types: {extraction['content_types']}")
+                    console.print(
+                        "  • Content types: "
+                        f"{redact_sensitive_config(extraction['content_types'])}"
+                    )
 
             # Show split results if available
             if result.split_result:
@@ -1409,7 +1647,8 @@ def build_pdf_vectorstore(
                 )
                 if "content_type_distribution" in split:
                     console.print(
-                        f"  • Distribution: {split['content_type_distribution']}"
+                        "  • Distribution: "
+                        f"{redact_sensitive_config(split['content_type_distribution'])}"
                     )
 
             # Show vectorstore results
@@ -1419,20 +1658,28 @@ def build_pdf_vectorstore(
             console.print(f"  • Image documents: {result.num_images}")
             console.print(f"  • Embedding dimension: {result.embedding_dimension}")
             if result.vectorstore_path:
-                console.print(f"  • Saved to: {result.vectorstore_path}")
+                console.print(
+                    f"  • Saved to: {redact_sensitive_path(result.vectorstore_path)}"
+                )
         else:
-            logger.error(f"PDF vectorstore workflow failed: {result.error}")
-            console.print("\n[red]❌ Workflow failed![/red]")
-            console.print(f"[red]Error:[/red] {result.error}")
+            _report_cli_operation_failure(
+                logger,
+                "PDF vectorstore workflow failed",
+            )
             raise typer.Exit(1)
 
-    except Exception as e:
-        logger.error(f"Error running workflow: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error running workflow: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        raise
+    except Exception:
+        _report_cli_operation_failure(
+            logger,
+            "PDF vectorstore workflow failed",
+        )
+        raise typer.Exit(1) from None
 
 
 @build_dataset_app.command(name="prepare-dataset")
+@sever_cli_exception_graph
 def prepare_dataset(
     config: Annotated[
         Path,
@@ -1493,19 +1740,15 @@ def prepare_dataset(
 
     logger.info("Starting prepare dataset workflow")
 
-    # Check if config exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(1)
+    safe_config_path = _require_cli_config_file(config, logger)
 
     # Display configuration info
     console.print(
         Panel.fit(
             "[bold]Prepare Dataset[/bold]\n\n"
-            f"Configuration: {config}\n"
-            f"Vector Store Override: {vector_store or 'None'}\n"
-            f"Dataset Override: {dataset or 'None'}\n"
+            f"Configuration: {safe_config_path}\n"
+            f"Vector Store Override: {redact_sensitive_path(vector_store)}\n"
+            f"Dataset Override: {redact_sensitive_path(dataset)}\n"
             f"Models: Auto-discovered from dataset\n"
             f"Output: dataset.jsonl saved to dataset directory\n"
             f"Verbose mode: {'ON' if verbose else 'OFF'}",
@@ -1513,11 +1756,14 @@ def prepare_dataset(
         )
     )
 
-    logger.info(f"Configuration file: {config}")
+    logger.info("Configuration file: %s", safe_config_path)
     if vector_store:
-        logger.info(f"Vector store override: {vector_store}")
+        logger.info(
+            "Vector store override: %s",
+            redact_sensitive_path(vector_store),
+        )
     if dataset:
-        logger.info(f"Dataset override: {dataset}")
+        logger.info("Dataset override: %s", redact_sensitive_path(dataset))
 
     if verbose:
         logger.debug("Verbose mode enabled - detailed logging active")
@@ -1556,35 +1802,34 @@ def prepare_dataset(
             )
             console.print(f"  • Dataset entries: {len(dataset_entries)}")
             console.print(f"  • Failed models: {len(failed_models)}")
-            console.print(f"  • Dataset saved to: {dataset_jsonl_path}")
+            console.print(
+                f"  • Dataset saved to: {redact_sensitive_path(dataset_jsonl_path)}"
+            )
 
             if failed_models:
+                safe_failed_models = redact_sensitive_config(failed_models)
                 console.print(
-                    f"[yellow]Failed models: {', '.join(failed_models)}[/yellow]"
+                    f"[yellow]Failed models: {', '.join(safe_failed_models)}[/yellow]"
                 )
-                logger.info(f"Failed models: {failed_models}")
+                logger.info("Failed models: %s", safe_failed_models)
         else:
-            logger.error(f"Prepare dataset failed: {result.error}")
-            console.print(f"[red]Error:[/red] {result.error}")
+            _report_cli_operation_failure(logger, "Prepare dataset failed")
             raise typer.Exit(1)
 
-    except Exception as e:
-        logger.error(f"Error running workflow: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error running workflow: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        raise
+    except Exception:
+        _report_cli_operation_failure(logger, "Prepare dataset failed")
+        raise typer.Exit(1) from None
 
 
 @build_dataset_app.command(name="usd")
+@sever_cli_exception_graph
 def usd(
     config: Annotated[
         Path,
         typer.Argument(
             help="Path to the data preparation configuration file.",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            resolve_path=True,
         ),
     ],
     source: Annotated[
@@ -1593,8 +1838,6 @@ def usd(
             "--source",
             "-s",
             help="Path to the USD file or directory (overrides config).",
-            exists=False,
-            resolve_path=True,
         ),
     ] = None,
     output_dir: Annotated[
@@ -1603,9 +1846,6 @@ def usd(
             "--output",
             "-o",
             help="Output directory for dataset (overrides config).",
-            file_okay=False,
-            dir_okay=True,
-            resolve_path=True,
         ),
     ] = None,
     extract_metadata: Annotated[
@@ -1662,24 +1902,32 @@ def usd(
 
     logger.info("Starting Material Agent Dataset Build Workflow")
 
-    # Check if config exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        raise typer.Exit(code=1)
+    _require_cli_config_file(config, logger)
 
     # Load config to determine if it's single file or batch processing
     try:
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-    except Exception as e:
-        logger.error(f"Failed to load configuration: {e}")
-        raise typer.Exit(code=1) from e
+        config_data, _ = _load_preflight_config(config)
+    except (OSError, ValueError) as error:
+        logger.error("Failed to load configuration: %s", error)
+        raise typer.Exit(code=1) from None
+    if not isinstance(config_data, dict):
+        logger.error("Configuration must contain a mapping")
+        raise typer.Exit(code=1) from None
 
     # Determine if source override points to a directory or file
     is_batch_mode = False
+    source_is_directory = False
     if source:
         source = Path(source)
-        if source.is_dir():
+        try:
+            source_is_directory = source.is_dir()
+        except OSError:
+            logger.error(
+                "Unable to inspect USD source override: %s",
+                redact_sensitive_path(source),
+            )
+            raise typer.Exit(code=1) from None
+        if source_is_directory:
             is_batch_mode = True
     elif "usd_dir" in config_data:
         is_batch_mode = True
@@ -1696,16 +1944,20 @@ def usd(
         logger.info("Detected batch processing mode")
 
         # Get USD directory
-        if source and source.is_dir():
+        if source and source_is_directory:
             usd_dir = source
-            logger.info(f"Using USD directory override: {usd_dir}")
+            logger.info(
+                "Using USD directory override: %s",
+                redact_sensitive_path(usd_dir),
+            )
         elif "usd_dir" in config_data:
             # Resolve path relative to config file location
-            config_dir = config.parent
-            usd_dir = config_dir / Path(config_data["usd_dir"])
-            usd_dir = usd_dir.resolve()
-            logger.info(f"Using usd_dir from config: {usd_dir}")
-        else:
+            usd_dir = _resolve_config_relative_path(config_data["usd_dir"], config)
+            logger.info(
+                "Using usd_dir from config: %s",
+                redact_sensitive_path(usd_dir),
+            )
+        else:  # pragma: no cover - unreachable defensive branch
             logger.error("Batch mode requires usd_dir in config or --source directory")
             raise typer.Exit(code=1)
 
@@ -1713,16 +1965,19 @@ def usd(
         if output_dir:
             batch_output_dir = output_dir
         elif "output_dir" in config_data:
-            config_dir = config.parent
-            batch_output_dir = config_dir / Path(config_data["output_dir"])
-            batch_output_dir = batch_output_dir.resolve()
+            batch_output_dir = _resolve_config_relative_path(
+                config_data["output_dir"],
+                config,
+            )
         else:
             batch_output_dir = Path("output")
 
         # Check if USD directory exists
-        if not usd_dir.exists():
-            logger.error(f"USD directory not found: {usd_dir}")
-            raise typer.Exit(code=1)
+        _require_cli_path(
+            usd_dir,
+            logger,
+            display_label="USD directory",
+        )
 
         # Use API for batch processing
         from material_agent.api import BuildDatasetUsdInput, build_dataset_usd
@@ -1741,8 +1996,7 @@ def usd(
             api_result = build_dataset_usd(api_params)
 
             if not api_result.success:
-                logger.error(f"Batch processing failed: {api_result.error}")
-                raise RuntimeError(api_result.error)
+                raise RuntimeError("Batch processing failed")
 
             results = api_result.batch_results
             successful_builds = sum(
@@ -1752,11 +2006,10 @@ def usd(
                 1 for r in results.values() if r.get("status") != "success"
             )
 
-        except Exception as e:
-            logger.error(f"Batch processing failed: {e}")
-            if verbose:
-                console.print_exception(show_locals=True)
-            raise typer.Exit(code=1) from e
+        except Exception:
+            logger.error("Batch processing failed")
+            console.print("[red]Error:[/red] Batch processing failed")
+            raise typer.Exit(code=1) from None
 
         # Display batch results
         table = Table(title="Batch Dataset Build Results", show_header=True)
@@ -1770,12 +2023,12 @@ def usd(
             status = "✓ Success" if result["status"] == "success" else "✗ Failed"
             status_style = "green" if result["status"] == "success" else "red"
 
-            prims = str(result.get("num_prims", "N/A"))
-            images = str(result.get("num_images", "N/A"))
-            output_path = Path(result["output_dir"]).name
+            prims = str(redact_sensitive_config(result.get("num_prims", "N/A")))
+            images = str(redact_sensitive_config(result.get("num_images", "N/A")))
+            output_path = redact_sensitive_path(Path(result["output_dir"]).name)
 
             table.add_row(
-                usd_name,
+                redact_sensitive_path(usd_name),
                 f"[{status_style}]{status}[/{status_style}]",
                 prims,
                 images,
@@ -1830,17 +2083,29 @@ def usd(
             result = build_dataset_usd(api_params)
 
             if not result.success:
-                logger.error(f"Dataset build failed: {result.error}")
-                raise RuntimeError(result.error)
+                raise RuntimeError("Dataset build failed")
 
             # Create results table
             table = Table(title="Dataset Build Results", show_header=True)
             table.add_column("Metric", style="cyan")
             table.add_column("Value", style="green")
 
-            table.add_row("Dataset Manifest", str(result.dataset_path or "N/A"))
-            table.add_row("Total Prims", str(result.num_prims))
-            table.add_row("Total Images", str(result.num_images))
+            table.add_row(
+                "Dataset Manifest",
+                (
+                    redact_sensitive_path(result.dataset_path)
+                    if result.dataset_path
+                    else "N/A"
+                ),
+            )
+            table.add_row(
+                "Total Prims",
+                str(redact_sensitive_config(result.num_prims)),
+            )
+            table.add_row(
+                "Total Images",
+                str(redact_sensitive_config(result.num_images)),
+            )
 
             console.print("\n")
             console.print(table)
@@ -1853,11 +2118,10 @@ def usd(
                 )
             )
 
-        except Exception as e:
-            logger.error(f"Workflow failed: {e}")
-            if verbose:
-                console.print_exception(show_locals=True)
-            raise typer.Exit(code=1) from e
+        except Exception:
+            logger.error("Dataset build failed")
+            console.print("[red]Error:[/red] Dataset build failed")
+            raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -1894,7 +2158,7 @@ def apply(
 
     Example usage:
     ```bash
-    material-agent apply configs/unified_ladder.yaml
+    material-agent apply apps/material_agent/configs/unified_example.yaml
     ```
 
     Output:
@@ -1932,33 +2196,32 @@ def _legacy_apply(
 
     logger.info("Starting Material Agent Apply")
 
-    # Check if config exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(1)
+    safe_config_path = _require_cli_config_file(config, logger)
 
     # Display configuration info
     console.print(
         Panel.fit(
             "[bold]Material Agent Apply[/bold]\n\n"
-            f"Configuration: {config}\n"
-            f"Input USD override: {input_usd or 'None'}\n"
-            f"Predictions override: {predictions or 'None'}\n"
-            f"Output override: {output or 'None'}\n"
+            f"Configuration: {safe_config_path}\n"
+            f"Input USD override: {redact_sensitive_path(input_usd)}\n"
+            f"Predictions override: {redact_sensitive_path(predictions)}\n"
+            f"Output override: {redact_sensitive_path(output)}\n"
             f"Output mode: {'Layer only' if layer_only else 'Full stage'}\n"
             f"Verbose mode: {'ON' if verbose else 'OFF'}",
             border_style="blue",
         )
     )
 
-    logger.info(f"Configuration file: {config}")
+    logger.info("Configuration file: %s", safe_config_path)
     if input_usd:
-        logger.info(f"Input USD override: {input_usd}")
+        logger.info("Input USD override: %s", redact_sensitive_path(input_usd))
     if predictions:
-        logger.info(f"Predictions override: {predictions}")
+        logger.info(
+            "Predictions override: %s",
+            redact_sensitive_path(predictions),
+        )
     if output:
-        logger.info(f"Output override: {output}")
+        logger.info("Output override: %s", redact_sensitive_path(output))
 
     if verbose:
         logger.debug("Verbose mode enabled - detailed logging active")
@@ -1971,10 +2234,9 @@ def _legacy_apply(
         logger.info("Creating config-driven apply workflow...")
         workflow = create_apply_workflow_from_config()
         console.print("[green]✓ Config-driven apply workflow created[/green]")
-    except Exception as e:
-        logger.error(f"Failed to create workflow: {str(e)}")
-        console.print(f"[red]Error:[/red] {str(e)}")
-        raise typer.Exit(1) from e
+    except Exception:
+        _report_cli_operation_failure(logger, "Unable to create apply workflow")
+        raise typer.Exit(1) from None
 
     # Run the apply workflow
     try:
@@ -2015,19 +2277,22 @@ def _legacy_apply(
                 f"  • Materials applied to USD: {len(materials_applied)}\n"
                 f"  • Prims with materials: {assignment_stats.get('total_prims', 0)}\n"
                 f"  • Output mode: {'Layer only' if layer_only else 'Full stage'}\n"
-                f"  • Output USD file: {output_path}"
+                f"  • Output USD file: {redact_sensitive_path(output_path)}"
             )
 
             # Add rendering information if enabled
             if not rendering_skipped and rendered_images:
                 if len(rendered_images) == 1:
-                    output_message += f"\n  • Rendered image: {rendered_images[0]}"
+                    output_message += (
+                        "\n  • Rendered image: "
+                        f"{redact_sensitive_path(rendered_images[0])}"
+                    )
                 else:
                     output_message += (
                         f"\n  • Rendered images ({len(rendered_images)} views):"
                     )
                     for img_path in rendered_images:
-                        output_message += f"\n    - {img_path}"
+                        output_message += f"\n    - {redact_sensitive_path(img_path)}"
 
             console.print(output_message)
 
@@ -2035,18 +2300,27 @@ def _legacy_apply(
             if matched_materials:
                 console.print("\n[cyan]Material Search Results:[/cyan]")
                 for material, path_infos in matched_materials.items():
-                    console.print(f"  • {material}: {len(path_infos)} matches found")
+                    safe_material = redact_sensitive_config(material)
+                    console.print(
+                        f"  • {safe_material}: {len(path_infos)} matches found"
+                    )
                     # Always show first match details if available
                     if path_infos and len(path_infos) > 0:
                         path_info = path_infos[0]
                         if isinstance(path_info, dict):
                             if path_info.get("source_path"):
-                                console.print(f"    Source: {path_info['source_path']}")
+                                console.print(
+                                    "    Source: "
+                                    f"{redact_sensitive_path(path_info['source_path'])}"
+                                )
                             if path_info.get("s3_path"):
-                                console.print(f"    S3:     {path_info['s3_path']}")
+                                console.print(
+                                    "    S3:     "
+                                    f"{redact_sensitive_path(path_info['s3_path'])}"
+                                )
                         else:
                             # Fallback for old format
-                            console.print(f"    - {path_info}")
+                            console.print(f"    - {redact_sensitive_path(path_info)}")
                     # Show more matches in verbose mode
                     if verbose and len(path_infos) > 1:
                         for i, path_info in enumerate(
@@ -2056,15 +2330,19 @@ def _legacy_apply(
                             if isinstance(path_info, dict):
                                 if path_info.get("source_path"):
                                     console.print(
-                                        f"        Source: {path_info['source_path']}"
+                                        "        Source: "
+                                        f"{redact_sensitive_path(path_info['source_path'])}"
                                     )
                                 if path_info.get("s3_path"):
                                     console.print(
-                                        f"        S3:     {path_info['s3_path']}"
+                                        "        S3:     "
+                                        f"{redact_sensitive_path(path_info['s3_path'])}"
                                     )
                             else:
                                 # Fallback for old format
-                                console.print(f"        - {path_info}")
+                                console.print(
+                                    f"        - {redact_sensitive_path(path_info)}"
+                                )
                         if len(path_infos) > 3:
                             console.print(f"    ... and {len(path_infos) - 3} more")
 
@@ -2075,14 +2353,17 @@ def _legacy_apply(
             if resolved_materials:
                 console.print("\n[cyan]Resolved Material Files:[/cyan]")
                 for material, local_path in resolved_materials.items():
+                    safe_material = redact_sensitive_config(material)
                     # Check if it's a local file or S3 path
                     if local_path.startswith("s3://"):
                         console.print(
-                            f"  • {material}: [yellow]S3[/yellow] {local_path}"
+                            f"  • {safe_material}: [yellow]S3[/yellow] "
+                            f"{redact_sensitive_path(local_path)}"
                         )
                     else:
                         console.print(
-                            f"  • {material}: [green]Local[/green] {local_path}"
+                            f"  • {safe_material}: [green]Local[/green] "
+                            f"{redact_sensitive_path(local_path)}"
                         )
 
                 # Show download statistics
@@ -2113,19 +2394,24 @@ def _legacy_apply(
                     f"  • Failed assignments: {assignment_stats.get('failed', 0)}"
                 )
 
-            logger.info(f"Material application saved to: {output_path}")
+            logger.info(
+                "Material application saved to: %s",
+                redact_sensitive_path(output_path),
+            )
         else:
             logger.error("Apply workflow did not complete successfully")
             console.print("[red]Error:[/red] Apply workflow did not complete")
             raise typer.Exit(1)
 
-    except Exception as e:
-        logger.error(f"Error running apply workflow: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error running apply workflow: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        raise
+    except Exception:
+        _report_cli_operation_failure(logger, "Material apply workflow failed")
+        raise typer.Exit(1) from None
 
 
 @app.command()
+@sever_cli_exception_graph
 def refine(
     config: Annotated[
         Path,
@@ -2175,10 +2461,10 @@ def refine(
     Example usage:
     ```bash
     # Run material refinement with iterative predict-apply-judge loop
-    material-agent refine configs/iterative_apply.yaml
+    material-agent refine path/to/refine_config.yaml
 
     # Override max iterations
-    material-agent refine configs/iterative_apply.yaml --max-iterations 3
+    material-agent refine path/to/refine_config.yaml --max-iterations 3
     ```
     """
     # Setup logging for this command
@@ -2186,13 +2472,10 @@ def refine(
 
     logger.info("Starting Material Agent Material Refinement")
 
-    # Validate config file exists
-    if not config.exists():
-        logger.error(f"Configuration file not found: {config}")
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(1)
+    _require_cli_config_file(config, logger)
 
-    config = _maybe_apply_backend_env_overrides(config)
+    config_path = config
+    config_payload = _prepare_cli_config_payload(config_path, logger)
 
     # Run the material refinement workflow using API
     try:
@@ -2205,7 +2488,8 @@ def refine(
 
         # Create API parameters
         api_params = RefineInput(
-            config=config,
+            config=config_payload,
+            config_path=config_path if isinstance(config_payload, dict) else None,
             max_iterations_override=max_iterations,
             verbose=verbose,
         )
@@ -2240,13 +2524,14 @@ def refine(
 
             if final_output_path:
                 console.print(
-                    f"\n[bold cyan]Final Output:[/bold cyan]\n  {final_output_path}"
+                    "\n[bold cyan]Final Output:[/bold cyan]\n  "
+                    f"{redact_sensitive_path(final_output_path)}"
                 )
 
             if result.all_iteration_outputs:
                 console.print("\n[cyan]Iteration Outputs:[/cyan]")
                 for i, output_path in enumerate(result.all_iteration_outputs, 1):
-                    console.print(f"  [{i}] {output_path}")
+                    console.print(f"  [{i}] {redact_sensitive_path(output_path)}")
 
             if result.iteration_results:
                 console.print("\n[cyan]Iteration Summary:[/cyan]")
@@ -2265,17 +2550,18 @@ def refine(
                 f"Material refinement completed after {iteration_count} iterations"
             )
         else:
-            logger.error(f"Material refinement failed: {result.error}")
-            console.print(f"[red]Error:[/red] {result.error}")
+            _report_cli_operation_failure(logger, "Material refinement failed")
             raise typer.Exit(1)
 
-    except Exception as e:
-        logger.error(f"Error during material refinement: {e}", exc_info=True)
-        console.print(f"\n[red]Error during material refinement: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        raise
+    except Exception:
+        _report_cli_operation_failure(logger, "Material refinement failed")
+        raise typer.Exit(1) from None
 
 
 @app.command()
+@sever_cli_exception_graph
 def run(
     config: Annotated[
         Path,
@@ -2359,16 +2645,16 @@ def run(
     Example usage:
     ```bash
     # Run complete pipeline
-    material-agent run configs/unified_ladder.yaml
+    material-agent run apps/material_agent/configs/unified_example.yaml
 
     # Skip USD dataset building (already exists)
-    material-agent run configs/unified_ladder.yaml --skip build_dataset_usd
+    material-agent run apps/material_agent/configs/unified_example.yaml --skip build_dataset_usd
 
     # Run only prediction and apply steps
-    material-agent run configs/unified_ladder.yaml --only predict,apply
+    material-agent run apps/material_agent/configs/unified_example.yaml --only predict,apply
 
     # Dry run to see execution plan
-    material-agent run configs/unified_ladder.yaml --dry-run
+    material-agent run apps/material_agent/configs/unified_example.yaml --dry-run
     ```
     """
     # Setup logging for this command
@@ -2379,29 +2665,46 @@ def run(
 
     logger.info("Starting Material Agent Pipeline")
 
-    # Check if config exists
-    if not config.exists():
-        logger.error(f"Pipeline configuration file not found: {config}")
-        console.print(
-            f"[red]Error:[/red] Pipeline configuration file not found: {config}"
-        )
-        raise typer.Exit(1)
+    safe_config_path = _require_cli_config_file(
+        config,
+        logger,
+        label="Pipeline configuration",
+    )
 
-    # Parse skip/only options
-    skip_steps = [s.strip() for s in skip.split(",")] if skip else []
-    only_steps = [s.strip() for s in only.split(",")] if only else []
+    # Reject invalid filters before config tasks, output creation, credential
+    # probes, or backend work.
+    try:
+        from material_agent.config.schema import STEP_ORDER
+
+        skip_steps, only_steps = normalize_cli_step_filters(
+            skip=skip,
+            only=only,
+            valid_steps=STEP_ORDER,
+        )
+    except ValueError as error:
+        logger.error("Pipeline step filter validation failed: %s", error)
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(1) from None
+
+    try:
+        config_data = load_cli_config_mapping(config)
+    except (OSError, ValueError) as error:
+        logger.error("Pipeline configuration validation failed: %s", error)
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(1) from None
 
     # Apply MA_VLM_* / MA_LLM_* env-var overrides if any are set. The service
     # honours these env vars via its own config path; doing the same here
     # keeps CLI and service behaviour in sync and lets CI jobs redirect a
     # public-defaults config to another backend without editing YAML.
-    config = _maybe_apply_backend_env_overrides(config)
+    config_path = config
+    config_payload = _prepare_cli_config_payload(config_path, logger, config_data)
 
     # Display configuration info via event system
     listener.event(
         "pipeline.config.display",
         {
-            "config": str(config),
+            "config": safe_config_path,
             "skip_steps": skip_steps,
             "only_steps": only_steps,
             "resume": resume,
@@ -2413,20 +2716,22 @@ def run(
     if not dry_run:
         try:
             _validate_run_config_windows_prerequisites(
-                config,
+                config_payload,
                 skip_steps,
                 only_steps,
                 resume=resume,
                 clean=clean,
                 session_id=session_id,
+                source_config_path=config_path,
             )
             _validate_run_config_model_credentials(
-                config,
+                config_payload,
                 skip_steps,
                 only_steps,
                 resume=resume,
                 clean=clean,
                 session_id=session_id,
+                source_config_path=config_path,
             )
         except ValueError as e:
             logger.error("Pipeline configuration validation failed: %s", e)
@@ -2436,8 +2741,10 @@ def run(
     if dry_run:
         # Load config and display plan without executing
         try:
-            with open(config, encoding="utf-8") as f:
-                pipeline_config = yaml.safe_load(f)
+            pipeline_config, _ = _load_preflight_config(
+                config_payload,
+                source_config_path=config_path,
+            )
 
             console.print("\n[bold cyan]Pipeline Execution Plan:[/bold cyan]\n")
 
@@ -2451,13 +2758,21 @@ def run(
                     "working_dir", f".{project_name}"
                 )
 
-                console.print(f"[cyan]Project:[/cyan] {project_name}")
-                console.print(f"[cyan]Working Directory:[/cyan] {working_dir}")
                 console.print(
-                    f"[cyan]Input USD:[/cyan] {(pipeline_config.get('input') or {}).get('usd_path', 'N/A')}"
+                    "[cyan]Project:[/cyan] "
+                    f"{redact_sensitive_config(project_name, _path_context=True)}"
                 )
                 console.print(
-                    f"[cyan]Output USD:[/cyan] {(pipeline_config.get('output') or {}).get('usd_path', 'N/A')}\n"
+                    "[cyan]Working Directory:[/cyan] "
+                    f"{redact_sensitive_path(working_dir)}"
+                )
+                console.print(
+                    "[cyan]Input USD:[/cyan] "
+                    f"{redact_sensitive_path((pipeline_config.get('input') or {}).get('usd_path', 'N/A'))}"
+                )
+                console.print(
+                    "[cyan]Output USD:[/cyan] "
+                    f"{redact_sensitive_path((pipeline_config.get('output') or {}).get('usd_path', 'N/A'))}\n"
                 )
 
                 steps_section = pipeline_config.get("steps", {})
@@ -2514,10 +2829,14 @@ def run(
             logger.info("Dry run completed successfully")
             return
 
-        except Exception as e:
-            logger.error(f"Error during dry run: {str(e)}", exc_info=True)
-            console.print(f"\n[red]Error during dry run: {str(e)}[/red]")
-            raise typer.Exit(1) from e
+        except typer.Exit:
+            raise
+        except Exception:
+            _report_cli_operation_failure(
+                logger,
+                "Unable to render pipeline execution plan",
+            )
+            raise typer.Exit(1) from None
 
     # Execute unified pipeline using API
     try:
@@ -2534,7 +2853,8 @@ def run(
 
         # Create API parameters
         api_params = PipelineInput(
-            config=config,
+            config=config_payload,
+            config_path=config_path if isinstance(config_payload, dict) else None,
             skip_steps=skip_steps,
             only_steps=only_steps,
             session_id=session_id,
@@ -2580,31 +2900,43 @@ def run(
             # Display summary of each step
             if result.step_results:
                 console.print("[bold cyan]Pipeline Results Summary:[/bold cyan]\n")
-
-                for step_name, step_output in result.step_results.items():
-                    console.print(f"[green]✓[/green] {step_name}")
-                    if step_output:
-                        for key, value in step_output.items():
-                            if value is not None:
-                                console.print(f"  • {key}: {value}")
+                safe_step_results = redact_sensitive_config(result.step_results)
+                if not isinstance(safe_step_results, dict):
+                    console.print("  • <redacted>")
+                else:
+                    for step_name, step_output in safe_step_results.items():
+                        console.print(f"[green]✓[/green] {step_name}")
+                        if isinstance(step_output, dict):
+                            for key, value in step_output.items():
+                                if value is not None:
+                                    console.print(f"  • {key}: {value}")
 
             logger.info("Pipeline completed successfully")
         else:
-            logger.error(f"Pipeline failed: {result.error}")
-            console.print(f"[red]Error:[/red] {result.error}")
+            message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(result.error)
+                else "Pipeline execution failed"
+            )
+            _report_cli_operation_failure(logger, message)
             raise typer.Exit(1)
 
-    except Exception as e:
-        logger.error(f"Error running pipeline: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error running pipeline: {str(e)}[/red]")
+    except typer.Exit:
+        raise
+    except Exception as error:
+        _report_cli_operation_failure(
+            logger,
+            public_model_failure_message(error, "Pipeline execution failed"),
+        )
         if resume:
             console.print(
                 "\n[yellow]Tip:[/yellow] Pipeline checkpoint saved. Use --resume to continue."
             )
-        raise typer.Exit(1) from e
+        raise typer.Exit(1) from None
 
 
 @app.command()
+@sever_cli_exception_graph
 def pipeline(
     config: Annotated[
         Path,
@@ -2799,16 +3131,26 @@ def configure(
         # Check if configuration was created successfully
         if result.success:
             console.print("\n[bold green]✓ Configuration file created!")
+            safe_result_config_path = redact_sensitive_path(result.config_path)
             console.print(
-                f"\n[cyan]Configuration saved to:[/cyan] {result.config_path}"
+                f"\n[cyan]Configuration saved to:[/cyan] {safe_result_config_path}"
             )
 
             # Display summary
             console.print("\n[bold]Configuration Summary:[/bold]")
-            console.print(f"  • Pipeline name: {result.pipeline_name}")
-            console.print(f"  • Input USD: {result.input_usd_path}")
+            safe_pipeline_name = redact_sensitive_config(
+                result.pipeline_name,
+                _path_context=True,
+            )
+            console.print(f"  • Pipeline name: {safe_pipeline_name}")
+            console.print(
+                f"  • Input USD: {redact_sensitive_path(result.input_usd_path)}"
+            )
             if result.materials_library_path:
-                console.print(f"  • Materials library: {result.materials_library_path}")
+                console.print(
+                    "  • Materials library: "
+                    f"{redact_sensitive_path(result.materials_library_path)}"
+                )
                 console.print(
                     "  • Materials approach: Unified (library_path + entries)"
                 )
@@ -2816,12 +3158,12 @@ def configure(
                 console.print("  • Materials library: Not specified")
                 console.print("  • Materials approach: Legacy (materials_mapping)")
             console.print(
-                f"  • Session ID: {result.pipeline_name}"
-                f" (working dir: .{result.pipeline_name}/)"
+                f"  • Session ID: {safe_pipeline_name}"
+                f" (working dir: .{safe_pipeline_name}/)"
             )
 
             console.print("\n[yellow]Next steps:[/yellow]")
-            console.print(f"  1. Review and customize: {result.config_path}")
+            console.print(f"  1. Review and customize: {safe_result_config_path}")
             if result.materials_library_path:
                 console.print(
                     "  2. Update the materials.entries section with your materials"
@@ -2831,29 +3173,35 @@ def configure(
                     "  2. Update the materials_list and materials_mapping sections"
                 )
             console.print(
-                f"  3. Run the pipeline: material-agent pipeline {result.config_path}"
+                "  3. Run the pipeline: material-agent pipeline "
+                f"{safe_result_config_path}"
             )
 
             logger.info("Configuration wizard completed successfully")
         else:
-            logger.error(f"Configuration creation failed: {result.error}")
-            console.print(f"[red]Error:[/red] {result.error}")
+            _report_cli_operation_failure(logger, "Configuration creation failed")
             raise typer.Exit(1)
 
-    except FileExistsError as e:
-        logger.error(f"Configuration file already exists: {str(e)}")
+    except typer.Exit:
+        raise
+    except FileExistsError:
+        safe_output_config = redact_sensitive_path(output_config)
+        logger.error(
+            "Configuration file already exists: %s",
+            safe_output_config,
+        )
         console.print(
-            f"[red]Error:[/red] Configuration file already exists: {output_config}"
+            f"[red]Error:[/red] Configuration file already exists: {safe_output_config}"
         )
         console.print("[yellow]Use --force to overwrite[/yellow]")
-        raise typer.Exit(1) from e
-    except Exception as e:
-        logger.error(f"Error running configuration: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error creating configuration: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+        raise typer.Exit(1) from None
+    except Exception:
+        _report_cli_operation_failure(logger, "Configuration creation failed")
+        raise typer.Exit(1) from None
 
 
 @app.command("generate-manifest")
+@sever_cli_exception_graph
 def generate_manifest(
     usd_file: Annotated[
         Path,
@@ -2989,18 +3337,21 @@ def generate_manifest(
         result = run_generate_manifest(params)
 
         if not result.success:
-            console.print(f"[red]Error:[/red] {result.error}")
+            _report_cli_operation_failure(logger, "Manifest generation failed")
             raise typer.Exit(1)
 
         if list_materials:
             console.print(
-                f"\n[bold]Materials in {usd_file.name}[/bold] "
+                f"\n[bold]Materials in {redact_sensitive_path(usd_file.name)}[/bold] "
                 f"({result.materials_count} found):\n"
             )
             from material_agent.manifest import prim_path_to_name
 
             for pp in result.material_paths:
-                console.print(f"  {pp}  ->  {prim_path_to_name(pp)}")
+                console.print(
+                    f"  {redact_sensitive_path(pp)}  ->  "
+                    f"{redact_sensitive_path(prim_path_to_name(pp))}"
+                )
             return
 
         # Summary
@@ -3011,19 +3362,18 @@ def generate_manifest(
         table.add_row("Materials discovered", str(result.materials_count))
         table.add_row("Thumbnails rendered", str(result.thumbnails_count))
         table.add_row("Descriptions generated", str(result.descriptions_count))
-        table.add_row("Output", str(result.yaml_path))
+        table.add_row("Output", redact_sensitive_path(result.yaml_path))
         table.add_row(
             "Thumbnails",
-            f"{output_dir}/thumbs/{image_size}x{image_size}/",
+            redact_sensitive_path(output_dir / "thumbs" / f"{image_size}x{image_size}"),
         )
         console.print(table)
 
     except typer.Exit:
         raise
-    except Exception as e:
-        logger.error(f"Error generating manifest: {str(e)}", exc_info=True)
-        console.print(f"\n[red]Error generating manifest: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+    except Exception:
+        _report_cli_operation_failure(logger, "Manifest generation failed")
+        raise typer.Exit(1) from None
 
 
 # Register scene subcommand for large-scene multi-asset pipeline

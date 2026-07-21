@@ -26,6 +26,7 @@ def _make_executor() -> UnifiedPipelineExecutorTask:
 def _base_context(tmp_path: Path) -> dict[str, Any]:
     return {
         "working_dir": str(tmp_path),
+        "config_path": str(tmp_path / "pipeline.yaml"),
         "steps_to_run": [],
         "step_configs": {},
     }
@@ -53,10 +54,6 @@ def _call_execute_step(
     mock_wf = _make_mock_workflow(workflow_outputs)
 
     with (
-        patch(
-            "material_agent.tasks.unified_pipeline_executor.UnifiedPipelineExecutorTask._create_temp_config_file",
-            return_value=Path(context["working_dir"]) / "tmp.yaml",
-        ),
         patch(
             "material_agent.workflows.create_prediction_workflow_from_config",
             return_value=mock_wf,

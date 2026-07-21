@@ -284,6 +284,54 @@ def test_backend_allowlist_scopes_refine_prompt(
     assert "allowed_tunable_parameters" in str(captured["prompt"])
 
 
+def test_prior_refine_history_none_omits_legacy_prompt_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sc = _scenario()
+    captured_prompts: list[str] = []
+
+    def fake(
+        chat_model: Any,
+        prompt: str,
+        *,
+        system_prompt: str | None = None,
+    ) -> dict[str, Any]:
+        captured_prompts.append(prompt)
+        return {
+            "response": json.dumps(
+                {"scenario": _scenario_to_dict(sc), "reasoning": "unchanged"}
+            )
+        }
+
+    monkeypatch.setattr(
+        "physics_agent.tasks.scenario_refine.generate_chat_response",
+        fake,
+    )
+
+    legacy_result = run_scenario_refine(
+        current_scenario=sc,
+        judge_result=_judge(),
+        user_goal_text="make it bouncy",
+        chat_model=_StubChat(),
+    )
+    legacy_payload = json.loads(captured_prompts[-1][captured_prompts[-1].index("{") :])
+    assert legacy_result.notes["prior_refine_history_size"] == 0
+    assert "prior_refine_history" not in legacy_payload
+
+    explicit_result = run_scenario_refine(
+        current_scenario=sc,
+        judge_result=_judge(),
+        user_goal_text="make it bouncy",
+        chat_model=_StubChat(),
+        prior_refine_history=[],
+    )
+    explicit_payload = json.loads(
+        captured_prompts[-1][captured_prompts[-1].index("{") :]
+    )
+    assert explicit_result.notes["prior_refine_history_size"] == 0
+    assert explicit_payload["prior_refine_history"] == []
+
+
 def test_backend_allowlist_rejects_refined_disallowed_param(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

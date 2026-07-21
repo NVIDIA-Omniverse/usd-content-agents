@@ -81,7 +81,7 @@ async def test_reused_session_resets_run_scoped_progress_after_completion() -> N
             step="scene_pipeline",
             state=StepState.COMPLETED,
             percent=100,
-            extra={"pipeline_completed": True},
+            extra={"pipeline_completed": True, "coverage": {}},
         )
     )
 
@@ -134,7 +134,7 @@ async def test_optional_render_after_apply_does_not_reset_same_run_progress() ->
 
     apply_snapshot = bus.get_snapshot("render-after-apply")
     assert apply_snapshot is not None
-    assert apply_snapshot["status"] == "completed"
+    assert apply_snapshot["status"] == "running"
     assert len(apply_snapshot["completed_steps"]) == 1
 
     await bus.emit(

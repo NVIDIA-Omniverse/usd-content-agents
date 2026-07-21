@@ -142,6 +142,17 @@ def _parse_params(raw: Any) -> tuple[TunableParam, ...]:
                 f"parameters[{i}] ({name}) has min > max: {lo} > {hi}"
             )
         params.append(TunableParam(name=name, min_value=lo, max_value=hi))
+    params_by_name = {param.name: param for param in params}
+    static_param = params_by_name.get("static_friction")
+    dynamic_param = params_by_name.get("dynamic_friction")
+    if (
+        static_param is not None
+        and dynamic_param is not None
+        and dynamic_param.min_value > static_param.max_value
+    ):
+        raise ScenarioParseError(
+            "dynamic_friction minimum must not exceed static_friction maximum"
+        )
     return tuple(params)
 
 
@@ -178,8 +189,10 @@ def parse_scenario(raw: dict[str, Any]) -> Scenario:
             metric = "settle_distance"
         elif name == "freeform":
             metric = "judge_score"
-        else:
-            metric = "settle_distance"
+        else:  # pragma: no cover - guarded by SUPPORTED_SCENARIOS validation
+            raise ScenarioParseError(
+                f"No default metric configured for scenario {name!r}"
+            )
     if not isinstance(metric, str) or not metric:
         raise ScenarioParseError("'metric' must be a non-empty string when provided")
     # Validate drop_settle metrics against the registry HERE so a typo

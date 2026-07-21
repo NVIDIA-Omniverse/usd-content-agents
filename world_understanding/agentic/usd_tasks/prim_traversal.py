@@ -6,14 +6,18 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
+import os
 import threading
 import time
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
-from pxr import Tf, Usd, UsdGeom, UsdShade
+from pxr import Tf, Usd, UsdGeom, UsdPhysics, UsdShade
 
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
@@ -27,6 +31,10 @@ from world_understanding.functions.graphics.rendering import (
 )
 from world_understanding.functions.graphics.usd_model import USDModel
 from world_understanding.utils.image_blankness import analyze_image_blankness
+from world_understanding.utils.nvcf_utils import (
+    NVCF_INVOCATION_HOST,
+    resolve_endpoint_or_function_id,
+)
 from world_understanding.utils.object_store import ObjectStore
 from world_understanding.utils.s3_utils import delete_s3_path
 from world_understanding.utils.usd.stage import (
@@ -42,7 +50,344 @@ logger = logging.getLogger(__name__)
 _MAX_SEGMENT_LEN = 80
 """Max characters per filesystem path segment before truncation."""
 
+_PURPOSE_NOT_ALLOWED = "purpose_not_allowed"
+_FULLY_TRANSPARENT = "fully_transparent"
+_UNUSABLE_BBOX = "unusable_bbox"
+_DISPLAY_OPACITY_EPSILON = 1e-6
+
 _path_mapping_lock = threading.Lock()
+
+
+def _allowed_purposes_from_filters(
+    filters: dict[str, Any],
+) -> tuple[str, ...] | None:
+    """Normalize the optional render-purpose filter contract."""
+    allowed_purposes = filters.get("allowed_purposes")
+    if allowed_purposes is None:
+        return None
+    if isinstance(allowed_purposes, str):
+        return (allowed_purposes,)
+    return tuple(str(value) for value in allowed_purposes)
+
+
+def _rigid_body_purpose_fallbacks_from_filters(
+    filters: dict[str, Any],
+) -> tuple[str, ...]:
+    """Normalize purposes allowed only for guide-only rigid-body owners."""
+    fallback_purposes = filters.get("rigid_body_purpose_fallbacks")
+    if fallback_purposes is None:
+        return ()
+    if isinstance(fallback_purposes, str):
+        return (fallback_purposes,)
+    return tuple(str(value) for value in fallback_purposes)
+
+
+def _bbox_purposes_from_filters(filters: dict[str, Any]) -> tuple[str, ...]:
+    """Return the explicit bbox/framing purpose contract for prim filters."""
+    allowed_purposes = _allowed_purposes_from_filters(filters)
+    if allowed_purposes is None:
+        return (str(UsdGeom.Tokens.default_),)
+    return allowed_purposes
+
+
+def _nearest_enabled_rigid_body_owner(prim: "Usd.Prim") -> str | None:
+    """Return the nearest enabled authored rigid-body owner of ``prim``.
+
+    USD Physics treats an applied ``RigidBodyAPI`` with no authored
+    ``rigidBodyEnabled`` value as enabled through the schema fallback.
+    """
+    current = prim
+    while current and current.IsValid() and not current.IsPseudoRoot():
+        if current.HasAPI(UsdPhysics.RigidBodyAPI):
+            enabled_attr = UsdPhysics.RigidBodyAPI(current).GetRigidBodyEnabledAttr()
+            if not enabled_attr or enabled_attr.Get() is not False:
+                return str(current.GetPath())
+        current = current.GetParent()
+    return None
+
+
+def _explicit_members_world_bbox(
+    stage: "Usd.Stage",
+    member_paths: tuple[str, ...],
+    base_purposes: tuple[str, ...],
+    *,
+    time_code: "Usd.TimeCode | None" = None,
+    use_extents_hint: bool | None = None,
+) -> dict[str, Any] | None:
+    """Return the world-space union bound of explicit assembly members only."""
+    member_bboxes: list[dict[str, Any]] = []
+    for member_path in member_paths:
+        member = stage.GetPrimAtPath(member_path)
+        if not member or not member.IsValid():
+            raise ValueError(f"Explicit bbox member does not exist: {member_path}")
+        imageable = UsdGeom.Imageable(member)
+        if not imageable:
+            raise ValueError(
+                "Explicit bbox member is not UsdGeom.Imageable: "
+                f"{member_path} ({member.GetTypeName() or '<untyped>'})"
+            )
+        purpose = str(imageable.ComputePurpose())
+        member_bbox = get_world_bbox_from_prim(
+            member,
+            tuple(dict.fromkeys((*base_purposes, purpose))),
+            time_code=time_code,
+            use_extents_hint=use_extents_hint,
+        )
+        if member_bbox is not None:
+            member_bboxes.append(member_bbox)
+    if not member_bboxes:
+        return None
+
+    bbox_min = [
+        min(float(bbox["min"][axis]) for bbox in member_bboxes) for axis in range(3)
+    ]
+    bbox_max = [
+        max(float(bbox["max"][axis]) for bbox in member_bboxes) for axis in range(3)
+    ]
+    return {
+        "min": bbox_min,
+        "max": bbox_max,
+        "center": [(bbox_min[axis] + bbox_max[axis]) / 2.0 for axis in range(3)],
+        "size": [bbox_max[axis] - bbox_min[axis] for axis in range(3)],
+    }
+
+
+def _effective_display_opacities(prim: "Usd.Prim") -> list[float]:
+    """Return flattened display opacity at the render reference time."""
+    primvar = UsdGeom.PrimvarsAPI(prim).FindPrimvarWithInheritance("displayOpacity")
+    if not primvar:
+        return []
+
+    values = None
+    flatten_failure_types: list[str] = []
+    for time_code in (Usd.TimeCode.Default(), Usd.TimeCode(0)):
+        try:
+            values = primvar.ComputeFlattened(time_code)
+        except Exception as exc:  # pragma: no cover - malformed provider primvar
+            flatten_failure_types.append(type(exc).__name__)
+            values = None
+        if values is not None:
+            break
+    if values is None:
+        logger.warning(
+            "Could not flatten displayOpacity for %s at the default or frame-0 "
+            "reference time (%s); retaining the prim",
+            prim.GetPath(),
+            ", ".join(sorted(set(flatten_failure_types))) or "no value",
+        )
+        return []
+    if flatten_failure_types:
+        logger.debug(
+            "displayOpacity fallback succeeded for %s after %s",
+            prim.GetPath(),
+            ", ".join(sorted(set(flatten_failure_types))),
+        )
+
+    try:
+        raw_values = list(values)
+    except TypeError:
+        raw_values = [values]
+
+    opacities: list[float] = []
+    malformed_value_types: set[str] = set()
+    nonfinite_count = 0
+    for value in raw_values:
+        try:
+            opacity = float(value)
+        except (OverflowError, TypeError, ValueError) as exc:
+            malformed_value_types.add(type(exc).__name__)
+            continue
+        if math.isfinite(opacity):
+            opacities.append(opacity)
+        else:
+            nonfinite_count += 1
+    if malformed_value_types or nonfinite_count:
+        logger.warning(
+            "Ignored %d malformed and %d non-finite displayOpacity value(s) "
+            "for %s (%s)",
+            len(raw_values) - len(opacities) - nonfinite_count,
+            nonfinite_count,
+            prim.GetPath(),
+            ", ".join(sorted(malformed_value_types)) or "no conversion error",
+        )
+    return opacities
+
+
+def _has_usable_world_bbox(
+    prim: "Usd.Prim",
+    bbox_cache: Any | None = None,
+) -> bool:
+    """Return whether a Gprim can be framed by a focused render camera."""
+    try:
+        if bbox_cache is None:
+            bbox_cache = UsdGeom.BBoxCache(
+                Usd.TimeCode(0),
+                [UsdGeom.Tokens.default_],
+                useExtentsHint=False,
+            )
+        bbox_range = bbox_cache.ComputeWorldBound(prim).ComputeAlignedRange()
+        if bbox_range.IsEmpty():
+            return False
+        bbox_min = bbox_range.GetMin()
+        bbox_max = bbox_range.GetMax()
+        extents = [float(bbox_max[i] - bbox_min[i]) for i in range(3)]
+        return all(math.isfinite(extent) and extent >= 0.0 for extent in extents) and (
+            max(extents) > 0.0
+        )
+    except Exception:  # pragma: no cover - malformed provider bounds
+        return False
+
+
+def _render_evidence_skip_diagnostic(
+    prim: "Usd.Prim",
+    filters: dict[str, Any],
+    bbox_cache: Any | None = None,
+) -> dict[str, Any] | None:
+    """Return a stable diagnostic when a selected Gprim is not render evidence."""
+    allowed_purposes = _allowed_purposes_from_filters(filters)
+    if (
+        allowed_purposes is None
+        and not filters.get("skip_fully_transparent", False)
+        and not filters.get("skip_unusable_bbox", False)
+    ):
+        return None
+    if not prim.IsA(UsdGeom.Gprim):
+        return None
+
+    prim_path = str(prim.GetPath())
+    purpose = str(UsdGeom.Imageable(prim).ComputePurpose())
+    if allowed_purposes is not None:
+        allowed = sorted(set(allowed_purposes))
+        if purpose not in allowed:
+            return {
+                "prim_path": prim_path,
+                "reason": _PURPOSE_NOT_ALLOWED,
+                "purpose": purpose,
+                "allowed_purposes": allowed,
+            }
+
+    if filters.get("skip_fully_transparent", False):
+        opacities = _effective_display_opacities(prim)
+        if opacities and max(opacities) <= _DISPLAY_OPACITY_EPSILON:
+            return {
+                "prim_path": prim_path,
+                "reason": _FULLY_TRANSPARENT,
+                "max_display_opacity": max(opacities),
+            }
+
+    if filters.get("skip_unusable_bbox", False):
+        if bbox_cache is None:
+            bbox_cache = UsdGeom.BBoxCache(
+                Usd.TimeCode(0),
+                list(_bbox_purposes_from_filters(filters)),
+                useExtentsHint=False,
+            )
+        if not _has_usable_world_bbox(prim, bbox_cache):
+            return {
+                "prim_path": prim_path,
+                "reason": _UNUSABLE_BBOX,
+            }
+
+    return None
+
+
+def _summarize_prim_filter_diagnostics(
+    skipped_prims: list[dict[str, Any]],
+) -> dict[str, Any]:
+    reason_counts: dict[str, int] = {}
+    for item in skipped_prims:
+        reason = str(item["reason"])
+        reason_counts[reason] = reason_counts.get(reason, 0) + 1
+    return {
+        "skipped_prims": skipped_prims,
+        "reason_counts": dict(sorted(reason_counts.items())),
+    }
+
+
+def _sanitize_render_endpoint_for_diagnostic(endpoint: str) -> str:
+    """Return a renderer endpoint that is useful without exposing URL secrets."""
+    endpoint = endpoint.strip()
+    try:
+        parsed = urlsplit(endpoint)
+    except ValueError:
+        return endpoint
+    if parsed.scheme and parsed.netloc:
+        scheme = parsed.scheme
+    else:
+        try:
+            parsed = urlsplit(
+                endpoint if endpoint.startswith("//") else f"//{endpoint}"
+            )
+        except ValueError:
+            return endpoint
+        if not parsed.netloc:
+            return endpoint
+        scheme = "http"
+
+    if not parsed.netloc:  # pragma: no cover - guarded by the branch above
+        return endpoint
+
+    netloc = parsed.netloc.rsplit("@", maxsplit=1)[-1]
+
+    return urlunsplit((scheme, netloc, parsed.path.rstrip("/"), "", ""))
+
+
+def _resolve_render_endpoint_for_diagnostic(
+    rendering_backend: Any,
+) -> tuple[str | None, str | None, bool]:
+    """Resolve enough renderer endpoint context to format failure diagnostics."""
+    if not isinstance(rendering_backend, RemoteRenderingBackend):
+        return None, None, False
+
+    source: str | None = None
+    raw_endpoint = getattr(rendering_backend, "base_url", None)
+    if raw_endpoint:
+        source = "base_url"
+    else:
+        raw_endpoint = os.environ.get("RENDER_ENDPOINT")
+        if raw_endpoint:
+            source = "RENDER_ENDPOINT"
+        else:
+            raw_endpoint = os.environ.get("NVCF_RENDER_FUNCTION_ID")
+            if raw_endpoint:
+                source = "NVCF_RENDER_FUNCTION_ID"
+
+    if raw_endpoint is None:
+        return None, None, False
+
+    endpoint = str(raw_endpoint).strip()
+    if not endpoint:
+        return None, source, False
+
+    endpoint = resolve_endpoint_or_function_id(endpoint)
+
+    sanitized = _sanitize_render_endpoint_for_diagnostic(endpoint)
+    is_nvcf = NVCF_INVOCATION_HOST in endpoint.lower()
+    return sanitized, source, is_nvcf
+
+
+def _zero_image_render_error_message(rendering_backend: Any) -> str:
+    """Build a zero-render failure message without assuming REST means NVCF."""
+    endpoint, source, is_nvcf = _resolve_render_endpoint_for_diagnostic(
+        rendering_backend
+    )
+    endpoint_detail = (
+        f" Resolved render endpoint from {source}: {endpoint}."
+        if endpoint and source
+        else ""
+    )
+
+    if is_nvcf:
+        return (
+            "Rendering produced 0 images. Check NVCF render function availability "
+            f"and logs above.{endpoint_detail}"
+        )
+    if isinstance(rendering_backend, RemoteRenderingBackend):
+        return (
+            "Rendering produced 0 images. Check the configured render endpoint "
+            f"and renderer service logs.{endpoint_detail}"
+        )
+    return "Rendering produced 0 images. Check renderer availability and logs above."
 
 
 def _validate_positive_int_config(name: str, value: Any) -> int:
@@ -103,6 +448,21 @@ def _is_blank_render_status(status: Any) -> bool:
     return isinstance(status, str) and status == "blank_render"
 
 
+def _is_config_enabled(value: Any, default: bool) -> bool:
+    """Interpret permissive boolean task config values."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return bool(value)
+
+
 def prim_path_to_directory_structure(
     prim_path: str, base_dir: Path, filename: str
 ) -> Path:
@@ -128,7 +488,7 @@ def prim_path_to_directory_structure(
     # Remove leading slash and split path
     path_parts = prim_path.strip("/").split("/")
 
-    if not path_parts:
+    if not path_parts:  # pragma: no cover - str.split always returns at least one part
         return base_dir / filename
 
     # Use all but the last part as directory structure
@@ -165,11 +525,22 @@ def prim_path_to_directory_structure(
     return full_dir / filename
 
 
-def get_world_bbox_from_prim(prim: "Usd.Prim") -> dict[str, Any]:
+def get_world_bbox_from_prim(
+    prim: "Usd.Prim",
+    included_purposes: Iterable[str] | None = None,
+    *,
+    time_code: "Usd.TimeCode | None" = None,
+    use_extents_hint: bool | None = None,
+) -> dict[str, Any] | None:
     """Get the world-space bounding box for a prim.
 
     Args:
         prim: USD prim
+        included_purposes: Optional UsdGeom purposes to include. Defaults to
+            ``default`` only.
+        time_code: Optional evaluation time. Defaults to ``Usd.TimeCode.Default()``.
+        use_extents_hint: Optional BBoxCache extents-hint policy. ``None``
+            preserves the USD constructor default for existing callers.
 
     Returns:
         Dictionary with bbox information:
@@ -180,9 +551,20 @@ def get_world_bbox_from_prim(prim: "Usd.Prim") -> dict[str, Any]:
     """
     try:
         # Create a BBoxCache object to compute the bounding box
-        bbox_cache = UsdGeom.BBoxCache(
-            Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]
+        bbox_time = time_code if time_code is not None else Usd.TimeCode.Default()
+        purposes = (
+            list(included_purposes)
+            if included_purposes is not None
+            else [UsdGeom.Tokens.default_]
         )
+        if use_extents_hint is None:
+            bbox_cache = UsdGeom.BBoxCache(bbox_time, purposes)
+        else:
+            bbox_cache = UsdGeom.BBoxCache(
+                bbox_time,
+                purposes,
+                useExtentsHint=use_extents_hint,
+            )
 
         # Compute the world-space bounding box for the prim
         bbox = bbox_cache.ComputeWorldBound(prim)
@@ -220,11 +602,16 @@ def get_world_bbox_from_prim(prim: "Usd.Prim") -> dict[str, Any]:
         return None
 
 
-def get_stage_world_bbox(stage: "Usd.Stage") -> dict[str, Any]:
+def get_stage_world_bbox(
+    stage: "Usd.Stage",
+    included_purposes: Iterable[str] | None = None,
+) -> dict[str, Any] | None:
     """Get the world-space bounding box for the entire stage.
 
     Args:
         stage: USD stage
+        included_purposes: Optional UsdGeom purposes to include. Defaults to
+            ``default`` only.
 
     Returns:
         Dictionary with bbox information:
@@ -236,7 +623,12 @@ def get_stage_world_bbox(stage: "Usd.Stage") -> dict[str, Any]:
     try:
         # Create a BBoxCache object to compute the bounding box
         bbox_cache = UsdGeom.BBoxCache(
-            Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]
+            Usd.TimeCode.Default(),
+            (
+                list(included_purposes)
+                if included_purposes is not None
+                else [UsdGeom.Tokens.default_]
+            ),
         )
 
         # Compute the world-space bounding box for the entire stage
@@ -387,6 +779,14 @@ class USDPrimTraversalAndRenderingTask(Task):
             return replace(rendering_config, root_prim_path=root_prim_filter)
         return rendering_config
 
+    @staticmethod
+    def _propagate_bbox_purposes(prim_filters, rendering_config):
+        """Keep traversal bounds and camera framing on one explicit contract."""
+        return replace(
+            rendering_config,
+            bbox_purposes=_bbox_purposes_from_filters(prim_filters),
+        )
+
     def run(self, context: dict[str, Any], object_store: ObjectStore) -> dict[str, Any]:
         """Traverse USD prims and render views.
 
@@ -410,6 +810,7 @@ class USDPrimTraversalAndRenderingTask(Task):
             - rendered_prims: List of rendered prim paths
             - prim_data: List of dicts with prim info and image paths
             - total_images_rendered: Total number of images rendered
+            - prim_filter_diagnostics: Stable skip records and reason counts
         """
         # Get event listener (or logger fallback)
         listener = get_listener(context, logger_name=__name__)
@@ -449,6 +850,10 @@ class USDPrimTraversalAndRenderingTask(Task):
             output_dir = Path(output_dir)
 
         rendering_config = self._propagate_root_prim(prim_filters, rendering_config)
+        rendering_config = self._propagate_bbox_purposes(
+            prim_filters,
+            rendering_config,
+        )
 
         listener.info("Starting USD prim traversal and rendering")
         listener.info(f"  Filters: {prim_filters}")
@@ -461,11 +866,16 @@ class USDPrimTraversalAndRenderingTask(Task):
         listener.info(f"  Rendering modes: {rendering_modes}")
 
         # Extract stage-level metrics
+        stage_up_axis = str(UsdGeom.GetStageUpAxis(stage))
+        listener.info(f"Stage up axis: {stage_up_axis}")
         meters_per_unit = UsdGeom.GetStageMetersPerUnit(stage)
         listener.info(f"Stage meters per unit: {meters_per_unit}")
 
         # Compute stage world bounding box
-        stage_world_bbox = get_stage_world_bbox(stage)
+        stage_world_bbox = get_stage_world_bbox(
+            stage,
+            rendering_config.bbox_purposes,
+        )
         stage_world_bbox_meters = (
             scale_bbox_by_mpu(stage_world_bbox, meters_per_unit)
             if stage_world_bbox
@@ -480,13 +890,46 @@ class USDPrimTraversalAndRenderingTask(Task):
                 )
 
         # Store stage metrics in object store for other tasks
+        object_store.set("stage_up_axis", stage_up_axis)
         object_store.set("meters_per_unit", meters_per_unit)
         object_store.set("stage_world_bbox", stage_world_bbox)
         object_store.set("stage_world_bbox_meters", stage_world_bbox_meters)
 
         # Collect prims to render based on filters
-        all_prims = self._collect_prims(stage, prim_filters, listener)
+        prim_filter_skips: list[dict[str, Any]] = []
+        assembly_target_members: dict[str, list[str]] = {}
+        recovered_guide_gprim_targets: set[str] = set()
+        all_prims = self._collect_prims(
+            stage,
+            prim_filters,
+            listener,
+            diagnostics=prim_filter_skips,
+            assembly_target_members=assembly_target_members,
+            recovered_guide_gprim_targets=recovered_guide_gprim_targets,
+        )
+        rendering_config = replace(
+            rendering_config,
+            assembly_target_members={
+                target: tuple(member_paths)
+                for target, member_paths in assembly_target_members.items()
+            },
+            recovered_guide_gprim_targets=tuple(sorted(recovered_guide_gprim_targets)),
+        )
+        context["assembly_render_targets"] = {
+            target: member_paths.copy()
+            for target, member_paths in assembly_target_members.items()
+        }
+        context["recovered_guide_gprim_targets"] = sorted(recovered_guide_gprim_targets)
+        context["prim_filter_diagnostics"] = _summarize_prim_filter_diagnostics(
+            prim_filter_skips
+        )
         listener.info(f"Found {len(all_prims)} USD prims total")
+        self._require_matching_prims(
+            stage,
+            all_prims,
+            prim_filters,
+            context["prim_filter_diagnostics"],
+        )
 
         prims_to_render, prim_data, total_images = self._collect_and_filter_prims(
             stage,
@@ -565,7 +1008,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                     # Submit all (batch, mode) tasks
                     future_to_task = {
                         executor.submit(
-                            self._process_batch,
+                            self._process_batch_with_retry_split,
                             batch_start,
                             batch_end,
                             prims_to_render,
@@ -663,7 +1106,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                 completed_tasks = 0
                 for batch_start, batch_end, render_mode in batch_mode_tasks:
                     batch_images, batch_failures, batch_prim_images = (
-                        self._process_batch(
+                        self._process_batch_with_retry_split(
                             batch_start,
                             batch_end,
                             prims_to_render,
@@ -732,9 +1175,22 @@ class USDPrimTraversalAndRenderingTask(Task):
         # Fail early if rendering produced no images and no blank-render guardrail
         # already explained the failure.
         if total_images == 0:
-            raise RuntimeError(
-                "Rendering produced 0 images. Check NVCF render function availability and logs above."
+            raise RuntimeError(_zero_image_render_error_message(rendering_backend))
+        missing_image_prims = [
+            prim_path
+            for prim_path in prims_to_render
+            if not prim_data_dict.get(prim_path, {}).get("images")
+        ]
+        if missing_image_prims:
+            context["missing_image_prims"] = missing_image_prims
+            sample = ", ".join(missing_image_prims[:5])
+            message = (
+                f"Rendering produced no images for {len(missing_image_prims)} of "
+                f"{len(prims_to_render)} selected prims. Sample: {sample}"
             )
+            if _is_config_enabled(context.get("fail_on_missing_prim_images"), True):
+                raise RuntimeError(message)
+            listener.warning(message)
 
         # Update context with results
         context["rendered_prims"] = prims_to_render
@@ -886,7 +1342,10 @@ class USDPrimTraversalAndRenderingTask(Task):
         threshold = float(context.get("blank_render_failure_threshold", 0.5))
         ratio = blank_count / checked_count
         message = _blank_dataset_render_message(blank_count, checked_count)
-        if ratio > threshold:
+        fail_on_blank_renders = _is_config_enabled(
+            context.get("fail_on_blank_dataset_renders"), True
+        )
+        if ratio > threshold and fail_on_blank_renders:
             raise RuntimeError(message)
 
         listener.warning(message)
@@ -1176,7 +1635,28 @@ class USDPrimTraversalAndRenderingTask(Task):
                     prim_info["hierarchy"] = hierarchy_info
 
             # Extract world-space bounding box
-            prim_world_bbox = get_world_bbox_from_prim(prim)
+            assembly_members = rendering_config.assembly_target_members.get(prim_path)
+            if assembly_members is not None:
+                prim_world_bbox = _explicit_members_world_bbox(
+                    stage,
+                    assembly_members,
+                    rendering_config.bbox_purposes,
+                    time_code=Usd.TimeCode(0),
+                    use_extents_hint=False,
+                )
+            elif prim_path in rendering_config.recovered_guide_gprim_targets:
+                purpose = str(UsdGeom.Imageable(prim).ComputePurpose())
+                prim_world_bbox = get_world_bbox_from_prim(
+                    prim,
+                    tuple(dict.fromkeys((*rendering_config.bbox_purposes, purpose))),
+                    time_code=Usd.TimeCode(0),
+                    use_extents_hint=False,
+                )
+            else:
+                prim_world_bbox = get_world_bbox_from_prim(
+                    prim,
+                    rendering_config.bbox_purposes,
+                )
             if prim_world_bbox:
                 prim_info["world_bbox"] = prim_world_bbox
 
@@ -1389,7 +1869,10 @@ class USDPrimTraversalAndRenderingTask(Task):
             export_stage_to_s3,
         )
 
-        listener.info("Preparing reusable stage URLs for remote batch rendering")
+        listener.info(
+            "Preparing reusable stage URLs for remote batch rendering "
+            f"(bundle_mdl_assets={rendering_backend.bundle_mdl_assets})"
+        )
 
         # Derive base_dir from usd_path so the bundler can
         # resolve relative texture references
@@ -1413,6 +1896,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                         s3_profile=rendering_backend.s3_profile,
                         base_dir=stage_base_dir,
                         use_data_uri=rendering_backend.use_data_uri,
+                        bundle_mdl_assets=rendering_backend.bundle_mdl_assets,
                     )
                     stage_info["highlight_url"] = highlight_url
                     if highlight_s3_uri:
@@ -1428,6 +1912,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                         s3_profile=rendering_backend.s3_profile,
                         base_dir=stage_base_dir,
                         use_data_uri=rendering_backend.use_data_uri,
+                        bundle_mdl_assets=rendering_backend.bundle_mdl_assets,
                     )
                     stage_info["plain_url"] = plain_url
                     if plain_s3_uri:
@@ -1451,6 +1936,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                         s3_profile=rendering_backend.s3_profile,
                         base_dir=stage_base_dir,
                         use_data_uri=rendering_backend.use_data_uri,
+                        bundle_mdl_assets=rendering_backend.bundle_mdl_assets,
                     )
                     stage_info["stage_url"] = stage_url
                     if stage_s3_uri:
@@ -1542,6 +2028,10 @@ class USDPrimTraversalAndRenderingTask(Task):
         )
 
         rendering_config = self._propagate_root_prim(prim_filters, rendering_config)
+        rendering_config = self._propagate_bbox_purposes(
+            prim_filters,
+            rendering_config,
+        )
 
         listener.info("Starting USD prim traversal and rendering (async)")
         listener.info(f"  Filters: {prim_filters}")
@@ -1552,10 +2042,15 @@ class USDPrimTraversalAndRenderingTask(Task):
         listener.info(f"  Rendering modes: {rendering_modes}")
 
         # Extract stage-level metrics
+        stage_up_axis = str(UsdGeom.GetStageUpAxis(stage))
+        listener.info(f"Stage up axis: {stage_up_axis}")
         meters_per_unit = UsdGeom.GetStageMetersPerUnit(stage)
         listener.info(f"Stage meters per unit: {meters_per_unit}")
 
-        stage_world_bbox = get_stage_world_bbox(stage)
+        stage_world_bbox = get_stage_world_bbox(
+            stage,
+            rendering_config.bbox_purposes,
+        )
         stage_world_bbox_meters = (
             scale_bbox_by_mpu(stage_world_bbox, meters_per_unit)
             if stage_world_bbox
@@ -1569,15 +2064,47 @@ class USDPrimTraversalAndRenderingTask(Task):
                     f"Stage world bbox size (meters): {stage_world_bbox_meters['size']}"
                 )
 
+        object_store.set("stage_up_axis", stage_up_axis)
         object_store.set("meters_per_unit", meters_per_unit)
         object_store.set("stage_world_bbox", stage_world_bbox)
         object_store.set("stage_world_bbox_meters", stage_world_bbox_meters)
 
         # Collect and filter prims (CPU-bound, run in thread)
+        prim_filter_skips: list[dict[str, Any]] = []
+        assembly_target_members: dict[str, list[str]] = {}
+        recovered_guide_gprim_targets: set[str] = set()
         all_prims = await asyncio.to_thread(
-            self._collect_prims, stage, prim_filters, listener
+            self._collect_prims,
+            stage,
+            prim_filters,
+            listener,
+            prim_filter_skips,
+            assembly_target_members,
+            recovered_guide_gprim_targets,
+        )
+        rendering_config = replace(
+            rendering_config,
+            assembly_target_members={
+                target: tuple(member_paths)
+                for target, member_paths in assembly_target_members.items()
+            },
+            recovered_guide_gprim_targets=tuple(sorted(recovered_guide_gprim_targets)),
+        )
+        context["assembly_render_targets"] = {
+            target: member_paths.copy()
+            for target, member_paths in assembly_target_members.items()
+        }
+        context["recovered_guide_gprim_targets"] = sorted(recovered_guide_gprim_targets)
+        context["prim_filter_diagnostics"] = _summarize_prim_filter_diagnostics(
+            prim_filter_skips
         )
         listener.info(f"Found {len(all_prims)} USD prims total")
+        self._require_matching_prims(
+            stage,
+            all_prims,
+            prim_filters,
+            context["prim_filter_diagnostics"],
+        )
 
         prims_to_render, prim_data, total_images = await asyncio.to_thread(
             self._collect_and_filter_prims,
@@ -1671,7 +2198,7 @@ class USDPrimTraversalAndRenderingTask(Task):
 
         try:
             batch_coros = [
-                self._process_batch_async(
+                self._process_batch_async_with_retry_split(
                     batch_start,
                     batch_end,
                     prims_to_render,
@@ -1745,11 +2272,6 @@ class USDPrimTraversalAndRenderingTask(Task):
         # Post-processing
         prim_data = list(prim_data_dict.values())
 
-        # Fail early if rendering produced no images
-        if total_images == 0:
-            raise RuntimeError(
-                "Rendering produced 0 images. Check NVCF render function availability and logs above."
-            )
         self._check_blank_dataset_renders(
             prim_data,
             output_dir,
@@ -1758,6 +2280,25 @@ class USDPrimTraversalAndRenderingTask(Task):
             listener=listener,
             context=context,
         )
+        # Fail early if rendering produced no images, after blank-render
+        # post-processing has had a chance to populate diagnostic context.
+        if total_images == 0:
+            raise RuntimeError(_zero_image_render_error_message(rendering_backend))
+        missing_image_prims = [
+            prim_path
+            for prim_path in prims_to_render
+            if not prim_data_dict.get(prim_path, {}).get("images")
+        ]
+        if missing_image_prims:
+            context["missing_image_prims"] = missing_image_prims
+            sample = ", ".join(missing_image_prims[:5])
+            message = (
+                f"Rendering produced no images for {len(missing_image_prims)} of "
+                f"{len(prims_to_render)} selected prims. Sample: {sample}"
+            )
+            if _is_config_enabled(context.get("fail_on_missing_prim_images"), True):
+                raise RuntimeError(message)
+            listener.warning(message)
 
         context["rendered_prims"] = prims_to_render
         context["prim_data"] = prim_data
@@ -1813,7 +2354,8 @@ class USDPrimTraversalAndRenderingTask(Task):
         )
 
         listener.info(
-            "Preparing reusable stage URLs for remote batch rendering (async)"
+            "Preparing reusable stage URLs for remote batch rendering (async) "
+            f"(bundle_mdl_assets={rendering_backend.bundle_mdl_assets})"
         )
 
         usd_path_val = context.get("usd_path")
@@ -1836,6 +2378,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                 s3_profile=rendering_backend.s3_profile,
                 base_dir=stage_base_dir,
                 use_data_uri=rendering_backend.use_data_uri,
+                bundle_mdl_assets=rendering_backend.bundle_mdl_assets,
             )
             listener.info(f"  ✓ Uploaded {render_mode} {label} stage")
             return url, s3_uri
@@ -2063,9 +2606,14 @@ class USDPrimTraversalAndRenderingTask(Task):
                     api_key=rendering_backend.api_key,
                     base_url=rendering_backend.base_url,
                     timeout=rendering_backend.timeout,
+                    max_retries=rendering_backend.max_retries,
+                    retry_delay=rendering_backend.retry_delay,
+                    retry_backoff_factor=rendering_backend.retry_backoff_factor,
+                    retry_jitter=rendering_backend.retry_jitter,
                     sensors=sensor_modes if sensor_modes else None,
                     apply_background_mask=config.use_background_color,
                     semaphore=semaphore,
+                    material_target=getattr(rendering_backend, "material_target", None),
                 )
 
                 # Post-process composition results (CPU-bound, run in thread)
@@ -2240,9 +2788,14 @@ class USDPrimTraversalAndRenderingTask(Task):
                     api_key=rendering_backend.api_key,
                     base_url=rendering_backend.base_url,
                     timeout=rendering_backend.timeout,
+                    max_retries=rendering_backend.max_retries,
+                    retry_delay=rendering_backend.retry_delay,
+                    retry_backoff_factor=rendering_backend.retry_backoff_factor,
+                    retry_jitter=rendering_backend.retry_jitter,
                     sensors=sensor_modes if sensor_modes else None,
                     apply_background_mask=config.use_background_color,
                     semaphore=semaphore,
+                    material_target=getattr(rendering_backend, "material_target", None),
                 )
 
                 # Post-process (CPU-bound, run in thread)
@@ -2493,6 +3046,111 @@ class USDPrimTraversalAndRenderingTask(Task):
             total_images,
             failed_batches,
             prim_images_data,
+        )
+
+    async def _process_batch_async_with_retry_split(
+        self,
+        batch_start: int,
+        batch_end: int,
+        prims_to_render: list[str],
+        prim_data: dict[str, dict[str, Any]],
+        prepared_stages: dict[str, dict[str, Any]],
+        rendering_backend,
+        render_mode: str,
+        render_output_dir: Path,
+        output_dir: Path,
+        num_total_tasks: int,
+        batch_size: int,
+        listener,
+        sensor_modes: list[str] | None = None,
+        image_height: int = 512,
+        semaphore: asyncio.Semaphore | None = None,
+    ) -> tuple[
+        int, int, str, int, list[dict[str, Any]], dict[str, list[dict[str, Any]]]
+    ]:
+        """Render a batch, splitting zero-image remote failures into smaller ranges."""
+        result = await self._process_batch_async(
+            batch_start,
+            batch_end,
+            prims_to_render,
+            prim_data,
+            prepared_stages,
+            rendering_backend,
+            render_mode,
+            render_output_dir,
+            output_dir,
+            num_total_tasks,
+            batch_size,
+            listener,
+            sensor_modes,
+            image_height,
+            semaphore,
+        )
+
+        _, _, _, total_images, failed_batches, prim_images_data = result
+        if (
+            total_images > 0
+            or batch_end - batch_start <= 1
+            or not isinstance(rendering_backend, RemoteRenderingBackend)
+        ):
+            return result
+
+        mid = batch_start + (batch_end - batch_start) // 2
+        listener.warning(
+            f"Batch {batch_start}-{batch_end} for mode '{render_mode}' "
+            f"produced 0 images; retrying as {batch_start}-{mid} "
+            f"and {mid}-{batch_end}"
+        )
+
+        left = await self._process_batch_async_with_retry_split(
+            batch_start,
+            mid,
+            prims_to_render,
+            prim_data,
+            prepared_stages,
+            rendering_backend,
+            render_mode,
+            render_output_dir,
+            output_dir,
+            num_total_tasks,
+            batch_size,
+            listener,
+            sensor_modes,
+            image_height,
+            semaphore,
+        )
+        right = await self._process_batch_async_with_retry_split(
+            mid,
+            batch_end,
+            prims_to_render,
+            prim_data,
+            prepared_stages,
+            rendering_backend,
+            render_mode,
+            render_output_dir,
+            output_dir,
+            num_total_tasks,
+            batch_size,
+            listener,
+            sensor_modes,
+            image_height,
+            semaphore,
+        )
+
+        combined_images = left[3] + right[3]
+        combined_failures = left[4] + right[4]
+        combined_prim_images: dict[str, list[dict[str, Any]]] = {}
+        for batch_prim_images in (left[5], right[5]):
+            for prim_path, images in batch_prim_images.items():
+                combined_prim_images.setdefault(prim_path, []).extend(images)
+
+        return (
+            batch_start,
+            batch_end,
+            render_mode,
+            combined_images,
+            combined_failures,
+            combined_prim_images,
         )
 
     def _process_sensor_array(
@@ -2898,9 +3556,6 @@ class USDPrimTraversalAndRenderingTask(Task):
 
                 # Save sensor data if present
                 if "sensors" in camera_result and camera_result["sensors"]:
-                    import numpy as np
-                    from PIL import Image as PILImage
-
                     sensors_data = camera_result["sensors"]
                     listener.debug(
                         f"Processing sensors for camera {camera_name}: "
@@ -2908,9 +3563,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                     )
 
                     for sensor_name, frame_data in sensors_data.items():
-                        # Frame data is dict[frame_num, np.ndarray]
                         for frame_num, sensor_array in frame_data.items():
-                            # Map frame number to prim (frames correspond to prims in batch)
                             frame_idx = int(frame_num) - batch_start
                             if frame_idx < 0 or frame_idx >= len(batch_prims):
                                 continue
@@ -2919,26 +3572,17 @@ class USDPrimTraversalAndRenderingTask(Task):
                             if prim_path not in prim_data:
                                 continue
 
-                            # Debug: Log raw sensor array info
-                            listener.debug(
-                                f"Sensor {sensor_name} raw data: shape={sensor_array.shape}, "
-                                f"dtype={sensor_array.dtype}, size={sensor_array.size}"
-                            )
-
-                            # Generate filename for sensor data
                             prim_parts = prim_path.strip("/").split("/")
                             prim_name = prim_parts[-1] if prim_parts else "unnamed"
                             safe_prim_name = shorten_for_filesystem(
                                 prim_name, max_len=MAX_FILENAME_STEM_LEN
                             )
 
-                            # Extract view name from camera
                             if "_" in camera_name:
                                 view_name = camera_name.split("_", 1)[-1]
                             else:
                                 view_name = camera_name
 
-                            # Sensor files are saved as: {prim}_{view}_{sensor}.png
                             sensor_filename = (
                                 f"{safe_prim_name}_{view_name}_{sensor_name}.png"
                             )
@@ -2946,213 +3590,18 @@ class USDPrimTraversalAndRenderingTask(Task):
                                 prim_path, render_output_dir, sensor_filename
                             )
 
-                            # Save sensor data as PNG
-                            # Reshape sensor array to proper 2D dimensions
-                            # Note: NVCF may return sensor data at different resolution than requested
-                            image_width = config.image_width
-                            try:
-                                # Sensor data comes as flat array, reshape to (height, width) or (height, width, channels)
-                                if sensor_array.ndim == 1:
-                                    # Try to infer dimensions from array size
-                                    array_size = sensor_array.size
-
-                                    # For segmentation, NVCF may return multi-channel data (RGBA)
-                                    # Try different channel configurations
-                                    reshaped = False
-
-                                    # Try common formats: single-channel, RGB (3), RGBA (4)
-                                    for num_channels in [1, 3, 4]:
-                                        pixels_with_channels = (
-                                            array_size // num_channels
-                                        )
-                                        sqrt_size = int(np.sqrt(pixels_with_channels))
-
-                                        if (
-                                            sqrt_size * sqrt_size * num_channels
-                                            == array_size
-                                        ):
-                                            # Found valid square dimensions
-                                            actual_height = actual_width = sqrt_size
-
-                                            if num_channels == 1:
-                                                sensor_array = sensor_array.reshape(
-                                                    actual_height, actual_width
-                                                )
-                                            else:
-                                                # Multi-channel (RGB/RGBA)
-                                                sensor_array = sensor_array.reshape(
-                                                    actual_height,
-                                                    actual_width,
-                                                    num_channels,
-                                                )
-
-                                            if (
-                                                actual_height != image_height
-                                                or actual_width != image_width
-                                            ):
-                                                listener.info(
-                                                    f"Sensor {sensor_name} returned at {actual_width}x{actual_height}x{num_channels} "
-                                                    f"instead of requested {image_width}x{image_height}. Using actual size."
-                                                )
-                                            else:
-                                                listener.debug(
-                                                    f"Sensor {sensor_name} reshaped to {actual_width}x{actual_height}x{num_channels}"
-                                                )
-
-                                            reshaped = True
-                                            break
-
-                                    if not reshaped:
-                                        # Try requested dimensions with single channel
-                                        expected_size = image_height * image_width
-                                        if array_size == expected_size:
-                                            sensor_array = sensor_array.reshape(
-                                                image_height, image_width
-                                            )
-                                            reshaped = True
-
-                                    if not reshaped:
-                                        listener.warning(
-                                            f"Sensor {sensor_name} size {array_size} doesn't match any expected format. "
-                                            f"Tried square with 1/3/4 channels and {image_width}x{image_height}. Skipping."
-                                        )
-                                        continue
-
-                                elif sensor_array.ndim >= 2:
-                                    # Already has dimensions, just squeeze extra dims
-                                    sensor_array = sensor_array.squeeze()
-                                    # Now should be 2D (grayscale) or 3D (RGB/RGBA)
-                                    if sensor_array.ndim not in [2, 3]:
-                                        listener.warning(
-                                            f"Sensor {sensor_name} has unexpected shape {sensor_array.shape}. Skipping."
-                                        )
-                                        continue
-                            except Exception as reshape_err:
-                                listener.warning(
-                                    f"Failed to reshape sensor {sensor_name}: {reshape_err}"
-                                )
+                            sensor_img = self._process_sensor_array(
+                                sensor_array,
+                                sensor_name,
+                                config.image_width,
+                                image_height,
+                                prim_path,
+                                listener,
+                            )
+                            if sensor_img is None:
                                 continue
 
-                            # Process based on sensor type
-                            if sensor_name in ("depth", "linear_depth"):
-                                # Depth data: normalize to 0-255 for visualization
-                                # Handle infinity values (background/far plane)
-                                # Replace inf with a reasonable max value
-                                finite_mask = np.isfinite(sensor_array)
-                                if np.any(finite_mask):
-                                    # Get min/max of finite values only
-                                    finite_values = sensor_array[finite_mask]
-                                    data_min = finite_values.min()
-                                    data_max = finite_values.max()
-
-                                    # Replace inf with max + some margin
-                                    sensor_array_clipped = sensor_array.copy()
-                                    sensor_array_clipped[~finite_mask] = data_max * 1.1
-
-                                    # Normalize
-                                    if data_max > data_min:
-                                        normalized = (
-                                            (sensor_array_clipped - data_min)
-                                            / (data_max - data_min)
-                                            * 255.0
-                                        )
-                                        # Clamp to 0-255
-                                        normalized = np.clip(normalized, 0, 255)
-                                    else:
-                                        # All pixels have same depth
-                                        listener.warning(
-                                            f"Depth sensor {sensor_name} has uniform values "
-                                            f"(min={data_min:.4f}, max={data_max:.4f}) for {prim_path}. "
-                                            f"Saving as black image."
-                                        )
-                                        normalized = np.zeros_like(sensor_array)
-                                else:
-                                    # All values are inf/nan
-                                    listener.warning(
-                                        f"Depth sensor {sensor_name} has no finite values for {prim_path}. "
-                                        f"Saving as black image."
-                                    )
-                                    normalized = np.zeros_like(sensor_array)
-
-                                depth_img = PILImage.fromarray(
-                                    normalized.astype(np.uint8), mode="L"
-                                )
-                                depth_img.save(sensor_filepath)
-                                listener.debug(
-                                    f"  Saved {sensor_name}: min={data_min:.4f}, "
-                                    f"max={data_max:.4f} -> {sensor_filepath.name}"
-                                )
-                            elif sensor_name == "instance_id_segmentation":
-                                # Segmentation: handle different channel formats
-                                # Instance IDs are uint32, need to map to RGB colors for visualization
-                                if sensor_array.ndim == 2:
-                                    # Single channel uint32 instance IDs
-                                    # Map each unique ID to a unique RGB color
-                                    unique_ids = np.unique(sensor_array)
-                                    listener.debug(
-                                        f"Segmentation has {len(unique_ids)} unique instances "
-                                        f"(IDs: {unique_ids[:10] if len(unique_ids) > 10 else unique_ids})"
-                                    )
-
-                                    # Create RGB visualization
-                                    rgb_array = np.zeros(
-                                        (*sensor_array.shape, 3), dtype=np.uint8
-                                    )
-
-                                    for instance_id in unique_ids:
-                                        if instance_id == 0:
-                                            continue  # Keep background black
-
-                                        mask = sensor_array == instance_id
-                                        # Generate deterministic RGB color from instance ID
-                                        # Use prime numbers to get good color distribution
-                                        r = int((instance_id * 67) % 256)
-                                        g = int((instance_id * 131) % 256)
-                                        b = int((instance_id * 197) % 256)
-                                        rgb_array[mask] = [r, g, b]
-
-                                    seg_img = PILImage.fromarray(rgb_array, mode="RGB")
-                                elif sensor_array.ndim == 3:
-                                    # Multi-channel (RGB or RGBA)
-                                    num_channels = sensor_array.shape[2]
-                                    if num_channels == 3:
-                                        seg_img = PILImage.fromarray(
-                                            sensor_array.astype(np.uint8), mode="RGB"
-                                        )
-                                    elif num_channels == 4:
-                                        seg_img = PILImage.fromarray(
-                                            sensor_array.astype(np.uint8), mode="RGBA"
-                                        )
-                                        seg_img = seg_img.convert(
-                                            "RGB"
-                                        )  # Drop alpha channel
-                                    else:
-                                        listener.warning(
-                                            f"Segmentation has {num_channels} channels, expected 1, 3, or 4. Skipping."
-                                        )
-                                        continue
-                                else:
-                                    listener.warning(
-                                        f"Segmentation has unexpected shape {sensor_array.shape}. Skipping."
-                                    )
-                                    continue
-
-                                seg_img.save(sensor_filepath)
-                                listener.debug(
-                                    f"  Saved {sensor_name}: {seg_img.size} -> {sensor_filepath.name}"
-                                )
-                            else:
-                                # Unknown sensor: try to save as-is
-                                try:
-                                    sensor_img = PILImage.fromarray(
-                                        sensor_array.squeeze().astype(np.uint8)
-                                    )
-                                    sensor_img.save(sensor_filepath)
-                                except Exception as sensor_err:
-                                    listener.warning(
-                                        f"Failed to save sensor {sensor_name} for {prim_path}: {sensor_err}"
-                                    )
-                                    continue
+                            sensor_img.save(sensor_filepath)
 
                             listener.debug(
                                 f"  Saved sensor {sensor_name}: {sensor_filepath}"
@@ -3190,6 +3639,103 @@ class USDPrimTraversalAndRenderingTask(Task):
 
         return total_images, failed_batches, prim_images_data
 
+    def _process_batch_with_retry_split(
+        self,
+        batch_start: int,
+        batch_end: int,
+        prims_to_render: list[str],
+        prim_data: dict[str, dict[str, Any]],
+        prepared_stages: dict[str, dict[str, Any]],
+        rendering_backend,
+        render_mode: str,
+        render_output_dir: Path,
+        output_dir: Path,
+        num_total_tasks: int,
+        batch_size: int,
+        listener,
+        sensor_modes: list[str] | None = None,
+        image_height: int = 512,
+    ) -> tuple[int, list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
+        """Render a batch, splitting zero-image failures into smaller ranges."""
+        total_images, failed_batches, prim_images_data = self._process_batch(
+            batch_start,
+            batch_end,
+            prims_to_render,
+            prim_data,
+            prepared_stages,
+            rendering_backend,
+            render_mode,
+            render_output_dir,
+            output_dir,
+            num_total_tasks,
+            batch_size,
+            listener,
+            sensor_modes,
+            image_height,
+        )
+
+        if (
+            total_images > 0
+            or batch_end - batch_start <= 1
+            or not isinstance(rendering_backend, RemoteRenderingBackend)
+        ):
+            return total_images, failed_batches, prim_images_data
+
+        mid = batch_start + (batch_end - batch_start) // 2
+        listener.warning(
+            f"Batch {batch_start}-{batch_end} for mode '{render_mode}' "
+            f"produced 0 images; retrying as {batch_start}-{mid} "
+            f"and {mid}-{batch_end}"
+        )
+
+        left_images, left_failures, left_prim_images = (
+            self._process_batch_with_retry_split(
+                batch_start,
+                mid,
+                prims_to_render,
+                prim_data,
+                prepared_stages,
+                rendering_backend,
+                render_mode,
+                render_output_dir,
+                output_dir,
+                num_total_tasks,
+                batch_size,
+                listener,
+                sensor_modes,
+                image_height,
+            )
+        )
+        right_images, right_failures, right_prim_images = (
+            self._process_batch_with_retry_split(
+                mid,
+                batch_end,
+                prims_to_render,
+                prim_data,
+                prepared_stages,
+                rendering_backend,
+                render_mode,
+                render_output_dir,
+                output_dir,
+                num_total_tasks,
+                batch_size,
+                listener,
+                sensor_modes,
+                image_height,
+            )
+        )
+
+        combined_prim_images: dict[str, list[dict[str, Any]]] = {}
+        for batch_prim_images in (left_prim_images, right_prim_images):
+            for prim_path, images in batch_prim_images.items():
+                combined_prim_images.setdefault(prim_path, []).extend(images)
+
+        return (
+            left_images + right_images,
+            left_failures + right_failures,
+            combined_prim_images,
+        )
+
     def _get_prim_type_from_string(self, type_string: str, listener) -> type | None:
         """Convert a string type name to the actual USD type class.
 
@@ -3197,6 +3743,11 @@ class USDPrimTraversalAndRenderingTask(Task):
             type_string: String name of the type
                 (e.g., "UsdGeom.Mesh", "UsdGeom.Xform")
             listener: Event listener for logging
+            diagnostics: Optional sink for render-evidence rejection details.
+            assembly_target_members: Optional sink mapping recovered Xform
+                owners to the explicit descendant Gprims represented by one row.
+            recovered_guide_gprim_targets: Optional sink for recovered Gprim
+                owners that remain one leaf row and need render-copy promotion.
 
         Returns:
             The USD type class or None if not found
@@ -3267,8 +3818,59 @@ class USDPrimTraversalAndRenderingTask(Task):
         # inheritance support from the missing Python module.
         return str(prim.GetTypeName()) == class_name
 
+    @staticmethod
+    def _stage_type_histogram(stage: "Usd.Stage") -> dict[str, int]:
+        """Return concrete prim type counts for filter-mismatch diagnostics."""
+
+        histogram: dict[str, int] = {}
+        prim_range = Usd.PrimRange(
+            stage.GetPseudoRoot(),
+            Usd.TraverseInstanceProxies(),
+        )
+        for prim in prim_range:
+            if prim.IsPseudoRoot():
+                continue
+            type_name = str(prim.GetTypeName()) or "<untyped>"
+            histogram[type_name] = histogram.get(type_name, 0) + 1
+        return dict(sorted(histogram.items()))
+
+    def _require_matching_prims(
+        self,
+        stage: "Usd.Stage",
+        prim_paths: list[str],
+        filters: dict[str, Any],
+        filter_diagnostics: dict[str, Any] | None = None,
+    ) -> None:
+        """Reject an empty selection before stage preparation or upload."""
+
+        if prim_paths:
+            return
+        filters_json = json.dumps(filters, default=str, sort_keys=True)
+        histogram_json = json.dumps(
+            self._stage_type_histogram(stage),
+            sort_keys=True,
+        )
+        diagnostic_detail = (
+            "; prim_filter_diagnostics="
+            + json.dumps(filter_diagnostics, default=str, sort_keys=True)
+            if filter_diagnostics and filter_diagnostics.get("skipped_prims")
+            else ""
+        )
+        raise RuntimeError(
+            "No USD prims matched prim_filters before render preparation; "
+            f"prim_filters={filters_json}; "
+            f"stage_type_histogram={histogram_json}"
+            f"{diagnostic_detail}"
+        )
+
     def _collect_prims(
-        self, stage: "Usd.Stage", filters: dict[str, Any], listener
+        self,
+        stage: "Usd.Stage",
+        filters: dict[str, Any],
+        listener,
+        diagnostics: list[dict[str, Any]] | None = None,
+        assembly_target_members: dict[str, list[str]] | None = None,
+        recovered_guide_gprim_targets: set[str] | None = None,
     ) -> list[str]:
         """Collect prims based on filters.
 
@@ -3281,6 +3883,12 @@ class USDPrimTraversalAndRenderingTask(Task):
                 - skip_instances: Skip instance prims and instance proxies (default: True)
                 - skip_prototypes: Skip prims inside prototype hierarchies (default: False)
                 - skip_invisible: Skip prims with computed invisible visibility (default: False)
+                - allowed_purposes: Effective purposes eligible for rendering (default: all)
+                - rigid_body_purpose_fallbacks: Otherwise excluded purposes that may
+                  be recovered when an enabled rigid-body owner has no selected
+                  descendant (default: none)
+                - skip_fully_transparent: Skip opacity-zero Gprims (default: False)
+                - skip_unusable_bbox: Skip Gprims that cannot be camera-framed (default: False)
                 - root_prim: Root prim path to start traversal from (default: None, traverse entire stage)
             listener: Event listener for logging
 
@@ -3302,6 +3910,17 @@ class USDPrimTraversalAndRenderingTask(Task):
         skipped_instances = 0
         skipped_prototypes = 0
         skipped_invisible = 0
+        render_filter_skips: list[dict[str, Any]] = []
+        selected_rigid_body_owners: set[str] = set()
+        fallback_candidates_by_owner: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+        fallback_purposes = set(_rigid_body_purpose_fallbacks_from_filters(filters))
+        bbox_cache = None
+        if filters.get("skip_unusable_bbox", False):
+            bbox_cache = UsdGeom.BBoxCache(
+                Usd.TimeCode(0),
+                list(_bbox_purposes_from_filters(filters)),
+                useExtentsHint=False,
+            )
 
         def _is_invisible(prim: "Usd.Prim") -> bool:
             imageable = UsdGeom.Imageable(prim)
@@ -3309,6 +3928,58 @@ class USDPrimTraversalAndRenderingTask(Task):
                 bool(imageable)
                 and imageable.ComputeVisibility() == UsdGeom.Tokens.invisible
             )
+
+        def _record_render_filter_skip(prim: "Usd.Prim") -> bool:
+            diagnostic = _render_evidence_skip_diagnostic(
+                prim,
+                filters,
+                bbox_cache,
+            )
+            if diagnostic is None:
+                return False
+            if (
+                diagnostic["reason"] == _PURPOSE_NOT_ALLOWED
+                and diagnostic.get("purpose") in fallback_purposes
+            ):
+                owner_path = _nearest_enabled_rigid_body_owner(prim)
+                # Re-evaluate every non-purpose evidence guard with the explicit
+                # fallback purpose admitted. Source transparency is allowed only
+                # because accepted members are promoted on duplicated render
+                # stages; an unframeable guide still cannot recover its owner.
+                fallback_filters = {
+                    **filters,
+                    "allowed_purposes": [
+                        *(_allowed_purposes_from_filters(filters) or ()),
+                        str(diagnostic["purpose"]),
+                    ],
+                    # The rejected guide leaves are not prediction rows. They
+                    # supply a bound for one owner target, whose normal render
+                    # preparation blocks authored display opacity together with
+                    # other source material state. Keep the finite bbox guard.
+                    "skip_fully_transparent": False,
+                }
+                if owner_path is not None and (
+                    _render_evidence_skip_diagnostic(
+                        prim,
+                        fallback_filters,
+                    )
+                    is None
+                ):
+                    render_filter_skips.append(diagnostic)
+                    if diagnostics is not None:
+                        diagnostics.append(diagnostic)
+                    fallback_candidates_by_owner.setdefault(owner_path, []).append(
+                        (str(prim.GetPath()), diagnostic)
+                    )
+                    return True
+            render_filter_skips.append(diagnostic)
+            if diagnostics is not None:
+                diagnostics.append(diagnostic)
+            listener.debug(
+                "Skipping render-ineligible prim: "
+                f"{diagnostic['prim_path']} (reason={diagnostic['reason']})"
+            )
+            return True
 
         # If specific paths provided, use those
         if specific_paths:
@@ -3329,7 +4000,13 @@ class USDPrimTraversalAndRenderingTask(Task):
                         listener.debug(f"Skipping invisible prim: {path}")
                         skipped_invisible += 1
                         continue
+                    if _record_render_filter_skip(prim):
+                        continue
                     prims_to_render.append(path)
+                    if fallback_purposes:
+                        owner_path = _nearest_enabled_rigid_body_owner(prim)
+                        if owner_path is not None:
+                            selected_rigid_body_owners.add(owner_path)
         else:
             # Determine the root for traversal
             if root_prim_path:
@@ -3342,16 +4019,12 @@ class USDPrimTraversalAndRenderingTask(Task):
                 else:
                     listener.info(f"Traversing from root prim: {root_prim_path}")
                     # Use Traverse() on the root prim to get all descendants
-                    from pxr import Usd
-
                     prim_iterator = Usd.PrimRange(
                         root_prim, Usd.TraverseInstanceProxies()
                     )
             else:
                 # Traverse all prims and filter by type
                 # Use TraverseAll() to include prims inside class hierarchies (abstract prims)
-                from pxr import Usd
-
                 prim_iterator = Usd.PrimRange(
                     stage.GetPseudoRoot(), Usd.TraverseInstanceProxies()
                 )
@@ -3392,8 +4065,60 @@ class USDPrimTraversalAndRenderingTask(Task):
                             listener.debug(f"Skipping invisible prim: {prim_path}")
                             skipped_invisible += 1
                             break
+                        if _record_render_filter_skip(prim):
+                            break
                         prims_to_render.append(prim_path)
+                        if fallback_purposes:
+                            owner_path = _nearest_enabled_rigid_body_owner(prim)
+                            if owner_path is not None:
+                                selected_rigid_body_owners.add(owner_path)
                         break  # Stop checking once we find a match
+
+        for owner_path, fallback_candidates in fallback_candidates_by_owner.items():
+            # The rejected guide leaves remain diagnostics even when their
+            # bounded owner is recovered. They are evidence for one assembly,
+            # not independent prediction rows.
+            if owner_path in selected_rigid_body_owners:
+                continue
+            if owner_path in prims_to_render:
+                continue
+            owner = stage.GetPrimAtPath(owner_path)
+            owner_is_gprim = owner.IsA(UsdGeom.Gprim)
+            owner_is_xform = owner.IsA(UsdGeom.Xform)
+            if not owner_is_gprim and not owner_is_xform:
+                listener.warning(
+                    "Cannot recover guide-only rigid-body owner "
+                    f"{owner_path}: expected UsdGeom.Gprim or UsdGeom.Xform, "
+                    f"found {owner.GetTypeName() or '<untyped>'}"
+                )
+                continue
+            fallback_member_paths = [path for path, _ in fallback_candidates]
+            if owner_is_gprim and owner_path not in fallback_member_paths:
+                listener.info(
+                    "Did not recover rigid-body Gprim owner "
+                    f"{owner_path}: only descendant guide candidates passed "
+                    "the render-evidence filters"
+                )
+                continue
+            prims_to_render.append(owner_path)
+            if owner_is_xform and assembly_target_members is not None:
+                assembly_target_members[owner_path] = fallback_member_paths
+            if owner_is_gprim and recovered_guide_gprim_targets is not None:
+                recovered_guide_gprim_targets.add(owner_path)
+            if owner_is_gprim:
+                ignored_descendant_count = len(fallback_member_paths) - 1
+                listener.info(
+                    "Recovered guide-only rigid-body owner "
+                    f"{owner_path} as one bounded leaf target from its accepted "
+                    f"self candidate; {ignored_descendant_count} descendant guide "
+                    "candidate(s) remained diagnostic-only"
+                )
+            else:
+                listener.info(
+                    "Recovered guide-only rigid-body owner "
+                    f"{owner_path} as one bounded assembly target from "
+                    f"{len(fallback_candidates)} purpose-filtered descendant(s)"
+                )
 
         if skipped_instances > 0:
             listener.info(
@@ -3410,6 +4135,9 @@ class USDPrimTraversalAndRenderingTask(Task):
                 f"Skipped {skipped_invisible} invisible prims (skip_invisible=True)"
             )
 
+        render_filter_summary = _summarize_prim_filter_diagnostics(render_filter_skips)
+        for reason, count in render_filter_summary["reason_counts"].items():
+            listener.info(f"Skipped {count} render-ineligible prims (reason={reason})")
         return prims_to_render
 
     def _check_prim_files_exist(
@@ -3457,7 +4185,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                 # Extract view name from camera name
                 if "_" in camera_name:
                     view_name = camera_name.split("_", 1)[-1]
-                else:
+                else:  # pragma: no cover - camera_name is always built as prefix_suffix
                     view_name = camera_name
 
                 # Include render mode in filename - all modes get their own suffix
@@ -3493,7 +4221,7 @@ class USDPrimTraversalAndRenderingTask(Task):
                 # Extract view name from camera name
                 if "_" in camera_name:
                     view_name = camera_name.split("_", 1)[-1]
-                else:
+                else:  # pragma: no cover - camera_name is always built as prefix_suffix
                     view_name = camera_name
 
                 # Sensor files are named as: {prim}_{view}_{sensor}.png
@@ -3556,7 +4284,7 @@ class USDPrimTraversalAndRenderingTask(Task):
 
                 if "_" in camera_name:
                     view_name = camera_name.split("_", 1)[-1]
-                else:
+                else:  # pragma: no cover - camera_name is always built as prefix_suffix
                     view_name = camera_name
 
                 # Include render mode in filename - all modes get their own suffix
@@ -3598,7 +4326,7 @@ class USDPrimTraversalAndRenderingTask(Task):
 
                 if "_" in camera_name:
                     view_name = camera_name.split("_", 1)[-1]
-                else:
+                else:  # pragma: no cover - camera_name is always built as prefix_suffix
                     view_name = camera_name
 
                 # Sensor files are named as: {prim}_{view}_{sensor}.png

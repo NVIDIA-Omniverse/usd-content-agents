@@ -17,6 +17,7 @@ to compensate for the lack of PBR materials.
     - NVIDIA GPU with CUDA
 """
 
+import inspect
 import logging
 import math
 import time
@@ -29,7 +30,7 @@ from PIL import Image
 from world_understanding.functions.graphics.render_ovrtx import _parse_frames
 
 if TYPE_CHECKING:
-    from pxr import Usd
+    from pxr import Usd  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
@@ -425,24 +426,49 @@ def _setup_render_context(
 
     num_meshes = len(warp_meshes)
 
-    # newton >=0.2.3 renamed Options→Config and options=→config=
-    _OptionsCls = getattr(RenderContext, "Options", None) or RenderContext.Config
-    _opts_key = "options" if hasattr(RenderContext, "Options") else "config"
-    ctx = RenderContext(
-        world_count=1,
-        **{
-            _opts_key: _OptionsCls(
-                enable_global_world=False,
-                enable_textures=False,
-                enable_shadows=enable_shadows,
-                enable_ambient_lighting=True,
-                enable_particles=False,
-                enable_backface_culling=enable_backface_culling,
-                max_distance=1000.0,
-            )
-        },
-        device=device,
+    # Newton >=0.2.3 renamed Options→Config and options=→config=. Newton
+    # 1.4 moved Config from the constructor to render(), so detect the
+    # supported constructor contract instead of using the class attribute as a
+    # proxy for the accepted keyword arguments.
+    options_cls = getattr(RenderContext, "Options", None) or RenderContext.Config
+    render_config = options_cls(
+        enable_global_world=False,
+        enable_textures=False,
+        enable_shadows=enable_shadows,
+        enable_ambient_lighting=True,
+        enable_particles=False,
+        enable_backface_culling=enable_backface_culling,
+        max_distance=1000.0,
     )
+    constructor_parameters = inspect.signature(RenderContext).parameters
+    accepts_arbitrary_keywords = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in constructor_parameters.values()
+    )
+    if hasattr(RenderContext, "Options"):
+        constructor_config_key = "options"
+    elif "config" in constructor_parameters or accepts_arbitrary_keywords:
+        constructor_config_key = "config"
+    else:
+        constructor_config_key = None
+
+    constructor_kwargs: dict[str, Any] = {
+        "world_count": 1,
+        "device": device,
+    }
+    if constructor_config_key is not None:
+        constructor_kwargs[constructor_config_key] = render_config
+    ctx = RenderContext(**constructor_kwargs)
+    ctx._wu_render_config = render_config
+    ctx._wu_render_config_on_render = constructor_config_key is None
+
+    if not hasattr(ctx, "utils"):
+        from newton._src.sensors.warp_raytrace import Utils
+
+        # Newton 1.4 stopped owning Utils on RenderContext. Reattach the
+        # package's utility object so the renderer can preserve one code path
+        # for camera rays and output allocation across supported versions.
+        ctx.utils = Utils(ctx, render_config=render_config)
 
     if not hasattr(ctx.utils, "compute_mesh_bounds"):
         return _setup_newton_model_render_context(
@@ -531,7 +557,7 @@ def _setup_newton_model_render_context(
 
     # Render-only USD meshes are static global shapes in Newton's model. The
     # raytracer must include the global world when rendering world 0.
-    ctx.config.enable_global_world = True
+    ctx._wu_render_config.enable_global_world = True
 
     builder = newton.ModelBuilder()
     xform_cache = UsdGeom.XformCache(time_code)
@@ -622,7 +648,6 @@ def _update_newton_model_render_context(
     device: str,
     color_boost: float,
 ) -> int:
-    from newton.geometry import build_bvh_shape
     from pxr import UsdGeom
 
     try:
@@ -658,11 +683,18 @@ def _update_newton_model_render_context(
     ]
     ctx.shape_colors = wp.array(colors, dtype=wp.vec3f, device=device)
 
-    build_bvh_shape(model, state)
+    if hasattr(model, "bvh_build_shapes"):
+        model.bvh_build_shapes(state)
+    else:
+        from newton.geometry import build_bvh_shape
+
+        build_bvh_shape(model, state)
     return len(visible)
 
 
 def _render_context_render(ctx, **render_kwargs: Any) -> None:
+    if getattr(ctx, "_wu_render_config_on_render", False):
+        render_kwargs.setdefault("config", ctx._wu_render_config)
     if hasattr(ctx, "_wu_render_model"):
         ctx.render(ctx._wu_render_model, ctx._wu_render_state, **render_kwargs)
     else:
@@ -846,22 +878,31 @@ def render_all_cameras(
 
     # Pre-compute camera rays (FOV is constant across frames)
     camera_fovs = wp.array(per_camera_fovs, dtype=wp.float32, device=device)
-    camera_rays = ctx.utils.compute_pinhole_camera_rays(
-        image_width, image_height, camera_fovs
-    )
+    if hasattr(ctx.utils, "compute_camera_rays_pinhole"):
+        camera_rays = ctx.utils.compute_camera_rays_pinhole(
+            image_width,
+            image_height,
+            camera_fovs=camera_fovs,
+        )
+    else:
+        camera_rays = ctx.utils.compute_pinhole_camera_rays(
+            image_width, image_height, camera_fovs
+        )
 
     # Create output buffers
-    color_image = ctx.create_color_image_output(image_width, image_height, num_cameras)
+    color_image = ctx.utils.create_color_image_output(
+        image_width, image_height, num_cameras
+    )
 
     depth_image = None
     if "depth" in sensors:
-        depth_image = ctx.create_depth_image_output(
+        depth_image = ctx.utils.create_depth_image_output(
             image_width, image_height, num_cameras
         )
 
     normal_image = None
     if "normal" in sensors:
-        normal_image = ctx.create_normal_image_output(
+        normal_image = ctx.utils.create_normal_image_output(
             image_width, image_height, num_cameras
         )
 

@@ -14,7 +14,7 @@ Results are structured for downstream physics simulation pipelines.
 
 ## Prefer the REST service?
 
-This README covers the `physics-agent` CLI (Option B in the root [README](../../README.md#two-ways-to-use-this)). If you'd rather drive the same pipeline over HTTP with session management and progress streaming, see [`../physics_agent_service/`](../physics_agent_service/) — it brings up with a single `docker compose up`.
+This README covers the `physics-agent` CLI (Option B in the root [README](../../README.md#three-ways-to-use-content-agents)). If you'd rather drive the same pipeline over HTTP with session management and progress streaming, see [`../physics_agent_service/`](../physics_agent_service/) — it brings up with a single `docker compose up`.
 
 ## Installation
 
@@ -30,12 +30,19 @@ uv pip install -e "apps/physics_agent[tuning]"
 
 ## Rendering
 
-The pipeline renders multi-view images of each prim for VLM analysis. Two options:
+Physics whole-asset preview and per-prim dataset steps use the same backend
+names and fail with a configuration error for any unknown value:
 
-- **Local OVRTX subprocess** (default in `lightbulb.yaml`) — `physics-agent` launches an OVRTX process locally to render. Requires an NVIDIA GPU + driver on the machine running the CLI; no separate rendering service needed.
-- **Remote rendering endpoint** — change `render.backend` to `remote` in the config and point `RENDER_ENDPOINT=http://localhost:8001` at a running OVRTX rendering API (e.g. the sidecar bundled with `physics_agent_service`, or a standalone deployment).
+| Backend | Semantics |
+|---|---|
+| `remote` | Render through an HTTP service. Set `RENDER_ENDPOINT`; the bundled `physics_agent_service` points this at its OVRTX sidecar. |
+| `ovrtx` | Render locally with the isolated OVRTX RTX subprocess. Requires a compatible NVIDIA GPU and driver. |
+| `warp` | Render locally with the optional CUDA/Warp backend. Install the root `warp` extra. |
+| `mock` | Produce deterministic CPU-only images for simulation and CI. These are not production visual evidence. |
 
-Without one of the two, rendering steps fail.
+Set the same name at `steps.identify_asset.renderer.backend` and
+`steps.build_dataset_usd.renderer.backend`. The shipped `lightbulb.yaml` uses
+`ovrtx` for both steps.
 
 ## Quick Start
 

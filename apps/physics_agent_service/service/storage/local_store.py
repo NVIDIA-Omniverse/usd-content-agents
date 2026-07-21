@@ -5,9 +5,36 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import shutil
+import os
 from pathlib import Path
 from typing import IO
+
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    append_bytes_to_confined,
+    confined_artifact_exists,
+    copy_open_file_to_confined,
+    delete_confined_file,
+    is_pipeline_temp_path,
+    iter_open_regular_files,
+    list_confined_artifact_keys,
+    open_confined_directory,
+    open_confined_directory_at,
+    open_held_confined_artifact,
+    open_regular_file_no_follow,
+    read_confined_artifact_bytes,
+    remove_confined_tree,
+    write_bytes_to_confined,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.session_paths import (
+    confined_session_path,
+    confined_storage_child_path,
+    is_safe_session_id,
+)
 
 from .base import SessionStore
 
@@ -23,23 +50,41 @@ class LocalSessionStore(SessionStore):
         return "local"
 
     def _session_dir(self, session_id: str) -> Path:
-        return self.root / session_id
+        if is_safe_session_id(session_id):
+            return confined_session_path(self.root, session_id)
+        return confined_storage_child_path(self.root, session_id)
+
+    def _read_session_dir(self, session_id: str) -> Path | None:
+        """Resolve a read root, treating an escaped UUID alias as absent."""
+        try:
+            return self._session_dir(session_id)
+        except ValueError:
+            return None
 
     async def init_session(self, session_id: str) -> None:
-        self._session_dir(session_id).mkdir(parents=True, exist_ok=True)
+        self._session_dir(session_id)
+        with open_confined_directory(self.root, create=True) as root_descriptor:
+            with open_confined_directory_at(
+                root_descriptor,
+                session_id,
+                create=True,
+            ):
+                pass
 
     async def delete_session(self, session_id: str) -> None:
-        base = self._session_dir(session_id)
-        if not base.exists():
-            return
         for attempt in range(3):
             try:
-                shutil.rmtree(base)
+                remove_confined_tree(self._session_dir(session_id), self.root)
                 return
-            except OSError as e:
+            except OSError:
                 if attempt == 2:
                     raise
-                logger.warning(f"Retry {attempt + 1}/3 deleting {session_id[:8]}: {e}")
+                log_durable_failure(
+                    logger,
+                    "session_local_delete_retry_failed",
+                    phase=FailurePhase.ROLLBACK,
+                    retryable=True,
+                )
                 await asyncio.sleep(0.5 * (attempt + 1))
 
     async def list_sessions(self, use_cache: bool = True) -> list[str]:
@@ -56,11 +101,13 @@ class LocalSessionStore(SessionStore):
         if not self.root.exists():
             return sessions
 
-        for session_dir in self.root.iterdir():
-            if session_dir.is_dir():
-                # Check if session.json exists to confirm it's a valid session
-                if (session_dir / "session.json").exists():
-                    sessions.append(session_dir.name)
+        for listed_path in self.root.iterdir():
+            try:
+                session_dir = self._session_dir(listed_path.name)
+            except ValueError:
+                continue
+            if confined_artifact_exists(session_dir, "session.json"):
+                sessions.append(listed_path.name)
 
         return sessions
 
@@ -71,34 +118,77 @@ class LocalSessionStore(SessionStore):
     async def put_bytes(
         self, session_id: str, key: str, data: bytes, content_type: str | None = None
     ) -> None:
-        path = self._session_dir(session_id) / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+        del content_type
+        with open_confined_directory(
+            self._session_dir(session_id),
+            create=True,
+        ) as destination_descriptor:
+            write_bytes_to_confined(destination_descriptor, key, data)
+
+    async def put_bytes_if_absent(
+        self, session_id: str, key: str, data: bytes, content_type: str | None = None
+    ) -> bool:
+        del content_type
+        with open_confined_directory(
+            self._session_dir(session_id),
+            create=True,
+        ) as destination_descriptor:
+            return write_bytes_to_confined(
+                destination_descriptor,
+                key,
+                data,
+                overwrite=False,
+            )
 
     async def put_file(
         self, session_id: str, key: str, file_path: str, content_type: str | None = None
     ) -> None:
-        path = self._session_dir(session_id) / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(file_path, path)
+        del content_type
+        with open_regular_file_no_follow(file_path) as (source, metadata):
+            with open_confined_directory(
+                self._session_dir(session_id),
+                create=True,
+            ) as destination_descriptor:
+                copy_open_file_to_confined(
+                    destination_descriptor,
+                    key,
+                    source,
+                    metadata,
+                    overwrite=True,
+                )
+
+    async def delete_key(self, session_id: str, key: str) -> None:
+        """Delete one session artifact without following filesystem aliases."""
+        try:
+            with open_confined_directory(self._session_dir(session_id)) as root:
+                delete_confined_file(root, key)
+        except FileNotFoundError:
+            return
 
     async def open_read(self, session_id: str, key: str) -> IO[bytes]:
-        return open(self._session_dir(session_id) / key, "rb")  # noqa: SIM115
+        base = self._read_session_dir(session_id)
+        if base is None:
+            raise FileNotFoundError(key)
+        try:
+            return open_held_confined_artifact(base, key).stream
+        except (
+            ArtifactPathError,
+            FileNotFoundError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ):
+            raise FileNotFoundError(key) from None
 
     async def exists(self, session_id: str, key: str) -> bool:
-        return (self._session_dir(session_id) / key).exists()
+        base = self._read_session_dir(session_id)
+        return base is not None and confined_artifact_exists(base, key)
 
     async def list_keys(self, session_id: str, prefix: str = "") -> list[str]:
-        base = self._session_dir(session_id)
-        if not base.exists():
+        base = self._read_session_dir(session_id)
+        if base is None or is_pipeline_temp_path(prefix):
             return []
-        keys: list[str] = []
-        for p in base.rglob("*"):
-            if p.is_file():
-                rel = p.relative_to(base).as_posix()
-                if rel.startswith(prefix):
-                    keys.append(rel)
-        return keys
+        return list_confined_artifact_keys(base, prefix=prefix)
 
     async def put_json(self, session_id: str, key: str, obj: dict) -> None:
         await self.put_bytes(
@@ -106,23 +196,43 @@ class LocalSessionStore(SessionStore):
         )
 
     async def get_json(self, session_id: str, key: str) -> dict | None:
-        path = self._session_dir(session_id) / key
-        if not path.exists():
+        base = self._read_session_dir(session_id)
+        if base is None:
             return None
-        return json.loads(path.read_text())
+        try:
+            data = read_confined_artifact_bytes(base, key)
+        except (
+            ArtifactPathError,
+            FileNotFoundError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ):
+            return None
+        return json.loads(data)
 
     async def append_event(self, session_id: str, event: dict) -> None:
-        path = self._session_dir(session_id) / "events.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        line = json.dumps(event) + "\n"
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(line)
+        line = (json.dumps(event) + "\n").encode("utf-8")
+        with open_confined_directory(
+            self._session_dir(session_id),
+            create=True,
+        ) as session_descriptor:
+            append_bytes_to_confined(session_descriptor, "events.jsonl", line)
 
     async def get_event_log(self, session_id: str) -> list[dict]:
-        path = self._session_dir(session_id) / "events.jsonl"
-        if not path.exists():
+        base = self._read_session_dir(session_id)
+        if base is None:
             return []
-        text = path.read_text()
+        try:
+            text = read_confined_artifact_bytes(base, "events.jsonl").decode("utf-8")
+        except (
+            ArtifactPathError,
+            FileNotFoundError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ):
+            return []
         return [json.loads(line) for line in text.splitlines()]
 
     async def make_public_url(
@@ -134,54 +244,75 @@ class LocalSessionStore(SessionStore):
         self, session_id: str, local_session_dir: str, prefix: str = ""
     ) -> int:
         """Copy files from store to local dir (no-op if they are the same path)."""
-        store_dir = self._session_dir(session_id)
-        local_dir = Path(local_session_dir)
-        if store_dir == local_dir:
+        store_dir = self._read_session_dir(session_id)
+        if store_dir is None:
             return 0
-        count = 0
-        for file_path in store_dir.rglob("*"):
-            if not file_path.is_file():
-                continue
-            rel_path = file_path.relative_to(store_dir).as_posix()
-            if prefix and not rel_path.startswith(prefix):
-                continue
-            dest = local_dir / rel_path
-            if not dest.exists():
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(file_path), str(dest))
-                count += 1
-        return count
+        return self._copy_local_snapshot(
+            store_dir,
+            Path(local_session_dir),
+            prefix,
+        )
 
     async def sync_from_local(
         self, session_id: str, local_session_dir: str, prefix: str = ""
     ) -> int:
         """Copy files from local dir to store (no-op if they are the same path)."""
-        local_dir = Path(local_session_dir)
-        store_dir = self._session_dir(session_id)
-        if local_dir == store_dir:
+        return self._copy_local_snapshot(
+            Path(local_session_dir),
+            self._session_dir(session_id),
+            prefix,
+        )
+
+    @staticmethod
+    def _copy_local_snapshot(
+        source_dir: Path,
+        destination_dir: Path,
+        prefix: str,
+    ) -> int:
+        """Copy held regular files between descriptor-confined local roots."""
+
+        try:
+            with open_confined_directory(source_dir) as source_descriptor:
+                with open_confined_directory(
+                    destination_dir,
+                    create=True,
+                ) as destination_descriptor:
+                    source_identity = os.fstat(source_descriptor)
+                    destination_identity = os.fstat(destination_descriptor)
+                    if (
+                        source_identity.st_dev == destination_identity.st_dev
+                        and source_identity.st_ino == destination_identity.st_ino
+                    ):
+                        return 0
+                    count = 0
+                    for artifact in iter_open_regular_files(
+                        source_descriptor,
+                        prefix=prefix,
+                    ):
+                        if copy_open_file_to_confined(
+                            destination_descriptor,
+                            artifact.relative_key,
+                            artifact.stream,
+                            artifact.metadata,
+                            overwrite=False,
+                        ):
+                            count += 1
+                    return count
+        except FileNotFoundError:
             return 0
-        count = 0
-        for file_path in local_dir.rglob("*"):
-            if not file_path.is_file():
-                continue
-            rel_path = file_path.relative_to(local_dir).as_posix()
-            if prefix and not rel_path.startswith(prefix):
-                continue
-            dest = store_dir / rel_path
-            if not dest.exists():
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(file_path), str(dest))
-                count += 1
-        return count
 
     async def cleanup_stale_local_sessions(
-        self, local_storage_path: str, max_age_hours: float = 24.0
+        self,
+        local_storage_path: str,
+        max_age_hours: float = 24.0,
+        skip_session_ids: set[str] | None = None,
     ) -> int:
         """No-op for local storage - no remote sync needed.
 
         Args:
             local_storage_path: Root path where local sessions are stored
             max_age_hours: Maximum age in hours (ignored)
+            skip_session_ids: Session IDs to preserve (ignored)
 
         Returns:
             0 (no cleanup needed for local storage)

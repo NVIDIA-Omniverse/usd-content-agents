@@ -7,6 +7,9 @@ Use this as the default user path:
 - CPU host: material, physics, texture services.
 - GPU host: shared OVRTX rendering.
 - Hosted model APIs: VLM, LLM, image generation, embeddings.
+- The image-generation dependency can be shared by Texture Agent texture
+  generation, Material Agent-generated reference images, and Material Agent
+  generated material-library textures.
 
 This requires the least GPU management while still validating shared rendering.
 
@@ -33,7 +36,9 @@ Use this when the user wants every dependency hosted by the deployment strategy:
 
 - OVRTX on a GPU host.
 - VLM on A100/H100 or equivalent.
-- Texture image generation on a GPU host.
+- Image generation on a GPU host for Texture Agent texture generation,
+  Material Agent-generated reference images, and Material Agent-generated
+  material-library textures.
 - Optional LLM and embeddings on separate GPU hosts when resource pressure
   requires it.
 - Agents remain CPU-only.

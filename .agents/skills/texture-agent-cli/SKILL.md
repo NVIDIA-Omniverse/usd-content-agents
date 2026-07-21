@@ -14,7 +14,7 @@ tools:
   - Filesystem
   - Python
   - wu
-compatibility: Requires the texture-agent CLI, a repo Python environment, a USD asset with materials, provider credentials or a service endpoint for the selected image-generation backend, and a render endpoint only when preview/final rendering is enabled.
+compatibility: Requires the texture-agent CLI, a repo Python environment, a USD asset with materials, provider credentials or a service endpoint for the selected image-generation backend, and the runtime required by the selected preview/final renderer.
 ---
 
 # Texture Agent CLI
@@ -46,8 +46,11 @@ and other visual detail through per-material or per-prim texture generation.
   require a local GPU by itself.
 - `service` mode requires a reachable Texture Variation API-compatible
   endpoint.
-- Rendering previews or final images requires a render endpoint. For a local
-  OVRTX Docker sidecar, use `RENDER_ENDPOINT=http://localhost:8001`.
+- `texture.uv_projection` prepares mesh UVs; projection/reference-image texture
+  editing is selected separately with `texture.backend: "service"`.
+- Preview/final rendering supports `remote`, `ovrtx`, and `mock`. `remote`
+  requires a render endpoint, `ovrtx` requires its supported local RTX runtime,
+  and `mock` produces CPU-only placeholders that are not production evidence.
 
 ## Prerequisites
 
@@ -58,6 +61,7 @@ and other visual detail through per-material or per-prim texture generation.
   `NVIDIA_API_KEY` for NVIDIA-hosted NIM.
 - Set `RENDER_ENDPOINT` only when `render_previews` or `render` uses a remote
   render service.
+- Provision the local OVRTX runtime when either render step selects `ovrtx`.
 - Prepare a texture config YAML. The public reference config is
   `apps/texture_agent/configs/texture_example.yaml`.
 
@@ -112,7 +116,7 @@ texture-agent run <config.yaml> [OPTIONS]
 | `prepare_uvs` | Generate or normalize UVs for meshes that need them. |
 | `discover_materials` | Find OpenPBR materials and expand them to per-prim units when configured. |
 | `generate_prompts` | Generate missing material prompts when `auto_prompt.enabled` is true. |
-| `render_previews` | Render optional material preview images through the configured render service. |
+| `render_previews` | Render optional material preview images through the configured rendering backend. |
 | `generate_textures` | Generate albedo, normal, and roughness textures through the configured backend. |
 | `blend_textures` | Composite generated textures onto material base colors. |
 | `apply_textures` | Set texture files on USD materials, cloning materials for per-prim mode. |
@@ -148,6 +152,14 @@ material_textures:
       /World/Prim_Path:
         prompt: "heavier scratches on the front edge"
         opacity: 0.90
+
+steps:
+  render_previews:
+    enabled: true
+    backend: remote  # remote, ovrtx, or mock
+  render:
+    enabled: true
+    backend: remote  # remote, ovrtx, or mock
 ```
 
 For a remote texture service, use:
@@ -157,6 +169,45 @@ texture:
   backend: "service"
   endpoint: "http://host:port"
   workers: 1
+```
+
+For a projection/reference-image backend, keep UV preparation enabled and add
+the Texture Variation API fields under `texture`:
+
+```yaml
+texture:
+  backend: "service"
+  endpoint: "http://host:port"
+  engine: "YOUR_ENGINE_OR_MODEL"
+  size: 1024
+  workers: 1
+  seed: 11631
+  strength: 0.85
+  strict_scope: true
+  reference_image_uris:
+    - "file:///absolute/path/reference.png"
+  capabilities:
+    image_conditioning: true
+    multiview: false
+    normal_map: true
+    orm: true
+    masks: true
+    coverage: true
+    geometry_output: "none"
+  custom_parameters:
+    run_label: "manual-projection-run"
+  uv_policy: "generate_missing"
+  uv_projection: "box"
+
+material_textures:
+  Aluminum_Matte:
+    prompt: "matte aluminum with light scuffs"
+    opacity: 0.85
+    reference_image_uris:
+      - "file:///absolute/path/aluminum_detail.png"
+
+auto_prompt:
+  enabled: false
 ```
 
 ### Common Workflows
@@ -172,6 +223,17 @@ texture-agent run apps/texture_agent/configs/texture_example.yaml --skip render_
 texture-agent discover apps/texture_agent/configs/texture_example.yaml
 ```
 
+Run the deterministic issue #116 fake projection backend smoke from the repo
+root when checking CLI/service parity:
+
+```bash
+source .venv/bin/activate
+PYTHONPATH="$PWD:$PWD/apps/texture_agent:$PWD/apps/texture_agent_service" \
+  pytest --no-cov \
+    apps/texture_agent/tests/test_issue116_projection_backend_smoke.py \
+    apps/texture_agent_service/tests/unit/test_issue116_projection_backend_smoke.py
+```
+
 ### Modes and Backends
 
 - `per_material` mode creates one texture set per material and shares it across
@@ -179,6 +241,14 @@ texture-agent discover apps/texture_agent/configs/texture_example.yaml
 - `per_prim` mode clones materials so each prim can receive unique textures.
 - `simple_image_gen` calls the configured image-generation provider directly.
 - `service` calls a remote Texture Variation API-compatible service.
+- `steps.render_previews.backend` and `steps.render.backend` use the shared
+  Texture rendering subset: `remote`, `ovrtx`, or `mock`.
+- `remote` uses `RENDER_ENDPOINT`; `ovrtx` uses the local isolated renderer;
+  `mock` emits deterministic CPU placeholders and never production visual
+  evidence.
+- Projection/reference-image service runs send the UV-prepared USD, selected
+  material/prim target, prompt/reference conditioning, seed/strength, engine,
+  custom parameters, and capability hints to the backend.
 - Generated textures are blended onto the material base color at the configured
   opacity so untextured areas retain the original look.
 
@@ -212,6 +282,11 @@ wu render-usd <output_dir>/textured_output.usd -o after.png --focus /RootNode --
 | No materials discovered | The input USD has no suitable material bindings. | Run Material Agent first or point at a materialized USD. |
 | Image generation credential error | The configured image-generation backend has no key. | Set the required key locally or in `.env`; do not paste it into chat. |
 | Service backend is unreachable | `texture.endpoint` is missing or the service is down. | Check the endpoint URL and service health; reduce workers to 1 for fragile endpoints. |
-| Preview or final render fails | A render endpoint is required for render steps. | Set `RENDER_ENDPOINT` or disable `render_previews` and `render`. |
+| Projection backend rejects conditioning | Backend capability metadata says reference images or multi-view inputs are unsupported. | Retry with supported conditioning or choose a backend with the requested capability. |
+| Projection backend reports missing albedo | The required base-color map was not returned. | Treat the run as failed and inspect `artifacts_manifest.json` diagnostics. |
+| Optional normal or ORM maps are missing | Backend returned a degraded map set. | Texture Agent synthesizes neutral normal or packs ORM when possible and records degraded channels. |
+| Low target coverage is reported | Backend coverage metadata is below threshold for the selected material/prim. | Inspect mask/coverage artifacts and retry with clearer scope or references. |
+| Output is not portable | Texture references are absolute, remote, missing, or outside the output package. | Inspect manifest portability diagnostics and keep generated `output/` with `textures/`. |
+| Preview or final remote render fails | `RENDER_ENDPOINT` is missing or unreachable. | Set a compatible endpoint, select `ovrtx` with its local runtime, select `mock` for placeholder-only tests, or disable the render steps. |
 | Textures look too strong or too subtle | Opacity is mismatched to the desired effect. | Use 0.6-0.8 for moderate wear and 0.9+ for heavy damage. |
 | Per-prim changes affect multiple meshes | The config is still in `per_material` mode. | Set `texture.mode: "per_prim"` so materials are cloned per geometry prim. |

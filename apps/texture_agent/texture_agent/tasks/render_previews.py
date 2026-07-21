@@ -11,7 +11,12 @@ from typing import Any
 from pxr import Usd, UsdGeom, UsdShade
 from world_understanding.agentic.tasks import Task
 
+from texture_agent.config.rendering_backends import (
+    DEFAULT_TEXTURE_RENDERING_BACKEND,
+    validate_texture_rendering_backend,
+)
 from texture_agent.functions.material_discovery import MaterialInfo
+from texture_agent.tasks.render_results import render_result_items
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +33,17 @@ _TEMPLATE_CAMERA = "/Root/thumbnail_CAM"
 _TEMPLATE_SPHERE = "/Root/Sphere"
 
 
+def _render_result_items(results: Any) -> list[dict[str, Any]]:
+    """Normalize renderer results using the preview diagnostic contract."""
+    return render_result_items(results, producer="Rendering backend")
+
+
 class RenderMaterialPreviewsTask(Task):
     """Render each material on a sphere for visual reference.
 
     Composes a stage using the thumbnail template (sphere + camera + lights),
-    references each material from the input USD, and renders via the remote
-    rendering backend.
+    references each material from the input USD, and renders through the shared
+    rendering-backend contract.
 
     Context keys read:
         discovered_materials (list[MaterialInfo]): From DiscoverMaterialsTask.
@@ -73,11 +83,11 @@ class RenderMaterialPreviewsTask(Task):
             mat = UsdShade.Material(stage.GetPrimAtPath(mat_dest))
             binding_api.Bind(mat)
 
-        # Flatten for remote rendering.
+        # Flatten so every backend receives resolved composition arcs.
         flat_layer = stage.Flatten()
         flat_stage = Usd.Stage.Open(flat_layer)
 
-        # Convert custom MDL to built-in for remote renderer compatibility.
+        # Convert custom MDL to built-in for renderer compatibility.
         try:
             from world_understanding.utils.usd.material import (
                 convert_custom_mdl_to_builtin,
@@ -90,9 +100,24 @@ class RenderMaterialPreviewsTask(Task):
         return flat_stage
 
     def run(self, context: dict[str, Any], object_store: Any = None) -> dict[str, Any]:
-        materials: list[MaterialInfo] = context["discovered_materials"]
-        usd_path: str = context["usd_path"]
+        scoped_materials = context.get("texture_plan_scoped_materials")
+        materials: list[MaterialInfo]
+        if scoped_materials is None:
+            materials = context["discovered_materials"]
+        else:
+            materials = scoped_materials
         config: dict = context.get("render_preview_config", {})
+        backend_type = validate_texture_rendering_backend(
+            config.get("backend", DEFAULT_TEXTURE_RENDERING_BACKEND),
+            step_name="render_previews",
+        )
+
+        if not materials:
+            logger.info("No scoped materials to preview")
+            context["material_previews"] = {}
+            return context
+
+        usd_path: str = context["usd_path"]
         working_dir = Path(context["working_dir"])
 
         template = config.get("template_scene")
@@ -112,12 +137,15 @@ class RenderMaterialPreviewsTask(Task):
         image_width = config.get("image_width", 512)
         image_height = config.get("image_height", image_width)
 
+        from world_understanding.functions.graphics.rendering_backend_factory import (
+            create_rendering_backend,
+        )
+
+        rendering_backend = create_rendering_backend(backend_type, config)
+        logger.info("Using %s rendering backend for material previews", backend_type)
+
         out_dir = working_dir / "previews"
         out_dir.mkdir(parents=True, exist_ok=True)
-
-        from world_understanding.functions.graphics.render_remote import (
-            render_all_cameras,
-        )
 
         previews: dict[str, str] = {}
 
@@ -126,14 +154,21 @@ class RenderMaterialPreviewsTask(Task):
             try:
                 flat_stage = self._compose_preview_stage(template_path, usd_path, mat)
 
-                results = render_all_cameras(
+                render_result = rendering_backend.render(
                     stage=flat_stage,
                     image_width=image_width,
                     image_height=image_height,
-                    camera_paths=[_TEMPLATE_CAMERA],
+                    cameras=[_TEMPLATE_CAMERA],
+                    base_dir=Path(usd_path).parent,
+                    render_slot_timeout_sec=config.get("render_slot_timeout_sec"),
                 )
+                results = _render_result_items(render_result)
 
-                if results and results[0].get("images"):
+                if (
+                    results
+                    and results[0].get("images")
+                    and str(results[0].get("status", "success")) == "success"
+                ):
                     out_path = out_dir / f"{mat.name}_preview.png"
                     results[0]["images"][0].save(str(out_path))
                     previews[mat.name] = str(out_path)

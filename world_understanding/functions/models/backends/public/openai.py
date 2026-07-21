@@ -123,5 +123,9 @@ def create_openai_image_gen(api_key: str | None = None, **kwargs: Any) -> Any:
 
 
 register_chat_backend("openai", create_openai_chat)
-register_vlm_backend("openai", create_openai_vlm)
+register_vlm_backend(
+    "openai",
+    create_openai_vlm,
+    capabilities=frozenset({"reasoning_effort"}),
+)
 register_image_gen_backend("openai", create_openai_image_gen)

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Mock rendering backend for simulate mode.
 
-Generates solid-color PIL images instantly, with no network calls or GPU.
+Generates deterministic PIL images instantly, with no network calls or GPU.
 """
 
 from __future__ import annotations
@@ -12,15 +12,16 @@ import time
 from typing import Any
 
 from PIL import Image as PILImage
+from PIL import ImageDraw
 
 from world_understanding.functions.graphics.rendering import RenderingBackend
 
 
 class MockRenderingBackend(RenderingBackend):
-    """Rendering backend that produces deterministic solid-color images.
+    """Rendering backend that produces deterministic nonblank images.
 
-    Each camera gets a slightly different colored dot at the centre for
-    visual distinction.  Useful for ``--simulate`` pipeline runs.
+    Each camera gets a slightly different colored pattern for visual distinction.
+    Useful for ``--simulate`` pipeline runs.
     """
 
     def supports_sensors(self) -> bool:
@@ -55,16 +56,8 @@ class MockRenderingBackend(RenderingBackend):
         for cam in cameras:
             images = []
             for frame_idx in range(num_frames):
-                img = PILImage.new(
-                    "RGBA", (image_width, image_height), color=(180, 180, 180, 255)
-                )
-                # Draw a small coloured dot for visual distinction
                 dot_color = self._camera_color(f"{cam}_{frame_idx}")
-                cx, cy = image_width // 2, image_height // 2
-                for dx in range(-4, 5):
-                    for dy in range(-4, 5):
-                        if dx * dx + dy * dy <= 16:
-                            img.putpixel((cx + dx, cy + dy), dot_color)
+                img = self._mock_image(image_width, image_height, dot_color)
                 images.append(img)
 
             results.append(
@@ -121,3 +114,39 @@ class MockRenderingBackend(RenderingBackend):
     def _camera_color(cam_name: str) -> tuple[int, int, int]:
         h = int(hashlib.blake2s(cam_name.encode(), digest_size=16).hexdigest(), 16)
         return (h % 200 + 55, (h >> 8) % 200 + 55, (h >> 16) % 200 + 55)
+
+    @staticmethod
+    def _mock_image(
+        image_width: int,
+        image_height: int,
+        accent_color: tuple[int, int, int],
+    ) -> PILImage.Image:
+        """Create a deterministic image with enough contrast for validation."""
+        image = PILImage.new(
+            "RGBA",
+            (image_width, image_height),
+            color=(180, 180, 180, 255),
+        )
+        draw = ImageDraw.Draw(image)
+        band_height = max(1, image_height // 4)
+        colors = (
+            (72, 72, 72, 255),
+            (*accent_color, 255),
+            (220, 220, 220, 255),
+            (120, 120, 120, 255),
+        )
+        for index, y0 in enumerate(range(0, image_height, band_height)):
+            draw.rectangle(
+                (0, y0, image_width, min(image_height, y0 + band_height)),
+                fill=colors[index % len(colors)],
+            )
+
+        cx, cy = image_width // 2, image_height // 2
+        radius = max(4, min(image_width, image_height) // 12)
+        draw.ellipse(
+            (cx - radius, cy - radius, cx + radius, cy + radius),
+            fill=(*accent_color, 255),
+        )
+        draw.line((0, 0, image_width, image_height), fill=(255, 255, 255, 255), width=2)
+        draw.line((0, image_height, image_width, 0), fill=(30, 30, 30, 255), width=2)
+        return image

@@ -158,11 +158,13 @@ services:
       # disable that timeout while actively debugging.
       - OVRTX_DAEMON_START_TIMEOUT=${OVRTX_DAEMON_START_TIMEOUT:-600}
       - OVRTX_DAEMON_RENDER_TIMEOUT=${OVRTX_DAEMON_RENDER_TIMEOUT:-1800}
+      - OVRTX_DAEMON_MAX_RENDERS=${OVRTX_DAEMON_MAX_RENDERS:-64}
+      - OVRTX_DAEMON_MAX_RSS_BYTES=${OVRTX_DAEMON_MAX_RSS_BYTES:-25769803776}
       # Optional HDRI override for the default DomeLight. Empty =>
-      # _ensure_lights binds ovrtx's packaged StinsonBeach HDRI at
-      # intensity=600. Set to an absolute path to swap in a different
-      # .exr/.hdr, and tune intensity accordingly. Custom HDRI overrides
-      # default to intensity=1.0 unless explicitly configured.
+      # _ensure_lights binds the bundled studio.exr at intensity=600.
+      # Set to an absolute path to swap in a different .exr/.hdr, and
+      # tune intensity accordingly. Custom HDRI overrides default to
+      # intensity=1.0 unless explicitly configured.
       - WU_OVRTX_DEFAULT_HDRI=${WU_OVRTX_DEFAULT_HDRI:-}
       - WU_OVRTX_DEFAULT_HDRI_INTENSITY=${WU_OVRTX_DEFAULT_HDRI_INTENSITY:-}
       # Debug hook — when set, the daemon dumps the combined USDA

@@ -137,7 +137,7 @@ def test_identify_asset_honors_physics_vlm_nim_env_aliases(
     context = {
         "vlm_config": {
             "backend": "openai",
-            "model": "gpt-4o",
+            "model": "example-vlm-model",
             "api_key": "sk-real-openai-key",
             "base_url": "https://api.openai.com/v1",
         },
@@ -149,7 +149,7 @@ def test_identify_asset_honors_physics_vlm_nim_env_aliases(
     assert captured == {
         "backend": "nim",
         "kwargs": {
-            "model": "gpt-4o",
+            "model": "example-vlm-model",
             "base_url": "http://physics-vlm-nim:8000/v1",
             "api_key": "not-used",
         },
@@ -180,6 +180,40 @@ def test_identify_asset_replaces_placeholder_config_key_with_env_key(
             "backend": "nim",
             "model": "model-test",
             "api_key": "YOUR_NVIDIA_API_KEY",
+        },
+        "output_dir": str(tmp_path),
+    }
+
+    IdentifyAssetTask().run(context)
+
+    assert captured == {
+        "backend": "nim",
+        "kwargs": {"model": "model-test", "api_key": "real-nvidia-key"},
+    }
+    assert context["identification"]["asset_type"] == "unknown"
+
+
+def test_identify_asset_accepts_vlm_config_from_vlm_key(
+    monkeypatch,
+    tmp_path,
+):
+    captured: dict[str, Any] = {}
+
+    def fake_create_vlm(actual_backend: str, **kwargs: Any) -> _FakeVLM:
+        captured["backend"] = actual_backend
+        captured["kwargs"] = kwargs
+        return _FakeVLM()
+
+    monkeypatch.setenv("NVIDIA_API_KEY", "real-nvidia-key")
+    monkeypatch.setattr(
+        "world_understanding.functions.models.vision_language_models.create_vlm",
+        fake_create_vlm,
+    )
+
+    context = {
+        "vlm": {
+            "backend": "nim",
+            "model": "model-test",
         },
         "output_dir": str(tmp_path),
     }
@@ -235,3 +269,14 @@ def test_identify_asset_parser_skips_reasoning_json_before_answer(task_cls):
 
     assert result["asset_type"] == "robot"
     assert result["asset_subtype"] == "arm"
+
+
+@pytest.mark.skipif(
+    JointIdentifyAssetTask is None,
+    reason="Joint Agent is excluded from this public release",
+)
+def test_joint_identify_asset_parser_defaults_missing_subtype():
+    result = JointIdentifyAssetTask()._parse_identification('{"asset_type": "robot"}')
+
+    assert result["asset_type"] == "robot"
+    assert result["asset_subtype"] == "unknown"

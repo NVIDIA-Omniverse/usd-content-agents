@@ -10,14 +10,31 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
+from world_understanding.agentic.config import (
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    path_exists_with_safe_diagnostics,
+    read_text_with_safe_diagnostics,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 
 from material_agent.api.defaults import (
     ITERATION_DEFAULTS,
     PREDICT_DEFAULTS,
     apply_defaults,
+)
+from material_agent.materials import (
+    material_entries_with_fallback,
+    material_mapping_with_fallback,
+)
+from material_agent.tasks.config_loader import (
+    load_config_from_context,
+    resolve_config_relative_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,7 +52,7 @@ class IterativeApplyConfigTask(Task):
         """Load iterative apply configuration.
 
         Args:
-            context: Workflow context containing config_path
+            context: Workflow context containing config_dict or config_path
             object_store: Optional object store (not used)
 
         Returns:
@@ -44,22 +61,18 @@ class IterativeApplyConfigTask(Task):
         # Get event listener (or logger fallback)
         listener = get_listener(context, logger_name=__name__)
 
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path not provided in context")
+        config, config_path = load_config_from_context(context)
+        log_config_source(context, listener.info, label="iterative apply")
 
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        listener.info(f"Loading iterative apply configuration from {config_path}")
-
-        # Load YAML configuration
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config:
-            raise ValueError("Configuration file is empty")
+        # Normalize the compatibility workflow's complete path contract while
+        # the source anchor is available.  ``load_config_from_context`` returns
+        # an isolated copy, so the caller-owned dictionary remains unchanged.
+        for field in ("input_usd_path", "output_usd_path", "dataset"):
+            if config.get(field):
+                config[field] = resolve_config_relative_path(
+                    config[field],
+                    config_path,
+                )
 
         # Pass through the config
         context["config"] = config
@@ -82,6 +95,14 @@ class IterativeApplyConfigTask(Task):
             "iterations_dir"
         )
         if iterations_dir:
+            iterations_dir = resolve_config_relative_path(
+                iterations_dir,
+                config_path,
+            )
+            if iteration_config.get("intermediate_dir"):
+                iteration_config["intermediate_dir"] = iterations_dir
+            else:
+                config["iterations_dir"] = iterations_dir
             context["intermediate_output_dir"] = iterations_dir
             context["iterations_dir"] = (
                 iterations_dir  # Keep for backward compatibility
@@ -89,6 +110,11 @@ class IterativeApplyConfigTask(Task):
 
         # Extract settings from nested predict config with defaults applied
         predict_config = config.get("predict", {})
+        if predict_config.get("system_prompt_file"):
+            predict_config["system_prompt_file"] = resolve_config_relative_path(
+                predict_config["system_prompt_file"],
+                config_path,
+            )
         predict_config_with_defaults = apply_defaults(predict_config, PREDICT_DEFAULTS)
 
         context["vlm_config"] = predict_config_with_defaults.get("vlm", {})
@@ -118,14 +144,22 @@ class IterativeApplyConfigTask(Task):
         if system_prompt_file and not system_prompt:
             # Load from file
             system_prompt_path = Path(system_prompt_file)
-            if system_prompt_path.exists():
-                with open(system_prompt_path, encoding="utf-8") as f:
-                    system_prompt = f.read()
-                listener.info(f"Loaded system prompt from: {system_prompt_path}")
+            if path_exists_with_safe_diagnostics(
+                system_prompt_path,
+                label="system prompt file",
+            ):
+                system_prompt = read_text_with_safe_diagnostics(
+                    system_prompt_path,
+                    label="system prompt file",
+                )
+                listener.info(
+                    "Loaded system prompt from: "
+                    f"{redact_sensitive_path(system_prompt_path)}"
+                )
             else:
                 listener.warning(
-                    f"System prompt file not found: {system_prompt_path}, "
-                    "will use default"
+                    "System prompt file not found: "
+                    f"{redact_sensitive_path(system_prompt_path)}, will use default"
                 )
 
         # Store system prompt in both locations for compatibility
@@ -183,6 +217,12 @@ class IterativeApplyConfigTask(Task):
 
         # Extract judge settings with defaults applied
         judge_config = config.get("judge", {})
+        reference_images = judge_config.get("reference_images", [])
+        if isinstance(reference_images, list):
+            judge_config["reference_images"] = [
+                resolve_config_relative_path(reference_image, config_path)
+                for reference_image in reference_images
+            ]
         judge_config_with_defaults = apply_defaults(
             judge_config, ITERATION_DEFAULTS["judge"]
         )
@@ -228,18 +268,35 @@ class IterativeApplyConfigTask(Task):
             materials_yaml_path = Path(materials_path)
             if not materials_yaml_path.is_absolute():
                 materials_yaml_path = config_dir / materials_yaml_path
-            if materials_yaml_path.exists():
-                listener.info(f"Loading materials from: {materials_yaml_path}")
-                with open(materials_yaml_path, encoding="utf-8") as f:
-                    materials_config = yaml.safe_load(f) or {}
+            if path_exists_with_safe_diagnostics(
+                materials_yaml_path,
+                label="materials configuration",
+            ):
+                listener.info("Loading materials from file")
+                materials_config, _ = load_config_mapping_from_context(
+                    {"config_path": materials_yaml_path},
+                    allow_empty=True,
+                    parse_error_message=(
+                        "Unable to parse materials configuration: {config_path}"
+                    ),
+                    file_non_mapping_message=(
+                        "Materials configuration must contain a mapping, got "
+                        "{type_name}"
+                    ),
+                )
                 # Resolve library_path relative to the materials YAML
-                if "library_path" in materials_config:
+                if materials_config.get("library_path"):
                     lib_path = Path(materials_config["library_path"])
                     if not lib_path.is_absolute():
                         lib_path = materials_yaml_path.parent / lib_path
-                    materials_config["library_path"] = str(lib_path.resolve())
+                    materials_config["library_path"] = str(
+                        resolve_path_with_safe_diagnostics(
+                            lib_path,
+                            label="material library path",
+                        )
+                    )
             else:
-                listener.warning(f"Materials file not found: {materials_yaml_path}")
+                listener.warning("Materials file not found")
                 return {}
 
         # Convert library_path + entries into materials_mapping dict
@@ -253,11 +310,12 @@ class IterativeApplyConfigTask(Task):
             library_path = str(config_dir / library_path)
 
         mapping: dict[str, str] = {"material_library_path": library_path}
-        for entry in entries:
+        for entry in material_entries_with_fallback(entries):
             name = entry.get("name", "")
             binding = entry.get("binding", "")
             if name and binding:
                 mapping[name] = binding
+        mapping = material_mapping_with_fallback(mapping)
 
         listener.info(
             f"Loaded {len(mapping) - 1} materials from library: "

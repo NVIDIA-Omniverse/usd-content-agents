@@ -14,13 +14,11 @@ from world_understanding.utils.credentials import (
     get_llm_nim_env_base_url_override,
     get_nim_api_key_for_base_url,
     get_openai_api_key_for_base_url,
+    resolve_endpoint_api_key,
 )
 
 # Default configurations
 _DEFAULT_NIM_MODEL = "qwen/qwen3.5-397b-a17b"
-_DEFAULT_PERFLAB_AZURE_OPENAI_MODEL = "gpt-5"
-_DEFAULT_PERFLAB_AZURE_OPENAI_API_VERSION = "2025-03-01-preview"
-_DEFAULT_TIMEOUT_SECONDS = 120.0
 
 
 class EchoChatModel(BaseChatModel):
@@ -87,48 +85,18 @@ def create_nim_chat_model(
 ) -> BaseChatModel:
     """Create NVIDIA NIM chat model.
 
-    Convenience wrapper that delegates to the NIM backend.
+    Compatibility wrapper around the canonical public NIM implementation.
+
+    Runtime backend selection belongs to :func:`create_chat_model`. Delegating
+    directly here keeps this historically registrable wrapper from resolving
+    itself recursively when installed as the ``nim`` factory.
     """
-    import world_understanding.functions.models.backends  # noqa: F401
-    from world_understanding.functions.models.backends.registry import (
-        get_chat_factory,
+    from world_understanding.functions.models.backends.public.nim import (
+        create_nim_chat,
     )
 
-    factory = get_chat_factory("nim")
-    return factory(
+    return create_nim_chat(
         api_key=api_key,
-        model=model,
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-        streaming=streaming,
-        **kwargs,
-    )
-
-
-def create_perflab_azure_openai_chat_model(
-    api_key: str,
-    api_version: str = "2025-03-01-preview",
-    model: str = _DEFAULT_PERFLAB_AZURE_OPENAI_MODEL,
-    temperature: float | None = None,
-    top_p: float | None = None,
-    max_tokens: int | None = None,
-    streaming: bool = False,
-    **kwargs: Any,
-) -> BaseChatModel:
-    """Create Azure OpenAI chat model via Perflab proxy.
-
-    Convenience wrapper that delegates to the perflab_azure_openai backend.
-    """
-    import world_understanding.functions.models.backends  # noqa: F401
-    from world_understanding.functions.models.backends.registry import (
-        get_chat_factory,
-    )
-
-    factory = get_chat_factory("perflab_azure_openai")
-    return factory(
-        api_key=api_key,
-        api_version=api_version,
         model=model,
         temperature=temperature,
         top_p=top_p,
@@ -152,10 +120,8 @@ def create_chat_model(
 ) -> BaseChatModel:
     """Create a chat model for the specified backend.
 
-    Available backends depend on the installation. Public backends (nim, echo)
-    are always available. Internal backends (perflab_azure_openai,
-    llmgateway_azure_openai, llmgateway_aws_anthropic) are available in
-    internal builds only.
+    Available backends depend on the installation. Public providers are always
+    available and optional packages contribute factories through entry points.
 
     Args:
         backend: Backend name (use ``list_chat_backends()`` to see available)
@@ -243,14 +209,30 @@ def create_chat_model_from_config(
         "max_tokens": max_tokens,
     }
 
-    # Echo and mock backends need no credentials
-    if backend in ("echo", "mock"):
-        pass
-    # llmgateway backends use OAuth, not API keys
-    elif "llmgateway" in backend and llm_config.get("llmgateway"):
-        kwargs["llmgateway"] = llm_config["llmgateway"]
-    else:
-        explicit_api_key = llm_config.get("api_key")
+    reserved_keys = {
+        "api_key",
+        "api_key_env",
+        "backend",
+        "base_url",
+        "max_tokens",
+        "model",
+        "temperature",
+        "timeout",
+    }
+    kwargs.update(
+        {key: value for key, value in llm_config.items() if key not in reserved_keys}
+    )
+
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        chat_backend_requires_api_key,
+    )
+
+    if chat_backend_requires_api_key(backend):
+        explicit_api_key = resolve_endpoint_api_key(
+            llm_config.get("api_key"),
+            llm_config.get("api_key_env"),
+        )
         if backend == "nim":
             api_key = get_nim_api_key_for_base_url(base_url, explicit_api_key)
         elif backend == "openai":
@@ -268,7 +250,7 @@ def create_chat_model_from_config(
     # Pass through base_url for custom OpenAI-compatible endpoints
     if base_url:
         kwargs["base_url"] = base_url
-    if timeout is not None and backend == "nim":
+    if timeout is not None:
         kwargs["timeout"] = timeout
 
     return create_chat_model(**kwargs)

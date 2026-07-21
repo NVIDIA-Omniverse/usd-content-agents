@@ -317,6 +317,38 @@ class TestBuildTextVectorStore:
         """Create a mock embedding model."""
         return MockTextEmbeddingModel(api_key="dummy", embedding_dimension=384)
 
+    def test_build_creates_embedding_model_from_api_key(self, monkeypatch):
+        """Test default embedding model creation when an API key is configured."""
+        monkeypatch.setenv("NVIDIA_API_KEY", "test-api-key")
+        mock_model = MockTextEmbeddingModel(
+            api_key="test-api-key", embedding_dimension=256
+        )
+        expected_store = object()
+        captured_kwargs = {}
+
+        def create_model(**kwargs):
+            captured_kwargs["factory"] = kwargs
+            return mock_model
+
+        def build_store(**kwargs):
+            captured_kwargs["build"] = kwargs
+            return expected_store
+
+        monkeypatch.setattr(
+            "world_understanding.functions.knowledge.text_vector_store.create_text_embedding_model",
+            create_model,
+        )
+        monkeypatch.setattr(TextVectorStore, "build_vector_store", build_store)
+
+        vector_store = build_text_vector_store(text_source=["hello"])
+
+        assert vector_store is expected_store
+        assert captured_kwargs["factory"] == {
+            "backend": "nim",
+            "api_key": "test-api-key",
+        }
+        assert captured_kwargs["build"]["embedding_model"] is mock_model
+
     def test_build_from_list(self, mock_embedding_model):
         """Test building vector store from list of texts."""
         texts = ["Text 1", "Text 2", "Text 3"]

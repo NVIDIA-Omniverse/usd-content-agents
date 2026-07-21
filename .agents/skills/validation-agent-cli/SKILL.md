@@ -34,8 +34,10 @@ plan, and result JSON.
 - Use when the user needs the structured Validation Agent artifacts:
   `validation_request.json`, `validation_plan.json`, and
   `validation_result.json`.
+- Use `joint-agent-validation` instead when the user explicitly asks for Joint
+  Agent Gate 3A Isaac Sim Asset Validator or Gate 3B SimReady Foundation runs.
 - Use a future service/deploy skill instead if product scope adds REST,
-  OpenAPI, or hosted service surfaces. Validation Agent V1 for release 0.4 is
+  OpenAPI, or hosted service surfaces. Validation Agent V1 for release 0.5 is
   Research Preview and CLI/Python-contract only.
 
 ## Limitations
@@ -44,6 +46,8 @@ plan, and result JSON.
   their local environment or repo-root `.env`; never ask them to paste keys.
 - Validation Agent V1 Research Preview does not run a REST service, publish an
   OpenAPI surface, or host a deployment endpoint.
+- Validation Agent templates are not the Joint Agent Gate 3A/3B validator
+  profiles. Route those requests to `joint-agent-validation`.
 - `physical_behavior` consumes existing rollout, video, simulation, or Physics
   Agent refine evidence; it does not run simulation or tune/refine loops.
 - Live `look_right` judging needs a configured VLM or final-judge policy.
@@ -64,8 +68,11 @@ uv pip install -e apps/validation_agent
 ```
 
 - Confirm `validation-agent` is on `PATH`.
-- For remote or NVCF-compatible rendering, set either `RENDER_ENDPOINT` for an
-  OVRTX-compatible service or `NVCF_RENDER_FUNCTION_ID` plus `NGC_API_KEY`.
+- Choose `--render-backend remote` for a REST renderer or
+  `--render-backend ovrtx` for local isolated OVRTX rendering. For `remote`, set
+  either `RENDER_ENDPOINT` for an OVRTX-compatible service or
+  `NVCF_RENDER_FUNCTION_ID` plus `NGC_API_KEY`. Local `ovrtx` requires a
+  supported Linux RTX GPU runtime and no REST endpoint.
 - For live `look_right`, configure `policy.look_right_vlm` or
   `policy.look_right_llm_judge` in the request config and set the selected
   provider credential locally.
@@ -136,7 +143,7 @@ are treated as current asset or render evidence.
 
 | Template | Use For | Dependency Notes |
 |---|---|---|
-| `render_valid` | Render evidence preflight and artifact detection. | USD visual checks may need `RENDER_ENDPOINT` or NVCF renderer env vars. |
+| `render_valid` | Render evidence preflight and artifact detection. | Supports `remote` REST rendering and local `ovrtx`; other shared backends report structured unavailability. |
 | `look_right` | Prompt/reference visual validation over current and reference evidence. | Needs visual evidence plus live VLM/final-judge config or a precomputed response. |
 | `physics_sane` | Deterministic USD physics authoring sanity checks. | Runs locally from USD physics schemas; no VLM required. |
 | `physical_behavior` | Evidence-backed behavior validation from existing rollout, video, simulation, or refine artifacts. | Consumes existing evidence and can pass, warn, fail, refine, or skip. |
@@ -190,7 +197,8 @@ Report these items after a run or handoff:
 | `validation-agent` is not found | The app package is not installed in the active environment. | Run `uv pip install -e . -e apps/validation_agent` from the repo root. |
 | Config-relative files are missing | Paths inside CONFIG resolve from the config file directory. | Rewrite paths relative to CONFIG or make them absolute. |
 | Direct reference image is ignored | Reference evidence was passed as a positional input. | Use `--reference-image`; positional images are current evidence. |
-| Renderer unavailable | No compatible render endpoint or NVCF renderer env is configured. | Set `RENDER_ENDPOINT` or the required NVCF env vars, or run non-visual templates. |
+| Renderer unavailable | The selected canonical backend is unsupported by Validation Agent, or its runtime dependency is unavailable. | Use `remote` with `RENDER_ENDPOINT`, use local `ovrtx` on a supported Linux RTX host, or run non-visual templates. |
+| `render.backend_unknown` | The configured name is not part of the shared USD rendering contract. | Choose `remote` or `ovrtx`; do not treat the failed result as missing infrastructure. |
 | `look_right` skips or reports judge unavailable | No live VLM/final-judge config or provider credential is available. | Use config-driven `run` with `policy.look_right_vlm` or `policy.look_right_llm_judge` and local credentials. |
 | Warning verdict exits 0 | Warnings are non-blocking by default. | Add `--fail-on-warn` for CI gates that should fail on `warn`. |
 | `physical_behavior` skips | Existing behavior, video, rollout, simulation, or refine evidence is missing. | Provide `physical_behavior_evidence`, sampled frames, rollout USD/video, or a Physics Agent refine summary/output dir in policy. |

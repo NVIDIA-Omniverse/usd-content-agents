@@ -12,9 +12,12 @@ import json
 import logging
 import os
 import stat
+import sys
 import tempfile
+import types
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -23,8 +26,12 @@ import pytest
 from material_agent.scene import harmonize as harmonize_module
 from material_agent.scene.collect import _extract_material_name
 from material_agent.scene.harmonize import (
+    _compute_geometry_fingerprint_map,
+    _compute_geometry_fingerprints,
+    _constrain_name_groups_by_geometry,
     _find_best_predictions,
     _find_conflicts,
+    _fingerprint_prim,
     _group_by_name_template,
     _group_by_signature,
     _load_predictions,
@@ -32,9 +39,12 @@ from material_agent.scene.harmonize import (
     _merge_groups,
     _name_template,
     _resolve_conflicts,
+    _resolve_single_group,
     apply_prim_remap,
     build_segment_frequency,
     compute_signature,
+    harmonize_asset_predictions,
+    harmonize_scene_predictions,
     is_part_number,
     normalize_segment,
 )
@@ -298,6 +308,66 @@ class TestGroupByNameTemplate:
         # Column1 produces a template but it's the only member — filtered out
         assert groups == {}
 
+    def test_constrains_generic_name_groups_by_geometry(self):
+        preds = [
+            _pred("/Root/Bench/node100/mesh1", "Aluminum"),
+            _pred("/Root/Bench/node101/mesh2", "Aluminum"),
+            _pred("/Root/Bench/node102/mesh3", "Plastic"),
+        ]
+        groups = _group_by_name_template(preds)
+
+        constrained = _constrain_name_groups_by_geometry(
+            groups,
+            preds,
+            {
+                "/Root/Bench/node100/mesh1": "leg-fp",
+                "/Root/Bench/node101/mesh2": "leg-fp",
+                "/Root/Bench/node102/mesh3": "top-fp",
+            },
+        )
+
+        assert len(constrained) == 1
+        assert next(iter(constrained.values())) == [0, 1]
+
+    def test_constrains_generic_name_groups_keeps_missing_members_separate(self):
+        preds = [
+            _pred("/Root/Bench/node100/mesh1", "Aluminum"),
+            _pred("/Root/Bench/node101/mesh2", "Aluminum"),
+            _pred("/Root/Bench/node102/mesh3", "Plastic"),
+            _pred("/Root/Bench/node103/mesh4", "Plastic"),
+        ]
+        groups = _group_by_name_template(preds)
+
+        constrained = _constrain_name_groups_by_geometry(
+            groups,
+            preds,
+            {
+                "/Root/Bench/node100/mesh1": "leg-fp",
+                "/Root/Bench/node101/mesh2": "leg-fp",
+            },
+        )
+
+        assert sorted(constrained.values()) == [[0, 1], [2, 3]]
+
+    def test_constrains_generic_name_groups_keeps_single_missing_member(self):
+        preds = [
+            _pred("/Root/Bench/node100/mesh1", "Aluminum"),
+            _pred("/Root/Bench/node101/mesh2", "Aluminum"),
+            _pred("/Root/Bench/node102/mesh3", "Plastic"),
+        ]
+        groups = _group_by_name_template(preds)
+
+        constrained = _constrain_name_groups_by_geometry(
+            groups,
+            preds,
+            {
+                "/Root/Bench/node100/mesh1": "leg-fp",
+                "/Root/Bench/node101/mesh2": "leg-fp",
+            },
+        )
+
+        assert sorted(constrained.values()) == [[0, 1], [2]]
+
 
 class TestGroupBySignature:
     def test_groups_rare_part_numbers(self):
@@ -323,6 +393,268 @@ class TestGroupBySignature:
     def test_empty_predictions(self):
         assert _group_by_signature([]) == {}
 
+    def test_plain_instance_suffix_uses_known_base_for_signature(self):
+        paths = [
+            "/Root/GB300_DGX_FULL_ASM_0412/mesh",
+            "/Root/GB300_DGX_FULL_ASM_0412_1/mesh",
+        ]
+        known_bases = harmonize_module._collect_known_bases(paths)
+        freq = build_segment_frequency(paths, known_bases)
+
+        sig = compute_signature(
+            paths[1],
+            freq,
+            total_prims=100,
+            known_bases=known_bases,
+        )
+
+        assert sig == ("GB300_DGX_FULL_ASM_0412",)
+
+    def test_group_by_signature_appends_matching_members(self):
+        preds = [
+            _pred("/Root/PART1234_ALPHA/mesh_U5B_0_U5D_/mesh", "Steel"),
+            _pred("/Root/PART1234_ALPHA/mesh_U5B_0_U5D_/mesh", "Plastic"),
+        ]
+
+        groups = _group_by_signature(
+            preds,
+            min_signature_len=1,
+            max_freq_ratio=1.1,
+        )
+
+        assert list(groups.values()) == [[0, 1]]
+
+
+def _install_fake_pxr(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    usd: types.ModuleType | None = None,
+    usdgeom: types.ModuleType | None = None,
+) -> None:
+    pxr_mod = types.ModuleType("pxr")
+    if usd is not None:
+        pxr_mod.Usd = usd  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "pxr.Usd", usd)
+    if usdgeom is not None:
+        pxr_mod.UsdGeom = usdgeom  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "pxr.UsdGeom", usdgeom)
+    monkeypatch.setitem(sys.modules, "pxr", pxr_mod)
+
+
+class TestGeometryFingerprints:
+    def test_compute_geometry_fingerprints_groups_matching_fingerprints(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        preds = [_pred("/a", "Steel"), _pred("/b", "Plastic")]
+        monkeypatch.setattr(
+            harmonize_module,
+            "_compute_geometry_fingerprint_map",
+            lambda predictions, _path: {p["id"]: "same-fp" for p in predictions},
+        )
+
+        groups = _compute_geometry_fingerprints(preds, "asset.usd")
+
+        assert groups == {"geo:same-fp": [0, 1]}
+
+    def test_compute_geometry_fingerprint_map_skips_when_pxr_unavailable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        monkeypatch.setitem(sys.modules, "pxr", None)
+
+        result = _compute_geometry_fingerprint_map(
+            [_pred("/Root/Mesh", "Steel")],
+            str(tmp_path / "asset.usd"),
+        )
+
+        assert result == {}
+
+    def test_compute_geometry_fingerprint_map_skips_missing_usd(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        usd_mod = types.ModuleType("pxr.Usd")
+        usd_mod.Stage = SimpleNamespace(Open=lambda _path: None)  # type: ignore[attr-defined]
+        _install_fake_pxr(monkeypatch, usd=usd_mod)
+
+        result = _compute_geometry_fingerprint_map(
+            [_pred("/Root/Mesh", "Steel")],
+            str(tmp_path / "missing.usd"),
+        )
+
+        assert result == {}
+
+    def test_compute_geometry_fingerprint_map_skips_unopenable_stage(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        usd_path = tmp_path / "asset.usd"
+        usd_path.write_text("#usda 1.0\n")
+        usd_mod = types.ModuleType("pxr.Usd")
+        usd_mod.Stage = SimpleNamespace(Open=lambda _path: None)  # type: ignore[attr-defined]
+        _install_fake_pxr(monkeypatch, usd=usd_mod)
+
+        result = _compute_geometry_fingerprint_map(
+            [_pred("/Root/Mesh", "Steel")],
+            str(usd_path),
+        )
+
+        assert result == {}
+
+    def test_compute_geometry_fingerprint_map_uses_parent_fallback(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        class FakePrim:
+            def __init__(self, valid: bool, fp: str | None = None):
+                self.valid = valid
+                self.fp = fp
+
+            def IsValid(self) -> bool:
+                return self.valid
+
+        invalid = FakePrim(False)
+        parent = FakePrim(True, "parent-fp")
+        no_fingerprint = FakePrim(True, None)
+
+        class FakeStage:
+            def GetPrimAtPath(self, path: str) -> FakePrim | None:
+                return {
+                    "/Root/Part/Mesh": invalid,
+                    "/Root/Part": parent,
+                    "/Root/NoFingerprint": no_fingerprint,
+                }.get(path)
+
+        usd_path = tmp_path / "asset.usd"
+        usd_path.write_text("#usda 1.0\n")
+        usd_mod = types.ModuleType("pxr.Usd")
+        usd_mod.Stage = SimpleNamespace(Open=lambda _path: FakeStage())  # type: ignore[attr-defined]
+        _install_fake_pxr(monkeypatch, usd=usd_mod)
+        monkeypatch.setattr(harmonize_module, "_fingerprint_prim", lambda prim: prim.fp)
+
+        result = _compute_geometry_fingerprint_map(
+            [
+                _pred("/Root/Part/Mesh", "Steel"),
+                _pred("/Root/Missing/Mesh", "Plastic"),
+                _pred("/Root/NoFingerprint", "Rubber"),
+            ],
+            str(usd_path),
+        )
+
+        assert result == {"/Root/Part/Mesh": "parent-fp"}
+
+    def test_constrain_name_groups_retains_group_when_all_geometry_is_missing(self):
+        preds = [_pred("/Root/Leg1", "Steel"), _pred("/Root/Leg2", "Plastic")]
+        name_groups = _group_by_name_template(preds)
+
+        constrained = _constrain_name_groups_by_geometry(
+            name_groups,
+            preds,
+            {"/Root/Other": "fp"},
+        )
+
+        assert constrained == name_groups
+
+    def test_fingerprint_prim_branches(self, monkeypatch: pytest.MonkeyPatch):
+        class FakeAttr:
+            def __init__(self, value: list[Any] | None):
+                self.value = value
+
+            def Get(self) -> list[Any] | None:
+                return self.value
+
+        class FakeMesh:
+            def __init__(self, points: list[Any] | None, faces: list[Any] | None):
+                self.points = points
+                self.faces = faces
+
+            def GetPointsAttr(self) -> FakeAttr:
+                return FakeAttr(self.points)
+
+            def GetFaceVertexCountsAttr(self) -> FakeAttr:
+                return FakeAttr(self.faces)
+
+        class FakeRange:
+            def __init__(self, empty: bool, size: tuple[float, float, float]):
+                self.empty = empty
+                self.size = size
+
+            def IsEmpty(self) -> bool:
+                return self.empty
+
+            def GetSize(self) -> tuple[float, float, float]:
+                return self.size
+
+        class FakeBBox:
+            def __init__(self, bbox_range: FakeRange):
+                self.bbox_range = bbox_range
+
+            def ComputeAlignedRange(self) -> FakeRange:
+                return self.bbox_range
+
+        class FakeBBoxCache:
+            def __init__(self, *_args: Any, **_kwargs: Any):
+                pass
+
+            def ComputeWorldBound(self, prim: Any) -> FakeBBox:
+                return FakeBBox(prim.bbox_range)
+
+        class FakePrim:
+            def __init__(
+                self,
+                *,
+                imageable: bool = True,
+                mesh: FakeMesh | None = None,
+                children: list[Any] | None = None,
+                bbox_range: FakeRange | None = None,
+            ):
+                self.imageable = imageable
+                self.mesh = mesh
+                self.children = children or []
+                self.bbox_range = bbox_range or FakeRange(False, (1.234, 2.0, 3.0))
+
+            def GetChildren(self) -> list[Any]:
+                return self.children
+
+        usdgeom_mod = types.ModuleType("pxr.UsdGeom")
+        usdgeom_mod.Imageable = lambda prim: object() if prim.imageable else None  # type: ignore[attr-defined]
+        usdgeom_mod.Mesh = lambda prim: prim.mesh  # type: ignore[attr-defined]
+        usdgeom_mod.BBoxCache = FakeBBoxCache  # type: ignore[attr-defined]
+        usdgeom_mod.Tokens = SimpleNamespace(default_="default")  # type: ignore[attr-defined]
+        _install_fake_pxr(monkeypatch, usdgeom=usdgeom_mod)
+
+        assert _fingerprint_prim(FakePrim(imageable=False)) is None
+        assert (
+            _fingerprint_prim(FakePrim(mesh=FakeMesh(points=[1, 2, 3], faces=[3, 3])))
+            == "3_2_1.23x2.0x3.0"
+        )
+        assert (
+            _fingerprint_prim(
+                FakePrim(
+                    children=[
+                        FakePrim(mesh=FakeMesh(points=[1, 2], faces=[4])),
+                    ],
+                    bbox_range=FakeRange(False, (4.0, 5.0, 6.0)),
+                )
+            )
+            == "2_1_4.0x5.0x6.0"
+        )
+        assert (
+            _fingerprint_prim(
+                FakePrim(
+                    mesh=FakeMesh(points=None, faces=None),
+                    bbox_range=FakeRange(True, (0.0, 0.0, 0.0)),
+                )
+            )
+            == "0_0_0x0x0"
+        )
+        assert _fingerprint_prim(FakePrim()) is None
+
 
 class TestMergeGroups:
     def test_merges_overlapping_signals(self):
@@ -346,6 +678,17 @@ class TestMergeGroups:
         merged = _merge_groups([sig_a], 5)
         # Only group {0,1} — indices 2,3,4 are singletons, filtered
         assert len(merged) == 1
+
+    def test_skips_single_member_signal_groups(self):
+        assert _merge_groups([{"singleton": [0]}], 1) == {}
+
+    def test_union_find_same_root_and_rank_swap(self):
+        uf = harmonize_module._UnionFind(3)
+        uf.union(0, 1)
+        uf.union(0, 1)
+        uf.union(2, 0)
+
+        assert uf.find(0) == uf.find(1) == uf.find(2)
 
 
 class TestFindConflicts:
@@ -495,6 +838,83 @@ class TestApplyPrimRemap:
             with pytest.raises(ValueError, match="trusted root"):
                 apply_prim_remap(path, {"/a": "Steel"}, trusted_root=root)
 
+    def test_preserves_blank_and_malformed_jsonl_lines(self, tmp_path: Path):
+        path = tmp_path / "predictions.jsonl"
+        path.write_text(
+            "\n".join(
+                [
+                    json.dumps(_pred("/a", "Plastic")),
+                    "",
+                    "{not-json}",
+                    json.dumps(_pred("/b", "Steel")),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        updated = apply_prim_remap(path, {"/a": "Steel"}, trusted_root=tmp_path)
+
+        lines = path.read_text(encoding="utf-8").splitlines()
+        assert updated == 1
+        assert lines[1] == ""
+        assert lines[2] == "{not-json}"
+
+    def test_remap_nested_file_uses_directory_fd_traversal(self, tmp_path: Path):
+        nested = tmp_path / "nested"
+        path = nested / "predictions.jsonl"
+        _write_predictions([_pred("/a", "Plastic")], path)
+
+        updated = apply_prim_remap(path, {"/a": "Steel"}, trusted_root=tmp_path)
+
+        assert updated == 1
+        assert _read_predictions(path)[0]["materials"]["material"] == "Steel"
+
+    def test_portable_atomic_write_cleans_missing_temp_after_replace_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        path = tmp_path / "predictions.jsonl"
+
+        with monkeypatch.context() as m:
+            m.setattr(
+                harmonize_module.os,
+                "replace",
+                MagicMock(side_effect=RuntimeError("replace failed")),
+            )
+            m.setattr(
+                Path,
+                "unlink",
+                MagicMock(side_effect=FileNotFoundError),
+            )
+            with pytest.raises(RuntimeError, match="replace failed"):
+                harmonize_module._atomic_write_text_under_root_portable(
+                    path,
+                    tmp_path,
+                    "{}\n",
+                )
+
+    def test_dir_fd_atomic_write_closes_file_fd_and_ignores_missing_temp(
+        self,
+        tmp_path: Path,
+    ):
+        path = tmp_path / "predictions.jsonl"
+
+        with pytest.MonkeyPatch.context() as m:
+            m.setattr(
+                harmonize_module.os,
+                "fdopen",
+                MagicMock(side_effect=OSError("fdopen failed")),
+            )
+            m.setattr(
+                harmonize_module.os,
+                "unlink",
+                MagicMock(side_effect=FileNotFoundError),
+            )
+            with pytest.raises(OSError, match="fdopen failed"):
+                harmonize_module._atomic_write_text_under_root(path, tmp_path, "{}\n")
+
 
 class TestFindBestPredictions:
     def test_prefers_restored(self):
@@ -545,6 +965,17 @@ class TestLoadPredictions:
             path.write_text(content)
             result = _load_predictions(path)
             assert len(result) == 2
+
+    def test_skips_malformed_json_lines(self, tmp_path: Path):
+        path = tmp_path / "predictions.jsonl"
+        path.write_text(
+            json.dumps(_pred("/a", "Steel")) + "\n{not-json}\n",
+            encoding="utf-8",
+        )
+
+        result = _load_predictions(path)
+
+        assert [pred["id"] for pred in result] == ["/a"]
 
 
 # ===================================================================
@@ -630,6 +1061,232 @@ class TestResolveConflictsSimpleMode:
         # mode defaults to "full", no llm_config → fallback to majority vote
         remap = _resolve_conflicts(conflicts, preds, {0: ["sig:test"]})
         assert remap == {"/c": "Steel"}
+
+
+class TestResolveConflictsFullModeEdges:
+    def test_single_group_parse_failure_returns_empty(self):
+        preds = [_pred("/a", "Steel"), _pred("/b", "Plastic")]
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(content="not-json")
+
+        remap = _resolve_single_group([0, 1], preds, ["name_template"], mock_llm)
+
+        assert remap == {}
+
+    def test_single_group_unify_without_material_returns_empty(self):
+        preds = [_pred("/a", "Steel"), _pred("/b", "Plastic")]
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(
+            content='{"action": "unify", "material": "", "reason": "same part"}'
+        )
+
+        remap = _resolve_single_group([0, 1], preds, ["name_template"], mock_llm)
+
+        assert remap == {}
+
+    def test_single_group_unknown_action_returns_empty(self):
+        preds = [_pred("/a", "Steel"), _pred("/b", "Plastic")]
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(
+            content='{"action": "merge", "reason": "unsupported"}'
+        )
+
+        remap = _resolve_single_group([0, 1], preds, ["name_template"], mock_llm)
+
+        assert remap == {}
+
+    def test_full_mode_falls_back_when_model_factory_returns_none(self):
+        preds = [
+            _pred("/a", "Steel"),
+            _pred("/b", "Steel"),
+            _pred("/c", "Plastic"),
+        ]
+        conflicts = {0: [0, 1, 2]}
+
+        with patch(
+            "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+            return_value=None,
+        ):
+            remap = _resolve_conflicts(
+                conflicts,
+                preds,
+                {0: ["name_template"]},
+                llm_config={"backend": "mock"},
+            )
+
+        assert remap == {"/c": "Steel"}
+
+    def test_parallel_full_mode_invalid_max_workers_uses_default(self):
+        preds = [
+            _pred("/a1", "Steel"),
+            _pred("/a2", "Plastic"),
+            _pred("/b1", "Steel"),
+            _pred("/b2", "Plastic"),
+        ]
+        conflicts = {0: [0, 1], 2: [2, 3]}
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(
+            content='{"action": "unify", "material": "Steel", "reason": "same"}'
+        )
+
+        with patch(
+            "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+            return_value=mock_llm,
+        ):
+            remap = _resolve_conflicts(
+                conflicts,
+                preds,
+                {0: ["name_template"], 2: ["name_template"]},
+                llm_config={"backend": "mock", "max_workers": "bad"},
+            )
+
+        assert remap == {"/a2": "Steel", "/b2": "Steel"}
+
+    def test_parallel_full_mode_keeps_other_groups_when_thread_raises(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        preds = [
+            _pred("/a1", "Steel"),
+            _pred("/a2", "Plastic"),
+            _pred("/b1", "Steel"),
+            _pred("/b2", "Plastic"),
+        ]
+        conflicts = {0: [0, 1], 2: [2, 3]}
+
+        def fake_resolve(
+            members: list[int],
+            predictions: list[dict[str, Any]],
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> dict[str, str]:
+            if members[0] == 0:
+                raise RuntimeError("boom")
+            return {predictions[members[1]]["id"]: "Steel"}
+
+        monkeypatch.setattr(harmonize_module, "_resolve_single_group", fake_resolve)
+        with patch(
+            "world_understanding.functions.models.chat_models.create_chat_model_from_config",
+            return_value=MagicMock(),
+        ):
+            remap = _resolve_conflicts(
+                conflicts,
+                preds,
+                {0: ["name_template"], 2: ["name_template"]},
+                llm_config={"backend": "mock"},
+            )
+
+        assert remap == {"/b2": "Steel"}
+
+
+class TestHarmonizeAssetPredictionsFocused:
+    def test_too_few_predictions_writes_empty_report(self, tmp_path: Path):
+        pred_file = _write_predictions(
+            [_pred("/Root/Only", "Steel")],
+            tmp_path / "predictions.jsonl",
+        )
+
+        result_path, remap = harmonize_asset_predictions(pred_file)
+
+        report = json.loads((tmp_path / "harmonize_report.json").read_text())
+        assert result_path == pred_file
+        assert remap == {}
+        assert report["total_predictions"] == 1
+        assert report["groups_count"] == 0
+
+    def test_no_merged_groups_writes_empty_report(self, tmp_path: Path):
+        pred_file = _write_predictions(
+            [
+                _pred("/Root/Base", "Steel"),
+                _pred("/Root/Arm", "Plastic"),
+            ],
+            tmp_path / "predictions.jsonl",
+        )
+
+        result_path, remap = harmonize_asset_predictions(pred_file)
+
+        report = json.loads((tmp_path / "harmonize_report.json").read_text())
+        assert result_path == pred_file
+        assert remap == {}
+        assert report["total_predictions"] == 2
+        assert report["groups_count"] == 0
+
+    def test_group_without_conflict_writes_group_report(self, tmp_path: Path):
+        pred_file = _write_predictions(
+            [
+                _pred("/Root/Leg1", "Steel"),
+                _pred("/Root/Leg2", "Steel"),
+            ],
+            tmp_path / "predictions.jsonl",
+        )
+
+        result_path, remap = harmonize_asset_predictions(pred_file)
+
+        report = json.loads((tmp_path / "harmonize_report.json").read_text())
+        assert result_path == pred_file
+        assert remap == {}
+        assert report["groups_count"] == 1
+        assert report["conflict_groups_count"] == 0
+
+
+class TestHarmonizeScenePredictionsFocused:
+    def test_skips_incomplete_missing_workdir_and_missing_prediction_files(
+        self,
+        tmp_path: Path,
+    ):
+        empty_workdir = tmp_path / "empty"
+        empty_workdir.mkdir()
+        one_pred_workdir = tmp_path / "one"
+        _write_predictions(
+            [_pred("/Root/Only", "Steel")],
+            one_pred_workdir / "predictions" / "predictions.jsonl",
+        )
+        manifest = SimpleNamespace(
+            sub_assets=[
+                SimpleNamespace(
+                    status="pending", working_dir=str(tmp_path / "pending")
+                ),
+                SimpleNamespace(status="completed", working_dir=None),
+                SimpleNamespace(status="completed", working_dir=str(empty_workdir)),
+                SimpleNamespace(status="completed", working_dir=str(one_pred_workdir)),
+            ]
+        )
+
+        assert harmonize_scene_predictions(manifest, mode="simple") == {}
+
+    def test_scene_conflict_remaps_each_source_prediction_file(self, tmp_path: Path):
+        workdirs = [tmp_path / f"asset_{idx}" for idx in range(3)]
+        materials = ["Steel", "Steel", "Plastic"]
+        for idx, (workdir, material) in enumerate(
+            zip(workdirs, materials, strict=True), 1
+        ):
+            _write_predictions(
+                [_pred(f"/World/Leg{idx}", material)],
+                workdir / "predictions" / "predictions.jsonl",
+            )
+        manifest = SimpleNamespace(
+            sub_assets=[
+                SimpleNamespace(status="completed", working_dir=str(workdir))
+                for workdir in workdirs
+            ]
+        )
+
+        remap = harmonize_scene_predictions(manifest, mode="simple")
+
+        updated = _read_predictions(workdirs[2] / "predictions" / "predictions.jsonl")
+        assert remap == {"/World/Leg3": "Steel"}
+        assert updated[0]["materials"]["material"] == "Steel"
+        assert updated[0]["materials"]["harmonized_from"] == "Plastic"
+
+    def test_build_group_signals_map_includes_all_signal_types(self):
+        result = harmonize_module._build_group_signals_map(
+            {0: [0, 1, 2]},
+            {"sig": [0]},
+            {"name": [1]},
+            {"geo": [2]},
+        )
+
+        assert result == {0: ["geometry", "name_template", "signature"]}
 
 
 # ===================================================================

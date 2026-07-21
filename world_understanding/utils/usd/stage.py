@@ -12,7 +12,7 @@ from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pxr import Usd
+    from pxr import Usd  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 

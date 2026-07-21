@@ -144,7 +144,8 @@ material-agent build-dataset usd <config> [OPTIONS]
 
 ## material-agent build-dataset pdf_vectorstore
 
-Build a multimodal vector store from PDF documents for RAG.
+Build a multimodal vector store for retrieving specification evidence from PDF
+documents.
 
 ```bash
 material-agent build-dataset pdf_vectorstore <config> [OPTIONS]

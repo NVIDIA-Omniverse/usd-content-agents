@@ -45,7 +45,7 @@ Check before deploying:
    (L40, L40S, RTX PRO 6000, etc.; not A100/H100/H200/V100): `nvidia-smi`
 3. **NVIDIA Container Toolkit** installed: `docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi`
 4. **VLM provider API key** (at least one): OpenAI, Anthropic, Gemini, or NVIDIA
-5. **Generated reference image key** (optional): public default is Gemini, so set `GOOGLE_API_KEY` if the user plans to use generated reference images. Otherwise set `MA_IMAGE_GEN_BACKEND` to another configured provider.
+5. **Image generation key** (optional): public default is Gemini, so set `GOOGLE_API_KEY` if the user plans to use generated reference images or generated material-library textures. Otherwise set `MA_IMAGE_GEN_BACKEND` to another configured provider.
 
 ## Instructions
 
@@ -225,9 +225,9 @@ All configurable via `.env` file at the repo root:
 | `GOOGLE_API_KEY` | | Google Gemini VLM provider |
 | `NVIDIA_API_KEY` | | NVIDIA (build.nvidia.com) VLM provider |
 | `NGC_API_KEY` | | NGC auth (only for VLM NIM profile) |
-| `MA_IMAGE_GEN_BACKEND` | `gemini` | Generated reference image backend (`gemini`, `openai`, `nim`) |
-| `MA_IMAGE_GEN_MODEL` | | Optional generated reference image model override |
-| `MA_IMAGE_GEN_BASE_URL` | | Optional image-gen API base URL override |
+| `MA_IMAGE_GEN_BACKEND` | `gemini` | Shared backend for generated reference images and generated material-library textures (`gemini`, `openai`, `nim`) |
+| `MA_IMAGE_GEN_MODEL` | | Optional shared image-generation model override |
+| `MA_IMAGE_GEN_BASE_URL` | | Optional shared image-gen API base URL override |
 | `MA_MAX_ACTIVE_SESSIONS` | 1 | Max concurrent pipelines for local OVRTX compose |
 | `MA_MAX_RENDER_NUM_WORKERS` | 1 | Max accepted render worker override for local OVRTX compose |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | 1 | Process-wide outbound render request cap |
@@ -239,8 +239,9 @@ All configurable via `.env` file at the repo root:
 Prediction concurrency is set per request with `vlm_max_workers`; it is not a
 service-wide environment variable.
 
-Generated reference images are optional. If enabled from the client or UI, the
-service uses `MA_IMAGE_GEN_BACKEND=gemini` by default.
+Generated reference images and generated material-library mode are optional. If
+enabled from the client or UI, the service uses `MA_IMAGE_GEN_BACKEND=gemini`
+by default.
 
 ## Output Format
 

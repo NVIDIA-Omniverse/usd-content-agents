@@ -37,6 +37,9 @@ Use this workflow for the credit-conscious hybrid path:
   data-URI rendered image payloads.
 - Local port-forwards expose `RENDER_ENDPOINT=http://localhost:8001` and
   `MA_VLM_NIM_BASE_URL=http://localhost:8003/v1`.
+- Optional image-generation endpoints exposed through `MA_IMAGE_GEN_*` are used
+  by generated reference images and generated material-library textures. Reuse a
+  Texture Agent image-generation endpoint when one is already running.
 
 ## Limitations
 
@@ -59,7 +62,7 @@ Use this workflow for the credit-conscious hybrid path:
    stop, delete, and cleanup guardrails.
 2. Create or reuse the Brev render node, then validate OVRTX health and render.
 3. Create or reuse the VLM node, then validate model listing and image chat.
-4. Set local Material Agent render, VLM, and LLM environment variables.
+4. Set local Material Agent render, VLM, LLM, and optional image-generation environment variables.
 5. Run the local pipeline with the forwarded endpoints, then clean up nodes and
    port-forwards.
 

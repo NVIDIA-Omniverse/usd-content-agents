@@ -19,6 +19,7 @@ from uuid import uuid4
 import pytest
 from pytest import FixtureRequest
 
+from ...service.session import manager as session_manager_module
 from ...service.session.manager import SessionManager
 from ...service.storage.config import StorageConfig
 from ...service.storage.local_store import LocalSessionStore
@@ -65,6 +66,94 @@ def manager(storage_type: str, tmp_path: str, storage_prefix: str):
 @pytest.fixture
 def session_id() -> str:
     return str(uuid4())
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_list_sessions_filters_untrusted_backend_names(tmp_path: str) -> None:
+    store = LocalSessionStore(tmp_path)
+    manager = SessionManager(tmp_path, store=store)
+    safe_id = str(uuid4())
+    for backend_name in (safe_id, ".pipeline_temp", "access_token=do-not-return"):
+        backend_dir = Path(tmp_path) / backend_name
+        backend_dir.mkdir()
+        (backend_dir / "session.json").write_text("{}", encoding="utf-8")
+
+    assert await manager.list_sessions() == [safe_id]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_uuid_symlink_session_cannot_expose_outside_metadata(
+    tmp_path: str,
+) -> None:
+    storage_root = Path(tmp_path)
+    outside_root = storage_root.parent / f"{storage_root.name}-outside-{uuid4()}"
+    outside_root.mkdir()
+    sentinel = "outside-physics-session-metadata-727"
+    (outside_root / "session.json").write_text(
+        '{"credential":"' + sentinel + '"}',
+        encoding="utf-8",
+    )
+    session_id = str(uuid4())
+    (storage_root / session_id).symlink_to(outside_root, target_is_directory=True)
+    store = LocalSessionStore(tmp_path)
+    manager = SessionManager(tmp_path, store=store)
+
+    assert session_id not in await store.list_sessions()
+    assert session_id not in await manager.list_sessions()
+    assert not await store.exists(session_id, "session.json")
+    assert await store.get_json(session_id, "session.json") is None
+    assert await manager.get_session_metadata(session_id) is None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_delete_session_rejects_swapped_session_ancestor(
+    tmp_path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage_root = Path(tmp_path)
+    manager = SessionManager(storage_root, store=LocalSessionStore(storage_root))
+    session_id = str(uuid4())
+    session_dir = await manager.create_session(session_id)
+    (session_dir / "owned.txt").write_text("owned", encoding="utf-8")
+    detached = storage_root / f"{session_id}.held"
+    outside = storage_root.parent / f"outside-physics-delete-{uuid4()}"
+    outside.mkdir()
+    sentinel = outside / "sentinel.txt"
+    sentinel.write_text("outside-delete-sentinel", encoding="utf-8")
+    sentinel_mode = sentinel.stat().st_mode
+
+    async def keep_local_session(_session_id: str) -> None:
+        return None
+
+    async def no_sleep(_delay: float) -> None:
+        return None
+
+    original_remove = session_manager_module.remove_confined_tree
+    swapped = False
+
+    def swap_then_remove(working_dir: Path, allowed_root: Path) -> bool:
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            session_dir.rename(detached)
+            session_dir.symlink_to(outside, target_is_directory=True)
+        return original_remove(working_dir, allowed_root)
+
+    monkeypatch.setattr(manager.store, "delete_session", keep_local_session)
+    monkeypatch.setattr(session_manager_module.asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        session_manager_module,
+        "remove_confined_tree",
+        swap_then_remove,
+    )
+
+    assert await manager.delete_session(session_id)
+    assert sentinel.read_text(encoding="utf-8") == "outside-delete-sentinel"
+    assert sentinel.stat().st_mode == sentinel_mode
+    assert (detached / "owned.txt").read_text(encoding="utf-8") == "owned"
 
 
 @pytest.mark.unit
@@ -631,6 +720,9 @@ class TestCancellation:
         meta = await manager.get_session_metadata(session_id)
         assert meta["status"] == "cancelling"
 
+        await manager.clear_cancellation(session_id)
+        assert not await manager.is_cancelled(session_id)
+
     async def test_cancellation_visible_cross_instance(
         self, manager: SessionManager, session_id: str, tmp_path: str
     ):
@@ -646,6 +738,47 @@ class TestCancellation:
 
         await manager.request_cancellation(session_id)
         assert await manager2.is_cancelled(session_id)
+
+    async def test_pipeline_terminal_claim_is_shared_and_resettable(
+        self, manager: SessionManager, session_id: str, tmp_path: str
+    ) -> None:
+        await manager.create_session(session_id)
+        manager2 = SessionManager(
+            storage_path=tmp_path + "_pod2",
+            ttl_hours=1,
+            store=manager.store,
+        )
+
+        assert (
+            await manager.claim_pipeline_terminal_state(session_id, "completed")
+            == "completed"
+        )
+        assert (
+            await manager2.claim_pipeline_terminal_state(session_id, "cancelled")
+            == "completed"
+        )
+
+        await manager.clear_pipeline_terminal_claim(session_id)
+        assert (
+            await manager2.claim_pipeline_terminal_state(session_id, "cancelled")
+            == "cancelled"
+        )
+
+    async def test_late_pipeline_cancellation_cannot_overwrite_completion(
+        self, manager: SessionManager, session_id: str
+    ) -> None:
+        await manager.create_session(session_id)
+        await manager.update_session(session_id, {"status": "running"})
+        assert (
+            await manager.claim_pipeline_terminal_state(session_id, "completed")
+            == "completed"
+        )
+
+        assert await manager.request_pipeline_cancellation(session_id) is False
+        assert await manager.is_cancelled(session_id) is False
+        metadata = await manager.get_session_metadata(session_id)
+        assert metadata is not None
+        assert metadata["status"] == "running"
 
 
 @pytest.mark.unit

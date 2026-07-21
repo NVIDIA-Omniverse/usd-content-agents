@@ -46,6 +46,9 @@ generate image textures, apply them, and download the textured USDZ output.
   `material_textures`.
 - Set `auto_prompt_enabled=false` when the user wants strict scope and only
   listed materials should be processed.
+- Projection/reference-image texture editing uses `texture_backend=service`
+  plus `texture_endpoint`; this is distinct from projection UV preparation,
+  which still runs inside the pipeline before generation.
 
 ## Prerequisites
 
@@ -67,9 +70,12 @@ generate image textures, apply them, and download the textured USDZ output.
    first, then resubmit the strict material map.
 5. Submit `material_textures_json` as a JSON string for per-material prompts.
 6. Use `auto_prompt_enabled=false` for strict listed-material scope.
-7. Monitor with `GET /pipeline/{id}/events` for SSE or
+7. For projection/reference-image backends, pass `texture_backend`,
+   `texture_endpoint`, `backend_engine`, optional reference media, seed,
+   strength, strict scope, and custom parameters.
+8. Monitor with `GET /pipeline/{id}/events` for SSE or
    `GET /pipeline/{id}/status` for polling.
-8. Download output USDZ, textures ZIP, manifest, materials JSON, and renders
+9. Download output USDZ, textures ZIP, manifest, materials JSON, and renders
    after status is `completed`.
 
 ## Python Client
@@ -90,6 +96,33 @@ session_id, status = client.run_and_monitor(
 
 client.download_output(session_id, "output.usdz")
 client.download_textures(session_id, "./textures/")
+```
+
+Projection/reference-image backend run:
+
+```python
+from apps.texture_agent_service.client.client import TextureAgentClient
+
+client = TextureAgentClient("http://localhost:8001")
+
+session_id, status = client.run_and_monitor(
+    usd_path="apps/texture_agent/data/examples/ladder/sources/usd/ladder.usd",
+    material_textures={
+        "Aluminum_Matte": {
+            "prompt": "matte aluminum with light scuffs",
+            "opacity": 0.85,
+        }
+    },
+    auto_prompt_enabled=False,
+    texture_backend="service",
+    texture_endpoint="http://REPLACE_WITH_TEXTURE_VARIATION_ENDPOINT",
+    backend_engine="YOUR_ENGINE_OR_MODEL",
+    backend_custom_parameters={"run_label": "manual-projection-run"},
+    reference_image_uris=["file:///absolute/path/reference.png"],
+    seed=11631,
+    strength=0.85,
+    strict_scope=True,
+)
 ```
 
 ## curl Workflow
@@ -135,6 +168,29 @@ STRICT_SESSION=$(curl -fsS -X POST "$BASE_URL/pipeline" \
   | jq -r .session_id)
 ```
 
+Projection/reference-image backend form fields:
+
+```bash
+BASE_URL="http://localhost:8001"
+TEXTURE_VARIATION_ENDPOINT="http://REPLACE_WITH_TEXTURE_VARIATION_ENDPOINT"
+BACKEND_ENGINE="YOUR_ENGINE_OR_MODEL"
+MATERIAL_TEXTURES='{"Aluminum_Matte":{"prompt":"matte aluminum with light scuffs","opacity":0.85}}'
+
+SESSION=$(curl -fsS -X POST "$BASE_URL/pipeline" \
+  -F "usd_file=@apps/texture_agent/data/examples/ladder/sources/usd/ladder.usd" \
+  -F "auto_prompt_enabled=false" \
+  -F "texture_backend=service" \
+  -F "texture_endpoint=$TEXTURE_VARIATION_ENDPOINT" \
+  -F "backend_engine=$BACKEND_ENGINE" \
+  -F 'backend_custom_parameters_json={"run_label":"manual-projection-run"}' \
+  -F 'reference_image_uris_json=["file:///absolute/path/reference.png"]' \
+  -F "seed=11631" \
+  -F "strength=0.85" \
+  -F "strict_scope=true" \
+  -F "material_textures_json=$MATERIAL_TEXTURES" \
+  | jq -r .session_id)
+```
+
 Nested per-prim prompt map:
 
 ```bash
@@ -167,6 +223,17 @@ curl -fsS -X POST "$BASE_URL/pipeline" \
 | `material_textures_json` | No | JSON-encoded string of per-material texture configuration. |
 | `user_prompt` | No | Aesthetic direction for auto-prompt generation. |
 | `auto_prompt_enabled` | No | Defaults to service behavior. Set `false` to process only listed materials. |
+| `texture_backend` | No | Backend override. Use `service` for Texture Variation API projection backends. |
+| `texture_endpoint` | Conditional | Texture Variation API endpoint, required when `texture_backend=service`. |
+| `backend_engine` | No | Backend engine/model route hint. |
+| `backend_custom_parameters_json` | No | JSON object of backend-specific parameters. |
+| `reference_image_uris_json` | No | JSON list of global reference image URIs. |
+| `reference_image_file` | No | Uploaded reference image file added to reference image conditioning. |
+| `turntable_video_uri` | No | Global turntable video URI for backends that support it. |
+| `multiview_image_uris_json` | No | JSON list of global multi-view image URIs. |
+| `seed` | No | Texture backend seed override. |
+| `strength` | No | Texture edit strength, 0.0 to 1.0. |
+| `strict_scope` | No | Whether backend requests must preserve the selected target scope. |
 
 Decoded `material_textures_json` is keyed by discovered material name. Each
 value can include:
@@ -195,10 +262,13 @@ Return a concise summary with:
 - Session ID, status, and progress source.
 - Whether auto-prompting was enabled or strict listed-material scope was used.
 - Submitted material names and any `per_prim` overrides.
+- Projection backend endpoint/engine, conditioning fields, seed/strength, and
+  strict scope when used.
 - Downloaded artifact paths or URLs for output USDZ, textures ZIP, manifest,
   materials JSON, event log, and renders.
 - Any blocker such as missing image-generation credentials, unmatched material
-  names, upload size, or non-terminal status.
+  names, backend capability mismatch, degraded maps, low coverage, portability
+  diagnostics, upload size, or non-terminal status.
 
 ## Troubleshooting
 
@@ -211,3 +281,9 @@ Return a concise summary with:
 | Unexpected extra textures | Auto-prompting processed unlisted materials. | Set `auto_prompt_enabled=false`. |
 | `material_textures_json` parse error | The REST form value was not valid JSON text. | Quote it as one JSON string, or use the Python client dict abstraction. |
 | Image generation fails | Service-side backend credentials or endpoint are missing. | Check service logs and the configured image-generation backend. |
+| Projection backend endpoint is rejected | `texture_endpoint` is missing while `texture_backend=service`. | Provide a reachable Texture Variation API endpoint. |
+| Backend reports unsupported conditioning | Reference image, turntable, or multi-view fields exceed backend capabilities. | Retry with supported conditioning or use a backend that supports the requested media. |
+| Projection backend reports missing albedo | The required base-color map was not returned. | Treat the run as failed and inspect `/artifacts/{id}/manifest`. |
+| Optional maps are degraded | Backend omitted normal or ORM channels. | Texture Agent records degraded channels and synthesizes or packs maps when possible. |
+| Low coverage is reported | Backend coverage metadata is below threshold for the selected target. | Inspect coverage/mask/debug artifacts and retry with clearer scope or reference images. |
+| Output portability fails | Generated USD texture references are not package-local. | Inspect manifest portability diagnostics before sharing the output package. |

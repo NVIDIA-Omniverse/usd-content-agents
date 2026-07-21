@@ -20,8 +20,15 @@ input:
 texture:
   backend: "simple_image_gen"          # "simple_image_gen" or "service"
   uv_policy: "generate_missing"        # preserve valid UVs; project only missing UVs
+  uv_scope: "stage"                    # "stage" or "target_prims"
+  uv_generation_mode: "projection"     # SO only: "projection" or explicit "atlas"
   uv_projection: "box"                 # "box" or "planar" Python projection
   uv_normalize_out_of_range: false     # preserve tiled/out-of-range UVs by default
+  uv_rebake_source_albedo: false       # for scoped forced UVs, rebake existing albedo before service img2img
+  # uv_rebake_size: 1024               # optional rebaked source albedo resolution
+  # uv_backend: "scene_optimizer"      # required for SO atlas/projection modes
+  # uv_atlas_distortion_threshold: 3.0  # lower means less distortion, more islands
+  # uv_atlas_enable_packing: true       # pack atlas islands when using SO atlas
   image_gen:                           # image gen config (for simple_image_gen)
     # Available public backends and required env vars:
     #   nim     -- NVIDIA_API_KEY  (model: black-forest-labs/flux_2-klein-4b)
@@ -29,7 +36,7 @@ texture:
     #   openai  -- OPENAI_API_KEY  (model: gpt-image-1)
     backend: nim
     model: black-forest-labs/flux_2-klein-4b
-  # endpoint: "http://192.168.4.58:8000"  # REST endpoint (for "service" backend)
+  # endpoint: "http://localhost:8000"      # REST endpoint (for "service" backend)
   size: 1024                           # texture resolution (square)
   workers: 4                           # parallel generation workers
 
@@ -58,6 +65,8 @@ steps:
 
   render_previews:
     enabled: false               # disable for faster iteration
+    # USD renderer: "remote", "ovrtx", or CPU-only test backend "mock".
+    # Mock output is a pipeline placeholder, not production visual evidence.
     backend: "remote"
     image_width: 512
     image_height: 512
@@ -77,6 +86,8 @@ steps:
 
   render:
     enabled: false               # disable for faster iteration
+    # USD renderer: "remote", "ovrtx", or CPU-only test backend "mock".
+    # Mock output is a pipeline placeholder, not production visual evidence.
     backend: "remote"
     image_width: 1024
     image_height: 1024

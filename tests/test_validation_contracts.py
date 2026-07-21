@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from PIL import Image as PILImage
 from PIL import ImageDraw
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from world_understanding.agentic.validation_scaffold import (
     DraftValidationIssue,
@@ -13,8 +13,11 @@ from world_understanding.agentic.validation_scaffold import (
     create_draft_validation_request,
     run_validation_scaffold,
 )
+from world_understanding.rendering_backend_contract import RENDERING_BACKEND_NAMES
 from world_understanding.validation import (
+    SUPPORTED_RENDER_BACKENDS,
     V1_TEMPLATE_NAMES,
+    VALIDATION_RENDERING_BACKEND_NAMES,
     ValidationContractError,
     ValidationEvidence,
     ValidationFocusConfig,
@@ -34,6 +37,17 @@ from world_understanding.validation import (
     validation_result_from_scaffold_result,
 )
 from world_understanding.validation import models as validation_models
+from world_understanding.validation.json_normalization import (
+    StructuredJsonNormalizer,
+)
+
+
+class _ExternalMetadataModel(BaseModel):
+    path: Path
+
+
+class _UnsupportedMetadataValue:
+    pass
 
 
 def test_validation_request_round_trips_json(tmp_path: Path) -> None:
@@ -67,6 +81,35 @@ def test_validation_request_round_trips_json(tmp_path: Path) -> None:
 def test_validation_models_reexport_constants() -> None:
     assert validation_models.SCHEMA_VERSION == "1.0"
     assert validation_models.ISSUE_CODE_PATTERN.startswith("^[a-z]")
+
+
+def test_validation_render_backend_schema_advertises_capability_subset() -> None:
+    assert VALIDATION_RENDERING_BACKEND_NAMES == ("remote", "ovrtx")
+    assert SUPPORTED_RENDER_BACKENDS == frozenset({"remote", "ovrtx"})
+    assert set(VALIDATION_RENDERING_BACKEND_NAMES) < set(RENDERING_BACKEND_NAMES)
+
+    backend_schema = ValidationRenderConfig.model_json_schema()["properties"]["backend"]
+    assert "remote, ovrtx" in backend_schema["description"]
+    assert "structured unknown-versus-unsupported" in backend_schema["description"]
+    assert "enum" not in backend_schema
+
+    # Schema clients must be able to submit values that runtime code then
+    # distinguishes as unknown or canonical-but-unsupported.
+    assert ValidationRenderConfig(backend="typo").backend == "typo"
+
+
+def test_validation_template_definition_normalizer_edges() -> None:
+    definition = ValidationTemplateDefinition(
+        name="render_valid",
+        description="Render validation.",
+        required_input_kinds="usd",
+        optional_input_kinds=None,
+    )
+    assert definition.required_input_kinds == ("usd",)
+    assert definition.optional_input_kinds == ()
+
+    registry = ValidationTemplateRegistry((definition,))
+    assert registry.definitions() == (definition,)
 
 
 def test_validation_request_requires_task_and_input() -> None:
@@ -129,6 +172,124 @@ def test_invalid_contract_shapes_raise_validation_error() -> None:
             description="Render validation.",
             required_input_kinds=123,
         )
+
+
+def test_validation_model_normalizers_cover_scalar_and_none_edges() -> None:
+    decorator = validation_models.field_validator("metadata", check_fields=False)
+    assert callable(decorator)
+
+    project = ValidationProject(name="asset", working_dir=None)
+    assert project.working_dir is None
+
+    planner = validation_models.ValidationPlannerConfig(
+        metadata={"project": project, "path": Path("asset.usda")}
+    )
+    assert planner.metadata == {
+        "project": {"name": "asset", "working_dir": None, "session_id": None},
+        "path": "asset.usda",
+    }
+    assert validation_models.ValidationPlannerConfig(metadata=None).metadata == {}
+
+    render = ValidationRenderConfig(
+        views=123,
+        animation_frames=7,
+        metadata=None,
+    )
+    assert render.views == "123"
+    assert render.animation_frames == "7"
+    assert render.metadata == {}
+
+    assert ValidationFocusConfig(prim_paths=None).prim_paths == ()
+    assert ValidationFocusConfig(prim_paths="/World/Cube").prim_paths == (
+        "/World/Cube",
+    )
+
+    request = ValidationRequest(
+        task_description="Validate asset.",
+        inputs=Path("asset.usda"),
+        requested_templates=None,
+    )
+    assert request.inputs == ("asset.usda",)
+    assert request.requested_templates == ()
+    assert ValidationRequest(
+        task_description="Validate asset.",
+        inputs=("asset.usda",),
+        requested_templates="render_valid",
+    ).requested_templates == ("render_valid",)
+
+    validation_input = validation_models.ValidationInput(
+        original="asset.usda",
+        path=Path("asset.usda"),
+        kind="usd",
+        image_paths=None,
+    )
+    assert validation_input.path == "asset.usda"
+    assert validation_input.image_paths == ()
+    assert validation_models.ValidationInput(
+        original="asset.usda",
+        path="asset.usda",
+        kind="usd",
+        image_paths=Path("preview.png"),
+    ).image_paths == ("preview.png",)
+
+    plan = ValidationPlan(
+        steps=(ValidationPlanStep(template_name="render_valid"),),
+        focus_prim_paths=Path("/World/Cube"),
+        artifact_paths=None,
+    )
+    assert plan.focus_prim_paths == ("/World/Cube",)
+    assert plan.artifact_paths == {}
+
+    evidence = ValidationEvidence(kind="render", path=None, metadata=None)
+    assert evidence.path is None
+    assert evidence.metadata == {}
+
+    result = ValidationResult(
+        verdict="pass",
+        request=request,
+        plan=plan,
+        artifact_paths=None,
+    )
+    assert result.artifact_paths == {}
+
+    groups = ValidationInputGroups.from_inventory_dict({"items": "not-a-sequence"})
+    assert groups.items == ()
+
+
+def test_validation_contract_json_normalizer_preserves_tail_behavior() -> None:
+    external_model = _ExternalMetadataModel(path=Path("model.usda"))
+    unsupported = _UnsupportedMetadataValue()
+
+    planner = validation_models.ValidationPlannerConfig(
+        metadata={
+            7: {
+                "values": [
+                    Path("asset.usda"),
+                    external_model,
+                    None,
+                    "label",
+                    3,
+                    1.5,
+                    True,
+                    unsupported,
+                ]
+            }
+        }
+    )
+
+    assert planner.metadata["7"]["values"][:-1] == [
+        "asset.usda",
+        {"path": "model.usda"},
+        None,
+        "label",
+        3,
+        1.5,
+        True,
+    ]
+    assert planner.metadata["7"]["values"][-1] is unsupported
+
+    with pytest.raises(ValueError, match="Expected a mapping"):
+        StructuredJsonNormalizer().mapping([])
 
 
 def test_default_template_registry_defines_v1_allowlist() -> None:
@@ -289,6 +450,10 @@ def test_aggregate_verdict_and_evidence_contract() -> None:
             ),
         ),
     )
+    pass_result = ValidationTemplateResult(
+        template_name="render_valid",
+        status="passed",
+    )
 
     assert aggregate_validation_verdict((warn_result,)) == "warn"
     assert (
@@ -302,6 +467,7 @@ def test_aggregate_verdict_and_evidence_contract() -> None:
     assert (
         aggregate_validation_verdict((needs_refinement_result, fail_result)) == "fail"
     )
+    assert aggregate_validation_verdict((pass_result,)) == "pass"
     assert warn_result.evidence_items[0].path == "render.png"
     assert warn_result.evidence_items[0].metadata["source"] == "render.png"
 
@@ -370,6 +536,14 @@ def test_scaffold_compat_rejects_unknown_issue_severity(tmp_path: Path) -> None:
         ValidationContractError, match="Unknown scaffold issue severity"
     ):
         validation_result_from_scaffold_result(patched_result)
+
+
+def test_scaffold_compat_private_helper_edges() -> None:
+    from world_understanding.validation import scaffold_compat
+
+    assert scaffold_compat._artifact_paths_from_inventory({}) == {}
+    assert scaffold_compat._mapping_attr(object(), "metadata") == {}
+    assert scaffold_compat._issue_severity("info") == "info"
 
 
 def _build_scaffold_result(tmp_path: Path) -> tuple[Path, DraftValidationResult]:

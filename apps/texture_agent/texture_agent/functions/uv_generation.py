@@ -589,6 +589,7 @@ def generate_uvs_for_stage(
     stage: Usd.Stage,
     mode: UVProjectionMode = UVProjectionMode.BOX,
     overwrite_existing: bool = False,
+    target_prim_paths: list[str] | tuple[str, ...] | None = None,
 ) -> int:
     """Generate projection UVs for meshes in a stage.
 
@@ -596,23 +597,57 @@ def generate_uvs_for_stage(
         stage: USD stage to process.
         mode: UV projection mode.
         overwrite_existing: If true, replace existing UVs on every mesh.
+        target_prim_paths: Optional mesh prim paths or ancestor paths to limit
+            mutation to a subset of the stage.
 
     Returns:
         Number of meshes that received new UVs.
     """
     count = 0
+    target_paths = _normalize_target_paths(target_prim_paths)
     for prim in stage.Traverse():
-        if prim.IsA(UsdGeom.Mesh) and not prim.IsInstanceProxy():
-            if generate_uvs_for_mesh(prim, mode, overwrite_existing=overwrite_existing):
-                count += 1
-                logger.debug("Generated %s UVs for %s", mode.value, prim.GetPath())
+        if not prim.IsA(UsdGeom.Mesh):
+            continue
+        if not _prim_matches_target_paths(prim, target_paths):
+            continue
+        if not _prepare_mutable_prim(prim, "UV generation"):
+            continue
+        if generate_uvs_for_mesh(prim, mode, overwrite_existing=overwrite_existing):
+            count += 1
+            logger.debug("Generated %s UVs for %s", mode.value, prim.GetPath())
 
     if count > 0:
         logger.info("Generated %s UVs for %d meshes", mode.value, count)
     return count
 
 
-def fix_uv_interpolation(stage: Usd.Stage) -> int:
+def _normalize_target_paths(
+    target_prim_paths: list[str] | tuple[str, ...] | None,
+) -> tuple[str, ...]:
+    if not target_prim_paths:
+        return ()
+    normalized: list[str] = []
+    for raw_path in target_prim_paths:
+        path = str(raw_path).strip()
+        if path:
+            normalized.append(path.rstrip("/"))
+    return tuple(dict.fromkeys(normalized))
+
+
+def _prim_matches_target_paths(prim: Usd.Prim, target_paths: tuple[str, ...]) -> bool:
+    if not target_paths:
+        return True
+    prim_path = str(prim.GetPath())
+    return any(
+        prim_path == target_path or prim_path.startswith(f"{target_path}/")
+        for target_path in target_paths
+    )
+
+
+def fix_uv_interpolation(
+    stage: Usd.Stage,
+    target_prim_paths: list[str] | tuple[str, ...] | None = None,
+) -> int:
     """Safely fix meshes with compatible ``constant`` UV interpolation.
 
     A ``constant`` primvar with one UV value is not face-varying data. This
@@ -623,8 +658,13 @@ def fix_uv_interpolation(stage: Usd.Stage) -> int:
         Number of meshes fixed.
     """
     count = 0
+    target_paths = _normalize_target_paths(target_prim_paths)
     for prim in stage.Traverse():
-        if not prim.IsA(UsdGeom.Mesh) or prim.IsInstanceProxy():
+        if not prim.IsA(UsdGeom.Mesh):
+            continue
+        if not _prim_matches_target_paths(prim, target_paths):
+            continue
+        if not _prepare_mutable_prim(prim, "UV interpolation repair"):
             continue
         api = UsdGeom.PrimvarsAPI(prim)
         st = api.GetPrimvar("st")
@@ -640,15 +680,24 @@ def fix_uv_interpolation(stage: Usd.Stage) -> int:
     return count
 
 
-def normalize_uvs(stage: Usd.Stage, margin: float = 0.025) -> int:
+def normalize_uvs(
+    stage: Usd.Stage,
+    margin: float = 0.025,
+    target_prim_paths: list[str] | tuple[str, ...] | None = None,
+) -> int:
     """Normalize UV coordinates to [margin, 1-margin] for meshes with out-of-range UVs.
 
     Returns:
         Number of meshes normalized.
     """
     count = 0
+    target_paths = _normalize_target_paths(target_prim_paths)
     for prim in stage.Traverse():
-        if not prim.IsA(UsdGeom.Mesh) or prim.IsInstanceProxy():
+        if not prim.IsA(UsdGeom.Mesh):
+            continue
+        if not _prim_matches_target_paths(prim, target_paths):
+            continue
+        if not _prepare_mutable_prim(prim, "UV normalization"):
             continue
         api = UsdGeom.PrimvarsAPI(prim)
         st = api.GetPrimvar("st")
@@ -680,3 +729,17 @@ def normalize_uvs(stage: Usd.Stage, margin: float = 0.025) -> int:
     if count > 0:
         logger.info("Normalized UVs on %d meshes", count)
     return count
+
+
+def _prepare_mutable_prim(prim: Usd.Prim, action: str) -> bool:
+    if prim.IsInstanceProxy():
+        logger.debug(
+            "Skipping %s for read-only instance proxy %s", action, prim.GetPath()
+        )
+        return False
+    if prim.IsInstance() or prim.IsInstanceable():
+        prim.SetInstanceable(False)
+        logger.debug(
+            "Disabled instanceability before %s for %s", action, prim.GetPath()
+        )
+    return True

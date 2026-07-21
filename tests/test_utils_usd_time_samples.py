@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+# ruff: noqa: E402
 """Roundtrip tests for ``world_understanding.utils.usd.time_samples``.
 
 These cover the new ``add_pose_velocity_trajectory`` /
@@ -26,14 +27,20 @@ import pytest
 
 pxr = pytest.importorskip("pxr")  # noqa: F841 — usd-core is a dev dep
 from pxr import (  # type: ignore[import-untyped]  # noqa: E402
+    Gf,
     Sdf,
     Usd,
     UsdGeom,
     UsdPhysics,
 )
 
+from world_understanding.utils.usd import (
+    time_samples as time_samples_utils,  # noqa: E402
+)
 from world_understanding.utils.usd.time_samples import (  # noqa: E402
     add_pose_velocity_trajectory,
+    add_xform_time_sample,
+    iter_time_samples,
     read_pose_velocity_trajectory,
 )
 
@@ -142,6 +149,43 @@ def test_preexisting_matrix_transform_dropped(tmp_path: Path) -> None:
     assert UsdGeom.XformOp.TypeTransform not in op_types
 
 
+def test_preexisting_pose_ops_are_reused_and_old_samples_cleared(
+    tmp_path: Path,
+) -> None:
+    stage, body_path = _make_stage_with_body(tmp_path)
+    body = stage.GetPrimAtPath(Sdf.Path(body_path))
+    xformable = UsdGeom.Xformable(body)
+    translate_op = xformable.AddTranslateOp()
+    orient_op = xformable.AddOrientOp()
+    translate_op.Set(Gf.Vec3d(99.0, 99.0, 99.0), time=Usd.TimeCode(99.0))
+    orient_op.Set(
+        Gf.Quatf(1.0, Gf.Vec3f(0.0, 0.0, 0.0)),
+        time=Usd.TimeCode(99.0),
+    )
+    rb_api = UsdPhysics.RigidBodyAPI(body)
+    rb_api.CreateVelocityAttr(Gf.Vec3f(0.0, 0.0, 0.0)).Set(
+        Gf.Vec3f(9.0, 9.0, 9.0),
+        time=Usd.TimeCode(99.0),
+    )
+    rb_api.CreateAngularVelocityAttr(Gf.Vec3f(0.0, 0.0, 0.0)).Set(
+        Gf.Vec3f(8.0, 8.0, 8.0),
+        time=Usd.TimeCode(99.0),
+    )
+
+    add_pose_velocity_trajectory(
+        body,
+        [(0.0, [1.0, 2.0, 3.0] + _identity_quat(), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])],
+    )
+
+    ordered = UsdGeom.Xformable(body).GetOrderedXformOps()
+    assert ordered[0].GetAttr().GetPath() == translate_op.GetAttr().GetPath()
+    assert ordered[1].GetAttr().GetPath() == orient_op.GetAttr().GetPath()
+    assert translate_op.GetAttr().GetTimeSamples() == [0.0]
+    assert orient_op.GetAttr().GetTimeSamples() == [0.0]
+    assert rb_api.GetVelocityAttr().GetTimeSamples() == [0.0]
+    assert rb_api.GetAngularVelocityAttr().GetTimeSamples() == [0.0]
+
+
 def test_velocity_attrs_are_rigidbodyapi(tmp_path: Path) -> None:
     """``physics:velocity`` + ``physics:angularVelocity`` come from the
     standard ``UsdPhysics.RigidBodyAPI`` schema, not custom attributes."""
@@ -190,6 +234,56 @@ def test_read_returns_empty_when_no_time_samples(tmp_path: Path) -> None:
     assert read_pose_velocity_trajectory(stage, body_path) == []
 
 
+def test_read_defaults_missing_channels_and_rejects_bad_prims(tmp_path: Path) -> None:
+    stage, body_path = _make_stage_with_body(tmp_path)
+    body = stage.GetPrimAtPath(Sdf.Path(body_path))
+
+    with pytest.raises(ValueError, match="not found"):
+        read_pose_velocity_trajectory(stage, "/Missing")
+
+    scope = stage.DefinePrim(Sdf.Path("/World/Scope"), "Scope")
+    assert scope
+    with pytest.raises(ValueError, match="not Xformable"):
+        read_pose_velocity_trajectory(stage, "/World/Scope")
+
+    orient = UsdGeom.Xformable(body).AddOrientOp()
+    orient.Set(
+        Gf.Quatf(0.5, Gf.Vec3f(0.1, 0.2, 0.3)),
+        time=Usd.TimeCode(2.0),
+    )
+    assert read_pose_velocity_trajectory(stage, body_path) == [
+        (
+            pytest.approx(2.0 / stage.GetTimeCodesPerSecond()),
+            [
+                0.0,
+                0.0,
+                0.0,
+                pytest.approx(0.1),
+                pytest.approx(0.2),
+                pytest.approx(0.3),
+                pytest.approx(0.5),
+            ],
+            [0.0] * 6,
+        )
+    ]
+
+    second_stage_dir = tmp_path / "second"
+    second_stage_dir.mkdir()
+    stage2, body_path2 = _make_stage_with_body(second_stage_dir)
+    body2 = stage2.GetPrimAtPath(Sdf.Path(body_path2))
+    UsdGeom.Xformable(body2).AddTranslateOp().Set(
+        Gf.Vec3d(1.0, 2.0, 3.0),
+        time=Usd.TimeCode(4.0),
+    )
+    assert read_pose_velocity_trajectory(stage2, body_path2) == [
+        (
+            pytest.approx(4.0 / stage2.GetTimeCodesPerSecond()),
+            [1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0],
+            [0.0] * 6,
+        )
+    ]
+
+
 def test_rejects_wrong_arity(tmp_path: Path) -> None:
     stage, body_path = _make_stage_with_body(tmp_path)
     body = stage.GetPrimAtPath(Sdf.Path(body_path))
@@ -198,6 +292,11 @@ def test_rejects_wrong_arity(tmp_path: Path) -> None:
         add_pose_velocity_trajectory(
             body,
             [(0.0, [0.0, 1.0, 0.0] + _identity_quat())],  # type: ignore[list-item]
+        )
+    with pytest.raises(ValueError, match="vel6"):
+        add_pose_velocity_trajectory(
+            body,
+            [(0.0, [0.0, 1.0, 0.0] + _identity_quat(), [0.0] * 5)],
         )
 
 
@@ -212,6 +311,84 @@ def test_rejects_non_xformable(tmp_path: Path) -> None:
             scope_prim,
             [(0.0, [0.0, 0.0, 0.0] + _identity_quat(), [0.0] * 6)],
         )
+
+
+def test_deprecated_matrix_time_sample_helpers(tmp_path: Path) -> None:
+    stage, body_path = _make_stage_with_body(tmp_path)
+    body = stage.GetPrimAtPath(Sdf.Path(body_path))
+    pose = [1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0]
+
+    with pytest.raises(ValueError, match="pose7"):
+        time_samples_utils._matrix_from_pose7([1.0, 2.0])
+    with pytest.raises(TypeError, match="Matrix4d"):
+        time_samples_utils._matrix_to_pose7(object())
+
+    matrix = time_samples_utils._matrix_from_pose7(pose)
+    assert time_samples_utils._matrix_to_pose7(matrix) == pytest.approx(pose)
+
+    add_xform_time_sample(body, 3.0, pose)
+    add_xform_time_sample(body, 4.0, [2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 1.0])
+
+    samples = list(iter_time_samples(stage))
+    assert [time for time, _poses in samples] == [3.0, 4.0]
+    assert samples[0][1][body_path] == pytest.approx(pose)
+
+    scope_prim = stage.DefinePrim(Sdf.Path("/World/NonXform"), "Scope")
+    with pytest.raises(TypeError, match="Xformable"):
+        add_xform_time_sample(scope_prim, 0.0, pose)
+
+
+def test_iter_time_samples_skips_non_transform_and_none_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakePrim:
+        def __init__(self, path: str, kind: str) -> None:
+            self.path = path
+            self.kind = kind
+
+        def GetPath(self) -> str:
+            return self.path
+
+    class _FakeAttr:
+        def GetTimeSamples(self) -> list[float]:
+            return [1.0]
+
+        def Get(self, timecode: Usd.TimeCode) -> None:
+            return None
+
+    class _FakeOp:
+        def __init__(self, op_type: object) -> None:
+            self._op_type = op_type
+
+        def GetOpType(self) -> object:
+            return self._op_type
+
+        def GetAttr(self) -> _FakeAttr:
+            return _FakeAttr()
+
+    class _FakeXformable:
+        def __init__(self, prim: _FakePrim) -> None:
+            self.prim = prim
+
+        def __bool__(self) -> bool:
+            return self.prim.kind != "not_xformable"
+
+        def GetOrderedXformOps(self) -> list[_FakeOp]:
+            if self.prim.kind == "translate_only":
+                return [_FakeOp(UsdGeom.XformOp.TypeTranslate)]
+            return [_FakeOp(UsdGeom.XformOp.TypeTransform)]
+
+    class _FakeStage:
+        def Traverse(self) -> list[_FakePrim]:
+            return [
+                _FakePrim("/Scope", "not_xformable"),
+                _FakePrim("/Translate", "translate_only"),
+                _FakePrim("/NoneTransform", "transform_none"),
+            ]
+
+    monkeypatch.setattr(UsdGeom, "Xformable", _FakeXformable)
+
+    assert list(iter_time_samples(_FakeStage())) == []
 
 
 def test_read_back_returns_seconds_after_fps_authoring(tmp_path: Path) -> None:

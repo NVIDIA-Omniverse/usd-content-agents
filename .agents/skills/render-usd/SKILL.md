@@ -1,7 +1,7 @@
 ---
 name: render-usd
-description: Render USD files using the wu CLI with a configured remote rendering service. Use when the user wants to render a USD scene, generate images from .usd/.usda/.usdc/.usdz files, render all cameras or frame ranges, produce depth or segmentation sensors, focus or isolate prims, or test a render endpoint.
-version: "0.1.0"
+description: Render USD files using the wu CLI with a remote rendering service or the local OVRTX subprocess backend. Use when the user wants to render a USD scene, generate images from .usd/.usda/.usdc/.usdz files, render all cameras or frame ranges, produce remote depth or segmentation sensors, focus or isolate prims, or test a render endpoint.
+version: "0.2.0"
 author: NVIDIA Content Agents
 tags:
   - content-agents
@@ -13,13 +13,13 @@ tools:
   - Shell
   - Filesystem
   - wu
-compatibility: Requires the wu CLI, readable USD input files, a configured RENDER_ENDPOINT for the remote backend, and any service authentication or asset-transfer credentials required by the render deployment.
+compatibility: Requires the wu CLI and readable USD input files. The remote backend requires a configured RENDER_ENDPOINT plus any service authentication or asset-transfer credentials; the local ovrtx backend requires its isolated OVRTX runtime.
 ---
 
 # Render USD
 
-Render USD assets through `wu render-usd` and a configured remote render
-service.
+Render USD assets through `wu render-usd` using either a configured remote
+render service or the local OVRTX subprocess backend.
 
 ## When to Use
 
@@ -32,8 +32,12 @@ service.
 
 ## Limitations
 
-- The CLI backend is `remote`; local renderer selection is handled by the
-  service behind `RENDER_ENDPOINT`.
+- Canonical CLI backends are `remote` and `ovrtx`. Other canonical rendering
+  backends, including `warp` and `mock`, are not supported by this CLI surface.
+- The compatibility alias `local-ovrtx` is deprecated and will be removed in
+  0.6.0; use `ovrtx`.
+- Sensor outputs are supported only by `remote`; `ovrtx` currently renders
+  color images only.
 - Single-frame single-camera runs must use exactly one of `--output` or
   `--output-dir`.
 - Multi-frame or all-camera runs require `--output-dir` and cannot use
@@ -45,9 +49,11 @@ service.
 ## Prerequisites
 
 - Activate the repo Python environment and confirm `wu` is on `PATH`.
-- Set `RENDER_ENDPOINT` to the render service URL.
-- Configure any endpoint authentication or asset-transfer credentials required
-  by the deployment.
+- For `--backend remote`, set `RENDER_ENDPOINT` to the render service URL and
+  configure any authentication or asset-transfer credentials required by the
+  deployment.
+- For `--backend ovrtx`, ensure the isolated OVRTX runtime can be provisioned
+  or pass `--ovrtx-venv-dir` to an existing environment.
 - Ensure the USD input and referenced assets are readable.
 
 ## Instructions
@@ -56,11 +62,13 @@ service.
    focused/isolation mode.
 2. Use `wu print-usd <file> --show-types --max-depth 3` when camera or prim
    paths are unknown.
-3. Choose output flags according to the output rules.
-4. Add `--focus` to auto-frame a prim, `--isolate` to hide everything except
+3. Select `remote` for a REST renderer or `ovrtx` for local color rendering.
+4. Choose output flags according to the output rules.
+5. Add `--focus` to auto-frame a prim, `--isolate` to hide everything except
    listed prims, or both for an object-only render.
-5. Add sensor outputs only when the render service supports them.
-6. Report output files, camera JSON, and any render warnings.
+6. Add sensor outputs only with `remote` and when the render service supports
+   them.
+7. Report the canonical backend, output files, camera JSON, and render warnings.
 
 ## Command Reference
 
@@ -76,8 +84,8 @@ wu render-usd <usd_path> [OPTIONS]
 | `--height` | Image height. Defaults to width. |
 | `--camera`, `-c` | Camera name or prim path. Default is `Camera`. |
 | `--frames`, `-f` | Frame selector such as `0`, `0:10`, or comma-separated values. |
-| `--backend`, `-b` | Rendering backend. Use `remote`. |
-| `--sensors` | Comma-separated sensors such as `linear_depth`, `depth`, or `instance_id_segmentation`. |
+| `--backend`, `-b` | Canonical backend: `remote` (default) or `ovrtx`. The deprecated `local-ovrtx` alias warns and will be removed in 0.6.0. |
+| `--sensors` | Remote-only comma-separated sensors such as `linear_depth`, `depth`, or `instance_id_segmentation`. |
 | `--all-cameras` | Render every camera. Requires `--output-dir`. |
 | `--save-camera-json` | Save camera parameters next to rendered images. |
 | `--focus` | Prim path to auto-frame with the camera. |
@@ -93,6 +101,10 @@ wu render-usd <usd_path> [OPTIONS]
 | `--far-clip` | Override camera far clipping plane distance. |
 | `--dome-light` | Replace scene lights with a dome light intensity. |
 | `--distant-light` | Replace scene lights with a distant light intensity. |
+| `--ovrtx-log-level` | Local OVRTX log level. |
+| `--ovrtx-venv-dir` | Override the isolated local OVRTX virtualenv directory. |
+| `--ovrtx-num-sensor-updates` | Local OVRTX progressive render steps per frame. |
+| `--ovrtx-render-mode` | Local OVRTX render mode: `rt1`, `rt2`, or `pt`. |
 | `--verbose`, `-v` | Enable debug logging. |
 
 ## Common Workflows
@@ -113,6 +125,9 @@ wu render-usd scene.usd --frames 0:10 --output-dir frames/
 # Depth sensor.
 wu render-usd scene.usd --output render.png --sensors linear_depth
 
+# Local OVRTX color render.
+wu render-usd scene.usd --backend ovrtx --output local.png
+
 # Focus and isolate one object.
 wu render-usd scene.usd --focus /World/Chair --isolate /World/Chair \
   --output chair.png
@@ -125,7 +140,8 @@ wu render-usd scene.usd --output lit.png --dome-light 1500
 
 Report:
 
-- Command executed and render endpoint used, without printing credentials.
+- Command executed and canonical render backend used, without printing
+  credentials. Include the render endpoint only for `remote`.
 - Input USD path, camera selection, frame selection, and output path or
   directory.
 - Any focus, isolate, light, sensor, or camera override options.
@@ -138,6 +154,9 @@ Report:
 | Symptom | Cause | Fix |
 |---|---|---|
 | Missing `RENDER_ENDPOINT` | Remote backend has no service URL. | Start or configure a render service, then export `RENDER_ENDPOINT`. |
+| Deprecated `local-ovrtx` warning | A compatibility alias was used. | Replace it with `--backend ovrtx`; the alias is removed in 0.6.0. |
+| Local OVRTX setup error | The isolated OVRTX runtime could not be provisioned or started. | Verify the OVRTX installation or pass the correct `--ovrtx-venv-dir`. |
+| OVRTX sensor error | `--sensors` was combined with local `ovrtx`. | Use `remote` for depth or segmentation sensors, or omit `--sensors`. |
 | Multi-output flag error | Multi-frame or all-camera run used `--output`. | Use `--output-dir` for multi-output runs. |
 | Single-output flag error | Single-frame, single-camera run used both `--output` and `--output-dir`, or neither. | Use exactly one output flag for single-output runs. |
 | Camera path error | The named camera is absent or misspelled. | Inspect with `wu print-usd scene.usd --show-types` or omit `--camera` for auto-created view. |

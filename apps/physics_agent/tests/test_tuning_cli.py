@@ -95,7 +95,7 @@ def test_tune_random_optimizer_smoke(tmp_path: Path) -> None:
     assert (out / "history.jsonl").exists()
     assert (out / "tune_results.json").exists()
     assert (out / "report.md").exists()
-    assert (out / "tuned_physics.usda").exists()
+    assert (out / "tuned_physics.usd").exists()
 
 
 def test_tune_botorch_missing_exits_with_install_hint(
@@ -388,6 +388,8 @@ def test_refine_cli_builds_and_passes_vlm_model(
             "1",
             "--max-iterations",
             "1",
+            "--history-window",
+            "7",
             "--output-dir",
             str(out),
         ],
@@ -401,6 +403,7 @@ def test_refine_cli_builds_and_passes_vlm_model(
     assert captured["refine_params"].chat_model is built_chat
     assert captured["refine_params"].vlm_model is built_vlm
     assert captured["refine_params"].visual_evidence_enabled is True
+    assert captured["refine_params"].history_window == 7
 
 
 def test_refine_cli_no_visual_evidence_disables_judge_media(
@@ -472,6 +475,7 @@ def test_refine_cli_no_visual_evidence_disables_judge_media(
 
     assert result.exit_code == 0, result.stdout
     assert captured["refine_params"].visual_evidence_enabled is False
+    assert captured["refine_params"].history_window == 20
 
 
 def test_refine_cli_passes_reasoning_effort_to_reasoning_vlm_backend(

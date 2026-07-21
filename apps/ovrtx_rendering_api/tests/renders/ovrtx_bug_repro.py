@@ -10,10 +10,12 @@ occurred inside libovrtx.dylib.so in std::vector::_M_realloc_insert.
 Reproduction:
     REPRO_DIR="$(cd "$(dirname apps/ovrtx_rendering_api/tests/renders/ovrtx_bug_repro.py)" && pwd)"
     REPO_ROOT="$(git -C "$REPRO_DIR" rev-parse --show-toplevel)"
-    RUNTIME_REQ="$REPO_ROOT/world_understanding/functions/graphics/ovrtx_runtime_requirements.txt"
-    pip install --index-url https://pypi.nvidia.com --no-deps ovrtx==0.3.0.312915
-    pip install -r "$RUNTIME_REQ"
-    python "$REPRO_DIR/ovrtx_bug_repro.py" --mode both
+    OVRTX_VENV="${WU_OVRTX_VENV_DIR:-$HOME/.cache/wu/ovrtx_venv}"
+    RUNTIME_LOCK="$REPO_ROOT/world_understanding/functions/graphics/pylock.ovrtx-runtime.toml"
+    uv venv --python 3.12 "$OVRTX_VENV"
+    uv pip install --python "$OVRTX_VENV/bin/python" --require-hashes --no-deps \
+      -r "$RUNTIME_LOCK" --no-config --no-sources
+    "$OVRTX_VENV/bin/python" "$REPRO_DIR/ovrtx_bug_repro.py" --mode both
 
 The USD file (ovrtx_bug_repro.usda) contains:
 - 3 cubes at different positions

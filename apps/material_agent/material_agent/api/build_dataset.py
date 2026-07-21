@@ -8,9 +8,53 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.credentials import (
+    path_exists_with_safe_diagnostics,
+    redact_sensitive_path,
+)
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
+
 from material_agent.api.types import APIResult
 
 logger = logging.getLogger(__name__)
+
+_USD_BUILD_FAILURE_MESSAGE = "USD dataset build failed"
+_PDF_VECTORSTORE_BUILD_FAILURE_MESSAGE = "PDF vectorstore build failed"
+_PREPARE_DATASET_FAILURE_MESSAGE = "Prepare dataset failed"
+
+
+def _log_diagnostic_path(label: str, value: Path) -> None:
+    """Log a runtime path through the credential-safe diagnostic projection."""
+    logger.info("%s: %s", label, redact_sensitive_path(value))
+
+
+def _projected_int(mapping: dict[str, Any], key: str) -> int:
+    """Read an integer from projected metadata without widening the schema."""
+    value = mapping.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _projected_mapping(value: Any) -> dict[str, Any] | None:
+    """Keep a projected mapping field in its declared public shape."""
+    return value if isinstance(value, dict) else None
+
+
+def _projected_mapping_list(value: Any) -> list[dict[str, Any]]:
+    """Keep only mapping entries from an already projected result list."""
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _projected_string_list(value: Any) -> list[str]:
+    """Keep only exact string entries from an already projected result list."""
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if type(item) is str]
 
 
 # ============================================================================
@@ -44,8 +88,11 @@ class BuildDatasetUsdInput:
                 raise ValueError("Config dictionary cannot be empty")
         else:
             self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+            if not path_exists_with_safe_diagnostics(
+                self.config,
+                label="USD dataset configuration",
+            ):
+                raise FileNotFoundError("Config file not found")
 
         if self.source_override:
             self.source_override = Path(self.source_override)
@@ -54,8 +101,8 @@ class BuildDatasetUsdInput:
             self.output_dir_override = Path(self.output_dir_override)
 
 
-@dataclass
-class BuildDatasetUsdOutput(APIResult):
+@dataclass(repr=False)
+class BuildDatasetUsdOutput(SecretSafeReprMixin, APIResult):
     """Output results from USD dataset building API."""
 
     dataset_path: Path | None = None
@@ -86,7 +133,7 @@ async def abuild_dataset_usd(params: BuildDatasetUsdInput) -> BuildDatasetUsdOut
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        logger.info("Using configuration file")
 
     try:
         # Load config - either from file or use provided dict
@@ -114,11 +161,15 @@ async def abuild_dataset_usd(params: BuildDatasetUsdInput) -> BuildDatasetUsdOut
         else:
             return await _build_dataset_usd_single(params)
 
-    except Exception as e:
-        logger.error(f"Error building USD dataset: {str(e)}", exc_info=True)
+    except Exception:
+        # Config parsers, workflow backends, and filesystem APIs may reflect
+        # credential-bearing paths or values in exception text. The API owns
+        # this diagnostic boundary, so neither the exception nor its traceback
+        # is copied into logs or the returned result.
+        logger.error(_USD_BUILD_FAILURE_MESSAGE)
         return BuildDatasetUsdOutput(
             success=False,
-            error=str(e),
+            error=_USD_BUILD_FAILURE_MESSAGE,
         )
 
 
@@ -144,11 +195,11 @@ async def _build_dataset_usd_single(
 
     if params.source_override:
         initial_context["source_override"] = params.source_override
-        logger.info(f"Using USD source override: {params.source_override}")
+        logger.info("Using USD source override")
 
     if params.output_dir_override:
         initial_context["output_dir_override"] = params.output_dir_override
-        logger.info(f"Using output directory override: {params.output_dir_override}")
+        logger.info("Using output directory override")
 
     if params.extract_metadata:
         initial_context["extract_prim_metadata"] = params.extract_metadata
@@ -157,15 +208,14 @@ async def _build_dataset_usd_single(
     # Run workflow
     logger.info("Executing dataset build workflow")
     result = await workflow.arun(initial_context)
+    safe_result = project_result_metadata(result)
 
     return BuildDatasetUsdOutput(
         success=True,
-        dataset_path=(
-            Path(result["dataset_path"]) if result.get("dataset_path") else None
-        ),
-        num_prims=result.get("num_prims", 0),
-        num_images=result.get("num_images", 0),
-        raw_result=result,
+        dataset_path=retain_safe_result_path(result.get("dataset_path")),
+        num_prims=_projected_int(safe_result, "num_prims"),
+        num_images=_projected_int(safe_result, "num_images"),
+        raw_result=safe_result,
     )
 
 
@@ -183,7 +233,7 @@ async def _build_dataset_usd_batch(
     # Get USD directory
     if params.source_override and params.source_override.is_dir():
         usd_dir = params.source_override
-        logger.info(f"Using USD directory override: {usd_dir}")
+        logger.info("Using USD directory override")
     elif "usd_dir" in config_data:
         # For file-based config, resolve relative to config file
         # For dict-based config, use as-is (must be absolute or relative to cwd)
@@ -193,7 +243,7 @@ async def _build_dataset_usd_batch(
             usd_dir = usd_dir.resolve()
         else:
             usd_dir = Path(config_data["usd_dir"])
-        logger.info(f"Using usd_dir from config: {usd_dir}")
+        logger.info("Using usd_dir from config")
     else:
         raise ValueError("Batch mode requires usd_dir in config or --source directory")
 
@@ -214,7 +264,7 @@ async def _build_dataset_usd_batch(
 
     # Check if USD directory exists
     if not usd_dir.exists():
-        raise FileNotFoundError(f"USD directory not found: {usd_dir}")
+        raise FileNotFoundError("USD directory not found")
 
     # Create workflow once
     workflow = create_usd_data_preparation_workflow_from_config()
@@ -238,10 +288,29 @@ async def _build_dataset_usd_batch(
         workflow_runner=lambda ctx: workflow.arun(ctx),
         base_context=base_context,
     )
+    if not isinstance(batch_result, dict):
+        raise ValueError("Batch processor returned an invalid result")
+    raw_results = batch_result["results"]
+    raw_successful_builds = batch_result["num_files_processed"]
+    raw_failed_builds = batch_result["num_files_failed"]
+    if (
+        not isinstance(raw_results, dict)
+        or not isinstance(raw_successful_builds, int)
+        or isinstance(raw_successful_builds, bool)
+        or not isinstance(raw_failed_builds, int)
+        or isinstance(raw_failed_builds, bool)
+    ):
+        raise ValueError("Batch processor returned invalid result metadata")
+    safe_batch_result = project_result_metadata(batch_result)
 
-    results = batch_result["results"]
-    successful_builds = batch_result["num_files_processed"]
-    failed_builds = batch_result["num_files_failed"]
+    safe_results = _projected_mapping(safe_batch_result.get("results")) or {}
+    results = {
+        key: value
+        for key, value in safe_results.items()
+        if type(key) is str and isinstance(value, dict)
+    }
+    successful_builds = _projected_int(safe_batch_result, "num_files_processed")
+    failed_builds = _projected_int(safe_batch_result, "num_files_failed")
 
     logger.info(
         f"Batch processing complete: {successful_builds} successful, "
@@ -249,9 +318,9 @@ async def _build_dataset_usd_batch(
     )
 
     return BuildDatasetUsdOutput(
-        success=failed_builds == 0,
+        success=raw_failed_builds == 0,
         batch_results=results,
-        raw_result=batch_result,
+        raw_result=safe_batch_result,
     )
 
 
@@ -284,8 +353,11 @@ class BuildDatasetPdfVectorstoreInput:
                 raise ValueError("Config dictionary cannot be empty")
         else:
             self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+            if not path_exists_with_safe_diagnostics(
+                self.config,
+                label="PDF vectorstore configuration",
+            ):
+                raise FileNotFoundError("Config file not found")
 
         if self.source_override:
             self.source_override = Path(self.source_override)
@@ -294,8 +366,8 @@ class BuildDatasetPdfVectorstoreInput:
             self.output_dir_override = Path(self.output_dir_override)
 
 
-@dataclass
-class BuildDatasetPdfVectorstoreOutput(APIResult):
+@dataclass(repr=False)
+class BuildDatasetPdfVectorstoreOutput(SecretSafeReprMixin, APIResult):
     """Output results from PDF vectorstore building API."""
 
     vectorstore_path: Path | None = None
@@ -326,12 +398,12 @@ async def abuild_dataset_pdf_vectorstore(
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        _log_diagnostic_path("Configuration file", params.config)
 
     if params.source_override:
-        logger.info(f"Source override: {params.source_override}")
+        _log_diagnostic_path("Source override", params.source_override)
     if params.output_dir_override:
-        logger.info(f"Output directory override: {params.output_dir_override}")
+        _log_diagnostic_path("Output directory override", params.output_dir_override)
 
     try:
         # Import workflow factory
@@ -362,43 +434,51 @@ async def abuild_dataset_pdf_vectorstore(
         # Run the workflow
         logger.info("Processing PDFs and building vector store...")
         result = await workflow.arun(initial_context=initial_context)
+        safe_result = project_result_metadata(result)
 
         # Check if workflow completed successfully
         if result.get("workflow_completed"):
             logger.info("PDF vectorstore workflow completed successfully")
 
-            vectorstore_result = result.get("vectorstore_result", {})
+            vectorstore_result = (
+                _projected_mapping(safe_result.get("vectorstore_result")) or {}
+            )
 
             return BuildDatasetPdfVectorstoreOutput(
                 success=True,
-                vectorstore_path=(
-                    Path(vectorstore_result["save_path"])
-                    if vectorstore_result.get("save_path")
+                vectorstore_path=retain_safe_result_path(
+                    result.get("vectorstore_result", {}).get("save_path")
+                    if isinstance(result.get("vectorstore_result"), dict)
                     else None
                 ),
-                num_documents_indexed=vectorstore_result.get(
-                    "num_documents_indexed", 0
+                num_documents_indexed=_projected_int(
+                    vectorstore_result, "num_documents_indexed"
                 ),
-                num_texts=vectorstore_result.get("num_texts", 0),
-                num_images=vectorstore_result.get("num_images", 0),
-                embedding_dimension=vectorstore_result.get("embedding_dimension", 0),
-                extraction_result=result.get("extraction_result"),
-                split_result=result.get("split_result"),
-                raw_result=result,
+                num_texts=_projected_int(vectorstore_result, "num_texts"),
+                num_images=_projected_int(vectorstore_result, "num_images"),
+                embedding_dimension=_projected_int(
+                    vectorstore_result, "embedding_dimension"
+                ),
+                extraction_result=_projected_mapping(
+                    safe_result.get("extraction_result")
+                ),
+                split_result=_projected_mapping(safe_result.get("split_result")),
+                raw_result=safe_result,
             )
         else:
-            error_msg = result.get("error", "PDF vectorstore workflow failed")
-            logger.error(error_msg)
+            safe_result["error"] = _PDF_VECTORSTORE_BUILD_FAILURE_MESSAGE
+            logger.error(_PDF_VECTORSTORE_BUILD_FAILURE_MESSAGE)
             return BuildDatasetPdfVectorstoreOutput(
                 success=False,
-                error=error_msg,
+                error=_PDF_VECTORSTORE_BUILD_FAILURE_MESSAGE,
+                raw_result=safe_result,
             )
 
-    except Exception as e:
-        logger.error(f"Error building PDF vectorstore: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_PDF_VECTORSTORE_BUILD_FAILURE_MESSAGE)
         return BuildDatasetPdfVectorstoreOutput(
             success=False,
-            error=str(e),
+            error=_PDF_VECTORSTORE_BUILD_FAILURE_MESSAGE,
         )
 
 
@@ -431,8 +511,11 @@ class BuildDatasetPrepareDatasetInput:
                 raise ValueError("Config dictionary cannot be empty")
         else:
             self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+            if not path_exists_with_safe_diagnostics(
+                self.config,
+                label="prepare dataset configuration",
+            ):
+                raise FileNotFoundError("Config file not found")
 
         if self.vector_store_override:
             self.vector_store_override = Path(self.vector_store_override)
@@ -441,8 +524,8 @@ class BuildDatasetPrepareDatasetInput:
             self.dataset_override = Path(self.dataset_override)
 
 
-@dataclass
-class BuildDatasetPrepareDatasetOutput(APIResult):
+@dataclass(repr=False)
+class BuildDatasetPrepareDatasetOutput(SecretSafeReprMixin, APIResult):
     """Output results from prepare dataset API."""
 
     dataset_jsonl_path: Path | None = None
@@ -471,12 +554,12 @@ async def abuild_dataset_prepare_dataset(
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        _log_diagnostic_path("Configuration file", params.config)
 
     if params.vector_store_override:
-        logger.info(f"Vector store override: {params.vector_store_override}")
+        _log_diagnostic_path("Vector store override", params.vector_store_override)
     if params.dataset_override:
-        logger.info(f"Dataset override: {params.dataset_override}")
+        _log_diagnostic_path("Dataset override", params.dataset_override)
 
     try:
         # Import workflow factory
@@ -510,12 +593,17 @@ async def abuild_dataset_prepare_dataset(
         # Run the workflow
         logger.info("Running prepare dataset workflow...")
         result = await workflow.arun(initial_context=initial_context)
+        safe_result = project_result_metadata(result)
 
         # Check if workflow completed successfully
         if result.get("dataset_entries") is not None:
-            dataset_entries = result.get("dataset_entries", [])
-            failed_models = result.get("failed_models", [])
-            dataset_jsonl_path = result.get("dataset_jsonl_path")
+            dataset_entries = _projected_mapping_list(
+                safe_result.get("dataset_entries")
+            )
+            failed_models = _projected_string_list(safe_result.get("failed_models"))
+            dataset_jsonl_path = retain_safe_result_path(
+                result.get("dataset_jsonl_path")
+            )
 
             logger.info(
                 f"Dataset preparation completed: {len(dataset_entries)} entries, "
@@ -524,26 +612,26 @@ async def abuild_dataset_prepare_dataset(
 
             return BuildDatasetPrepareDatasetOutput(
                 success=True,
-                dataset_jsonl_path=(
-                    Path(dataset_jsonl_path) if dataset_jsonl_path else None
-                ),
+                dataset_jsonl_path=dataset_jsonl_path,
                 dataset_entries=dataset_entries,
                 failed_models=failed_models,
-                raw_result=result,
+                raw_result=safe_result,
             )
         else:
             error_msg = "Prepare dataset workflow did not complete successfully"
+            safe_result["error"] = error_msg
             logger.error(error_msg)
             return BuildDatasetPrepareDatasetOutput(
                 success=False,
                 error=error_msg,
+                raw_result=safe_result,
             )
 
-    except Exception as e:
-        logger.error(f"Error preparing dataset: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_PREPARE_DATASET_FAILURE_MESSAGE)
         return BuildDatasetPrepareDatasetOutput(
             success=False,
-            error=str(e),
+            error=_PREPARE_DATASET_FAILURE_MESSAGE,
         )
 
 

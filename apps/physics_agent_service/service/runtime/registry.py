@@ -4,9 +4,46 @@
 
 import asyncio
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+MAX_ACTIVE_SESSIONS_ENV_VAR = "PA_MAX_ACTIVE_SESSIONS"
+DEFAULT_MAX_ACTIVE_SESSIONS = 1
+_CANCEL_WAIT_TIMEOUT_SECONDS = 5.0
+
+
+def resolve_max_active_sessions() -> int:
+    """Resolve the configured session capacity with a safe fallback.
+
+    Zero is an explicit valid capacity. Unset, non-integer, and negative values
+    use :data:`DEFAULT_MAX_ACTIVE_SESSIONS`.
+    """
+    env_value = os.getenv(MAX_ACTIVE_SESSIONS_ENV_VAR)
+    if env_value is None:
+        return DEFAULT_MAX_ACTIVE_SESSIONS
+
+    try:
+        limit = int(env_value)
+    except ValueError:
+        logger.error(
+            "%s must be a valid integer, got '%s'. Falling back to default: %d",
+            MAX_ACTIVE_SESSIONS_ENV_VAR,
+            env_value,
+            DEFAULT_MAX_ACTIVE_SESSIONS,
+        )
+        return DEFAULT_MAX_ACTIVE_SESSIONS
+
+    if limit < 0:
+        logger.error(
+            "%s must be non-negative, got '%s'. Falling back to default: %d",
+            MAX_ACTIVE_SESSIONS_ENV_VAR,
+            env_value,
+            DEFAULT_MAX_ACTIVE_SESSIONS,
+        )
+        return DEFAULT_MAX_ACTIVE_SESSIONS
+    return limit
 
 
 # Sentinel placed into JobRegistry._tasks by reserve() before the actual
@@ -15,6 +52,11 @@ logger = logging.getLogger(__name__)
 # it. We never await this future from the user side; it is set/cancelled by
 # the reservation owner via ``JobReservation.start()`` / ``release()``.
 _RESERVED = object()
+
+
+def _create_job_task(coro: Any) -> asyncio.Task[Any]:
+    """Create one registry wrapper task (isolated for failure injection)."""
+    return asyncio.create_task(coro)
 
 
 class JobReservation:
@@ -53,7 +95,9 @@ class JobReservation:
 
         Must be called at most once per reservation. After ``start()``,
         the reservation is considered consumed and ``release()`` becomes a
-        no-op.
+        no-op. If cancellation or another ``BaseException`` interrupts startup
+        before a task owns ``coro``, the unstarted coroutine is closed and the
+        reservation remains available for the caller to release.
         """
         if self._consumed:
             # Mirror the lost-reservation branch below: close the incoming
@@ -62,26 +106,40 @@ class JobReservation:
             if hasattr(coro, "close"):
                 coro.close()
             raise RuntimeError(f"Reservation for {self._session_id} already consumed")
-        async with self._registry._lock:
+
+        task_owns_coro = False
+        lock_acquired = False
+        try:
+            await self._registry._lock.acquire()
+            lock_acquired = True
             current = self._registry._tasks.get(self._session_id)
             if current is not _RESERVED:
                 # Defensive: somebody (cancel/release) cleared our slot
                 # under us. Refuse to start so we don't leak a coroutine
                 # into an unowned slot.
-                if hasattr(coro, "close"):
-                    coro.close()
                 raise RuntimeError(
                     f"Reservation for {self._session_id} was lost before start()"
                 )
-            task = asyncio.create_task(
-                self._registry._run_with_cleanup(self._session_id, coro)
-            )
+            wrapper = self._registry._run_with_cleanup(self._session_id, coro)
+            try:
+                task = _create_job_task(wrapper)
+            except BaseException:
+                wrapper.close()
+                raise
+            task_owns_coro = True
             # Stash the inner coroutine on the task so cancel() can close
             # it if the wrapping task is cancelled before _run_with_cleanup
             # ever runs (which would otherwise leak the coroutine and
             # surface a "coroutine was never awaited" RuntimeWarning).
             task._wu_inner_coro = coro  # type: ignore[attr-defined]
             self._registry._tasks[self._session_id] = task
+        except BaseException:
+            if not task_owns_coro and hasattr(coro, "close"):
+                coro.close()
+            raise
+        finally:
+            if lock_acquired:
+                self._registry._lock.release()
         self._consumed = True
         logger.info(f"Pipeline queued for {self._session_id[:8]}...")
 
@@ -113,13 +171,14 @@ class JobRegistry:
     proper cancellation and monitoring.
     """
 
-    def __init__(self, max_concurrent: int = 3):
+    def __init__(self, max_concurrent: int):
         """Initialize job registry.
 
         Args:
             max_concurrent: Maximum concurrent pipeline jobs (semaphore limit)
         """
         self._tasks: dict[str, Any] = {}
+        self._max_concurrent = max_concurrent
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._active_count = 0
         self._lock = asyncio.Lock()
@@ -201,6 +260,7 @@ class JobRegistry:
             coro: Coroutine to execute
         """
         acquired = False
+        active_incremented = False
         coro_started = False
         try:
             await self._semaphore.acquire()
@@ -208,6 +268,7 @@ class JobRegistry:
 
             async with self._lock:
                 self._active_count += 1
+                active_incremented = True
 
             logger.info(
                 f"Starting pipeline for {session_id[:8]}... "
@@ -223,6 +284,7 @@ class JobRegistry:
             if acquired:
                 self._semaphore.release()
 
+            if active_incremented:
                 async with self._lock:
                     self._active_count -= 1
 
@@ -264,20 +326,39 @@ class JobRegistry:
         task.cancel()
         logger.info(f"Cancellation requested for {session_id[:8]}...")
 
-        try:
-            await asyncio.wait_for(task, timeout=5.0)
-        except (TimeoutError, asyncio.CancelledError):
-            pass
+        # Do not use wait_for here: it sends a second cancellation at timeout
+        # and then waits indefinitely for a cancellation-suppressing task. A
+        # thread-backed pipeline deliberately keeps its wrapper alive while
+        # the worker drains, so return after the bounded grace period and let
+        # the registry slot remain occupied until normal cleanup runs.
+        await asyncio.wait({task}, timeout=_CANCEL_WAIT_TIMEOUT_SECONDS)
 
         # If the task was cancelled before _run_with_cleanup ever started,
         # the inner coroutine never reached its `await` point and Python
         # would emit "coroutine was never awaited" on GC. Close it
         # explicitly here. close() is safe on already-completed coros.
         inner_coro = getattr(task, "_wu_inner_coro", None)
-        if inner_coro is not None and hasattr(inner_coro, "close"):
+        if task.done() and inner_coro is not None and hasattr(inner_coro, "close"):
             inner_coro.close()
 
+        # A task cancelled before ``_run_with_cleanup`` gets its first event
+        # loop turn never executes that coroutine's ``finally`` block. Remove
+        # the completed wrapper here as the cancellation-side fallback so an
+        # injected post-registration startup failure cannot leave a dead slot.
+        async with self._lock:
+            if self._tasks.get(session_id) is task and task.done():
+                del self._tasks[session_id]
+
         return True
+
+    async def wait_for_quiescence(self, session_id: str) -> None:
+        """Wait until a registered job can no longer mutate session artifacts."""
+        task = self.get_task(session_id)
+        if task is None:
+            return
+        # asyncio.wait does not re-raise the target task's cancellation or
+        # failure, but cancellation of this destructive caller still propagates.
+        await asyncio.wait({task})
 
     def get_task(self, session_id: str) -> asyncio.Task | None:
         """Get task for a session."""
@@ -314,6 +395,11 @@ class JobRegistry:
         """Get count of all registered jobs (active + queued)."""
         return len(self._tasks)
 
+    @property
+    def max_concurrent(self) -> int:
+        """Return the session capacity enforced by this registry."""
+        return self._max_concurrent
+
 
 # Global singleton job registry
 _job_registry: JobRegistry | None = None
@@ -323,8 +409,5 @@ def get_job_registry() -> JobRegistry:
     """Get the global job registry instance."""
     global _job_registry
     if _job_registry is None:
-        import os
-
-        max_concurrent = int(os.getenv("PA_MAX_ACTIVE_SESSIONS", "1"))
-        _job_registry = JobRegistry(max_concurrent=max_concurrent)
+        _job_registry = JobRegistry(max_concurrent=resolve_max_active_sessions())
     return _job_registry

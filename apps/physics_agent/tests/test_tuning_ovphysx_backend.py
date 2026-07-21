@@ -310,7 +310,7 @@ def test_daemon_passthrough_to_evaluator(
     fake_daemon: _FakeDaemon, tmp_path: Path
 ) -> None:
     backend = OvPhysXBackend()
-    backend.evaluate(
+    result = backend.evaluate(
         params={"mass_scale": 1.0},
         scenario=_drop_settle_scenario(),
         physics_usd=_physics_usd(tmp_path),
@@ -319,6 +319,11 @@ def test_daemon_passthrough_to_evaluator(
     # The daemon got called with the expected kwargs from the
     # drop_settle evaluator.
     call = fake_daemon.calls[0]
-    assert call["scene_usd"]
+    scene_usd = Path(call["scene_usd"])
+    assert scene_usd.name == "scene.usd"
+    assert Path(result["patched_usd"]).name == "patched_physics.usd"
+    assert Path(result["recording_usd"]).name == "recording.usd"
+    assert result["recording_usda"] == result["recording_usd"]
+    assert scene_usd.exists()
     assert call["body_pattern"] == "/World/Body"
     assert call["duration_s"] == 1.0

@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for shared blank-image detection."""
 
+import io
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw
 
 from world_understanding.utils.image_blankness import (
+    _sample_rgb_pixels,
     analyze_image_blankness,
     image_is_blank,
 )
@@ -40,6 +43,7 @@ def test_nonblank_render_like_image_is_not_blank(tmp_path: Path) -> None:
     assert not stats.blank
     assert stats.unique_colors >= 4
     assert stats.dominant_color_ratio < 0.99
+    assert stats.to_dict()["blank"] is False
 
 
 def test_near_uniform_png_is_blank_from_bytes(tmp_path: Path) -> None:
@@ -129,3 +133,62 @@ def test_subsampling_does_not_have_deterministic_row_blind_spots() -> None:
 
     assert not stats.blank
     assert stats.strong_minority_pixel_ratio > 0
+
+
+def test_dominant_color_reason_for_low_contrast_outlier() -> None:
+    image = Image.new("RGB", (100, 100), (250, 250, 250))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([0, 0, 9, 0], fill=(249, 249, 249))
+
+    stats = analyze_image_blankness(image, min_unique=2, max_uniformity=0.99)
+
+    assert stats.blank
+    assert stats.reason == "dominant_color"
+
+
+def test_near_uniform_luminance_reason_for_balanced_low_range_colors() -> None:
+    image = Image.new("RGB", (4, 4))
+    colors = [(100, 100, 100), (101, 101, 101), (102, 102, 102), (103, 103, 103)]
+    for index, color in enumerate(colors * 4):
+        image.putpixel((index % 4, index // 4), color)
+
+    stats = analyze_image_blankness(
+        image,
+        min_unique=4,
+        blank_std_threshold=2.0,
+        blank_dynamic_range_threshold=3.0,
+    )
+
+    assert stats.blank
+    assert stats.reason == "near_uniform_luminance"
+
+
+def test_alpha_content_can_clear_uniform_blank_reason() -> None:
+    image = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([0, 0, 3, 3], fill=(0, 0, 0, 255))
+
+    stats = analyze_image_blankness(image)
+
+    assert not stats.blank
+    assert stats.reason is None
+    assert stats.alpha_visible_ratio == 0.16
+
+
+def test_rgba_bytes_and_grayscale_modes_are_normalized() -> None:
+    rgba = Image.new("RGBA", (4, 4), (20, 30, 40, 255))
+    buffer = io.BytesIO()
+    rgba.save(buffer, format="PNG")
+
+    rgba_stats = analyze_image_blankness(memoryview(buffer.getvalue()))
+    grayscale_stats = analyze_image_blankness(Image.new("L", (4, 4), 128))
+
+    assert rgba_stats.mode == "RGBA"
+    assert grayscale_stats.mode == "RGB"
+
+
+def test_sample_rgb_pixels_converts_non_rgb_images() -> None:
+    sampled = _sample_rgb_pixels(Image.new("L", (2, 2), 7), max_pixels=4)
+
+    assert sampled.shape == (4, 3)
+    assert np.all(sampled == 7)

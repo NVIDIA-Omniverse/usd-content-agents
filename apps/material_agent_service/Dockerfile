@@ -2,30 +2,47 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Material Agent Service Dockerfile
-FROM python:3.12.13-slim
+FROM ubuntu:24.04
 
 ARG APP_VERSION=unknown
 ARG GIT_COMMIT=unknown
+ARG WU_REQUIRED_OPTIONAL_BACKEND
 
-# CVE-2025-13836: http.client memory DoS — fixed in 3.12.13+ / 3.13.11+.
+# Prevent interactive prompts during apt-get.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# CVE-2025-13836: Ubuntu 24.04 applies security backports to Python 3.12.
 # Use Python 3.12 because usd-exchange currently publishes Linux ARM64 wheels
 # for cp310-cp312, not cp313.
-RUN python3 -c "import sys; v=sys.version_info; assert (3,12,13) <= v < (3,13), \
-    f'CVE-2025-13836 / USD wheel compatibility: Python {sys.version} is unsupported, need 3.12.13+'"
 # CVE-2026-4519: webbrowser.open() command injection — not exploitable
-# (webbrowser module unused by this service). Fix pending in future 3.13.x release.
+# (webbrowser module unused by this service). Ubuntu 24.04 patch pending.
 
 # Install system dependencies. --no-install-recommends keeps the image lean
 # and avoids pulling in unexpected packages (docker:S6500).
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
     build-essential \
     git \
     curl \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+RUN ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python
+
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN python -c "import sys; v=sys.version_info; assert v[:2] == (3, 12), \
+    f'USD wheel compatibility: Python {sys.version} is unsupported, need 3.12'"
 
 # Install uv for faster package management. Keep pip above the image-scan floor.
 RUN python -m pip install --no-cache-dir --upgrade "pip>=26.1" uv
+ENV UV_NO_CACHE=1
 
 # Set working directory
 WORKDIR /app
@@ -45,9 +62,8 @@ COPY .build-resources /app/.build-resources
 # `docker compose build`. When absent, the `optimize_usd` step falls back to
 # NVCF at runtime.
 #
-# The SO bundle's compiled extensions are cpython-312-only. Ensure a
-# `python3.12` executable is available for `_resolve_so_python()` when the SO
-# bundle is present; skip the extra interpreter for NVCF-only deployments.
+# The SO bundle's compiled extensions are cpython-312-only. Verify the distro
+# interpreter before accepting a staged bundle.
 RUN BUILD_RESOURCES=/app/.build-resources; \
     SO=$BUILD_RESOURCES/scene_optimizer_core; \
     if [ -d "$BUILD_RESOURCES" ]; then \
@@ -61,9 +77,8 @@ RUN BUILD_RESOURCES=/app/.build-resources; \
       if python3 -c "import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 12) else 1)"; then \
         echo "Scene Optimizer Core present at $SO; using base Python 3.12 for SO subprocess"; \
       else \
-        echo "Scene Optimizer Core present at $SO; installing Python 3.12 for SO subprocess"; \
-        uv python install 3.12 && \
-        ln -sf "$(uv python find 3.12)" /usr/local/bin/python3.12; \
+        echo "Scene Optimizer Core present at $SO but distro Python 3.12 is unavailable"; \
+        exit 1; \
       fi; \
     else \
       echo "Scene Optimizer Core not provided — optimize_usd will fall back to NVCF"; \
@@ -73,22 +88,46 @@ ENV WU_SO_PACKAGE_DIR=/app/.build-resources/scene_optimizer_core
 # Install world_understanding package and dependencies.
 # --no-config + --no-sources give us a clean, reproducible install path:
 # ignore any host-level uv config and tool.uv.sources indirection.
-# SETUPTOOLS_SCM_PRETEND_VERSION bypasses git versioning.
-RUN cd /app && SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 UV_DYNAMIC_VERSIONING_BYPASS=0.0.0 \
-    uv pip install --system -e ".[telemetry]" --no-config --no-sources
+# Keep every editable package on the repository release version so local
+# dependency floors resolve against the installed world-understanding package.
+RUN cd /app && SETUPTOOLS_SCM_PRETEND_VERSION="$(cat /app/VERSION.md)" UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \
+    uv pip install -e ".[telemetry]" --no-config --no-sources
+
+# Install the optional backend wheel when release automation stages it in the
+# Docker build context. Public builds do not provide this wheel and continue
+# with public backends only.
+RUN if ls /app/.build-resources/optional-backend/*.whl >/dev/null 2>&1; then \
+      uv pip install --no-deps --no-config --no-sources \
+        /app/.build-resources/optional-backend/*.whl && \
+      WU_REQUIRED_OPTIONAL_BACKEND="${WU_REQUIRED_OPTIONAL_BACKEND}" \
+      python -c "import os; import world_understanding.functions.models.backends; from world_understanding.functions.models.backends.registry import list_chat_backends, list_image_gen_backends, list_loaded_backend_plugins, list_text_embedding_backends, list_vlm_backends; required = os.environ.get('WU_REQUIRED_OPTIONAL_BACKEND', ''); registered = set(list_chat_backends()) | set(list_vlm_backends()) | set(list_image_gen_backends()) | set(list_text_embedding_backends()); assert list_loaded_backend_plugins(), 'Optional backend wheel did not register a plugin'; assert not required or required in registered, f'Required optional backend {required!r} was not registered'"; \
+    elif [ -n "${WU_REQUIRED_OPTIONAL_BACKEND}" ]; then \
+      echo "Required optional backend ${WU_REQUIRED_OPTIONAL_BACKEND} has no staged wheel" >&2; \
+      exit 1; \
+    else \
+      echo "Optional backend wheel not provided; using public backends only"; \
+    fi
 
 # Install material_agent package if it exists
 RUN if [ -d "/app/apps/material_agent" ]; then \
-      cd /app/apps/material_agent && UV_DYNAMIC_VERSIONING_BYPASS=0.0.0 \
-      uv pip install --system -e . --no-config --no-sources; \
+      cd /app/apps/material_agent && UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \
+      uv pip install -e . --no-config --no-sources; \
     fi
 
 # Install material_agent_service package (versions from pyproject.toml)
-RUN cd /app/apps/material_agent_service && UV_DYNAMIC_VERSIONING_BYPASS=0.0.0 uv pip install --system -e . --no-config --no-sources
+RUN cd /app/apps/material_agent_service && UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" uv pip install -e . --no-config --no-sources
 
-# Copy React frontend build output from Stage 1
+# Do not ship uv source caches or their nested Git metadata in the final image.
+RUN rm -rf /root/.cache/uv
+
 # Create directories for materials and sessions
 RUN mkdir -p /var/material-agent/sessions /app/materials
+
+# Keep copied source importable when the host checkout has restrictive modes.
+RUN chmod -R a+rX \
+    /app/world_understanding \
+    /app/apps/material_agent \
+    /app/apps/material_agent_service
 
 # Create non-root user for security
 RUN useradd -m -u 10000 material-agent && \
@@ -99,7 +138,7 @@ RUN useradd -m -u 10000 material-agent && \
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Add Python paths for material_agent imports
-ENV PYTHONPATH="/app:/app/apps:/app/apps/material_agent_service:${PYTHONPATH}"
+ENV PYTHONPATH="/app:/app/apps:/app/apps/material_agent_service"
 
 # Switch to non-root user
 USER material-agent

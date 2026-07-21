@@ -8,7 +8,9 @@ The Material Assignment Service takes a USD scene as input and automatically ass
 * Flexible inputs
     * Supports .usd, .usda, .usdc, .usdz.
     * Optional reference images to guide the VLM.
-    * Optional user prompt to nudge decision-making (e.g., “Metal frames should be aluminum”).
+    * Optional generated material-library mode creates asset-specific materials from reference images using deployment image-generation settings.
+    * Natural-language prompts can nudge decision-making (e.g., “Metal frames should be aluminum”).
+    * Invalid predictions automatically fall back to a canonical neutral gray matte material instead of leaving parts unbound.
 
 * Real-time monitoring
     * Server-Sent Events (SSE) stream provides live updates with:

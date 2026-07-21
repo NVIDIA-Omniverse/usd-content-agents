@@ -87,6 +87,14 @@ class TestEchoChatModel:
 
         assert isinstance(result.generations[0].message, AIMessage)
 
+    @pytest.mark.asyncio
+    async def test_echo_async_generate_delegates_to_sync_generate(self):
+        """Test async echo generation."""
+        model = create_echo_chat_model()
+        result = await model._agenerate([HumanMessage(content="Async")])
+
+        assert result.generations[0].message.content == "Echo: Async"
+
     def test_echo_llm_type(self):
         """Test echo model returns correct LLM type."""
         model = create_echo_chat_model()

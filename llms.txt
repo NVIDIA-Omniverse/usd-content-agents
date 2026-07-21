@@ -1,7 +1,8 @@
 # NVIDIA Content Agents
 
 AI-powered agents for OpenUSD/USD content workflows: material assignment,
-physics property classification, texture generation, and validation.
+physics property classification, joint and articulation authoring, texture
+generation, and validation.
 
 ## Canonical Entry Points
 
@@ -10,26 +11,46 @@ physics property classification, texture generation, and validation.
 - Claude Code guide: `CLAUDE.md`
 - Material Agent CLI docs: `apps/material_agent/README.md`
 - Physics Agent CLI docs: `apps/physics_agent/README.md`
+- Joint Agent CLI docs (0.5 Research Preview): `apps/joint_agent/README.md`
+- Joint Agent REST docs (0.5 Research Preview):
+  `apps/joint_agent_service/README.md`
 - Texture Agent CLI docs: `apps/texture_agent/README.md`
 - Validation Agent CLI docs (Research Preview):
   `apps/validation_agent/README.md`
 - Validation Agent examples (Research Preview):
   `apps/validation_agent/examples/README.md`
+- Agentic Workflow preview:
+  `agentic/README.md`
 - Material Agent API docs: `apps/material_agent/docs/api.md`
 - Physics Agent API docs: `apps/physics_agent/docs/api.md`
 - Texture Agent REST API docs: `apps/texture_agent_service/docs/api.md`
 
 ## Bundled Agent Skills
 
-- Canonical skill tree: `.agents/skills/`
+- Canonical repo-root skill tree: `.agents/skills/`
 - Codex skill mirror: `.codex/skills/`
 - Claude Code skill mirror: `.claude/skills/`
+- Agentic Workflow batch launcher skill:
+  `agentic/.agents/skills/content-workflow-cli/SKILL.md`,
+  `agentic/.codex/skills/content-workflow-cli/SKILL.md`,
+  `agentic/.claude/skills/content-workflow-cli/SKILL.md`
 - Material first-run skills: `.agents/skills/material-agent-cli/SKILL.md`,
   `.codex/skills/material-agent-cli/SKILL.md`,
   `.claude/skills/material-agent-cli/SKILL.md`
 - Physics first-run skills: `.agents/skills/physics-agent-cli/SKILL.md`,
   `.codex/skills/physics-agent-cli/SKILL.md`,
   `.claude/skills/physics-agent-cli/SKILL.md`
+- Joint first-run skills (0.5 Research Preview):
+  `.agents/skills/joint-agent-cli/SKILL.md`,
+  `.codex/skills/joint-agent-cli/SKILL.md`,
+  `.claude/skills/joint-agent-cli/SKILL.md`
+- Joint REST client skills: `.agents/skills/joint-agent-client/SKILL.md`,
+  `.codex/skills/joint-agent-client/SKILL.md`,
+  `.claude/skills/joint-agent-client/SKILL.md`
+- Joint Gate 3A/B skills:
+  `.agents/skills/joint-agent-validation/SKILL.md`,
+  `.codex/skills/joint-agent-validation/SKILL.md`,
+  `.claude/skills/joint-agent-validation/SKILL.md`
 - Texture first-run skills: `.agents/skills/texture-agent-cli/SKILL.md`,
   `.codex/skills/texture-agent-cli/SKILL.md`,
   `.claude/skills/texture-agent-cli/SKILL.md`
@@ -44,6 +65,7 @@ physics property classification, texture generation, and validation.
 material-agent run apps/material_agent/configs/unified_example.yaml --dry-run
 material-agent run apps/material_agent/configs/unified_example.yaml
 physics-agent run apps/physics_agent/configs/lightbulb.yaml
+joint-agent run apps/joint_agent/configs/byoa_joint_rigger.yaml --dry-run
 texture-agent run apps/texture_agent/configs/texture_example.yaml
 validation-agent run apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml
 ```

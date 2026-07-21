@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Restore USD task — re-exported from shared world_understanding location."""
+
+from world_understanding.agentic.usd_tasks.restore_usd import (  # noqa: F401
+    RestorationStats,
+    RestoreUSDTask,
+)

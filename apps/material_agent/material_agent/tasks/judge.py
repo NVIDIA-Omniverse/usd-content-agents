@@ -188,6 +188,7 @@ class JudgeTask(Task):
 
         # Combine scores — only include prediction analysis if it ran
         if prediction_score is not None:
+            prediction_analysis_config = judge_config.get("prediction_analysis", {})
             prediction_weight = prediction_analysis_config.get("weight", 0.6)
             image_weight = 1.0 - prediction_weight
             combined_score = (
@@ -238,6 +239,32 @@ class JudgeTask(Task):
         context["judge_image_decision"] = image_decision
         context["judge_image_decision_parsed"] = image_decision_parsed
         context["prediction_consistency_score"] = prediction_score
+        context["evaluation_signals"] = {
+            "schema_version": "material-self-evaluation-signals/v1",
+            "prediction_analysis": {
+                "enabled": prediction_score >= 0.0,
+                "status": ("completed" if prediction_score >= 0.0 else "disabled"),
+                "symmetry_pair_count": None,
+                "symmetry_violations": context.get("symmetry_violations", []),
+                "consistency_violations": context.get("consistency_violations", []),
+                "previous_prim_feedback": context.get("previous_prim_feedback", {}),
+                "resolved_assignments": context.get("resolved_assignments", {}),
+                "critique": prediction_critique,
+            },
+            "visual_evaluation": {
+                "enabled": True,
+                "status": "completed",
+                "reference_image_paths": judge_config.get("reference_images", []),
+                "rendered_image_paths": context.get(
+                    "rendered_image_paths",
+                    [context["rendered_image_path"]]
+                    if context.get("rendered_image_path")
+                    else [],
+                ),
+                "critique": image_critique,
+                "issues": [],
+            },
+        }
 
         # Log decision
         listener.info("")
@@ -307,6 +334,9 @@ class JudgeTask(Task):
             ),
             resolve_consistency_directly=prediction_analysis_config.get(
                 "resolve_consistency_directly", True
+            ),
+            detect_numbered_path_symmetry=prediction_analysis_config.get(
+                "detect_numbered_path_symmetry", True
             ),
         )
         result = analyzer.analyze()

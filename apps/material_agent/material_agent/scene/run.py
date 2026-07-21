@@ -10,14 +10,24 @@ Supports parallel execution via ThreadPoolExecutor.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-if TYPE_CHECKING:
+from world_understanding.agentic.base_pipeline_executor import save_pipeline_checkpoint
+from world_understanding.agentic.config import clone_config_containers
+from world_understanding.utils.credentials import find_inline_secret_paths
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    durable_diagnostic,
+)
+
+if TYPE_CHECKING:  # pragma: no cover
     from material_agent.api.pipeline import PipelineOutput
 
 from .manifest import PayloadGroup, SceneManifest, SubAsset
@@ -28,25 +38,231 @@ CancelChecker = Callable[[], bool]
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
+@dataclass
+class SubAssetHarnessConfig:
+    """Retired compatibility settings for the sub-asset harness path.
+
+    The Material Agent task-first harness workflow has been retired. The
+    supported agentic asset workflow is now ``content-workflow-cli`` with Content
+    Workbench.
+    """
+
+    enabled: bool = False
+    render_mode: Literal["remote"] = "remote"
+    inference_mode: Literal["vlm"] = "vlm"
+    vlm_backend: str = "nim"
+    vlm_model: str = "qwen/qwen3.5-397b-a17b"
+    max_iterations: int = 1
+    max_rendered_prims: int | None = None
+    apply_source_mode: Literal["copy", "overlay"] = "copy"
+    expected_min_unique_materials: int | None = None
+    render_width: int | None = None
+    render_height: int | None = None
+    dataset_render_batch_size: int | None = None
+    dataset_render_max_concurrent_requests: int | None = None
+    dataset_render_num_workers: int | None = None
+    fail_on_blank_dataset_renders: bool = False
+    fail_on_missing_prim_images: bool = False
+    scene_render_width: int = 1024
+    scene_render_height: int = 1024
+    optimize_usd: bool = True
+    restore_usd: bool = True
+    generate_reference_images: bool = False
+    optimizer_backend: Literal["local", "remote"] | None = None
+    optimizer_config: dict[str, Any] | None = field(default_factory=dict)
+    harness_request: str | None = None
+    harness_metadata: dict[str, Any] = field(default_factory=dict)
+
+
 def _raise_if_cancelled(cancel_checker: CancelChecker | None) -> None:
     """Raise ``CancelledError`` when the caller requests cancellation."""
     if cancel_checker and cancel_checker():
         raise asyncio.CancelledError("Scene pipeline cancellation requested")
 
 
-def _patch_config_predict_max_workers(config_path: Path, max_workers: int) -> None:
-    """Patch ``steps.predict.max_workers`` in a per-asset YAML config file."""
+def _prepare_sub_asset_runtime_config_for_run(
+    sub_asset: SubAsset,
+    scene_config: dict[str, Any] | None,
+    scene_config_dir: Path | None,
+) -> tuple[dict[str, Any] | None, bool]:
+    """Prepare one runtime config without publishing rejected exception graphs."""
+    if scene_config is None or not (
+        sub_asset.config_credential_paths or find_inline_secret_paths(scene_config)
+    ):
+        return None, True
+
+    runtime_config: dict[str, Any] | None = None
+    preparation_failed = False
+    try:
+        from .config_gen import prepare_sub_asset_runtime_config
+
+        runtime_config = prepare_sub_asset_runtime_config(
+            sub_asset,
+            scene_config,
+            scene_config_dir=scene_config_dir,
+        )
+    except Exception:
+        # Rehydration frames may retain the source credential. Consume the
+        # exception here without binding, logging, or returning it; report only
+        # a fixed failure after leaving the exception suite.
+        preparation_failed = True
+
+    if preparation_failed:
+        logger.error(
+            "Unable to prepare an in-memory scene configuration; "
+            "marking one sub-asset failed"
+        )
+        return None, False
+    return runtime_config, True
+
+
+def _prepare_payload_runtime_config_for_run(
+    payload_group: PayloadGroup,
+    scene_config: dict[str, Any] | None,
+    scene_config_dir: Path | None,
+    sibling_names: list[str] | None,
+) -> tuple[dict[str, Any] | None, bool]:
+    """Prepare one payload runtime config behind the same safe boundary."""
+    if scene_config is None or not (
+        payload_group.config_credential_paths or find_inline_secret_paths(scene_config)
+    ):
+        return None, True
+
+    runtime_config: dict[str, Any] | None = None
+    preparation_failed = False
+    try:
+        from .config_gen import prepare_payload_runtime_config
+
+        runtime_config = prepare_payload_runtime_config(
+            payload_group,
+            scene_config,
+            scene_config_dir=scene_config_dir,
+            sibling_names=sibling_names,
+        )
+    except Exception:
+        preparation_failed = True
+
+    if preparation_failed:
+        logger.error(
+            "Unable to prepare an in-memory scene configuration; "
+            "marking one payload failed"
+        )
+        return None, False
+    return runtime_config, True
+
+
+def _load_yaml_mapping(path: Path) -> dict[str, Any]:
     import yaml
 
-    with open(config_path) as f:
-        cfg = yaml.safe_load(f)
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config must contain a mapping: {path}")
+    return data
 
-    steps = cfg.setdefault("steps", {})
-    predict = steps.setdefault("predict", {})
-    predict["max_workers"] = max_workers
 
-    with open(config_path, "w") as f:
-        yaml.safe_dump(cfg, f, default_flow_style=False, sort_keys=False)
+def _sub_asset_working_dir(config: dict[str, Any], config_path: Path) -> Path:
+    project = config.get("project", {})
+    if not isinstance(project, dict):
+        project = {}
+
+    configured = project.get("working_dir")
+    if isinstance(configured, str) and configured:
+        working_dir = Path(configured)
+        if not working_dir.is_absolute():
+            working_dir = config_path.parent / working_dir
+        return working_dir.resolve()
+
+    session_id = str(project.get("session_id") or "").strip()
+    if not session_id:
+        import re
+
+        session_id = re.sub(r"[^\w\-]", "_", config_path.stem).strip("_").lower()
+    return (config_path.parent / f".{session_id}").resolve()
+
+
+def _run_sub_asset_selected(
+    sub_asset: SubAsset,
+    skip_steps: list[str] | None = None,
+    only_steps: list[str] | None = None,
+    verbose: bool = False,
+    simulate: bool = False,
+    material_names: list[str] | None = None,
+    resume: bool = False,
+    from_step: str | None = None,
+    predict_max_workers: int | None = None,
+    cancel_checker: CancelChecker | None = None,
+    harness_config: SubAssetHarnessConfig | None = None,
+    config_dict: dict[str, Any] | None = None,
+) -> SubAsset:
+    if harness_config and harness_config.enabled:
+        return run_sub_asset_with_harness(sub_asset, harness_config)
+
+    return run_sub_asset(
+        sub_asset,
+        skip_steps,
+        only_steps,
+        verbose,
+        simulate,
+        material_names,
+        resume=resume,
+        from_step=from_step,
+        predict_max_workers=predict_max_workers,
+        cancel_checker=cancel_checker,
+        config_dict=config_dict,
+    )
+
+
+def run_sub_asset_with_harness(
+    sub_asset: SubAsset,
+    harness_config: SubAssetHarnessConfig,
+    verbose: bool = False,
+    predict_max_workers: int | None = None,
+    cancel_checker: CancelChecker | None = None,
+) -> SubAsset:
+    """Reject the retired Material Agent harness loop.
+
+    The execution kwargs are retained so older direct callers still receive the
+    migration error instead of a Python signature error.
+    """
+    _ = (verbose, predict_max_workers, cancel_checker)
+    raise RuntimeError(
+        "The Material Agent task-first harness workflow has been retired. "
+        "Use `content-workflow-cli materials assign` with Content Workbench for "
+        "agentic asset workflows."
+    )
+
+
+def _write_sub_asset_harness_error(
+    sub_asset: SubAsset,
+    exc: BaseException,
+) -> None:
+    del exc
+    if not sub_asset.config_path:
+        return
+
+    config_path = Path(sub_asset.config_path)
+    try:
+        config = _load_yaml_mapping(config_path)
+        working_dir = _sub_asset_working_dir(config, config_path)
+    except Exception:
+        working_dir = config_path.parent / f".{config_path.stem}"
+
+    sub_asset.working_dir = str(working_dir)
+    error_path = working_dir / "harness_scene_adapter_error.json"
+    error_path.parent.mkdir(parents=True, exist_ok=True)
+    error_path.write_text(
+        json.dumps(
+            durable_diagnostic(
+                "material_scene_adapter_failed",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            ).to_dict(),
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _clean_working_dir_for_so_retry(config_path: Path) -> None:
@@ -143,8 +359,7 @@ def _clear_pipeline_state_from_step(config_path: Path, from_step: str) -> None:
     )
 
     if state_changed:
-        with open(state_file, "w") as f:
-            json.dump(state, f, indent=2)
+        save_pipeline_checkpoint(state, state_file)
         logger.info(
             f"Cleared pipeline state from '{from_step}' for session '{session_id}'"
         )
@@ -161,6 +376,7 @@ def run_sub_asset(
     from_step: str | None = None,
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
+    config_dict: dict[str, Any] | None = None,
 ) -> SubAsset:
     """Run the material-agent pipeline on one sub-asset.
 
@@ -192,10 +408,42 @@ def run_sub_asset(
     config_path = Path(sub_asset.config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config not found: {config_path}")
+    from .config_gen import _load_and_sanitize_generated_config
 
-    # Patch per-asset config's predict.max_workers if override is set
+    durable_config, legacy_credential_paths = _load_and_sanitize_generated_config(
+        config_path
+    )
+    sub_asset.config_credential_paths = sorted(
+        set(sub_asset.config_credential_paths) | set(legacy_credential_paths)
+    )
+    source_config_provided = config_dict is not None
+    effective_config = (
+        clone_config_containers(config_dict)
+        if config_dict is not None
+        else durable_config
+    )
+    if sub_asset.config_credential_paths and not source_config_provided:
+        credential_paths = ", ".join(sub_asset.config_credential_paths[:8])
+        raise ValueError(
+            "Source scene config is required to rehydrate credentials at "
+            f"{credential_paths}"
+        )
+    if source_config_provided:
+        missing_paths = set(sub_asset.config_credential_paths) - set(
+            find_inline_secret_paths(effective_config)
+        )
+        if missing_paths:
+            credential_paths = ", ".join(sorted(missing_paths)[:8])
+            raise ValueError(
+                "Runtime scene config is missing inline credentials at "
+                f"{credential_paths}"
+            )
+
+    # Apply per-asset concurrency only to this isolated runtime configuration.
     if predict_max_workers is not None:
-        _patch_config_predict_max_workers(config_path, predict_max_workers)
+        effective_config.setdefault("steps", {}).setdefault("predict", {})[
+            "max_workers"
+        ] = predict_max_workers
 
     # Clear pipeline state from the target step so resume re-runs it
     if from_step and resume:
@@ -203,24 +451,39 @@ def run_sub_asset(
 
     logger.info(f"Running pipeline for '{sub_asset.name}' ({sub_asset.prim_path})")
 
+    simulation_config = effective_config
+    if simulate:
+        from material_agent.api.simulate_config import patch_config_for_simulate
+
+        # Credential continuity is validated above against the original source
+        # configuration. Only then replace provider credentials in this
+        # per-item copy so simulation cannot execute or retain a live key.
+        simulation_config = patch_config_for_simulate(effective_config)
+
+    simulate_kwargs: dict[str, Any] = {
+        "verbose": verbose,
+        "cancel_checker": cancel_checker,
+        "config_dict": simulation_config,
+    }
+
     if simulate:
         if not material_names:
             raise ValueError("material_names is required when simulate=True")
         result = _run_simulate(
             config_path,
             material_names,
-            verbose=verbose,
-            cancel_checker=cancel_checker,
+            **simulate_kwargs,
         )
     else:
         params = PipelineInput(
-            config=config_path,
+            config=clone_config_containers(effective_config),
             skip_steps=skip_steps or [],
             only_steps=only_steps or [],
             verbose=verbose,
             resume=resume,
             simulate=False,
             cancel_checker=cancel_checker,
+            config_path=config_path,
         )
         result = run_pipeline(params)
 
@@ -255,18 +518,18 @@ def run_sub_asset(
             result = _run_simulate(
                 config_path,
                 material_names or [],
-                verbose=verbose,
-                cancel_checker=cancel_checker,
+                **simulate_kwargs,
             )
         else:
             params_no_so = PipelineInput(
-                config=config_path,
+                config=clone_config_containers(effective_config),
                 skip_steps=skip_no_so,
                 only_steps=only_steps or [],
                 verbose=verbose,
                 resume=False,  # clean start for retry
                 simulate=False,
                 cancel_checker=cancel_checker,
+                config_path=config_path,
             )
             result = run_pipeline(params_no_so)
 
@@ -294,6 +557,10 @@ def _run_sub_asset_worker(
     from_step: str | None = None,
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
+    harness_config: SubAssetHarnessConfig | None = None,
+    config_dict: dict[str, Any] | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
 ) -> SubAsset:
     """Worker function for parallel execution.
 
@@ -303,7 +570,17 @@ def _run_sub_asset_worker(
         Updated SubAsset.
     """
     try:
-        return run_sub_asset(
+        runtime_config = config_dict
+        if runtime_config is None:
+            runtime_config, config_ready = _prepare_sub_asset_runtime_config_for_run(
+                sub_asset,
+                scene_config,
+                scene_config_dir,
+            )
+            if not config_ready:
+                sub_asset.status = "failed"
+                return sub_asset
+        return _run_sub_asset_selected(
             sub_asset,
             skip_steps,
             only_steps,
@@ -314,10 +591,14 @@ def _run_sub_asset_worker(
             from_step=from_step,
             predict_max_workers=predict_max_workers,
             cancel_checker=cancel_checker,
+            harness_config=harness_config,
+            config_dict=runtime_config,
         )
-    except Exception:
-        logger.exception(f"Error processing '{sub_asset.name}'")
+    except Exception as exc:
+        logger.error("Unable to process one scene sub-asset")
         sub_asset.status = "failed"
+        if harness_config and harness_config.enabled:
+            _write_sub_asset_harness_error(sub_asset, exc)
         return sub_asset
 
 
@@ -337,6 +618,9 @@ def run_all(
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
     progress_callback: ProgressCallback | None = None,
+    harness_config: SubAssetHarnessConfig | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
 ) -> SceneManifest:
     """Run pipelines for all processable assets.
 
@@ -355,6 +639,9 @@ def run_all(
         verbose: Enable verbose logging.
         resume: If True, resume per-asset pipelines from last checkpoint.
         from_step: If set, clear this step and downstream from pipeline state.
+        harness_config: Retired compatibility settings. If enabled, sub-asset
+            processing records a retired-workflow error instead of running the
+            old harness path.
 
     Returns:
         Updated SceneManifest.
@@ -393,7 +680,9 @@ def run_all(
     total = len(to_process)
     logger.info(
         f"Running pipeline for {total} sub-assets "
-        f"(workers={max_workers}, skipped={skipped})"
+        f"(workers={max_workers}, skipped={skipped}, "
+        "retired_harness_requested="
+        f"{bool(harness_config and harness_config.enabled)})"
     )
 
     if total == 0:
@@ -429,6 +718,9 @@ def run_all(
             predict_max_workers=predict_max_workers,
             cancel_checker=cancel_checker,
             progress_callback=progress_callback,
+            harness_config=harness_config,
+            scene_config=scene_config,
+            scene_config_dir=scene_config_dir,
         )
     else:
         # Parallel execution
@@ -447,6 +739,9 @@ def run_all(
             predict_max_workers=predict_max_workers,
             cancel_checker=cancel_checker,
             progress_callback=progress_callback,
+            harness_config=harness_config,
+            scene_config=scene_config,
+            scene_config_dir=scene_config_dir,
         )
 
     # Copy results from representatives to structural duplicate members
@@ -539,6 +834,10 @@ def _run_sequential(
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
     progress_callback: ProgressCallback | None = None,
+    harness_config: SubAssetHarnessConfig | None = None,
+    runtime_configs: dict[str, dict[str, Any]] | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
 ) -> tuple[int, int]:
     """Run assets sequentially, saving manifest after each."""
     completed = 0
@@ -549,25 +848,43 @@ def _run_sequential(
         _raise_if_cancelled(cancel_checker)
         logger.info(f"[{i}/{total}] Processing '{sa.name}'...")
         try:
-            run_sub_asset(
-                sa,
-                skip_steps,
-                only_steps,
-                verbose,
-                simulate,
-                material_names,
-                resume=resume,
-                from_step=from_step,
-                predict_max_workers=predict_max_workers,
-                cancel_checker=cancel_checker,
-            )
-            if sa.status == "completed":
-                completed += 1
-            else:
-                failed += 1
-        except Exception:
-            logger.exception(f"[{i}/{total}] Error processing '{sa.name}'")
+            runtime_config = (runtime_configs or {}).get(sa.id)
+            config_ready = True
+            if runtime_config is None:
+                runtime_config, config_ready = (
+                    _prepare_sub_asset_runtime_config_for_run(
+                        sa,
+                        scene_config,
+                        scene_config_dir,
+                    )
+                )
+                if not config_ready:
+                    sa.status = "failed"
+                    failed += 1
+            if config_ready:
+                _run_sub_asset_selected(
+                    sa,
+                    skip_steps,
+                    only_steps,
+                    verbose,
+                    simulate,
+                    material_names,
+                    resume=resume,
+                    from_step=from_step,
+                    predict_max_workers=predict_max_workers,
+                    cancel_checker=cancel_checker,
+                    harness_config=harness_config,
+                    config_dict=runtime_config,
+                )
+                if sa.status == "completed":
+                    completed += 1
+                else:
+                    failed += 1
+        except Exception as exc:
+            logger.error("Unable to process one scene sub-asset")
             sa.status = "failed"
+            if harness_config and harness_config.enabled:
+                _write_sub_asset_harness_error(sa, exc)
             failed += 1
 
         manifest.save(manifest_path)
@@ -603,6 +920,10 @@ def _run_parallel(
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
     progress_callback: ProgressCallback | None = None,
+    harness_config: SubAssetHarnessConfig | None = None,
+    runtime_configs: dict[str, dict[str, Any]] | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
 ) -> tuple[int, int]:
     """Run assets in parallel using ThreadPoolExecutor.
 
@@ -633,6 +954,7 @@ def _run_parallel(
         )
     else:
         logger.info("No assets to process")
+        return completed, failed
 
     manifest_lock = threading.Lock()
 
@@ -651,6 +973,10 @@ def _run_parallel(
                 from_step,
                 predict_max_workers,
                 cancel_checker,
+                harness_config,
+                (runtime_configs or {}).get(sa.id),
+                scene_config,
+                scene_config_dir,
             ): sa
             for sa in sorted_assets
         }
@@ -689,7 +1015,7 @@ def _run_parallel(
                     raise
                 except Exception:
                     failed += 1
-                    logger.exception(f"Worker error for '{original_sa.name}'")
+                    logger.error("Unable to collect one scene sub-asset result")
                     original_asset_idx = asset_index_map.get(original_sa.id)
                     if original_asset_idx is not None:
                         manifest.sub_assets[original_asset_idx].status = "failed"
@@ -717,6 +1043,7 @@ def _run_simulate(
     material_names: list[str],
     verbose: bool,
     cancel_checker: CancelChecker | None = None,
+    config_dict: dict[str, Any] | None = None,
 ) -> PipelineOutput:
     """Run a two-phase simulate pipeline: SO (real) + mock predictions + apply.
 
@@ -729,15 +1056,19 @@ def _run_simulate(
         material_names: Material names for round-robin mock predictions.
         verbose: Enable verbose logging.
         cancel_checker: Optional callback returning True when the run should stop.
+        config_dict: Optional isolated runtime config; ``config_path`` remains its
+            relative-path anchor.
 
     Returns:
         PipelineOutput from the final phase.
     """
-    import yaml
-
     from material_agent.api.pipeline import PipelineInput, PipelineOutput, run_pipeline
 
-    config = yaml.safe_load(config_path.read_text())
+    config = (
+        clone_config_containers(config_dict)
+        if config_dict is not None
+        else _load_yaml_mapping(config_path)
+    )
     steps = config.get("steps", {})
     so_enabled = steps.get("optimize_usd", {}).get("enabled", False)
 
@@ -749,10 +1080,11 @@ def _run_simulate(
         logger.info(f"simulate phase 1: running optimize_usd for {config_path.name}")
         result = run_pipeline(
             PipelineInput(
-                config=config_path,
+                config=clone_config_containers(config),
                 only_steps=["optimize_usd"],
                 verbose=verbose,
                 cancel_checker=cancel_checker,
+                config_path=config_path,
             )
         )
         if not result.success or "optimize_usd" not in result.completed_steps:
@@ -809,11 +1141,12 @@ def _run_simulate(
     logger.info(f"simulate phase 3: running {phase3_steps} for {config_path.name}")
     result = run_pipeline(
         PipelineInput(
-            config=config_path,
+            config=clone_config_containers(config),
             only_steps=phase3_steps,
             resume=True,
             verbose=verbose,
             cancel_checker=cancel_checker,
+            config_path=config_path,
         )
     )
 
@@ -955,6 +1288,7 @@ def run_payload(
     from_step: str | None = None,
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
+    config_dict: dict[str, Any] | None = None,
 ) -> PayloadGroup:
     """Run the material-agent pipeline on one payload group.
 
@@ -983,10 +1317,42 @@ def run_payload(
     config_path = Path(payload_group.config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config not found: {config_path}")
+    from .config_gen import _load_and_sanitize_generated_config
 
-    # Patch per-asset config's predict.max_workers if override is set
+    durable_config, legacy_credential_paths = _load_and_sanitize_generated_config(
+        config_path
+    )
+    payload_group.config_credential_paths = sorted(
+        set(payload_group.config_credential_paths) | set(legacy_credential_paths)
+    )
+    source_config_provided = config_dict is not None
+    effective_config = (
+        clone_config_containers(config_dict)
+        if config_dict is not None
+        else durable_config
+    )
+    if payload_group.config_credential_paths and not source_config_provided:
+        credential_paths = ", ".join(payload_group.config_credential_paths[:8])
+        raise ValueError(
+            "Source scene config is required to rehydrate credentials at "
+            f"{credential_paths}"
+        )
+    if source_config_provided:
+        missing_paths = set(payload_group.config_credential_paths) - set(
+            find_inline_secret_paths(effective_config)
+        )
+        if missing_paths:
+            credential_paths = ", ".join(sorted(missing_paths)[:8])
+            raise ValueError(
+                "Runtime scene config is missing inline credentials at "
+                f"{credential_paths}"
+            )
+
+    # Apply per-payload concurrency only to this isolated runtime configuration.
     if predict_max_workers is not None:
-        _patch_config_predict_max_workers(config_path, predict_max_workers)
+        effective_config.setdefault("steps", {}).setdefault("predict", {})[
+            "max_workers"
+        ] = predict_max_workers
 
     # Clear pipeline state from the target step so resume re-runs it
     if from_step and resume:
@@ -997,24 +1363,36 @@ def run_payload(
         f"({payload_group.payload_file})"
     )
 
+    simulation_config = effective_config
+    if simulate:
+        from material_agent.api.simulate_config import patch_config_for_simulate
+
+        simulation_config = patch_config_for_simulate(effective_config)
+
+    simulate_kwargs: dict[str, Any] = {
+        "verbose": verbose,
+        "cancel_checker": cancel_checker,
+        "config_dict": simulation_config,
+    }
+
     if simulate:
         if not material_names:
             raise ValueError("material_names is required when simulate=True")
         result = _run_simulate(
             config_path,
             material_names,
-            verbose=verbose,
-            cancel_checker=cancel_checker,
+            **simulate_kwargs,
         )
     else:
         params = PipelineInput(
-            config=config_path,
+            config=clone_config_containers(effective_config),
             skip_steps=skip_steps or [],
             only_steps=only_steps or [],
             verbose=verbose,
             resume=resume,
             simulate=False,
             cancel_checker=cancel_checker,
+            config_path=config_path,
         )
         result = run_pipeline(params)
 
@@ -1045,18 +1423,18 @@ def run_payload(
             result = _run_simulate(
                 config_path,
                 material_names or [],
-                verbose=verbose,
-                cancel_checker=cancel_checker,
+                **simulate_kwargs,
             )
         else:
             params_no_so = PipelineInput(
-                config=config_path,
+                config=clone_config_containers(effective_config),
                 skip_steps=skip_no_so,
                 only_steps=only_steps or [],
                 verbose=verbose,
                 resume=False,  # clean start for retry
                 simulate=False,
                 cancel_checker=cancel_checker,
+                config_path=config_path,
             )
             result = run_pipeline(params_no_so)
 
@@ -1084,9 +1462,24 @@ def _run_payload_worker(
     from_step: str | None = None,
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
+    config_dict: dict[str, Any] | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
+    sibling_names: list[str] | None = None,
 ) -> PayloadGroup:
     """Worker function for parallel payload execution."""
     try:
+        runtime_config = config_dict
+        if runtime_config is None:
+            runtime_config, config_ready = _prepare_payload_runtime_config_for_run(
+                payload_group,
+                scene_config,
+                scene_config_dir,
+                sibling_names,
+            )
+            if not config_ready:
+                payload_group.status = "failed"
+                return payload_group
         return run_payload(
             payload_group,
             skip_steps,
@@ -1098,9 +1491,10 @@ def _run_payload_worker(
             from_step=from_step,
             predict_max_workers=predict_max_workers,
             cancel_checker=cancel_checker,
+            config_dict=runtime_config,
         )
     except Exception:
-        logger.exception(f"Error processing payload '{payload_group.group_name}'")
+        logger.error("Unable to process one scene payload")
         payload_group.status = "failed"
         return payload_group
 
@@ -1151,7 +1545,10 @@ def run_all_payloads_bottomup(
     Returns:
         Updated SceneManifest.
     """
-    from .config_gen import generate_payload_config
+    from .config_gen import (
+        _build_payload_sibling_map,
+        generate_payload_config,
+    )
 
     _raise_if_cancelled(cancel_checker)
     payloads_by_depth = manifest.get_payloads_by_depth()
@@ -1168,6 +1565,7 @@ def run_all_payloads_bottomup(
         f"Running {total_all} payload groups bottom-up "
         f"(max depth={max_depth}, workers={max_workers})"
     )
+    payload_sibling_map = _build_payload_sibling_map(manifest)
 
     for depth in range(0, max_depth + 1):
         _raise_if_cancelled(cancel_checker)
@@ -1194,9 +1592,7 @@ def run_all_payloads_bottomup(
                     pg.config_path = str(config_path)
                     pg.working_dir = str(payload_configs_dir / f".{pg.group_name}")
                 except Exception:
-                    logger.exception(
-                        f"Failed to prepare parent payload '{pg.group_name}'"
-                    )
+                    logger.error("Unable to prepare one parent scene payload")
                     pg.status = "failed"
 
         # Filter payloads to run at this level
@@ -1228,6 +1624,9 @@ def run_all_payloads_bottomup(
                 from_step=from_step,
                 predict_max_workers=predict_max_workers,
                 cancel_checker=cancel_checker,
+                scene_config=scene_config,
+                scene_config_dir=scene_config_dir,
+                payload_sibling_map=payload_sibling_map,
             )
         else:
             completed, failed = _run_payloads_parallel(
@@ -1244,6 +1643,9 @@ def run_all_payloads_bottomup(
                 from_step=from_step,
                 predict_max_workers=predict_max_workers,
                 cancel_checker=cancel_checker,
+                scene_config=scene_config,
+                scene_config_dir=scene_config_dir,
+                payload_sibling_map=payload_sibling_map,
             )
 
         # Update output_usd_path for completed payloads and fix
@@ -1554,6 +1956,10 @@ def _run_payloads_sequential(
     from_step: str | None = None,
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
+    runtime_configs: dict[str, dict[str, Any]] | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
+    payload_sibling_map: dict[str, list[str]] | None = None,
 ) -> tuple[int, int]:
     """Run payload groups sequentially."""
     completed = 0
@@ -1564,26 +1970,38 @@ def _run_payloads_sequential(
         _raise_if_cancelled(cancel_checker)
         logger.info(f"[{i}/{total}] Processing payload '{pg.group_name}'...")
         try:
-            run_payload(
-                pg,
-                skip_steps,
-                only_steps,
-                verbose,
-                simulate,
-                material_names,
-                resume=resume,
-                from_step=from_step,
-                predict_max_workers=predict_max_workers,
-                cancel_checker=cancel_checker,
-            )
-            if pg.status == "completed":
-                completed += 1
-            else:
-                failed += 1
+            runtime_config = (runtime_configs or {}).get(pg.id)
+            config_ready = True
+            if runtime_config is None:
+                runtime_config, config_ready = _prepare_payload_runtime_config_for_run(
+                    pg,
+                    scene_config,
+                    scene_config_dir,
+                    (payload_sibling_map or {}).get(pg.group_name),
+                )
+                if not config_ready:
+                    pg.status = "failed"
+                    failed += 1
+            if config_ready:
+                run_payload(
+                    pg,
+                    skip_steps,
+                    only_steps,
+                    verbose,
+                    simulate,
+                    material_names,
+                    resume=resume,
+                    from_step=from_step,
+                    predict_max_workers=predict_max_workers,
+                    cancel_checker=cancel_checker,
+                    config_dict=runtime_config,
+                )
+                if pg.status == "completed":
+                    completed += 1
+                else:
+                    failed += 1
         except Exception:
-            logger.exception(
-                f"[{i}/{total}] Error processing payload '{pg.group_name}'"
-            )
+            logger.error("Unable to process one scene payload")
             pg.status = "failed"
             failed += 1
 
@@ -1607,6 +2025,10 @@ def _run_payloads_parallel(
     from_step: str | None = None,
     predict_max_workers: int | None = None,
     cancel_checker: CancelChecker | None = None,
+    runtime_configs: dict[str, dict[str, Any]] | None = None,
+    scene_config: dict[str, Any] | None = None,
+    scene_config_dir: Path | None = None,
+    payload_sibling_map: dict[str, list[str]] | None = None,
 ) -> tuple[int, int]:
     """Run payload groups in parallel using ThreadPoolExecutor."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1645,6 +2067,10 @@ def _run_payloads_parallel(
                 from_step,
                 predict_max_workers,
                 cancel_checker,
+                (runtime_configs or {}).get(pg.id),
+                scene_config,
+                scene_config_dir,
+                (payload_sibling_map or {}).get(pg.group_name),
             ): pg
             for pg in sorted_payloads
         }
@@ -1682,9 +2108,7 @@ def _run_payloads_parallel(
                     raise
                 except Exception:
                     failed += 1
-                    logger.exception(
-                        f"Worker error for payload '{original_pg.group_name}'"
-                    )
+                    logger.error("Unable to collect one scene payload result")
                     original_payload_idx = pg_index_map.get(original_pg.id)
                     if original_payload_idx is not None:
                         manifest.payload_groups[original_payload_idx].status = "failed"

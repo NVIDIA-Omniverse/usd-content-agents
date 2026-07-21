@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import queue
+import threading
 import zipfile
 from collections.abc import Generator
 from pathlib import Path
@@ -69,6 +71,8 @@ def test_missing_artifacts_return_json_errors(tmp_path: Path) -> None:
     expected = {
         f"/artifacts/{sid}-missing/materials": (404, "Session not found"),
         f"/artifacts/{sid}-missing/manifest": (404, "Session not found"),
+        f"/artifacts/{sid}-missing/textures/albedo.png": (404, "Session not found"),
+        f"/artifacts/{sid}-missing/renders": (404, "Session not found"),
         f"/artifacts/{sid}/textures/missing.png": (
             404,
             "Texture file not found: missing.png",
@@ -199,6 +203,45 @@ def test_shared_store_artifact_uses_public_url_when_available(tmp_path: Path) ->
     )
 
 
+def test_shared_store_json_artifacts_are_proxied_for_sanitization(
+    tmp_path: Path,
+) -> None:
+    class PublicUrlStore(LocalSessionStore):
+        def make_public_url(
+            self,
+            session_id: str,
+            key: str,
+            expires_seconds: int = 3600,
+        ) -> str | None:
+            return f"https://example.test/{session_id}/{key}"
+
+    store = PublicUrlStore(str(tmp_path / "shared"))
+    manager = SessionManager(tmp_path / "pod", store=store)
+    sid = "shared-json-proxy"
+    manager.create_session(sid)
+    payloads = {
+        "cache/discovery/materials.json": b'[{"path":"/var/texture-agent/sessions/id/mat"}]',
+        "cache/artifacts_manifest.json": b'{"path":"/var/texture-agent/sessions/id/out"}',
+    }
+    for key, payload in payloads.items():
+        store.put_bytes(sid, key, payload, content_type="application/json")
+
+    artifacts_router.set_session_manager(manager)
+    app = FastAPI()
+    app.include_router(artifacts_router.router)
+    client = TestClient(app)
+
+    for endpoint, expected in (
+        ("materials", payloads["cache/discovery/materials.json"]),
+        ("manifest", payloads["cache/artifacts_manifest.json"]),
+    ):
+        response = client.get(f"/artifacts/{sid}/{endpoint}", follow_redirects=False)
+
+        assert response.status_code == 200
+        assert response.content == expected
+        assert "location" not in response.headers
+
+
 def test_shared_store_texture_zip_streams_from_store(tmp_path: Path) -> None:
     store = LocalSessionStore(str(tmp_path / "shared"))
     manager = SessionManager(tmp_path / "pod", store=store)
@@ -314,3 +357,145 @@ def test_public_url_artifact_redirect_preserves_missing_json_404(
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
     assert response.json()["detail"] == "Output USDZ not available"
+
+
+def test_zip_queue_writer_basic_contract() -> None:
+    import queue
+    import threading
+
+    output_queue: queue.Queue[bytes | None] = queue.Queue()
+    writer = artifacts_router._ZipQueueWriter(output_queue, threading.Event())
+
+    assert writer.writable() is True
+    assert writer.seekable() is False
+    assert writer.tell() == 0
+    assert writer.write(b"abc") == 3
+    assert writer.tell() == 3
+    assert output_queue.get_nowait() == b"abc"
+    assert writer.write(b"") == 0
+
+
+def test_zip_queue_writer_retries_full_queue() -> None:
+    class RetryQueue:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.items: list[bytes] = []
+
+        def put(self, item: bytes, timeout: float) -> None:
+            self.calls += 1
+            if self.calls == 1:
+                raise queue.Full
+            self.items.append(item)
+
+    retry_queue = RetryQueue()
+    writer = artifacts_router._ZipQueueWriter(
+        cast(queue.Queue[bytes | None], retry_queue),
+        threading.Event(),
+    )
+
+    assert writer.write(b"abc") == 3
+    assert retry_queue.calls == 2
+    assert retry_queue.items == [b"abc"]
+
+
+def test_empty_local_artifact_dirs_return_specific_json_errors(
+    tmp_path: Path,
+) -> None:
+    manager = SessionManager(tmp_path)
+    sid = "empty-local-artifacts"
+    session_dir = manager.create_session(sid)
+
+    artifacts_router.set_session_manager(manager)
+    app = FastAPI()
+    app.include_router(artifacts_router.router)
+    client = TestClient(app)
+
+    expected = {
+        f"/artifacts/{sid}/textures": "No texture files found",
+        f"/artifacts/{sid}/renders": "No render files found",
+        "/artifacts/missing-session/renders/final.png": "Session not found",
+        "/artifacts/missing-session/preview/final.png": "Session not found",
+    }
+
+    for path, detail in expected.items():
+        response = client.get(path)
+        assert response.status_code == 404
+        assert response.json()["detail"] == detail
+
+    (session_dir / "cache" / "textures" / "folder.png").mkdir()
+    response = client.get(f"/artifacts/{sid}/textures/folder.png")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Texture file not found: folder.png"
+
+
+def test_artifact_downloads_reject_symlink_escapes(tmp_path: Path) -> None:
+    client, sid = _build_artifact_app(tmp_path)
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"outside")
+    session_dir = tmp_path / sid
+
+    for folder, route in (
+        ("cache/textures", "textures"),
+        ("cache/renders", "renders"),
+        ("preview", "preview"),
+    ):
+        link = session_dir / folder / "escape.png"
+        link.unlink(missing_ok=True)
+        link.symlink_to(outside)
+
+        response = client.get(f"/artifacts/{sid}/{route}/escape.png")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid filename"
+
+
+def test_shared_store_renders_zip_streams_when_local_dir_empty(
+    tmp_path: Path,
+) -> None:
+    store = LocalSessionStore(str(tmp_path / "shared"))
+    manager = SessionManager(tmp_path / "pod", store=store)
+    sid = "shared-renders-empty-local"
+    manager.create_session(sid)
+    store.put_bytes(sid, "cache/renders/final.png", b"render")
+
+    artifacts_router.set_session_manager(manager)
+    app = FastAPI()
+    app.include_router(artifacts_router.router)
+    client = TestClient(app)
+
+    response = client.get(f"/artifacts/{sid}/renders")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        assert zf.read("renders/final.png") == b"render"
+
+
+def test_shared_store_manifest_render_and_preview_stream_without_hydration(
+    tmp_path: Path,
+) -> None:
+    store = LocalSessionStore(str(tmp_path / "shared"))
+    manager = SessionManager(tmp_path / "pod", store=store)
+    sid = "shared-artifact-streams"
+    store.init_session(sid)
+    store.put_json(sid, METADATA_KEY, {"session_id": sid, "status": "completed"})
+    store.put_bytes(sid, "cache/artifacts_manifest.json", b'{"ok": true}')
+    store.put_bytes(sid, "cache/renders/final.png", b"render")
+    store.put_bytes(sid, "preview/final.png", b"preview")
+
+    artifacts_router.set_session_manager(manager)
+    app = FastAPI()
+    app.include_router(artifacts_router.router)
+    client = TestClient(app)
+
+    manifest = client.get(f"/artifacts/{sid}/manifest")
+    assert manifest.status_code == 200
+    assert manifest.content == b'{"ok": true}'
+
+    render = client.get(f"/artifacts/{sid}/renders/final.png")
+    assert render.status_code == 200
+    assert render.content == b"render"
+
+    preview = client.get(f"/artifacts/{sid}/preview/final.png")
+    assert preview.status_code == 200
+    assert preview.content == b"preview"
+    assert not manager.get_session_dir(sid).exists()

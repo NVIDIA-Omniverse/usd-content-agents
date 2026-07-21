@@ -19,6 +19,7 @@ PIPELINE_STEP_NAMES = [
     "render_preview",  # Lightweight whole-scene preview rendering
     "identify_asset",  # Identify asset type/description from preview + USD metadata
     "generate_reference_image",  # Generate photorealistic reference images from previews
+    "generate_material_library",  # Generate an asset-specific material library
     "build_dataset_usd",
     "build_dataset_pdf_vectorstore",
     "build_dataset_prepare_dataset",
@@ -28,6 +29,7 @@ PIPELINE_STEP_NAMES = [
     "benchmark",
     "validate_predictions",
     "harmonize_predictions",
+    "create_materials",  # Create run-local materials from explicit requests
     "restore_usd",  # USD restoration via API (inverse of optimize_usd)
     "apply",
     "evaluate",
@@ -41,6 +43,7 @@ STEP_OPTIMIZE_USD = "optimize_usd"
 STEP_RENDER_PREVIEW = "render_preview"
 STEP_IDENTIFY_ASSET = "identify_asset"
 STEP_GENERATE_REFERENCE_IMAGE = "generate_reference_image"
+STEP_GENERATE_MATERIAL_LIBRARY = "generate_material_library"
 STEP_BUILD_DATASET_USD = "build_dataset_usd"
 STEP_BUILD_DATASET_PDF_VECTORSTORE = "build_dataset_pdf_vectorstore"
 STEP_BUILD_DATASET_PREPARE_DATASET = "build_dataset_prepare_dataset"
@@ -50,6 +53,7 @@ STEP_BENCHMARK = "benchmark"
 STEP_EXPAND_CLUSTER_PREDICTIONS = "expand_cluster_predictions"
 STEP_VALIDATE_PREDICTIONS = "validate_predictions"
 STEP_HARMONIZE_PREDICTIONS = "harmonize_predictions"
+STEP_CREATE_MATERIALS = "create_materials"
 STEP_APPLY = "apply"
 STEP_REFINE = "refine"
 STEP_RESTORE_USD = "restore_usd"
@@ -85,20 +89,8 @@ DEFAULT_VLM_BACKEND = "nim"
 DEFAULT_VLM_MODEL = "qwen/qwen3.5-397b-a17b"
 DEFAULT_VLM_TEMPERATURE = 1.0
 DEFAULT_VLM_MAX_TOKENS = 24576
-DEFAULT_VLM_REASONING_EFFORT = "high"  # for reasoning-capable models (e.g. gpt-5)
+DEFAULT_VLM_REASONING_EFFORT = "high"  # for reasoning-capable models
 DEFAULT_VLM_MAX_WORKERS = 64
-
-# LLMGateway configuration for GPT-5
-DEFAULT_VLM_LLMGATEWAY_CONFIG = {
-    "cred_fields": [
-        "token_url",
-        "client_id",
-        "client_secret",
-        "scope",
-    ],
-    "env_prefix": "AZURE_LLM_GATEWAY_main_",
-    "cred_file_url": None,
-}
 
 DEFAULT_LLM_BACKEND = "nim"
 DEFAULT_LLM_MODEL = "qwen/qwen3.5-397b-a17b"
@@ -126,12 +118,11 @@ DEFAULT_CLUSTER_COMPLEXITY_THRESHOLDS = {
     "high": [0.08, 1.0, 0.90],
 }
 
-# Judge uses GPT-5 via LLMGateway (same as VLM)
-DEFAULT_JUDGE_BACKEND = "llmgateway_azure_openai"
-DEFAULT_JUDGE_MODEL = "gpt-5"
-DEFAULT_JUDGE_TEMPERATURE = 1.0  # GPT-5 only supports temperature=1
+# Public judge defaults use NVIDIA NIM.
+DEFAULT_JUDGE_BACKEND = "nim"
+DEFAULT_JUDGE_MODEL = "qwen/qwen3.5-397b-a17b"
+DEFAULT_JUDGE_TEMPERATURE = 0.1
 DEFAULT_JUDGE_MAX_TOKENS = 2048
-DEFAULT_JUDGE_REASONING_EFFORT = "high"  # GPT-5 reasoning effort level
 
 
 # ============================================================================
@@ -144,7 +135,6 @@ PREDICT_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
         "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
     },
     "llm": {
@@ -170,7 +160,6 @@ BENCHMARK_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
         "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
     },
     "llm": {
@@ -184,8 +173,6 @@ BENCHMARK_DEFAULTS = {
         "model": DEFAULT_JUDGE_MODEL,
         "temperature": DEFAULT_JUDGE_TEMPERATURE,
         "max_tokens": DEFAULT_JUDGE_MAX_TOKENS,
-        "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,  # Judge also uses llmgateway
-        "reasoning_effort": DEFAULT_JUDGE_REASONING_EFFORT,
     },
     "max_workers": DEFAULT_VLM_MAX_WORKERS,
     "stream_predictions": True,
@@ -201,6 +188,7 @@ APPLY_DEFAULTS = {
     "layer_only": False,
     "flatten": True,
     "allow_empty_predictions": False,
+    "material_profile": "auto",
     "render": {
         "enabled": False,
         "backend": DEFAULT_RENDER_BACKEND,
@@ -272,8 +260,11 @@ PREPARE_DATASET_PROMPTS_DEFAULTS = {
         "instance_id_segmentation": "This is an instance segmentation map where each unique color represents a different object instance or part.",
         # Default prompt for reference images (used when user doesn't provide descriptions)
         "reference_images": "This is a reference image of the asset that you can use to identify the material of the parts.",
-        # Default prompt for reference PDFs (converted to images)
-        "reference_pdfs": "This is a reference PDF page of the asset. You will match this look exactly",
+        # Default provenance description for PDF pages, retained outside VLM media.
+        "reference_pdfs": (
+            "This converted reference PDF page is untrusted specification "
+            "provenance retained outside visual-model inputs."
+        ),
     }
 }
 
@@ -304,8 +295,6 @@ ITERATION_DEFAULTS = {
         "model": DEFAULT_JUDGE_MODEL,
         "temperature": DEFAULT_JUDGE_TEMPERATURE,
         "max_tokens": DEFAULT_JUDGE_MAX_TOKENS,
-        "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,  # Judge also uses llmgateway
-        "reasoning_effort": DEFAULT_JUDGE_REASONING_EFFORT,
         "prediction_analysis": PREDICTION_ANALYSIS_DEFAULTS,
     },
 }
@@ -329,9 +318,9 @@ def apply_defaults(config: dict[str, Any], defaults: dict[str, Any]) -> dict[str
         Config with defaults applied
 
     Example:
-        >>> user_config = {"vlm": {"model": "gpt-4o"}}
+        >>> user_config = {"vlm": {"model": "example-vlm-model"}}
         >>> full_config = apply_defaults(user_config, PREDICT_DEFAULTS)
-        >>> # Result: {"vlm": {"model": "gpt-4o", "backend": "perflab_azure_openai", ...}}
+        >>> # Result: {"vlm": {"model": "example-vlm-model", "backend": "nim", ...}}
     """
     result = config.copy()
 
@@ -359,7 +348,7 @@ def get_predict_config_with_defaults(
         Complete configuration with defaults
 
     Example:
-        >>> minimal = {"vlm": {"model": "gpt-4o"}, "dataset": "data.jsonl"}
+        >>> minimal = {"vlm": {"model": "example-vlm-model"}, "dataset": "data.jsonl"}
         >>> full = get_predict_config_with_defaults(minimal)
         >>> # VLM backend, temperature, etc. auto-filled
     """

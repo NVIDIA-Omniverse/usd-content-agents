@@ -8,9 +8,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.credentials import path_exists_with_safe_diagnostics
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
+
+from material_agent.api.diagnostics import diagnostic_path, normalize_required_config
 from material_agent.api.types import APIResult, MetricsResult
 
 logger = logging.getLogger(__name__)
+
+_EVALUATE_FAILURE_MESSAGE = "Evaluation failed"
+_PREDICTIONS_FILE_NOT_FOUND_MESSAGE = "Predictions file not found"
 
 
 @dataclass
@@ -19,6 +30,7 @@ class EvaluateInput:
 
     Args:
         config: Either a Path to a YAML config file or a dict with config contents
+        config_path: Optional source path used to anchor relative paths for dict config
         predictions_override: Optional path to override predictions from config
         verbose: Enable verbose output
     """
@@ -26,28 +38,25 @@ class EvaluateInput:
     config: Path | dict[str, Any]
     predictions_override: Path | None = None
     verbose: bool = False
+    config_path: Path | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate inputs."""
-        # Handle config as either Path or dict
-        if isinstance(self.config, dict):
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
+        if self.config_path is not None:
+            self.config_path = Path(self.config_path)
 
         if self.predictions_override:
             self.predictions_override = Path(self.predictions_override)
-            if not self.predictions_override.exists():
-                raise FileNotFoundError(
-                    f"Predictions file not found: {self.predictions_override}"
-                )
+            if not path_exists_with_safe_diagnostics(
+                self.predictions_override,
+                label="predictions file",
+            ):
+                raise FileNotFoundError(_PREDICTIONS_FILE_NOT_FOUND_MESSAGE)
 
 
-@dataclass
-class EvaluateOutput(APIResult):
+@dataclass(repr=False)
+class EvaluateOutput(SecretSafeReprMixin, APIResult):
     """Output results from evaluate API."""
 
     metrics: MetricsResult | None = None
@@ -73,10 +82,13 @@ async def arun_evaluate(params: EvaluateInput) -> EvaluateOutput:
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        logger.info("Configuration file: %s", diagnostic_path(params.config))
 
     if params.predictions_override:
-        logger.info(f"Predictions override: {params.predictions_override}")
+        logger.info(
+            "Predictions override: %s",
+            diagnostic_path(params.predictions_override),
+        )
 
     try:
         # Import workflow factory
@@ -94,6 +106,8 @@ async def arun_evaluate(params: EvaluateInput) -> EvaluateOutput:
         # Add config as either path or dict
         if isinstance(params.config, dict):
             initial_context["config_dict"] = params.config
+            if params.config_path is not None:
+                initial_context["config_path"] = str(params.config_path)
         else:
             initial_context["config_path"] = str(params.config)
 
@@ -107,34 +121,36 @@ async def arun_evaluate(params: EvaluateInput) -> EvaluateOutput:
 
         # Check if evaluation was successful
         if result.get("evaluation_complete"):
-            metrics_dict = result.get("metrics", {})
-            evaluation_path = result.get("evaluation_path")
-            html_report_path = result.get("html_report_path")
+            safe_result = project_result_metadata(result)
+            metrics_dict = safe_result.get("metrics", {})
+            if not isinstance(metrics_dict, dict):
+                metrics_dict = {}
+            evaluation_path = retain_safe_result_path(result.get("evaluation_path"))
+            html_report_path = retain_safe_result_path(result.get("html_report_path"))
 
             logger.info("Evaluation completed successfully")
 
-            metrics = MetricsResult.from_dict(metrics_dict)
+            metrics = MetricsResult.from_projected_dict(metrics_dict)
 
             return EvaluateOutput(
                 success=True,
                 metrics=metrics,
-                evaluation_path=Path(evaluation_path) if evaluation_path else None,
-                html_report_path=Path(html_report_path) if html_report_path else None,
-                raw_result=result,
+                evaluation_path=evaluation_path,
+                html_report_path=html_report_path,
+                raw_result=safe_result,
             )
         else:
-            error_msg = "Evaluation workflow did not complete successfully"
-            logger.error(error_msg)
+            logger.error(_EVALUATE_FAILURE_MESSAGE)
             return EvaluateOutput(
                 success=False,
-                error=error_msg,
+                error=_EVALUATE_FAILURE_MESSAGE,
             )
 
-    except Exception as e:
-        logger.error(f"Error running evaluation: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_EVALUATE_FAILURE_MESSAGE)
         return EvaluateOutput(
             success=False,
-            error=str(e),
+            error=_EVALUATE_FAILURE_MESSAGE,
         )
 
 

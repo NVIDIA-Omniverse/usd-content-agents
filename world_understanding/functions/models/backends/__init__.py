@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Model backends for chat, VLM, and image generation models.
 
-Public backends (nim, gemini, echo) are always available.
-Internal backends are loaded if world_understanding_internal is installed
-(pip install world-understanding[internal]).
+Public providers are always registered. Optional provider packages are loaded
+through the backend entry-point contract without exposing their implementation
+or credentials in this package.
 """
 
 from . import public  # noqa: F401 -- registers public backends
+from .registry import load_backend_plugins
 
-try:
-    import world_understanding_internal  # noqa: F401 -- registers internal backends
-except ImportError:
-    pass
+load_backend_plugins()

@@ -1,0 +1,187 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Path resolution service for the unified config system.
+
+This module provides centralized path resolution based on the unified config.
+All paths are derived from project.working_dir and input.usd_path.
+
+Session ID Support:
+- Uses world_understanding.agentic.session.SessionManager for session management
+- If session_id is provided, working_dir defaults to .{session_id}
+- This allows automatic path management without manual configuration
+- Sessions can be resumed by providing the same session_id
+"""
+
+import logging
+from pathlib import Path
+from typing import Any
+
+from world_understanding.agentic.config import BasePathResolver
+from world_understanding.utils.credentials import redact_sensitive_path
+
+from joint_agent.config.schema import STEP_OUTPUT_DIRS
+
+logger = logging.getLogger(__name__)
+
+
+class ProjectPathResolver(BasePathResolver):
+    """Centralized path resolution for the entire pipeline.
+
+    This class handles all path resolution based on the unified config structure.
+    It enforces the convention that all intermediate files go into the working
+    directory, with predictable subdirectory structure.
+
+    All paths are resolved relative to the config file location unless they are
+    absolute paths.
+    """
+
+    def __init__(self, config: dict[str, Any], config_file_path: Path):
+        """Initialize the path resolver.
+
+        Args:
+            config: Unified configuration dictionary
+            config_file_path: Path to the configuration file (for relative path resolution)
+        """
+        # Initialize base class (handles session management, working_dir, etc.)
+        super().__init__(
+            config=config,
+            config_file_path=config_file_path,
+            default_project_name="joint_agent_project",
+        )
+
+        # Resolve input paths (relative to config directory)
+        input_config = config.get("input") or {}
+        self.input_usd: Path | None = self._resolve_path(input_config.get("usd_path"))
+
+        reference_images = input_config.get("reference_images", [])
+        self.reference_images: list[Path] = [
+            resolved
+            for img in reference_images
+            if img and (resolved := self._resolve_path(img)) is not None
+        ]
+
+        logger.info("Input USD: %s", redact_sensitive_path(self.input_usd))
+
+    # Path resolution methods
+
+    def get_step_output_dir(self, step_name: str) -> Path:
+        """Get the output directory for a specific step.
+
+        All step outputs go into predictable subdirectories of working_dir.
+
+        Args:
+            step_name: Name of the step
+
+        Returns:
+            Path to the step's output directory
+        """
+        subdir = STEP_OUTPUT_DIRS.get(step_name, step_name)
+        return self.working_dir / subdir
+
+    def get_step_dataset_file(self, step_name: str) -> Path:
+        """Get the dataset file path for a step.
+
+        Args:
+            step_name: Name of the step
+
+        Returns:
+            Path to the step's dataset file
+        """
+        return self.get_step_output_dir(step_name) / "dataset.jsonl"
+
+    def get_step_predictions_file(self, step_name: str = "predict") -> Path:
+        """Get the predictions file path.
+
+        Args:
+            step_name: Name of the prediction step
+
+        Returns:
+            Path to the predictions file
+        """
+        return self.get_step_output_dir(step_name) / "predictions.jsonl"
+
+    def resolve_config_path(self, path: str | Path | None) -> Path | None:
+        """Resolve a path using the original unified config location."""
+        return self._resolve_path(path)
+
+    def get_usd_dataset_dir(self) -> Path:
+        """Get the USD dataset directory (build_dataset_usd output).
+
+        Returns:
+            Path to the USD dataset directory
+        """
+        return self.get_step_output_dir("build_dataset_usd")
+
+    def get_dataset_dir(self) -> Path:
+        """Get the prepared dataset directory.
+
+        Returns:
+            Path to the prepared dataset directory
+        """
+        return self.get_step_output_dir("build_dataset_prepare_dataset")
+
+    def get_predictions_dir(self) -> Path:
+        """Get the predictions directory.
+
+        Returns:
+            Path to the predictions directory
+        """
+        return self.get_step_output_dir("predict")
+
+    def create_working_directories(self) -> None:
+        """Create all necessary working directories.
+
+        This creates the working_dir and its standard subdirectories.
+        """
+        # Call base class to create working_dir, output, and temp
+        super().create_working_directories()
+
+    def validate_input_paths(self) -> None:
+        """Validate that required input paths exist.
+
+        Raises:
+            FileNotFoundError: If required input files don't exist
+        """
+        if not self.input_usd or not self._path_exists_for_validation(
+            self.input_usd, label="input USD"
+        ):
+            raise FileNotFoundError(
+                f"Input USD file not found: {redact_sensitive_path(self.input_usd)}"
+            )
+
+        for img in self.reference_images:
+            if not self._path_exists_for_validation(img, label="reference image"):
+                logger.warning(
+                    "Reference image not found: %s", redact_sensitive_path(img)
+                )
+
+    def get_path_summary(self) -> dict[str, Any]:
+        """Get a summary of all resolved paths.
+
+        Returns:
+            Dictionary with path information
+        """
+        # Get base class summary
+        summary = super().get_path_summary()
+
+        # Add joint-agent specific paths
+        summary.update(
+            {
+                "input": {
+                    "usd_path": (
+                        redact_sensitive_path(self.input_usd)
+                        if self.input_usd
+                        else None
+                    ),
+                    "reference_images": [
+                        redact_sensitive_path(img) for img in self.reference_images
+                    ],
+                },
+                "step_outputs": {
+                    step: redact_sensitive_path(self.get_step_output_dir(step))
+                    for step in STEP_OUTPUT_DIRS.keys()
+                },
+            }
+        )
+
+        return summary

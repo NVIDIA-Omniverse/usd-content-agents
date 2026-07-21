@@ -1,0 +1,269 @@
+{
+  "$schema": "../../../schemas/skill_eval_suite.schema.json",
+  "schema_version": "1.0",
+  "suite_version": "1.0.0",
+  "skill": "physics-agent-cli",
+  "source": {
+    "report": "skill-eval-report-iter1-2026-07-14.md",
+    "report_date": "2026-07-14",
+    "iteration": 1,
+    "original_cases_artifact": "unavailable",
+    "reconstruction_note": "The original generated case file was absent from the report archive. These eight approved case titles, prompts, and iteration-one corrections were reconstructed from the human-readable report."
+  },
+  "methodology": {
+    "isolation": {
+      "fresh_workspace_per_run": true,
+      "baseline_skill_access": "none",
+      "candidate_skill_access": "target-only",
+      "cleanup_between_runs": true,
+      "sibling_skill_stubs": [
+        "physics-agent-client",
+        "deploy-physics-agent-docker",
+        "deploy-physics-agent-brev",
+        "material-agent-cli"
+      ]
+    },
+    "portability": {
+      "required_cells": [
+        {
+          "harness": "claude-code",
+          "model": "current-supported-claude"
+        },
+        {
+          "harness": "codex",
+          "model": "current-supported-gpt"
+        }
+      ],
+      "portable_uplift_requires_all_cells": true
+    }
+  },
+  "cases": [
+    {
+      "id": "positive-classify-components",
+      "source_case": "Positive 1 - Run Physics Agent on a USD and classify components",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Run the local Physics Agent CLI on the public lightbulb asset, classify its components and physical properties, and report the predictions and authored physics USD.",
+      "fixture_paths": [
+        "apps/physics_agent/configs/lightbulb.yaml",
+        "apps/physics_agent/data/examples/Lightbulb01/light_bulb_01.usda"
+      ],
+      "expected": [
+        {
+          "id": "plans-classification-pipeline",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Activates the repo environment, inspects the public config and input path, verifies provider and endpoint prerequisites, dry-runs, then uses physics-agent run without backgrounding the process."
+        },
+        {
+          "id": "verifies-classification-artifacts",
+          "leg": "live",
+          "evidence": "artifact",
+          "description": "Waits for terminal completion and verifies predictions, restored predictions when applicable, and an authored physics USD before reporting success."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "The repo environment is active and physics-agent is installed.",
+          "The selected VLM provider credential is configured.",
+          "The rendering endpoint and any enabled optimizer endpoint are reachable."
+        ],
+        "side_effects": [
+          "Creates a case-specific Physics Agent working directory and output artifacts.",
+          "Submits VLM, rendering, and optional optimizer requests configured by the fixture."
+        ],
+        "cleanup": [
+          "Remove the case-specific working directory after evidence is captured.",
+          "Stop only processes started by this case and preserve shared endpoints."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-author-simulation-ready-usd",
+      "source_case": "Positive 2 - Make a USD simulation-ready",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Make the provided instanced USD simulation-ready with the local Physics Agent CLI. Handle instance proxies safely, author rigid-body and collision schemas, and verify the resulting USD.",
+      "fixture_paths": [
+        "apps/material_agent/data/regression/scene_optimizer/scene_optimizer_test.usda",
+        "apps/physics_agent/configs/lightbulb.yaml"
+      ],
+      "expected": [
+        {
+          "id": "enables-deinstance-before-authoring",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Detects the fixture's instanceable prims, prepares a copied config with optimize_usd and deinstance enabled, keeps restore_usd behavior clear, and dry-runs before execution."
+        },
+        {
+          "id": "verifies-authored-schemas",
+          "leg": "live",
+          "evidence": "artifact",
+          "description": "Waits for completion and inspects the output USD for authored physics schemas rather than treating optimizer success alone as completion."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "The Physics Agent CLI and repo environment are available.",
+          "The configured VLM, rendering, and scene optimizer dependencies are healthy.",
+          "The evaluator can inspect USD schema metadata in the produced artifact."
+        ],
+        "side_effects": [
+          "Creates a copied config, optimized USD, predictions, and authored physics USD in a case-specific directory.",
+          "Submits requests to configured VLM, rendering, and optimizer services."
+        ],
+        "cleanup": [
+          "Remove only case-specific configs and outputs.",
+          "Stop only processes launched by the case and leave shared services running."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-debug-instance-proxy-error",
+      "source_case": "Positive 3 - Debug PhysicsAuthoringError on an instance proxy",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Physics Agent failed with PhysicsAuthoringError because a prediction targets an instance proxy. Diagnose the failure and give the safest corrected CLI and config approach.",
+      "fixture_paths": [
+        "apps/material_agent/data/regression/scene_optimizer/scene_optimizer_test.usda",
+        "apps/physics_agent/configs/lightbulb.yaml"
+      ],
+      "expected": [
+        {
+          "id": "diagnoses-and-deinstances",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Explains that instance proxies are not writable, recommends optimize_usd with deinstance before apply_physics, preserves raw prediction paths for the optimized stage, and does not suggest suppressing the authoring error."
+        }
+      ]
+    },
+    {
+      "id": "positive-tune-settling-physics",
+      "source_case": "Positive 4 - Tune authored physics so the asset settles",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Use the local Physics Agent tuning workflow to tune the public tire physics so it settles according to the drop-settle scenario. Use production simulation evidence and report the best parameters and tuned USD.",
+      "fixture_paths": [
+        "apps/physics_agent/configs/tire_bounce.yaml",
+        "apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml",
+        "apps/physics_agent/data/examples/Tire_B01/tire.usdc",
+        "apps/physics_agent/data/examples/Tire_B01/reference_media/tire_bounce_reference.mov"
+      ],
+      "expected": [
+        {
+          "id": "plans-production-tune",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Requires a physics-authored USD, selects a production simulator rather than fake, uses a bounded trial count and output directory, and does not claim a long-running tune completed."
+        },
+        {
+          "id": "verifies-tune-artifacts",
+          "leg": "live",
+          "evidence": "artifact",
+          "description": "Waits for the production simulator run to finish and verifies best-parameter metadata, scores, and a tuned USD before reporting success."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "A physics-authored tire USD has been produced from the public classification config.",
+          "A supported production simulation backend and its tuning dependencies are installed.",
+          "The evaluator has sufficient GPU and runtime capacity for the bounded tune."
+        ],
+        "side_effects": [
+          "Runs multiple bounded simulation trials and writes trial artifacts.",
+          "Creates best-parameter metadata, score evidence, and a tuned physics USD."
+        ],
+        "cleanup": [
+          "Terminate the case-owned simulator process on completion or timeout.",
+          "Remove case-specific trial and output directories after preserving required evidence."
+        ],
+        "timeout_seconds": 7200
+      }
+    },
+    {
+      "id": "negative-call-rest-service",
+      "source_case": "Negative 1 - Make a Physics Agent REST service request",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Upload this USD to the Physics Agent REST API, watch its service session, and download the output.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-physics-client",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes to physics-agent-client and does not substitute local CLI execution for the requested service workflow."
+        }
+      ]
+    },
+    {
+      "id": "negative-deploy-physics-service",
+      "source_case": "Negative 2 - Deploy Physics Agent with Docker or Brev",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Deploy the Physics Agent service, choosing either local Docker or a hosted GPU instance.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-deployment-skills",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Names deploy-physics-agent-docker and deploy-physics-agent-brev as the relevant choices and performs no deployment mutation."
+        }
+      ]
+    },
+    {
+      "id": "negative-apply-visual-materials",
+      "source_case": "Negative 3 - Apply visual materials and produce a beauty render",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Assign realistic PBR materials to this USD and produce a final beauty render with the local agent CLI.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-material-cli",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes visual material assignment to material-agent-cli and explains that Physics Agent authors physics, not final PBR appearance."
+        }
+      ]
+    },
+    {
+      "id": "negative-general-rigid-body-question",
+      "source_case": "Negative 4 - Conceptual rigid-body question",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "What is the difference between a rigid body and a collider?",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "answers-without-running-cli",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Answers the conceptual question directly without running Physics Agent or fabricating asset-specific results."
+        }
+      ]
+    }
+  ]
+}

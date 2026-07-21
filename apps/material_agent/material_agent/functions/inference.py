@@ -12,6 +12,7 @@ now uses the generic classification core with output_key="material".
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,129 @@ from world_understanding.utils.token_tracking import TokenTracker
 from material_agent.materials import UNKNOWN_MATERIAL_SENTINEL
 
 logger = logging.getLogger(__name__)
+
+_SPEC_MATERIAL_CLAIM = re.compile(
+    r"^\s*(?:[-*•]\s*)?material\s+type\s*:\s*(?P<material>[^\r\n]{1,160})",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _extract_untrusted_spec_material_claims(entry: dict[str, Any]) -> list[str]:
+    """Parse bounded material claims without asking a model to interpret specs."""
+
+    evidence = entry.get("untrusted_spec_evidence")
+    if not isinstance(evidence, dict):
+        return []
+    text = evidence.get("extracted_text")
+    if not isinstance(text, str):
+        return []
+
+    claims: list[str] = []
+    seen: set[str] = set()
+    for match in _SPEC_MATERIAL_CLAIM.finditer(text):
+        claim = match.group("material").strip().strip("-*•.;, ")
+        normalized = _normalize_material_for_comparison(claim)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        claims.append(claim)
+    return claims
+
+
+def _normalize_material_for_comparison(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", value.casefold()))
+
+
+def _spec_claim_supports_visual_material(claim: str, visual_material: str) -> bool:
+    """Allow a detailed spec claim to corroborate, but never choose, a visual label."""
+
+    normalized_claim = _normalize_material_for_comparison(claim)
+    normalized_visual = _normalize_material_for_comparison(visual_material)
+    if not normalized_claim or not normalized_visual:
+        return False
+    if normalized_claim == normalized_visual:
+        return True
+    return bool(
+        re.search(
+            rf"(?:^| ){re.escape(normalized_visual)}(?: |$)",
+            normalized_claim,
+        )
+    )
+
+
+def reconcile_untrusted_spec_evidence(
+    visual_prediction: dict[str, Any],
+    entry: dict[str, Any],
+) -> dict[str, Any]:
+    """Attach spec corroboration/conflict metadata without changing the visual label.
+
+    The material in ``visual_prediction`` is fixed before this function sees any
+    specification data. Parsed PDF/spec claims can confirm that label or request
+    review, but this deterministic step never replaces or introduces a material.
+    """
+
+    claims = _extract_untrusted_spec_material_claims(entry)
+    if not claims:
+        return visual_prediction
+
+    reconciled = dict(visual_prediction)
+    visual_material_value = reconciled.get("material")
+    visual_material = (
+        visual_material_value if isinstance(visual_material_value, str) else ""
+    )
+    visual_is_supported = bool(visual_material.strip()) and (
+        visual_material.casefold() != UNKNOWN_MATERIAL_SENTINEL.casefold()
+    )
+    corroborating = [
+        claim
+        for claim in claims
+        if visual_is_supported
+        and _spec_claim_supports_visual_material(claim, visual_material)
+    ]
+    conflicting = [claim for claim in claims if claim not in corroborating]
+
+    if not visual_is_supported:
+        reconciliation: dict[str, Any] = {
+            "status": "unsupported_spec_material",
+            "review_required": True,
+            "visual_material": visual_material or UNKNOWN_MATERIAL_SENTINEL,
+            "untrusted_spec_material_claims": claims,
+            "conflicting_spec_materials": claims,
+        }
+    elif conflicting:
+        reconciliation = {
+            "status": "conflict",
+            "review_required": True,
+            "visual_material": visual_material,
+            "untrusted_spec_material_claims": claims,
+            "conflicting_spec_materials": conflicting,
+        }
+        if corroborating:
+            reconciliation["corroborating_spec_materials"] = corroborating
+    else:
+        reconciliation = {
+            "status": "corroborated",
+            "review_required": False,
+            "visual_material": visual_material,
+            "untrusted_spec_material_claims": claims,
+            "corroborating_spec_materials": corroborating,
+        }
+
+    reconciled["evidence_reconciliation"] = reconciliation
+    return reconciled
+
+
+def _reconcile_prediction_in_place(
+    prediction: dict[str, Any],
+    entry: dict[str, Any] | None,
+) -> None:
+    if entry is None:
+        return
+    reconciled = reconcile_untrusted_spec_evidence(prediction, entry)
+    if reconciled is prediction:
+        return
+    prediction.clear()
+    prediction.update(reconciled)
 
 
 def assign_material(
@@ -77,10 +201,19 @@ def assign_material(
             create_vlm,
         )
         from world_understanding.functions.models.chat_models import create_chat_model
+        import os
 
         # Create VLM and LLM
-        vlm = create_vlm(backend="perflab_azure_openai", api_key="your-key")
-        llm = create_chat_model(backend="perflab_azure_openai", api_key="your-key")
+        vlm = create_vlm(
+            backend="nim",
+            api_key=os.environ["NVIDIA_API_KEY"],
+            model="example-vlm-model",
+        )
+        llm = create_chat_model(
+            backend="nim",
+            api_key=os.environ["NVIDIA_API_KEY"],
+            model="example-chat-model",
+        )
 
         # Prepare input - can use file paths or PIL Images
         text = "This is a car. List of possible materials are silver painted steel, matt black rubber."
@@ -220,6 +353,16 @@ def batch_assign_materials(
     to_process = entries_count - skipped
     logger.info(f"Starting batch material assignment for {to_process} entries")
 
+    entries_by_id = {str(entry.get("id", "unknown")): entry for entry in entries}
+
+    def on_visual_prediction(
+        entry_id: str,
+        prediction: dict[str, Any],
+    ) -> None:
+        _reconcile_prediction_in_place(prediction, entries_by_id.get(entry_id))
+        if on_prediction is not None:
+            on_prediction(entry_id, prediction)
+
     # Delegate to generic batch classification with output_key="material"
     return batch_classify_objects(
         vlm=vlm,
@@ -232,7 +375,7 @@ def batch_assign_materials(
         on_error=on_error,
         processed_ids=processed_ids,
         on_result=on_result,
-        on_prediction=on_prediction,
+        on_prediction=on_visual_prediction,
         max_workers=max_workers,
         max_retries=max_retries,
         output_key="material",  # 🔑 Material-specific output key
@@ -277,6 +420,16 @@ async def async_batch_assign_materials(
     to_process = entries_count - skipped
     logger.info(f"Starting async batch material assignment for {to_process} entries")
 
+    entries_by_id = {str(entry.get("id", "unknown")): entry for entry in entries}
+
+    def on_visual_prediction(
+        entry_id: str,
+        prediction: dict[str, Any],
+    ) -> None:
+        _reconcile_prediction_in_place(prediction, entries_by_id.get(entry_id))
+        if on_prediction is not None:
+            on_prediction(entry_id, prediction)
+
     return await async_batch_classify_objects(
         vlm=vlm,
         entries=entries,
@@ -288,7 +441,7 @@ async def async_batch_assign_materials(
         on_error=on_error,
         processed_ids=processed_ids,
         on_result=on_result,
-        on_prediction=on_prediction,
+        on_prediction=on_visual_prediction,
         max_workers=max_workers,
         max_retries=max_retries,
         output_key="material",
@@ -363,4 +516,5 @@ __all__ = [
     "batch_assign_materials",
     "extract_answer_block",
     "get_fibonacci_delay",
+    "reconcile_untrusted_spec_evidence",
 ]

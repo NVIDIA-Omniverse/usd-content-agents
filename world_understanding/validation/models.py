@@ -11,6 +11,13 @@ from typing import Any, Literal, TypeVar, cast
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic import field_validator as _pydantic_field_validator
 
+from world_understanding.validation.json_normalization import (
+    StructuredJsonNormalizer,
+)
+from world_understanding.validation.rendering_backend_contract import (
+    VALIDATION_RENDERING_BACKEND_NAMES,
+)
+
 IssueSeverity = Literal["info", "warn", "fail"]
 TemplateStatus = Literal[
     "passed",
@@ -35,6 +42,9 @@ ISSUE_CODE_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$"
 SCHEMA_VERSION: Literal["1.0"] = "1.0"
 
 _ValidatorFunc = TypeVar("_ValidatorFunc", bound=Callable[..., Any])
+_JSON_NORMALIZER = StructuredJsonNormalizer(model_types=(BaseModel,))
+_json_mapping = _JSON_NORMALIZER.mapping
+_json_value = _JSON_NORMALIZER.value
 
 
 def field_validator(
@@ -102,7 +112,15 @@ class ValidationPlannerConfig(ValidationModel):
 class ValidationRenderConfig(ValidationModel):
     """Render policy used by validation templates that need visual evidence."""
 
-    backend: str | None = Field(default=None)
+    backend: str | None = Field(
+        default=None,
+        description=(
+            "Validation Agent runtime rendering backend. Supported values are "
+            f"{', '.join(VALIDATION_RENDERING_BACKEND_NAMES)}; omit to use remote. "
+            "The field remains an open string so runtime validation can return "
+            "structured unknown-versus-unsupported backend results."
+        ),
+    )
     image_width: int | None = Field(default=None, ge=1)
     image_height: int | None = Field(default=None, ge=1)
     views: str | tuple[str, ...] | None = Field(default=None)
@@ -479,26 +497,6 @@ def aggregate_validation_verdict(
     ):
         return "warn"
     return "pass"
-
-
-def _json_mapping(value: Any) -> dict[str, Any]:
-    if value is None:
-        return {}
-    if not isinstance(value, Mapping):
-        raise ValueError("Expected a mapping")
-    return {str(key): _json_value(item) for key, item in value.items()}
-
-
-def _json_value(value: Any) -> Any:
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, BaseModel):
-        return value.model_dump(mode="json")
-    if isinstance(value, Mapping):
-        return {str(key): _json_value(item) for key, item in value.items()}
-    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
-        return [_json_value(item) for item in value]
-    return value
 
 
 def _string_tuple(value: Any) -> tuple[str, ...]:

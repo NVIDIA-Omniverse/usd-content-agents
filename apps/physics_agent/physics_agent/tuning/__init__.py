@@ -43,7 +43,7 @@ from .types import (
     TuneOutput,
 )
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing only
     from .runner import arun_tune as arun_tune
     from .runner import run_tune as run_tune
 

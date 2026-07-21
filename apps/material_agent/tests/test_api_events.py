@@ -270,4 +270,5 @@ class TestBenchmarkAPIWithEventListener:
         # Should have failure event
         failed_events = listener.get_events("workflow.failed")
         assert len(failed_events) == 1
-        assert "Test error" in failed_events[0]["data"]["error"]
+        assert failed_events[0]["data"]["error"] == "Benchmark failed"
+        assert "Test error" not in repr(failed_events)

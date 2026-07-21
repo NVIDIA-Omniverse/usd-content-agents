@@ -10,9 +10,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
+from world_understanding.agentic.config import log_config_source
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+
+from material_agent.tasks.config_loader import load_config_from_context
 
 logger = logging.getLogger(__name__)
 
@@ -38,33 +40,14 @@ class PDFVectorstoreConfigTask(Task):
         # Get event listener (or logger fallback)
         listener = get_listener(context, logger_name=__name__)
 
-        # Load config from either path or dict
-        config_path = context.get("config_path")
-        config_dict = context.get("config_dict")
-
-        if config_dict:
-            listener.info("Using in-memory config dictionary")
-            config = config_dict
-            config_dir = Path.cwd()
-        elif config_path:
-            config_path = Path(config_path)
-            if not config_path.exists():
-                raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-            listener.info(f"Loading PDF vectorstore configuration from {config_path}")
-
-            # Load YAML configuration
-            with open(config_path, encoding="utf-8") as f:
-                config = yaml.safe_load(f)
-
-            if not config:
-                raise ValueError("Configuration file is empty")
-
-            config_dir = config_path.parent
-        else:
-            raise ValueError(
+        config, config_path = load_config_from_context(
+            context,
+            missing_path_message=(
                 "Either config_path or config_dict must be provided in context"
-            )
+            ),
+        )
+        log_config_source(context, listener.info, label="PDF vectorstore")
+        config_dir = config_path.parent
 
         # Handle source path with override support
         source = context.get("source_override") or config.get("source")

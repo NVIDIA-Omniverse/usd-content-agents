@@ -10,6 +10,7 @@ import concurrent.futures as _cf
 import json
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,8 @@ from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.utils.llm_parsing import extract_json_from_llm_response
 from world_understanding.utils.object_store import ObjectStore
+
+from physics_agent.api.defaults import DEFAULT_VLM_TEMPERATURE
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +112,15 @@ class IdentifyAssetTask(Task):
 
         try:
             # Get invoke kwargs (temperature, max_tokens, etc.)
-            vlm_invoke_kwargs: dict[str, Any] = dict(
-                context.get("vlm_invoke_kwargs", {})
+            raw_vlm_invoke_kwargs = context.get("vlm_invoke_kwargs") or {}
+            vlm_invoke_kwargs: dict[str, Any] = (
+                dict(raw_vlm_invoke_kwargs)
+                if isinstance(raw_vlm_invoke_kwargs, Mapping)
+                else {}
+            )
+            raw_vlm_config = context.get("vlm_config") or {}
+            vlm_config: dict[str, Any] = (
+                dict(raw_vlm_config) if isinstance(raw_vlm_config, Mapping) else {}
             )
 
             # Wrap the VLM call in a hard deadline. ChatNVIDIA's timeout
@@ -121,7 +131,10 @@ class IdentifyAssetTask(Task):
                     prompt=user_prompt,
                     images=images_to_use,
                     system_prompt=system_prompt if system_prompt else None,
-                    temperature=vlm_invoke_kwargs.get("temperature", 0.3),
+                    temperature=vlm_invoke_kwargs.get(
+                        "temperature",
+                        vlm_config.get("temperature", DEFAULT_VLM_TEMPERATURE),
+                    ),
                     max_tokens=vlm_invoke_kwargs.get("max_tokens", 4096),
                 )
 

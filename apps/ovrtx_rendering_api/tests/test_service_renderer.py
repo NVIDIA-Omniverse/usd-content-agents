@@ -8,7 +8,9 @@ are not exercised here since they require a GPU-equipped environment.
 
 from __future__ import annotations
 
+import base64
 import socket
+import threading
 import zipfile
 from pathlib import Path
 
@@ -18,9 +20,11 @@ import pytest
 # in the root pyproject.toml's [tool.pytest.ini_options].
 from service.renderer import (
     _ZIP_MAX_FILES,
+    Renderer,
     _extract_zip_bundle,
     _fetch_usd,
     _is_usdz_payload,
+    _parse_zip_max_uncompressed_bytes,
     _validate_connected_socket_peer,
     _validate_url_target,
 )
@@ -81,6 +85,33 @@ class _DummyResponse:
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
             raise RuntimeError(f"HTTP {self.status_code}")
+
+
+class _RecordingBackend:
+    def __init__(self) -> None:
+        self.render_kwargs: dict | None = None
+        self.base_dir_name: str | None = None
+        self.stage_exists_during_render = False
+        self.texture_exists_during_render = False
+
+    def render(self, **kwargs):
+        self.render_kwargs = kwargs
+        base_dir = Path(kwargs["base_dir"])
+        self.base_dir_name = base_dir.name
+        self.stage_exists_during_render = (base_dir / "stage.usda").exists()
+        self.texture_exists_during_render = (
+            base_dir / "textures" / "albedo.png"
+        ).exists()
+        return {
+            "results": [
+                {
+                    "camera": kwargs["cameras"][0],
+                    "images": [],
+                    "sensors": {},
+                    "frame_count": 0,
+                }
+            ],
+        }
 
 
 class TestValidateUrlTarget:
@@ -281,6 +312,37 @@ class TestExtractZipBundle:
         assert (extracted / "bundle" / "mdl_materials" / "wood" / "wood.mdl").exists()
         assert (extracted / "bundle" / "textures" / "albedo.png").exists()
 
+    def test_renderer_passes_extracted_bundle_base_dir_to_backend(
+        self,
+        tmp_path: Path,
+    ):
+        zip_path = _make_bundle(
+            tmp_path,
+            ["stage.usda", "textures/albedo.png"],
+        )
+        backend = _RecordingBackend()
+        renderer = Renderer.__new__(Renderer)
+        renderer._backend = backend
+        renderer._initialized = False
+        renderer._render_lock = threading.RLock()
+        renderer._recovery_cooldown_until = 0.0
+        payload = base64.b64encode(zip_path.read_bytes()).decode("ascii")
+
+        result = renderer.render(
+            f"data:application/zip;base64,{payload}",
+            camera_paths=["/Camera"],
+            frame_start=0,
+            frame_end=0,
+            width=64,
+            height=64,
+        )
+
+        assert result["status"] == "success"
+        assert backend.render_kwargs is not None
+        assert backend.base_dir_name == "bundle"
+        assert backend.stage_exists_during_render is True
+        assert backend.texture_exists_during_render is True
+
     def test_prefers_main_over_scene_and_stage(self, tmp_path: Path):
         zip_path = _make_bundle(tmp_path, ["main.usda", "scene.usd", "stage.usdc"])
         extracted = tmp_path / "work"
@@ -400,6 +462,11 @@ class TestExtractZipBundle:
 
         with pytest.raises(ValueError, match="uncompressed size too large"):
             _extract_zip_bundle(str(zip_path), str(extracted))
+
+    def test_rejects_invalid_zip_uncompressed_size_env(self):
+        """The ZIP size override must be a positive integer byte count."""
+        with pytest.raises(ValueError, match="must be greater than zero"):
+            _parse_zip_max_uncompressed_bytes("0")
 
     def test_rejects_symlink_entries(self, tmp_path: Path):
         """Symlink entries in the ZIP must not be materialized on disk."""

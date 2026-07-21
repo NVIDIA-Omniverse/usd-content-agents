@@ -31,7 +31,7 @@ input:
   reference_images:                         # Optional. Reference images for VLM context
     - path/to/reference1.jpg
     - path/to/reference2.jpg
-  reference_pdfs:                           # Optional. PDFs for RAG vectorstore
+  reference_pdfs:                           # Optional. PDFs for specification-evidence retrieval
     - path/to/specs.pdf
 ```
 
@@ -141,7 +141,8 @@ advanced:
 ## Path Resolution Rules
 
 1. All relative paths are resolved relative to the config file's parent directory
-2. Working directory is auto-derived as `.sessions/{session_id}` or `.{project.name}`
+2. Working directory is auto-derived as `.{session_id}/` next to the config
+   file, unless `project.working_dir` overrides it
 3. Output USD path is auto-derived from `input.usd_path` if not specified
 4. Each step's input/output paths are auto-wired based on the working directory structure
 5. External materials file path is resolved relative to the config file

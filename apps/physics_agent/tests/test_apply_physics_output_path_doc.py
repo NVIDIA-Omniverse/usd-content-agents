@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Regression test for nvbug-6122121 / OMPE-91538 and nvbug-6216328.
+"""Regression test for the documented Physics Agent output path.
 
 The public README and `lightbulb.yaml` claim `apply_physics` writes its
 output USD to `{working_dir}/physics/<input_stem>_physics<output_ext>`.
@@ -34,7 +34,7 @@ def test_lightbulb_apply_physics_autowire_matches_doc() -> None:
     expected_working_dir = LIGHTBULB_YAML.parent / ".lightbulb"
     assert context["working_dir"] == expected_working_dir, (
         f"working_dir resolved to {context['working_dir']}; expected "
-        f"{expected_working_dir} per README_PUBLIC.md 'Where outputs land'."
+        f"{expected_working_dir} per the public README's 'Where outputs land'."
     )
 
     apply_cfg = context["step_configs"]["apply_physics"]
@@ -43,7 +43,7 @@ def test_lightbulb_apply_physics_autowire_matches_doc() -> None:
     assert actual_output == expected_output, (
         f"apply_physics autowired output_usd_path={actual_output}; the "
         "docs promise `{working_dir}/physics/<input_stem>_physics<output_ext>` "
-        f"= {expected_output}. Drift here means README_PUBLIC.md and "
+        f"= {expected_output}. Drift here means the public README and "
         "lightbulb.yaml's apply_physics step comment also need to be "
-        "updated. See nvbug-6122121 and nvbug-6216328."
+        "updated."
     )

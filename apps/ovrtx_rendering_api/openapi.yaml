@@ -79,6 +79,14 @@ components:
         apply_background_mask:
           type: boolean
           default: false
+        material_target:
+          type: string
+          nullable: true
+          enum: [auto, display_color, preview_surface, openpbr_materialx, omnipbr_mdl]
+          description: >
+            Explicit render material target. auto preserves authored/native
+            materials; use preview_surface only to request render-export
+            PreviewSurface fallbacks.
 
     RenderRequest:
       type: object
@@ -124,6 +132,30 @@ components:
         gpu_initialized: { type: boolean }
         renderer_initialized: { type: boolean }
         daemon_running: { type: boolean }
+        daemon_pid:
+          type: integer
+          nullable: true
+          description: Current isolated renderer process ID.
+        daemon_completed_renders:
+          type: integer
+          nullable: true
+          description: Render commands completed by the current daemon generation.
+        daemon_rss_bytes:
+          type: integer
+          nullable: true
+          description: Current or last observed daemon RSS in bytes.
+        daemon_recycle_count:
+          type: integer
+          nullable: true
+          description: Successful bounded-lifetime recycles since service startup.
+        daemon_last_recycle_reason:
+          type: string
+          nullable: true
+          enum: [completed_render_limit, rss_limit]
+        daemon_pending_recycle_reason:
+          type: string
+          nullable: true
+          enum: [completed_render_limit, rss_limit]
         ready_workers:
           type: integer
           nullable: true

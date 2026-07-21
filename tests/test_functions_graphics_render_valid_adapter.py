@@ -12,6 +12,7 @@ from world_understanding.functions.graphics.render_valid_adapter import (
     RENDER_EVIDENCE_MISSING,
     RENDER_FRAME_ID_MISMATCH,
     RENDER_VALID_TEMPLATE,
+    _tag_issues,
     run_render_valid_adapter,
 )
 from world_understanding.functions.graphics.render_validation import (
@@ -326,6 +327,38 @@ def test_adapter_resolves_relative_response_image_path_with_output_dir(
     ]
 
 
+def test_adapter_handles_single_entry_response_without_results_or_image_keys() -> None:
+    result = run_render_valid_adapter(
+        render_response={
+            "camera": "/CameraA",
+            "frames": [0],
+        },
+        expected_cameras=["/CameraA"],
+    )
+
+    assert result["status"] == "fail"
+    assert result["metrics"]["render_response_image_count"] == 0
+    assert _issue_codes(result) == [RENDER_MISSING_OUTPUT]
+
+
+def test_adapter_extracts_scalar_response_image_entry(tmp_path: Path) -> None:
+    image_path = _save_image(tmp_path / "camera_a_0.png", _normal_image())
+
+    result = run_render_valid_adapter(
+        render_response={
+            "camera": "/CameraA",
+            "frames": [0],
+            "outputs": str(image_path),
+        },
+        expected_cameras=["/CameraA"],
+    )
+
+    assert result["status"] == "fail"
+    assert result["metrics"]["render_response_image_count"] == 1
+    assert result["evidence"]["render_response_images"] == [str(image_path)]
+    assert _issue_codes(result) == [RENDER_MALFORMED_RESPONSE]
+
+
 def test_adapter_collects_response_images_from_later_keys(tmp_path: Path) -> None:
     _save_image(tmp_path / "camera_a_0.png", _normal_image())
     response = {
@@ -353,6 +386,34 @@ def test_adapter_collects_response_images_from_later_keys(tmp_path: Path) -> Non
     ]
 
 
+def test_adapter_ignores_non_mapping_response_entries_and_unsupported_images() -> None:
+    result = run_render_valid_adapter(
+        render_response=[
+            123,
+            {
+                "camera": "/CameraA",
+                "frames": [0],
+                "images": ["", 42],
+            },
+        ],
+    )
+
+    assert result["status"] == "fail"
+    assert result["metrics"]["render_response_image_count"] == 0
+    assert _issue_codes(result) == [
+        RENDER_MALFORMED_RESPONSE,
+        RENDER_MISSING_OUTPUT,
+    ]
+
+
+def test_adapter_ignores_non_sequence_results_when_extracting_images() -> None:
+    result = run_render_valid_adapter(render_response={"results": "not-a-sequence"})
+
+    assert result["status"] == "fail"
+    assert result["metrics"]["render_response_image_count"] == 0
+    assert _issue_codes(result) == [RENDER_MALFORMED_RESPONSE]
+
+
 def test_adapter_does_not_double_count_response_image_aliases(
     tmp_path: Path,
 ) -> None:
@@ -378,6 +439,22 @@ def test_adapter_does_not_double_count_response_image_aliases(
     assert result["status"] == "fail"
     assert result["metrics"]["render_response_image_count"] == 1
     assert _issue_codes(result) == [RENDER_MISSING_OUTPUT]
+
+
+def test_tag_issues_ignores_non_issue_shapes() -> None:
+    assert _tag_issues("not-a-list", check="image") == []
+    assert _tag_issues(
+        [object(), {"code": "render.example"}],
+        check="image",
+        evidence_index=2,
+    ) == [
+        {
+            "code": "render.example",
+            "template": RENDER_VALID_TEMPLATE,
+            "check": "image",
+            "evidence_index": 2,
+        }
+    ]
 
 
 def test_adapter_skips_when_no_evidence_is_supplied() -> None:

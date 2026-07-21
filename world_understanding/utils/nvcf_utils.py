@@ -8,6 +8,7 @@ import random
 import time
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 from opentelemetry.trace import Status, StatusCode
@@ -17,6 +18,12 @@ from world_understanding.telemetry import get_tracer
 from world_understanding.telemetry.attributes import MAAttributes
 
 logger = logging.getLogger(__name__)
+
+NVCF_INVOCATION_HOST = ".invocation.api.nvcf.nvidia.com"
+_HTTP_BASE_URL_SCHEMES = {"http", "https"}
+_LOCAL_SERVICE_URL_SCHEME = "http"
+_NVCF_URL_SCHEME = "https"
+_URL_SCHEME_SEPARATOR = "://"
 
 # Get tracer at module level
 _tracer = get_tracer(__name__)
@@ -60,8 +67,8 @@ def get_base_url(
 
     Resolution order:
         1. ``base_url`` argument (if not None)
-        2. ``endpoint_env`` environment variable (full URL like
-           ``http://ovrtx-rendering-api:8000`` or
+        2. ``endpoint_env`` environment variable (URL like
+           ``http://ovrtx-rendering-api:8000``, ``ovrtx-rendering-api:8000``, or
            ``https://abc12345.invocation.api.nvcf.nvidia.com``)
         3. ``function_id_env`` environment variable (NVCF function ID,
            expanded to ``https://{id}.invocation.api.nvcf.nvidia.com``)
@@ -90,12 +97,63 @@ def get_base_url(
                 f"{function_id_env} (NVCF function ID), or pass base_url."
             )
 
-    # If it's already a full URL (starts with http), return as-is.
-    if base_url.startswith("http"):
-        return base_url
+    return resolve_endpoint_or_function_id(base_url)
 
-    # Otherwise, treat as an NVCF function ID and construct the URL.
-    return f"https://{base_url}.invocation.api.nvcf.nvidia.com"
+
+def _has_http_base_url_scheme(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return _starts_with_http_base_url_prefix(value)
+    return parsed.scheme.lower() in _HTTP_BASE_URL_SCHEMES
+
+
+def _starts_with_http_base_url_prefix(value: str) -> bool:
+    normalized = value.lower()
+    return any(
+        normalized.startswith(_url_with_scheme(scheme, ""))
+        for scheme in _HTTP_BASE_URL_SCHEMES
+    )
+
+
+def _has_schemeless_service_location(value: str) -> bool:
+    try:
+        parsed = urlsplit(value if value.startswith("//") else f"//{value}")
+    except ValueError:
+        return False
+    if not parsed.hostname:
+        return False
+    try:
+        return parsed.port is not None
+    except ValueError:
+        return False
+
+
+def is_service_base_url(value: str) -> bool:
+    """Return True when ``value`` points to an HTTP service, not a function ID."""
+    value = str(value).strip()
+    if not value:
+        return False
+    return _has_http_base_url_scheme(value) or _has_schemeless_service_location(value)
+
+
+def resolve_endpoint_or_function_id(value: str) -> str:
+    """Resolve an endpoint URL or NVCF function ID into a service base URL."""
+    value = str(value).strip()
+    if not value:
+        raise ValueError("Base URL value cannot be empty")
+    if _has_http_base_url_scheme(value):
+        return value
+    if _has_schemeless_service_location(value):
+        return _url_with_scheme(
+            _LOCAL_SERVICE_URL_SCHEME,
+            value.removeprefix("//"),
+        )
+    return _url_with_scheme(_NVCF_URL_SCHEME, f"{value}{NVCF_INVOCATION_HOST}")
+
+
+def _url_with_scheme(scheme: str, location: str) -> str:
+    return f"{scheme}{_URL_SCHEME_SEPARATOR}{location}"
 
 
 def create_nvcf_headers(
@@ -327,6 +385,7 @@ async def execute_nvcf_request_async(
     max_retries: int = 3,
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
+    retry_jitter: float = 0.1,
 ) -> dict[str, Any]:
     """Execute NVCF POST request asynchronously with retry logic and 202 polling.
 
@@ -341,6 +400,7 @@ async def execute_nvcf_request_async(
         max_retries: Maximum number of retry attempts. Default: 3
         retry_delay: Initial delay between retries in seconds. Default: 1.0
         retry_backoff_factor: Factor to multiply delay by after each retry. Default: 2.0
+        retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1
 
     Returns:
         Parsed result dictionary (from JSON or ZIP response)
@@ -379,7 +439,9 @@ async def execute_nvcf_request_async(
             try:
                 if attempt > 0:
                     # Add jitter to prevent thundering herd
-                    jittered_delay = current_delay * (1 + random.uniform(-0.1, 0.1))
+                    jittered_delay = current_delay * (
+                        1 + random.uniform(-retry_jitter, retry_jitter)
+                    )
                     logger.info(
                         "Retrying NVCF request (attempt %d/%d) after %.2fs delay",
                         attempt + 1,

@@ -6,11 +6,28 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import yaml
+from world_understanding.agentic.config import (
+    load_config_mapping_from_context,
+    log_config_source,
+)
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.credentials import (
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 
 from material_agent.api.defaults import PIPELINE_STEP_NAMES
+from material_agent.materials import (
+    material_entries_with_fallback,
+    material_mapping_with_fallback,
+)
+from material_agent.prompt_security import format_material_names_for_prompt
+from material_agent.tasks.config_loader import load_config_from_context
+from material_agent.tasks.prepare_dataset import (
+    render_system_prompt_from_prepare_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +35,8 @@ logger = logging.getLogger(__name__)
 class PipelineConfigTask(Task):
     """Task to load and validate configuration for pipeline workflows.
 
-    This task reads a YAML configuration file for pipelines and validates its structure.
+    This task loads a pipeline configuration dictionary (or standalone YAML) and
+    validates its structure.
     The pipeline config can contain sections for each step: build_dataset_usd,
     build_dataset_pdf_vectorstore, build_dataset_prepare_dataset, predict/benchmark,
     apply, refine.
@@ -40,7 +58,8 @@ class PipelineConfigTask(Task):
         - Absolute paths are used as-is
 
     Input context keys:
-        - config_path: Path to the YAML pipeline configuration file
+        - config_dict: In-memory pipeline configuration (preferred)
+        - config_path: YAML path or relative-path anchor
         - skip_steps: Optional list of step names to skip
         - only_steps: Optional list of step names to run exclusively
 
@@ -66,7 +85,7 @@ class PipelineConfigTask(Task):
         """Load and validate pipeline configuration.
 
         Args:
-            context: Workflow context containing config_path
+            context: Workflow context containing config_dict or config_path
             object_store: Optional object store (not used)
 
         Returns:
@@ -79,24 +98,12 @@ class PipelineConfigTask(Task):
         # Get event listener (or logger fallback)
         listener = get_listener(context, logger_name=__name__)
 
-        config_path = context.get("config_path")
-        if not config_path:
-            raise ValueError("config_path not provided in context")
-
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f"Pipeline configuration file not found: {config_path}"
-            )
-
-        listener.info(f"Loading pipeline configuration from {config_path}")
-
-        # Load YAML configuration
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        if not config:
-            raise ValueError("Pipeline configuration file is empty")
+        config, config_path = load_config_from_context(
+            context,
+            missing_file_message="Pipeline configuration file not found: {config_path}",
+            empty_message="Pipeline configuration file is empty",
+        )
+        log_config_source(context, listener.info, label="pipeline")
 
         # Extract pipeline metadata
         pipeline_meta = config.get("pipeline", {})
@@ -108,15 +115,20 @@ class PipelineConfigTask(Task):
         working_dir = Path(working_dir)
         if not working_dir.is_absolute():
             working_dir = config_path.parent / working_dir
-        working_dir = working_dir.resolve()
+        working_dir = resolve_path_with_safe_diagnostics(
+            working_dir,
+            label="pipeline working directory",
+        )
 
         # Check if temporary files should be preserved (default: True)
         keep_temp_files = pipeline_meta.get("keep_temp_files", True)
 
-        listener.info(f"Pipeline: {pipeline_name}")
+        listener.info(f"Pipeline: {redact_sensitive_config(pipeline_name)}")
         if pipeline_description:
-            listener.info(f"Description: {pipeline_description}")
-        listener.info(f"Working directory: {working_dir}")
+            listener.info(
+                f"Description: {redact_sensitive_config(pipeline_description)}"
+            )
+        listener.info(f"Working directory: {redact_sensitive_path(working_dir)}")
         if keep_temp_files:
             listener.info("Temporary files will be preserved after completion")
 
@@ -127,7 +139,10 @@ class PipelineConfigTask(Task):
                 f"Loaded {len(materials_data['entries'])} materials from unified definition"
             )
             if materials_data.get("library_path"):
-                listener.info(f"  Material library: {materials_data['library_path']}")
+                listener.info(
+                    "  Material library: "
+                    f"{redact_sensitive_path(materials_data['library_path'])}"
+                )
 
         # Validate and extract step configurations
         steps_to_run, step_configs = self._process_steps(
@@ -177,7 +192,12 @@ class PipelineConfigTask(Task):
             # Resolve relative to config file location
             if not library_path.is_absolute():
                 library_path = config_path.parent / library_path
-            library_path = str(library_path.resolve())
+            library_path = str(
+                resolve_path_with_safe_diagnostics(
+                    library_path,
+                    label="material library path",
+                )
+            )
 
         # Parse material entries
         entries = materials_section.get("entries", [])
@@ -201,13 +221,22 @@ class PipelineConfigTask(Task):
                     "name": name,
                     "description": description,
                     "binding": binding,
+                    **{
+                        str(key): value
+                        for key, value in entry.items()
+                        if key not in {"name", "description", "binding"}
+                    },
                 }
             )
 
-        return {
+        parsed_materials = {
             "library_path": library_path,
             "entries": parsed_entries,
         }
+        simready = materials_section.get("simready")
+        if isinstance(simready, dict):
+            parsed_materials["simready"] = dict(simready)
+        return parsed_materials
 
     def _process_steps(
         self,
@@ -277,6 +306,17 @@ class PipelineConfigTask(Task):
                     step_name, resolved_config, materials_data, listener
                 )
 
+            if (
+                step_name in ("predict", "benchmark")
+                and "system_prompt" not in resolved_config
+                and "build_dataset_prepare_dataset" in step_configs
+            ):
+                resolved_config["system_prompt"] = (
+                    render_system_prompt_from_prepare_config(
+                        step_configs["build_dataset_prepare_dataset"]
+                    )
+                )
+
             steps_to_run.append(step_name)
             step_configs[step_name] = resolved_config
 
@@ -311,20 +351,23 @@ class PipelineConfigTask(Task):
             if not external_config_path.is_absolute():
                 external_config_path = config_path.parent / external_config_path
 
-            if not external_config_path.exists():
-                raise FileNotFoundError(
-                    f"External config for step '{step_name}' not found: {external_config_path}"
-                )
+            listener.info(f"Loading external config for {step_name}")
 
-            listener.info(
-                f"Loading external config for {step_name}: {external_config_path}"
+            resolved_config, _ = load_config_mapping_from_context(
+                {"config_path": external_config_path},
+                missing_file_message=(
+                    f"External config for step '{step_name}' not found: {{config_path}}"
+                ),
+                parse_error_message=(
+                    f"Unable to parse external config for step '{step_name}': "
+                    "{config_path}"
+                ),
+                empty_message=f"External config for '{step_name}' is empty",
+                file_non_mapping_message=(
+                    f"External config for '{step_name}' must contain a mapping, "
+                    "got {type_name}"
+                ),
             )
-
-            with open(external_config_path, encoding="utf-8") as f:
-                resolved_config = yaml.safe_load(f)
-
-            if not resolved_config:
-                raise ValueError(f"External config for '{step_name}' is empty")
 
             # Store reference to external config path for path resolution
             resolved_config["_external_config_path"] = external_config_path
@@ -363,27 +406,34 @@ class PipelineConfigTask(Task):
         """
         # For build_dataset_prepare_dataset: inject materials_list
         if step_name == "build_dataset_prepare_dataset":
+            entries = material_entries_with_fallback(materials_data["entries"])
+            injected_materials_list = False
             if "materials_list" not in step_config:
-                # Extract list of material names with descriptions for prompts
-                materials_list = [entry["name"] for entry in materials_data["entries"]]
+                # Extract material names for prompt and dataset metadata.
+                materials_list = [entry["name"] for entry in entries]
                 step_config["materials_list"] = materials_list
+                injected_materials_list = True
                 listener.debug(
                     f"Injected {len(materials_list)} materials into {step_name}"
                 )
 
-            # Also inject formatted materials for prompt substitution
-            if "prompts" in step_config:
-                materials_formatted = self._format_materials_for_prompt(
-                    materials_data["entries"]
-                )
+            # Keep the prompt payload and persisted material_names sourced from the
+            # same list. Explicit materials_list values are formatted later by the
+            # prepare task; only synthesize the structured payload for an injected
+            # list.
+            if (
+                "prompts" in step_config
+                and injected_materials_list
+                and "_materials_formatted" not in step_config
+            ):
+                materials_formatted = self._format_materials_for_prompt(entries)
                 step_config["_materials_formatted"] = materials_formatted
 
         # For validate/harmonize: inject material_names
         elif step_name in ("validate_predictions", "harmonize_predictions"):
             if "material_names" not in step_config:
-                step_config["material_names"] = [
-                    entry["name"] for entry in materials_data["entries"]
-                ]
+                entries = material_entries_with_fallback(materials_data["entries"])
+                step_config["material_names"] = [entry["name"] for entry in entries]
                 listener.debug(
                     f"Injected {len(step_config['material_names'])} material_names into {step_name}"
                 )
@@ -400,8 +450,9 @@ class PipelineConfigTask(Task):
                 ]
 
             # Add name -> binding mappings
-            for entry in materials_data["entries"]:
+            for entry in material_entries_with_fallback(materials_data["entries"]):
                 materials_mapping[entry["name"]] = entry["binding"]
+            materials_mapping = material_mapping_with_fallback(materials_mapping)
 
             # For refine step, inject into the 'apply' subsection
             if step_name == "refine":
@@ -423,21 +474,12 @@ class PipelineConfigTask(Task):
         return step_config
 
     def _format_materials_for_prompt(self, entries: list[dict[str, Any]]) -> str:
-        """Format materials list for prompt injection.
+        """Format material names as untrusted prompt data.
 
         Args:
-            entries: List of material entries with name and description
+            entries: List of material entries
 
         Returns:
             Formatted string ready for {materials_list} substitution
         """
-        lines = []
-        for entry in entries:
-            name = entry["name"]
-            description = entry.get("description", "")
-            if description:
-                lines.append(f"{name}: {description}")
-            else:
-                lines.append(name)
-
-        return "\n".join(lines)
+        return format_material_names_for_prompt(entries)

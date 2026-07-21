@@ -9,9 +9,19 @@ from typing import Any
 
 from world_understanding.agentic.base import BaseAgent
 from world_understanding.tools.base import get_tool_registry
+from world_understanding.utils.credentials import redact_sensitive_path
 from world_understanding.utils.object_store import ObjectStore
 
 logger = logging.getLogger(__name__)
+
+_TOOL_EXECUTION_FAILURE_MESSAGE = "Tool execution failed"
+
+
+def _diagnostic_name(value: Any) -> str:
+    """Project a runtime tool identifier onto observable surfaces."""
+    if not isinstance(value, str):
+        return "<unavailable>"
+    return redact_sensitive_path(value)
 
 
 class Task(ABC):
@@ -325,7 +335,7 @@ class ToolTask(Task):
             or ref_path.endswith(".")
             or ".." in ref_path
         ):
-            logger.warning(f"Invalid reference format: {value}")
+            logger.warning("Invalid tool input reference format")
             return None
 
         # Split by dots for nested access
@@ -337,7 +347,7 @@ class ToolTask(Task):
             if isinstance(current, dict) and key in current:
                 current = current[key]
             else:
-                logger.warning(f"Could not resolve reference: {value}")
+                logger.warning("Could not resolve tool input reference")
                 return None
 
         return current
@@ -491,11 +501,13 @@ class ToolTask(Task):
         Returns:
             Updated context with this task's results added under output_key
         """
+        safe_tool_name = _diagnostic_name(self.tool_name)
+
         # Get the tool
         tool = self.tools.get(self.tool_name)
         if not tool:
-            logger.error(f"Tool '{self.tool_name}' not found in registry")
-            context["error"] = f"Tool '{self.tool_name}' not found"
+            logger.error("Tool '%s' not found in registry", safe_tool_name)
+            context["error"] = f"Tool '{safe_tool_name}' not found"
             context["failed_task"] = self.name
             return context
 
@@ -503,8 +515,11 @@ class ToolTask(Task):
             # Resolve inputs from context
             resolved_inputs = self._resolve_inputs(context)
 
-            logger.info(f"Executing tool: {self.tool_name}")
-            logger.debug(f"Resolved inputs: {resolved_inputs}")
+            logger.info("Executing tool: %s", safe_tool_name)
+            # Resolved values are runtime data-plane inputs and may contain
+            # credentials. Keep them raw for tool execution, but never render
+            # them on a diagnostic surface.
+            logger.debug("Resolved %d tool input field(s)", len(resolved_inputs))
 
             # Create input object for the tool
             input_obj = tool.spec.input_model(**resolved_inputs)
@@ -525,15 +540,18 @@ class ToolTask(Task):
             # Store in object store if provided
             if object_store:
                 object_store.set(self.output_key, output_dict)
-                logger.debug(f"Stored {self.output_key} in object store")
+                logger.debug("Stored tool output in object store")
 
-            logger.info(f"Tool {self.tool_name} executed successfully")
+            logger.info("Tool %s executed successfully", safe_tool_name)
 
-        except Exception as e:
-            logger.error(f"Error executing tool {self.tool_name}: {e}")
-            context[f"{self.tool_name}_error"] = str(e)
+        except Exception:
+            # Validation, tool, and object-store exceptions can embed resolved
+            # configuration values. Preserve the existing non-raising ToolTask
+            # contract while returning only operation-owned diagnostics.
+            logger.error("Tool %s failed", safe_tool_name)
+            context[f"{self.tool_name}_error"] = _TOOL_EXECUTION_FAILURE_MESSAGE
             context[f"{self.tool_name}_success"] = False
-            context["error"] = str(e)
+            context["error"] = _TOOL_EXECUTION_FAILURE_MESSAGE
             context["failed_task"] = self.name
 
         return context

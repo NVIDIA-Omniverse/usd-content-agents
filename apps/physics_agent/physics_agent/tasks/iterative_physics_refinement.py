@@ -20,6 +20,7 @@ Inputs (constructor):
     output_dir (Path)
     engine, optimizer, max_trials, seed
     max_iterations
+    history_window
     score_threshold
     chat_model (optional; refine degrades without a chat model, but the
         iterative judge fails closed when no VLM verdict is available)
@@ -27,26 +28,28 @@ Inputs (constructor):
         when set, every iteration's scenario.yaml gets ``record_video``
         rewritten to this value, overriding both the initial YAML and
         any LLM-refined value. Default ``None`` honors the YAML.
-    render_winning_trial (default True) ⇒ post-tune render of the best
-        trial's recording.usda into ``iter_N/render/`` so each iteration
-        produces one mp4 even when per-trial rendering is suppressed.
+    render_winning_trial (default False) ⇒ post-tune render of the best
+        trial's recording.usd into ``iter_N/render/`` so each iteration
+        has PNG judge evidence when per-trial rendering is suppressed.
 
 Per-iteration on-disk layout::
 
     output_dir/
         iter_1/
             scenario.yaml
+            prior_refine_history.json
             best_params.json
             history.jsonl
             judge_result.json
             tune_results.json (from run_tune)
             report.md (from run_tune)
-            tuned_physics.usda (from run_tune, optional)
+            tuned_physics.usd (from run_tune, optional)
             render/<trial>/  (when scenario.target.record_video is on)
         iter_2/...
         final/
             (copy / link of the winning iteration's artifacts)
-        refine_summary.json (loop-level summary)
+            recording.usd (flattened strict winning trial, when available)
+        refine_summary.json (loop-level summary, including compact_history)
 
 Context-key contract emitted to the listener (same as material's loop):
 
@@ -85,20 +88,28 @@ from physics_agent.tuning.capabilities import capabilities_for_backend
 from physics_agent.tuning.errors import NewtonUnavailableError, OvPhysXUnavailableError
 from physics_agent.tuning.scenario import load_scenario
 from physics_agent.tuning.types import (
+    SCENARIO_FREEFORM,
     Scenario,
     TrialRecord,
     TuneInput,
     TuneOutput,
 )
+from physics_agent.tuning.video_rendering import resolve_video_renderer
 from physics_agent.tuning.visual_evidence import (
+    DEFAULT_JUDGE_GENERATED_FRAMES,
+    DEFAULT_JUDGE_REFERENCE_FRAMES,
+    DEFAULT_REFERENCE_VIDEO_FRAMES,
     JudgeVisualEvidence,
     has_reference_media,
     prepare_reference_media,
     resolve_default_judge_vlm,
+    validate_visual_frame_count,
     write_comparison_contact_sheet,
 )
 
 logger = logging.getLogger(__name__)
+
+_TUNE_EXECUTION_FAILURE_MESSAGE = "Tune execution failed before judge."
 
 __all__ = [
     "IterationRecord",
@@ -133,6 +144,8 @@ class IterationRecord:
     metric_value: float | None  # the raw physical metric (e.g. peak height)
     cancelled: bool = False
     error: str | None = None
+    recording_usd: Path | None = None
+    recording_error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         # Coerce non-finite scores (the error path stores
@@ -167,6 +180,10 @@ class IterationRecord:
             ),
             "cancelled": bool(self.cancelled),
             "error": self.error,
+            "recording_usd": (
+                str(self.recording_usd) if self.recording_usd is not None else None
+            ),
+            "recording_error": self.recording_error,
         }
 
 
@@ -176,18 +193,28 @@ class IterativePhysicsRefinementResult:
 
     output_dir: Path
     iterations: list[IterationRecord] = field(default_factory=list)
+    compact_history: list[dict[str, Any]] = field(default_factory=list)
     termination_reason: str = "unknown"
     final_iteration: int = 0
     final_dir: Path | None = None
+    final_recording_usd: Path | None = None
+    final_recording_error: str | None = None
     user_prompt: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "output_dir": str(self.output_dir),
             "iterations": [r.to_dict() for r in self.iterations],
+            "compact_history": self.compact_history,
             "termination_reason": self.termination_reason,
             "final_iteration": int(self.final_iteration),
             "final_dir": str(self.final_dir) if self.final_dir is not None else None,
+            "final_recording_usd": (
+                str(self.final_recording_usd)
+                if self.final_recording_usd is not None
+                else None
+            ),
+            "final_recording_error": self.final_recording_error,
             "user_prompt": self.user_prompt,
         }
 
@@ -263,11 +290,234 @@ def _copy_iteration_to_final(iter_dir: Path, final_dir: Path) -> None:
     shutil.copytree(iter_dir, final_dir)
 
 
+def _resolve_winning_recording_source(
+    history: list[TrialRecord],
+) -> tuple[Path | None, str | None]:
+    """Return the actual lowest-score trial's recording, if it exists."""
+    successful = [trial for trial in history if not trial.failed]
+    if not successful:
+        return None, "every trial failed; no winning recording"
+
+    best = min(successful, key=lambda trial: trial.score)
+    metrics = best.backend_metrics or {}
+    raw_path = metrics.get("recording_usd") or metrics.get("recording_usda")
+    if raw_path is None or (isinstance(raw_path, str) and not raw_path.strip()):
+        return None, "winning trial did not persist recording_usd"
+
+    try:
+        source = Path(raw_path)
+    except TypeError:
+        return None, f"winning trial returned invalid recording path: {raw_path!r}"
+    if not source.is_absolute():
+        source = (Path.cwd() / source).resolve()
+    else:
+        source = source.resolve()
+    if not source.is_file():
+        return None, f"winning trial recording does not exist: {source}"
+    return source, None
+
+
+def _materialize_winning_recording(
+    history: list[TrialRecord],
+    destination: Path,
+) -> tuple[Path | None, str | None]:
+    """Flatten the strict winning trial's recording into ``destination``."""
+    source, source_error = _resolve_winning_recording_source(history)
+    if source is None:
+        return None, source_error
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(
+        f".{destination.stem}.tmp{destination.suffix or '.usd'}"
+    )
+    try:
+        from pxr import Usd
+
+        stage = Usd.Stage.Open(str(source))
+        if stage is None:
+            raise RuntimeError(f"Could not open winning recording: {source}")
+        flattened = stage.Flatten()
+        if not flattened.Export(str(temporary)):
+            raise RuntimeError(f"Could not export flattened recording: {temporary}")
+        temporary.replace(destination)
+    except Exception as exc:
+        temporary.unlink(missing_ok=True)
+        return None, (
+            f"Could not publish winning recording: {type(exc).__name__}: {exc}"
+        )
+    return destination, None
+
+
+def _finite_or_none(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def _scenario_bounds_from_yaml(
+    path: Path,
+    bounds_cache: dict[Path, dict[str, list[float | None]]] | None = None,
+) -> dict[str, list[float | None]]:
+    cache_key = path.resolve()
+    if bounds_cache is not None and cache_key in bounds_cache:
+        return bounds_cache[cache_key]
+
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        logger.warning("Failed to read refine scenario bounds from %s: %s", path, exc)
+        bounds: dict[str, list[float | None]] = {}
+        if bounds_cache is not None:
+            bounds_cache[cache_key] = bounds
+        return bounds
+
+    params = data.get("parameters") if isinstance(data, dict) else None
+    if not isinstance(params, list):
+        bounds = {}
+        if bounds_cache is not None:
+            bounds_cache[cache_key] = bounds
+        return bounds
+
+    bounds: dict[str, list[float | None]] = {}
+    for param in params:
+        if not isinstance(param, dict):
+            continue
+        name = param.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+        bounds[name] = [
+            _finite_or_none(param.get("min")),
+            _finite_or_none(param.get("max")),
+        ]
+    if bounds_cache is not None:
+        bounds_cache[cache_key] = bounds
+    return bounds
+
+
+def _best_finite_judge_record(records: list[IterationRecord]) -> IterationRecord | None:
+    best_record: IterationRecord | None = None
+    best_key: tuple[float, int] | None = None
+    for record in records:
+        judge_score = _finite_or_none(record.judge_score)
+        if judge_score is None:
+            continue
+        key = (judge_score, int(record.iteration))
+        if best_key is None or key > best_key:
+            best_key = key
+            best_record = record
+    return best_record
+
+
+def _compact_refine_history_row(
+    record: IterationRecord,
+    *,
+    best_iteration: int | None,
+    bounds_cache: dict[Path, dict[str, list[float | None]]] | None = None,
+) -> dict[str, Any]:
+    warnings: list[str] = []
+    if record.judge_llm_unavailable:
+        warnings.append("judge_llm_unavailable")
+    if record.refine_llm_unavailable:
+        warnings.append("refine_llm_unavailable")
+    if record.cancelled:
+        warnings.append("cancelled")
+    return {
+        "iteration": int(record.iteration),
+        "scenario_metric": record.metric_name,
+        "parameter_bounds": _scenario_bounds_from_yaml(
+            record.scenario_yaml_path,
+            bounds_cache,
+        ),
+        "best_params": dict(record.best_params),
+        "best_score": _finite_or_none(record.best_score),
+        "metric_value": _finite_or_none(record.metric_value),
+        "judge_decision": record.judge_decision,
+        "judge_score": _finite_or_none(record.judge_score),
+        "judge_reasoning": record.judge_reasoning,
+        "warnings": warnings,
+        "error": record.error,
+        "best_so_far": (
+            best_iteration is not None and int(record.iteration) == best_iteration
+        ),
+    }
+
+
+def _compact_refine_history(
+    records: list[IterationRecord],
+    history_window: int,
+) -> list[dict[str, Any]]:
+    """Build deterministic loop-level memory from prior refine iterations.
+
+    This is intentionally a compact row format, not an LLM-written running
+    summary. Raw per-iteration artifacts remain the source of truth.
+    """
+    if not records or history_window <= 0:
+        return []
+
+    recent = list(records[-history_window:])
+    best = _best_finite_judge_record(records)
+
+    selected: list[IterationRecord] = []
+    if best is not None and all(
+        int(item.iteration) != int(best.iteration) for item in recent
+    ):
+        selected.append(best)
+    selected.extend(recent)
+    best_iteration = int(best.iteration) if best is not None else None
+
+    bounds_cache: dict[Path, dict[str, list[float | None]]] = {}
+    return [
+        _compact_refine_history_row(
+            record,
+            best_iteration=best_iteration,
+            bounds_cache=bounds_cache,
+        )
+        for record in selected
+    ]
+
+
+def _compact_refine_summary_history(
+    records: list[IterationRecord],
+    history_window: int,
+) -> list[dict[str, Any]]:
+    """Build terminal audit history for ``refine_summary.json``.
+
+    ``history_window=0`` disables prompt carryover during the loop, but the final
+    summary still keeps one compact audit row so callers can identify the
+    best-scored iteration without reopening every per-iteration artifact.
+    """
+    if not records:
+        return []
+    if history_window > 0:
+        return _compact_refine_history(records, history_window)
+
+    best = _best_finite_judge_record(records)
+    selected = best if best is not None else records[-1]
+    return [
+        _compact_refine_history_row(
+            selected,
+            best_iteration=int(best.iteration) if best is not None else None,
+            bounds_cache={},
+        )
+    ]
+
+
+def _emit_listener_event(listener: Any, event_type: str, data: dict[str, Any]) -> None:
+    try:
+        listener.event(event_type, data)
+    except Exception:  # pragma: no cover - listener bugs should not abort refine
+        logger.debug("Refine listener raised on %s", event_type, exc_info=True)
+
+
 def _discover_camera_paths(stage_path: Path) -> list[str] | None:
     """Open ``stage_path`` and return all ``UsdGeom.Camera`` prim paths.
 
     The drop_settle scene authors cameras under ``/Cameras/<dir>``. The
-    recording.usda subLayers scene.usda so cameras are visible from
+    recording.usd subLayers scene.usd so cameras are visible from
     either path. We open the stage in memory and walk it for camera
     prims so we don't depend on the per-trial scene_info dict. Returns
     ``None`` when nothing is found so the renderer falls back to its
@@ -394,16 +644,23 @@ class IterativePhysicsRefinementTask:
         reference_videos: list[Path] | None = None,
         reference_descriptions: list[str] | None = None,
         reference_video_descriptions: list[str] | None = None,
+        reference_video_frames: int = DEFAULT_REFERENCE_VIDEO_FRAMES,
+        judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES,
+        judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES,
         run_tune_callable: Any | None = None,
         force_record_video: str | None = None,
-        render_winning_trial: bool = True,
+        render_winning_trial: bool = False,
         visual_evidence_enabled: bool = True,
+        history_window: int = 20,
         llm_timeout_seconds: float = 180.0,
+        cancel_event: Any | None = None,
     ) -> None:
         if not user_prompt or not user_prompt.strip():
             raise ValueError("user_prompt must be a non-empty string")
         if max_iterations < 1:
             raise ValueError(f"max_iterations must be >= 1, got {max_iterations}")
+        if history_window < 0:
+            raise ValueError(f"history_window must be >= 0, got {history_window}")
         if judge_max_tokens is not None and judge_max_tokens < 1:
             raise ValueError(f"judge_max_tokens must be >= 1, got {judge_max_tokens}")
         if judge_temperature is not None:
@@ -422,6 +679,18 @@ class IterativePhysicsRefinementTask:
                 "force_record_video must be one of {'off','end_of_tune',"
                 f"'always'}}, got {force_record_video!r}"
             )
+        reference_video_frames = validate_visual_frame_count(
+            "reference_video_frames",
+            reference_video_frames,
+        )
+        judge_reference_frames = validate_visual_frame_count(
+            "judge_reference_frames",
+            judge_reference_frames,
+        )
+        judge_generated_frames = validate_visual_frame_count(
+            "judge_generated_frames",
+            judge_generated_frames,
+        )
         self.name = "IterativePhysicsRefinement"
         self.description = (
             "Iteratively tune+judge+refine a physics scenario from a user prompt"
@@ -460,10 +729,21 @@ class IterativePhysicsRefinementTask:
             if reference_video_descriptions is not None
             else None
         )
+        self.reference_video_frames = reference_video_frames
+        self.judge_reference_frames = judge_reference_frames
+        self.judge_generated_frames = judge_generated_frames
         self.force_record_video = force_record_video
         self.render_winning_trial = render_winning_trial
         self.visual_evidence_enabled = bool(visual_evidence_enabled)
+        self.history_window = int(history_window)
         self.llm_timeout_seconds = float(llm_timeout_seconds)
+        if cancel_event is not None and not callable(
+            getattr(cancel_event, "is_set", None)
+        ):
+            raise TypeError(
+                "cancel_event must be an Event-like object with an is_set() method"
+            )
+        self.cancel_event = cancel_event
         # Indirection so tests can plug in a fake ``run_tune`` without
         # spinning the OvPhysX daemon. Defaults to the real one.
         if run_tune_callable is None:
@@ -472,6 +752,73 @@ class IterativePhysicsRefinementTask:
             self._run_tune = _run_tune
         else:
             self._run_tune = run_tune_callable
+
+    def _cancel_requested(self) -> bool:
+        return bool(
+            self.cancel_event is not None
+            and callable(getattr(self.cancel_event, "is_set", None))
+            and self.cancel_event.is_set()
+        )
+
+    def _write_result_summary(
+        self,
+        *,
+        records: list[IterationRecord],
+        termination_reason: str,
+        final_iter_dir: Path | None = None,
+    ) -> IterativePhysicsRefinementResult:
+        final_dir: Path | None = None
+        final_record: IterationRecord | None = None
+        if final_iter_dir is not None and final_iter_dir.exists():
+            final_record = next(
+                (
+                    record
+                    for record in reversed(records)
+                    if record.iteration_dir.resolve() == final_iter_dir.resolve()
+                ),
+                None,
+            )
+            final_dir = self.output_dir / "final"
+            try:
+                _copy_iteration_to_final(final_iter_dir, final_dir)
+            except Exception as exc:
+                logger.warning("Failed to copy final iteration: %s", exc)
+                final_dir = final_iter_dir
+
+        final_recording_usd: Path | None = None
+        final_recording_error = (
+            final_record.recording_error if final_record is not None else None
+        )
+        if final_dir is not None and final_record is not None:
+            recording_path = final_dir / "recording.usd"
+            if final_record.recording_usd is not None and recording_path.is_file():
+                final_recording_usd = recording_path
+            elif (
+                final_record.recording_usd is not None and final_recording_error is None
+            ):
+                final_recording_error = (
+                    f"Final recording was not copied to {recording_path}"
+                )
+
+        result = IterativePhysicsRefinementResult(
+            output_dir=self.output_dir,
+            iterations=records,
+            compact_history=_compact_refine_summary_history(
+                records,
+                self.history_window,
+            ),
+            termination_reason=termination_reason,
+            final_iteration=records[-1].iteration if records else 0,
+            final_dir=final_dir,
+            final_recording_usd=final_recording_usd,
+            final_recording_error=final_recording_error,
+            user_prompt=self.user_prompt,
+        )
+        self._write_json(
+            self.output_dir / "refine_summary.json",
+            result.to_dict(),
+        )
+        return result
 
     # ------------------------------------------------------------------
     # Public entry
@@ -494,6 +841,7 @@ class IterativePhysicsRefinementTask:
         """
         ctx = context if context is not None else {}
         listener = get_listener(ctx, logger_name=__name__)
+        self._active_event_listener = listener
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Resolve the initial scenario once BEFORE wiping stale iter
@@ -503,6 +851,13 @@ class IterativePhysicsRefinementTask:
         # and the cleanup below must not delete the file the loader is
         # about to read.
         scenario = self._load_initial_scenario()
+
+        if self._cancel_requested():
+            listener.info("Refinement cancelled before first iteration.")
+            return self._write_result_summary(
+                records=[],
+                termination_reason="cancelled",
+            )
 
         if self.visual_evidence_enabled:
             try:
@@ -525,6 +880,12 @@ class IterativePhysicsRefinementTask:
                 "  Judge visual evidence disabled; VLM judge will run text-only"
             )
         self._ensure_judge_vlm(listener)
+        if self._cancel_requested():
+            listener.info("Refinement cancelled before first iteration.")
+            return self._write_result_summary(
+                records=[],
+                termination_reason="cancelled",
+            )
 
         # Wipe iter_<number>/ and final/ subdirectories from any
         # previous run into this output_dir BEFORE the loop starts. The
@@ -552,26 +913,61 @@ class IterativePhysicsRefinementTask:
         listener.info(f"  Output dir: {self.output_dir}")
         listener.info(f"  Initial metric: {scenario.metric}")
         listener.info("=" * 80)
+        _emit_listener_event(
+            listener,
+            "refine.started",
+            {
+                "max_iterations": self.max_iterations,
+                "max_trials": self.max_trials,
+                "score_threshold": self.score_threshold,
+                "engine": self.engine,
+                "optimizer": self.optimizer,
+                "output_dir": str(self.output_dir),
+            },
+        )
 
         records: list[IterationRecord] = []
         termination_reason = "max_iterations"
         final_iter_dir: Path | None = None
 
         for iteration in range(1, self.max_iterations + 1):
+            if self._cancel_requested():
+                listener.info(f"  Cancellation requested before iteration {iteration}.")
+                termination_reason = "cancelled"
+                break
+
             listener.info("")
             listener.info("-" * 80)
             listener.info(f"ITERATION {iteration}/{self.max_iterations}")
             listener.info("-" * 80)
+            _emit_listener_event(
+                listener,
+                "refine.iteration.started",
+                {
+                    "iteration": iteration,
+                    "max_iterations": self.max_iterations,
+                    "max_trials": self.max_trials,
+                    "scenario_metric": scenario.metric,
+                },
+            )
 
             iter_dir = self.output_dir / f"iter_{iteration}"
             iter_dir.mkdir(parents=True, exist_ok=True)
+            prior_refine_history = _compact_refine_history(
+                records,
+                self.history_window,
+            )
+            self._write_json(
+                iter_dir / "prior_refine_history.json",
+                prior_refine_history,
+            )
 
             # 1) Persist the scenario YAML used by THIS iteration. When
             #    ``force_record_video`` is set (the CLI passes "off"), it
             #    overrides whatever ``record_video`` was authored in the
             #    initial YAML or refined by the LLM — wins over both
             #    sources. The orchestrator's post-tune winning-trial
-            #    render is the canonical "one mp4 per iter" output, so
+            #    render is the canonical per-iteration image evidence, so
             #    suppressing per-trial rendering keeps trials fast.
             #    Pass force_record_video=None at construction time to
             #    honor whatever the YAML / refine flow asks for.
@@ -598,8 +994,10 @@ class IterativePhysicsRefinementTask:
                     iter_output_dir=iter_dir,
                     iteration=iteration,
                 )
-            except Exception as exc:
-                listener.error(f"  Iteration {iteration} tune raised: {exc}")
+            except Exception:
+                listener.error(
+                    f"  Iteration {iteration}: {_TUNE_EXECUTION_FAILURE_MESSAGE}"
+                )
                 records.append(
                     IterationRecord(
                         iteration=iteration,
@@ -617,7 +1015,7 @@ class IterativePhysicsRefinementTask:
                         refine_reasoning="",
                         metric_name=scenario.metric,
                         metric_value=None,
-                        error=str(exc),
+                        error=_TUNE_EXECUTION_FAILURE_MESSAGE,
                     )
                 )
                 termination_reason = "error"
@@ -677,19 +1075,62 @@ class IterativePhysicsRefinementTask:
             listener.info(
                 f"  Tune complete: {len(history)} trials, best_score={best_score:.6g}"
             )
+            _emit_listener_event(
+                listener,
+                "refine.iteration.tune_completed",
+                {
+                    "iteration": iteration,
+                    "n_trials": len(history),
+                    "best_score": best_score,
+                    "best_params": best_params,
+                    "metric_name": scenario.metric,
+                    "metric_value": _extract_metric_value(history, scenario.metric),
+                },
+            )
 
-            # 2.5) Post-iter render of the winning trial's recording.usda.
+            if self._cancel_requested():
+                metric_value = _extract_metric_value(history, scenario.metric)
+                listener.info("  Cancellation requested after tune; skipping judge.")
+                records.append(
+                    IterationRecord(
+                        iteration=iteration,
+                        iteration_dir=iter_dir,
+                        scenario_yaml_path=scenario_yaml_path,
+                        tune_output_dir=iter_dir,
+                        best_params=best_params,
+                        best_score=best_score,
+                        n_trials=len(history),
+                        judge_decision="skipped",
+                        judge_score=0.0,
+                        judge_reasoning="refine cancelled before judge",
+                        judge_llm_unavailable=True,
+                        refine_llm_unavailable=True,
+                        refine_reasoning="",
+                        metric_name=scenario.metric,
+                        metric_value=metric_value,
+                        cancelled=True,
+                        error="Refine cancelled by caller",
+                    )
+                )
+                termination_reason = "cancelled"
+                break
+
+            # 2.5) Post-iter render of the winning trial's recording.usd.
             #      The per-trial drop_settle evaluator only renders when
             #      ``record_video in {end_of_tune, always}``. With the
             #      default ``record_video=off`` we get fast trials and a
-            #      single render of the best trial here, which matches
-            #      the e2e contract (one mp4 per iter).
+            #      single render of the best trial here when requested.
             generated_frames: list[Path] = []
             generated_error: str | None = None
-            needs_visual_judge_render = (
-                self.visual_evidence_enabled
-                and reference_evidence is not None
+            reference_visual_ready = (
+                reference_evidence is not None
                 and reference_evidence.reference_error is None
+            )
+            generated_only_visual_requested = (
+                reference_evidence is None and scenario.name == SCENARIO_FREEFORM
+            )
+            needs_visual_judge_render = self.visual_evidence_enabled and (
+                reference_visual_ready or generated_only_visual_requested
             )
             if self.render_winning_trial or needs_visual_judge_render:
                 try:
@@ -712,6 +1153,32 @@ class IterativePhysicsRefinementTask:
 
             ctx["judge_score"] = None  # clear stale value before judge
             ctx["iteration_count"] = iteration
+            if self._cancel_requested():
+                metric_value = _extract_metric_value(history, scenario.metric)
+                listener.info("  Cancellation requested before judge.")
+                records.append(
+                    IterationRecord(
+                        iteration=iteration,
+                        iteration_dir=iter_dir,
+                        scenario_yaml_path=scenario_yaml_path,
+                        tune_output_dir=iter_dir,
+                        best_params=best_params,
+                        best_score=best_score,
+                        n_trials=len(history),
+                        judge_decision="skipped",
+                        judge_score=0.0,
+                        judge_reasoning="refine cancelled before judge",
+                        judge_llm_unavailable=True,
+                        refine_llm_unavailable=True,
+                        refine_reasoning="",
+                        metric_name=scenario.metric,
+                        metric_value=metric_value,
+                        cancelled=True,
+                        error="Refine cancelled by caller",
+                    )
+                )
+                termination_reason = "cancelled"
+                break
 
             # 3) Judge. ``run_tune_judge`` is single-shot; pass the
             #    iteration so the persisted judge_result.json reports the
@@ -728,9 +1195,12 @@ class IterativePhysicsRefinementTask:
                     generated_frames,
                     generated_error=generated_error,
                 )
-            elif generated_frames:
+            elif generated_frames or (
+                generated_only_visual_requested and generated_error is not None
+            ):
                 visual_evidence = JudgeVisualEvidence(
                     generated_image_paths=tuple(generated_frames),
+                    generated_error=generated_error,
                 )
             else:
                 visual_evidence = None
@@ -742,6 +1212,8 @@ class IterativePhysicsRefinementTask:
                 comparison_path, comparison_error = write_comparison_contact_sheet(
                     visual_evidence,
                     iter_dir / ARTIFACT_VISUAL_COMPARISON,
+                    max_reference_images=self.judge_reference_frames,
+                    max_generated_images=self.judge_generated_frames,
                 )
                 visual_evidence = visual_evidence.with_comparison_image(
                     comparison_path,
@@ -760,8 +1232,11 @@ class IterativePhysicsRefinementTask:
                     visual_evidence_enabled=self.visual_evidence_enabled,
                     judge_max_tokens=self.judge_max_tokens,
                     judge_temperature=self.judge_temperature,
+                    judge_reference_frames=self.judge_reference_frames,
+                    judge_generated_frames=self.judge_generated_frames,
                     score_threshold=self.score_threshold,
                     iteration=iteration,
+                    prior_refine_history=prior_refine_history,
                     timeout_seconds=self.llm_timeout_seconds,
                     op_label="judge",
                 )
@@ -813,6 +1288,18 @@ class IterativePhysicsRefinementTask:
             )
             listener.info(f"  Judge reasoning: {judge_result.reasoning}")
             metric_value = _extract_metric_value(history, scenario.metric)
+            _emit_listener_event(
+                listener,
+                "refine.iteration.judged",
+                {
+                    "iteration": iteration,
+                    "decision": judge_result.decision,
+                    "judge_score": judge_result.score,
+                    "metric_name": scenario.metric,
+                    "metric_value": metric_value,
+                    "continue_iteration": judge_result.decision == "continue",
+                },
+            )
             # Refine is a tune -> VLM judge -> scenario-refine loop. Do not let
             # any run, including text-only runs with an empty media list, approve
             # from programmatic-only scores when the judge VLM is unavailable.
@@ -876,6 +1363,25 @@ class IterativePhysicsRefinementTask:
                 cancelled=bool(getattr(tune_output, "cancelled", False)),
             )
 
+            if self._cancel_requested():
+                record.cancelled = True
+                record.error = "Refine cancelled by caller"
+                records.append(record)
+                termination_reason = "cancelled"
+                break
+
+            if judge_result.decision == "approve" or iteration >= self.max_iterations:
+                record.recording_usd, record.recording_error = (
+                    _materialize_winning_recording(
+                        history,
+                        iter_dir / "recording.usd",
+                    )
+                )
+                if record.recording_error is not None:
+                    listener.warning(
+                        f"  Winning recording unavailable: {record.recording_error}"
+                    )
+
             # 4) Approve → terminate; otherwise refine and loop.
             if judge_result.decision == "approve":
                 listener.info(
@@ -903,6 +1409,13 @@ class IterativePhysicsRefinementTask:
                 termination_reason = "max_iterations"
                 break
 
+            if self._cancel_requested():
+                record.cancelled = True
+                record.error = "Refine cancelled by caller"
+                records.append(record)
+                termination_reason = "cancelled"
+                break
+
             # Same wall-clock guard as the judge call (NIM has no
             # SDK-level deadline). On timeout we synthesize an
             # ``llm_unavailable`` RefineResult so the loop reuses the
@@ -919,6 +1432,7 @@ class IterativePhysicsRefinementTask:
                     chat_model=self.chat_model,
                     backend_name=self.engine,
                     supported_param_keys=self._refine_supported_param_keys,
+                    prior_refine_history=prior_refine_history,
                     timeout_seconds=self.llm_timeout_seconds,
                     op_label="scenario_refine",
                 )
@@ -968,27 +1482,10 @@ class IterativePhysicsRefinementTask:
         ):
             final_iter_dir = records[-1].iteration_dir
 
-        # Promote the winning iteration to ``final/`` for easy inspection.
-        final_dir: Path | None = None
-        if final_iter_dir is not None and final_iter_dir.exists():
-            final_dir = self.output_dir / "final"
-            try:
-                _copy_iteration_to_final(final_iter_dir, final_dir)
-            except Exception as exc:
-                listener.warning(f"Failed to copy final iteration: {exc}")
-                final_dir = final_iter_dir
-
-        result = IterativePhysicsRefinementResult(
-            output_dir=self.output_dir,
-            iterations=records,
+        result = self._write_result_summary(
+            records=records,
             termination_reason=termination_reason,
-            final_iteration=records[-1].iteration if records else 0,
-            final_dir=final_dir,
-            user_prompt=self.user_prompt,
-        )
-        self._write_json(
-            self.output_dir / "refine_summary.json",
-            result.to_dict(),
+            final_iter_dir=final_iter_dir,
         )
 
         listener.info("")
@@ -996,9 +1493,21 @@ class IterativePhysicsRefinementTask:
         listener.info(
             f"Refinement summary: termination={termination_reason} "
             f"iters={len(records)}/{self.max_iterations} "
-            f"final={final_dir}"
+            f"final={result.final_dir}"
         )
         listener.info("=" * 80)
+        _emit_listener_event(
+            listener,
+            "refine.completed",
+            {
+                "termination_reason": termination_reason,
+                "iteration_count": len(records),
+                "final_iteration": records[-1].iteration if records else 0,
+                "final_dir": (
+                    str(result.final_dir) if result.final_dir is not None else None
+                ),
+            },
+        )
         return result
 
     # ------------------------------------------------------------------
@@ -1024,6 +1533,7 @@ class IterativePhysicsRefinementTask:
                 reference_descriptions=self.reference_descriptions,
                 reference_video_descriptions=self.reference_video_descriptions,
                 output_dir=self.output_dir,
+                frames_per_video=self.reference_video_frames,
             )
         except Exception as exc:  # noqa: BLE001 - surfaced by judge result
             return JudgeVisualEvidence(reference_error=type(exc).__name__)
@@ -1058,7 +1568,7 @@ class IterativePhysicsRefinementTask:
         per-trial seeds across iterations. Without this offset
         ``drop_settle.evaluate`` keeps writing to the same
         ``.tune_scenes/trial_seed_<seed>/`` directory tree across
-        iterations and overwrites the per-trial ``recording.usda`` /
+        iterations and overwrites the per-trial ``recording.usd`` /
         ``trajectory.jsonl`` files that the previous iteration's
         ``history.jsonl`` references — turning the saved iteration
         artifacts into pointers to the latest iteration's data.
@@ -1075,6 +1585,8 @@ class IterativePhysicsRefinementTask:
             seed=self.seed + seed_offset,
             enable_judge=False,  # we run the judge ourselves per iteration
             judge_max_iterations=1,
+            cancel_event=self.cancel_event,
+            event_listener=getattr(self, "_active_event_listener", None),
         )
         return self._run_tune(params)
 
@@ -1086,14 +1598,15 @@ class IterativePhysicsRefinementTask:
         scenario: Scenario,
         listener: Any,
     ) -> tuple[list[Path], str | None]:
-        """Render the winning trial's ``recording.usda`` into ``iter_dir/render/``.
+        """Render the winning trial's ``recording.usd`` into ``iter_dir/render/``.
 
         Picks the best (lowest-score) successful trial from ``history``,
-        reads its ``recording_usda`` and ``scene_usd`` paths from
+        reads its ``recording_usd`` and ``scene_usd`` paths from
         ``backend_metrics``, and runs the world_understanding render
-        helper to produce ``iter_dir/render/render.mp4`` plus a
-        per-frame PNG sequence. Render failures are logged and dropped
-        — they do not fail the loop.
+        helper to produce a per-frame PNG sequence. Refine deliberately
+        does not encode MP4; the time-sampled recording USD is the portable
+        motion artifact. Render failures are logged and dropped and do not
+        fail the loop.
         """
         successful = [t for t in history if not t.failed]
         if not successful:
@@ -1103,12 +1616,12 @@ class IterativePhysicsRefinementTask:
             return [], "every trial failed; no winning trial to render"
         best = min(successful, key=lambda t: t.score)
         bm = best.backend_metrics or {}
-        recording = bm.get("recording_usda")
+        recording = bm.get("recording_usd") or bm.get("recording_usda")
         if not recording:
             listener.warning(
-                "  Skipping iter render: best trial did not persist a recording.usda."
+                "  Skipping iter render: best trial did not persist a recording.usd."
             )
-            return [], "winning trial did not persist recording_usda"
+            return [], "winning trial did not persist recording_usd"
         try:
             from world_understanding.functions.graphics import (
                 render_time_sampled_usd,
@@ -1117,28 +1630,25 @@ class IterativePhysicsRefinementTask:
             # The helper ships in PR #66 (issue #50). Until that lands
             # the iter render is a no-op; not fatal — the tune output,
             # judge verdict, and refine_summary.json are still complete
-            # without the mp4. Same fallback drop_settle.evaluate() takes.
+            # without image evidence. Same fallback drop_settle.evaluate() takes.
             listener.warning(
                 "  Skipping iter render: render_time_sampled_usd unavailable "
                 "(world_understanding.functions.graphics; ships in PR #66 / issue #50)."
             )
             return [], "render_time_sampled_usd unavailable"
 
-        render_dir = iter_dir / "render"
-        render_dir.mkdir(parents=True, exist_ok=True)
         target = scenario.target or {}
+        renderer = resolve_video_renderer(target)
+        render_dir = iter_dir / "render"
         cameras = _discover_camera_paths(Path(recording))
         try:
             frames = render_time_sampled_usd(
                 Path(recording),
                 render_dir,
-                renderer=str(
-                    target.get("video_renderer")
-                    or target.get("vlm_renderer")
-                    or "ovrtx"
-                ),
+                renderer=renderer,
                 cameras=cameras,
                 fps=int(target.get("sample_fps", 30)),
+                make_mp4=False,
                 max_duration_seconds=float(target.get("duration_s", 2.0)),
                 image_width=int(target.get("video_image_width", 512)),
                 image_height=int(target.get("video_image_height", 512)),
@@ -1158,7 +1668,7 @@ class IterativePhysicsRefinementTask:
             return [], type(exc).__name__
 
     @staticmethod
-    def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    def _write_json(path: Path, payload: Any) -> None:
         # ``allow_nan=False`` makes us assert strict JSON: we surfaced
         # the only known non-finite producer (best_score=inf on the
         # tune-error path) via IterationRecord.to_dict's _finite_or_none

@@ -57,13 +57,15 @@ from .optimizers import (
 )
 from .scenario import load_scenario
 from .scenario_resolution import get_resolved_bindings, resolve_scenario_bindings
-from .types import Scenario, TrialRecord, TuneInput, TuneOutput
+from .types import SCENARIO_FREEFORM, Scenario, TrialRecord, TuneInput, TuneOutput
 from .usd_patch import make_tuned_usd_path, patch_physics_usd
+from .video_rendering import resolve_video_renderer
 from .visual_evidence import (
     JudgeVisualEvidence,
     has_reference_media,
     prepare_reference_media,
     resolve_default_judge_vlm,
+    validate_visual_frame_count,
     write_comparison_contact_sheet,
 )
 
@@ -77,6 +79,10 @@ FAIL_CLOSED_VISUAL_EVIDENCE_ERROR_WITH_REF_MEDIA = (
     "Visual judge evidence preparation failed with reference media; "
     "refusing to fall back to programmatic-only verdict."
 )
+_JUDGE_VLM_SETUP_FAILURE_MESSAGE = (
+    "Failed to instantiate default judge VLM; judge will be marked unavailable."
+)
+_JUDGE_EXECUTION_FAILURE_MESSAGE = "Judge execution failed."
 
 
 class _LLMTimeoutError(TuningError):
@@ -211,12 +217,8 @@ def _resolve_judge_vlm_lazy() -> Any:
     """Build the default judge VLM, or return None on failure."""
     try:
         return resolve_default_judge_vlm()
-    except Exception as e:
-        logger.warning(
-            "Failed to instantiate default judge VLM: %s; judge will "
-            "be marked unavailable.",
-            e,
-        )
+    except Exception:
+        logger.warning(_JUDGE_VLM_SETUP_FAILURE_MESSAGE)
         return None
 
 
@@ -464,6 +466,18 @@ def _validate_inputs(params: TuneInput) -> None:
                 "judge_temperature must be finite and >= 0, "
                 f"got {params.judge_temperature}"
             )
+    params.reference_video_frames = validate_visual_frame_count(
+        "reference_video_frames",
+        params.reference_video_frames,
+    )
+    params.judge_reference_frames = validate_visual_frame_count(
+        "judge_reference_frames",
+        params.judge_reference_frames,
+    )
+    params.judge_generated_frames = validate_visual_frame_count(
+        "judge_generated_frames",
+        params.judge_generated_frames,
+    )
 
 
 def _evaluate_one(
@@ -598,29 +612,28 @@ def _render_best_trial_for_visual_judge(
     history: list[TrialRecord],
     scenario: Scenario,
 ) -> tuple[list[Path], str | None]:
-    """Render the winning trial's recording.usda for visual judging."""
+    """Render the winning trial's recording.usd for visual judging."""
     successful = [t for t in history if not t.failed]
     if not successful:
         return [], "every trial failed; no winning trial to render"
     best = min(successful, key=lambda t: t.score)
     bm = best.backend_metrics or {}
-    recording = bm.get("recording_usda")
+    recording = bm.get("recording_usd") or bm.get("recording_usda")
     if not recording:
-        return [], "winning trial did not persist recording_usda"
+        return [], "winning trial did not persist recording_usd"
     try:
         from world_understanding.functions.graphics import render_time_sampled_usd
     except ImportError:
         return [], "render_time_sampled_usd unavailable"
 
     target = scenario.target or {}
+    renderer = resolve_video_renderer(target)
     render_dir = output_dir / "judge_render"
     try:
         frames = render_time_sampled_usd(
             Path(recording),
             render_dir,
-            renderer=str(
-                target.get("video_renderer") or target.get("vlm_renderer") or "ovrtx"
-            ),
+            renderer=renderer,
             cameras=_discover_camera_paths(Path(recording)),
             fps=int(target.get("sample_fps", 30)),
             max_duration_seconds=float(target.get("duration_s", 2.0)),
@@ -643,37 +656,54 @@ def _prepare_visual_evidence_for_judge(
     output_dir: Path,
     history: list[TrialRecord],
     scenario: Scenario,
+    include_generated_without_reference: bool = False,
 ) -> JudgeVisualEvidence | None:
-    """Prepare reference + generated image evidence when reference media exists."""
-    if not has_reference_media(
+    """Prepare reference and/or generated image evidence for the judge."""
+    reference_media_requested = has_reference_media(
         reference_images=params.reference_images,
         reference_videos=params.reference_videos,
-    ):
+    )
+    if not reference_media_requested and not include_generated_without_reference:
         return None
-    try:
-        reference_evidence = prepare_reference_media(
-            reference_images=params.reference_images,
-            reference_videos=params.reference_videos,
-            reference_descriptions=params.reference_descriptions,
-            reference_video_descriptions=params.reference_video_descriptions,
-            output_dir=output_dir,
-        )
-    except Exception as exc:  # noqa: BLE001 - judge should persist degraded status
-        return JudgeVisualEvidence(reference_error=type(exc).__name__)
+
+    if reference_media_requested:
+        try:
+            reference_evidence = prepare_reference_media(
+                reference_images=params.reference_images,
+                reference_videos=params.reference_videos,
+                reference_descriptions=params.reference_descriptions,
+                reference_video_descriptions=params.reference_video_descriptions,
+                output_dir=output_dir,
+                frames_per_video=params.reference_video_frames,
+            )
+        except Exception as exc:  # noqa: BLE001 - judge should persist degraded status
+            return JudgeVisualEvidence(reference_error=type(exc).__name__)
+    else:
+        reference_evidence = JudgeVisualEvidence()
+
     frames, error = _render_best_trial_for_visual_judge(
         output_dir=output_dir,
         history=history,
         scenario=scenario,
     )
     evidence = reference_evidence.with_generated_images(frames, generated_error=error)
-    comparison_path, comparison_error = write_comparison_contact_sheet(
-        evidence,
-        output_dir / ARTIFACT_VISUAL_COMPARISON,
-    )
-    return evidence.with_comparison_image(
-        comparison_path,
-        comparison_error=comparison_error,
-    )
+    if evidence.has_reference_media:
+        comparison_path, comparison_error = write_comparison_contact_sheet(
+            evidence,
+            output_dir / ARTIFACT_VISUAL_COMPARISON,
+            max_reference_images=params.judge_reference_frames,
+            max_generated_images=params.judge_generated_frames,
+        )
+        evidence = evidence.with_comparison_image(
+            comparison_path,
+            comparison_error=comparison_error,
+        )
+    return evidence
+
+
+def _scenario_requests_generated_visual_judge(scenario: Scenario) -> bool:
+    """Return True when judge quality depends on generated rollout frames."""
+    return scenario.name == SCENARIO_FREEFORM
 
 
 def _visual_evidence_fail_closed_error(
@@ -996,6 +1026,8 @@ def _do_run_tune_inner(
         reference_images=params.reference_images,
         reference_videos=params.reference_videos,
     )
+    generated_visual_requested = _scenario_requests_generated_visual_judge(scenario)
+    visual_evidence_requested = reference_media_requested or generated_visual_requested
     if params.enable_judge and not cancelled_flag["value"]:
         # Lazy import — keeps ``physics_agent.tuning`` import-clean for
         # callers that disable judging (subprocess test enforces this).
@@ -1005,19 +1037,20 @@ def _do_run_tune_inner(
         )
 
         try:
-            if reference_media_requested:
+            if visual_evidence_requested:
                 visual_evidence = _run_with_llm_timeout(
                     _prepare_visual_evidence_for_judge,
                     params=params,
                     output_dir=output_dir,
                     history=history,
                     scenario=scenario,
+                    include_generated_without_reference=generated_visual_requested,
                     timeout_seconds=params.llm_timeout_seconds,
                     cancel_check=cancel_check,
                     op_label="visual evidence preparation",
                 )
                 evidence_error = _visual_evidence_fail_closed_error(visual_evidence)
-                if evidence_error is not None:
+                if evidence_error is not None and reference_media_requested:
                     fail_closed_judge_error = (
                         FAIL_CLOSED_VISUAL_EVIDENCE_ERROR_WITH_REF_MEDIA
                     )
@@ -1044,6 +1077,8 @@ def _do_run_tune_inner(
                 visual_evidence=visual_evidence,
                 judge_max_tokens=params.judge_max_tokens,
                 judge_temperature=params.judge_temperature,
+                judge_reference_frames=params.judge_reference_frames,
+                judge_generated_frames=params.judge_generated_frames,
                 iteration=1,
                 timeout_seconds=params.llm_timeout_seconds,
                 cancel_check=cancel_check,
@@ -1120,16 +1155,17 @@ def _do_run_tune_inner(
             # "judge attempted but failed" from "judge disabled". The
             # exception's str() is intentionally NOT included to avoid
             # leaking provider-internal error detail across REST.
+            error_type = (
+                "_LLMTimeoutError" if isinstance(e, _LLMTimeoutError) else "JudgeError"
+            )
             logger.warning(
-                "Judge failed (%s); persisting tune artifacts with judge "
-                "status='failed': %s",
-                type(e).__name__,
-                e,
+                "Judge execution failed; persisting tune artifacts with "
+                "judge status='failed'."
             )
             judge_result_dict = {
                 "enabled": True,
                 "status": "failed",
-                "error_type": type(e).__name__,
+                "error_type": error_type,
                 "attempted_iterations": 1,
             }
             if reference_media_requested and fail_closed_judge_error is None:
@@ -1137,7 +1173,10 @@ def _do_run_tune_inner(
             _emit(
                 listener,
                 "tune.judge.failed",
-                {"error": str(e), "error_type": type(e).__name__},
+                {
+                    "error": _JUDGE_EXECUTION_FAILURE_MESSAGE,
+                    "error_type": error_type,
+                },
             )
 
     # tune_results.json + report.md are deferred until here so judge

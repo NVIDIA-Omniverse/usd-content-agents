@@ -81,6 +81,10 @@ class PredictionAnalyzer:
             match for spatial detection (in scene units)
         consistency_threshold: Minimum fraction of prims in a group that must
             agree on a material for it to be considered consistent
+        detect_numbered_path_symmetry: Whether consecutive numeric suffixes
+            should be treated as path-based symmetry evidence. This is kept
+            optional because many authored assets use numbered suffixes only
+            as opaque IDs.
     """
 
     def __init__(
@@ -91,6 +95,7 @@ class PredictionAnalyzer:
         consistency_threshold: float = 0.6,
         resolve_symmetry_directly: bool = True,
         resolve_consistency_directly: bool = True,
+        detect_numbered_path_symmetry: bool = True,
     ):
         self.predictions = predictions
         self.prims_metadata = prims_metadata or []
@@ -98,6 +103,7 @@ class PredictionAnalyzer:
         self.consistency_threshold = consistency_threshold
         self.resolve_symmetry_directly = resolve_symmetry_directly
         self.resolve_consistency_directly = resolve_consistency_directly
+        self.detect_numbered_path_symmetry = detect_numbered_path_symmetry
 
         # Build lookup maps
         self._pred_by_id: dict[str, dict[str, Any]] = {}
@@ -212,34 +218,36 @@ class PredictionAnalyzer:
                     used.add(pid_b)
                     break
 
-        # Strategy 1: Consecutive numbered pairs
-        # Extract trailing numbers from prim names and find consecutive pairs
-        numbered: dict[str, tuple[str, int]] = {}
-        for pid in pred_ids:
-            if pid in used:
-                continue
-            # Get the short name (parent segment of the path)
-            short = self._get_short_name(pid)
-            numbered_suffix = _split_trailing_number(short)
-            if numbered_suffix:
-                prefix, num = numbered_suffix
-                numbered[pid] = (prefix, num)
+        if self.detect_numbered_path_symmetry:
+            # Strategy 1: Consecutive numbered pairs. Treat this as optional
+            # weak evidence because many assets use numeric suffixes as opaque
+            # authoring IDs rather than left/right counterpart names.
+            numbered: dict[str, tuple[str, int]] = {}
+            for pid in pred_ids:
+                if pid in used:
+                    continue
+                # Get the short name (parent segment of the path)
+                short = self._get_short_name(pid)
+                numbered_suffix = _split_trailing_number(short)
+                if numbered_suffix:
+                    prefix, num = numbered_suffix
+                    numbered[pid] = (prefix, num)
 
-        # Group by prefix and find consecutive pairs
-        by_prefix: dict[str, list[tuple[str, int]]] = {}
-        for pid, (prefix, num) in numbered.items():
-            by_prefix.setdefault(prefix, []).append((pid, num))
+            # Group by prefix and find consecutive pairs
+            by_prefix: dict[str, list[tuple[str, int]]] = {}
+            for pid, (prefix, num) in numbered.items():
+                by_prefix.setdefault(prefix, []).append((pid, num))
 
-        for _prefix, items in by_prefix.items():
-            items.sort(key=lambda x: x[1])
-            for i in range(len(items) - 1):
-                pid_a, num_a = items[i]
-                pid_b, num_b = items[i + 1]
-                # Consecutive numbers suggest a symmetric pair
-                if num_b - num_a == 1 and pid_a not in used and pid_b not in used:
-                    pairs.append((pid_a, pid_b))
-                    used.add(pid_a)
-                    used.add(pid_b)
+            for _prefix, items in by_prefix.items():
+                items.sort(key=lambda x: x[1])
+                for i in range(len(items) - 1):
+                    pid_a, num_a = items[i]
+                    pid_b, num_b = items[i + 1]
+                    # Consecutive numbers suggest a symmetric pair
+                    if num_b - num_a == 1 and pid_a not in used and pid_b not in used:
+                        pairs.append((pid_a, pid_b))
+                        used.add(pid_a)
+                        used.add(pid_b)
 
         # Strategy 2: Left/right naming patterns
         lr_patterns = [

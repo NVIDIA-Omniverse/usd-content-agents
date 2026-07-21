@@ -3,7 +3,23 @@
 """Configuration models and utilities for World Understanding agents."""
 
 from .base_path_resolver import BasePathResolver
+from .context_loader import (
+    ConfigEmptyError,
+    ConfigLoadError,
+    ConfigParseError,
+    ConfigSourceError,
+    ConfigStructureError,
+    config_source_name,
+    load_config_mapping_from_context,
+    log_config_source,
+)
+from .isolation import (
+    UNSUPPORTED_YAML_CONFIG_MESSAGE,
+    clone_config_containers,
+    normalize_yaml_config_value,
+)
 from .loader import ConfigError, ConfigLoader, load_config
+from .model_credentials import validate_selected_model_credentials
 from .usd_dataset import (
     PrimFilters,
     RendererConfig,
@@ -48,4 +64,16 @@ __all__ = [
     "ConfigLoader",
     "ConfigError",
     "load_config",
+    "validate_selected_model_credentials",
+    "load_config_mapping_from_context",
+    "clone_config_containers",
+    "normalize_yaml_config_value",
+    "UNSUPPORTED_YAML_CONFIG_MESSAGE",
+    "config_source_name",
+    "log_config_source",
+    "ConfigLoadError",
+    "ConfigSourceError",
+    "ConfigParseError",
+    "ConfigStructureError",
+    "ConfigEmptyError",
 ]

@@ -101,3 +101,131 @@ class TestUploadFileToS3Preconditions:
 
         with pytest.raises(ValueError, match="S3 bucket is required"):
             upload_file_to_s3(str(src), "s3:///path/to/file.txt")
+
+
+class TestS3BucketAuthorization:
+    """Tests for the client-controlled S3 trust-boundary guard."""
+
+    @pytest.mark.parametrize("allowed_buckets", [None, "", " , \t\n", []])
+    def test_fails_closed_without_an_allowlist(
+        self,
+        allowed_buckets: str | list[str] | None,
+    ) -> None:
+        from world_understanding.utils.s3_utils import (
+            S3BucketNotAllowedError,
+            assert_s3_bucket_allowed,
+        )
+
+        with pytest.raises(
+            S3BucketNotAllowedError,
+            match="not permitted by the service's configured bucket allowlist",
+        ):
+            assert_s3_bucket_allowed(
+                "s3://intake-bucket/path/scene.usdz", allowed_buckets
+            )
+
+    def test_rejects_foreign_bucket_with_the_same_stable_detail(self) -> None:
+        from world_understanding.utils.s3_utils import (
+            S3BucketNotAllowedError,
+            assert_s3_bucket_allowed,
+        )
+
+        with pytest.raises(S3BucketNotAllowedError) as empty_policy:
+            assert_s3_bucket_allowed("s3://foreign/private.usdz", "")
+        with pytest.raises(S3BucketNotAllowedError) as foreign_bucket:
+            assert_s3_bucket_allowed(
+                "s3://foreign/private.usdz", "approved-a, approved-b"
+            )
+
+        assert str(foreign_bucket.value) == str(empty_policy.value)
+        assert "foreign" not in str(foreign_bucket.value)
+        assert "private.usdz" not in str(foreign_bucket.value)
+
+    def test_accepts_only_exact_normalized_bucket_names(self) -> None:
+        from world_understanding.utils.s3_utils import (
+            S3BucketNotAllowedError,
+            assert_s3_bucket_allowed,
+        )
+
+        assert (
+            assert_s3_bucket_allowed(
+                "s3://approved-b/path/scene.usdz",
+                " approved-a,\napproved-b\tapproved-c ",
+            )
+            == "approved-b"
+        )
+        assert (
+            assert_s3_bucket_allowed(
+                "s3://approved-c/path/scene.usdz",
+                ["approved-a", " approved-c "],
+            )
+            == "approved-c"
+        )
+
+        with pytest.raises(S3BucketNotAllowedError):
+            assert_s3_bucket_allowed("s3://approved/path/scene.usdz", "approved-prefix")
+
+    def test_extension_guard_authorizes_and_normalizes_suffix(self) -> None:
+        from world_understanding.utils.s3_utils import (
+            authorize_s3_uri_for_extensions,
+        )
+
+        assert (
+            authorize_s3_uri_for_extensions(
+                "s3://approved/path/SCENE.USDZ",
+                "approved",
+                allowed_extensions={"usd", ".usdz"},
+            )
+            == ".usdz"
+        )
+
+    def test_extension_guard_preserves_invalid_file_type_before_policy(self) -> None:
+        from world_understanding.utils.s3_utils import (
+            authorize_s3_uri_for_extensions,
+        )
+
+        with pytest.raises(ValueError, match="Invalid USD file type"):
+            authorize_s3_uri_for_extensions(
+                "s3://foreign/path/scene.txt",
+                "approved",
+                allowed_extensions={".usd", ".usdz"},
+            )
+
+    @pytest.mark.parametrize(
+        ("s3_uri", "expected_error"),
+        [
+            ("https://approved/path/scene.usd", "Invalid S3 URI format"),
+            ("s3://approved/", "Invalid USD file type"),
+            ("s3://approved/path/scene.txt", "Invalid USD file type"),
+        ],
+    )
+    def test_extension_guard_rejects_invalid_inputs(
+        self,
+        s3_uri: str,
+        expected_error: str,
+    ) -> None:
+        from world_understanding.utils.s3_utils import (
+            authorize_s3_uri_for_extensions,
+        )
+
+        with pytest.raises(ValueError, match=expected_error):
+            authorize_s3_uri_for_extensions(
+                s3_uri,
+                "approved",
+                allowed_extensions={".usd", ".usdz"},
+            )
+
+    @pytest.mark.parametrize(
+        "s3_uri",
+        [
+            "s3://approved",
+            "s3://approved/",
+            "s3:///path/scene.usdz",
+            "approved/path/scene.usdz",
+        ],
+    )
+    def test_malformed_uri_is_rejected_before_authorization(self, s3_uri: str) -> None:
+        from world_understanding.utils.s3_utils import assert_s3_bucket_allowed
+
+        with pytest.raises(ValueError, match="Invalid S3 URI format"):
+            assert_s3_bucket_allowed(s3_uri, "approved")

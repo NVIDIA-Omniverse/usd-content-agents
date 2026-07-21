@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scene Decomposition"
+  short_description: "Build finalized large-scene manifest views"
+  default_prompt: "Use $content-workflow-scene-decomposition to decompose this USD into finalized representative assets and topology mappings."

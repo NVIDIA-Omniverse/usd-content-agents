@@ -7,9 +7,12 @@ Unit tests run without GPU/ovrtx. Integration tests require ovrtx + RTX GPU.
 
 import hashlib
 import json
+import logging
 import os
+import re
 import stat
 import subprocess
+import sys
 import unittest.mock
 from pathlib import Path
 from typing import Any
@@ -477,6 +480,14 @@ class TestBuildVisibilityFrameUpdates:
 
         assert updates == {}
 
+    def test_skips_rendered_frames_without_schedule_entries(self):
+        updates = _build_visibility_frame_updates(
+            {"0.0": {"/World/A": "invisible"}},
+            [0, 1],
+        )
+
+        assert updates == {"0.0": {"/World/A": "invisible"}}
+
 
 class TestOvRTXSampleAttributeProbeHelpers:
     """Test non-GPU pieces of the sample-attribute probe."""
@@ -658,6 +669,1426 @@ class TestOvRTXSampleAttributeProbeHelpers:
         assert "found None" not in caplog.text
 
 
+class TestOvRTXCoverageEdges:
+    """Focused non-GPU branches in the OVRTX renderer module."""
+
+    def test_path_and_environment_helpers_handle_edge_cases(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        file_entry = tmp_path / "not-a-dir"
+        file_entry.write_text("skip me", encoding="utf-8")
+        directory_entry = tmp_path / "bin"
+        directory_entry.mkdir()
+
+        path_value = os.pathsep.join(["", str(file_entry), str(directory_entry)])
+
+        assert str(render_ovrtx._local_asset_path("file://server/share/tex.png")) == (
+            "//server/share/tex.png"
+        )
+        assert render_ovrtx._sanitize_ovrtx_path_env(path_value).split(os.pathsep) == [
+            "",
+            str(directory_entry),
+        ]
+        assert render_ovrtx._ovrtx_runtime_lock_path(tmp_path) == (
+            render_ovrtx._ovrtx_provision_lock_path(tmp_path)
+        )
+
+        monkeypatch.setenv("WU_OVRTX_EXPERIMENTAL_NATIVE_VISIBILITY", " YES ")
+        assert render_ovrtx._native_visibility_probe_enabled()
+
+    def test_render_product_builder_skips_unknown_sensors(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            usda, paths = _build_render_products_usda(
+                cameras=["/Camera"],
+                image_width=8,
+                image_height=8,
+                sensors=["mystery", "depth"],
+            )
+
+        assert paths == ["/Render/Product_Camera"]
+        assert "Unknown sensor 'mystery'" in caplog.text
+        assert 'RenderVar "Depth"' in usda
+        assert "mystery" not in usda
+
+    def test_marker_and_probe_stdout_helpers(self, tmp_path):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        venv_dir.mkdir()
+
+        render_ovrtx._try_refresh_ovrtx_managed_marker(
+            venv_dir, render_ovrtx._ovrtx_runtime_lock_digest()
+        )
+
+        marker = venv_dir / render_ovrtx._OVRTX_MANAGED_MARKER
+        assert marker.exists()
+        marker_fields = render_ovrtx._read_ovrtx_managed_marker(marker)
+        assert marker_fields == {
+            "ovrtx_version": render_ovrtx._OVRTX_VERSION,
+            "runtime_lock_sha256": render_ovrtx._ovrtx_runtime_lock_digest(),
+        }
+        assert len(marker_fields["runtime_lock_sha256"]) == 64
+        assert not (venv_dir / render_ovrtx._OVRTX_PROVISIONING_MARKER).exists()
+        assert (
+            render_ovrtx._parse_ovrtx_probe_stdout("noise\nWU_OVRTX_VERSION=0.3.0\n")
+            == "0.3.0"
+        )
+
+    def test_probe_ovrtx_version_reads_version_file(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        python_path = tmp_path / "python"
+
+        def fake_run(cmd, **kwargs):
+            version_path = Path(cmd[-1])
+            version_path.write_text("noise\nWU_OVRTX_VERSION=9.8.7\n", encoding="utf-8")
+            return unittest.mock.Mock(returncode=0, stdout="")
+
+        monkeypatch.setattr(render_ovrtx.subprocess, "run", fake_run)
+
+        assert render_ovrtx._probe_ovrtx_version(python_path, tmp_path) == "9.8.7"
+
+    def test_probe_existing_python_before_lock_fast_paths(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("", encoding="utf-8")
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+
+        remembered: list[tuple[Path, str]] = []
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remember_verified_ovrtx_python",
+            lambda key, python: remembered.append((key, python)),
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda python, venv: True,
+        )
+
+        assert render_ovrtx._probe_existing_ovrtx_python_before_lock(
+            python_path, venv_dir, cache_key
+        ) == str(python_path)
+        assert remembered == [(cache_key, str(python_path))]
+
+        remembered.clear()
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda python, venv: False,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_is_managed_ovrtx_runtime_dir",
+            lambda venv: False,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_ovrtx_import_probe_succeeds",
+            lambda python, venv: True,
+        )
+
+        assert render_ovrtx._probe_existing_ovrtx_python_before_lock(
+            python_path, venv_dir, cache_key
+        ) == str(python_path)
+        assert remembered == [(cache_key, str(python_path))]
+
+        missing_python = venv_dir / "bin" / "missing-python"
+        assert (
+            render_ovrtx._probe_existing_ovrtx_python_before_lock(
+                missing_python, venv_dir, cache_key
+            )
+            is None
+        )
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            subprocess.TimeoutExpired("probe", timeout=30),
+            OSError("cannot launch"),
+        ],
+    )
+    def test_probe_existing_python_before_lock_handles_probe_errors(
+        self, tmp_path, monkeypatch, exc
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("", encoding="utf-8")
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda python, venv: False,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_is_managed_ovrtx_runtime_dir",
+            lambda venv: False,
+        )
+
+        def raise_probe(python_path_arg, venv_dir_arg):
+            raise exc
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_import_probe_succeeds", raise_probe)
+
+        assert (
+            render_ovrtx._probe_existing_ovrtx_python_before_lock(
+                python_path,
+                venv_dir,
+                render_ovrtx._ovrtx_runtime_cache_key(venv_dir),
+            )
+            is None
+        )
+
+    def test_cached_python_match_helper_clears_stale_state(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        missing_python = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        assert not render_ovrtx._cached_ovrtx_python_matches(missing_python, venv_dir)
+
+        missing_python.parent.mkdir(parents=True)
+        missing_python.write_text("", encoding="utf-8")
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_probe_ovrtx_version",
+            lambda python, venv: render_ovrtx._OVRTX_VERSION,
+        )
+        assert render_ovrtx._cached_ovrtx_python_matches(missing_python, venv_dir)
+        assert render_ovrtx._ovrtx_python == str(missing_python)
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", "stale")
+
+        def raise_probe(python, venv):
+            raise OSError("broken probe")
+
+        monkeypatch.setattr(render_ovrtx, "_probe_ovrtx_version", raise_probe)
+        assert not render_ovrtx._cached_ovrtx_python_matches(missing_python, venv_dir)
+        assert render_ovrtx._ovrtx_python is None
+
+    def test_import_probe_uses_direct_import_and_site_package_fallback(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        site_dir = render_ovrtx._ovrtx_target_fallback_site_dir(venv_dir)
+        (site_dir / "ovrtx").mkdir(parents=True)
+
+        calls: list[list[str]] = []
+
+        def fake_run_success(cmd, **kwargs):
+            calls.append(cmd)
+            return unittest.mock.Mock(returncode=0)
+
+        monkeypatch.setattr(render_ovrtx.subprocess, "run", fake_run_success)
+        assert render_ovrtx._ovrtx_import_probe_succeeds(python_path, venv_dir)
+        assert calls == [[str(python_path), "-c", "import ovrtx"]]
+
+        calls.clear()
+        returns = iter([1, 0])
+
+        def fake_run_fallback(cmd, **kwargs):
+            calls.append(cmd)
+            return unittest.mock.Mock(returncode=next(returns))
+
+        monkeypatch.setattr(render_ovrtx.subprocess, "run", fake_run_fallback)
+        assert render_ovrtx._ovrtx_import_probe_succeeds(python_path, venv_dir)
+        assert len(calls) == 2
+        assert str(site_dir) in calls[1][2]
+
+    def test_unlocked_python_uses_cached_and_existing_runtime_paths(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("", encoding="utf-8")
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {cache_key: "cached"})
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda python, venv: python == "cached",
+        )
+        remembered: list[tuple[Path, str]] = []
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remember_verified_ovrtx_python",
+            lambda key, python: remembered.append((key, python)),
+        )
+
+        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == "cached"
+        assert remembered == [(cache_key, "cached")]
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", str(python_path))
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda python, venv: python == str(python_path),
+        )
+        remembered.clear()
+
+        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
+        assert remembered == [(cache_key, str(python_path))]
+
+    def test_unlocked_python_uses_global_cached_runtime_after_probe_check(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("", encoding="utf-8")
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+        readiness_calls = 0
+
+        def fake_ready(python, venv):
+            nonlocal readiness_calls
+            readiness_calls += 1
+            return readiness_calls == 2 and python == str(python_path)
+
+        remembered: list[tuple[Path, str]] = []
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", str(python_path))
+        monkeypatch.setattr(render_ovrtx, "_cached_ovrtx_python_ready", fake_ready)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remember_verified_ovrtx_python",
+            lambda key, python: remembered.append((key, python)),
+        )
+
+        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
+        assert remembered == [(cache_key, str(python_path))]
+
+    def test_unlocked_python_rejects_missing_runtime_when_auto_provision_disabled(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "0")
+
+        with pytest.raises(RuntimeError, match="AUTO_PROVISION is disabled"):
+            render_ovrtx._get_ovrtx_python_unlocked(tmp_path / "missing_venv")
+
+    def test_unlocked_python_discovers_uv_next_to_current_python(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        fake_uv = Path(render_ovrtx.sys.executable).with_name("uv")
+        site_dir = render_ovrtx._ovrtx_site_packages_candidates(venv_dir)[0]
+        (site_dir / "ovrtx" / "bin" / "library").mkdir(parents=True)
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx.shutil, "which", lambda name: None)
+        real_exists = os.path.exists
+        monkeypatch.setattr(
+            render_ovrtx.os.path,
+            "exists",
+            lambda path: str(path) == str(fake_uv) or real_exists(path),
+        )
+
+        def fake_run_checked(cmd, label):
+            if label == "uv venv creation":
+                python_path.parent.mkdir(parents=True, exist_ok=True)
+                python_path.write_text("", encoding="utf-8")
+
+        monkeypatch.setattr(render_ovrtx, "_run_checked", fake_run_checked)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_probe_ovrtx_version",
+            lambda python, venv: render_ovrtx._OVRTX_VERSION,
+        )
+
+        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
+        assert (site_dir / "library").is_symlink()
+
+    def test_unlocked_python_removes_partial_uv_runtime_on_lock_install_failure(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        removed: list[Path] = []
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx.shutil, "which", lambda name: "uv")
+
+        def fake_run_checked(cmd, label):
+            if label == "uv venv creation":
+                python_path.parent.mkdir(parents=True, exist_ok=True)
+                python_path.write_text("", encoding="utf-8")
+            if label == "locked OVRTX runtime install":
+                raise RuntimeError("lock install failed")
+
+        monkeypatch.setattr(render_ovrtx, "_run_checked", fake_run_checked)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_venv",
+            lambda path: removed.append(Path(path)),
+        )
+
+        with pytest.raises(RuntimeError, match="lock install failed"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert removed == [venv_dir]
+
+    def test_unlocked_python_reports_failed_installed_import_probe(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx.shutil, "which", lambda name: "uv")
+
+        def fake_run_checked(cmd, label):
+            if label == "uv venv creation":
+                python_path.parent.mkdir(parents=True, exist_ok=True)
+                python_path.write_text("", encoding="utf-8")
+
+        monkeypatch.setattr(render_ovrtx, "_run_checked", fake_run_checked)
+        monkeypatch.setattr(
+            render_ovrtx, "_probe_ovrtx_version", lambda python, venv: None
+        )
+
+        with pytest.raises(RuntimeError, match="Installed ovrtx import probe failed"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+    def test_unlocked_python_removes_wrong_version_after_install(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        removed: list[Path] = []
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx.shutil, "which", lambda name: "uv")
+
+        def fake_run_checked(cmd, label):
+            if label == "uv venv creation":
+                python_path.parent.mkdir(parents=True, exist_ok=True)
+                python_path.write_text("", encoding="utf-8")
+
+        monkeypatch.setattr(render_ovrtx, "_run_checked", fake_run_checked)
+        monkeypatch.setattr(
+            render_ovrtx, "_probe_ovrtx_version", lambda python, venv: "wrong"
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_venv",
+            lambda path: removed.append(Path(path)),
+        )
+
+        with pytest.raises(RuntimeError, match="does not match expected"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert removed == [venv_dir]
+
+    def test_remove_bundled_python_libraries_ignores_missing_files(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        missing = tmp_path / "libpython3.12.so"
+        scans = iter([[missing], []])
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_ovrtx_bundled_python_libraries",
+            lambda venv_dir: next(scans),
+        )
+
+        assert render_ovrtx._remove_ovrtx_bundled_python_libraries(tmp_path) == []
+
+    def test_hdri_intensity_and_portable_asset_edges(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        from pxr import Usd
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
+        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
+        assert (
+            render_ovrtx._resolve_default_hdri_intensity()
+            == render_ovrtx._DEFAULT_HDRI_INTENSITY
+        )
+
+        monkeypatch.setenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", "not-a-float")
+        with caplog.at_level(logging.WARNING):
+            assert (
+                render_ovrtx._resolve_default_hdri_intensity()
+                == render_ovrtx._DEFAULT_HDRI_INTENSITY
+            )
+        assert "Invalid WU_OVRTX_DEFAULT_HDRI_INTENSITY" in caplog.text
+
+        stage = Usd.Stage.CreateInMemory()
+        assert (
+            render_ovrtx._portable_stage_hdri_asset(
+                stage, "https://example.invalid/studio.exr"
+            )
+            == "https://example.invalid/studio.exr"
+        )
+        assert render_ovrtx._portable_stage_hdri_asset(stage, "relative.exr") == (
+            "relative.exr"
+        )
+        assert render_ovrtx._portable_stage_hdri_asset(
+            stage, str(tmp_path / "missing.exr")
+        ) == str(tmp_path / "missing.exr")
+
+    def test_probe_stage_gpu_failure_and_cli_probe_path(
+        self, monkeypatch, capsys: pytest.CaptureFixture[str]
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        stage = render_ovrtx._make_sample_attribute_probe_stage()
+        assert str(stage.GetDefaultPrim().GetPath()) == "/World"
+        assert stage.GetPrimAtPath("/Camera").IsValid()
+
+        monkeypatch.setattr(
+            render_ovrtx.subprocess,
+            "run",
+            lambda *args, **kwargs: unittest.mock.Mock(
+                returncode=1,
+                stdout="",
+                stderr="driver unavailable",
+            ),
+        )
+        assert render_ovrtx._probe_gpu_summary() == (
+            "nvidia-smi failed: driver unavailable"
+        )
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_run_sample_attribute_probe",
+            lambda **kwargs: {"ok": True, "image_size": kwargs["image_size"]},
+        )
+        assert (
+            render_ovrtx._main(
+                [
+                    "--probe-sample-attributes",
+                    "--probe-image-size",
+                    "12",
+                    "--probe-low-value",
+                    "2",
+                    "--probe-high-value",
+                    "4",
+                    "--probe-baseline-updates",
+                    "3",
+                    "--log-level",
+                    "debug",
+                ]
+            )
+            == 0
+        )
+        assert json.loads(capsys.readouterr().out) == {"ok": True, "image_size": 12}
+
+    def test_copy_exported_assets_skips_invalid_entries_and_updates_by_resolved_path(
+        self, tmp_path, monkeypatch
+    ):
+        from pxr import Sdf, Usd, UsdShade
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        texture = tmp_path / "source" / "albedo.png"
+        texture.parent.mkdir()
+        texture.write_bytes(b"png")
+
+        stage = Usd.Stage.CreateInMemory()
+        shader = UsdShade.Shader.Define(stage, "/World/Looks/Tex")
+        shader.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath(str(texture)))
+        exported_shader = UsdShade.Shader.Define(stage, "/World/Looks/Exported")
+        exported_shader.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath(str(texture)))
+
+        def fake_texture_assets(stage_arg, base_dir=None):
+            return [
+                {"is_local": False, "resolved_path": str(texture)},
+                {"is_local": True, "resolved_path": ""},
+                {
+                    "is_local": True,
+                    "resolved_path": str(texture),
+                    "file_path": "https://example.invalid/albedo.png",
+                },
+                {
+                    "is_local": True,
+                    "resolved_path": str(tmp_path / "missing.png"),
+                    "file_path": "missing.png",
+                },
+                {
+                    "prim_path": "/World/Looks/Tex",
+                    "attr_name": "inputs:file",
+                    "file_path": str(texture),
+                    "resolved_path": str(texture),
+                    "is_local": True,
+                },
+            ]
+
+        import world_understanding.utils.usd.material as usd_material
+
+        monkeypatch.setattr(
+            usd_material,
+            "get_local_texture_file_assets",
+            fake_texture_assets,
+        )
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usda"
+        stage.GetRootLayer().Export(str(exported_stage_path))
+
+        assert (
+            render_ovrtx._copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 1
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        copied_path = (
+            exported.GetPrimAtPath("/World/Looks/Tex")
+            .attributes["inputs:file"]
+            .default.path
+        )
+        fallback_path = (
+            exported.GetPrimAtPath("/World/Looks/Exported")
+            .attributes["inputs:file"]
+            .default.path
+        )
+
+        assert copied_path == fallback_path
+        assert (export_dir / copied_path).read_bytes() == b"png"
+
+    def test_copy_exported_assets_resolves_relative_fallbacks_and_skips_attr_edges(
+        self, tmp_path, monkeypatch
+    ):
+        from pxr import Sdf, Usd, UsdShade
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        source_dir = tmp_path / "source"
+        texture = source_dir / "textures" / "albedo.png"
+        texture.parent.mkdir(parents=True)
+        texture.write_bytes(b"png")
+
+        stage = Usd.Stage.CreateInMemory()
+        tracked = UsdShade.Shader.Define(stage, "/World/Looks/Tracked")
+        tracked.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("textures/albedo.png"))
+        fallback = UsdShade.Shader.Define(stage, "/World/Looks/Fallback")
+        fallback.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("textures/albedo.png"))
+        fallback.GetPrim().CreateAttribute(
+            "inputs:remote",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("https://example.invalid/albedo.png"))
+        fallback.GetPrim().CreateAttribute(
+            "inputs:scale",
+            Sdf.ValueTypeNames.Float,
+        ).Set(1.0)
+        fallback.GetPrim().CreateAttribute(
+            "inputs:bad",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("bad.png"))
+
+        def fake_texture_assets(stage_arg, base_dir=None):
+            return [
+                {
+                    "prim_path": "/World/Looks/Tracked",
+                    "attr_name": "inputs:file",
+                    "file_path": "textures/albedo.png",
+                    "resolved_path": str(texture),
+                    "is_local": True,
+                }
+            ]
+
+        class BadLocalPath:
+            def is_absolute(self):
+                return True
+
+            def resolve(self):
+                raise OSError("cannot resolve")
+
+        import world_understanding.utils.usd.material as usd_material
+
+        original_local_asset_path = render_ovrtx._local_asset_path
+        monkeypatch.setattr(
+            usd_material,
+            "get_local_texture_file_assets",
+            fake_texture_assets,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_local_asset_path",
+            lambda value: BadLocalPath()
+            if value == "bad.png"
+            else original_local_asset_path(value),
+        )
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usda"
+        stage.GetRootLayer().Export(str(exported_stage_path))
+
+        assert (
+            render_ovrtx._copy_exported_relative_assets(
+                stage,
+                export_dir,
+                base_dir=source_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 1
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        tracked_path = (
+            exported.GetPrimAtPath("/World/Looks/Tracked")
+            .attributes["inputs:file"]
+            .default.path
+        )
+        fallback_path = (
+            exported.GetPrimAtPath("/World/Looks/Fallback")
+            .attributes["inputs:file"]
+            .default.path
+        )
+        remote_path = (
+            exported.GetPrimAtPath("/World/Looks/Fallback")
+            .attributes["inputs:remote"]
+            .default.path
+        )
+        bad_path = (
+            exported.GetPrimAtPath("/World/Looks/Fallback")
+            .attributes["inputs:bad"]
+            .default.path
+        )
+
+        assert tracked_path == "textures/albedo.png"
+        assert fallback_path == "textures/albedo.png"
+        assert remote_path == "https://example.invalid/albedo.png"
+        assert bad_path == "bad.png"
+
+    def test_copy_exported_assets_returns_after_missing_export_layer(
+        self, tmp_path, monkeypatch
+    ):
+        from pxr import Usd
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        texture = tmp_path / "texture.png"
+        texture.write_bytes(b"png")
+        stage = Usd.Stage.CreateInMemory()
+
+        def fake_texture_assets(stage_arg, base_dir=None):
+            return [
+                {
+                    "prim_path": "/World/Looks/Tex",
+                    "attr_name": "inputs:file",
+                    "file_path": "texture.png",
+                    "resolved_path": str(texture),
+                    "is_local": True,
+                }
+            ]
+
+        import world_understanding.utils.usd.material as usd_material
+
+        monkeypatch.setattr(
+            usd_material,
+            "get_local_texture_file_assets",
+            fake_texture_assets,
+        )
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+
+        assert (
+            render_ovrtx._copy_exported_relative_assets(
+                stage,
+                export_dir,
+                base_dir=tmp_path,
+                exported_stage_path=tmp_path / "missing.usda",
+            )
+            == 1
+        )
+
+    def test_daemon_start_reports_empty_ready_line_exit(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeProcess:
+            pid = 77
+            stdin = None
+            stdout = None
+            stderr: list[str] = []
+
+            def poll(self):
+                return 17
+
+            def wait(self, timeout=None):
+                return 17
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(
+            render_ovrtx.subprocess,
+            "Popen",
+            lambda *args, **kwargs: FakeProcess(),
+        )
+        monkeypatch.setattr(
+            render_ovrtx._OvRTXDaemon,
+            "_read_stdout_line",
+            lambda self, timeout_s, phase: "",
+        )
+
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+
+        with pytest.raises(RuntimeError, match="exit code 17"):
+            daemon.ensure_running()
+        assert daemon._process is None
+
+    @pytest.mark.parametrize(
+        ("ready_line", "error_match"),
+        [
+            ("not-json", "invalid startup JSON"),
+            (json.dumps({"status": "starting"}), "unexpected init msg"),
+        ],
+    )
+    def test_daemon_start_kills_process_after_invalid_ready_protocol(
+        self, tmp_path, monkeypatch, ready_line, error_match
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeProcess:
+            pid = 77
+            stdin = None
+            stdout = None
+            stderr: list[str] = []
+
+            def __init__(self) -> None:
+                self.killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+            def wait(self, timeout=None):
+                return 0
+
+        process = FakeProcess()
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(
+            render_ovrtx.subprocess,
+            "Popen",
+            lambda *args, **kwargs: process,
+        )
+        monkeypatch.setattr(
+            render_ovrtx._OvRTXDaemon,
+            "_read_stdout_line",
+            lambda self, timeout_s, phase: ready_line,
+        )
+
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+
+        with pytest.raises(RuntimeError, match=error_match):
+            daemon.ensure_running()
+        assert process.killed
+        assert daemon._process is None
+
+    def test_daemon_running_and_stderr_and_render_failure_edges(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeStdin:
+            def write(self, data: str) -> None:
+                return None
+
+            def flush(self) -> None:
+                return None
+
+        class FakeProcess:
+            pid = 88
+            stdin = FakeStdin()
+            stdout = object()
+            stderr = ["native warning\n"]
+
+            def __init__(self) -> None:
+                self.killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+            def wait(self, timeout=None):
+                return 0
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        daemon._process = FakeProcess()
+        monkeypatch.setattr(
+            daemon,
+            "_start",
+            unittest.mock.Mock(side_effect=AssertionError("already running")),
+        )
+        daemon.ensure_running()
+
+        with caplog.at_level(logging.DEBUG, logger=render_ovrtx.__name__):
+            daemon._drain_stderr()
+        assert "native warning" in caplog.text
+
+        monkeypatch.setattr(daemon, "_read_stdout_line", lambda timeout, phase: "")
+        with pytest.raises(RuntimeError, match="died during render"):
+            daemon.render(
+                {
+                    "cameras": ["/Camera"],
+                    "usd_path": "/stage.usda",
+                    "fps": 24.0,
+                    "frames": [0],
+                    "sensors": [],
+                    "output_dir": str(tmp_path),
+                    "product_paths": [],
+                }
+            )
+        assert daemon._process is None
+
+    def test_daemon_stdout_zero_timeout_and_shutdown_edges(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeStdout:
+            def __init__(self) -> None:
+                self.lines = iter(["tail\n", "next\n"])
+
+            def readline(self) -> str:
+                return next(self.lines)
+
+        class FakeStdin:
+            def __init__(self, *, broken: bool = False) -> None:
+                self.broken = broken
+
+            def write(self, data: str) -> None:
+                if self.broken:
+                    raise BrokenPipeError("closed")
+
+            def flush(self) -> None:
+                return None
+
+        class FakeProcess:
+            def __init__(self, *, stdin=None) -> None:
+                self.stdin = stdin or FakeStdin()
+                self.stdout = FakeStdout()
+                self.stderr = []
+                self.killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+            def wait(self, timeout=None):
+                return 0
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+
+        daemon._process = FakeProcess()
+        daemon._stdout_buffer = b"partial"
+        assert daemon._read_stdout_line(0, "render") == "partialtail\n"
+        assert daemon._read_stdout_line(0, "render") == "next\n"
+
+        daemon._process = None
+        daemon._kill_process()
+        assert daemon._process is None
+
+        broken_proc = FakeProcess(stdin=FakeStdin(broken=True))
+        daemon._process = broken_proc
+        daemon.shutdown()
+        assert broken_proc.killed
+        assert daemon._process is None
+
+        class SlowProcess(FakeProcess):
+            def wait(self, timeout=None):
+                if not self.killed:
+                    raise subprocess.TimeoutExpired("wait", timeout)
+                return 0
+
+        slow_proc = SlowProcess()
+        daemon._process = slow_proc
+        daemon.shutdown()
+        assert slow_proc.killed
+        assert daemon._process is None
+
+    def test_daemon_read_timeout_eof_and_kill_exception_edges(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeStdout:
+            def fileno(self):
+                return 123
+
+        class FakeProcess:
+            stdout = FakeStdout()
+            stderr = []
+
+            def __init__(self) -> None:
+                self.killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+            def wait(self, timeout=None):
+                return 0
+
+        class NoEventSelector:
+            def register(self, fd, event):
+                return None
+
+            def select(self, remaining):
+                return []
+
+            def close(self):
+                return None
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        daemon._process = FakeProcess()
+        monkeypatch.setattr(render_ovrtx.selectors, "DefaultSelector", NoEventSelector)
+
+        with pytest.raises(TimeoutError):
+            daemon._read_stdout_line(0.001, "render")
+        assert daemon._process is None
+
+        class EofSelector(NoEventSelector):
+            def select(self, remaining):
+                return [object()]
+
+        daemon._process = FakeProcess()
+        daemon._stdout_buffer = b"partial"
+        monkeypatch.setattr(render_ovrtx.selectors, "DefaultSelector", EofSelector)
+        monkeypatch.setattr(render_ovrtx.os, "read", lambda fd, size: b"")
+        assert daemon._read_stdout_line(1.0, "render") == "partial"
+
+        class BadKillProcess(FakeProcess):
+            def kill(self):
+                raise RuntimeError("no kill")
+
+        daemon._process = BadKillProcess()
+        with caplog.at_level(logging.ERROR):
+            daemon._kill_process()
+        assert "Failed to kill OvRTX daemon subprocess" in caplog.text
+        assert daemon._process is None
+
+    def test_daemon_read_timeout_breaks_when_deadline_has_passed(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeStdout:
+            def fileno(self):
+                return 456
+
+        class FakeProcess:
+            stdout = FakeStdout()
+            stderr = []
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                return None
+
+            def wait(self, timeout=None):
+                return 0
+
+        class DeadlineSelector:
+            def register(self, fd, event):
+                return None
+
+            def select(self, remaining):
+                raise AssertionError("deadline branch should break before select")
+
+            def close(self):
+                return None
+
+        times = iter([100.0, 100.2])
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx.selectors, "DefaultSelector", DeadlineSelector)
+        monkeypatch.setattr(render_ovrtx.time, "monotonic", lambda: next(times))
+
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        daemon._process = FakeProcess()
+
+        with pytest.raises(TimeoutError):
+            daemon._read_stdout_line(0.1, "render")
+
+        assert daemon._process is None
+
+    def test_resource_path_falls_back_through_string_conversion(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class FakeResource:
+            def joinpath(self, *parts):
+                return self
+
+            def __str__(self) -> str:
+                return str(tmp_path / "resource.dat")
+
+        monkeypatch.setattr(
+            render_ovrtx.importlib_resources,
+            "files",
+            lambda package: FakeResource(),
+        )
+
+        assert render_ovrtx._world_understanding_resource_path("data") == (
+            tmp_path / "resource.dat"
+        )
+
+    def test_render_all_cameras_loads_sensors_failures_and_dump(
+        self, tmp_path, monkeypatch
+    ):
+        import numpy as np
+        from PIL import Image
+        from pxr import Usd, UsdLux
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        stage = Usd.Stage.CreateInMemory()
+        UsdLux.DomeLight.Define(stage, "/World/Light")
+        dump_path = tmp_path / "dump" / "portable.usda"
+        fake_daemon = unittest.mock.Mock()
+
+        def fake_render(params):
+            output_dir = Path(params["output_dir"])
+            Image.new("RGB", (4, 4), (1, 2, 3)).save(output_dir / "cam0_f5.png")
+            np.save(
+                output_dir / "cam0_f5_depth.npy", np.array([[5.0]], dtype=np.float32)
+            )
+            return [
+                {
+                    "camera": "/Camera",
+                    "image_files": ["cam0_f5.png"],
+                    "sensor_files": {"depth": {"5": "cam0_f5_depth.npy"}},
+                    "frame_count": 1,
+                },
+                {
+                    "camera": "/Empty",
+                    "image_files": [],
+                    "sensor_files": {"depth": {"5": "missing.npy"}},
+                    "frame_count": 0,
+                },
+            ]
+
+        fake_daemon.render.side_effect = fake_render
+        monkeypatch.setenv("WU_OVRTX_DUMP_COMBINED", str(dump_path))
+        monkeypatch.setattr(
+            render_ovrtx, "_get_ovrtx_python", lambda venv_dir=None: "/fake/python"
+        )
+
+        result = render_ovrtx.render_all_cameras(
+            stage=stage,
+            image_width=4,
+            image_height=4,
+            cameras=["/Camera", "/Empty"],
+            frames="5",
+            sensors=["depth"],
+            num_sensor_updates=1,
+            daemon=fake_daemon,
+        )
+
+        assert result["successful_cameras"] == 1
+        assert result["failed_cameras"] == 1
+        assert result["results"][0]["sensors"]["depth"][5].tolist() == [[5.0]]
+        assert result["results"][1]["error"] == "No images produced"
+        assert dump_path.exists()
+        assert not (dump_path.parent / "combined.usda").exists()
+
+    def test_render_all_cameras_restores_instance_visibility_and_overlay_sublayers(
+        self, tmp_path, monkeypatch
+    ):
+        from PIL import Image
+        from pxr import Usd, UsdGeom, UsdLux
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        stage = Usd.Stage.CreateInMemory()
+        proto = UsdGeom.Xform.Define(stage, "/Proto")
+        UsdGeom.Cube.Define(stage, "/Proto/Child")
+        instance = UsdGeom.Xform.Define(stage, "/World/Inst")
+        instance.GetPrim().GetReferences().AddInternalReference(str(proto.GetPath()))
+        instance.GetPrim().SetInstanceable(True)
+        visibility = UsdGeom.Imageable(instance.GetPrim()).GetVisibilityAttr()
+        visibility.Set(UsdGeom.Tokens.invisible, Usd.TimeCode(0.0))
+        visibility.Set(UsdGeom.Tokens.inherited, Usd.TimeCode(1.0))
+
+        captured: dict[str, Any] = {}
+        fake_daemon = unittest.mock.Mock()
+
+        def fake_preview_overlay(stage_arg, output_path):
+            Path(output_path).write_text("#usda 1.0\n", encoding="utf-8")
+            return 1
+
+        def fake_render(params):
+            captured["params"] = params
+            from pxr import Sdf
+
+            frame_layer = Sdf.Layer.FindOrOpen(params["frame_usd_paths"]["0"])
+            captured["frame_sublayers"] = list(frame_layer.subLayerPaths)
+
+            # Simulate a caller-side mutation before cleanup to exercise the
+            # restoration branch that sees the stripped prim as an instance again.
+            stage.GetPrimAtPath("/World/Inst").SetInstanceable(True)
+            UsdLux.DomeLight.Define(stage, "/OvRTXDefaultLights/Dome")
+
+            output_dir = Path(params["output_dir"])
+            Image.new("RGB", (4, 4), (10, 20, 30)).save(output_dir / "cam0_f0.png")
+            return [
+                {
+                    "camera": "/Camera",
+                    "image_files": ["cam0_f0.png"],
+                    "sensor_files": {},
+                    "frame_count": 1,
+                }
+            ]
+
+        import world_understanding.utils.usd.material as usd_material
+
+        fake_daemon.render.side_effect = fake_render
+        monkeypatch.setenv("WU_OVRTX_DEFAULT_HDRI", "https://example.invalid/env.hdr")
+        monkeypatch.setattr(
+            render_ovrtx, "_get_ovrtx_python", lambda venv_dir=None: "/fake/python"
+        )
+        monkeypatch.setattr(
+            usd_material,
+            "write_ovrtx_preview_fallback_overlay_for_materialx_openpbr",
+            fake_preview_overlay,
+        )
+
+        result = render_ovrtx.render_all_cameras(
+            stage=stage,
+            image_width=4,
+            image_height=4,
+            cameras=["/Camera"],
+            frames="0:1",
+            num_sensor_updates=1,
+            daemon=fake_daemon,
+            material_target="preview_surface",
+        )
+
+        assert result["successful_cameras"] == 1
+        assert any(
+            "ovrtx_material_fallbacks.usda" in p for p in captured["frame_sublayers"]
+        )
+        assert any("default_lights.usda" in p for p in captured["frame_sublayers"])
+        assert not stage.GetPrimAtPath("/OvRTXDefaultLights").IsValid()
+        assert stage.GetPrimAtPath("/World/Inst").IsInstance()
+        restored_visibility = UsdGeom.Imageable(
+            stage.GetPrimAtPath("/World/Inst")
+        ).GetVisibilityAttr()
+        assert restored_visibility.Get(Usd.TimeCode(0.0)) == UsdGeom.Tokens.invisible
+        assert restored_visibility.Get(Usd.TimeCode(1.0)) == UsdGeom.Tokens.inherited
+
+    def test_render_all_cameras_tolerates_stripped_prim_removed_before_cleanup(
+        self, monkeypatch
+    ):
+        from PIL import Image
+        from pxr import Usd, UsdGeom, UsdLux
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        stage = Usd.Stage.CreateInMemory()
+        cube = UsdGeom.Cube.Define(stage, "/World/AnimatedVisibility")
+        visibility = UsdGeom.Imageable(cube.GetPrim()).GetVisibilityAttr()
+        visibility.Set(UsdGeom.Tokens.invisible, Usd.TimeCode(0.0))
+        UsdLux.DomeLight.Define(stage, "/World/Light")
+        fake_daemon = unittest.mock.Mock()
+
+        def fake_render(params):
+            stage.RemovePrim("/World/AnimatedVisibility")
+            output_dir = Path(params["output_dir"])
+            Image.new("RGB", (2, 2), (1, 2, 3)).save(output_dir / "cam0_f0.png")
+            return [
+                {
+                    "camera": "/Camera",
+                    "image_files": ["cam0_f0.png"],
+                    "sensor_files": {},
+                    "frame_count": 1,
+                }
+            ]
+
+        fake_daemon.render.side_effect = fake_render
+        monkeypatch.setattr(
+            render_ovrtx, "_get_ovrtx_python", lambda venv_dir=None: "/fake/python"
+        )
+
+        result = render_ovrtx.render_all_cameras(
+            stage=stage,
+            image_width=2,
+            image_height=2,
+            cameras=["/Camera"],
+            frames="0",
+            num_sensor_updates=1,
+            daemon=fake_daemon,
+        )
+
+        assert result["successful_cameras"] == 1
+
+    def test_render_all_cameras_logs_copied_assets_and_subprocess_stdout_failure(
+        self, monkeypatch
+    ):
+        from pxr import Usd, UsdLux
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        stage = Usd.Stage.CreateInMemory()
+        UsdLux.DomeLight.Define(stage, "/World/Light")
+        monkeypatch.setattr(
+            render_ovrtx, "_get_ovrtx_python", lambda venv_dir=None: "/fake/python"
+        )
+        monkeypatch.setattr(
+            render_ovrtx, "_copy_exported_relative_assets", lambda *args, **kwargs: 1
+        )
+        monkeypatch.setattr(
+            render_ovrtx.subprocess,
+            "run",
+            lambda *args, **kwargs: unittest.mock.Mock(
+                returncode=2,
+                stdout="stdout details",
+                stderr="",
+            ),
+        )
+
+        with pytest.raises(RuntimeError, match="stdout details"):
+            render_ovrtx.render_all_cameras(
+                stage=stage,
+                image_width=2,
+                image_height=2,
+                cameras=["/Camera"],
+                frames="0",
+                num_sensor_updates=1,
+                daemon=None,
+            )
+
+    def test_render_all_cameras_cleanup_ignores_rmtree_error(
+        self, tmp_path, monkeypatch
+    ):
+        from PIL import Image
+        from pxr import Usd, UsdLux
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        stage = Usd.Stage.CreateInMemory()
+        UsdLux.DomeLight.Define(stage, "/World/Light")
+        fake_daemon = unittest.mock.Mock()
+
+        def fake_render(params):
+            output_dir = Path(params["output_dir"])
+            Image.new("RGB", (2, 2), (1, 2, 3)).save(output_dir / "cam0_f0.png")
+            return [
+                {
+                    "camera": "/Camera",
+                    "image_files": ["cam0_f0.png"],
+                    "sensor_files": {},
+                    "frame_count": 1,
+                }
+            ]
+
+        fake_daemon.render.side_effect = fake_render
+        monkeypatch.setattr(
+            render_ovrtx, "_get_ovrtx_python", lambda venv_dir=None: "/fake/python"
+        )
+        monkeypatch.setattr(
+            render_ovrtx.shutil,
+            "rmtree",
+            unittest.mock.Mock(side_effect=OSError("busy")),
+        )
+
+        result = render_ovrtx.render_all_cameras(
+            stage=stage,
+            image_width=2,
+            image_height=2,
+            cameras=["/Camera"],
+            frames="0",
+            num_sensor_updates=1,
+            daemon=fake_daemon,
+        )
+
+        assert result["successful_cameras"] == 1
+
+    def test_main_without_action_exits_with_parser_error(self):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        with pytest.raises(SystemExit) as exc_info:
+            render_ovrtx._main([])
+
+        assert exc_info.value.code == 2
+
+
 class TestMapSensorToRenderVar:
     """Test _map_sensor_to_render_var() mapping correctness."""
 
@@ -705,7 +2136,9 @@ class TestOvRTXVenvPythonPath:
     def _write_managed_marker(render_ovrtx: Any, venv_dir: Path) -> None:
         (venv_dir / render_ovrtx._OVRTX_MANAGED_MARKER).write_text(
             "Created by world_understanding.functions.graphics.render_ovrtx\n"
-            f"ovrtx_version={render_ovrtx._OVRTX_VERSION}\n",
+            f"ovrtx_version={render_ovrtx._OVRTX_VERSION}\n"
+            "runtime_lock_sha256="
+            f"{render_ovrtx._ovrtx_runtime_lock_digest()}\n",
             encoding="utf-8",
         )
 
@@ -987,28 +2420,6 @@ class TestOvRTXVenvPythonPath:
 
         assert render_ovrtx._ovrtx_site_packages_dir(venv_dir) == active_site
 
-    def test_pip_target_wrapper_uses_installing_python(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from world_understanding.functions.graphics import render_ovrtx
-
-        monkeypatch.setattr(render_ovrtx.os, "name", "posix")
-        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
-        monkeypatch.setattr(render_ovrtx.shutil, "which", lambda name: None)
-        monkeypatch.setattr(render_ovrtx, "_run_checked", lambda cmd, label: None)
-        monkeypatch.setattr(
-            render_ovrtx,
-            "_probe_ovrtx_version",
-            lambda python_path_arg, venv_dir_arg: render_ovrtx._OVRTX_VERSION,
-        )
-
-        venv_dir = tmp_path / "ovrtx_venv"
-        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
-
-        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
-        assert str(Path(render_ovrtx.sys.executable)) in python_path.read_text()
-        assert (venv_dir / "pyvenv.cfg").exists()
-
     def test_existing_windows_venv_uses_scripts_python(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1057,6 +2468,7 @@ class TestOvRTXVenvPythonPath:
         python_path = venv_dir / "Scripts" / "python.exe"
         calls: list[tuple[list[str], str]] = []
         lock_calls: list[tuple[str, float]] = []
+        lock_snapshots: list[tuple[Path, bytes]] = []
 
         class FakeFileLock:
             def __init__(self, path: str, timeout: float) -> None:
@@ -1073,6 +2485,12 @@ class TestOvRTXVenvPythonPath:
             if label == "uv venv creation":
                 python_path.parent.mkdir(parents=True)
                 python_path.write_text("")
+            if label == "locked OVRTX runtime install":
+                snapshot_path = type(render_ovrtx._OVRTX_RUNTIME_LOCK_FILE)(
+                    cmd[cmd.index("-r") + 1]
+                )
+                assert snapshot_path.name.startswith("pylock.")
+                lock_snapshots.append((snapshot_path, snapshot_path.read_bytes()))
 
         monkeypatch.setattr(render_ovrtx, "_run_checked", fake_run_checked)
         monkeypatch.setattr(render_ovrtx, "FileLock", FakeFileLock)
@@ -1088,8 +2506,19 @@ class TestOvRTXVenvPythonPath:
         assert venv_label == "uv venv creation"
         assert "--allow-existing" in venv_cmd
         install_cmd, install_label = calls[1]
-        assert install_label == "uv pip install ovrtx"
+        assert install_label == "locked OVRTX runtime install"
         assert install_cmd[install_cmd.index("--python") + 1] == str(python_path)
+        assert "--require-hashes" in install_cmd
+        assert "--no-deps" in install_cmd
+        assert lock_snapshots == [
+            (
+                type(render_ovrtx._OVRTX_RUNTIME_LOCK_FILE)(
+                    install_cmd[install_cmd.index("-r") + 1]
+                ),
+                render_ovrtx._OVRTX_RUNTIME_LOCK_FILE.read_bytes(),
+            )
+        ]
+        assert not lock_snapshots[0][0].exists()
 
     def test_uv_venv_uses_running_python(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1181,6 +2610,35 @@ class TestOvRTXVenvPythonPath:
 
         assert render_ovrtx._get_ovrtx_python(venv_dir) == str(python_path)
 
+    def test_cached_validation_pins_managed_ownership_before_marker_loss(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+
+        def lose_marker(
+            path: Path, unused_runtime_lock_digest: str | None = None
+        ) -> bool:
+            (path / render_ovrtx._OVRTX_MANAGED_MARKER).unlink()
+            return False
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_ovrtx_managed_marker_matches_runtime_lock",
+            lose_marker,
+        )
+
+        assert not render_ovrtx._cached_ovrtx_python_ready(str(python_path), venv_dir)
+        assert cache_key in render_ovrtx._verified_managed_ovrtx_python_cache
+
     def test_ready_managed_runtime_skips_lock_without_process_cache(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1217,7 +2675,12 @@ class TestOvRTXVenvPythonPath:
         monkeypatch.setattr(
             render_ovrtx, "_ovrtx_python_cache", {cache_key: str(python_path)}
         )
-        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", {cache_key})
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_verified_ovrtx_python_cache",
+            {(cache_key, render_ovrtx._ovrtx_runtime_lock_digest())},
+        )
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
         calls: list[list[str]] = []
 
         def fake_run(cmd: list[str], *args: Any, **kwargs: Any) -> unittest.mock.Mock:
@@ -1234,6 +2697,7 @@ class TestOvRTXVenvPythonPath:
         assert render_ovrtx._get_ovrtx_python(venv_dir) == str(python_path)
         assert render_ovrtx._get_ovrtx_python(venv_dir) == str(python_path)
         assert calls == []
+        assert not (venv_dir / render_ovrtx._OVRTX_MANAGED_MARKER).exists()
 
     def test_cached_managed_python_without_marker_waits_for_lock(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1318,16 +2782,104 @@ class TestOvRTXVenvPythonPath:
                 returncode=1, stdout="", stderr="broken"
             ),
         )
+        real_rmtree = render_ovrtx.shutil.rmtree
 
         def fake_rmtree(path: Path, *args: Any, **kwargs: Any) -> None:
             rmtree_calls.append(path)
+            real_rmtree(path, *args, **kwargs)
 
         monkeypatch.setattr(render_ovrtx.shutil, "rmtree", fake_rmtree)
 
         with pytest.raises(RuntimeError, match="uv venv creation failed"):
             render_ovrtx._get_ovrtx_python(venv_dir=venv_dir)
 
-        assert rmtree_calls == [venv_dir]
+        assert rmtree_calls == [venv_dir, venv_dir]
+
+    @pytest.mark.parametrize(
+        "probe_error",
+        [
+            OSError("cannot launch"),
+            subprocess.TimeoutExpired("probe", timeout=30),
+        ],
+        ids=["launch-error", "timeout"],
+    )
+    def test_unmanaged_runtime_probe_error_is_preserved(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        probe_error: OSError | subprocess.TimeoutExpired,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "1")
+        venv_dir = tmp_path / "operator_ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        runtime_file = venv_dir / "operator-owned.txt"
+        runtime_file.write_text("preserve")
+        rmtree_calls: list[Path] = []
+
+        def raise_probe(unused_python_path: Path, unused_venv_dir: Path) -> str:
+            raise probe_error
+
+        monkeypatch.setattr(render_ovrtx, "_probe_ovrtx_version", raise_probe)
+        monkeypatch.setattr(
+            render_ovrtx.shutil,
+            "rmtree",
+            lambda path, ignore_errors=False: rmtree_calls.append(Path(path)),
+        )
+
+        with pytest.raises(RuntimeError, match="unmanaged.*refusing to replace"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert rmtree_calls == []
+        assert python_path.exists()
+        assert runtime_file.read_text() == "preserve"
+
+    def test_disabled_auto_provision_preserves_managed_probe_launch_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "0")
+        venv_dir = tmp_path / "managed_ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        rmtree_calls: list[Path] = []
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+
+        def raise_probe(unused_python_path: Path, unused_venv_dir: Path) -> str:
+            raise OSError("cannot launch")
+
+        monkeypatch.setattr(render_ovrtx, "_probe_ovrtx_version", raise_probe)
+        monkeypatch.setattr(
+            render_ovrtx.shutil,
+            "rmtree",
+            lambda path, ignore_errors=False: rmtree_calls.append(Path(path)),
+        )
+
+        with pytest.raises(RuntimeError, match="managed.*AUTO_PROVISION is disabled"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert rmtree_calls == []
+        assert python_path.exists()
+        assert render_ovrtx._ovrtx_managed_marker_matches_runtime_lock(venv_dir)
 
     def test_get_ovrtx_python_expands_default_runtime_path(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1386,6 +2938,356 @@ class TestOvRTXVenvPythonPath:
         monkeypatch.setattr(render_ovrtx.subprocess, "run", fail_run)
 
         assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
+
+    def test_unlocked_matching_managed_runtime_refreshes_bundled_state(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        validated_digest = render_ovrtx._ovrtx_runtime_lock_digest()
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_probe_ovrtx_version",
+            lambda unused_python_path, unused_venv_dir: render_ovrtx._OVRTX_VERSION,
+        )
+        removed: list[Path] = []
+        refreshed: list[tuple[Path, str]] = []
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_bundled_python_libraries",
+            lambda path: removed.append(path) or [],
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_try_refresh_ovrtx_managed_marker",
+            lambda path, digest: refreshed.append((path, digest)),
+        )
+
+        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
+        assert removed == [venv_dir]
+        assert refreshed == [(venv_dir, validated_digest)]
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+        assert (cache_key, validated_digest) in (
+            render_ovrtx._verified_ovrtx_python_cache
+        )
+
+    @pytest.mark.parametrize("change_point", ["probe", "cleanup", "refresh", "marker"])
+    def test_managed_runtime_identity_drift_requests_reprovision(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        change_point: str,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        runtime_lock = tmp_path / "pylock.ovrtx-runtime.toml"
+        runtime_lock.write_bytes(b"lock generation A")
+        monkeypatch.setattr(render_ovrtx, "_OVRTX_RUNTIME_LOCK_FILE", runtime_lock)
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "1")
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        validated_digest = render_ovrtx._ovrtx_runtime_lock_digest()
+        removed_bundled: list[Path] = []
+        refreshed: list[tuple[Path, str]] = []
+        reprovisioned: list[Path] = []
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+
+        def fake_probe(unused_python_path: Path, unused_venv_dir: Path) -> str:
+            if change_point == "probe":
+                runtime_lock.write_bytes(b"lock generation B")
+            return render_ovrtx._OVRTX_VERSION
+
+        def fake_remove_bundled(path: Path) -> list[Path]:
+            removed_bundled.append(path)
+            if change_point == "cleanup":
+                runtime_lock.write_bytes(b"lock generation B")
+            return []
+
+        def fake_refresh(path: Path, digest: str) -> None:
+            refreshed.append((path, digest))
+            render_ovrtx._write_ovrtx_managed_marker(path, digest)
+            if change_point == "refresh":
+                runtime_lock.write_bytes(b"lock generation B")
+            if change_point == "marker":
+                (path / render_ovrtx._OVRTX_MANAGED_MARKER).unlink()
+
+        def request_reprovision(path: Path) -> None:
+            reprovisioned.append(path)
+            raise RuntimeError("reprovision requested")
+
+        monkeypatch.setattr(render_ovrtx, "_probe_ovrtx_version", fake_probe)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_bundled_python_libraries",
+            fake_remove_bundled,
+        )
+        monkeypatch.setattr(
+            render_ovrtx, "_try_refresh_ovrtx_managed_marker", fake_refresh
+        )
+        monkeypatch.setattr(render_ovrtx, "_remove_ovrtx_venv", request_reprovision)
+
+        with pytest.raises(RuntimeError, match="reprovision requested"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert reprovisioned == [venv_dir]
+        assert removed_bundled == ([] if change_point == "probe" else [venv_dir])
+        assert refreshed == (
+            [(venv_dir, validated_digest)]
+            if change_point in {"refresh", "marker"}
+            else []
+        )
+        if change_point == "marker":
+            assert not render_ovrtx._ovrtx_managed_marker_matches_runtime_lock(
+                venv_dir, validated_digest
+            )
+            assert render_ovrtx._ovrtx_runtime_lock_digest() == validated_digest
+        else:
+            marker = render_ovrtx._read_ovrtx_managed_marker(
+                venv_dir / render_ovrtx._OVRTX_MANAGED_MARKER
+            )
+            assert marker["runtime_lock_sha256"] == validated_digest
+            assert render_ovrtx._ovrtx_runtime_lock_digest() != validated_digest
+        assert render_ovrtx._verified_ovrtx_python_cache == set()
+        assert render_ovrtx._ovrtx_python is None
+
+    def test_managed_runtime_identity_drift_reprovisions_from_current_lock(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        runtime_lock = tmp_path / "pylock.ovrtx-runtime.toml"
+        runtime_lock.write_bytes(b"lock generation A")
+        monkeypatch.setattr(render_ovrtx, "_OVRTX_RUNTIME_LOCK_FILE", runtime_lock)
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "1")
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        probe_calls = 0
+        installed_snapshots: list[bytes] = []
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+
+        def fake_probe(unused_python_path: Path, unused_venv_dir: Path) -> str:
+            nonlocal probe_calls
+            probe_calls += 1
+            if probe_calls == 1:
+                runtime_lock.write_bytes(b"lock generation B")
+            return render_ovrtx._OVRTX_VERSION
+
+        def fake_run_checked(cmd: list[str], label: str) -> None:
+            if label == "uv venv creation":
+                python_path.parent.mkdir(parents=True, exist_ok=True)
+                python_path.write_text("")
+            elif label == "locked OVRTX runtime install":
+                snapshot_path = Path(cmd[cmd.index("-r") + 1])
+                installed_snapshots.append(snapshot_path.read_bytes())
+
+        monkeypatch.setattr(render_ovrtx, "_probe_ovrtx_version", fake_probe)
+        monkeypatch.setattr(render_ovrtx.shutil, "which", lambda unused_name: "uv")
+        monkeypatch.setattr(render_ovrtx, "_run_checked", fake_run_checked)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_bundled_python_libraries",
+            lambda unused_venv_dir: [],
+        )
+
+        assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
+
+        current_digest = render_ovrtx._ovrtx_runtime_lock_digest()
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+        marker = render_ovrtx._read_ovrtx_managed_marker(
+            venv_dir / render_ovrtx._OVRTX_MANAGED_MARKER
+        )
+        assert installed_snapshots == [b"lock generation B"]
+        assert marker["runtime_lock_sha256"] == current_digest
+        assert (cache_key, current_digest) in (
+            render_ovrtx._verified_ovrtx_python_cache
+        )
+
+    @pytest.mark.parametrize("change_point", ["probe", "cleanup", "refresh", "marker"])
+    def test_disabled_auto_provision_preserves_managed_runtime_on_identity_drift(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        change_point: str,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        runtime_lock = tmp_path / "pylock.ovrtx-runtime.toml"
+        runtime_lock.write_bytes(b"lock generation A")
+        monkeypatch.setattr(render_ovrtx, "_OVRTX_RUNTIME_LOCK_FILE", runtime_lock)
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "0")
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        validated_digest = render_ovrtx._ovrtx_runtime_lock_digest()
+        marker_path = venv_dir / render_ovrtx._OVRTX_MANAGED_MARKER
+        original_marker = marker_path.read_text(encoding="utf-8")
+        removed_bundled: list[Path] = []
+        refreshed: list[tuple[Path, str]] = []
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+
+        def change_lock_during_probe(
+            unused_python_path: Path, unused_venv_dir: Path
+        ) -> str:
+            if change_point == "probe":
+                runtime_lock.write_bytes(b"lock generation B")
+            return render_ovrtx._OVRTX_VERSION
+
+        def fake_remove_bundled(path: Path) -> list[Path]:
+            removed_bundled.append(path)
+            if change_point == "cleanup":
+                runtime_lock.write_bytes(b"lock generation B")
+            return []
+
+        def fake_refresh(path: Path, digest: str) -> None:
+            refreshed.append((path, digest))
+            render_ovrtx._write_ovrtx_managed_marker(path, digest)
+            if change_point == "refresh":
+                runtime_lock.write_bytes(b"lock generation B")
+            if change_point == "marker":
+                (path / render_ovrtx._OVRTX_MANAGED_MARKER).unlink()
+
+        def fail_removal(*unused_args: Any, **unused_kwargs: Any) -> None:
+            raise AssertionError("identity drift must preserve the managed runtime")
+
+        monkeypatch.setattr(
+            render_ovrtx, "_probe_ovrtx_version", change_lock_during_probe
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_bundled_python_libraries",
+            fake_remove_bundled,
+        )
+        monkeypatch.setattr(
+            render_ovrtx, "_try_refresh_ovrtx_managed_marker", fake_refresh
+        )
+        monkeypatch.setattr(render_ovrtx, "_remove_ovrtx_venv", fail_removal)
+
+        with pytest.raises(RuntimeError, match="identity changed.*AUTO_PROVISION"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert python_path.exists()
+        assert removed_bundled == ([] if change_point == "probe" else [venv_dir])
+        assert refreshed == (
+            [(venv_dir, validated_digest)]
+            if change_point in {"refresh", "marker"}
+            else []
+        )
+        if change_point == "marker":
+            assert not marker_path.exists()
+            assert render_ovrtx._ovrtx_runtime_lock_digest() == validated_digest
+            with pytest.raises(RuntimeError, match="does not match.*runtime lock"):
+                render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+        else:
+            assert marker_path.read_text(encoding="utf-8") == original_marker
+            assert render_ovrtx._ovrtx_runtime_lock_digest() != validated_digest
+        assert render_ovrtx._verified_ovrtx_python_cache == set()
+        assert render_ovrtx._ovrtx_python is None
+
+    def test_marker_loss_keeps_managed_provenance_after_partial_removal(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        runtime_lock = tmp_path / "pylock.ovrtx-runtime.toml"
+        runtime_lock.write_bytes(b"lock generation A")
+        monkeypatch.setattr(render_ovrtx, "_OVRTX_RUNTIME_LOCK_FILE", runtime_lock)
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "1")
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        cache_key = render_ovrtx._ovrtx_runtime_cache_key(venv_dir)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_probe_ovrtx_version",
+            lambda unused_python_path, unused_venv_dir: render_ovrtx._OVRTX_VERSION,
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_remove_ovrtx_bundled_python_libraries",
+            lambda unused_venv_dir: [],
+        )
+
+        def remove_marker(path: Path, unused_digest: str) -> None:
+            (path / render_ovrtx._OVRTX_MANAGED_MARKER).unlink()
+
+        monkeypatch.setattr(
+            render_ovrtx, "_try_refresh_ovrtx_managed_marker", remove_marker
+        )
+        monkeypatch.setattr(
+            render_ovrtx.shutil,
+            "rmtree",
+            lambda unused_path, ignore_errors=False: None,
+        )
+
+        with pytest.raises(RuntimeError, match="could not be completely removed"):
+            render_ovrtx._get_ovrtx_python_unlocked(venv_dir)
+
+        assert cache_key in render_ovrtx._verified_managed_ovrtx_python_cache
+        assert (venv_dir / render_ovrtx._OVRTX_PROVISIONING_MARKER).exists()
+        assert python_path.exists()
 
     def test_broken_managed_python_symlink_triggers_cleanup(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1456,20 +3358,34 @@ class TestOvRTXBackendSensorSupport:
             OvRTXRenderingBackend,
         )
 
-        assert "depth" in OvRTXRenderingBackend.SUPPORTED_SENSOR_MODES
+        assert OvRTXRenderingBackend.SUPPORTED_SENSOR_MODES == []
+
+    def test_render_warns_before_rejecting_sensors(self, tmp_path):
+        from pxr import Usd
+
+        from world_understanding.functions.graphics.rendering import (
+            OvRTXRenderingBackend,
+        )
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        venv_dir.mkdir()
+        with unittest.mock.patch(
+            "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+            return_value="/fake/python",
+        ):
+            backend = OvRTXRenderingBackend(ovrtx_venv_dir=str(venv_dir))
+
+        stage = Usd.Stage.CreateInMemory()
+        with pytest.warns(FutureWarning, match="no longer supports sensor/depth"):
+            with pytest.raises(ValueError, match="color renders only"):
+                backend.render(stage=stage, sensors=["depth"])
 
 
 class TestEnsureLights:
     """Test _ensure_lights() adds default lights when needed."""
 
-    def test_adds_hdri_dome_with_ovrtx_packaged_default(self, monkeypatch, tmp_path):
-        """No env override: DomeLight uses ovrtx's packaged HDRI.
-
-        ``_DEFAULT_HDRI_PATH`` resolves inside the isolated ovrtx venv to
-        ``StinsonBeach.hdr`` and uses intensity 600.0. This avoids importing
-        ovrtx in the main process while still using a renderer-packaged HDRI
-        that lights first-run, lightless scenes in ovrtx 0.2.0.
-        """
+    def test_adds_hdri_dome_with_bundled_default(self, monkeypatch, tmp_path):
+        """No env override: DomeLight uses the repo-bundled studio HDRI."""
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
         monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
@@ -1477,12 +3393,9 @@ class TestEnsureLights:
 
         from world_understanding.functions.graphics import render_ovrtx
 
-        venv_dir = tmp_path / "ovrtx_venv"
-        monkeypatch.setattr(render_ovrtx, "_OVRTX_VENV_DIR", venv_dir)
-        default_site = render_ovrtx._ovrtx_site_packages_candidates(venv_dir)[0]
-        expected_hdri = default_site / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-        expected_hdri.parent.mkdir(parents=True)
+        expected_hdri = tmp_path / "studio.exr"
         expected_hdri.write_bytes(b"fake-hdr")
+        monkeypatch.setattr(render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", expected_hdri)
 
         stage = Usd.Stage.CreateInMemory()
         UsdGeom.Cube.Define(stage, "/World/Cube")
@@ -1502,14 +3415,14 @@ class TestEnsureLights:
         tex_value = tex.Get()
         resolved = str(tex_value.resolvedPath or tex_value.path)
         assert resolved == str(expected_hdri)
-        assert Path(resolved).name == "StinsonBeach.hdr"
+        assert Path(resolved).name == "studio.exr"
         # No distant light - env map provides direction.
         assert [p for p in stage.Traverse() if p.IsA(UsdLux.DistantLight)] == []
 
-    def test_ensure_lights_provisions_default_for_standalone_stage(
+    def test_ensure_lights_uses_bundled_default_for_standalone_stage(
         self, monkeypatch, tmp_path
     ):
-        """Direct stage prep should provision before resolving the default HDRI."""
+        """Direct stage prep should not provision OVRTX just to find the HDRI."""
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
         monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
@@ -1518,21 +3431,12 @@ class TestEnsureLights:
 
         from world_understanding.functions.graphics import render_ovrtx
 
-        venv_dir = tmp_path / "ovrtx_venv"
-        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
-        monkeypatch.setattr(render_ovrtx, "_OVRTX_VENV_DIR", venv_dir)
+        expected_hdri = tmp_path / "studio.exr"
+        expected_hdri.write_bytes(b"fake-hdr")
+        monkeypatch.setattr(render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", expected_hdri)
 
         def fake_get_ovrtx_python(venv_dir: Path | None = None) -> str:
-            assert venv_dir is None
-            site_dir = render_ovrtx._ovrtx_site_packages_candidates(
-                render_ovrtx._OVRTX_VENV_DIR
-            )[0]
-            hdri_path = site_dir / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-            hdri_path.parent.mkdir(parents=True)
-            hdri_path.write_bytes(b"fake-hdr")
-            python_path.parent.mkdir(parents=True)
-            python_path.write_text("")
-            return str(python_path)
+            raise AssertionError("default HDRI resolution should not provision OVRTX")
 
         monkeypatch.setattr(render_ovrtx, "_get_ovrtx_python", fake_get_ovrtx_python)
         stage = Usd.Stage.CreateInMemory()
@@ -1545,32 +3449,56 @@ class TestEnsureLights:
         tex = dome_prims[0].GetAttribute("inputs:texture:file")
         tex_value = tex.Get()
         assert Path(str(tex_value.resolvedPath or tex_value.path)).name == (
-            "StinsonBeach.hdr"
+            "studio.exr"
         )
 
-    def test_ensure_lights_provisions_requested_runtime_default(
+    def test_ensure_lights_missing_bundled_default_fails_without_provisioning(
         self, monkeypatch, tmp_path
     ):
-        """Callers that know the runtime should provision that runtime."""
+        """Missing bundled default HDRI should fail clearly without provisioning."""
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
+        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
         monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
+
+        from pxr import Usd, UsdGeom
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(
+            render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", tmp_path / "missing.exr"
+        )
+
+        def fake_get_ovrtx_python(venv_dir: Path | None = None) -> str:
+            raise AssertionError("default HDRI failure should not provision OVRTX")
+
+        monkeypatch.setattr(render_ovrtx, "_get_ovrtx_python", fake_get_ovrtx_python)
+
+        stage = Usd.Stage.CreateInMemory()
+        UsdGeom.Cube.Define(stage, "/World/Cube")
+
+        with pytest.raises(RuntimeError, match="Default OVRTX HDRI studio.exr"):
+            _ensure_lights(stage)
+
+    def test_ensure_lights_uses_runtime_only_for_packaged_hdri_intensity(
+        self, monkeypatch, tmp_path
+    ):
+        """The runtime argument only classifies explicit packaged-HDRI overrides."""
+        monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
+        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
 
         from pxr import Usd, UsdGeom, UsdLux
 
         from world_understanding.functions.graphics import render_ovrtx
 
         requested_venv = tmp_path / "requested_venv"
-        python_path = render_ovrtx._ovrtx_venv_python_path(requested_venv)
+        site_dir = render_ovrtx._ovrtx_site_packages_candidates(requested_venv)[0]
+        packaged_hdri = site_dir / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
+        packaged_hdri.parent.mkdir(parents=True)
+        packaged_hdri.write_bytes(b"fake-hdr")
+        monkeypatch.setenv("WU_OVRTX_DEFAULT_HDRI", str(packaged_hdri))
 
         def fake_get_ovrtx_python(venv_dir: Path | None = None) -> str:
-            assert venv_dir == requested_venv
-            site_dir = render_ovrtx._ovrtx_site_packages_candidates(requested_venv)[0]
-            hdri_path = site_dir / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-            hdri_path.parent.mkdir(parents=True)
-            hdri_path.write_bytes(b"fake-hdr")
-            python_path.parent.mkdir(parents=True)
-            python_path.write_text("")
-            return str(python_path)
+            raise AssertionError("default HDRI resolution should not provision OVRTX")
 
         monkeypatch.setattr(render_ovrtx, "_get_ovrtx_python", fake_get_ovrtx_python)
 
@@ -1583,71 +3511,8 @@ class TestEnsureLights:
         tex = dome_prims[0].GetAttribute("inputs:texture:file")
         tex_value = tex.Get()
         resolved = str(tex_value.resolvedPath or tex_value.path)
-        assert str(requested_venv) in resolved
-
-    def test_ensure_lights_retries_requested_runtime_for_nonstandard_python(
-        self, monkeypatch, tmp_path
-    ):
-        """Strict retry should preserve the caller's runtime root."""
-        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
-        monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
-
-        from pxr import Usd, UsdGeom, UsdLux
-
-        from world_understanding.functions.graphics import render_ovrtx
-
-        requested_venv = tmp_path / "requested_venv"
-        external_python = tmp_path / "external_runtime" / "bin" / "python3"
-
-        def fake_get_ovrtx_python(venv_dir: Path | None = None) -> str:
-            assert venv_dir == requested_venv
-            site_dir = render_ovrtx._ovrtx_site_packages_candidates(requested_venv)[0]
-            hdri_path = site_dir / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-            hdri_path.parent.mkdir(parents=True)
-            hdri_path.write_bytes(b"fake-hdr")
-            external_python.parent.mkdir(parents=True)
-            external_python.write_text("")
-            return str(external_python)
-
-        monkeypatch.setattr(render_ovrtx, "_get_ovrtx_python", fake_get_ovrtx_python)
-
-        stage = Usd.Stage.CreateInMemory()
-        UsdGeom.Cube.Define(stage, "/World/Cube")
-
-        _ensure_lights(stage, venv_dir=requested_venv)
-
-        dome_prims = [p for p in stage.Traverse() if p.IsA(UsdLux.DomeLight)]
-        tex = dome_prims[0].GetAttribute("inputs:texture:file")
-        tex_value = tex.Get()
-        assert str(requested_venv) in str(tex_value.resolvedPath or tex_value.path)
-
-    def test_ensure_lights_uses_requested_ovrtx_venv(self, monkeypatch, tmp_path):
-        """Standalone light injection should honor a caller-provided runtime."""
-        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
-        monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
-
-        from pxr import Usd, UsdGeom, UsdLux
-
-        from world_understanding.functions.graphics import render_ovrtx
-
-        default_venv = tmp_path / "missing_default_venv"
-        custom_venv = tmp_path / "custom_ovrtx_venv"
-        monkeypatch.setattr(render_ovrtx, "_OVRTX_VENV_DIR", default_venv)
-        custom_site = render_ovrtx._ovrtx_site_packages_candidates(custom_venv)[0]
-        expected_hdri = custom_site / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-        expected_hdri.parent.mkdir(parents=True)
-        expected_hdri.write_bytes(b"fake-hdr")
-
-        stage = Usd.Stage.CreateInMemory()
-        UsdGeom.Cube.Define(stage, "/World/Cube")
-
-        _ensure_lights(stage, venv_dir=custom_venv)
-
-        dome_prims = [p for p in stage.Traverse() if p.IsA(UsdLux.DomeLight)]
-        tex = dome_prims[0].GetAttribute("inputs:texture:file")
-        tex_value = tex.Get()
-        resolved = str(tex_value.resolvedPath or tex_value.path)
-        assert resolved == str(expected_hdri)
+        assert resolved == str(packaged_hdri)
+        assert UsdLux.DomeLight(dome_prims[0]).GetIntensityAttr().Get() == 600.0
 
     def test_ensure_lights_copies_absolute_hdri_next_to_file_backed_stage(
         self, monkeypatch, tmp_path
@@ -1660,16 +3525,15 @@ class TestEnsureLights:
 
         from world_understanding.functions.graphics import render_ovrtx
 
-        venv_dir = tmp_path / "ovrtx_venv"
-        site_dir = render_ovrtx._ovrtx_site_packages_candidates(venv_dir)[0]
-        expected_hdri = site_dir / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-        expected_hdri.parent.mkdir(parents=True)
+        expected_hdri = tmp_path / "assets" / "studio.exr"
+        expected_hdri.parent.mkdir()
         expected_hdri.write_bytes(b"fake-hdr")
+        monkeypatch.setattr(render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", expected_hdri)
         stage_path = tmp_path / "scene.usda"
         stage = Usd.Stage.CreateNew(str(stage_path))
         UsdGeom.Cube.Define(stage, "/World/Cube")
 
-        _ensure_lights(stage, venv_dir=venv_dir)
+        _ensure_lights(stage)
 
         dome_prims = [p for p in stage.Traverse() if p.IsA(UsdLux.DomeLight)]
         tex = dome_prims[0].GetAttribute("inputs:texture:file")
@@ -1700,22 +3564,37 @@ class TestEnsureLights:
         assert tex_value.path == fake_hdri.name
         assert (stage_dir / fake_hdri.name).read_bytes() == b"custom-hdr"
 
-    def test_default_hdri_resolves_under_requested_ovrtx_venv(
-        self, monkeypatch, tmp_path
-    ):
-        """Custom ovrtx venvs should also get the packaged StinsonBeach HDRI."""
+    def test_default_hdri_returns_bundled_default(self, monkeypatch, tmp_path):
+        """The active default HDRI is bundled with this package."""
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
 
         from world_understanding.functions.graphics import render_ovrtx
 
-        venv_dir = tmp_path / "ovrtx_venv"
-        resolved = Path(render_ovrtx._resolve_default_hdri(venv_dir))
+        expected_hdri = tmp_path / "studio.exr"
+        expected_hdri.write_bytes(b"fake-hdr")
+        monkeypatch.setattr(render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", expected_hdri)
 
-        assert resolved == (
-            render_ovrtx._ovrtx_site_packages_candidates(venv_dir)[0]
-            / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
-        )
-        assert resolved.name == "StinsonBeach.hdr"
+        resolved = Path(render_ovrtx._resolve_default_hdri())
+
+        assert resolved == expected_hdri
+        assert resolved.name == "studio.exr"
+
+    def test_bundled_default_hdri_file_matches_documented_checksum(self):
+        """The repo-owned default lighting asset should be present and intact."""
+        from world_understanding.functions.graphics import render_ovrtx
+
+        hdri_path = Path(render_ovrtx._default_bundled_hdri_path(require_exists=True))
+        documented_checksums = [
+            token.strip("`.,;")
+            for token in (hdri_path.parent / "README.md").read_text().split()
+            if re.fullmatch(r"[0-9a-fA-F]{64}", token.strip("`.,;"))
+        ]
+
+        assert hdri_path.name == "studio.exr"
+        assert hdri_path.is_file()
+        assert documented_checksums == [
+            hashlib.sha256(hdri_path.read_bytes()).hexdigest()
+        ]
 
     def test_site_packages_dir_fails_clearly_without_candidates(
         self, monkeypatch, tmp_path
@@ -1744,10 +3623,10 @@ class TestEnsureLights:
         with pytest.raises(RuntimeError, match="ovrtx package directory"):
             render_ovrtx._ovrtx_site_packages_dir(venv_dir)
 
-    def test_default_hdri_fails_clearly_without_site_candidates(
+    def test_ovrtx_packaged_hdri_fails_clearly_without_site_candidates(
         self, monkeypatch, tmp_path
     ):
-        """Default HDRI discovery should fail clearly if no layouts are known."""
+        """Packaged StinsonBeach discovery should fail clearly without layouts."""
         from world_understanding.functions.graphics import render_ovrtx
 
         monkeypatch.setattr(
@@ -1755,7 +3634,7 @@ class TestEnsureLights:
         )
 
         with pytest.raises(RuntimeError, match="No candidate site-packages"):
-            render_ovrtx._resolve_default_hdri(tmp_path / "ovrtx_venv")
+            render_ovrtx._default_ovrtx_hdri_path(tmp_path / "ovrtx_venv")
 
     def test_default_hdri_resolves_pip_target_fallback_layout(
         self, monkeypatch, tmp_path
@@ -1772,7 +3651,7 @@ class TestEnsureLights:
         fallback_hdri.write_bytes(b"fake-hdr")
         monkeypatch.setenv("_WU_OVRTX_SITE_DIR", str(fallback_site))
 
-        assert Path(render_ovrtx._resolve_default_hdri(venv_dir)) == fallback_hdri
+        assert Path(render_ovrtx._default_ovrtx_hdri_path(venv_dir)) == fallback_hdri
 
     def test_default_hdri_discovers_prebuilt_unix_venv_python_minor(
         self, monkeypatch, tmp_path
@@ -1791,7 +3670,7 @@ class TestEnsureLights:
 
         monkeypatch.setattr(render_ovrtx.os, "name", "posix")
 
-        assert render_ovrtx._resolve_default_hdri(venv_dir) == str(actual_hdri)
+        assert render_ovrtx._default_ovrtx_hdri_path(venv_dir) == str(actual_hdri)
 
     def test_default_hdri_discovers_prebuilt_unix_lib64_layout(
         self, monkeypatch, tmp_path
@@ -1810,7 +3689,7 @@ class TestEnsureLights:
 
         monkeypatch.setattr(render_ovrtx.os, "name", "posix")
 
-        assert render_ovrtx._resolve_default_hdri(venv_dir) == str(actual_hdri)
+        assert render_ovrtx._default_ovrtx_hdri_path(venv_dir) == str(actual_hdri)
 
     def test_default_hdri_discovers_windows_pip_target_layout(
         self, monkeypatch, tmp_path
@@ -1829,9 +3708,9 @@ class TestEnsureLights:
 
         monkeypatch.setattr(render_ovrtx.os, "name", "nt")
 
-        assert render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True) == str(
-            fallback_hdri
-        )
+        assert render_ovrtx._default_ovrtx_hdri_path(
+            venv_dir, require_exists=True
+        ) == str(fallback_hdri)
 
     def test_default_hdri_discovers_moved_texture_within_ovrtx_package(
         self, monkeypatch, tmp_path
@@ -1850,9 +3729,9 @@ class TestEnsureLights:
 
         monkeypatch.setattr(render_ovrtx.os, "name", "posix")
 
-        assert render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True) == str(
-            moved_hdri
-        )
+        assert render_ovrtx._default_ovrtx_hdri_path(
+            venv_dir, require_exists=True
+        ) == str(moved_hdri)
 
     def test_default_hdri_moved_texture_search_is_cached(self, monkeypatch, tmp_path):
         """Moved-texture fallback should cache bounded misses."""
@@ -1868,31 +3747,33 @@ class TestEnsureLights:
         moved_hdri.write_bytes(b"fake-hdr")
         monkeypatch.setattr(render_ovrtx.os, "name", "posix")
 
-        assert render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True) == str(
-            moved_hdri
-        )
+        assert render_ovrtx._default_ovrtx_hdri_path(
+            venv_dir, require_exists=True
+        ) == str(moved_hdri)
 
         def fail_rglob(self: Path, pattern: str):
             raise AssertionError(f"unexpected recursive search for {pattern}")
 
         monkeypatch.setattr(Path, "rglob", fail_rglob)
-        assert render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True) == str(
-            moved_hdri
-        )
+        assert render_ovrtx._default_ovrtx_hdri_path(
+            venv_dir, require_exists=True
+        ) == str(moved_hdri)
 
-    def test_default_hdri_strict_resolution_does_not_use_bundled_fallback(
+    def test_default_hdri_strict_resolution_fails_when_bundled_default_missing(
         self, monkeypatch, tmp_path
     ):
-        """Strict render-time resolution should fail loudly if HDRI is absent."""
+        """Strict active default resolution should fail loudly if HDRI is absent."""
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI", raising=False)
         monkeypatch.delenv("_WU_OVRTX_SITE_DIR", raising=False)
 
         from world_understanding.functions.graphics import render_ovrtx
 
+        monkeypatch.setattr(
+            render_ovrtx, "_BUNDLED_DEFAULT_HDRI_PATH", tmp_path / "missing.exr"
+        )
+
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
-            render_ovrtx._resolve_default_hdri(
-                tmp_path / "missing_ovrtx_venv", require_exists=True
-            )
+            render_ovrtx._resolve_default_hdri(require_exists=True)
 
     def test_explicit_bundled_hdri_uses_legacy_intensity(self, monkeypatch, tmp_path):
         """An explicitly selected legacy EXR should not inherit StinsonBeach's multiplier."""
@@ -1956,12 +3837,12 @@ class TestEnsureLights:
         monkeypatch.setattr(render_ovrtx.time, "monotonic", lambda: 0.0)
         monkeypatch.setattr(Path, "rglob", fail_rglob)
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
-            render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True)
+            render_ovrtx._default_ovrtx_hdri_path(venv_dir, require_exists=True)
 
         moved_hdri.parent.mkdir(parents=True)
         moved_hdri.write_bytes(b"fake-hdr")
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
-            render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True)
+            render_ovrtx._default_ovrtx_hdri_path(venv_dir, require_exists=True)
 
         assert ovrtx_package_dir in render_ovrtx._OVRTX_MOVED_HDRI_CACHE
 
@@ -1992,15 +3873,15 @@ class TestEnsureLights:
         monkeypatch.setattr(Path, "rglob", fail_rglob)
 
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
-            render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True)
+            render_ovrtx._default_ovrtx_hdri_path(venv_dir, require_exists=True)
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
-            render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True)
+            render_ovrtx._default_ovrtx_hdri_path(venv_dir, require_exists=True)
         moved_hdri.parent.mkdir(parents=True)
         moved_hdri.write_bytes(b"fake-hdr")
 
-        assert render_ovrtx._resolve_default_hdri(venv_dir, require_exists=True) == str(
-            moved_hdri
-        )
+        assert render_ovrtx._default_ovrtx_hdri_path(
+            venv_dir, require_exists=True
+        ) == str(moved_hdri)
 
     def test_default_hdri_candidate_fast_path_skips_fallback_lookup(
         self, monkeypatch, tmp_path
@@ -2051,7 +3932,7 @@ class TestEnsureLights:
         from world_understanding.functions.graphics import render_ovrtx
 
         with pytest.raises(RuntimeError, match="Default OVRTX HDRI"):
-            render_ovrtx._resolve_default_hdri(
+            render_ovrtx._default_ovrtx_hdri_path(
                 tmp_path / "missing_ovrtx_venv", require_exists=True
             )
 
@@ -2181,12 +4062,9 @@ class TestEnsureLights:
 
         from world_understanding.functions.graphics import render_ovrtx
 
-        usda = render_ovrtx._build_default_lights_usda(
-            render_ovrtx._resolve_default_hdri(),
-            render_ovrtx._resolve_default_hdri_intensity(),
-        )
+        usda = render_ovrtx.build_default_hdri_lights_usda()
 
-        assert "StinsonBeach.hdr" in usda
+        assert "studio.exr" in usda
         assert "float inputs:intensity = 600.0" in usda
         assert "asset inputs:texture:file" in usda
 
@@ -2273,6 +4151,27 @@ class TestEnsureLights:
             == 600.0
         )
 
+    def test_default_hdri_lights_usda_expands_contextual_venv_dir(
+        self, monkeypatch, tmp_path
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        home_dir = tmp_path / "home"
+        venv_dir = home_dir / "ovrtx_venv"
+        site_dir = render_ovrtx._ovrtx_site_packages_candidates(venv_dir)[0]
+        custom_hdri = site_dir / render_ovrtx._OVRTX_DEFAULT_HDRI_RELATIVE_PATH
+        custom_hdri.parent.mkdir(parents=True)
+        custom_hdri.write_bytes(b"fake-hdr")
+        monkeypatch.setenv("HOME", str(home_dir))
+        monkeypatch.setenv("WU_OVRTX_DEFAULT_HDRI", str(custom_hdri))
+        monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
+
+        usda = render_ovrtx.build_default_hdri_lights_usda(
+            venv_dir=Path("~/ovrtx_venv")
+        )
+
+        assert "float inputs:intensity = 600.0" in usda
+
     def test_default_hdri_intensity_uses_custom_fallback_for_stinson_beach_override(
         self, monkeypatch
     ):
@@ -2310,7 +4209,7 @@ class TestEnsureLights:
         )
 
     def test_env_var_overrides_default_hdri(self, monkeypatch, tmp_path):
-        """``WU_OVRTX_DEFAULT_HDRI`` overrides the ovrtx-packaged HDRI.
+        """``WU_OVRTX_DEFAULT_HDRI`` overrides the bundled default HDRI.
 
         Operators can point at a different local ``.exr``/``.hdr`` or an
         S3 URL when they want to swap lighting (e.g. a public HDRI for
@@ -2406,7 +4305,125 @@ class TestCopyExportedRelativeAssets:
         assert copied == 1
         assert (export_dir / "textures" / "checker.png").read_bytes() == b"fake-png"
 
-    def test_skips_absolute_file_uri_texture_assets(self, tmp_path):
+    def test_normalizes_dot_relative_texture_paths_in_exported_stage(self, tmp_path):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_dir = tmp_path / "source"
+        texture_dir = source_dir / "Textures"
+        texture_dir.mkdir(parents=True)
+        texture = texture_dir / "checker.png"
+        texture.write_bytes(b"fake-png")
+
+        stage_path = source_dir / "stage.usda"
+        stage = Usd.Stage.CreateNew(str(stage_path))
+        shader = UsdShade.Shader.Define(stage, "/World/Looks/Tex")
+        shader.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("./Textures/checker.png"))
+        stage.GetRootLayer().Save()
+
+        reopened = Usd.Stage.Open(str(stage_path))
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        reopened.GetRootLayer().Export(str(exported_stage_path))
+
+        copied = _copy_exported_relative_assets(
+            reopened,
+            export_dir,
+            exported_stage_path=exported_stage_path,
+        )
+
+        assert copied == 1
+        assert (export_dir / "Textures" / "checker.png").read_bytes() == b"fake-png"
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        attr = exported.GetPrimAtPath("/World/Looks/Tex").attributes["inputs:file"]
+        assert attr.default == Sdf.AssetPath("Textures/checker.png")
+
+    def test_disambiguates_colliding_relative_texture_assets(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_a = tmp_path / "a" / "textures"
+        source_b = tmp_path / "b" / "textures"
+        source_a.mkdir(parents=True)
+        source_b.mkdir(parents=True)
+        texture_a = source_a / "albedo.png"
+        texture_b = source_b / "albedo.png"
+        texture_a.write_bytes(b"texture-a")
+        texture_b.write_bytes(b"texture-b")
+
+        stage = Usd.Stage.CreateInMemory()
+        shader_a = UsdShade.Shader.Define(stage, "/World/Looks/A/Tex")
+        shader_a.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("textures/albedo.png"))
+        shader_b = UsdShade.Shader.Define(stage, "/World/Looks/B/Tex")
+        shader_b.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("textures/albedo.png"))
+
+        def fake_texture_assets(stage, base_dir=None):
+            return [
+                {
+                    "prim_path": "/World/Looks/A/Tex",
+                    "attr_name": "inputs:file",
+                    "file_path": "textures/albedo.png",
+                    "resolved_path": str(texture_a),
+                    "is_local": True,
+                },
+                {
+                    "prim_path": "/World/Looks/B/Tex",
+                    "attr_name": "inputs:file",
+                    "file_path": "textures/albedo.png",
+                    "resolved_path": str(texture_b),
+                    "is_local": True,
+                },
+            ]
+
+        import world_understanding.utils.usd.material as usd_material
+
+        monkeypatch.setattr(
+            usd_material,
+            "get_local_texture_file_assets",
+            fake_texture_assets,
+        )
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        stage.GetRootLayer().Export(str(exported_stage_path))
+
+        copied = _copy_exported_relative_assets(
+            stage,
+            export_dir,
+            exported_stage_path=exported_stage_path,
+        )
+
+        assert copied == 2
+        assert (export_dir / "textures" / "albedo.png").read_bytes() == b"texture-a"
+        digest_b = hashlib.sha256(str(texture_b.resolve()).encode("utf-8")).hexdigest()[
+            :12
+        ]
+        localized_b = export_dir / "textures" / f"albedo_{digest_b}.png"
+        assert localized_b.read_bytes() == b"texture-b"
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        attr_a = exported.GetPrimAtPath("/World/Looks/A/Tex").attributes["inputs:file"]
+        attr_b = exported.GetPrimAtPath("/World/Looks/B/Tex").attributes["inputs:file"]
+        assert attr_a.default == Sdf.AssetPath("textures/albedo.png")
+        assert attr_b.default == Sdf.AssetPath(
+            localized_b.relative_to(export_dir).as_posix(),
+        )
+
+    def test_localizes_absolute_file_uri_texture_assets(self, tmp_path):
         from pxr import Sdf, Usd, UsdShade
 
         texture = tmp_path / "checker.png"
@@ -2421,11 +4438,25 @@ class TestCopyExportedRelativeAssets:
 
         export_dir = tmp_path / "render"
         export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        stage.GetRootLayer().Export(str(exported_stage_path))
 
-        copied = _copy_exported_relative_assets(stage, export_dir)
+        copied = _copy_exported_relative_assets(
+            stage,
+            export_dir,
+            exported_stage_path=exported_stage_path,
+        )
 
-        assert copied == 0
-        assert list(export_dir.iterdir()) == []
+        copied_textures = list((export_dir / "textures").glob("checker_*.png"))
+        assert copied == 1
+        assert len(copied_textures) == 1
+        assert copied_textures[0].read_bytes() == b"fake-png"
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        attr = exported.GetPrimAtPath("/World/Looks/Tex").attributes["inputs:file"]
+        assert attr.default == Sdf.AssetPath(
+            copied_textures[0].relative_to(export_dir).as_posix(),
+        )
 
 
 class TestDefaultNumSensorUpdates:
@@ -2437,6 +4468,62 @@ class TestDefaultNumSensorUpdates:
         # (ovrtx 0.2.0 ignores the SPP schema attr). For pt-mode quality
         # parity, callers should pass num_sensor_updates=500 explicitly.
         assert DEFAULT_NUM_SENSOR_UPDATES == 32
+
+
+class TestOvRTXDaemonResourceLimits:
+    def test_nonnegative_integer_environment_parser(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        assert render_ovrtx.DEFAULT_OVRTX_DAEMON_MAX_RENDERS == 64
+        assert render_ovrtx.DEFAULT_OVRTX_DAEMON_MAX_RSS_BYTES == 24 * 1024**3
+
+        monkeypatch.delenv("TEST_OVRTX_LIMIT", raising=False)
+        assert render_ovrtx._parse_nonnegative_int_env("TEST_OVRTX_LIMIT", 7) == 7
+        monkeypatch.setenv("TEST_OVRTX_LIMIT", "")
+        assert render_ovrtx._parse_nonnegative_int_env("TEST_OVRTX_LIMIT", 7) == 7
+        monkeypatch.setenv("TEST_OVRTX_LIMIT", "0")
+        assert render_ovrtx._parse_nonnegative_int_env("TEST_OVRTX_LIMIT", 7) == 0
+
+        for invalid in ("-1", "many"):
+            monkeypatch.setenv("TEST_OVRTX_LIMIT", invalid)
+            with pytest.raises(ValueError, match="must be a non-negative integer"):
+                render_ovrtx._parse_nonnegative_int_env("TEST_OVRTX_LIMIT", 7)
+
+    def test_linux_process_rss_bytes_reads_statm_and_handles_bad_data(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        proc_root = tmp_path / "proc"
+        process_dir = proc_root / "42"
+        process_dir.mkdir(parents=True)
+        statm = process_dir / "statm"
+        statm.write_text("100 3 2 1 0 0 0\n", encoding="utf-8")
+        monkeypatch.setattr(render_ovrtx.os, "sysconf", lambda _name: 4096)
+
+        assert render_ovrtx._linux_process_rss_bytes(42, proc_root=proc_root) == 12_288
+
+        for invalid in ("", "100", "100 nope", "100 -1"):
+            statm.write_text(invalid, encoding="utf-8")
+            assert (
+                render_ovrtx._linux_process_rss_bytes(42, proc_root=proc_root) is None
+            )
+        statm.unlink()
+        assert render_ovrtx._linux_process_rss_bytes(42, proc_root=proc_root) is None
+
+    def test_linux_process_rss_bytes_rejects_invalid_page_size(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        process_dir = tmp_path / "42"
+        process_dir.mkdir()
+        (process_dir / "statm").write_text("100 3\n", encoding="utf-8")
+        monkeypatch.setattr(render_ovrtx.os, "sysconf", lambda _name: 0)
+
+        assert render_ovrtx._linux_process_rss_bytes(42, proc_root=tmp_path) is None
 
 
 class TestOvRTXDaemonLifecycle:
@@ -2464,6 +4551,18 @@ class TestOvRTXDaemonLifecycle:
         )
         return str(script)
 
+    @staticmethod
+    def _render_params(tmp_path: Path) -> dict[str, Any]:
+        return {
+            "cameras": ["/Camera"],
+            "usd_path": "/fake/stage.usdc",
+            "fps": 24.0,
+            "frames": [],
+            "sensors": [],
+            "output_dir": str(tmp_path),
+            "product_paths": [],
+        }
+
     def test_start_and_shutdown(self, tmp_path):
         """Daemon starts, is running, then shuts down cleanly."""
         import sys
@@ -2474,6 +4573,133 @@ class TestOvRTXDaemonLifecycle:
         assert daemon._is_running()
         daemon.shutdown()
         assert not daemon._is_running()
+
+    def test_completed_render_limit_recycles_before_next_request(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "1")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+
+        daemon.render(self._render_params(tmp_path))
+        first_pid = daemon._process.pid
+        first_snapshot = daemon.lifecycle_snapshot()
+        assert first_snapshot["daemon_completed_renders"] == 1
+        assert (
+            first_snapshot["daemon_pending_recycle_reason"] == "completed_render_limit"
+        )
+
+        daemon.render(self._render_params(tmp_path))
+        second_snapshot = daemon.lifecycle_snapshot()
+        assert daemon._process.pid != first_pid
+        assert second_snapshot["daemon_completed_renders"] == 1
+        assert second_snapshot["daemon_recycle_count"] == 1
+        assert second_snapshot["daemon_last_recycle_reason"] == "completed_render_limit"
+        daemon.shutdown()
+
+    def test_rss_limit_recycles_pathological_daemon_before_count_limit(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "100")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "100")
+        rss_samples = iter([10, 10, 200, 200, 200, 10, 20, 20])
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_linux_process_rss_bytes",
+            lambda _pid: next(rss_samples),
+        )
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+
+        daemon.render(self._render_params(tmp_path))
+        first_pid = daemon._process.pid
+        assert (
+            daemon.lifecycle_snapshot()["daemon_pending_recycle_reason"] == "rss_limit"
+        )
+
+        daemon.render(self._render_params(tmp_path))
+        snapshot = daemon.lifecycle_snapshot()
+        assert daemon._process.pid != first_pid
+        assert snapshot["daemon_recycle_count"] == 1
+        assert snapshot["daemon_last_recycle_reason"] == "rss_limit"
+        assert snapshot["daemon_completed_renders"] == 1
+        daemon.shutdown()
+
+    def test_zero_limits_preserve_persistent_daemon(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "0")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+
+        daemon.render(self._render_params(tmp_path))
+        first_pid = daemon._process.pid
+        daemon.render(self._render_params(tmp_path))
+        snapshot = daemon.lifecycle_snapshot()
+
+        assert daemon._process.pid == first_pid
+        assert snapshot["daemon_completed_renders"] == 2
+        assert snapshot["daemon_recycle_count"] == 0
+        assert snapshot["daemon_pending_recycle_reason"] is None
+        daemon.shutdown()
+
+    def test_recycle_counters_reset_only_after_successful_restart(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "1")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+        daemon.render(self._render_params(tmp_path))
+
+        monkeypatch.setattr(
+            daemon,
+            "_start",
+            unittest.mock.Mock(side_effect=RuntimeError("restart failed")),
+        )
+        with pytest.raises(RuntimeError, match="restart failed"):
+            daemon.render(self._render_params(tmp_path))
+
+        snapshot = daemon.lifecycle_snapshot()
+        assert snapshot["daemon_completed_renders"] == 1
+        assert snapshot["daemon_recycle_count"] == 0
+        assert snapshot["daemon_pending_recycle_reason"] == "completed_render_limit"
+        daemon.shutdown()
+
+    def test_ensure_running_completes_a_previously_failed_recycle(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "1")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+        daemon.render(self._render_params(tmp_path))
+
+        original_start = daemon._start
+        monkeypatch.setattr(
+            daemon,
+            "_start",
+            unittest.mock.Mock(side_effect=RuntimeError("restart failed")),
+        )
+        with pytest.raises(RuntimeError, match="restart failed"):
+            daemon.render(self._render_params(tmp_path))
+
+        monkeypatch.setattr(daemon, "_start", original_start)
+        daemon.ensure_running()
+        replacement_pid = daemon._process.pid
+        snapshot = daemon.lifecycle_snapshot()
+        assert snapshot["daemon_completed_renders"] == 0
+        assert snapshot["daemon_recycle_count"] == 1
+        assert snapshot["daemon_last_recycle_reason"] == "completed_render_limit"
+        assert snapshot["daemon_pending_recycle_reason"] is None
+
+        daemon.render(self._render_params(tmp_path))
+        assert daemon._process.pid == replacement_pid
+        daemon.shutdown()
 
     def test_start_passes_site_dir_for_explicit_venv(
         self, tmp_path, monkeypatch: pytest.MonkeyPatch
@@ -3319,7 +5545,7 @@ class TestOvRTXTimeSampledSupport:
         assert captured["frame_zero_overlay_visibility"] == UsdGeom.Tokens.invisible
         assert result["successful_cameras"] == 1
 
-    def test_render_all_cameras_adds_ovrtx_preview_fallback_to_export(
+    def test_render_all_cameras_preview_surface_target_adds_fallback_to_export(
         self, monkeypatch
     ):
         from PIL import Image
@@ -3347,6 +5573,7 @@ class TestOvRTXTimeSampledSupport:
 
         def fake_run(cmd, **kwargs):
             params = _worker_params_from_command(cmd)
+            captured["material_target"] = params["material_target"]
             exported_stage = Usd.Stage.Open(params["usd_path"])
             exported_material = UsdShade.Material(
                 exported_stage.GetPrimAtPath("/World/Looks/Gold"),
@@ -3398,12 +5625,17 @@ class TestOvRTXTimeSampledSupport:
             cameras=["/Camera"],
             frames="0",
             num_sensor_updates=1,
+            material_target="preview_surface",
         )
 
         assert result["successful_cameras"] == 1
-        assert captured == {"shader_id": "UsdPreviewSurface", "mtlx_connected": False}
+        assert captured == {
+            "material_target": "preview_surface",
+            "shader_id": "UsdPreviewSurface",
+            "mtlx_connected": False,
+        }
 
-    def test_render_all_cameras_adds_ovrtx_preview_fallback_for_sublayered_material(
+    def test_render_all_cameras_preview_surface_target_adds_fallback_for_sublayered_material(
         self, monkeypatch, tmp_path
     ):
         from PIL import Image
@@ -3439,6 +5671,7 @@ class TestOvRTXTimeSampledSupport:
 
         def fake_run(cmd, **kwargs):
             params = _worker_params_from_command(cmd)
+            captured["material_target"] = params["material_target"]
             exported_stage = Usd.Stage.Open(params["usd_path"])
             exported_material = UsdShade.Material(
                 exported_stage.GetPrimAtPath("/World/Looks/Gold"),
@@ -3490,10 +5723,110 @@ class TestOvRTXTimeSampledSupport:
             cameras=["/Camera"],
             frames="0",
             num_sensor_updates=1,
+            material_target="preview_surface",
         )
 
         assert result["successful_cameras"] == 1
-        assert captured == {"shader_id": "UsdPreviewSurface", "mtlx_connected": False}
+        assert captured == {
+            "material_target": "preview_surface",
+            "shader_id": "UsdPreviewSurface",
+            "mtlx_connected": False,
+        }
+
+    @pytest.mark.parametrize("material_target", [None, "auto", "openpbr_materialx"])
+    def test_render_all_cameras_preserving_targets_do_not_add_preview_fallback(
+        self, monkeypatch, material_target
+    ):
+        from PIL import Image
+        from pxr import Sdf, Usd, UsdGeom, UsdLux, UsdShade
+
+        stage = Usd.Stage.CreateInMemory()
+        UsdGeom.Camera.Define(stage, "/Camera")
+        UsdLux.DomeLight.Define(stage, "/World/Light")
+        material = UsdShade.Material.Define(stage, "/World/Looks/Gold")
+
+        shader = UsdShade.Shader.Define(
+            stage,
+            "/World/Looks/Gold/open_pbr_surface_surfaceshader",
+        )
+        shader.CreateIdAttr("ND_open_pbr_surface_surfaceshader")
+        material.CreateSurfaceOutput("mtlx").ConnectToSource(
+            shader.CreateOutput("out", Sdf.ValueTypeNames.Token),
+        )
+
+        captured: dict[str, object] = {}
+
+        def fake_run(cmd, **kwargs):
+            params = _worker_params_from_command(cmd)
+            captured["material_target"] = params["material_target"]
+            exported_stage = Usd.Stage.Open(params["usd_path"])
+            exported_material = UsdShade.Material(
+                exported_stage.GetPrimAtPath("/World/Looks/Gold"),
+            )
+            surface = exported_material.GetSurfaceOutput()
+            captured["universal_connected"] = bool(
+                surface and surface.HasConnectedSource(),
+            )
+            captured["mtlx_connected"] = exported_material.GetSurfaceOutput(
+                "mtlx",
+            ).HasConnectedSource()
+            captured["has_preview_child"] = exported_stage.GetPrimAtPath(
+                "/World/Looks/Gold/OVRTXPreviewSurface",
+            ).IsValid()
+
+            output_dir = Path(params["output_dir"])
+            image_name = "camera_0.png"
+            Image.new("RGBA", (16, 16), (255, 192, 84, 255)).save(
+                output_dir / image_name,
+            )
+            (output_dir / "manifest.json").write_text(
+                json.dumps(
+                    [
+                        {
+                            "camera": "/Camera",
+                            "image_files": [image_name],
+                            "sensor_files": {},
+                            "frame_count": 1,
+                        }
+                    ],
+                ),
+            )
+            return unittest.mock.Mock(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+            lambda venv_dir=None: "/fake/python",
+        )
+        monkeypatch.setattr(
+            "world_understanding.functions.graphics.render_ovrtx.subprocess.run",
+            fake_run,
+        )
+
+        from world_understanding.functions.graphics.render_ovrtx import (
+            render_all_cameras,
+        )
+
+        render_kwargs = {}
+        if material_target is not None:
+            render_kwargs["material_target"] = material_target
+        result = render_all_cameras(
+            stage=stage,
+            image_width=16,
+            image_height=16,
+            cameras=["/Camera"],
+            frames="0",
+            num_sensor_updates=1,
+            **render_kwargs,
+        )
+
+        assert result["successful_cameras"] == 1
+        expected_material_target = material_target or "auto"
+        assert captured == {
+            "material_target": expected_material_target,
+            "universal_connected": False,
+            "mtlx_connected": True,
+            "has_preview_child": False,
+        }
 
 
 class TestRenderAllCamerasBackwardCompat:
@@ -3504,10 +5837,15 @@ class TestRenderAllCamerasBackwardCompat:
         monkeypatch.setenv(
             "WU_OVRTX_DEFAULT_HDRI", "https://example.invalid/StinsonBeach.hdr"
         )
+        monkeypatch.delenv("DISPLAY", raising=False)
         with (
             unittest.mock.patch(
                 "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
                 return_value="/fake/python",
+            ),
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx._ovrtx_site_dir_env_for_python",
+                return_value="/fake/site-packages",
             ),
             unittest.mock.patch(
                 "world_understanding.functions.graphics.render_ovrtx.subprocess.run",
@@ -3528,6 +5866,11 @@ class TestRenderAllCamerasBackwardCompat:
                 render_all_cameras(stage=stage, daemon=None)
 
             mock_run.assert_called_once()
+            assert (
+                mock_run.call_args.kwargs["env"]["_WU_OVRTX_SITE_DIR"]
+                == "/fake/site-packages"
+            )
+            assert mock_run.call_args.kwargs["env"]["DISPLAY"] == ":0"
 
     def test_old_positional_daemon_and_base_dir_tail_still_binds(
         self, tmp_path, monkeypatch
@@ -3586,8 +5929,69 @@ class TestRenderAllCamerasBackwardCompat:
 
         fake_daemon.ensure_running.assert_called_once_with()
         fake_daemon.render.assert_called_once()
+        params = fake_daemon.render.call_args.args[0]
+        assert params["material_target"] == "auto"
         assert result["successful_cameras"] == 1
         assert result["results"][0]["images"][0].size == (4, 4)
+
+    def test_daemon_payload_includes_explicit_material_target(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Persistent daemon requests should receive the normalized material target."""
+        from PIL import Image
+        from pxr import Usd
+
+        from world_understanding.functions.graphics.render_ovrtx import (
+            render_all_cameras,
+        )
+
+        monkeypatch.setenv(
+            "WU_OVRTX_DEFAULT_HDRI", "https://example.invalid/StinsonBeach.hdr"
+        )
+        monkeypatch.setattr(
+            "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+            lambda venv_dir=None: str(
+                tmp_path / "ovrtx_venv" / "Scripts" / "python.exe"
+            ),
+        )
+
+        stage = Usd.Stage.CreateInMemory()
+        fake_daemon = unittest.mock.Mock()
+
+        def fake_render(params):
+            output_dir = Path(params["output_dir"])
+            image_name = "camera0_frame0.png"
+            Image.new("RGB", (4, 4), (1, 2, 3)).save(output_dir / image_name)
+            return [
+                {
+                    "camera": "/Camera",
+                    "image_files": [image_name],
+                    "sensor_files": {},
+                    "frame_count": 1,
+                }
+            ]
+
+        fake_daemon.render.side_effect = fake_render
+
+        result = render_all_cameras(
+            stage=stage,
+            image_width=4,
+            image_height=4,
+            cameras=["/Camera"],
+            frames="0",
+            num_sensor_updates=1,
+            daemon=fake_daemon,
+            base_dir=tmp_path,
+            material_target="openpbr",
+        )
+
+        fake_daemon.ensure_running.assert_called_once_with()
+        fake_daemon.render.assert_called_once()
+        params = fake_daemon.render.call_args.args[0]
+        assert params["material_target"] == "openpbr_materialx"
+        assert result["successful_cameras"] == 1
 
     @pytest.mark.parametrize(
         "sample_kwargs",
@@ -3713,7 +6117,7 @@ class TestOvRTXBackendCreatesDaemon:
 class TestOvRTXBackendNumSensorUpdatesPrecedence:
     """Verify OvRTXRenderingBackend.render's per-call num_sensor_updates override."""
 
-    def _make_backend(self, num_sensor_updates: int, tmp_path):
+    def _make_backend(self, num_sensor_updates: int, tmp_path, **kwargs):
         from world_understanding.functions.graphics.rendering import (
             OvRTXRenderingBackend,
         )
@@ -3727,6 +6131,7 @@ class TestOvRTXBackendNumSensorUpdatesPrecedence:
             return OvRTXRenderingBackend(
                 num_sensor_updates=num_sensor_updates,
                 ovrtx_venv_dir=str(venv_dir),
+                **kwargs,
             )
 
     def test_none_falls_back_to_instance_default(self, tmp_path):
@@ -3778,6 +6183,96 @@ class TestOvRTXBackendNumSensorUpdatesPrecedence:
 
         kwargs = mock_render.call_args.kwargs
         assert kwargs["base_dir"] == asset_root
+
+    def test_material_target_passes_through_to_ovrtx_render(self, tmp_path):
+        from pxr import Usd
+
+        backend = self._make_backend(num_sensor_updates=7, tmp_path=tmp_path)
+        stage = Usd.Stage.CreateInMemory()
+
+        with unittest.mock.patch(
+            "world_understanding.functions.graphics.render_ovrtx.render_all_cameras",
+            return_value={"results": []},
+        ) as mock_render:
+            backend.render(stage=stage, material_target="openpbr_materialx")
+
+        kwargs = mock_render.call_args.kwargs
+        assert kwargs["material_target"] == "openpbr_materialx"
+
+    def test_material_target_is_public_backend_attribute(self, tmp_path):
+        backend = self._make_backend(num_sensor_updates=7, tmp_path=tmp_path)
+
+        assert backend.material_target == "auto"
+
+    def test_add_preview_fallbacks_is_public_backend_attribute(self, tmp_path):
+        backend = self._make_backend(num_sensor_updates=7, tmp_path=tmp_path)
+
+        assert backend.add_preview_fallbacks is False
+
+    def test_preview_surface_target_sets_public_fallback_attribute(self, tmp_path):
+        backend = self._make_backend(
+            num_sensor_updates=7,
+            tmp_path=tmp_path,
+            material_target="preview_surface",
+        )
+
+        assert backend.material_target == "preview_surface"
+        assert backend.add_preview_fallbacks is True
+
+    def test_legacy_preview_fallbacks_request_maps_to_preview_target(self, tmp_path):
+        from pxr import Usd
+
+        backend = self._make_backend(
+            num_sensor_updates=7,
+            tmp_path=tmp_path,
+            add_preview_fallbacks=True,
+        )
+        stage = Usd.Stage.CreateInMemory()
+
+        with unittest.mock.patch(
+            "world_understanding.functions.graphics.render_ovrtx.render_all_cameras",
+            return_value={"results": []},
+        ) as mock_render:
+            backend.render(stage=stage)
+
+        kwargs = mock_render.call_args.kwargs
+        assert backend.material_target == "auto"
+        assert backend.add_preview_fallbacks is True
+        assert kwargs["material_target"] == "preview_surface"
+
+    def test_explicit_material_target_beats_legacy_preview_fallbacks(self, tmp_path):
+        from pxr import Usd
+
+        backend = self._make_backend(
+            num_sensor_updates=7,
+            tmp_path=tmp_path,
+            add_preview_fallbacks=True,
+        )
+        stage = Usd.Stage.CreateInMemory()
+
+        with unittest.mock.patch(
+            "world_understanding.functions.graphics.render_ovrtx.render_all_cameras",
+            return_value={"results": []},
+        ) as mock_render:
+            backend.render(stage=stage, material_target="openpbr")
+
+        kwargs = mock_render.call_args.kwargs
+        assert kwargs["material_target"] == "openpbr_materialx"
+
+    def test_per_call_preview_fallbacks_request_maps_to_preview_target(self, tmp_path):
+        from pxr import Usd
+
+        backend = self._make_backend(num_sensor_updates=7, tmp_path=tmp_path)
+        stage = Usd.Stage.CreateInMemory()
+
+        with unittest.mock.patch(
+            "world_understanding.functions.graphics.render_ovrtx.render_all_cameras",
+            return_value={"results": []},
+        ) as mock_render:
+            backend.render(stage=stage, add_preview_fallbacks=True)
+
+        kwargs = mock_render.call_args.kwargs
+        assert kwargs["material_target"] == "preview_surface"
 
 
 # ---------------------------------------------------------------------------

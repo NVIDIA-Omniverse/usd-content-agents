@@ -14,6 +14,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from world_understanding.utils.logging import setup_logging
+from world_understanding.utils.public_response import (
+    PublicJsonResponseSanitizationMiddleware,
+)
 
 from .utils import AccessLogFilter
 
@@ -35,12 +38,13 @@ from .routers import (  # noqa: E402
     pipeline_router,
     sessions_router,
 )
+from .runtime.registry import get_job_registry  # noqa: E402
 from .session.manager import SessionManager  # noqa: E402
 
 # Setup logging from config
 setup_logging()
 
-if sys.platform == "win32":
+if sys.platform == "win32":  # pragma: no cover - Windows-only import-time setup
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -55,32 +59,8 @@ logger = logging.getLogger(__name__)
 
 
 def _get_max_active_sessions() -> int:
-    """Parse TA_MAX_ACTIVE_SESSIONS from environment with safe fallback."""
-    default_limit = 4
-    env_value = os.getenv("TA_MAX_ACTIVE_SESSIONS")
-
-    if env_value is None:
-        return default_limit
-
-    try:
-        limit = int(env_value)
-        if limit < 0:
-            logger.error(
-                "TA_MAX_ACTIVE_SESSIONS must be non-negative, got '%s'. "
-                "Falling back to default: %d",
-                env_value,
-                default_limit,
-            )
-            return default_limit
-        return limit
-    except ValueError:
-        logger.error(
-            "TA_MAX_ACTIVE_SESSIONS must be a valid integer, got '%s'. "
-            "Falling back to default: %d",
-            env_value,
-            default_limit,
-        )
-        return default_limit
+    """Return the capacity enforced by the process-wide job registry."""
+    return get_job_registry().max_concurrent
 
 
 @asynccontextmanager
@@ -96,6 +76,11 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "NVIDIA_API_KEY not set. Image generation and NVCF rendering "
             "may be unavailable."
+        )
+    if not config.has_required_api_keys:
+        logger.warning(
+            "Required API keys are not configured for the active texture LLM "
+            "backend. Auto-prompt generation may fall back or fail."
         )
 
     store = config.build_session_store()
@@ -131,7 +116,7 @@ async def lifespan(app: FastAPI):
     # Start periodic session cleanup (every 30 minutes)
     from .runtime.bus import get_event_bus
 
-    async def _cleanup_loop():
+    async def _cleanup_loop():  # pragma: no cover - periodic service loop
         while True:
             await asyncio.sleep(30 * 60)
             try:
@@ -196,6 +181,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(
+    PublicJsonResponseSanitizationMiddleware,
+    session_roots=(config.session_storage_path,),
+)
 
 # Include routers
 app.include_router(pipeline_router.router)
@@ -225,6 +214,9 @@ async def health_check():
         "version": config.service_version,
         "image_gen_backend": config.image_gen_backend,
         "active_backend_key_configured": active_backend_key_configured,
+        "llm_backend": config.llm_backend,
+        "llm_ready": config.llm_ready,
+        "llm_api_keys_configured": config.has_required_api_keys,
         "nvidia_api_key_configured": bool(config.nvidia_api_key),
         "max_active_sessions": _get_max_active_sessions(),
     }
@@ -242,6 +234,7 @@ async def root_api_info():
             "pipeline": {
                 "upload_usd": "POST /pipeline/upload-usd",
                 "create": "POST /pipeline",
+                "plan": "GET /pipeline/{session_id}/plan",
                 "status": "GET /pipeline/{session_id}/status",
                 "results": "GET /pipeline/{session_id}/results",
                 "cancel": "POST /pipeline/{session_id}/cancel",

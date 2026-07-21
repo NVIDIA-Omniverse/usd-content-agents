@@ -51,8 +51,9 @@ dependencies:
   image_gen:
     enabled: false
     provider: external
-    # OpenAI-compatible /v1 image endpoint for texture generation and optional
-    # material generated reference images.
+    # OpenAI-compatible /v1 image endpoint shared by Texture Agent texture generation,
+    # Material Agent-generated reference images, and
+    # Material Agent-generated material-library textures.
     endpoint: ""
     backend: openai
     model: black-forest-labs/flux.2-klein-4b

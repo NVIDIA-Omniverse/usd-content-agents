@@ -18,6 +18,7 @@ public contract:
 from __future__ import annotations
 
 import asyncio
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -168,6 +169,7 @@ def test_refine_input_accepts_dict_scenario(tmp_path: Path) -> None:
     )
     assert isinstance(params.scenario, dict)
     assert params.scenario["name"] == "drop_settle"
+    assert params.history_window == 20
 
 
 def test_refine_input_rejects_zero_iterations(tmp_path: Path) -> None:
@@ -180,6 +182,56 @@ def test_refine_input_rejects_zero_iterations(tmp_path: Path) -> None:
             user_prompt="bouncy",
             output_dir=tmp_path / "out",
             max_iterations=0,
+        )
+
+
+def test_refine_input_rejects_rest_incompatible_bounds(tmp_path: Path) -> None:
+    from physics_agent.api.refine import RefineInput
+
+    base = {
+        "scenario": _scenario_yaml_dict(),
+        "physics_usd": _fake_usd(tmp_path),
+        "user_prompt": "bouncy",
+        "output_dir": tmp_path / "out",
+    }
+
+    assert RefineInput(**base, max_iterations=12).max_iterations == 12
+
+    with pytest.raises(ValueError, match="max_iterations"):
+        RefineInput(**base, max_iterations=13)
+
+    with pytest.raises(ValueError, match="max_trials"):
+        RefineInput(**base, max_trials=1001)
+
+    with pytest.raises(ValueError, match="score_threshold"):
+        RefineInput(**base, score_threshold=1.1)
+
+    with pytest.raises(ValueError, match="score_threshold"):
+        RefineInput(**base, score_threshold=float("nan"))
+
+    with pytest.raises(ValueError, match="llm_timeout_seconds"):
+        RefineInput(**base, llm_timeout_seconds=float("inf"))
+
+    with pytest.raises(ValueError, match="reference_video_frames"):
+        RefineInput(**base, reference_video_frames=0)
+
+    with pytest.raises(ValueError, match="judge_reference_frames"):
+        RefineInput(**base, judge_reference_frames=65)
+
+    with pytest.raises(ValueError, match="judge_generated_frames"):
+        RefineInput(**base, judge_generated_frames=0)
+
+
+def test_refine_input_rejects_negative_history_window(tmp_path: Path) -> None:
+    from physics_agent.api.refine import RefineInput
+
+    with pytest.raises(ValueError, match="history_window"):
+        RefineInput(
+            scenario=_scenario_yaml_dict(),
+            physics_usd=_fake_usd(tmp_path),
+            user_prompt="bouncy",
+            output_dir=tmp_path / "out",
+            history_window=-1,
         )
 
 
@@ -215,6 +267,19 @@ def test_refine_input_rejects_invalid_force_record_video(tmp_path: Path) -> None
             user_prompt="bouncy",
             output_dir=tmp_path / "out",
             force_record_video="bogus",
+        )
+
+
+def test_refine_input_rejects_invalid_cancel_event(tmp_path: Path) -> None:
+    from physics_agent.api.refine import RefineInput
+
+    with pytest.raises(TypeError, match="cancel_event"):
+        RefineInput(
+            scenario=_scenario_yaml_dict(),
+            physics_usd=_fake_usd(tmp_path),
+            user_prompt="bouncy",
+            output_dir=tmp_path / "out",
+            cancel_event=object(),
         )
 
 
@@ -337,6 +402,8 @@ class _FakeIterativeResult:
         iterations: list[Any] | None = None,
         final_iteration: int = 1,
         final_dir: Path | None = None,
+        final_recording_usd: Path | None = None,
+        final_recording_error: str | None = None,
         user_prompt: str = "bouncy",
     ) -> None:
         self.output_dir = output_dir
@@ -344,6 +411,8 @@ class _FakeIterativeResult:
         self.iterations = iterations or []
         self.final_iteration = final_iteration
         self.final_dir = final_dir
+        self.final_recording_usd = final_recording_usd
+        self.final_recording_error = final_recording_error
         self.user_prompt = user_prompt
 
 
@@ -379,6 +448,8 @@ def test_run_refine_happy_path(tmp_path: Path, monkeypatch) -> None:
 
     final_dir = tmp_path / "final"
     final_dir.mkdir()
+    final_recording = final_dir / "recording.usd"
+    final_recording.write_bytes(b"recording")
 
     class _FakeTask:
         last_kwargs: dict[str, Any] | None = None
@@ -394,6 +465,7 @@ def test_run_refine_happy_path(tmp_path: Path, monkeypatch) -> None:
                 iterations=[_FakeIterationRecord(1, judge_decision="approve")],
                 final_iteration=1,
                 final_dir=final_dir,
+                final_recording_usd=final_recording,
                 user_prompt="bouncy",
             )
 
@@ -402,14 +474,20 @@ def test_run_refine_happy_path(tmp_path: Path, monkeypatch) -> None:
         _FakeTask,
     )
 
+    cancel_event = threading.Event()
     params = RefineInput(
         scenario=_scenario_yaml_dict(),
         physics_usd=_fake_usd(tmp_path),
         user_prompt="bouncy",
         output_dir=tmp_path / "out",
         max_iterations=1,
+        history_window=7,
         judge_max_tokens=777,
         judge_temperature=0.25,
+        reference_video_frames=12,
+        judge_reference_frames=11,
+        judge_generated_frames=22,
+        cancel_event=cancel_event,
     )
 
     result = run_refine(params)
@@ -418,13 +496,20 @@ def test_run_refine_happy_path(tmp_path: Path, monkeypatch) -> None:
     assert result.iteration_count == 1
     assert result.final_iteration == 1
     assert result.final_dir == final_dir
+    assert result.final_recording_usd == final_recording
+    assert result.final_recording_error is None
     assert result.iterations[0].judge_decision == "approve"
     assert result.iterations[0].judge_score == pytest.approx(0.9)
     assert result.final_judge_score == pytest.approx(0.9)
     assert _FakeTask.last_kwargs is not None
+    assert _FakeTask.last_kwargs["history_window"] == 7
     assert _FakeTask.last_kwargs["judge_max_tokens"] == 777
     assert _FakeTask.last_kwargs["judge_temperature"] == 0.25
+    assert _FakeTask.last_kwargs["reference_video_frames"] == 12
+    assert _FakeTask.last_kwargs["judge_reference_frames"] == 11
+    assert _FakeTask.last_kwargs["judge_generated_frames"] == 22
     assert _FakeTask.last_kwargs["visual_evidence_enabled"] is True
+    assert _FakeTask.last_kwargs["cancel_event"] is cancel_event
 
 
 def test_run_refine_passes_visual_evidence_disabled(
@@ -520,8 +605,10 @@ def test_run_refine_coerces_non_finite_scores(tmp_path: Path, monkeypatch) -> No
 
 def test_run_refine_surfaces_error_termination(tmp_path: Path, monkeypatch) -> None:
     """``termination_reason="error"`` must map to ``success=False`` and
-    propagate the first iteration's error message."""
+    publish only fixed, value-free failure diagnostics."""
     from physics_agent.api.refine import RefineInput, run_refine
+
+    sentinel = "refine-iteration-provider-secret-713"
 
     class _FakeTask:
         def __init__(self, **_kwargs: Any) -> None:
@@ -532,9 +619,7 @@ def test_run_refine_surfaces_error_termination(tmp_path: Path, monkeypatch) -> N
                 output_dir=tmp_path / "out",
                 termination_reason="error",
                 iterations=[
-                    _FakeIterationRecord(
-                        1, judge_decision="skipped", error="tune blew up"
-                    )
+                    _FakeIterationRecord(1, judge_decision="skipped", error=sentinel)
                 ],
             )
 
@@ -554,7 +639,9 @@ def test_run_refine_surfaces_error_termination(tmp_path: Path, monkeypatch) -> N
     result = run_refine(params)
     assert result.success is False
     assert result.termination_reason == "error"
-    assert result.error == "tune blew up"
+    assert result.error == "Physics refinement failed"
+    assert result.iterations[0].error == "Physics refinement iteration failed"
+    assert sentinel not in repr(result)
 
 
 def test_arun_refine_is_awaitable(tmp_path: Path, monkeypatch) -> None:

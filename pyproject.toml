@@ -22,7 +22,9 @@ dependencies = [
     "pillow>=12.1.1,<13.0.0",
     "aiofiles==24.1.0",
     "httpx>=0.27.0",
-    "requests>=2.31",
+    # Floor lifted for GHSA-gc5v-m9x4-r6x2 (temp file reuse in
+    # extract_zipped_paths).
+    "requests>=2.33.0",
     # Floor lifted for CVE-2026-44431 / CVE-2026-44432 (urllib3 HTTP
     # response-handling issues).
     # urllib3 is otherwise transitive through requests/botocore and can resolve
@@ -35,35 +37,37 @@ dependencies = [
     "pyasn1>=0.6.3,<1.0.0",
     "protobuf>=6.33.6,<7.0.0",
     "python-dotenv==1.2.2",
-    "filelock>=3.13.0",
-    "langchain-openai>=1.1.0,<2.0.0",
-    "langchain-anthropic>=1.4.0,<2.0.0",
+    # Floor lifted for GHSA-w853-jp5j-5j7f and GHSA-qmgc-5h2g-mvrw
+    # (TOCTOU/symlink handling in SoftFileLock).
+    "filelock>=3.20.3",
+    # Floor lifted for GHSA-r7w7-9xr2-qq2r (image token counting SSRF
+    # protection bypass via DNS rebinding).
+    "langchain-openai>=1.1.14,<2.0.0",
+    # Floor lifted for GHSA-gr75-jv2w-4656 (path traversal and sandbox escape
+    # in file-search middleware and loaders).
+    "langchain-anthropic>=1.4.6,<2.0.0",
     "langchain-google-genai>=4.2.0,<5.0.0",
-    # Keep this integration out of the 1.2.x range so scanner-generated
-    # LangChain CPE aliases do not collide with langchain-core 1.2.1-era CVEs.
-    "langchain-nvidia-ai-endpoints>=1.3.0,<2.0.0",
-    # Floor lifted for CVE-2025-68664 / CVE-2026-44843 (LangChain unsafe
-    # deserialization issues). This also stays above the CVE-2026-34070
-    # path-traversal fixed version.
+    # Black Duck reports 1.4.1 as the BDSA-2026-10450 fixed release. Keep the
+    # consumer floor at the reviewed 1.4.3 resolution so wheel/sdist and
+    # lowest-resolution installs cannot drift behind the release evidence.
+    "langchain-nvidia-ai-endpoints>=1.4.3,<2.0.0",
+    # Floor lifted for CVE-2025-68664 / CVE-2026-44843 and
+    # BDSA-2026-10450 (LangChain unsafe deserialization issues). This also
+    # stays above the CVE-2026-34070 path-traversal fixed version.
     # The langchain-* packages allow very old langchain-core releases, so the
     # floor is pinned explicitly.
-    "langchain-core>=1.4.0,<2",
-    # Floor lifted for GHSA-3644-q5cj-c5c7 in transitive LangSmith prompt
-    # manifest handling.
-    "langsmith>=0.8.0,<1.0.0",
+    "langchain-core>=1.4.9,<2",
+    # Floors lifted for GHSA-3644-q5cj-c5c7 in prompt manifest handling and
+    # GHSA-f4xh-w4cj-qxq8 in TracingMiddleware attachment handling.
+    "langsmith>=0.8.18,<1.0.0",
     "faiss-cpu==1.12.0",
     "gradio_client==1.12.1",
     "boto3>=1.35.0,<2.0.0",
     "websocket-client==1.8.0",
-    # Public usd-core does not ship Linux ARM64 wheels; usd-exchange bundles
-    # compatible pxr/OpenUSD bindings for Linux aarch64 on Python 3.12.
-    # Linux aarch64 on Python 3.13+ keeps the usd-core dependency so resolution
-    # fails loudly if no compatible wheel is available, instead of installing
-    # without a package that provides pxr.
-    # Its ARM64 wheels also omit pxr.UsdVol; traversal filters fall back to
+    # usd-exchange provides the pxr/OpenUSD bindings used by the project.
+    # Its wheels may omit pxr.UsdVol; traversal filters fall back to
     # exact typeName matching for concrete UsdVol schemas.
-    "usd-exchange>=2.2.2,<3; platform_system == 'Linux' and platform_machine == 'aarch64' and python_version < '3.13'",
-    "usd-core>=24.11; platform_system != 'Linux' or platform_machine != 'aarch64' or python_version >= '3.13'",
+    "usd-exchange>=2.3,<3",
     "usd-search-client==1.2.0",
     "google-genai>=1.56.0,<2.0.0",
     "pypdfium2>=4.30.0",
@@ -85,6 +89,9 @@ dev = [
     "pytest-asyncio>=1.3.0,<2",
     "pytest-cov==6.2.1",
     "pytest-xdist>=3.6.0",
+    "fastapi>=0.115.8,<1.0.0",
+    "starlette>=1.3.1,<2.0.0",
+    "uvicorn[standard]>=0.34.0,<1.0.0",
     "packaging>=25.0",
     "ruff==0.12.9",
     "mypy==1.17.1",
@@ -124,8 +131,7 @@ aws = [
     "boto3>=1.42.42,<2.0.0",
 ]
 usd = [
-    "usd-exchange>=2.2.2,<3; platform_system == 'Linux' and platform_machine == 'aarch64' and python_version < '3.13'",
-    "usd-core>=24.11; platform_system != 'Linux' or platform_machine != 'aarch64' or python_version >= '3.13'",
+    "usd-exchange>=2.3,<3",
 ]
 ovrtx = ["ovrtx==0.3.0.312915"]
 warp = [
@@ -149,6 +155,9 @@ wu = "world_understanding.cli:app"
 packages = ["world_understanding"]
 ignore-vcs = true
 
+[tool.hatch.build.targets.wheel.force-include]
+"world_understanding/functions/graphics/pylock.ovrtx-runtime.toml" = "world_understanding/functions/graphics/pylock.ovrtx-runtime.toml"
+
 [build-system]
 requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
@@ -157,7 +166,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "VERSION.md" }
 
 [tool.hatch.version]
@@ -165,15 +174,30 @@ source = "uv-dynamic-versioning"
 
 [tool.uv]
 # Keep release-candidate public notice generation deterministic until the
-# checked-in THIRD_PARTY_NOTICE.md is intentionally regenerated.
+# checked-in THIRD_PARTY_NOTICE.md is intentionally regenerated. Exact pins lock
+# known notice-only resolver choices; floor constraints only cap security
+# scanner findings where multiple newer transitive versions remain acceptable.
 constraint-dependencies = [
     "anthropic==0.104.1",
+    # Floors lifted for source-scan findings in transitive dependencies:
+    # aiohttp request/body/cookie handling advisories and cryptography wheels
+    # bundling vulnerable OpenSSL.
+    "aiohttp>=3.14.1",
+    "cryptography>=48.0.1",
     "idna==3.16",
-    "langchain-anthropic==1.4.3",
+    "langchain-anthropic==1.4.6",
     "langchain-google-genai==4.2.3",
-    "langchain-protocol==0.0.15",
-    "langsmith==0.8.5",
-    "starlette==1.1.0",
+    # langchain-core 1.4.9 requires langchain-protocol>=0.0.17. Keep the
+    # notice-only resolver deterministic at the reviewed compatible release.
+    "langchain-protocol==0.0.18",
+    "langsmith==0.8.18",
+    # The public notice generator resolves from project metadata instead of
+    # uv.lock. Pin the reviewed PDFium wheel so notice regeneration cannot
+    # drift independently of the checked-in lock and notice.
+    "pypdfium2==5.12.0",
+    # Keep exact pin for deterministic third-party notice generation while
+    # staying above GHSA-82w8-qh3p-5jfq and GHSA-jp82-jpqv-5vv3.
+    "starlette==1.3.1",
 ]
 
 [[tool.uv.index]]
@@ -187,7 +211,10 @@ ovrtx = { index = "nvidia-pypi" }
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = ["*.spec"]
+extend-exclude = [
+    "*.spec",
+    "apps/texture_gen_step1x_service/internal/texture_editing_runtime",
+]
 
 [tool.ruff.lint]
 select = [
@@ -233,12 +260,21 @@ testpaths = [
     "apps/physics_agent/tests",
     "apps/physics_agent_service/tests",
     "apps/texture_agent/tests",
+    "apps/texture_gen_step1x_service/tests",
     "apps/texture_agent_service/tests",
     "apps/ovrtx_rendering_api/tests",
+    "agentic/packages/content_agent_workflows/tests",
+    "agentic/packages/content_workflow_cli/tests",
+    "agentic/packages/content_workbench/tests/unit",
 ]
 pythonpath = [
     "apps/material_agent/tests",
+    "apps/texture_agent/tests",
     "apps/ovrtx_rendering_api",
+    "agentic/packages/content_workflow_cli",
+    "agentic/packages/content_workbench",
+    "agentic/packages/content_agent_workflows",
+    "agentic/packages/content_workbench_agent_client",
     "apps/material_agent",
     "apps/validation_agent",
     "apps/physics_agent",
@@ -255,7 +291,7 @@ filterwarnings = [
 markers = [
     "live_inference: runs live provider inference (requires API keys and opt-in)",
 ]
-addopts = "-ra --showlocals --color yes --cov-report term --cov-report html --cov-report xml --cov-config=./.coveragerc --cov=./ --import-mode=importlib"
+addopts = "-ra --showlocals --color yes --cov-report term --cov-report html --cov-report xml --cov=./ --import-mode=importlib"
 
 [tool.coverage.run]
 source = ["world_understanding"]

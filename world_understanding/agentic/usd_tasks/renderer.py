@@ -3,7 +3,6 @@
 """USD renderer provisioning task."""
 
 import logging
-import os
 from typing import Any
 
 from world_understanding.agentic.events import get_listener
@@ -12,11 +11,11 @@ from world_understanding.functions.graphics.rendering import (
     CameraFocusMode,
     CameraSpec,
     CameraViewType,
-    OvRTXRenderingBackend,
-    RemoteRenderingBackend,
     RenderingBackend,
     RenderingConfig,
-    WarpRenderingBackend,
+)
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    create_rendering_backend,
 )
 from world_understanding.utils.object_store import ObjectStore
 
@@ -471,61 +470,8 @@ class USDRendererProvisioningTask(Task):
 
         listener.info(f"Provisioning {backend_type} USD renderer backend")
 
-        # Create rendering backend
-        if backend_type == "remote":
-            api_key = os.environ.get("NGC_API_KEY")
-            # Get endpoint, transfer, and retry configuration from renderer_config.
-            remote_kwargs = {
-                "api_key": api_key,
-            }
-
-            for key in (
-                "base_url",
-                "s3_bucket",
-                "s3_region",
-                "s3_profile",
-                "timeout",
-                "max_retries",
-                "retry_delay",
-                "retry_backoff_factor",
-                "retry_jitter",
-                "bundle_mdl_assets",
-                "use_data_uri",
-            ):
-                if key in renderer_config:
-                    remote_kwargs[key] = renderer_config[key]
-
-            rendering_backend = RemoteRenderingBackend(**remote_kwargs)
-            listener.info(
-                f"Using remote REST renderer with retry config: max_retries={remote_kwargs.get('max_retries', 3)}, "
-                f"retry_delay={remote_kwargs.get('retry_delay', 1.0)}"
-            )
-        elif backend_type == "ovrtx":
-            ovrtx_kwargs: dict[str, Any] = {
-                "log_level": renderer_config.get("log_level", "warn"),
-                "ovrtx_venv_dir": renderer_config.get("ovrtx_venv_dir"),
-            }
-            rendering_backend = OvRTXRenderingBackend(**ovrtx_kwargs)
-            listener.info(
-                f"Using OvRTX backend with log_level={ovrtx_kwargs['log_level']}"
-            )
-        elif backend_type == "warp":
-            warp_kwargs: dict[str, Any] = {
-                "device": renderer_config.get("device", "cuda:0"),
-                "color_boost": renderer_config.get("color_boost", 3.0),
-                "enable_shadows": renderer_config.get("enable_shadows", True),
-            }
-            rendering_backend = WarpRenderingBackend(**warp_kwargs)
-            listener.info(f"Using Warp backend with device={warp_kwargs['device']}")
-        elif backend_type == "mock":
-            from world_understanding.functions.graphics.mock_rendering import (
-                MockRenderingBackend,
-            )
-
-            rendering_backend = MockRenderingBackend()
-            listener.info("Using mock rendering backend (simulate mode)")
-        else:
-            raise ValueError(f"Unknown USD renderer backend: {backend_type}")
+        rendering_backend = create_rendering_backend(backend_type, renderer_config)
+        listener.info(f"Using {backend_type} rendering backend")
 
         # Get camera view type
         camera_view_type_str = renderer_config.get("camera_view_type", "corner")

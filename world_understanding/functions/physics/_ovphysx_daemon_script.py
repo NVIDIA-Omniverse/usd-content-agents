@@ -113,9 +113,10 @@ def _import_ovphysx() -> tuple[Any, Any, Any]:
     except ImportError as exc:  # pragma: no cover — caught by parent
         _emit_error(
             "ovphysx import failed; is the daemon venv populated? "
-            "Run `uv pip install ovphysx --extra-index-url "
-            "https://pypi.nvidia.com` into the venv passed to "
-            "_OvPhysXDaemon. Detail: " + str(exc)
+            "Recreate it from the matching checked-in PEP 751 profile at "
+            "apps/physics_agent/runtime/pylock.ovphysx-runtime.toml or "
+            "apps/physics_agent/runtime/pylock.ovphysx-runtime.aarch64.toml; the "
+            "parent error reports the exact hash-enforced command. Detail: " + str(exc)
         )
         raise
     return ovphysx, PhysX, TensorType
@@ -313,8 +314,14 @@ def _build_state() -> _DaemonState | None:
         ovphysx, PhysX, TensorType = _import_ovphysx()
     except ImportError:
         return None
-    state = _DaemonState(ovphysx, PhysX, TensorType)
-    return state
+    try:
+        return _DaemonState(ovphysx, PhysX, TensorType)
+    except Exception as exc:
+        _emit_error(
+            f"ovphysx initialization failed: {exc}",
+            traceback=traceback.format_exc(),
+        )
+        return None
 
 
 def main() -> int:

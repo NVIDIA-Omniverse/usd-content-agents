@@ -7,7 +7,7 @@ execution plan.
 
 ## Step Execution Order
 
-```
+```text
 validate_input -> optimize_usd -> render_preview -> identify_asset -> generate_reference_image -> build_dataset_usd -> build_dataset_pdf_vectorstore -> build_dataset_prepare_dataset -> cluster_prims -> predict -> expand_cluster_predictions -> benchmark -> validate_predictions -> harmonize_predictions -> restore_usd -> apply -> evaluate -> refine -> validate_output -> render
 ```
 
@@ -151,7 +151,10 @@ steps:
 
 ### 7. build_dataset_pdf_vectorstore
 
-Builds a searchable vector store from PDF documents (e.g., technical specifications). Used for RAG-enhanced material prediction.
+Builds a searchable vector store from PDF documents (e.g., technical
+specifications). Retrieved specification evidence is kept separate from visual
+prediction and used afterward to corroborate the visual result or flag a
+conflict for review.
 
 **Key config options:**
 ```yaml
@@ -166,7 +169,10 @@ Requires `input.reference_pdfs` to be set in the config. Source PDFs are process
 
 ### 8. build_dataset_prepare_dataset
 
-Prepares the final dataset for VLM inference by combining rendered images, material lists, prompts, and optionally RAG context.
+Prepares the final dataset for VLM inference by combining rendered images,
+material lists, and visual prompts. Optional retrieved specification evidence
+is stored separately for post-visual reconciliation rather than added to the
+visual prompt or media.
 
 **Key config options:**
 ```yaml
@@ -225,6 +231,20 @@ steps:
 ```
 
 **Output:** `{working_dir}/predictions/predictions.jsonl` and `report.html`
+
+After prediction, inspect the JSONL output and surface every record where
+`materials.evidence_reconciliation.review_required` is `true`. For example:
+
+```bash
+WORKING_DIR=/path/to/working_dir
+jq -c 'select(.materials.evidence_reconciliation.review_required == true) |
+  {id, visual_material: .materials.evidence_reconciliation.visual_material,
+   conflicting_spec_materials: .materials.evidence_reconciliation.conflicting_spec_materials}' \
+  "$WORKING_DIR/predictions/predictions.jsonl"
+```
+
+Treat each emitted record as a human-review item. The specification claims do
+not replace the fixed visual material label.
 
 ### 11. expand_cluster_predictions (optional)
 
@@ -396,7 +416,7 @@ steps:
 
 All paths are automatically created under the working directory:
 
-```
+```text
 .{session_id}/
   validation/
     input/              # validate_input output

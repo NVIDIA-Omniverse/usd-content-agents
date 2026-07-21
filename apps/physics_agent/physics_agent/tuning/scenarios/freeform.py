@@ -9,9 +9,9 @@ Pipeline (per ``OvPhysXBackend.evaluate`` trial):
      initial_pose, cameras}`` and authors the simulation USD.
   3. Daemon ``evaluate`` with ``initial_linear_velocity`` and
      ``initial_angular_velocity`` from ``target``.
-  4. ``recorder.author_trajectory_usda`` → ``recording.usda``.
+  4. ``recorder.author_trajectory_usda`` → ``recording.usd``.
   5. Programmatic score from ``trajectory_summary`` against
-     ``target.observations`` (e.g. "stayed upright", "settled within 1s").
+     ``target.observations`` (e.g. "settled within 1s").
   6. Optional VLM judge over rendered frames
      (``judge_callback(frames, user_prompt, observations)``).
   7. Combined score = ``weights["programmatic"] * programmatic_score +
@@ -32,12 +32,19 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing only
     from physics_agent.tuning.simulator import Simulator
     from physics_agent.tuning.types import Scenario
 
+from physics_agent.tuning.video_rendering import resolve_video_renderer
 
 logger = logging.getLogger(__name__)
+
+
+# Contact solvers and collider/render-geometry mismatches can leave a small,
+# scale-dependent overlap at rest. Keep the allowance relative to the selected
+# body instead of applying one world-unit threshold to every asset scale.
+_GROUND_CLEARANCE_BBOX_DIAGONAL_FRACTION = 0.02
 
 
 # (frames, user_prompt | None, observations) -> {score: float in [0,1],
@@ -45,13 +52,138 @@ logger = logging.getLogger(__name__)
 JudgeCallback = Callable[[list[Path], str | None, list[str]], dict[str, Any]]
 
 
+def _world_up_axis(world_up: Any) -> int:
+    """Return the dominant up-axis index, defaulting to legacy Y-up."""
+    try:
+        values = [abs(float(v)) for v in list(world_up)[:3]]
+    except (TypeError, ValueError):
+        return 1
+    if len(values) != 3 or not any(values):
+        return 1
+    return max(range(3), key=lambda idx: values[idx])
+
+
+def _pose7_from_trajectory_sample(
+    sample: Any,
+) -> tuple[float, float, float, float, float, float, float] | None:
+    """Extract pose7 from simulator trajectory samples.
+
+    The normal simulator shape is ``(t, pose7, vel6)``, but a few tests
+    and fakes use dict-ish samples. Keep this permissive so ground-clearance
+    scoring can degrade to "not available" rather than failing the trial.
+    """
+    pose: Any
+    if isinstance(sample, dict):
+        pose = sample.get("pose") or sample.get("position")
+    else:
+        try:
+            pose = sample[1]
+        except (TypeError, IndexError):
+            return None
+    try:
+        if len(pose) >= 7:
+            return tuple(float(pose[i]) for i in range(7))  # type: ignore[return-value]
+        if len(pose) >= 3:
+            return (
+                float(pose[0]),
+                float(pose[1]),
+                float(pose[2]),
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+            )
+    except (TypeError, ValueError, IndexError):
+        return None
+    return None
+
+
+def _as_vec3(raw: Any) -> tuple[float, float, float] | None:
+    try:
+        return (float(raw[0]), float(raw[1]), float(raw[2]))
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def _ground_clearance_tolerance(
+    bbox_min: tuple[float, float, float],
+    bbox_max: tuple[float, float, float],
+) -> float | None:
+    """Return 2% of a valid bbox diagonal, in the bbox's own units.
+
+    Clearance and the local bbox both come from the simulator in stage units.
+    Keeping the dimensionless relative calculation in those units avoids
+    mixing trajectory stage units with the user-facing ``bbox_size_m`` value.
+    """
+    extents = tuple(bbox_max[i] - bbox_min[i] for i in range(3))
+    if any(not math.isfinite(extent) or extent < 0.0 for extent in extents):
+        return None
+    diagonal = math.hypot(*extents)
+    if not math.isfinite(diagonal) or diagonal <= 0.0:
+        return None
+    return _GROUND_CLEARANCE_BBOX_DIAGONAL_FRACTION * diagonal
+
+
+def _add_ground_clearance_to_summary(
+    summary: dict[str, Any],
+    trajectory: Any,
+    scene_info: dict[str, Any],
+) -> None:
+    """Annotate summary with clearance and its scale-aware tolerance.
+
+    ``trajectory_summary`` only knows about the rigid-body origin, not the
+    body's local bbox. For floor/ground objectives we need the bbox bottom:
+    pose[up] + bbox_min_local_stage[up]. The scene builder authors the
+    ground plane at up-coordinate 0. When both bbox corners are valid, the
+    summary also records the 2%-of-diagonal tolerance in the same stage units.
+    """
+    bbox_min = _as_vec3(scene_info.get("bbox_min_local_stage"))
+    if bbox_min is None:
+        return
+    up_idx = _world_up_axis(scene_info.get("world_up"))
+    bbox_max = _as_vec3(scene_info.get("bbox_max_local_stage"))
+    clearance_tolerance_stage = (
+        _ground_clearance_tolerance(bbox_min, bbox_max)
+        if bbox_max is not None
+        else None
+    )
+    bottom_positions_from_bbox = None
+    if bbox_max is not None:
+        from physics_agent.tuning.scenarios.drop_settle import (
+            _bottom_positions_from_bbox,
+        )
+
+        bottom_positions_from_bbox = _bottom_positions_from_bbox
+
+    clearances: list[float] = []
+    for sample in trajectory or []:
+        pose7 = _pose7_from_trajectory_sample(sample)
+        if pose7 is None:
+            continue
+        if bbox_max is None or bottom_positions_from_bbox is None:
+            clearance = pose7[up_idx] + bbox_min[up_idx]
+        else:
+            clearance = bottom_positions_from_bbox(
+                [pose7],
+                up_idx=up_idx,
+                bbox_min_local=bbox_min,
+                bbox_max_local=bbox_max,
+            )[0]
+        if math.isfinite(clearance):
+            clearances.append(float(clearance))
+    if clearances:
+        summary["min_ground_clearance"] = min(clearances)
+        if clearance_tolerance_stage is not None:
+            summary["ground_clearance_tolerance"] = clearance_tolerance_stage
+
+
 def _normalize_observations(raw: Any) -> list[str]:
     """Normalize a YAML ``observations`` value into a list of strings.
 
     A YAML scalar like ``observations: "steady"`` is parsed as a Python
     ``str``; ``list(str)`` would explode it into its characters and
-    silently break the upright/stable keyword scan + feed garbage tokens
-    to the VLM judge_callback. Treat a scalar str as a single
+    silently feed garbage tokens to the VLM judge_callback. Treat a scalar
+    str as a single
     observation, a list / tuple as multiple, ``None`` / missing as
     empty, and any other shape as a one-item list of its repr (so the
     user still sees *something* in artifacts rather than a silent drop).
@@ -124,15 +256,14 @@ def _score_programmatic_from_summary(
     signals that almost any freeform observation cares about and
     leaves the nuance to the VLM. Each enabled component contributes
     its **weight** when it passes; the final score normalises by the
-    sum of enabled weights so toggling the conditional ``upright``
-    component never drops a passing run below the analogous score it
-    would have earned with the component absent:
+    sum of enabled weights:
 
-      • body did NOT fall over (when observations mention "upright" /
-        "stable" / "didn't fall") → weight 0.4
       • body settled before the trajectory ended → weight 0.3
       • body did NOT escape the scene (no infinite / NaN positions) →
         weight 0.3
+      • body did NOT penetrate the ground by more than 2% of its bbox
+        diagonal when observations mention floor / ground / surface contact
+        → conditional weight 0.6
 
     Each check is a hard yes/no. Returns ``(score, critique)`` so the
     surrounding evaluator can include the critique in its result dict
@@ -140,29 +271,61 @@ def _score_programmatic_from_summary(
     """
     obs_text = " ".join(o.lower() for o in observations)
     final_pos = summary.get("final_position") or [0.0, 0.0, 0.0]
-    fell_over = bool(summary.get("fell_over", False))
     settle_time_s = summary.get("settle_time_s")
     duration_s = float(summary.get("duration_s") or 0.0)
     n_samples = int(summary.get("n_samples") or 0)
 
     # (name, passed, weight) — weights match the documented contract.
     components: list[tuple[str, bool, float]] = []
+    ground_audit: tuple[str, str] | None = None
 
-    # Component 1: stayed upright (when the prompt cares about that)
-    cares_about_upright = any(
-        kw in obs_text for kw in ("upright", "stable", "fall", "topple", "tip")
-    )
-    if cares_about_upright:
-        components.append(("upright", not fell_over, 0.4))
-
-    # Component 2: settled before trajectory ended
+    # Component 1: settled before trajectory ended
     settled = settle_time_s is not None and float(settle_time_s) <= duration_s
     components.append(("settled", bool(settled), 0.3))
 
-    # Component 3: position is finite (no NaN/Inf escape).
+    # Component 2: position is finite (no NaN/Inf escape).
     # ``math`` is imported at module level (see line 30).
     finite = all(math.isfinite(float(v)) for v in final_pos)
     components.append(("finite_position", bool(finite), 0.3))
+
+    # Component 3: floor/ground contact must not materially penetrate the
+    # authored ground plane. This is conditional so prompts about unusual
+    # open-air motion don't inherit a floor assumption they never asked for.
+    cares_about_ground = any(
+        kw in obs_text
+        for kw in (
+            "floor",
+            "ground",
+            "surface",
+            "table",
+            "sink",
+            "penetrat",
+            "clip",
+            "intersect",
+        )
+    )
+    min_ground_clearance = summary.get("min_ground_clearance")
+    if cares_about_ground and min_ground_clearance is not None:
+        try:
+            clearance = float(min_ground_clearance)
+        except (TypeError, ValueError):
+            clearance = float("-inf")
+        try:
+            # A zero fallback keeps legacy or partial summaries conservative:
+            # only runtime summaries with a valid selected-body bbox receive
+            # the scale-aware negative-clearance allowance.
+            tolerance = float(summary.get("ground_clearance_tolerance", 0.0))
+        except (TypeError, ValueError):
+            tolerance = float("nan")
+        tolerance_valid = math.isfinite(tolerance) and tolerance >= 0.0
+        ground_ok = (
+            math.isfinite(clearance) and tolerance_valid and clearance >= -tolerance
+        )
+        ground_audit = (
+            f"{clearance:.6g}" if math.isfinite(clearance) else "invalid",
+            f"{tolerance:.6g}" if tolerance_valid else "invalid",
+        )
+        components.append(("ground_clearance", ground_ok, 0.6))
 
     if not components or n_samples == 0:
         return 0.0, "no programmatic signal extracted"
@@ -172,9 +335,16 @@ def _score_programmatic_from_summary(
     # ``total_weight`` is always > 0 here (we always append settled +
     # finite_position above), but guard divide-by-zero anyway.
     score = earned / total_weight if total_weight > 0 else 0.0
-    critique = "; ".join(
-        f"{name}={'pass' if ok else 'fail'}" for name, ok, _ in components
-    )
+    critique_parts: list[str] = []
+    for name, ok, _ in components:
+        component_critique = f"{name}={'pass' if ok else 'fail'}"
+        if name == "ground_clearance" and ground_audit is not None:
+            clearance_text, tolerance_text = ground_audit
+            component_critique += (
+                f"(clearance={clearance_text}, tolerance={tolerance_text})"
+            )
+        critique_parts.append(component_critique)
+    critique = "; ".join(critique_parts)
     return float(score), critique
 
 
@@ -194,7 +364,8 @@ def evaluate(
     See module docstring for the pipeline. Returns the dict shape
     consumed by ``backend.evaluate``: ``score`` (lower is better),
     ``programmatic_score``, ``vlm_score``, ``reasoning``, ``frames``,
-    ``trajectory``, ``scene_usd``, ``recording_usda``, ``weights_used``.
+    ``trajectory``, ``scene_usd``, ``recording_usd``, legacy
+    ``recording_usda``, ``weights_used``.
     """
     from world_understanding.functions.physics.trajectory import (
         trajectory_summary,
@@ -207,6 +378,12 @@ def evaluate(
     )
     from physics_agent.tuning.usd_patch import patch_physics_usd
 
+    target = dict(scenario.target or {})
+    record_video_mode = str(target.get("record_video", "off")).lower()
+    record_video_on = record_video_mode in {"end_of_tune", "always"}
+    needs_render = (judge_callback is not None) or record_video_on
+    video_renderer = resolve_video_renderer(target) if needs_render else None
+
     work = (
         Path(work_dir)
         if work_dir is not None
@@ -216,7 +393,7 @@ def evaluate(
     trial_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Patch params.
-    patched_path = trial_dir / "patched_physics.usda"
+    patched_path = trial_dir / "patched_physics.usd"
     resolved_bindings = get_resolved_bindings(scenario)
     if resolved_bindings is None:
         patch_physics_usd(Path(physics_usd), patched_path, dict(params))
@@ -229,11 +406,10 @@ def evaluate(
         )
 
     # 2. Build scene USD from the target dict.
-    target = dict(scenario.target or {})
     duration_s = float(target.get("duration_s", 2.0))
     sample_fps = int(target.get("sample_fps", 30))
 
-    scene_path = trial_dir / "scene.usda"
+    scene_path = trial_dir / "scene.usd"
     scene_info = build_freeform_scene(
         patched_path,
         scene_path,
@@ -254,8 +430,8 @@ def evaluate(
     )
     trajectory = response["trajectory"]
 
-    # 4. Recording.usda for VLM and audit.
-    recording_path: Path | None = trial_dir / "recording.usda"
+    # 4. Recording USD for VLM and audit.
+    recording_path: Path | None = trial_dir / "recording.usd"
     try:
         author_trajectory_usda(
             scene_path,
@@ -267,7 +443,7 @@ def evaluate(
         )
     except Exception as exc:
         logger.warning(
-            "freeform: failed to author recording.usda (seed=%d): %s",
+            "freeform: failed to author recording.usd (seed=%d): %s",
             int(seed),
             exc,
         )
@@ -281,15 +457,14 @@ def evaluate(
     # Round 12 (CX P2#4): pass the stage's actual up-axis through to
     # ``trajectory_summary``. ``trajectory_summary`` defaults to Y-up
     # when ``world_up`` is omitted, which mis-classifies a yaw spin on
-    # a Z-up asset as ``fell_over=True`` and corrupts both the
-    # programmatic score and any ``observations`` that mention
-    # upright/stable. The scene builder records the actual axis under
-    # ``scene_info["world_up"]``; if it's missing for any reason
-    # (programmatic-only callers building scene_info dicts by hand) we
-    # fall back to the trajectory_summary default.
+    # a Z-up asset as ``fell_over=True`` in the diagnostic summary. The
+    # scene builder records the actual axis under ``scene_info["world_up"]``;
+    # if it's missing for any reason (programmatic-only callers building
+    # scene_info dicts by hand) we fall back to the trajectory_summary default.
     observations = _normalize_observations(target.get("observations"))
     world_up = scene_info.get("world_up")
     summary = trajectory_summary(trajectory, world_up=world_up)
+    _add_ground_clearance_to_summary(summary, trajectory, scene_info)
     programmatic_score, prog_critique = _score_programmatic_from_summary(
         summary, observations
     )
@@ -310,14 +485,11 @@ def evaluate(
     # installed (PR #66). When rendering is unavailable the VLM step
     # is skipped cleanly and the score collapses to programmatic-only
     # via ``_normalize_weights(..., vlm_available=False)``.
-    record_video_mode = str(target.get("record_video", "off")).lower()
-    record_video_on = record_video_mode in {"end_of_tune", "always"}
     vlm_score: float | None = None
     vlm_reasoning: str = ""
     frames: list[Path] = []
     vlm_available = False
     video_block: dict[str, Any] | None = None
-    needs_render = (judge_callback is not None) or record_video_on
     if needs_render and recording_path is not None:
         try:
             from world_understanding.functions.graphics import (
@@ -341,14 +513,12 @@ def evaluate(
                 }
 
         if render_time_sampled_usd is not None:
+            assert video_renderer is not None
             try:
                 frames = render_time_sampled_usd(
                     recording_path,
                     trial_dir / "render",
-                    renderer=str(
-                        target.get("video_renderer")
-                        or target.get("vlm_renderer", "ovrtx")
-                    ),
+                    renderer=video_renderer,
                     cameras=scene_info.get("camera_paths"),
                     fps=sample_fps,
                     max_duration_seconds=duration_s or 2.0,
@@ -421,6 +591,7 @@ def evaluate(
         "trajectory_summary": summary,
         "scene_usd": str(scene_path),
         "patched_usd": str(patched_path),
+        "recording_usd": str(recording_path) if recording_path else None,
         "recording_usda": str(recording_path) if recording_path else None,
         "weights_used": used_weights,
         "metric": str(scenario.metric),

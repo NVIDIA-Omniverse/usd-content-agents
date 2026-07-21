@@ -24,6 +24,10 @@ def analyze_scene(
     filters: dict[str, Any] | None = None,
     llm_config: dict[str, Any] | None = None,
     token_tracker: Any | None = None,
+    working_dir: Path | None = None,
+    detect_payload_groups: bool = True,
+    detect_native_prototypes: bool = True,
+    extract_large_payload_representatives: bool = True,
 ) -> SceneManifest:
     """Analyze a USD scene and detect sub-assets.
 
@@ -35,15 +39,24 @@ def analyze_scene(
             - include_paths: list[str] — only include prims under these paths
             - exclude_paths: list[str] — exclude prims under these paths
             - min_mesh_count: int — skip objects with fewer meshes
+            - exclude_invisible_assets: bool — skip objects with no visible
+              descendant meshes. Legacy alias: skip_invisible.
         llm_config: Optional LLM config for split refinement. Dict with keys
             ``backend``, ``model``, and optionally ``temperature``,
             ``max_tokens``. If None, LLM refinement is skipped.
         token_tracker: Optional TokenTracker for LLM refinement usage.
+        working_dir: Optional directory for analysis side artifacts such as
+            extracted prototype or representative USDs. Defaults to the legacy
+            sibling ``.{scene}_working`` directory.
+        detect_payload_groups: Detect payload-backed instance groups.
+        detect_native_prototypes: Detect USD native prototype groups.
+        extract_large_payload_representatives: Extract smaller representative
+            files for large payloads with internal instancing.
 
     Returns:
         SceneManifest with detected sub-assets and instance groups.
     """
-    from pxr import Usd
+    from pxr import Usd, UsdGeom
     from world_understanding.functions.graphics.usd_scene_analysis import (
         detect_objects,
     )
@@ -54,6 +67,12 @@ def analyze_scene(
     include_paths: list[str] = filters.get("include_paths", [])
     exclude_paths: list[str] = filters.get("exclude_paths", [])
     min_mesh_count: int = filters.get("min_mesh_count", 0)
+    exclude_invisible_assets: bool = bool(
+        filters.get(
+            "exclude_invisible_assets",
+            filters.get("skip_invisible", False),
+        )
+    )
 
     logger.info(f"Opening USD stage: {scene_usd_path}")
     stage = Usd.Stage.Open(str(scene_usd_path))
@@ -96,8 +115,34 @@ def analyze_scene(
             token_tracker=token_tracker,
         )
 
+    def _has_visible_descendant_mesh(prim_path: str) -> bool:
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim:
+            return False
+
+        root_imageable = UsdGeom.Imageable(prim)
+        if root_imageable and (
+            root_imageable.ComputeVisibility() == UsdGeom.Tokens.invisible
+        ):
+            return False
+
+        prim_range = iter(Usd.PrimRange(prim, Usd.TraverseInstanceProxies()))
+        for descendant in prim_range:
+            imageable = UsdGeom.Imageable(descendant)
+            if (
+                imageable
+                and imageable.GetVisibilityAttr().Get() == UsdGeom.Tokens.invisible
+            ):
+                prim_range.PruneChildren()
+                continue
+            if not descendant.IsA(UsdGeom.Mesh):
+                continue
+            return True
+        return False
+
     # Convert to SubAsset dataclasses with filtering
     sub_assets: list[SubAsset] = []
+    skipped_invisible = 0
     for obj in objects:
         prim_path = obj.get("path", "")
 
@@ -120,6 +165,10 @@ def analyze_scene(
         if mesh_count < min_mesh_count:
             continue
 
+        if exclude_invisible_assets and not _has_visible_descendant_mesh(prim_path):
+            skipped_invisible += 1
+            continue
+
         sub_assets.append(
             SubAsset(
                 id=obj.get("id", ""),
@@ -132,6 +181,13 @@ def analyze_scene(
                 instance_group=obj.get("instance_group"),
                 split_context=obj.get("split_context"),
             )
+        )
+
+    if skipped_invisible:
+        logger.info(
+            "Skipped %d sub-assets with no visible descendant meshes "
+            "(exclude_invisible_assets=True)",
+            skipped_invisible,
         )
 
     # Convert instance groups
@@ -204,20 +260,41 @@ def analyze_scene(
                 f"instance group representatives"
             )
 
-    # Detect payload groups (unique payload files referenced by instance prims)
-    payload_groups = _detect_payload_groups(stage, scene_usd_path)
-    logger.info(f"Detected {len(payload_groups)} unique payload groups")
+    payload_groups: list[PayloadGroup] = []
+    if detect_payload_groups:
+        # Detect payload groups (unique payload files referenced by instance prims)
+        payload_groups = _detect_payload_groups(stage, scene_usd_path)
+        logger.info(f"Detected {len(payload_groups)} unique payload groups")
 
-    # Extract representative files for large payloads with internal instancing.
-    # These payloads are too large for NVCF but contain repeated geometry — only
-    # the non-instance prototype source prims need processing.
-    _extract_large_payload_representatives(payload_groups, scene_usd_path)
+        # Extract representative files for large payloads with internal instancing.
+        # These payloads are too large for NVCF but contain repeated geometry — only
+        # the non-instance prototype source prims need processing.
+        if extract_large_payload_representatives:
+            if working_dir is None:
+                _extract_large_payload_representatives(
+                    payload_groups,
+                    scene_usd_path,
+                )
+            else:
+                _extract_large_payload_representatives(
+                    payload_groups,
+                    scene_usd_path,
+                    working_dir=working_dir,
+                )
 
-    # Detect prototype groups (USD native instances sharing same prototype)
-    prototype_groups = _detect_prototype_groups(stage, scene_usd_path)
-    if prototype_groups:
-        logger.info(f"Detected {len(prototype_groups)} prototype payload groups")
-        payload_groups.extend(prototype_groups)
+    if detect_native_prototypes:
+        # Detect prototype groups (USD native instances sharing same prototype)
+        if working_dir is None:
+            prototype_groups = _detect_prototype_groups(stage, scene_usd_path)
+        else:
+            prototype_groups = _detect_prototype_groups(
+                stage,
+                scene_usd_path,
+                working_dir=working_dir,
+            )
+        if prototype_groups:
+            logger.info(f"Detected {len(prototype_groups)} prototype payload groups")
+            payload_groups.extend(prototype_groups)
 
     # Build analysis summary
     analysis_summary = {
@@ -470,7 +547,7 @@ def _build_payload_dag(groups: list[PayloadGroup]) -> list[PayloadGroup]:
 
     for node, children in adj.items():
         pg = file_to_group.get(node)
-        if not pg:
+        if not pg:  # pragma: no cover - defensive after DAG node materialization
             continue
         pg.depth = depths.get(node, 0)
         pg.child_payload_files = sorted(children)
@@ -526,6 +603,7 @@ def _count_payload_meshes(payload_file: str) -> int:
 def _detect_prototype_groups(
     stage: Any,
     scene_usd_path: Path,
+    working_dir: Path | None = None,
 ) -> list[PayloadGroup]:
     """Detect USD native prototype groups and return them as PayloadGroups.
 
@@ -560,8 +638,12 @@ def _detect_prototype_groups(
                 )
 
     # Working directory for extracted prototypes
-    working_dir = scene_usd_path.resolve().parent / f".{scene_usd_path.stem}_working"
-    proto_dir = working_dir / "prototypes"
+    analysis_dir = (
+        working_dir
+        if working_dir is not None
+        else scene_usd_path.resolve().parent / f".{scene_usd_path.stem}_working"
+    )
+    proto_dir = analysis_dir / "prototypes"
 
     groups: list[PayloadGroup] = []
     skipped = 0
@@ -752,6 +834,7 @@ _LARGE_PAYLOAD_THRESHOLD_BYTES = 100 * 1024 * 1024  # 100 MB
 def _extract_large_payload_representatives(
     payload_groups: list[PayloadGroup],
     scene_usd_path: Path,
+    working_dir: Path | None = None,
 ) -> None:
     """Extract representative files for large payloads with internal instancing.
 
@@ -794,7 +877,14 @@ def _extract_large_payload_representatives(
             f"checking for internal instancing"
         )
 
-        rep_path = _extract_prototype_sources(pg.payload_file, scene_usd_path)
+        if working_dir is None:
+            rep_path = _extract_prototype_sources(pg.payload_file, scene_usd_path)
+        else:
+            rep_path = _extract_prototype_sources(
+                pg.payload_file,
+                scene_usd_path,
+                working_dir=working_dir,
+            )
         if rep_path:
             pg.representative_path = str(rep_path)
             rep_size_mb = os.path.getsize(rep_path) / (1024 * 1024)
@@ -809,6 +899,7 @@ def _extract_large_payload_representatives(
 def _extract_prototype_sources(
     payload_file: str,
     scene_usd_path: Path,
+    working_dir: Path | None = None,
 ) -> Path | None:
     """Extract non-instance prototype source prims from a payload file.
 
@@ -821,7 +912,8 @@ def _extract_prototype_sources(
 
     Args:
         payload_file: Absolute path to the payload USD file.
-        scene_usd_path: Scene USD path (for determining output directory).
+        scene_usd_path: Scene USD path (for determining default output directory).
+        working_dir: Optional analysis working directory for representative USDs.
 
     Returns:
         Path to the extracted representative file, or None if the payload
@@ -887,8 +979,12 @@ def _extract_prototype_sources(
         return None
 
     # Flatten and export
-    working_dir = scene_usd_path.resolve().parent / f".{scene_usd_path.stem}_working"
-    rep_dir = working_dir / "representatives"
+    analysis_dir = (
+        working_dir
+        if working_dir is not None
+        else scene_usd_path.resolve().parent / f".{scene_usd_path.stem}_working"
+    )
+    rep_dir = analysis_dir / "representatives"
     rep_dir.mkdir(parents=True, exist_ok=True)
 
     payload_stem = Path(payload_file).stem

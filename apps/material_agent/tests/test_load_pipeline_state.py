@@ -202,3 +202,53 @@ class TestLoadPipelineStateCorrupted:
 
         assert state["completed_steps"] == []
         assert "Could not read pipeline state file" in caplog.text
+
+    @pytest.mark.parametrize(
+        "malformed_state",
+        [
+            {"completed_steps": None},
+            {
+                "completed_steps": [],
+                "failed_steps": [],
+                "step_outputs": [],
+                "current_step": None,
+            },
+            {
+                "completed_steps": [7],
+                "failed_steps": [],
+                "step_outputs": {},
+                "current_step": None,
+            },
+            {
+                "completed_steps": [],
+                "failed_steps": [],
+                "step_outputs": {"predict": "not-a-mapping"},
+                "current_step": None,
+            },
+            {
+                "completed_steps": [],
+                "failed_steps": [],
+                "step_outputs": {},
+                "step_errors": {"predict": ["not", "text"]},
+                "current_step": None,
+            },
+        ],
+    )
+    def test_malformed_structure_fails_before_resume_access(
+        self,
+        tmp_path: Path,
+        malformed_state: dict[str, object],
+    ) -> None:
+        state_file = tmp_path / ".pipeline_state.json"
+        state_file.write_text(json.dumps(malformed_state), encoding="utf-8")
+
+        with pytest.raises(
+            ValueError,
+            match="^Invalid pipeline checkpoint structure:",
+        ):
+            _load_pipeline_state(
+                working_dir=str(tmp_path),
+                session_id="sess-1",
+                project_name="proj-1",
+                resume=True,
+            )

@@ -25,7 +25,7 @@ def example_predict_with_builder():
     # Build config with required fields only
     config = build_predict_config(
         vlm_backend="nim",
-        vlm_model="gpt-4o",
+        vlm_model="example-vlm-model",
         dataset_path="data/dataset.jsonl",
     )
 
@@ -45,11 +45,11 @@ def example_predict_with_all_options():
 
     config = build_predict_config(
         vlm_backend="nim",
-        vlm_model="gpt-4o",
+        vlm_model="example-vlm-model",
         dataset_path="data/dataset.jsonl",
         # Optional parameters
         llm_backend="nim",
-        llm_model="gpt-4o",
+        llm_model="example-vlm-model",
         output_dir="output/predictions",
         temperature=0.7,
         max_tokens=1024,
@@ -69,7 +69,7 @@ def example_benchmark_with_builder():
     # Minimal benchmark config
     config = build_benchmark_config(
         vlm_backend="nim",
-        vlm_model="gpt-4o",
+        vlm_model="example-vlm-model",
         dataset_path="data/benchmark.jsonl",
     )
 
@@ -133,7 +133,7 @@ def example_comparison():
     manual_config = {
         "vlm": {
             "backend": "nim",
-            "model": "gpt-4o",
+            "model": "example-vlm-model",
         },
         "dataset": "data/dataset.jsonl",
     }
@@ -141,7 +141,7 @@ def example_comparison():
     # BUILDER (guided, can't forget required fields)
     builder_config = build_predict_config(
         vlm_backend="nim",
-        vlm_model="gpt-4o",
+        vlm_model="example-vlm-model",
         dataset_path="data/dataset.jsonl",
     )
 
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     print()
     print("  config = build_predict_config(")
     print("      vlm_backend='nim',")
-    print("      vlm_model='gpt-4o',")
+    print("      vlm_model='example-vlm-model',")
     print("      dataset_path='data.jsonl',")
     print("  )")
     print("  result = predict(config)")

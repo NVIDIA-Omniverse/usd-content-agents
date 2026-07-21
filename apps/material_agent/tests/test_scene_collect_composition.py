@@ -9,15 +9,25 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from pxr import Sdf, Usd, UsdGeom, UsdShade
+import pytest
+from pxr import Sdf, Tf, Usd, UsdGeom, UsdShade
 
+import material_agent.scene.collect as collect_mod
 from material_agent.scene.collect import (
     _compose_prototype_payloads,
     _copy_materials_from_library,
+    _create_instance_propagation_layers,
+    _create_payload_material_layer,
     _fill_prediction_gaps,
     _process_payload_groups,
+    _remap_instance_group_bindings,
+    _remove_prim_spec,
     _rewrite_scene_payload_arcs,
+    _strip_sublayers,
+    _write_binding_over,
+    _write_payload_arcs,
     apply_and_compose,
+    author_projected_material_layer,
     compose_material_layers,
 )
 from material_agent.scene.manifest import (
@@ -337,6 +347,147 @@ def test_apply_and_compose_suffix_gap_fill_stays_with_selected_members(
     assert _binding_targets(layer, unrelated_mesh) == []
 
 
+def test_apply_and_compose_warns_for_unknown_and_uncopyable_materials(
+    tmp_path: Path,
+) -> None:
+    scene_path = tmp_path / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(scene_path))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    UsdGeom.Mesh.Define(stage, "/Root/KnownMesh")
+    UsdGeom.Mesh.Define(stage, "/Root/UnknownMesh")
+    stage.GetRootLayer().Save()
+
+    library_usd = tmp_path / "library.usda"
+    library_layer = Sdf.Layer.CreateNew(str(library_usd))
+    library_layer.defaultPrim = "World"
+    Sdf.CreatePrimInLayer(library_layer, "/World/Looks")
+    library_layer.Save()
+
+    library_yaml = tmp_path / "materials.yaml"
+    library_yaml.write_text(
+        "\n".join(
+            [
+                "library_path: library.usda",
+                "entries:",
+                "  - name: Steel",
+                "    binding: /World/Looks/MissingSteel",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    predictions = _write_jsonl(
+        tmp_path / "work" / "predictions" / "predictions.jsonl",
+        [
+            {"id": "/Root/KnownMesh", "materials": "Steel"},
+            {"id": "/Root/UnknownMesh", "materials": "NotInLibrary"},
+        ],
+    )
+
+    manifest = SceneManifest(
+        sub_assets=[
+            SubAsset(
+                id="asset",
+                name="Asset",
+                prim_path="/Root/KnownMesh",
+                working_dir=str(predictions.parent.parent),
+                status="completed",
+            )
+        ],
+        instance_groups=[
+            InstanceGroup(
+                group_name="no_rep",
+                representative_id=None,
+                member_paths=["/Root"],
+            ),
+            InstanceGroup(
+                group_name="descendant",
+                representative_id="asset",
+                member_paths=["/Root", "/Root/Clone"],
+            ),
+        ],
+    )
+
+    output_usd = tmp_path / "output" / "composed.usda"
+    apply_and_compose(scene_path, manifest, output_usd, library_yaml)
+
+    layer = Sdf.Layer.FindOrOpen(str(output_usd))
+    assert layer is not None
+    assert _binding_targets(layer, "/Root/KnownMesh") == []
+    assert _binding_targets(layer, "/Root/UnknownMesh") == []
+
+
+def test_author_projected_material_layer_reports_missing_targets_after_load_error(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    scene_path = tmp_path / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(scene_path))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    stage.GetRootLayer().Save()
+    _library_usd, library_yaml = _create_library(tmp_path)
+
+    class MissingPrim:
+        def IsValid(self) -> bool:
+            return False
+
+    class FakeStage:
+        def GetPrimAtPath(self, _path: str) -> MissingPrim:
+            return MissingPrim()
+
+        def Load(self, _path: str) -> None:
+            raise Tf.ErrorException("cannot load")
+
+    monkeypatch.setattr(Usd.Stage, "Open", staticmethod(lambda *_args: FakeStage()))
+
+    with pytest.raises(ValueError, match="Projected material targets do not exist"):
+        author_projected_material_layer(
+            scene_path,
+            tmp_path / "output" / "materials.usda",
+            library_yaml,
+            {"/Root/Missing": "Steel"},
+        )
+
+
+def test_apply_and_compose_keeps_original_scene_after_payload_rewrite(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    scene_path = _make_scene_with_members(tmp_path / "scene.usda")
+    _library_usd, library_yaml = _create_library(tmp_path)
+    updated_sublayer = tmp_path / "updated_scene.usda"
+    Sdf.Layer.CreateNew(str(updated_sublayer)).Save()
+
+    monkeypatch.setattr(
+        collect_mod,
+        "_rewrite_scene_payload_arcs",
+        lambda **_kwargs: [str(updated_sublayer.resolve())],
+    )
+
+    manifest = SceneManifest(
+        payload_groups=[
+            PayloadGroup(
+                id="pg",
+                group_name="Payload",
+                payload_file=str(tmp_path / "payload.usda"),
+                instance_paths=["/Root/RepMember"],
+                status="completed",
+            )
+        ]
+    )
+
+    output_usd = tmp_path / "output" / "composed.usda"
+    apply_and_compose(scene_path, manifest, output_usd, library_yaml)
+
+    layer = Sdf.Layer.FindOrOpen(str(output_usd))
+    assert layer is not None
+    assert layer.subLayerPaths == [
+        str(updated_sublayer.resolve()),
+        str(scene_path.resolve()),
+    ]
+
+
 def test_gap_fill_keeps_payloads_unloaded(tmp_path: Path) -> None:
     payload_path = tmp_path / "payload.usda"
     payload_stage = Usd.Stage.CreateNew(str(payload_path))
@@ -522,6 +673,151 @@ def test_process_payload_groups_creates_scoped_layers_and_payload_arcs(
     )
 
 
+def test_process_payload_groups_skips_pending_and_predictionless_groups(
+    tmp_path: Path,
+) -> None:
+    _library_usd, library_yaml = _create_library(tmp_path)
+    composed_layer = Sdf.Layer.CreateAnonymous()
+    manifest = SceneManifest(
+        payload_groups=[
+            PayloadGroup(
+                id="pending",
+                group_name="Pending",
+                payload_file=str(tmp_path / "pending.usda"),
+                status="pending",
+            ),
+            PayloadGroup(
+                id="empty",
+                group_name="Empty",
+                payload_file=str(tmp_path / "empty.usda"),
+                status="completed",
+            ),
+        ]
+    )
+
+    arcs = _process_payload_groups(
+        manifest,
+        composed_layer,
+        tmp_path / "output" / "scene.usda",
+        library_yaml,
+        {"Steel": "/World/Looks/Steel"},
+    )
+
+    assert arcs == 0
+
+
+def test_create_payload_material_layer_scopes_paths_and_removes_roots(
+    tmp_path: Path,
+) -> None:
+    payload_layer = tmp_path / "payload_layers" / "payload.usda"
+
+    _create_payload_material_layer(
+        payload_layer_path=payload_layer,
+        default_prim="Payload",
+        predictions={
+            "/Payload/MeshA": "Scoped",
+            "/Payload/MeshB": "World",
+            "/Payload/MeshC": "RootOnly",
+        },
+        used_materials={
+            "Scoped": "/Payload/Looks/Scoped",
+            "World": "/World/Looks/World",
+            "RootOnly": "/Mat",
+        },
+        library_usd_path=None,
+        name_to_prim={
+            "Scoped": "/Payload/Looks/Scoped",
+            "World": "/World/Looks/World",
+            "RootOnly": "/Mat",
+            "Unused": "/World/Looks/Unused",
+        },
+    )
+    layer = Sdf.Layer.FindOrOpen(str(payload_layer))
+    assert layer is not None
+    assert _binding_targets(layer, "/Payload/MeshA") == ["/Payload/Looks/Scoped"]
+    assert _binding_targets(layer, "/Payload/MeshB") == ["/Payload/Looks/World"]
+    assert _binding_targets(layer, "/Payload/MeshC") == ["/Payload/Mat"]
+
+    plain_layer = tmp_path / "payload_layers" / "plain.usda"
+    _create_payload_material_layer(
+        payload_layer_path=plain_layer,
+        default_prim="",
+        predictions={"/Mesh": "Plain"},
+        used_materials={"Plain": "/World/Looks/Plain"},
+        library_usd_path=None,
+        name_to_prim={"Plain": "/World/Looks/Plain"},
+    )
+    plain = Sdf.Layer.FindOrOpen(str(plain_layer))
+    assert plain is not None
+    assert _binding_targets(plain, "/Mesh") == ["/World/Looks/Plain"]
+
+    root_layer = Sdf.Layer.CreateAnonymous()
+    Sdf.CreatePrimInLayer(root_layer, "/Root")
+    _remove_prim_spec(root_layer, "/Missing")
+    _remove_prim_spec(root_layer, "/Root")
+    assert root_layer.GetPrimAtPath("/Root") is None
+
+    class FakeSpec:
+        name = "Root"
+
+    class FakeRoot:
+        def __init__(self) -> None:
+            self.nameChildren = {"Root": FakeSpec()}
+
+    class FakeLayer:
+        def __init__(self) -> None:
+            self.pseudoRoot = FakeRoot()
+
+        def GetPrimAtPath(self, path: object) -> object | None:
+            return FakeSpec() if str(path) == "/Root" else None
+
+    fake_layer = FakeLayer()
+    _remove_prim_spec(fake_layer, "/Root")
+    assert fake_layer.pseudoRoot.nameChildren == {}
+
+
+def test_write_payload_arcs_handles_absolute_fallback_and_create_failure(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    layer = Sdf.Layer.CreateAnonymous()
+    payload_layer_path = tmp_path / "payload_layers" / "payload.usda"
+    payload_layer_path.parent.mkdir()
+    payload_layer_path.write_text("#usda 1.0\n")
+    output_usd = tmp_path / "output" / "scene.usda"
+
+    monkeypatch.setattr(
+        collect_mod.os.path,
+        "relpath",
+        lambda *_args: (_ for _ in ()).throw(ValueError("different drive")),
+    )
+    assert (
+        _write_payload_arcs(
+            layer,
+            ["/Root/Instance"],
+            payload_layer_path,
+            output_usd,
+        )
+        == 1
+    )
+    prim_spec = layer.GetPrimAtPath("/Root/Instance")
+    assert prim_spec is not None
+    assert prim_spec.payloadList.prependedItems[0].assetPath == str(
+        payload_layer_path.resolve()
+    )
+
+    monkeypatch.setattr(Sdf, "CreatePrimInLayer", lambda *_args: None)
+    assert (
+        _write_payload_arcs(
+            layer,
+            ["/Root/Other"],
+            payload_layer_path,
+            output_usd,
+        )
+        == 0
+    )
+
+
 def test_compose_prototype_payloads_remaps_bindings_to_prototype_source(
     tmp_path: Path,
 ) -> None:
@@ -564,6 +860,376 @@ def test_compose_prototype_payloads_remaps_bindings_to_prototype_source(
     ]
 
 
+def test_compose_prototype_payloads_handles_empty_and_missing_inputs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    composed_layer = Sdf.Layer.CreateAnonymous()
+
+    monkeypatch.setattr(Usd.Stage, "Open", staticmethod(lambda *_args: None))
+    assert (
+        _compose_prototype_payloads(
+            tmp_path / "missing.usda",
+            SceneManifest(
+                payload_groups=[
+                    PayloadGroup(
+                        id="pg",
+                        group_name="Payload",
+                        payload_file=str(tmp_path / "payload.usda"),
+                        instance_paths=["/Root/Instance"],
+                        status="completed",
+                    )
+                ]
+            ),
+            {},
+            {},
+            composed_layer,
+        )
+        == 0
+    )
+    monkeypatch.undo()
+
+    scene_path = tmp_path / "prototype-edges.usda"
+    stage = Usd.Stage.CreateNew(str(scene_path))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    UsdGeom.Xform.Define(stage, "/Root/Proto")
+    ref_no_bindings = stage.OverridePrim("/Root/RefNoBindings")
+    ref_no_bindings.GetReferences().AddInternalReference(Sdf.Path("/Root/Proto"))
+    ref_missing_material = stage.OverridePrim("/Root/RefMissingMaterial")
+    ref_missing_material.GetReferences().AddInternalReference(Sdf.Path("/Root/Proto"))
+    stage.GetRootLayer().Save()
+
+    assert (
+        _compose_prototype_payloads(
+            scene_path,
+            SceneManifest(
+                payload_groups=[
+                    PayloadGroup(
+                        id="pending",
+                        group_name="Pending",
+                        payload_file=str(tmp_path / "payload.usda"),
+                        instance_paths=["/Root/RefNoBindings"],
+                        status="pending",
+                    )
+                ]
+            ),
+            {},
+            {},
+            composed_layer,
+        )
+        == 0
+    )
+
+    manifest = SceneManifest(
+        payload_groups=[
+            PayloadGroup(
+                id="missing-spec",
+                group_name="MissingSpec",
+                payload_file=str(tmp_path / "payload.usda"),
+                instance_paths=["/Root/Missing"],
+                status="completed",
+            ),
+            PayloadGroup(
+                id="no-bindings",
+                group_name="NoBindings",
+                payload_file=str(tmp_path / "payload.usda"),
+                instance_paths=["/Root/RefNoBindings"],
+                status="completed",
+            ),
+            PayloadGroup(
+                id="missing-material",
+                group_name="MissingMaterial",
+                payload_file=str(tmp_path / "payload.usda"),
+                instance_paths=["/Root/RefMissingMaterial"],
+                status="completed",
+            ),
+        ]
+    )
+
+    assert (
+        _compose_prototype_payloads(
+            scene_path,
+            manifest,
+            {"/Root/RefMissingMaterial/Mesh": "Ghost"},
+            {},
+            composed_layer,
+        )
+        == 0
+    )
+
+
+def test_remap_instance_group_bindings_direct_no_reference_branch(
+    tmp_path: Path,
+) -> None:
+    scene_path = tmp_path / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(scene_path))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    UsdGeom.Mesh.Define(stage, "/Root/Rep/Mesh")
+    UsdGeom.Mesh.Define(stage, "/Root/Member/Mesh")
+    UsdGeom.Mesh.Define(stage, "/Root/Member/Direct")
+    UsdGeom.Mesh.Define(stage, "/Root/Member/Existing")
+    stage.GetRootLayer().Save()
+
+    manifest = SceneManifest(
+        sub_assets=[
+            SubAsset(
+                id="rep",
+                name="Representative",
+                prim_path="/Root/Rep",
+                status="completed",
+            )
+        ],
+        instance_groups=[
+            InstanceGroup(
+                group_name="direct_group",
+                representative_id="rep",
+                member_paths=["/Root/Rep", "/Root/Member"],
+            )
+        ],
+    )
+    composed_layer = Sdf.Layer.CreateAnonymous()
+    _write_binding_over(composed_layer, "/Root/Member/Existing", "/Root/Looks/Steel")
+
+    written = _remap_instance_group_bindings(
+        scene_path,
+        manifest,
+        {
+            "/Root/Rep/Mesh": "Steel",
+            "/Root/Rep/Ghost": "Ghost",
+            "/Root/Member/Direct": "Steel",
+            "/Root/Member/MissingMaterial": "Ghost",
+            "/Root/Member/MissingTarget": "Steel",
+            "/Root/Member/Existing": "Steel",
+        },
+        {"Steel": "/Root/Looks/Steel"},
+        composed_layer,
+    )
+
+    assert written == 2
+    assert _binding_targets(composed_layer, "/Root/Member/Mesh") == [
+        "/Root/Looks/Steel"
+    ]
+    assert _binding_targets(composed_layer, "/Root/Member/Direct") == [
+        "/Root/Looks/Steel"
+    ]
+
+
+def test_remap_instance_group_bindings_prototype_source_and_members(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    scene_path = tmp_path / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(scene_path))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    for proto_path, mesh_name in [
+        ("/Root/Prototypes/RepProto", "Mesh"),
+        ("/Root/Prototypes/MemberProto", "Mesh"),
+        ("/Root/Prototypes/RenamedProto", "DifferentMesh"),
+    ]:
+        UsdGeom.Xform.Define(stage, proto_path)
+        UsdGeom.Mesh.Define(stage, f"{proto_path}/{mesh_name}")
+        UsdGeom.Mesh.Define(stage, f"{proto_path}/Already")
+
+    rep = stage.OverridePrim("/Root/Instances/Rep")
+    rep.GetReferences().AddInternalReference(Sdf.Path("/Root/Prototypes/RepProto"))
+    member = stage.OverridePrim("/Root/Instances/Member")
+    member.GetReferences().AddInternalReference(
+        Sdf.Path("/Root/Prototypes/MemberProto")
+    )
+    same = stage.OverridePrim("/Root/Instances/Same")
+    same.GetReferences().AddInternalReference(Sdf.Path("/Root/Prototypes/RepProto"))
+    renamed = stage.OverridePrim("/Root/Instances/Renamed")
+    renamed.GetReferences().AddInternalReference(
+        Sdf.Path("/Root/Prototypes/RenamedProto")
+    )
+    stage.OverridePrim("/Root/Instances/NoRef")
+    stage.GetRootLayer().Save()
+
+    manifest = SceneManifest(
+        sub_assets=[
+            SubAsset(
+                id="rep",
+                name="Representative",
+                prim_path="/Root/Instances/Rep",
+                status="completed",
+            )
+        ],
+        instance_groups=[
+            InstanceGroup(
+                group_name="proto_group",
+                representative_id="rep",
+                member_paths=[
+                    "/Root/Instances/Rep",
+                    "/Root/Instances/NoSpec",
+                    "/Root/Instances/NoRef",
+                    "/Root/Instances/Same",
+                    "/Root/Instances/Member",
+                    "/Root/Instances/Renamed",
+                ],
+            )
+        ],
+    )
+    composed_layer = Sdf.Layer.CreateAnonymous()
+    _write_binding_over(
+        composed_layer,
+        "/Root/Prototypes/RepProto/Already",
+        "/Root/Looks/Steel",
+    )
+    _write_binding_over(
+        composed_layer,
+        "/Root/Prototypes/MemberProto/Already",
+        "/Root/Looks/Steel",
+    )
+    _write_binding_over(
+        composed_layer,
+        "/Root/Prototypes/RenamedProto/Already",
+        "/Root/Looks/Steel",
+    )
+    fallback_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        collect_mod,
+        "_collect_mesh_paths_from_stage",
+        lambda _stage, prefix: [f"{prefix}/Mesh"],
+    )
+    monkeypatch.setattr(
+        collect_mod,
+        "_collect_mesh_paths_from_layer",
+        lambda _layer, prefix: [f"{prefix}/DifferentMesh"],
+    )
+    monkeypatch.setattr(
+        collect_mod,
+        "_write_ordered_mesh_bindings",
+        lambda **kwargs: fallback_calls.append(kwargs) or 1,
+    )
+
+    written = _remap_instance_group_bindings(
+        scene_path,
+        manifest,
+        {
+            "/Root/Instances/Rep/Mesh": "Steel",
+            "/Root/Instances/Rep/Already": "Steel",
+            "/Root/Instances/Rep/Ghost": "Ghost",
+            "/Root/Instances/Rep/NoTarget": "Steel",
+        },
+        {"Steel": "/Root/Looks/Steel"},
+        composed_layer,
+        skip_paths={"/Root/Instances/Rep"},
+    )
+
+    assert written >= 3
+    assert _binding_targets(composed_layer, "/Root/Prototypes/RepProto/Mesh") == [
+        "/Root/Looks/Steel"
+    ]
+    assert _binding_targets(composed_layer, "/Root/Prototypes/MemberProto/Mesh") == [
+        "/Root/Looks/Steel"
+    ]
+    assert fallback_calls
+    assert fallback_calls[-1]["target_meshes"] == [
+        "/Root/Prototypes/RenamedProto/DifferentMesh"
+    ]
+
+
+def test_remap_instance_group_bindings_skips_and_falls_back_for_direct_members(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    composed_layer = Sdf.Layer.CreateAnonymous()
+    monkeypatch.setattr(Usd.Stage, "Open", staticmethod(lambda *_args: None))
+    assert (
+        _remap_instance_group_bindings(
+            tmp_path / "missing.usda",
+            SceneManifest(),
+            {},
+            {},
+            composed_layer,
+        )
+        == 0
+    )
+    monkeypatch.undo()
+
+    scene_path = tmp_path / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(scene_path))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    UsdGeom.Mesh.Define(stage, "/Root/Rep/MeshA")
+    UsdGeom.Mesh.Define(stage, "/Root/Member/RenamedMesh")
+    UsdGeom.Mesh.Define(stage, "/Root/Desc/Sub/Mesh")
+    stage.GetRootLayer().Save()
+
+    manifest = SceneManifest(
+        sub_assets=[
+            SubAsset(
+                id="pending-rep",
+                name="PendingRep",
+                prim_path="/Root/Pending",
+                status="pending",
+            ),
+            SubAsset(
+                id="direct-rep",
+                name="DirectRep",
+                prim_path="/Root/Rep",
+                status="completed",
+            ),
+            SubAsset(
+                id="desc-rep",
+                name="DescRep",
+                prim_path="/Root/Desc/Sub",
+                status="completed",
+            ),
+            SubAsset(
+                id="missing-spec",
+                name="MissingSpec",
+                prim_path="/Root/MissingSpec",
+                status="completed",
+            ),
+        ],
+        instance_groups=[
+            InstanceGroup(
+                group_name="no_rep",
+                representative_id=None,
+                member_paths=["/Root/Rep", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="pending",
+                representative_id="pending-rep",
+                member_paths=["/Root/Pending", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="descendant",
+                representative_id="desc-rep",
+                member_paths=["/Root/Desc", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="missing_spec",
+                representative_id="missing-spec",
+                member_paths=["/Root/MissingSpec", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="direct_fallback",
+                representative_id="direct-rep",
+                member_paths=["/Root/Rep", "/Root/Member"],
+            ),
+        ],
+    )
+
+    written = _remap_instance_group_bindings(
+        scene_path,
+        manifest,
+        {"/Root/Rep/MeshA": "Steel", "/Root/Desc/Sub/Mesh": "Ghost"},
+        {"Steel": "/Root/Looks/Steel"},
+        composed_layer,
+    )
+
+    assert written == 1
+    assert _binding_targets(composed_layer, "/Root/Member/RenamedMesh") == [
+        "/Root/Looks/Steel"
+    ]
+
+
 def test_rewrite_scene_payload_arcs_copies_sublayers(tmp_path: Path) -> None:
     sublayer = tmp_path / "scene_sub.usda"
     Sdf.Layer.CreateNew(str(sublayer)).Save()
@@ -597,6 +1263,47 @@ def test_rewrite_scene_payload_arcs_copies_sublayers(tmp_path: Path) -> None:
     assert Path(result[0]).parent.name == "scene_layers"
     mock_rewrite.assert_called_once()
     assert Path(mock_rewrite.call_args.kwargs["resolve_from"]) == sublayer.resolve()
+
+
+def test_rewrite_scene_payload_arcs_handles_empty_map_and_missing_sublayers(
+    tmp_path: Path,
+) -> None:
+    scene_path = tmp_path / "scene.usda"
+    layer = Sdf.Layer.CreateNew(str(scene_path))
+    layer.subLayerPaths = ["missing_sublayer.usda"]
+    layer.Save()
+
+    with patch(
+        "material_agent.scene.collect._build_cascaded_payload_map",
+        return_value={},
+    ):
+        assert _rewrite_scene_payload_arcs(
+            scene_path,
+            SceneManifest(),
+            tmp_path / "empty-output",
+        ) == [str(scene_path.resolve())]
+
+    with (
+        patch(
+            "material_agent.scene.collect._build_cascaded_payload_map",
+            return_value={
+                str((tmp_path / "payload.usda").resolve()): str(
+                    (tmp_path / "updated.usda").resolve()
+                )
+            },
+        ),
+        patch(
+            "material_agent.scene.payload_dag_utils.rewrite_arcs_in_layer",
+            return_value=0,
+        ),
+    ):
+        result = _rewrite_scene_payload_arcs(
+            scene_path,
+            SceneManifest(),
+            tmp_path / "missing-sublayer-output",
+        )
+
+    assert result == ["missing_sublayer.usda"]
 
 
 def test_compose_material_layers_strips_sublayers_and_propagates_instances(
@@ -657,3 +1364,190 @@ def test_compose_material_layers_strips_sublayers_and_propagates_instances(
     assert _binding_targets(propagated, "/Root/DupeMember/Mesh") == [
         "/Root/Looks/Steel"
     ]
+
+
+def test_compose_material_layers_skips_missing_duplicate_and_empty_layers(
+    tmp_path: Path,
+) -> None:
+    scene_path = _make_scene_with_members(tmp_path / "scene.usda")
+    good_layer_path = tmp_path / "good_output.usda"
+    good_layer = Sdf.Layer.CreateNew(str(good_layer_path))
+    _author_binding(good_layer, "/Root/RepMember/Mesh", "/Root/Looks/Steel")
+    good_layer.Save()
+
+    manifest = SceneManifest(
+        sub_assets=[
+            SubAsset(
+                id="pending",
+                name="Pending",
+                prim_path="/Root/Pending",
+                status="pending",
+            ),
+            SubAsset(
+                id="missing",
+                name="Missing",
+                prim_path="/Root/Missing",
+                material_layer_path=str(tmp_path / "missing.usda"),
+                status="completed",
+            ),
+            SubAsset(
+                id="good",
+                name="Good",
+                prim_path="/Root/RepMember",
+                material_layer_path=str(good_layer_path),
+                status="completed",
+            ),
+            SubAsset(
+                id="duplicate",
+                name="Duplicate",
+                prim_path="/Root/DupeMember",
+                material_layer_path=str(good_layer_path),
+                status="completed",
+            ),
+        ]
+    )
+
+    output_usd = tmp_path / "composed" / "scene.usda"
+    compose_material_layers(scene_path, manifest, output_usd)
+
+    output_layer = Sdf.Layer.FindOrOpen(str(output_usd))
+    assert output_layer is not None
+    assert output_layer.subLayerPaths == [
+        str(good_layer_path.resolve()),
+        str(scene_path.resolve()),
+    ]
+    assert _strip_sublayers(good_layer_path, tmp_path / "stripped", "good") == (
+        good_layer_path.resolve()
+    )
+
+    empty_output = tmp_path / "composed" / "empty.usda"
+    compose_material_layers(scene_path, SceneManifest(), empty_output)
+    empty_layer = Sdf.Layer.FindOrOpen(str(empty_output))
+    assert empty_layer is not None
+    assert empty_layer.subLayerPaths == [str(scene_path.resolve())]
+
+
+def test_create_instance_propagation_layers_handles_skips_and_failures(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    rep_layer_path = tmp_path / "rep.usda"
+    rep_layer = Sdf.Layer.CreateNew(str(rep_layer_path))
+    _author_binding(rep_layer, "/Root/Rep/Mesh", "/Root/Looks/Steel")
+    rep_layer.Save()
+    member_layer_path = tmp_path / "member.usda"
+    Sdf.Layer.CreateNew(str(member_layer_path)).Save()
+
+    manifest = SceneManifest(
+        sub_assets=[
+            SubAsset(
+                id="no-layer",
+                name="NoLayer",
+                prim_path="/Root/NoLayer",
+                status="completed",
+            ),
+            SubAsset(
+                id="missing-layer",
+                name="MissingLayer",
+                prim_path="/Root/MissingLayer",
+                material_layer_path=str(tmp_path / "missing.usda"),
+                status="completed",
+            ),
+            SubAsset(
+                id="rep",
+                name="Rep",
+                prim_path="/Root/Rep",
+                material_layer_path=str(rep_layer_path),
+                status="completed",
+            ),
+            SubAsset(
+                id="member-own",
+                name="MemberOwn",
+                prim_path="/Root/MemberOwn",
+                material_layer_path=str(member_layer_path),
+                status="completed",
+            ),
+        ],
+        instance_groups=[
+            InstanceGroup(
+                group_name="no_rep",
+                representative_id=None,
+                member_paths=["/Root/Rep", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="no_layer",
+                representative_id="no-layer",
+                member_paths=["/Root/NoLayer", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="missing_layer",
+                representative_id="missing-layer",
+                member_paths=["/Root/MissingLayer", "/Root/Member"],
+            ),
+            InstanceGroup(
+                group_name="member_own",
+                representative_id="rep",
+                member_paths=["/Root/Rep", "/Root/MemberOwn"],
+            ),
+        ],
+    )
+
+    assert _create_instance_propagation_layers(manifest, tmp_path / "out") == []
+
+    original_find_or_open = Sdf.Layer.FindOrOpen
+    monkeypatch.setattr(Sdf.Layer, "FindOrOpen", staticmethod(lambda _path: None))
+    assert (
+        _create_instance_propagation_layers(
+            SceneManifest(
+                sub_assets=[
+                    SubAsset(
+                        id="rep",
+                        name="Rep",
+                        prim_path="/Root/Rep",
+                        material_layer_path=str(rep_layer_path),
+                        status="completed",
+                    )
+                ],
+                instance_groups=[
+                    InstanceGroup(
+                        group_name="open_none",
+                        representative_id="rep",
+                        member_paths=["/Root/Rep", "/Root/Member"],
+                    )
+                ],
+            ),
+            tmp_path / "out-open-none",
+        )
+        == []
+    )
+    monkeypatch.setattr(Sdf.Layer, "FindOrOpen", original_find_or_open)
+
+    monkeypatch.setattr(
+        collect_mod,
+        "_remap_layer_prims",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    assert (
+        _create_instance_propagation_layers(
+            SceneManifest(
+                sub_assets=[
+                    SubAsset(
+                        id="rep",
+                        name="Rep",
+                        prim_path="/Root/Rep",
+                        material_layer_path=str(rep_layer_path),
+                        status="completed",
+                    )
+                ],
+                instance_groups=[
+                    InstanceGroup(
+                        group_name="raises",
+                        representative_id="rep",
+                        member_paths=["/Root/Rep", "/Root/Member"],
+                    )
+                ],
+            ),
+            tmp_path / "out-raises",
+        )
+        == []
+    )

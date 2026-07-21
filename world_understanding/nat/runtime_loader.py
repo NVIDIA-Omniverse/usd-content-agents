@@ -91,14 +91,18 @@ class NATWorkflow:
         await self.close_workflow()
 
 
-@overload
-async def query_workflow(config_path: str | Path, question: str) -> str:
+@overload  # pragma: no cover - static typing stub.
+async def query_workflow(
+    config_path: str | Path, question: str
+) -> str:  # pragma: no cover - static typing stub.
     """Query with a single question."""
     ...
 
 
-@overload
-async def query_workflow(config_path: str | Path, question: list[str]) -> list[str]:
+@overload  # pragma: no cover - static typing stub.
+async def query_workflow(
+    config_path: str | Path, question: list[str]
+) -> list[str]:  # pragma: no cover - static typing stub.
     """Query with multiple questions."""
     ...
 

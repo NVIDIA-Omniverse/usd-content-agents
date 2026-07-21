@@ -5,7 +5,9 @@ import json
 import os
 
 import pytest
+import requests
 
+from ...client import client as client_module
 from ...client.client import MaterialAgentClient
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
@@ -53,10 +55,276 @@ class _FakeSession:
         return _FakeResponse(status_code=200)
 
 
+class _FakeStreamResponse:
+    def __init__(self, lines: list[str | None]):
+        self._lines = lines
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def iter_lines(self, decode_unicode: bool = True):
+        yield from self._lines
+
+
+class _FakeStreamSession:
+    def __init__(self, lines: list[str | None]):
+        self.lines = lines
+        self.gets: list[dict] = []
+
+    def get(self, url: str, **kwargs):
+        self.gets.append({"url": url, **kwargs})
+        return _FakeStreamResponse(self.lines)
+
+
 @pytest.fixture
 def api_client() -> MaterialAgentClient:
     client = MaterialAgentClient(base_url=BASE_URL)
     return client
+
+
+def test_client_validation_helpers_and_auth_header(monkeypatch):
+    monkeypatch.setenv("MATERIAL_AGENT_TOKEN", "secret")
+    client = MaterialAgentClient(base_url="http://service/")
+    assert client.base_url == "http://service"
+    assert client._http.headers["Authorization"] == "Bearer secret"
+
+    assert client_module._max_from_env("MISSING_MAX", 7) == 7
+    monkeypatch.setenv("BAD_MAX", "abc")
+    with pytest.raises(ValueError, match="BAD_MAX must be an integer"):
+        client_module._max_from_env("BAD_MAX", 7)
+    monkeypatch.setenv("ZERO_MAX", "0")
+    with pytest.raises(ValueError, match="ZERO_MAX must be at least 1"):
+        client_module._max_from_env("ZERO_MAX", 7)
+
+    with pytest.raises(ValueError, match="workers must be an integer"):
+        client_module._validate_worker_override("workers", True, "MISSING_MAX", 7)
+    with pytest.raises(ValueError, match="count must be at least 1"):
+        client_module._validate_positive_override("count", True)
+    with pytest.raises(ValueError, match="ratio must be between"):
+        client_module._validate_unit_interval_override("ratio", object())
+    with pytest.raises(ValueError, match="ratio must be between"):
+        client_module._validate_unit_interval_override("ratio", 2)
+    with pytest.raises(ValueError, match="texture must be an integer"):
+        client_module._validate_texture_size("texture", True)
+    with pytest.raises(ValueError, match="texture must be between"):
+        client_module._validate_texture_size("texture", 8192)
+
+    assert client_module._parse_json_object_arg(None, "--filters") is None
+    with pytest.raises(ValueError, match="valid JSON"):
+        client_module._parse_json_object_arg("{", "--filters")
+    with pytest.raises(ValueError, match="JSON object"):
+        client_module._parse_json_object_arg("[]", "--filters")
+
+    message = client_module.SSEMessage(event="progress", data='{"ok": true}')
+    assert message.json() == {"ok": True}
+
+
+def test_upload_usd_and_start_pipeline_full_payload(tmp_path):
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+    usd_path = tmp_path / "scene.usda"
+    ref_path = tmp_path / "ref.png"
+    pdf_path = tmp_path / "ref.pdf"
+    materials_zip = tmp_path / "materials.zip"
+    usd_path.write_text("#usda 1.0\n")
+    ref_path.write_bytes(b"png")
+    pdf_path.write_bytes(b"%PDF")
+    materials_zip.write_bytes(b"zip")
+
+    assert client.upload_usd(str(usd_path)) == "session-1"
+    assert fake_session.posts[0]["url"] == "http://service/pipeline/upload-usd"
+
+    session_id = client.start_pipeline(
+        session_id="existing-session",
+        reference_images=[str(ref_path)],
+        reference_pdfs=[str(pdf_path)],
+        reference_descriptions=["front reference"],
+        pdf_descriptions=["spec sheet"],
+        user_prompt="prefer brushed metal",
+        camera_views="+x",
+        pdf_first_page=1,
+        pdf_last_page=2,
+        optimize_usd=True,
+        enable_deinstance=True,
+        enable_split=False,
+        enable_deduplicate=True,
+        materials_zip_path=str(materials_zip),
+        vlm_model="nim/model",
+        generated_reference_id="ref-1",
+        coverage_policy="allow_partial",
+        layer_only=True,
+        large_scene=True,
+        scene_workers=1,
+        scene_assets="AssetA",
+        scene_resume=True,
+        scene_from_step="predict",
+        scene_skip_existing=True,
+        scene_no_render=True,
+        scene_simulate=True,
+        scene_simulate_mock_analyze=True,
+        scene_fail_on_validation_error=True,
+        scene_filters={"include": ["AssetA"]},
+    )
+
+    assert session_id == "session-1"
+    post = fake_session.posts[1]
+    assert post["data"]["session_id"] == "existing-session"
+    assert post["data"]["reference_descriptions"] == '["front reference"]'
+    assert post["data"]["pdf_descriptions"] == '["spec sheet"]'
+    assert post["data"]["user_prompt"] == "prefer brushed metal"
+    assert post["data"]["camera_views"] == "+x"
+    assert post["data"]["pdf_first_page"] == "1"
+    assert post["data"]["pdf_last_page"] == "2"
+    assert post["data"]["vlm_model"] == "nim/model"
+    assert post["data"]["generated_reference_id"] == "ref-1"
+    assert post["data"]["layer_only"] == "true"
+    assert post["data"]["scene_assets"] == "AssetA"
+    assert post["data"]["optimize_usd"] == "true"
+    assert post["data"]["enable_deinstance"] == "true"
+    assert post["data"]["enable_split"] == "false"
+    assert post["data"]["enable_deduplicate"] == "true"
+    assert json.loads(post["data"]["scene_filters"]) == {"include": ["AssetA"]}
+    assert [item[0] for item in post["files"]] == [
+        "reference_images",
+        "reference_pdfs",
+        "materials_zip",
+    ]
+
+
+def test_wait_for_input_render_non_terminal_paths(monkeypatch):
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    fake_session.head_responses.append(_FakeResponse(status_code=500))
+    client._http = fake_session  # type: ignore[assignment]
+    with pytest.raises(AssertionError, match="unexpected HTTP status 500"):
+        client.wait_for_input_render("session-1", poll_interval_seconds=0)
+
+    fake_session = _FakeSession()
+    fake_session.head_responses.append(_FakeResponse(status_code=404))
+    client._http = fake_session  # type: ignore[assignment]
+    with pytest.raises(TimeoutError, match="Input preview was not available"):
+        client.wait_for_input_render("session-1", timeout_seconds=0)
+
+    sleeps: list[float] = []
+    fake_session = _FakeSession()
+    fake_session.head_responses.extend(
+        [_FakeResponse(status_code=503), _FakeResponse(status_code=200)]
+    )
+    client._http = fake_session  # type: ignore[assignment]
+    monkeypatch.setattr(client_module.time, "sleep", lambda delay: sleeps.append(delay))
+    client.wait_for_input_render(
+        "session-1", timeout_seconds=60, poll_interval_seconds=3
+    )
+    assert sleeps == [3]
+
+
+def test_stream_events_parses_sse_messages():
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeStreamSession(
+        [
+            "",
+            None,
+            ": heartbeat",
+            "event: progress",
+            "id: 1",
+            "retry: bad",
+            'data: {"step": "predict"}',
+            "",
+            "retry: 5",
+            'data: {"done": true}',
+            "",
+            "unknown",
+            "data: tail",
+        ]
+    )
+    client._http = fake_session  # type: ignore[assignment]
+
+    messages = list(client.stream_events("session-1", request_timeout=7))
+
+    assert messages[0].event == "progress"
+    assert messages[0].id == "1"
+    assert messages[0].retry is None
+    assert messages[0].json() == {"step": "predict"}
+    assert messages[1].event == "message"
+    assert messages[1].retry == 5
+    assert messages[2].data == "tail"
+    assert fake_session.gets[0]["headers"]["Accept"] == "text/event-stream"
+    assert fake_session.gets[0]["timeout"] == 7
+
+
+def test_simple_client_methods_call_expected_endpoints():
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+
+    assert client.get_status("session-1")["total"] == 1
+    assert client.get_results("session-1")["total"] == 1
+    client.cancel("session-1")
+    assert client.sessions()["total"] == 1
+    assert client.health()["total"] == 1
+
+    assert [call["url"] for call in fake_session.gets] == [
+        "http://service/pipeline/session-1/status",
+        "http://service/pipeline/session-1/results",
+        "http://service/sessions",
+        "http://service/health",
+    ]
+    assert fake_session.posts[-1]["url"] == "http://service/pipeline/session-1/cancel"
+
+
+def test_get_results_preserves_failed_artifact_download_urls():
+    client = MaterialAgentClient(base_url="http://service")
+    expected = {
+        "status": "failed",
+        "failed_step": "coverage_validation",
+        "download_urls": {
+            "output_usd": "/artifacts/session-1/output",
+            "predictions": "/artifacts/session-1/predictions",
+        },
+    }
+
+    class _FailedResultsSession(_FakeSession):
+        def get(self, url: str, **kwargs):
+            self.gets.append({"url": url, **kwargs})
+            return _FakeResponse(expected)
+
+    fake_session = _FailedResultsSession()
+    client._http = fake_session  # type: ignore[assignment]
+
+    assert client.get_results("session-1") == expected
+
+
+def test_get_results_raises_http_error_while_results_are_pending():
+    client = MaterialAgentClient(base_url="http://service")
+
+    class _PendingResultsSession(_FakeSession):
+        def get(self, url: str, **kwargs):
+            self.gets.append({"url": url, **kwargs})
+            return _FakeResponse({"status": "pending"}, status_code=202)
+
+    fake_session = _PendingResultsSession()
+    client._http = fake_session  # type: ignore[assignment]
+
+    with pytest.raises(
+        requests.HTTPError, match="pipeline results are not ready"
+    ) as exc:
+        client.get_results("session-1")
+
+    assert exc.value.response is not None
+    assert exc.value.response.status_code == 202
+    assert fake_session.gets == [
+        {
+            "url": "http://service/pipeline/session-1/results",
+            "timeout": client.timeout_seconds,
+        }
+    ]
 
 
 def test_generate_reference_image_posts_prompt():
@@ -97,6 +365,35 @@ def test_start_pipeline_posts_worker_overrides(tmp_path):
     assert fake_session.posts[0]["data"]["render_num_workers"] == "1"
 
 
+def test_start_pipeline_rejects_large_scene_with_material_generation():
+    client = MaterialAgentClient(base_url="http://service")
+
+    with pytest.raises(
+        ValueError,
+        match="large_scene is not compatible with enable_material_generation",
+    ):
+        client.start_pipeline(
+            usd_path="unused.usda",
+            large_scene=True,
+            enable_material_generation=True,
+        )
+
+
+def test_run_and_monitor_rejects_large_scene_with_material_generation():
+    client = MaterialAgentClient(base_url="http://service")
+
+    with pytest.raises(
+        ValueError,
+        match="large_scene is not compatible with enable_material_generation",
+    ):
+        client.run_and_monitor(
+            usd_path="unused.usda",
+            large_scene=True,
+            enable_material_generation=True,
+            print_stream=False,
+        )
+
+
 def test_regenerate_posts_json_body():
     client = MaterialAgentClient(base_url="http://service")
     fake_session = _FakeSession()
@@ -107,6 +404,7 @@ def test_regenerate_posts_json_body():
         steps=["predict", "apply"],
         user_prompt="Prefer brushed aluminum",
         layer_only=True,
+        coverage_policy="strict",
     )
 
     assert result["session_id"] == "session-1"
@@ -117,6 +415,7 @@ def test_regenerate_posts_json_body():
                 "steps": ["predict", "apply"],
                 "user_prompt": "Prefer brushed aluminum",
                 "layer_only": True,
+                "coverage_policy": "strict",
             },
             "timeout": client.timeout_seconds,
         }
@@ -154,6 +453,34 @@ def test_start_pipeline_allows_service_default_vlm_worker_cap(tmp_path):
 
     assert session_id == "session-1"
     assert fake_session.posts[0]["data"]["vlm_max_workers"] == "64"
+    assert fake_session.posts[0]["data"]["coverage_policy"] == "strict"
+
+
+def test_start_pipeline_posts_allow_partial_coverage_override(tmp_path):
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    client.start_pipeline(
+        usd_path=str(usd_path),
+        coverage_policy="allow_partial",
+    )
+
+    assert fake_session.posts[0]["data"]["coverage_policy"] == "allow_partial"
+
+
+def test_start_pipeline_rejects_unknown_coverage_policy(tmp_path):
+    client = MaterialAgentClient(base_url="http://service")
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    with pytest.raises(ValueError, match="coverage_policy"):
+        client.start_pipeline(
+            usd_path=str(usd_path),
+            coverage_policy="best_effort",
+        )
 
 
 def test_start_pipeline_posts_prim_clustering_overrides(tmp_path):
@@ -196,7 +523,7 @@ def test_start_pipeline_posts_prim_clustering_overrides(tmp_path):
     assert data["cluster_report"] == "false"
 
 
-def test_start_pipeline_posts_large_scene_options(tmp_path):
+def test_start_pipeline_posts_material_generation_options(tmp_path):
     client = MaterialAgentClient(base_url="http://service")
     fake_session = _FakeSession()
     client._http = fake_session  # type: ignore[assignment]
@@ -206,22 +533,61 @@ def test_start_pipeline_posts_large_scene_options(tmp_path):
     session_id = client.start_pipeline(
         usd_path=str(usd_path),
         user_email="test@example.com",
-        large_scene=True,
-        scene_workers=2,
-        scene_assets=["AssetA", "/World/AssetB"],
-        scene_resume=True,
-        scene_from_step="predict",
-        scene_skip_existing=True,
-        scene_no_render=True,
-        scene_simulate=True,
-        scene_simulate_mock_analyze=True,
-        scene_fail_on_validation_error=True,
-        scene_filters={"include_prim_paths": ["/World"]},
+        enable_material_generation=True,
+        material_generation_guidance="orange glossy enclosure",
+        material_generation_texture_size=512,
     )
 
     assert session_id == "session-1"
     data = fake_session.posts[0]["data"]
+    assert data["enable_material_generation"] == "true"
+    assert data["material_generation_guidance"] == "orange glossy enclosure"
+    assert data["material_generation_texture_size"] == "512"
+
+
+def test_start_pipeline_rejects_bad_material_generation_texture_size(tmp_path):
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    with pytest.raises(ValueError, match="material_generation_texture_size"):
+        client.start_pipeline(
+            usd_path=str(usd_path),
+            enable_material_generation=True,
+            material_generation_texture_size=32,
+        )
+
+
+def test_start_pipeline_posts_large_scene_options(tmp_path):
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    with pytest.warns(UserWarning, match="defaults coverage_policy"):
+        session_id = client.start_pipeline(
+            usd_path=str(usd_path),
+            user_email="test@example.com",
+            large_scene=True,
+            scene_workers=2,
+            scene_assets=["AssetA", "/World/AssetB"],
+            scene_resume=True,
+            scene_from_step="predict",
+            scene_skip_existing=True,
+            scene_no_render=True,
+            scene_simulate=True,
+            scene_simulate_mock_analyze=True,
+            scene_fail_on_validation_error=True,
+            scene_filters={"include_prim_paths": ["/World"]},
+        )
+
+    assert session_id == "session-1"
+    data = fake_session.posts[0]["data"]
     assert data["large_scene"] == "true"
+    assert data["coverage_policy"] == "allow_partial"
     assert data["scene_workers"] == "2"
     assert data["scene_assets"] == "AssetA,/World/AssetB"
     assert data["scene_resume"] == "true"
@@ -233,6 +599,22 @@ def test_start_pipeline_posts_large_scene_options(tmp_path):
     assert data["scene_fail_on_validation_error"] == "true"
     assert json.loads(data["scene_filters"]) == {"include_prim_paths": ["/World"]}
     assert "scene_analyze_llm" not in data
+
+
+def test_start_pipeline_preserves_explicit_strict_large_scene_policy(tmp_path):
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    client.start_pipeline(
+        usd_path=str(usd_path),
+        large_scene=True,
+        coverage_policy="strict",
+    )
+
+    assert fake_session.posts[0]["data"]["coverage_policy"] == "strict"
 
 
 @pytest.mark.parametrize(
@@ -490,9 +872,163 @@ def test_run_and_monitor_rejects_preview_upload_modes_for_large_scene(
         )
 
 
-def test_main_passes_worker_overrides(monkeypatch, tmp_path, capsys):
-    from ...client import client as client_module
+def test_run_and_monitor_generated_reference_requires_reference_id(monkeypatch, capsys):
+    client = MaterialAgentClient(base_url="http://service")
 
+    monkeypatch.setattr(client, "upload_usd", lambda _path: "session-1")
+    monkeypatch.setattr(client, "wait_for_input_render", lambda *_, **__: None)
+    monkeypatch.setattr(client, "generate_reference_image", lambda *_: {"status": "ok"})
+
+    with pytest.raises(RuntimeError, match="did not return reference_id"):
+        client.run_and_monitor(
+            usd_path="/tmp/scene.usda",
+            generated_reference_prompt="matte blue plastic",
+            print_stream=True,
+            preview_timeout_seconds=5,
+        )
+
+    captured = capsys.readouterr()
+    assert "Waiting for input preview" in captured.out
+    assert "Generating reference image" in captured.out
+
+
+def test_run_and_monitor_streams_progress_and_done(monkeypatch, capsys):
+    client = MaterialAgentClient(base_url="http://service")
+
+    monkeypatch.setattr(client, "start_pipeline", lambda **_: "session-1")
+    monkeypatch.setattr(
+        client,
+        "stream_events",
+        lambda _session_id: iter(
+            [
+                client_module.SSEMessage(event="ping", data=""),
+                client_module.SSEMessage(
+                    event="progress",
+                    data=(
+                        '{"step": "predict", "state": "running", '
+                        '"overall_percent": 70, "message": "working"}'
+                    ),
+                ),
+                client_module.SSEMessage(event="progress", data="not-json"),
+                client_module.SSEMessage(event="done", data="{}"),
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        client, "get_status", lambda _session_id: {"status": "completed"}
+    )
+
+    session_id, status = client.run_and_monitor(
+        usd_path="/tmp/scene.usda",
+        print_stream=True,
+    )
+
+    assert session_id == "session-1"
+    assert status == {"status": "completed"}
+    captured = capsys.readouterr()
+    assert "Started session: session-1" in captured.out
+    assert "[predict] running overall=70% working" in captured.out
+    assert "[None] None overall=None%" in captured.out
+
+
+def test_run_and_monitor_confirms_sse_done_before_returning(monkeypatch):
+    client = MaterialAgentClient(base_url="http://service")
+    statuses = iter(
+        [
+            {"status": "running"},
+            {"status": "running"},
+            {"status": "completed"},
+        ]
+    )
+    sleeps: list[float] = []
+
+    monkeypatch.setattr(client, "start_pipeline", lambda **_: "session-1")
+    monkeypatch.setattr(
+        client,
+        "stream_events",
+        lambda _session_id: iter([client_module.SSEMessage(event="done", data="{}")]),
+    )
+    monkeypatch.setattr(client, "get_status", lambda _session_id: next(statuses))
+    monkeypatch.setattr(client_module.time, "sleep", lambda delay: sleeps.append(delay))
+
+    session_id, status = client.run_and_monitor(
+        usd_path="/tmp/scene.usda",
+        print_stream=False,
+    )
+
+    assert session_id == "session-1"
+    assert status == {"status": "completed"}
+    assert sleeps == [2]
+
+
+def test_run_and_monitor_polls_when_post_done_status_fetch_fails(monkeypatch):
+    client = MaterialAgentClient(base_url="http://service")
+    calls = {"count": 0}
+
+    def get_status(_session_id: str):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("status not replicated yet")
+        return {"status": "completed"}
+
+    monkeypatch.setattr(client, "start_pipeline", lambda **_: "session-1")
+    monkeypatch.setattr(
+        client,
+        "stream_events",
+        lambda _session_id: iter([client_module.SSEMessage(event="done", data="{}")]),
+    )
+    monkeypatch.setattr(client, "get_status", get_status)
+
+    session_id, status = client.run_and_monitor(
+        usd_path="/tmp/scene.usda",
+        print_stream=False,
+    )
+
+    assert session_id == "session-1"
+    assert status == {"status": "completed"}
+    assert calls["count"] == 2
+
+
+def test_run_and_monitor_retries_sse_then_polls(monkeypatch, capsys):
+    client = MaterialAgentClient(base_url="http://service")
+    stream_calls = {"count": 0}
+    statuses = [{"status": "running", "overall_percent": 10}, {"status": "completed"}]
+    sleeps: list[float] = []
+
+    def stream_events(_session_id: str):
+        stream_calls["count"] += 1
+        if stream_calls["count"] == 1:
+            raise RuntimeError("sse down")
+        return iter(())
+
+    def get_status(_session_id: str):
+        if statuses:
+            return statuses.pop(0)
+        raise RuntimeError("status unavailable")
+
+    monkeypatch.setattr(client, "start_pipeline", lambda **_: "session-1")
+    monkeypatch.setattr(client, "stream_events", stream_events)
+    monkeypatch.setattr(client, "get_status", get_status)
+    monkeypatch.setattr(client_module.time, "sleep", lambda delay: sleeps.append(delay))
+
+    session_id, status = client.run_and_monitor(
+        usd_path="/tmp/scene.usda",
+        print_stream=True,
+        reconnect_attempts=1,
+        reconnect_backoff_seconds=4,
+    )
+
+    assert session_id == "session-1"
+    assert status == {"status": "completed"}
+    assert sleeps == [4, 2]
+    captured = capsys.readouterr()
+    assert "SSE error (sse down), retrying in 4s" in captured.out
+    assert "Polling status" in captured.out
+    assert "status=running overall=10" in captured.out
+    assert "status=completed overall=-" in captured.out
+
+
+def test_main_passes_worker_overrides(monkeypatch, tmp_path, capsys):
     captured_kwargs: dict = {}
 
     class FakeClient:
@@ -501,7 +1037,14 @@ def test_main_passes_worker_overrides(monkeypatch, tmp_path, capsys):
 
         def run_and_monitor(self, **kwargs):
             captured_kwargs.update(kwargs)
-            return "session-1", {"status": "completed"}
+            return "session-1", {
+                "status": "completed",
+                "coverage": {
+                    "readiness_grade": "complete",
+                    "prediction_coverage_ratio": 1.0,
+                    "binding_coverage_ratio": 1.0,
+                },
+            }
 
     usd_path = tmp_path / "scene.usda"
     usd_path.write_text("#usda 1.0\n")
@@ -528,13 +1071,13 @@ def test_main_passes_worker_overrides(monkeypatch, tmp_path, capsys):
     assert captured_kwargs["render_num_workers"] == 1
     assert captured_kwargs["user_email"] == "test@example.com"
     assert captured_kwargs["enable_prim_clustering"] is None
+    assert captured_kwargs["coverage_policy"] == "strict"
     captured = capsys.readouterr()
     assert "Session: session-1" in captured.out
+    assert "Material readiness: complete" in captured.out
 
 
 def test_main_email_is_optional(monkeypatch, tmp_path, capsys):
-    from ...client import client as client_module
-
     captured_kwargs: dict = {}
 
     class FakeClient:
@@ -543,7 +1086,10 @@ def test_main_email_is_optional(monkeypatch, tmp_path, capsys):
 
         def run_and_monitor(self, **kwargs):
             captured_kwargs.update(kwargs)
-            return "session-1", {"status": "completed"}
+            return "session-1", {
+                "status": "completed",
+                "coverage": {"readiness_grade": "complete"},
+            }
 
     usd_path = tmp_path / "scene.usda"
     usd_path.write_text("#usda 1.0\n")
@@ -566,8 +1112,6 @@ def test_main_email_is_optional(monkeypatch, tmp_path, capsys):
 
 
 def test_main_can_explicitly_disable_prim_clustering(monkeypatch, tmp_path, capsys):
-    from ...client import client as client_module
-
     captured_kwargs: dict = {}
 
     class FakeClient:
@@ -576,7 +1120,10 @@ def test_main_can_explicitly_disable_prim_clustering(monkeypatch, tmp_path, caps
 
         def run_and_monitor(self, **kwargs):
             captured_kwargs.update(kwargs)
-            return "session-1", {"status": "completed"}
+            return "session-1", {
+                "status": "completed",
+                "coverage": {"readiness_grade": "complete"},
+            }
 
     usd_path = tmp_path / "scene.usda"
     usd_path.write_text("#usda 1.0\n")
@@ -602,8 +1149,6 @@ def test_main_can_explicitly_disable_prim_clustering(monkeypatch, tmp_path, caps
 
 
 def test_main_passes_prim_clustering_overrides(monkeypatch, tmp_path, capsys):
-    from ...client import client as client_module
-
     captured_kwargs: dict = {}
 
     class FakeClient:
@@ -612,7 +1157,10 @@ def test_main_passes_prim_clustering_overrides(monkeypatch, tmp_path, capsys):
 
         def run_and_monitor(self, **kwargs):
             captured_kwargs.update(kwargs)
-            return "session-1", {"status": "completed"}
+            return "session-1", {
+                "status": "completed",
+                "coverage": {"readiness_grade": "complete"},
+            }
 
     usd_path = tmp_path / "scene.usda"
     usd_path.write_text("#usda 1.0\n")
@@ -675,8 +1223,6 @@ def test_main_passes_prim_clustering_overrides(monkeypatch, tmp_path, capsys):
 
 
 def test_main_passes_large_scene_options(monkeypatch, tmp_path, capsys):
-    from ...client import client as client_module
-
     captured_kwargs: dict = {}
 
     class FakeClient:
@@ -720,6 +1266,7 @@ def test_main_passes_large_scene_options(monkeypatch, tmp_path, capsys):
 
     assert exit_code == 0
     assert captured_kwargs["large_scene"] is True
+    assert captured_kwargs["coverage_policy"] == "allow_partial"
     assert captured_kwargs["scene_workers"] == 2
     assert captured_kwargs["scene_assets"] == "AssetA,/World/AssetB"
     assert captured_kwargs["scene_resume"] is True
@@ -731,9 +1278,142 @@ def test_main_passes_large_scene_options(monkeypatch, tmp_path, capsys):
     assert captured_kwargs["scene_fail_on_validation_error"] is True
     assert captured_kwargs["scene_filters"] == {"include_prim_paths": ["/World"]}
     captured = capsys.readouterr()
+    assert "defaults coverage_policy to allow_partial" in captured.err
     assert "Scene manifest:" in captured.out
     assert "Predictions JSONL" not in captured.out
     assert "Report HTML" not in captured.out
+
+
+def test_main_prints_large_scene_final_render_when_render_enabled(
+    monkeypatch, tmp_path, capsys
+):
+    class FakeClient:
+        def __init__(self, base_url: str, token: str | None = None):
+            self.base_url = base_url
+
+        def run_and_monitor(self, **kwargs):
+            return "session-1", {"status": "completed"}
+
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+    monkeypatch.setattr(client_module, "MaterialAgentClient", FakeClient)
+
+    exit_code = client_module.main(
+        ["--base-url", "http://service", "--large-scene", "--quiet", str(usd_path)]
+    )
+
+    assert exit_code == 0
+    assert "Final render:" in capsys.readouterr().out
+
+
+def test_main_prints_no_results_when_status_missing(monkeypatch, tmp_path, capsys):
+    class FakeClient:
+        def __init__(self, base_url: str, token: str | None = None):
+            self.base_url = base_url
+
+        def run_and_monitor(self, **kwargs):
+            return "session-1", None
+
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+    monkeypatch.setattr(client_module, "MaterialAgentClient", FakeClient)
+
+    assert client_module.main(["--quiet", str(usd_path)]) == 1
+    assert "No results available yet." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        {"status": "failed"},
+        {"status": "cancelled"},
+        {"status": "running"},
+        {"status": "completed"},
+        {
+            "status": "completed",
+            "coverage": {"readiness_grade": "partial"},
+        },
+    ],
+)
+def test_main_returns_nonzero_until_strict_completion_contract_is_met(
+    monkeypatch,
+    tmp_path,
+    status,
+):
+    class FakeClient:
+        def __init__(self, base_url: str, token: str | None = None):
+            self.base_url = base_url
+
+        def run_and_monitor(self, **kwargs):
+            return "session-1", status
+
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+    monkeypatch.setattr(client_module, "MaterialAgentClient", FakeClient)
+
+    assert client_module.main(["--quiet", str(usd_path)]) == 1
+
+
+def test_main_rejects_description_count_mismatches(tmp_path, capsys):
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    assert (
+        client_module.main(
+            [
+                "--ref",
+                "a.png",
+                "--ref-desc",
+                "one",
+                "--ref-desc",
+                "two",
+                str(usd_path),
+            ]
+        )
+        == 2
+    )
+    assert "--ref and --ref-desc counts must match" in capsys.readouterr().err
+
+    assert (
+        client_module.main(
+            [
+                "--ref-pdf",
+                "a.pdf",
+                "--pdf-desc",
+                "one",
+                "--pdf-desc",
+                "two",
+                str(usd_path),
+            ]
+        )
+        == 2
+    )
+    assert "--ref-pdf and --pdf-desc counts must match" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "args,error",
+    [
+        (["--scene-filters-json", "[]"], "--scene-filters-json must be a JSON object"),
+        (
+            ["--large-scene", "--upload-first"],
+            "--large-scene is not compatible with --upload-first",
+        ),
+        (
+            ["--large-scene", "--enable-material-generation"],
+            "--large-scene is not compatible with --enable-material-generation",
+        ),
+    ],
+)
+def test_main_parser_error_paths(args, error, tmp_path, capsys):
+    usd_path = tmp_path / "scene.usda"
+    usd_path.write_text("#usda 1.0\n")
+
+    with pytest.raises(SystemExit) as exc_info:
+        client_module.main([*args, str(usd_path)])
+
+    assert exc_info.value.code == 2
+    assert error in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(

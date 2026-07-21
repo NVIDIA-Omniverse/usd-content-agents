@@ -26,11 +26,39 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from world_understanding.agentic.events import EventListener
+from world_understanding.utils.credentials import (
+    path_is_file_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+)
+from world_understanding.utils.model_auth import (
+    MODEL_AUTHENTICATION_FAILURE_MESSAGE,
+    is_model_authentication_error,
+    public_model_failure_message,
+)
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+    retain_safe_result_text,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
 
 logger = logging.getLogger(__name__)
+
+_PIPELINE_FAILURE_MESSAGE = "Pipeline execution failed"
+_PIPELINE_CANCELLATION_MESSAGE = "Pipeline cancelled"
+_DRY_RUN_FAILURE_MESSAGE = "Unable to build pipeline execution plan"
+
+
+class CancellationSignal(Protocol):
+    """Event-like cooperative cancellation signal accepted by PipelineInput."""
+
+    def is_set(self) -> bool:
+        """Return whether cancellation has been requested."""
+        ...
 
 
 @dataclass
@@ -47,6 +75,7 @@ class PipelineInput:
         clean: Clean working directory before starting
         verbose: Enable verbose output
         event_listener: Optional event listener for progress reporting
+        cancel_event: Optional Event-like signal used for cooperative cancellation
     """
 
     config: Path | dict[str, Any]
@@ -58,20 +87,30 @@ class PipelineInput:
     clean: bool = False
     verbose: bool = False
     event_listener: EventListener | None = None
+    cancel_event: CancellationSignal | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate inputs."""
+        if self.cancel_event is not None and not callable(
+            getattr(self.cancel_event, "is_set", None)
+        ):
+            raise ValueError("cancel_event must provide an is_set() method")
         if isinstance(self.config, dict):
             if not self.config:
                 raise ValueError("Config dictionary cannot be empty")
         else:
             self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+            if not path_is_file_with_safe_diagnostics(
+                self.config,
+                label="pipeline configuration file",
+            ):
+                raise FileNotFoundError(
+                    f"Config file not found: {redact_sensitive_path(self.config)}"
+                )
 
 
-@dataclass
-class PipelineOutput:
+@dataclass(repr=False)
+class PipelineOutput(SecretSafeReprMixin):
     """Output results from pipeline API."""
 
     success: bool
@@ -82,6 +121,7 @@ class PipelineOutput:
     session_id: str | None = None
     working_dir: Path | None = None
     raw_result: dict[str, Any] | None = None
+    cancelled: bool = False
 
 
 async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
@@ -110,14 +150,21 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
 
         listener = create_default_listener(verbose=params.verbose)
 
+    safe_skip_steps = redact_sensitive_config(params.skip_steps)
+    if not isinstance(safe_skip_steps, list):
+        safe_skip_steps = []
+    safe_only_steps = redact_sensitive_config(params.only_steps)
+    if not isinstance(safe_only_steps, list):
+        safe_only_steps = []
+
     # Emit workflow started event
     listener.event(
         "workflow.started",
         {
             "workflow_type": "pipeline",
             "config_type": "dict" if isinstance(params.config, dict) else "file",
-            "skip_steps": params.skip_steps,
-            "only_steps": params.only_steps,
+            "skip_steps": safe_skip_steps,
+            "only_steps": safe_only_steps,
         },
     )
 
@@ -125,12 +172,12 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
     if isinstance(params.config, dict):
         listener.info("Using in-memory config dictionary")
     else:
-        listener.info(f"Configuration file: {params.config}")
+        listener.info(f"Configuration file: {redact_sensitive_path(params.config)}")
 
     if params.skip_steps:
-        listener.info(f"Skip steps: {', '.join(params.skip_steps)}")
+        listener.info(f"Skip steps: {', '.join(safe_skip_steps)}")
     if params.only_steps:
-        listener.info(f"Only steps: {', '.join(params.only_steps)}")
+        listener.info(f"Only steps: {', '.join(safe_only_steps)}")
     if params.resume:
         listener.info("Resume mode enabled")
     if params.clean:
@@ -155,11 +202,17 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             "verbose": params.verbose,
             "event_listener": listener,
         }
+        if params.cancel_event is not None:
+            initial_context["cancel_event"] = params.cancel_event
 
         # Add session_id if provided
         if params.session_id:
             initial_context["session_id"] = params.session_id
-            listener.info(f"Using provided session ID: {params.session_id}")
+            safe_session_id = redact_sensitive_config(
+                params.session_id,
+                _path_context=True,
+            )
+            listener.info(f"Using provided session ID: {safe_session_id}")
 
         # Add config as either path or dict
         if isinstance(params.config, dict):
@@ -183,42 +236,97 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             return PipelineOutput(
                 success=False,
                 error=error_msg,
-                skipped_steps=params.skip_steps,
+                skipped_steps=safe_skip_steps,
                 raw_result=result,
+            )
+
+        if result.get("pipeline_cancelled"):
+            pipeline_results = result.get("pipeline_results", {})
+            safe_pipeline_results = project_result_metadata(pipeline_results)
+            completed_steps = list(safe_pipeline_results.keys())
+            safe_session_id = retain_safe_result_text(
+                result.get("session_id"),
+                path_context=True,
+            )
+            safe_working_dir = retain_safe_result_path(result.get("working_dir"))
+            listener.info(_PIPELINE_CANCELLATION_MESSAGE)
+            listener.event(
+                "workflow.cancelled",
+                {
+                    "workflow_type": "pipeline",
+                    "completed_steps": completed_steps,
+                },
+            )
+            return PipelineOutput(
+                success=False,
+                cancelled=True,
+                error=_PIPELINE_CANCELLATION_MESSAGE,
+                step_results=safe_pipeline_results,
+                completed_steps=completed_steps,
+                skipped_steps=safe_skip_steps,
+                session_id=safe_session_id,
+                working_dir=safe_working_dir,
             )
 
         # Check for workflow errors even if result exists
         if result.get("error") or result.get("workflow_terminated"):
+            failure_message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(result.get("error"))
+                else _PIPELINE_FAILURE_MESSAGE
+            )
             failed_task = result.get("failed_task", "unknown")
-            error_msg = result.get("error", "Pipeline failed without error message")
-            listener.error(f"Pipeline failed at task '{failed_task}': {error_msg}")
+            safe_failed_task = (
+                retain_safe_result_text(
+                    failed_task,
+                    path_context=True,
+                )
+                or "<redacted>"
+            )
+            listener.error(
+                f"Pipeline failed at task '{safe_failed_task}': {failure_message}"
+            )
             listener.event(
                 "workflow.failed",
                 {
                     "workflow_type": "pipeline",
-                    "error": error_msg,
-                    "failed_task": failed_task,
+                    "error": failure_message,
+                    "failed_task": safe_failed_task,
                 },
             )
             # Still extract partial results if available
             pipeline_results = result.get("pipeline_results", {})
-            completed_steps = list(pipeline_results.keys())
+            safe_pipeline_results = project_result_metadata(pipeline_results)
+            completed_steps = list(safe_pipeline_results.keys())
+            raw_session_id = result.get("session_id")
+            safe_session_id = retain_safe_result_text(
+                raw_session_id,
+                path_context=True,
+            )
+            raw_working_dir = result.get("working_dir")
+            safe_working_dir = retain_safe_result_path(raw_working_dir)
             return PipelineOutput(
                 success=False,
-                error=error_msg,
-                step_results=pipeline_results,
+                error=failure_message,
+                step_results=safe_pipeline_results,
                 completed_steps=completed_steps,
-                skipped_steps=params.skip_steps,
-                session_id=result.get("session_id"),
-                working_dir=Path(wd) if (wd := result.get("working_dir")) else None,
-                raw_result=result,
+                skipped_steps=safe_skip_steps,
+                session_id=safe_session_id,
+                working_dir=safe_working_dir,
             )
 
-        # Pipeline succeeded - extract results
-        pipeline_results = result.get("pipeline_results", {})
-        completed_steps = list(pipeline_results.keys())
-        session_id = result.get("session_id")
-        working_dir = result.get("working_dir")
+        # Pipeline succeeded. Runtime context remains raw through execution;
+        # public result metadata is a detached, credential-safe projection.
+        safe_result = project_result_metadata(result)
+        safe_pipeline_results = safe_result.get("pipeline_results", {})
+        if not isinstance(safe_pipeline_results, dict):
+            safe_pipeline_results = {}
+        completed_steps = list(safe_pipeline_results.keys())
+        session_id = retain_safe_result_text(
+            result.get("session_id"),
+            path_context=True,
+        )
+        working_dir = retain_safe_result_path(result.get("working_dir"))
 
         # Emit completion event
         listener.event(
@@ -232,22 +340,24 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
 
         return PipelineOutput(
             success=True,
-            step_results=pipeline_results,
+            step_results=safe_pipeline_results,
             completed_steps=completed_steps,
-            skipped_steps=params.skip_steps,
+            skipped_steps=safe_skip_steps,
             session_id=session_id,
-            working_dir=Path(working_dir) if working_dir else None,
-            raw_result=result,
+            working_dir=working_dir,
+            raw_result=safe_result,
         )
 
-    except Exception as e:
-        listener.error(f"Error running pipeline: {str(e)}")
+    except Exception as error:
+        failure_message = public_model_failure_message(error, _PIPELINE_FAILURE_MESSAGE)
+        listener.error(failure_message)
         listener.event(
-            "workflow.failed", {"workflow_type": "pipeline", "error": str(e)}
+            "workflow.failed",
+            {"workflow_type": "pipeline", "error": failure_message},
         )
         return PipelineOutput(
             success=False,
-            error=str(e),
+            error=failure_message,
         )
 
 
@@ -314,11 +424,11 @@ def _dry_run_pipeline(params: PipelineInput) -> PipelineOutput:
             skipped_steps=skipped_steps,
         )
 
-    except Exception as e:
-        logger.error(f"Error during dry run: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_DRY_RUN_FAILURE_MESSAGE)
         return PipelineOutput(
             success=False,
-            error=str(e),
+            error=_DRY_RUN_FAILURE_MESSAGE,
         )
 
 

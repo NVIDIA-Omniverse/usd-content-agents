@@ -18,7 +18,9 @@ from world_understanding.utils.credentials import (
     is_local_base_url,
     is_local_nim_api_key_placeholder,
     is_placeholder_api_key,
+    openai_missing_credential_message,
     resolve_effective_openai_base_url,
+    resolve_endpoint_api_key,
 )
 
 __all__ = [
@@ -40,7 +42,11 @@ def get_api_key_for_model_config(
     backend: str, model_config: dict[str, Any], model_type: str = "model"
 ) -> str:
     """Resolve a configured model API key using runtime precedence."""
-    api_key = model_config.get("api_key")
+    api_key = resolve_endpoint_api_key(
+        model_config.get("api_key"),
+        model_config.get("api_key_env"),
+        require_env=model_config.get("api_key") is None,
+    )
     if backend == "nim":
         base_url = model_config.get("base_url")
         resolved_nim_key = get_nim_api_key_for_base_url(
@@ -68,7 +74,7 @@ def get_api_key_for_model_config(
         if resolved_openai_key:
             return resolved_openai_key
         if effective_base_url:
-            raise ValueError(f"OPENAI_API_KEY not set for {backend} {model_type}")
+            raise ValueError(openai_missing_credential_message(base_url, model_type))
         return get_api_key_for_backend(backend, model_type)
 
     if api_key and not is_placeholder_api_key(api_key):
@@ -164,7 +170,7 @@ def get_api_key_for_backend(backend: str, model_type: str = "model") -> str:
     error messages.
 
     Args:
-        backend: Backend name (e.g., "nim", "perflab_azure_openai")
+        backend: Backend name (e.g., "nim", "openai")
         model_type: Type of model for error message (e.g., "VLM", "LLM")
 
     Returns:

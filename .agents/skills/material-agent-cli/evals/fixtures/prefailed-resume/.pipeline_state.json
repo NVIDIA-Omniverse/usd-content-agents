@@ -1,0 +1,26 @@
+{
+  "session_id": "skill-eval-prefailed-resume",
+  "project_name": "skill-eval-ladder",
+  "completed_steps": [
+    "build_dataset_usd",
+    "build_dataset_prepare_dataset"
+  ],
+  "failed_steps": [
+    "predict"
+  ],
+  "step_errors": {
+    "predict": "Injected evaluation failure after checkpoint creation"
+  },
+  "step_outputs": {
+    "build_dataset_usd": {
+      "output_dir": "dataset/usd",
+      "num_prims": 1,
+      "num_images": 2
+    },
+    "build_dataset_prepare_dataset": {
+      "dataset_jsonl_path": "dataset/dataset.jsonl",
+      "num_entries": 1
+    }
+  },
+  "current_step": null
+}

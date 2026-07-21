@@ -12,6 +12,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from world_understanding.functions.graphics.material_targets import RenderMaterialTarget
+
 # Render-mode strings the caller can pass — keep the tokens identical to the
 # kit-gen-ai-service ``RenderMode`` enum (``rt1``/``rt2``/``pt``) so clients
 # targeting either service can use the same request body.
@@ -70,6 +72,17 @@ class RenderSettings(BaseModel):
             "quality for wall-clock time (~9 ms per step at 512x512)."
         ),
     )
+    material_target: RenderMaterialTarget | None = Field(
+        default=None,
+        description=(
+            "Explicit material target for render export. ``None`` keeps the "
+            "service/backend default. ``auto`` preserves authored/native "
+            "material outputs, ``preview_surface`` requests that fallback "
+            "explicitly, and ``openpbr_materialx`` asks the renderer to "
+            "consume native OpenPBR/MaterialX without authoring render-only "
+            "PreviewSurface fallbacks."
+        ),
+    )
 
 
 class RenderRequest(BaseModel):
@@ -101,6 +114,12 @@ class HealthResponse(BaseModel):
     gpu_initialized: bool = False
     renderer_initialized: bool = False
     daemon_running: bool = False
+    daemon_pid: int | None = None
+    daemon_completed_renders: int | None = None
+    daemon_rss_bytes: int | None = None
+    daemon_recycle_count: int | None = None
+    daemon_last_recycle_reason: str | None = None
+    daemon_pending_recycle_reason: str | None = None
     ready_workers: int | None = None
     total_workers: int | None = None
     workers: list[dict[str, Any]] | None = None

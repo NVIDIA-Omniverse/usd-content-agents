@@ -10,12 +10,23 @@ from opentelemetry.trace import Status, StatusCode
 
 from world_understanding.agentic.tasks import Task
 from world_understanding.telemetry import get_tracer
+from world_understanding.utils.credentials import redact_sensitive_path
+from world_understanding.utils.model_auth import public_model_failure_message
 from world_understanding.utils.object_store import (
     InMemoryObjectStore,
     ObjectStore,
 )
 
 logger = logging.getLogger(__name__)
+
+_TASK_FAILURE_MESSAGE = "Task execution failed"
+
+
+def _diagnostic_name(value: Any) -> str:
+    """Project a runtime workflow identifier onto observable surfaces."""
+    if not isinstance(value, str):
+        return "<unavailable>"
+    return redact_sensitive_path(value)
 
 
 class Workflow:
@@ -79,21 +90,32 @@ class Workflow:
             Final context after all tasks have executed
         """
         tracer = get_tracer(__name__)
-        with tracer.start_as_current_span(f"workflow.{self.name}") as workflow_span:
+        safe_workflow_name = _diagnostic_name(self.name)
+        with tracer.start_as_current_span(
+            f"workflow.{safe_workflow_name}"
+        ) as workflow_span:
             context = initial_context or {}
             context["workflow_name"] = self.name
-            workflow_span.set_attribute("workflow.name", self.name)
+            workflow_span.set_attribute("workflow.name", safe_workflow_name)
             workflow_span.set_attribute("workflow.task_count", len(self.tasks))
 
             for i, task in enumerate(self.tasks):
                 task_name = getattr(task, "name", task.__class__.__name__)
+                safe_task_name = _diagnostic_name(task_name)
                 context["current_task"] = task_name
                 context["task_index"] = i
 
-                logger.info(f"Executing task {i + 1}/{len(self.tasks)}: {task_name}")
+                logger.info(
+                    "Executing task %d/%d: %s",
+                    i + 1,
+                    len(self.tasks),
+                    safe_task_name,
+                )
 
-                with tracer.start_as_current_span(f"task.{task_name}") as task_span:
-                    task_span.set_attribute("task.name", task_name)
+                with tracer.start_as_current_span(
+                    f"task.{safe_task_name}"
+                ) as task_span:
+                    task_span.set_attribute("task.name", safe_task_name)
                     task_span.set_attribute("task.index", i)
 
                     try:
@@ -103,15 +125,21 @@ class Workflow:
                         # Check for early termination
                         if context.get("workflow_terminated", False):
                             logger.info(
-                                f"Workflow terminated early at task {task_name}"
+                                "Workflow terminated early at task %s",
+                                safe_task_name,
                             )
                             break
 
-                    except Exception as e:
-                        task_span.record_exception(e)
-                        task_span.set_status(Status(StatusCode.ERROR, str(e)))
-                        logger.error(f"Task {task_name} failed: {e}")
-                        context["error"] = str(e)
+                    except Exception as error:
+                        # Task exceptions may contain config values, paths, or
+                        # backend payloads. Do not copy exception text, stack
+                        # frames, or causes into telemetry, logs, or context.
+                        safe_error = public_model_failure_message(
+                            error, _TASK_FAILURE_MESSAGE
+                        )
+                        task_span.set_status(Status(StatusCode.ERROR, safe_error))
+                        logger.error("Task %s failed: %s", safe_task_name, safe_error)
+                        context["error"] = safe_error
                         context["failed_task"] = task_name
                         context["workflow_terminated"] = True
                         break

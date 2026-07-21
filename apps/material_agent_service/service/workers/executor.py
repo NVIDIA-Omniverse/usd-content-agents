@@ -6,10 +6,10 @@ Calls arun_pipeline directly - no wrappers or thread pools needed!
 """
 
 import asyncio
-import copy
 import json
 import logging
 import threading
+from collections.abc import Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,17 +22,41 @@ from material_agent.api import (
     arun_pipeline,
     arun_scene_pipeline,
 )
+from world_understanding.agentic.config import clone_config_containers
 from world_understanding.telemetry import get_current_span, traced
 from world_understanding.telemetry.attributes import MAAttributes
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    durable_diagnostic,
+    log_durable_failure,
+)
+from world_understanding.utils.result_projection import project_result_metadata
 
+from ..artifact_lineage import (
+    ARTIFACT_CANONICAL_KEYS,
+    ARTIFACT_PRODUCER_STEPS,
+    emitted_artifacts_for_completed_steps,
+    revalidate_artifacts_for_completed_steps,
+)
+from ..coverage import (
+    CoveragePolicy,
+    build_material_coverage,
+    build_not_evaluated_material_coverage,
+    coverage_is_release_ready,
+    normalize_coverage_policy,
+)
 from ..events.listener import FastAPIEventListener
+from ..events.sanitization import bounded_step_completion_data
 from ..events.telemetry_listener import TelemetryEventListener
 from ..json_utils import to_json_safe
 from ..runtime.bus import get_event_bus
 from ..runtime.events import ProgressEvent, StepState
-from ..session.manager import SessionManager
+from ..session.manager import RegenerationClaim, SessionManager
 
 logger = logging.getLogger(__name__)
+
+_REGENERATION_LEASE_SECONDS = 300.0
+_REGENERATION_HEARTBEAT_SECONDS = 60.0
 
 _STEP_DISPLAY_NAMES = {
     "optimize_usd": "Optimizing USD Scene",
@@ -48,12 +72,527 @@ _STEP_DISPLAY_NAMES = {
 }
 
 
+def _current_run_completed_steps(
+    config_dict: dict[str, Any],
+    completed_steps: list[str] | None,
+) -> list[str]:
+    """Exclude cached upstream completions from this run's publication set."""
+    configured_steps = config_dict.get("steps")
+    active_steps = (
+        set(configured_steps) if isinstance(configured_steps, dict) else set()
+    )
+    return [step for step in (completed_steps or []) if step in active_steps]
+
+
+def _artifact_file_signature(path: Path) -> tuple[int, int, int] | None:
+    """Return a cheap identity for detecting files written by this execution."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    if not path.is_file():
+        return None
+    return (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+
+def _capture_promotable_file_signatures(
+    session_dir: Path,
+) -> dict[str, tuple[int, int, int]]:
+    """Snapshot files that promotion may otherwise mistake for current outputs."""
+    candidates = {key for keys in ARTIFACT_CANONICAL_KEYS.values() for key in keys}
+    candidates.add("cache/.pipeline_state.json")
+    for relative_dir in (
+        "cache/dataset",
+        "cache/generated_material_library",
+        "cache/preview",
+        "generated_material_library",
+        "output/generated_material_library",
+        "preview",
+    ):
+        directory = session_dir / relative_dir
+        if directory.exists():
+            candidates.update(
+                path.relative_to(session_dir).as_posix()
+                for path in directory.rglob("*")
+                if path.is_file()
+            )
+    signatures: dict[str, tuple[int, int, int]] = {}
+    for key in candidates:
+        signature = _artifact_file_signature(session_dir / key)
+        if signature is not None:
+            signatures[key] = signature
+    return signatures
+
+
+async def _promote_current_run_artifacts(
+    session_manager: SessionManager,
+    session_id: str,
+    session_dir: Path,
+    completed_steps: list[str],
+    step_results: dict[str, Any] | None,
+    *,
+    regeneration_claim: RegenerationClaim | None = None,
+    artifact_map: dict[str, str] | None = None,
+    baseline_signatures: dict[str, tuple[int, int, int]] | None = None,
+) -> set[str]:
+    """Publish current artifacts canonically or under a claimed immutable prefix."""
+    emitted = emitted_artifacts_for_completed_steps(completed_steps, step_results)
+    completed = set(completed_steps)
+
+    def produced_this_run(key: str, path: Path) -> bool:
+        signature = _artifact_file_signature(path)
+        return signature is not None and (
+            baseline_signatures is None or baseline_signatures.get(key) != signature
+        )
+
+    # Some Material Agent step results report counts/bindings but omit their
+    # output path. A completed producer plus a canonical file is still strong
+    # publication evidence; otherwise successful legacy and claimed runs lose
+    # downloadable artifacts despite having written them.
+    for artifact, producer_steps in ARTIFACT_PRODUCER_STEPS.items():
+        if artifact == "prediction_report" or not (completed & producer_steps):
+            continue
+        canonical_file_exists = any(
+            produced_this_run(key, session_dir / key)
+            for key in ARTIFACT_CANONICAL_KEYS.get(artifact, ())
+        )
+        preview_file_exists = artifact == "previews" and any(
+            produced_this_run(path.relative_to(session_dir).as_posix(), path)
+            for preview_dir in (
+                session_dir / "cache" / "preview",
+                session_dir / "preview",
+            )
+            if preview_dir.exists()
+            for path in preview_dir.glob("*.png")
+        )
+        if canonical_file_exists or preview_file_exists:
+            emitted.add(artifact)
+    promoted: set[str] = set()
+
+    async def publish(key: str, path: Path) -> None:
+        target_key = (
+            f"{regeneration_claim.artifact_prefix}/{key}"
+            if regeneration_claim is not None
+            else key
+        )
+        await session_manager.put_file_to_store(
+            session_id,
+            target_key,
+            str(path),
+        )
+        if artifact_map is not None:
+            artifact_map[key] = target_key
+
+    for artifact in emitted:
+        artifact_promoted = False
+        for key in ARTIFACT_CANONICAL_KEYS.get(artifact, ()):
+            path = session_dir / key
+            # Explicit step output identifies the artifact group, but it must
+            # not waive freshness for every canonical alias left on disk by a
+            # prior generation.
+            if not produced_this_run(key, path):
+                continue
+            await publish(key, path)
+            artifact_promoted = True
+        if artifact_promoted:
+            promoted.add(artifact)
+
+    auxiliary_keys: set[str] = set()
+    if "build_dataset_usd" in completed_steps:
+        preview_dir = session_dir / "cache" / "preview"
+        if preview_dir.exists():
+            preview_keys = {
+                str(path.relative_to(session_dir))
+                for path in preview_dir.glob("*.png")
+                if path.is_file()
+            }
+            auxiliary_keys.update(preview_keys)
+        dataset_usd_dir = session_dir / "cache" / "dataset" / "usd"
+        if dataset_usd_dir.exists():
+            auxiliary_keys.update(
+                path.relative_to(session_dir).as_posix()
+                for path in dataset_usd_dir.rglob("*")
+                if path.is_file()
+            )
+    if "build_dataset_prepare_dataset" in completed_steps:
+        dataset_dir = session_dir / "cache" / "dataset"
+        if dataset_dir.exists():
+            auxiliary_keys.update(
+                path.relative_to(session_dir).as_posix()
+                for path in dataset_dir.rglob("*")
+                if path.is_file()
+            )
+    if "generate_material_library" in completed_steps:
+        for generated_dir in (
+            session_dir / "cache" / "generated_material_library",
+            session_dir / "generated_material_library",
+            session_dir / "output" / "generated_material_library",
+        ):
+            if generated_dir.exists():
+                auxiliary_keys.update(
+                    path.relative_to(session_dir).as_posix()
+                    for path in generated_dir.rglob("*")
+                    if path.is_file()
+                )
+    checkpoint_path = session_dir / "cache" / ".pipeline_state.json"
+    if checkpoint_path.is_file():
+        auxiliary_keys.add("cache/.pipeline_state.json")
+
+    published_auxiliary_keys: set[str] = set()
+    for key in sorted(auxiliary_keys):
+        path = session_dir / key
+        if not produced_this_run(key, path):
+            continue
+        await publish(key, path)
+        published_auxiliary_keys.add(key)
+    if "previews" in emitted and any(
+        key.startswith(("cache/preview/", "preview/"))
+        for key in published_auxiliary_keys
+    ):
+        promoted.add("previews")
+    return promoted
+
+
+async def _carry_forward_regeneration_artifacts(
+    session_manager: SessionManager,
+    session_id: str,
+    claim: RegenerationClaim,
+    metadata: dict[str, Any],
+    artifact_validity: dict[str, bool],
+    artifact_map: dict[str, str],
+    configured_steps: set[str],
+) -> dict[str, bool]:
+    """Copy still-valid prior artifacts into the claim's immutable generation."""
+    publication = metadata.get("published_artifacts")
+    prior_map = (
+        publication.get("artifacts", {}) if isinstance(publication, dict) else {}
+    )
+    logical_keys = {
+        key for key in prior_map if isinstance(key, str) and key not in artifact_map
+    }
+    if not isinstance(publication, dict):
+        prefixes = (
+            "cache/dataset/",
+            "cache/generated_material_library/",
+            "generated_material_library/",
+            "output/generated_material_library/",
+            "cache/optimized/",
+            "cache/preview/",
+            "preview/",
+        )
+        for prefix in prefixes:
+            logical_keys.update(
+                await session_manager.store.list_keys(session_id, prefix=prefix)
+            )
+        logical_keys.add("cache/.pipeline_state.json")
+        for keys in ARTIFACT_CANONICAL_KEYS.values():
+            logical_keys.update(keys)
+
+    artifact_by_key = {
+        key: artifact
+        for artifact, keys in ARTIFACT_CANONICAL_KEYS.items()
+        for key in keys
+    }
+    for logical_key in sorted(logical_keys):
+        if logical_key in artifact_map:
+            continue
+        if "build_dataset_usd" in configured_steps and logical_key.startswith(
+            ("cache/dataset/", "cache/preview/", "preview/")
+        ):
+            continue
+        if (
+            "build_dataset_prepare_dataset" in configured_steps
+            and logical_key.startswith("cache/dataset/")
+        ):
+            continue
+        if "generate_material_library" in configured_steps and logical_key.startswith(
+            (
+                "cache/generated_material_library/",
+                "generated_material_library/",
+                "output/generated_material_library/",
+            )
+        ):
+            continue
+        artifact = artifact_by_key.get(logical_key)
+        if artifact is not None and not artifact_validity.get(artifact, False):
+            continue
+        if logical_key == "cache/predictions/prediction_report.html":
+            continue
+        if logical_key == "cache/.pipeline_state.json":
+            # A current checkpoint is promoted before carry-forward. Never
+            # republish a prior generation's checkpoint for a new execution.
+            continue
+        if logical_key.startswith(("cache/preview/", "preview/")) and not (
+            artifact_validity.get("previews", False)
+        ):
+            continue
+        source_key = session_manager.resolve_published_artifact_key(
+            metadata,
+            logical_key,
+            legacy_key=logical_key,
+        )
+        if source_key is None:
+            continue
+        data = await session_manager.read_from_store(session_id, source_key)
+        if data is None:
+            continue
+        target_key = f"{claim.artifact_prefix}/{logical_key}"
+        await session_manager.put_bytes_to_store(
+            session_id,
+            target_key,
+            data,
+        )
+        artifact_map[logical_key] = target_key
+
+    verified_validity = dict(artifact_validity)
+    for artifact, canonical_keys in ARTIFACT_CANONICAL_KEYS.items():
+        if verified_validity.get(artifact) and not any(
+            key in artifact_map for key in canonical_keys
+        ):
+            verified_validity[artifact] = False
+    if verified_validity.get("previews") and not any(
+        key.startswith(("cache/preview/", "preview/")) for key in artifact_map
+    ):
+        verified_validity["previews"] = False
+    return verified_validity
+
+
+async def _emit_persisted_pipeline_failure(
+    session_id: str,
+    error: str,
+    *,
+    step: str,
+    regeneration_claim: RegenerationClaim | None,
+) -> None:
+    """Emit the authoritative failure marker after metadata is persisted."""
+    event_bus = get_event_bus()
+    if event_bus.get_snapshot(session_id) is None:
+        return
+
+    try:
+        await event_bus.emit_for_owner(
+            ProgressEvent(
+                session_id=session_id,
+                step=step,
+                state=StepState.FAILED,
+                message=error,
+                extra={"pipeline_failed": True},
+            ),
+            regeneration_claim=regeneration_claim,
+        )
+    except Exception:  # pragma: no cover - diagnostics must not mask root failure
+        log_durable_failure(
+            logger,
+            "material_pipeline_failure_event_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+
+
+async def _emit_persisted_pipeline_cancellation(
+    session_id: str,
+    *,
+    step: str,
+    regeneration_claim: RegenerationClaim | None,
+) -> None:
+    """Emit the authoritative cancellation marker after metadata is persisted."""
+    event_bus = get_event_bus()
+    if event_bus.get_snapshot(session_id) is None:
+        return
+
+    try:
+        await event_bus.emit_for_owner(
+            ProgressEvent(
+                session_id=session_id,
+                step=step,
+                state=StepState.CANCELLED,
+                percent=100,
+                message="Pipeline cancelled",
+                extra={"pipeline_cancelled": True},
+            ),
+            regeneration_claim=regeneration_claim,
+        )
+    except Exception:  # pragma: no cover - diagnostics must not mask cancellation
+        log_durable_failure(
+            logger,
+            "pipeline_cancellation_event_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=True,
+        )
+
+
+async def _poll_standard_pipeline_cancellation(
+    session_manager: SessionManager,
+    session_id: str,
+    owner_task: asyncio.Task[Any],
+) -> None:
+    """Cancel a standard worker when another instance writes its durable marker."""
+    while True:
+        try:
+            if await session_manager.is_cancelled(session_id):
+                owner_task.cancel()
+                return
+        except Exception:
+            log_durable_failure(
+                logger,
+                "pipeline_cancellation_poll_failed",
+                phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                retryable=True,
+            )
+        await asyncio.sleep(0.5)
+
+
+async def _monitor_regeneration_claim(
+    session_manager: SessionManager,
+    session_id: str,
+    claim: RegenerationClaim,
+    owner_task: asyncio.Task[Any],
+) -> None:
+    """Renew a claim and stop its worker on cancellation, expiry, or takeover."""
+    while True:
+        try:
+            if await session_manager.is_regeneration_cancel_requested(
+                session_id,
+                claim,
+            ):
+                owner_task.cancel()
+                return
+            renewed = await session_manager.renew_regeneration_claim(
+                session_id,
+                claim,
+                lease_seconds=_REGENERATION_LEASE_SECONDS,
+            )
+            if not renewed:
+                metadata = await session_manager.get_session_metadata(session_id)
+                current = (
+                    RegenerationClaim.from_metadata(metadata)
+                    if metadata is not None
+                    else None
+                )
+                raw_claim = (
+                    metadata.get("regeneration_claim") if metadata is not None else None
+                )
+                if (
+                    current is not None
+                    and metadata is not None
+                    and isinstance(raw_claim, Mapping)
+                    and current.generation == claim.generation
+                    and current.token == claim.token
+                    and raw_claim.get("active") is not True
+                    and not raw_claim.get("aborted_at")
+                    and metadata.get("status")
+                    in {
+                        "completed",
+                        "succeeded",
+                        "failed",
+                        "cancelled",
+                        "canceled",
+                    }
+                ):
+                    finalized_at_value = raw_claim.get("finalized_at")
+                    try:
+                        finalized_at = datetime.fromisoformat(
+                            str(finalized_at_value).replace("Z", "+00:00")
+                        )
+                    except ValueError:
+                        finalized_at = None
+                    if (
+                        finalized_at is not None
+                        and current.lease_expires_at > finalized_at
+                    ):
+                        return
+                owner_task.cancel()
+                return
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log_durable_failure(
+                logger,
+                "regeneration_claim_monitor_failed",
+                phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                retryable=True,
+            )
+            owner_task.cancel()
+            return
+        await asyncio.sleep(_REGENERATION_HEARTBEAT_SECONDS)
+
+
+async def _update_pipeline_session(
+    session_manager: SessionManager,
+    session_id: str,
+    updates: dict[str, Any],
+    *,
+    regeneration_claim: RegenerationClaim | None,
+    remove_fields: tuple[str, ...] = (),
+) -> bool:
+    """Persist a nonterminal update without letting a stale worker write."""
+    if regeneration_claim is None:
+        await session_manager.update_session(
+            session_id,
+            updates,
+            remove_fields=remove_fields,
+        )
+        return True
+    return await session_manager.update_session_for_claim(
+        session_id,
+        regeneration_claim,
+        updates,
+        remove_fields=remove_fields,
+    )
+
+
+async def _finalize_pipeline_session(
+    session_manager: SessionManager,
+    session_id: str,
+    updates: dict[str, Any],
+    *,
+    regeneration_claim: RegenerationClaim | None,
+    artifact_map: dict[str, str] | None = None,
+    remove_fields: tuple[str, ...] = (),
+) -> bool:
+    """Persist terminal metadata and atomically publish immutable artifacts."""
+    if regeneration_claim is None:
+        return await session_manager.finalize_standard_pipeline(
+            session_id,
+            updates,
+            remove_fields=remove_fields,
+        )
+    return await session_manager.finalize_regeneration_claim(
+        session_id,
+        regeneration_claim,
+        updates=updates,
+        artifact_map=artifact_map,
+        remove_fields=remove_fields,
+    )
+
+
+async def _mark_standard_terminal_events_quiesced(
+    session_manager: SessionManager,
+    session_id: str,
+    *,
+    regeneration_claim: RegenerationClaim | None,
+    expected_status: str,
+) -> None:
+    """Open regeneration admission after the standard terminal emit phase."""
+    if regeneration_claim is not None:
+        return
+    if not await session_manager.mark_terminal_events_quiesced(
+        session_id,
+        expected_status=expected_status,
+    ):
+        raise RuntimeError(
+            f"Failed to quiesce terminal events for {session_id} ({expected_status})"
+        )
+
+
 @traced("maa.pipeline.execution")
 async def execute_pipeline_async(
     session_id: str,
     config_dict: dict[str, Any],
     session_manager: SessionManager,
     user_email: str = "",
+    coverage_policy: CoveragePolicy = "allow_partial",
+    regeneration_claim: RegenerationClaim | None = None,
 ) -> None:
     """Execute pipeline workflow using MAA Python async API.
 
@@ -66,31 +605,104 @@ async def execute_pipeline_async(
         session_manager: SessionManager instance
         user_email: User email address for telemetry
     """
+    owner_task = asyncio.current_task()
+    if owner_task is None:  # pragma: no cover - coroutine execution always has a task
+        raise RuntimeError("Pipeline execution requires an active asyncio task")
+    cancel_poll_task = asyncio.create_task(
+        _monitor_regeneration_claim(
+            session_manager,
+            session_id,
+            regeneration_claim,
+            owner_task,
+        )
+        if regeneration_claim is not None
+        else _poll_standard_pipeline_cancellation(
+            session_manager,
+            session_id,
+            owner_task,
+        )
+    )
     try:
         await _execute_pipeline_inner(
-            session_id, config_dict, session_manager, user_email
+            session_id,
+            config_dict,
+            session_manager,
+            user_email,
+            coverage_policy=normalize_coverage_policy(coverage_policy),
+            regeneration_claim=regeneration_claim,
         )
     except asyncio.CancelledError:
         logger.info(f"Pipeline cancelled for {session_id[:8]}")
-        await session_manager.update_session(
+        persisted = await _finalize_pipeline_session(
+            session_manager,
             session_id,
             {
                 "status": "cancelled",
                 "cancelled_at": datetime.now(UTC).isoformat(),
             },
+            regeneration_claim=regeneration_claim,
         )
+        if persisted:
+            await _emit_persisted_pipeline_cancellation(
+                session_id,
+                step="pipeline",
+                regeneration_claim=regeneration_claim,
+            )
+            await _mark_standard_terminal_events_quiesced(
+                session_manager,
+                session_id,
+                regeneration_claim=regeneration_claim,
+                expected_status="cancelled",
+            )
         raise  # Re-raise so JobRegistry cleanup runs
-    except Exception as e:
-        logger.error(f"Pipeline failed for {session_id[:8]}: {e}")
-        await session_manager.update_session(
+    except Exception:
+        diagnostic = durable_diagnostic(
+            "material_pipeline_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        log_durable_failure(
+            logger,
+            diagnostic.code,
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        persisted = await _finalize_pipeline_session(
+            session_manager,
             session_id,
             {
                 "status": "failed",
-                "error": str(e),
+                "error": diagnostic.code,
+                "error_diagnostic": diagnostic.to_dict(),
                 "failed_at": datetime.now(UTC).isoformat(),
             },
+            regeneration_claim=regeneration_claim,
         )
+        if persisted:
+            await _emit_persisted_pipeline_failure(
+                session_id,
+                diagnostic.code,
+                step="pipeline",
+                regeneration_claim=regeneration_claim,
+            )
+            await _mark_standard_terminal_events_quiesced(
+                session_manager,
+                session_id,
+                regeneration_claim=regeneration_claim,
+                expected_status="failed",
+            )
         raise
+    finally:
+        cancel_poll_task.cancel()
+        try:
+            await cancel_poll_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:  # pragma: no cover - monitor is defensive internally
+            logger.exception(
+                "Pipeline cancellation monitor failed during cleanup for %s",
+                session_id[:8],
+            )
 
 
 @traced("maa.scene_pipeline.execution")
@@ -100,15 +712,23 @@ async def execute_scene_pipeline_async(
     session_manager: SessionManager,
     user_email: str = "",
     scene_options: dict[str, Any] | None = None,
+    coverage_policy: CoveragePolicy = "allow_partial",
 ) -> None:
     """Execute the large-scene material pipeline via the public Python API."""
     try:
+        normalized_policy = normalize_coverage_policy(coverage_policy)
+        if normalized_policy == "strict":
+            raise ValueError(
+                "coverage_policy=strict currently requires the single-asset "
+                "pipeline because large-scene prim-level coverage is not qualified"
+            )
         await _execute_scene_pipeline_inner(
             session_id,
             config_dict,
             session_manager,
             user_email,
             scene_options or {},
+            coverage_policy=normalized_policy,
         )
     except asyncio.CancelledError:
         logger.info("Scene pipeline cancelled for %s", session_id[:8])
@@ -119,16 +739,38 @@ async def execute_scene_pipeline_async(
                 "cancelled_at": datetime.now(UTC).isoformat(),
             },
         )
+        await _emit_persisted_pipeline_cancellation(
+            session_id,
+            step="scene_pipeline",
+            regeneration_claim=None,
+        )
         raise
-    except Exception as e:
-        logger.error("Scene pipeline failed for %s: %s", session_id[:8], e)
+    except Exception:
+        diagnostic = durable_diagnostic(
+            "material_scene_pipeline_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        log_durable_failure(
+            logger,
+            diagnostic.code,
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
         await session_manager.update_session(
             session_id,
             {
                 "status": "failed",
-                "error": str(e),
+                "error": diagnostic.code,
+                "error_diagnostic": diagnostic.to_dict(),
                 "failed_at": datetime.now(UTC).isoformat(),
             },
+        )
+        await _emit_persisted_pipeline_failure(
+            session_id,
+            diagnostic.code,
+            step="scene_pipeline",
+            regeneration_claim=None,
         )
         raise
 
@@ -139,13 +781,16 @@ async def _execute_scene_pipeline_inner(
     session_manager: SessionManager,
     user_email: str = "",
     scene_options: dict[str, Any] | None = None,
+    coverage_policy: CoveragePolicy = "allow_partial",
 ) -> None:
     """Inner large-scene execution logic."""
     logger.info("Scene pipeline execution started for %s...", session_id[:8])
     scene_options = scene_options or {}
     session_dir = session_manager.get_session_dir(session_id)
 
-    scene_config = copy.deepcopy(config_dict)
+    scene_config = clone_config_containers(config_dict)
+    if not isinstance(scene_config, dict):  # pragma: no cover - input contract
+        raise TypeError("Scene pipeline configuration must be a mapping")
     project_config = scene_config.setdefault("project", {})
     if not isinstance(project_config, dict):
         project_config = {}
@@ -166,6 +811,7 @@ async def _execute_scene_pipeline_inner(
         session_id,
         session_dir,
         session_material_icons=session_material_icons,
+        regeneration_claim=None,
     )
     telemetry_listener = TelemetryEventListener(inner_listener)
 
@@ -242,7 +888,12 @@ async def _execute_scene_pipeline_inner(
                     local_cancel_event.set()
                     return
             except Exception:
-                logger.exception("Failed to poll cancellation for %s", session_id[:8])
+                log_durable_failure(
+                    logger,
+                    "scene_cancellation_poll_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
+                )
             await asyncio.sleep(0.5)
 
     cancel_poll_task = asyncio.create_task(poll_scene_cancellation())
@@ -286,6 +937,14 @@ async def _execute_scene_pipeline_inner(
 
     stats = _extract_scene_stats(result)
     logger.info("Scene pipeline stats for %s: %s", session_id[:8], stats)
+    coverage = build_not_evaluated_material_coverage(
+        policy=normalize_coverage_policy(coverage_policy),
+        warning=(
+            "Large-scene prim-level prediction and binding evidence is not yet "
+            "qualified; scene validation and asset totals are not substitutes "
+            "for material coverage."
+        ),
+    )
     validation_report_path = _write_scene_validation_report(session_dir, result)
     scene_predictions_path = _write_scene_predictions_index(session_dir, result)
 
@@ -313,16 +972,22 @@ async def _execute_scene_pipeline_inner(
         and result.validation_report is not None
     )
     if validation_failure:
-        error_message = result.error or "Scene validation failed"
+        diagnostic = durable_diagnostic(
+            "material_scene_validation_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
         await session_manager.update_session(
             session_id,
             {
                 "status": "failed",
                 "pipeline_type": "large_scene",
-                "error": error_message,
+                "error": diagnostic.code,
+                "error_diagnostic": diagnostic.to_dict(),
                 "failed_step": "scene_validate",
                 "results": stats,
-                "partial_results": stats,
+                "coverage": coverage,
+                "partial_results": {"stats": stats, "coverage": coverage},
                 "duration_seconds": duration_seconds,
                 "step_timings": step_timings_dict,
                 "scene": {
@@ -345,21 +1010,27 @@ async def _execute_scene_pipeline_inner(
         event_bus = get_event_bus()
         if event_bus.get_snapshot(session_id) is not None:
             try:
-                await event_bus.emit(
+                await event_bus.emit_for_owner(
                     ProgressEvent(
                         session_id=session_id,
                         step="scene_validate",
                         state=StepState.FAILED,
                         percent=100,
-                        message=error_message,
-                        extra={"pipeline_failed": True, **stats},
-                    )
+                        message=diagnostic.code,
+                        extra={
+                            "pipeline_failed": True,
+                            "coverage": coverage,
+                            **stats,
+                        },
+                    ),
+                    regeneration_claim=None,
                 )
             except Exception:
-                logger.exception(
-                    "Failed to emit scene validation failure event for session %s; "
-                    "metadata remains failed",
-                    session_id,
+                log_durable_failure(
+                    logger,
+                    "material_scene_validation_event_failed",
+                    phase=FailurePhase.PIPELINE_EXECUTION,
+                    retryable=False,
                 )
         if span:
             span.set_attribute(MAAttributes.PIPELINE_STATUS, "failed")
@@ -371,13 +1042,18 @@ async def _execute_scene_pipeline_inner(
         return
 
     if not result.success:
+        diagnostic = durable_diagnostic(
+            "material_scene_pipeline_result_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
         _emit_step_spans(
             session_id=session_id,
             step_timings=telemetry_listener.get_step_timings(),
         )
         if span:
             span.set_attribute(MAAttributes.PIPELINE_STATUS, "failed")
-        raise RuntimeError(f"Scene pipeline failed: {result.error}")
+        raise RuntimeError(diagnostic.code)
 
     await session_manager.update_session(
         session_id,
@@ -385,6 +1061,7 @@ async def _execute_scene_pipeline_inner(
             "status": "completed",
             "pipeline_type": "large_scene",
             "results": stats,
+            "coverage": coverage,
             "duration_seconds": duration_seconds,
             "step_timings": step_timings_dict,
             "scene": {
@@ -408,15 +1085,20 @@ async def _execute_scene_pipeline_inner(
     event_bus = get_event_bus()
     if event_bus.get_snapshot(session_id) is not None:
         try:
-            await event_bus.emit(
+            await event_bus.emit_for_owner(
                 ProgressEvent(
                     session_id=session_id,
                     step="scene_pipeline",
                     state=StepState.COMPLETED,
                     percent=100,
                     message="Large-scene pipeline completed successfully",
-                    extra={"pipeline_completed": True, **stats},
-                )
+                    extra={
+                        "pipeline_completed": True,
+                        "coverage": coverage,
+                        **stats,
+                    },
+                ),
+                regeneration_claim=None,
             )
         except Exception:
             logger.exception(
@@ -424,7 +1106,6 @@ async def _execute_scene_pipeline_inner(
                 "metadata remains completed",
                 session_id,
             )
-
     if span:
         span.set_attribute(MAAttributes.PIPELINE_STATUS, "completed")
         span.set_attribute(MAAttributes.PIPELINE_DURATION_SECONDS, duration_seconds)
@@ -461,6 +1142,8 @@ async def _execute_pipeline_inner(
     config_dict: dict[str, Any],
     session_manager: SessionManager,
     user_email: str = "",
+    coverage_policy: CoveragePolicy = "allow_partial",
+    regeneration_claim: RegenerationClaim | None = None,
 ) -> None:
     """Inner pipeline execution logic.
 
@@ -497,6 +1180,7 @@ async def _execute_pipeline_inner(
         session_id,
         session_dir,
         session_material_icons=session_material_icons,
+        regeneration_claim=regeneration_claim,
     )
     telemetry_listener = TelemetryEventListener(inner_listener)
 
@@ -550,6 +1234,7 @@ async def _execute_pipeline_inner(
                 )
 
     # Call async API directly - no wrapper or thread pool needed!
+    baseline_signatures = _capture_promotable_file_signatures(session_dir)
     result = await arun_pipeline(
         PipelineInput(
             config=config_dict,
@@ -557,8 +1242,81 @@ async def _execute_pipeline_inner(
             verbose=False,
         )
     )
+    executed_completed_steps = _current_run_completed_steps(
+        config_dict,
+        result.completed_steps,
+    )
+    published_artifacts: dict[str, str] | None = (
+        {} if regeneration_claim is not None else None
+    )
+    promoted_artifacts = await _promote_current_run_artifacts(
+        session_manager,
+        session_id,
+        session_dir,
+        executed_completed_steps,
+        result.step_results,
+        regeneration_claim=regeneration_claim,
+        artifact_map=published_artifacts,
+        baseline_signatures=baseline_signatures,
+    )
+    latest_metadata = await session_manager.get_session_metadata(session_id)
+    artifact_validity = revalidate_artifacts_for_completed_steps(
+        latest_metadata,
+        executed_completed_steps,
+        result.step_results,
+        verified_artifacts=promoted_artifacts,
+    )
+    for promoted_artifact in promoted_artifacts:
+        artifact_validity[promoted_artifact] = True
+    if regeneration_claim is not None:
+        assert published_artifacts is not None
+        artifact_validity = await _carry_forward_regeneration_artifacts(
+            session_manager,
+            session_id,
+            regeneration_claim,
+            latest_metadata or {},
+            artifact_validity,
+            published_artifacts,
+            set(config_dict.get("steps", {})),
+        )
 
     if not result.success:
+        diagnostic = durable_diagnostic(
+            "material_pipeline_result_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        failure_snapshot = get_event_bus().get_snapshot(session_id)
+        failure_updates: dict[str, Any] = {
+            "artifact_validity": artifact_validity,
+        }
+        if artifact_validity["previews"] and failure_snapshot:
+            failure_updates["preview_images"] = list(
+                failure_snapshot.get("preview_images") or []
+            )
+        if regeneration_claim is None:
+            persisted = await _update_pipeline_session(
+                session_manager,
+                session_id,
+                failure_updates,
+                regeneration_claim=None,
+            )
+        else:
+            persisted = await _finalize_pipeline_session(
+                session_manager,
+                session_id,
+                {
+                    **failure_updates,
+                    "status": "failed",
+                    "error": diagnostic.code,
+                    "error_diagnostic": diagnostic.to_dict(),
+                    "failed_at": datetime.now(UTC).isoformat(),
+                },
+                regeneration_claim=regeneration_claim,
+                artifact_map=published_artifacts,
+            )
+        if not persisted:
+            raise asyncio.CancelledError("Regeneration claim was superseded")
         # Emit step spans before raising so they appear as children
         _emit_step_spans(
             session_id=session_id,
@@ -568,22 +1326,35 @@ async def _execute_pipeline_inner(
         # Set failure status on root span
         if span:
             span.set_attribute(MAAttributes.PIPELINE_STATUS, "failed")
-        raise RuntimeError(f"Pipeline failed: {result.error}")
+        if regeneration_claim is not None:
+            # The regeneration claim was finalized above. Emit its sole
+            # authoritative failure marker now; raising would make the outer
+            # wrapper attempt a second finalization, see an inactive claim,
+            # and skip the terminal SSE event.
+            await _emit_persisted_pipeline_failure(
+                session_id,
+                diagnostic.code,
+                step="pipeline",
+                regeneration_claim=regeneration_claim,
+            )
+            return
+        raise RuntimeError(diagnostic.code)
 
     # Extract stats from step results and save to session metadata
     # Debug: log available data
-    logger.info(f"Pipeline completed_steps: {result.completed_steps}")
-    logger.info(
-        f"Pipeline step_results keys: {list(result.step_results.keys()) if result.step_results else 'None'}"
-    )
-    if result.step_results:
-        for step, data in result.step_results.items():
-            logger.info(f"  {step}: {data}")
+    logger.info("Pipeline completed %d step(s)", len(result.completed_steps or []))
+    logger.info("Pipeline reported %d step result(s)", len(result.step_results or {}))
     if result.raw_result:
-        logger.info(f"Pipeline raw_result keys: {list(result.raw_result.keys())}")
+        logger.info("Pipeline raw_result contains %d field(s)", len(result.raw_result))
 
     stats = _extract_stats_from_result(result, session_dir)
     logger.info(f"Pipeline stats for {session_id[:8]}: {stats}")
+    coverage = build_material_coverage(
+        result,
+        session_dir,
+        policy=normalize_coverage_policy(coverage_policy),
+    )
+    logger.info("Pipeline material coverage for %s: %s", session_id[:8], coverage)
 
     # Calculate duration
     duration_seconds = 0
@@ -599,7 +1370,6 @@ async def _execute_pipeline_inner(
 
     event_bus = get_event_bus()
     snapshot = event_bus.get_snapshot(session_id)
-    latest_metadata = await session_manager.get_session_metadata(session_id)
     overall_progress = dict(
         latest_metadata.get("overall_progress", {}) if latest_metadata else {}
     )
@@ -620,42 +1390,135 @@ async def _execute_pipeline_inner(
         result,
         step_timings_dict,
     )
+    preview_images = list(
+        (snapshot or {}).get("preview_images")
+        or (latest_metadata or {}).get("preview_images")
+        or []
+    )
+
+    if coverage["policy"] == "strict" and not coverage_is_release_ready(coverage):
+        error_message = (
+            "Strict material coverage qualification failed: "
+            f"readiness={coverage['readiness_grade']}, "
+            f"predictions={coverage['usable_prediction_count']} usable + "
+            f"{coverage['fallback_count']} fallback / {coverage['target_count']} "
+            f"targets, bindings={coverage['bound_count']} / "
+            f"{coverage['target_count']}."
+        )
+        persisted = await _finalize_pipeline_session(
+            session_manager,
+            session_id,
+            {
+                "status": "failed",
+                "error": error_message,
+                "failed_step": "coverage_validation",
+                "results": stats,
+                "coverage": coverage,
+                "partial_results": {"stats": stats, "coverage": coverage},
+                "duration_seconds": duration_seconds,
+                "step_timings": step_timings_dict,
+                "current_step": None,
+                "overall_progress": overall_progress,
+                "failed_at": datetime.now(UTC).isoformat(),
+                "artifact_validity": artifact_validity,
+                "preview_images": preview_images,
+                **(
+                    {"completed_steps": to_json_safe(completed_steps)}
+                    if completed_steps
+                    else {}
+                ),
+            },
+            regeneration_claim=regeneration_claim,
+            artifact_map=published_artifacts,
+        )
+        if not persisted:
+            raise asyncio.CancelledError("Regeneration claim was superseded")
+        if event_bus.get_snapshot(session_id) is not None:
+            try:
+                await event_bus.emit_for_owner(
+                    ProgressEvent(
+                        session_id=session_id,
+                        step="coverage_validation",
+                        state=StepState.FAILED,
+                        percent=100,
+                        message=error_message,
+                        extra={
+                            "pipeline_failed": True,
+                            "coverage": coverage,
+                        },
+                    ),
+                    regeneration_claim=regeneration_claim,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to emit coverage failure event for session %s; "
+                    "metadata remains failed",
+                    session_id,
+                )
+        await _mark_standard_terminal_events_quiesced(
+            session_manager,
+            session_id,
+            regeneration_claim=regeneration_claim,
+            expected_status="failed",
+        )
+        if span:
+            span.set_attribute(MAAttributes.PIPELINE_STATUS, "failed")
+        _emit_step_spans(
+            session_id=session_id,
+            step_timings=telemetry_listener.get_step_timings(),
+            step_results=result.step_results,
+        )
+        logger.warning("Pipeline coverage qualification failed for %s", session_id[:8])
+        return
 
     # Save results to session metadata (include status to ensure atomicity
     # with results - prevents race where EventBus sets status="completed"
     # before stats are persisted)
-    await session_manager.update_session(
+    persisted = await _finalize_pipeline_session(
+        session_manager,
         session_id,
         {
             "status": "completed",
             "results": stats,
+            "coverage": coverage,
             "duration_seconds": duration_seconds,
             "step_timings": step_timings_dict,
             "current_step": None,
             "overall_progress": overall_progress,
             "completed_at": datetime.now(UTC).isoformat(),
+            "artifact_validity": artifact_validity,
+            "preview_images": preview_images,
             **(
                 {"completed_steps": to_json_safe(completed_steps)}
                 if completed_steps
                 else {}
             ),
         },
+        regeneration_claim=regeneration_claim,
+        artifact_map=published_artifacts,
     )
+    if not persisted:
+        raise asyncio.CancelledError("Regeneration claim was superseded")
 
     # Force the in-memory progress snapshot to terminal state after metadata is
     # persisted. Otherwise /status can prefer a stale running EventBus snapshot
     # over the completed session metadata.
     if event_bus.get_snapshot(session_id) is not None:
         try:
-            await event_bus.emit(
+            await event_bus.emit_for_owner(
                 ProgressEvent(
                     session_id=session_id,
                     step="pipeline",
                     state=StepState.COMPLETED,
                     percent=100,
                     message="Pipeline completed successfully",
-                    extra={"pipeline_completed": True, **stats},
-                )
+                    extra={
+                        "pipeline_completed": True,
+                        "coverage": coverage,
+                        **stats,
+                    },
+                ),
+                regeneration_claim=regeneration_claim,
             )
         except Exception:
             logger.exception(
@@ -663,6 +1526,12 @@ async def _execute_pipeline_inner(
                 "metadata remains completed",
                 session_id,
             )
+    await _mark_standard_terminal_events_quiesced(
+        session_manager,
+        session_id,
+        regeneration_claim=regeneration_claim,
+        expected_status="completed",
+    )
 
     # Set completion attributes on root span
     if span:
@@ -719,6 +1588,7 @@ def _merge_completed_steps_from_result(
             continue
         duration = int(step_timings.get(step_name, 0))
         outputs = step_results.get(step_name, {})
+        safe_outputs = project_result_metadata(outputs)
         merged.append(
             {
                 "name": step_name,
@@ -726,10 +1596,12 @@ def _merge_completed_steps_from_result(
                 "started_at": now,
                 "completed_at": now,
                 "duration_seconds": duration,
-                "stats": {
-                    "step_name": step_name,
-                    "outputs": to_json_safe(outputs),
-                },
+                "stats": bounded_step_completion_data(
+                    {
+                        "step_name": step_name,
+                        "outputs": to_json_safe(safe_outputs),
+                    }
+                ),
             }
         )
         seen.add(step_name)
@@ -1136,8 +2008,13 @@ async def _mirror_scene_artifact(
             str(path),
             content_type=content_type,
         )
-    except Exception as e:
-        logger.warning("Failed to mirror scene artifact %s: %s", key, e)
+    except Exception:
+        log_durable_failure(
+            logger,
+            "scene_artifact_sync_failed",
+            phase=FailurePhase.SYNC_UPLOAD,
+            retryable=True,
+        )
 
 
 def _cluster_telemetry_attributes(
@@ -1195,7 +2072,7 @@ def _extract_stats_from_result(
     Returns:
         Dictionary with extracted stats
     """
-    stats = {
+    stats: dict[str, Any] = {
         "original_prim_count": 0,
         "prims_processed": 0,
         "images_generated": 0,
@@ -1241,7 +2118,7 @@ def _extract_stats_from_result(
 
     # Check pipeline_results (where step outputs are stored)
     pipeline_results = raw_result.get("pipeline_results", {})
-    logger.debug(f"pipeline_results keys: {list(pipeline_results.keys())}")
+    logger.debug("pipeline_results contains %d step(s)", len(pipeline_results))
 
     if "cluster_prims" in pipeline_results:
         cluster_outputs = pipeline_results["cluster_prims"]
@@ -1264,7 +2141,6 @@ def _extract_stats_from_result(
 
     if "optimize_usd" in pipeline_results:
         optimize_outputs = pipeline_results["optimize_usd"]
-        logger.debug(f"optimize_usd outputs: {optimize_outputs}")
         original_prim_count = optimize_outputs.get("original_prim_count", 0)
         logger.debug(
             f"original_prim_count from optimize_outputs: {original_prim_count}"
@@ -1302,7 +2178,6 @@ def _extract_stats_from_result(
     # Check build_dataset_usd step outputs
     if "build_dataset_usd" in pipeline_results:
         usd_result = pipeline_results["build_dataset_usd"]
-        logger.debug(f"build_dataset_usd outputs: {usd_result}")
         stats["prims_processed"] = usd_result.get("num_prims", 0)
         stats["images_generated"] = usd_result.get("num_images", 0)
         logger.debug(
@@ -1321,7 +2196,6 @@ def _extract_stats_from_result(
         and "build_dataset_prepare_dataset" in pipeline_results
     ):
         prepare_result = pipeline_results["build_dataset_prepare_dataset"]
-        logger.debug(f"build_dataset_prepare_dataset outputs: {prepare_result}")
         stats["prims_processed"] = prepare_result.get("num_entries", 0)
 
     # Legacy fallback: check for build_dataset_prepare_dataset_result

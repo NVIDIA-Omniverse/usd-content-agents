@@ -1,0 +1,9 @@
+project:
+  name: integration-test
+steps:
+  build_dataset_usd:
+    enabled: true
+  build_dataset_prepare_dataset:
+    enabled: true
+  predict:
+    enabled: true

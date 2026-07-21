@@ -22,6 +22,8 @@ services:
       - TA_MAX_ACTIVE_SESSIONS=${TA_MAX_ACTIVE_SESSIONS:-4}
       - TA_MAX_UPLOAD_SIZE_MB=${TA_MAX_UPLOAD_SIZE_MB:-500}
       - TA_TEXTURE_BACKEND=${TA_TEXTURE_BACKEND:-simple_image_gen}
+      - TA_TEXTURE_ENDPOINT=${TA_TEXTURE_ENDPOINT:-}
+      - TA_BACKEND_ENGINE=${TA_BACKEND_ENGINE:-}
       - TA_IMAGE_GEN_BACKEND=${TA_IMAGE_GEN_BACKEND:-nim}
       - TA_IMAGE_GEN_MODEL=${TA_IMAGE_GEN_MODEL:-}
       - TA_IMAGE_GEN_BASE_URL=${TA_IMAGE_GEN_BASE_URL:-}
@@ -30,7 +32,12 @@ services:
       - TA_LLM_BASE_URL=${TA_LLM_BASE_URL:-}
       - TA_TEXTURE_SIZE=${TA_TEXTURE_SIZE:-1024}
       - TA_TEXTURE_WORKERS=${TA_TEXTURE_WORKERS:-4}
+      - TA_TEXTURE_PLAN_DEFAULT_CAP=${TA_TEXTURE_PLAN_DEFAULT_CAP:-32}
+      - TA_TEXTURE_PLAN_UV_AWARE_DEFAULT_CAP=${TA_TEXTURE_PLAN_UV_AWARE_DEFAULT_CAP:-16}
+      - TA_TEXTURE_PLAN_HARD_CAP=${TA_TEXTURE_PLAN_HARD_CAP:-64}
+      - TA_MAX_TEXTURE_UNITS=${TA_MAX_TEXTURE_UNITS:-64}
       - TA_BLEND_OPACITY=${TA_BLEND_OPACITY:-0.85}
+      - RENDER_ENDPOINT=${RENDER_ENDPOINT:-}
 
     volumes:
       # Persist session data
@@ -99,7 +106,11 @@ services:
               count: 1
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      test:
+        [
+          "CMD-SHELL",
+          "python3 - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:8000/v1/health/ready', timeout=5)\nPY",
+        ]
       interval: 30s
       timeout: 10s
       retries: 40

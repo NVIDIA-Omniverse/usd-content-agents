@@ -273,6 +273,11 @@ class USDDatasetManifestTask(Task):
             "prims_file": "prims.jsonl",
         }
 
+        # Add stage up axis if available
+        stage_up_axis = object_store.get("stage_up_axis")
+        if stage_up_axis:
+            dataset["stage_up_axis"] = stage_up_axis
+
         # Add meters per unit if available
         meters_per_unit = object_store.get("meters_per_unit")
         if meters_per_unit is not None:

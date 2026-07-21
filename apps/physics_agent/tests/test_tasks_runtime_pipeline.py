@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -1170,10 +1171,9 @@ def test_unified_pipeline_executor_autowires_steps_and_collects_outputs(
             self.step_name = step_name
 
         def run(self, context: dict[str, object]) -> dict[str, object]:
-            config_path = Path(context["config_path"])
-            recorded_configs[self.step_name] = yaml.safe_load(
-                config_path.read_text(encoding="utf-8")
-            )
+            config_dict = context["config_dict"]
+            assert isinstance(config_dict, dict)
+            recorded_configs[self.step_name] = deepcopy(config_dict)
             return step_results[self.step_name]
 
     import physics_agent.workflows as workflows_module

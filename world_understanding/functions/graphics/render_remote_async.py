@@ -12,6 +12,7 @@ renderer, not an in-process local backend like Warp.
 import asyncio
 import logging
 import os
+import random
 import threading
 import time
 from collections.abc import Iterator
@@ -27,6 +28,9 @@ from world_understanding.functions.graphics.render_remote import (
     RenderingStatus,
     _convert_v2_to_v1,
     _is_v2_response,
+)
+from world_understanding.rendering_backend_contract import (
+    RemoteRenderingSlotTimeoutError,
 )
 from world_understanding.utils.image_utils import (
     base64_to_image,
@@ -117,7 +121,7 @@ _reset_global_remote_render_semaphore_for_tests = (
 
 
 @contextmanager
-def global_nvcf_render_slot() -> Iterator[float]:
+def global_nvcf_render_slot(timeout_seconds: float | None = None) -> Iterator[float]:
     """Acquire the process-wide render request slot for sync callers.
 
     The async render path already uses the same semaphore without blocking the
@@ -127,6 +131,10 @@ def global_nvcf_render_slot() -> Iterator[float]:
 
     Yields:
         Seconds spent waiting for the slot. ``0.0`` when no global cap is set.
+
+    Raises:
+        RemoteRenderingSlotTimeoutError: If a global cap is set and the slot is
+            not acquired before ``timeout_seconds``.
     """
     semaphore = _get_global_nvcf_render_semaphore()
     if semaphore is None:
@@ -134,7 +142,15 @@ def global_nvcf_render_slot() -> Iterator[float]:
         return
 
     queue_start = time.time()
-    semaphore.acquire()
+    if timeout_seconds is None:
+        acquired = semaphore.acquire()
+    else:
+        acquired = semaphore.acquire(timeout=max(0.0, timeout_seconds))
+    if not acquired:
+        waited = time.time() - queue_start
+        raise RemoteRenderingSlotTimeoutError(
+            f"Timed out waiting for global remote render slot after {waited:.2f}s"
+        )
     try:
         yield time.time() - queue_start
     finally:
@@ -181,7 +197,9 @@ async def render_cameras_from_url(
     max_retries: int = 3,
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
+    retry_jitter: float = 0.1,
     semaphore: asyncio.Semaphore | None = None,
+    material_target: str | None = None,
 ) -> dict[str, Any]:
     """Render all cameras in a single async Remote render request.
 
@@ -204,7 +222,9 @@ async def render_cameras_from_url(
         max_retries: Maximum retry attempts. Default: 3.
         retry_delay: Initial retry delay in seconds. Default: 1.0.
         retry_backoff_factor: Backoff multiplier per retry. Default: 2.0.
+        retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1.
         semaphore: Optional semaphore to limit concurrent requests.
+        material_target: Explicit material target forwarded to the REST renderer.
 
     Returns:
         Dict matching render_all_cameras_from_url format:
@@ -247,6 +267,8 @@ async def render_cameras_from_url(
             "apply_background_mask": apply_background_mask,
         },
     }
+    if material_target is not None:
+        params["render_settings"]["material_target"] = material_target
 
     headers = create_nvcf_headers(api_key, timeout, poll_seconds=poll_seconds)
 
@@ -297,6 +319,7 @@ async def render_cameras_from_url(
                     max_retries=max_retries,
                     retry_delay=retry_delay,
                     retry_backoff_factor=retry_backoff_factor,
+                    retry_jitter=retry_jitter,
                 )
             finally:
                 if acquired_global and global_semaphore is not None:
@@ -337,13 +360,16 @@ async def render_cameras_from_url(
     current_delay = retry_delay
     for attempt in range(max_retries + 1):
         if attempt > 0:
+            sleep_delay = current_delay * (
+                1 + random.uniform(-retry_jitter, retry_jitter)
+            )
             logger.info(
                 "Retrying Remote render response (attempt %d/%d) after %.2fs delay",
                 attempt + 1,
                 max_retries + 1,
-                current_delay,
+                sleep_delay,
             )
-            await asyncio.sleep(current_delay)
+            await asyncio.sleep(sleep_delay)
             current_delay *= retry_backoff_factor
 
         try:
@@ -396,7 +422,7 @@ async def render_cameras_from_url(
             )
         else:
             logger.info("Remote render request completed in %.2fs", render_time)
-    else:
+    else:  # pragma: no cover - successful requests always set request_start_time
         logger.info("Remote render request completed in %.2fs", render_time)
 
     # Parse multi-camera response
@@ -562,7 +588,9 @@ async def render_composition_from_url(
     max_retries: int = 3,
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
+    retry_jitter: float = 0.1,
     semaphore: asyncio.Semaphore | None = None,
+    material_target: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Render highlight and plain USD compositions concurrently.
 
@@ -588,7 +616,9 @@ async def render_composition_from_url(
         max_retries: Maximum retry attempts. Default: 3.
         retry_delay: Initial retry delay in seconds. Default: 1.0.
         retry_backoff_factor: Backoff multiplier per retry. Default: 2.0.
+        retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1.
         semaphore: Optional semaphore to limit concurrent requests.
+        material_target: Explicit material target forwarded to the REST renderer.
 
     Returns:
         Tuple of (highlight_result, plain_result), each matching the
@@ -607,7 +637,9 @@ async def render_composition_from_url(
         "max_retries": max_retries,
         "retry_delay": retry_delay,
         "retry_backoff_factor": retry_backoff_factor,
+        "retry_jitter": retry_jitter,
         "semaphore": semaphore,
+        "material_target": material_target,
     }
 
     if single_camera_per_request and len(cameras) > 1:

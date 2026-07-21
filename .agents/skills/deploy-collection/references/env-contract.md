@@ -22,6 +22,10 @@ contains API keys and tokens; share placeholders or setup instructions instead.
 - `MA_LLM_BACKEND`, `MA_LLM_MODEL`, `MA_LLM_NIM_BASE_URL`
 - `MA_LLM_TEMPERATURE`, `MA_LLM_MAX_TOKENS`
 - `MA_IMAGE_GEN_BACKEND`, `MA_IMAGE_GEN_MODEL`, `MA_IMAGE_GEN_BASE_URL`
+- `MA_IMAGE_GEN_API_KEY`
+  - Used by Material Agent-generated reference images and Material Agent
+    generated material-library textures. It may point at the same endpoint/key
+    as Texture Agent texture generation.
 - `MA_CLUSTER_EMBEDDING_BACKEND`, `MA_CLUSTER_EMBEDDING_MODEL`
 - `MA_CLUSTER_EMBEDDING_BASE_URL`, `MA_CLUSTER_EMBEDDING_API_KEY`
 
@@ -40,6 +44,7 @@ contains API keys and tokens; share placeholders or setup instructions instead.
 
 - Self-hosted OpenAI-compatible VLM/LLM endpoints should usually use backend
   `nim` with a `/v1` base URL.
-- Texture local FLUX image generation uses backend `openai` because the sidecar
-  exposes an OpenAI-compatible image API.
+- Texture Agent texture generation, Material Agent-generated reference images,
+  and Material Agent-generated material-library textures use backend `openai`
+  when the sidecar exposes an OpenAI-compatible image API.
 - Use `not-used` only for explicit no-auth local endpoints.

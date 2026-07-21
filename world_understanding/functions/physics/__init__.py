@@ -19,6 +19,7 @@ from world_understanding.functions.physics.ovphysx_daemon import (
     OvPhysXDaemonError,
     OvPhysXDaemonUnavailableError,
     _OvPhysXDaemon,
+    ovphysx_runtime_available,
 )
 from world_understanding.functions.physics.physics_sanity import (
     PhysicsSanityFinding,
@@ -35,4 +36,5 @@ __all__ = [
     "_OvPhysXDaemon",
     "infer_physics_expected",
     "inspect_usd_physics",
+    "ovphysx_runtime_available",
 ]

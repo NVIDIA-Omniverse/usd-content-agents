@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for ``physics_agent.recording.recorder``.
 
-The recorder authors ``recording.usda`` from a daemon-shaped trajectory
+The recorder authors a time-sampled USD recording from a daemon-shaped trajectory
 of ``(t, pose7, vel6)`` 3-tuples (issue #50). Exercises:
 
 * Source ``scene_usd`` is opened in memory and exported to ``output_path``;
@@ -322,7 +322,7 @@ def test_recording_on_parent_xform_with_child_meshes(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# author_trajectory_jsonl — judge-readable companion to recording.usda
+# author_trajectory_jsonl — judge-readable companion to the USD recording
 # ---------------------------------------------------------------------------
 
 

@@ -8,10 +8,17 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, ClassVar
 
-from pxr import Usd, UsdGeom
+from pxr import Usd, UsdGeom, Vt
 
 from world_understanding.config.s3 import WU_S3_BUCKET, WU_S3_PROFILE, WU_S3_REGION
 from world_understanding.functions.graphics import render_remote
+from world_understanding.functions.graphics.material_targets import (
+    normalize_render_material_target,
+    preview_fallbacks_enabled_for_material_target,
+)
+from world_understanding.rendering_backend_contract import (
+    validate_remote_render_max_workers,
+)
 from world_understanding.utils.data_uri import should_use_data_uri
 from world_understanding.utils.image_utils import (
     draw_bounding_box_on_red,
@@ -28,14 +35,254 @@ from world_understanding.utils.usd.camera import (
     add_side_view_camera,
 )
 from world_understanding.utils.usd.prim import (
-    disable_visibility_for_all_mesh_prims,
+    disable_visibility_for_all_gprims,
+    get_bbox_from_prim,
     nullify_materials,
     remove_all_lights,
-    set_mesh_display_color,
+    set_gprim_display_color,
     traverse_meshes,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _is_supported_render_target(
+    prim: Usd.Prim,
+    *,
+    allow_assembly: bool = False,
+) -> bool:
+    """Return whether ``prim`` is a bounded leaf or assembly render target."""
+    return prim.IsA(UsdGeom.Gprim) or (allow_assembly and prim.IsA(UsdGeom.Xform))
+
+
+def _render_target_gprims(
+    stage: Usd.Stage,
+    prim: Usd.Prim,
+    assembly_member_paths: tuple[str, ...] | None = None,
+) -> list[Usd.Prim]:
+    """Return explicit geometry represented by one leaf or assembly target."""
+    if prim.IsA(UsdGeom.Gprim):
+        return [prim]
+    if not prim.IsA(UsdGeom.Xform) or assembly_member_paths is None:
+        return []
+    return [stage.GetPrimAtPath(path) for path in assembly_member_paths]
+
+
+def _make_render_prims_editable(
+    stage: Usd.Stage,
+    prim_paths: list[str],
+    assembly_target_members: dict[str, tuple[str, ...]] | None = None,
+) -> None:
+    """Resolve selected leaf or assembly instance proxies to editable prims.
+
+    Stage 1 deliberately traverses instance proxies so repeated parts retain
+    distinct scene paths. USD does not permit authoring display color or
+    visibility on those proxies, so de-instance only their containing instance
+    roots and re-resolve each selected path before render preparation writes to
+    it. An Xform target represents its bounded descendant Gprims as one row.
+    Explicit assembly members receive the same targeted treatment after their
+    paths pass assembly validation. Nested selected instances are handled one
+    containing root at a time.
+    """
+    assembly_target_members = assembly_target_members or {}
+    assembly_targets = set(assembly_target_members)
+    for prim_path in prim_paths:
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim or not prim.IsValid():
+            raise ValueError(f"Render prim does not exist: {prim_path}")
+        if prim.IsPrototype() or prim.IsInPrototype():
+            raise ValueError(
+                "Render prim is inside a USD prototype and cannot be authored: "
+                f"{prim_path}"
+            )
+        if not _is_supported_render_target(
+            prim,
+            allow_assembly=prim_path in assembly_targets,
+        ):
+            raise ValueError(
+                "Render target is not a UsdGeom.Gprim or UsdGeom.Xform: "
+                f"{prim_path} ({prim.GetTypeName() or '<untyped>'})"
+            )
+
+    for prim_path in prim_paths:
+        prim = stage.GetPrimAtPath(prim_path)
+        deinstanced_roots: set[str] = set()
+
+        while prim.IsInstanceProxy():
+            instance_root = prim
+            while (
+                instance_root
+                and instance_root.IsValid()
+                and not instance_root.IsPseudoRoot()
+                and (not instance_root.IsInstance() or instance_root.IsInstanceProxy())
+            ):
+                instance_root = instance_root.GetParent()
+
+            if (
+                not instance_root
+                or not instance_root.IsValid()
+                or not instance_root.IsInstance()
+                or instance_root.IsInstanceProxy()
+            ):
+                raise ValueError(
+                    "Render prim is an instance proxy without an editable "
+                    f"instance root: {prim_path}"
+                )
+
+            instance_root_path = str(instance_root.GetPath())
+            if instance_root_path in deinstanced_roots:
+                raise ValueError(
+                    "Render prim remained an instance proxy after de-instancing "
+                    f"{instance_root_path}: {prim_path}"
+                )
+            deinstanced_roots.add(instance_root_path)
+            instance_root.SetInstanceable(False)
+            prim = stage.GetPrimAtPath(prim_path)
+
+        if prim.IsInstance():
+            prim.SetInstanceable(False)
+            prim = stage.GetPrimAtPath(prim_path)
+
+        if (
+            not prim
+            or not prim.IsValid()
+            or prim.IsInstanceProxy()
+            or prim.IsPrototype()
+            or prim.IsInPrototype()
+            or not _is_supported_render_target(
+                prim,
+                allow_assembly=prim_path in assembly_targets,
+            )
+        ):
+            raise ValueError(
+                "Render target could not be resolved to an editable "
+                f"UsdGeom.Gprim or UsdGeom.Xform: {prim_path}"
+            )
+        member_paths = assembly_target_members.get(prim_path)
+        target_gprims = _render_target_gprims(stage, prim, member_paths)
+        if not target_gprims:
+            raise ValueError(f"Render target contains no UsdGeom.Gprim: {prim_path}")
+        invalid_member_paths = [
+            member_path
+            for member_path, member in zip(
+                member_paths or (prim_path,),
+                target_gprims,
+                strict=True,
+            )
+            if (
+                not member
+                or not member.IsValid()
+                or not member.IsA(UsdGeom.Gprim)
+                or (
+                    member_paths is not None
+                    and not member_path.startswith(prim_path.rstrip("/") + "/")
+                )
+            )
+        ]
+        if invalid_member_paths:
+            raise ValueError(
+                "Render assembly contains invalid member paths: "
+                f"{prim_path} ({', '.join(invalid_member_paths)})"
+            )
+        if member_paths is not None:
+            _make_render_prims_editable(stage, list(member_paths))
+            prim = stage.GetPrimAtPath(prim_path)
+            target_gprims = _render_target_gprims(stage, prim, member_paths)
+        proxy_paths = [
+            str(descendant.GetPath())
+            for descendant in target_gprims
+            if descendant.IsInstanceProxy()
+        ]
+        if proxy_paths:
+            raise ValueError(
+                "Render target contains non-editable instance-proxy geometry: "
+                f"{prim_path} ({', '.join(proxy_paths)})"
+            )
+
+
+def _promote_assembly_target_geometry_for_render(
+    stage: Usd.Stage,
+    assembly_target_members: dict[str, tuple[str, ...]],
+) -> None:
+    """Make recovered guide assemblies visible on a render-stage copy.
+
+    Default/render-purpose members are deliberately left unchanged, including
+    zero authored opacity. Recovery promotion applies only to guide geometry.
+    """
+    for target_path, member_paths in assembly_target_members.items():
+        target = stage.GetPrimAtPath(target_path)
+        for descendant in _render_target_gprims(stage, target, member_paths):
+            imageable = UsdGeom.Imageable(descendant)
+            if imageable.ComputePurpose() != UsdGeom.Tokens.guide:
+                continue
+            imageable.CreatePurposeAttr().Set(UsdGeom.Tokens.default_)
+            UsdGeom.Gprim(descendant).CreateDisplayOpacityAttr().Set(
+                Vt.FloatArray([1.0])
+            )
+
+
+def _promote_recovered_guide_gprims_for_render(
+    stage: Usd.Stage,
+    prim_paths: list[str],
+    recovered_guide_gprim_targets: tuple[str, ...],
+) -> None:
+    """Make only explicitly recovered guide leaf targets visible for rendering.
+
+    A tagged non-guide target is deliberately left unchanged, including zero
+    authored opacity.
+    """
+    recovered_targets = set(recovered_guide_gprim_targets)
+    for prim_path in prim_paths:
+        if prim_path not in recovered_targets:
+            continue
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim.IsA(UsdGeom.Gprim):
+            raise ValueError(
+                "Recovered guide render target is not a UsdGeom.Gprim: "
+                f"{prim_path} ({prim.GetTypeName() or '<untyped>'})"
+            )
+        imageable = UsdGeom.Imageable(prim)
+        if imageable.ComputePurpose() != UsdGeom.Tokens.guide:
+            continue
+        imageable.CreatePurposeAttr().Set(UsdGeom.Tokens.default_)
+        UsdGeom.Gprim(prim).CreateDisplayOpacityAttr().Set(Vt.FloatArray([1.0]))
+
+
+def _make_render_ancestors_visible(
+    stage: Usd.Stage,
+    prim_paths: list[str],
+    time: Usd.TimeCode = Usd.TimeCode.Default(),
+) -> set[str]:
+    """Ensure requested render prims and hidden ancestors are visible.
+
+    Mutates the prepared render stage in place, like the rest of
+    ``prepare_render_prims``, and returns renderable Gprim ancestors whose
+    visibility must be restored after a prim-only frame. Requested prims are
+    excluded because their visibility is scheduled separately by the caller.
+    """
+    selected_paths = set(prim_paths)
+    visible_gprim_ancestors: set[str] = set()
+    visited: set[str] = set()
+    for prim_path in prim_paths:
+        prim = stage.GetPrimAtPath(prim_path)
+        cur = prim
+        while cur and cur.IsValid() and not cur.IsPseudoRoot():
+            cur_path = str(cur.GetPath())
+            if cur_path not in visited:
+                visited.add(cur_path)
+                if cur.IsInstanceProxy():
+                    cur = cur.GetParent()
+                    continue
+                imageable = UsdGeom.Imageable(cur)
+                if imageable:
+                    imageable.GetVisibilityAttr().Set(
+                        UsdGeom.Tokens.inherited,
+                        time=time,
+                    )
+                    if cur_path not in selected_paths and cur.IsA(UsdGeom.Gprim):
+                        visible_gprim_ancestors.add(cur_path)
+            cur = cur.GetParent()
+    return visible_gprim_ancestors
 
 
 def _render_all_cameras_from_url_with_global_slot(**kwargs: Any) -> dict[str, Any]:
@@ -100,11 +347,18 @@ def parse_camera_angle_from_view_name(view_name: str) -> str:
         >>> parse_camera_angle_from_view_name("posx_negy")
         '+X-Y'
     """
-    # Replace filename-safe format back to direction format
-    result = view_name.replace("posx", "+X").replace("negx", "-X")
-    result = result.replace("_posy", "+Y").replace("_negy", "-Y")
-    result = result.replace("_posz", "+Z").replace("_negz", "-Z")
-    return result
+    direction_tokens = {
+        "posx": "+X",
+        "negx": "-X",
+        "posy": "+Y",
+        "negy": "-Y",
+        "posz": "+Z",
+        "negz": "-Z",
+    }
+    parts = view_name.split("_")
+    if all(part in direction_tokens for part in parts):
+        return "".join(direction_tokens[part] for part in parts)
+    return "_".join(direction_tokens.get(part, part) for part in parts)
 
 
 class CameraViewType(Enum):
@@ -224,6 +478,16 @@ class RenderingConfig:
     camera_composition_margin: float = 3.0  # Camera margin for composition mode
     near_clip_margin: float = 0.1
     far_clip_margin: float = 0.1
+    # Included bbox purposes remain default-only unless a caller explicitly
+    # opts in, for example from a prim filter's allowed_purposes contract.
+    bbox_purposes: tuple[str, ...] = ("default",)
+    # Dataset traversal may deliberately recover a rigid-body Xform as one
+    # bounded target. Only these paths may use assembly rendering semantics.
+    assembly_target_members: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # A recovered rigid-body Gprim remains one ordinary leaf row. Keep the
+    # recovery marker separate from assembly membership so render preparation
+    # can transiently promote only that selected guide leaf on a stage copy.
+    recovered_guide_gprim_targets: tuple[str, ...] = ()
 
     # NEW: Per-mode camera specifications
     # Dict mapping render_mode -> list of CameraSpec
@@ -552,6 +816,8 @@ class RemoteRenderingBackend(RenderingBackend):
         retry_jitter: float = 0.1,
         bundle_mdl_assets: bool = True,
         use_data_uri: bool | None = None,
+        add_preview_fallbacks: bool | None = None,
+        material_target: str | None = "auto",
     ):
         """Initialize the REST rendering backend.
 
@@ -581,6 +847,14 @@ class RemoteRenderingBackend(RenderingBackend):
             use_data_uri: If True, base64-encode USD in request body instead of
                          uploading to S3. If None, reads
                          MA_RENDERING_USE_DATA_URI and defaults to True.
+            add_preview_fallbacks: Legacy compatibility flag. If explicitly True,
+                         add render-export UsdPreviewSurface fallbacks for
+                         MaterialX OpenPBR materials. If None, follows
+                         ``material_target`` policy.
+            material_target: Explicit material target for render export. ``auto``
+                         preserves authored/native material outputs. Use
+                         ``preview_surface`` to request render-export
+                         PreviewSurface fallback authoring.
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -594,6 +868,11 @@ class RemoteRenderingBackend(RenderingBackend):
         self.retry_jitter = retry_jitter
         self.bundle_mdl_assets = bundle_mdl_assets
         self.use_data_uri = should_use_data_uri(use_data_uri)
+        self.material_target = normalize_render_material_target(material_target)
+        self.add_preview_fallbacks = preview_fallbacks_enabled_for_material_target(
+            self.material_target,
+            legacy_add_preview_fallbacks=add_preview_fallbacks,
+        )
 
     def supports_sensors(self) -> bool:
         """REST renderer backend supports sensor rendering modes."""
@@ -631,7 +910,9 @@ class RemoteRenderingBackend(RenderingBackend):
             renderer: Ignored (remote service owns renderer settings)
             sensors: Additional sensors to render (e.g., ["linear_depth", "instance_id_segmentation"])
             apply_background_mask: If True, apply background masking during rendering. Default: False
-            **kwargs: Additional parameters (ignored)
+            **kwargs: Additional parameters. ``max_workers`` opts into bounded
+                per-camera parallelism; ``render_slot_timeout_sec`` bounds
+                process-wide slot acquisition.
 
         Returns:
             Dict with rendering results matching the base class specification
@@ -642,6 +923,7 @@ class RemoteRenderingBackend(RenderingBackend):
         base_dir = kwargs.get("base_dir")
 
         from world_understanding.functions.graphics.render_remote_async import (
+            get_global_remote_render_limit,
             global_remote_render_slot,
         )
 
@@ -650,34 +932,63 @@ class RemoteRenderingBackend(RenderingBackend):
         # async remote path. This matters for local OVRTX deployments, where the
         # "remote" endpoint is a single GPU sidecar rather than a scalable cloud
         # function.
-        with global_remote_render_slot() as queue_wait:
+        render_slot_timeout_sec = kwargs.get("render_slot_timeout_sec")
+        requested_max_workers = validate_remote_render_max_workers(
+            kwargs.get("max_workers", 1)
+        )
+        global_render_limit = get_global_remote_render_limit()
+        max_workers = (
+            min(requested_max_workers, global_render_limit)
+            if global_render_limit is not None
+            else requested_max_workers
+        )
+
+        render_kwargs: dict[str, Any] = {
+            "stage": stage,
+            "image_width": image_width,
+            "image_height": image_height,
+            "cameras": cameras,
+            "frames": frames,
+            "api_key": self.api_key,
+            "base_url": self.base_url,
+            "timeout": self.timeout,
+            "sensors": sensors,
+            "apply_background_mask": apply_background_mask,
+            "s3_bucket": self.s3_bucket,
+            "s3_region": self.s3_region,
+            "s3_profile": self.s3_profile,
+            "max_workers": max_workers,
+            "max_retries": self.max_retries,
+            "retry_delay": self.retry_delay,
+            "retry_backoff_factor": self.retry_backoff_factor,
+            "retry_jitter": self.retry_jitter,
+            "bundle_mdl_assets": self.bundle_mdl_assets,
+            "use_data_uri": self.use_data_uri,
+            "add_preview_fallbacks": self.add_preview_fallbacks,
+            "material_target": self.material_target,
+            "base_dir": base_dir,
+        }
+        if requested_max_workers > 1:
+            # Parallel workers must acquire the shared slot per camera. Holding
+            # an outer slot here could deadlock when the global cap is one. Use
+            # this path even when that cap reduces the effective pool to one so
+            # the slot is released fairly between cameras.
+            return render_remote.render_all_cameras(
+                **render_kwargs,
+                use_global_render_slots=True,
+                render_slot_timeout_sec=render_slot_timeout_sec,
+            )
+
+        with global_remote_render_slot(
+            timeout_seconds=render_slot_timeout_sec,
+        ) as queue_wait:
             if queue_wait > 0.05:
                 logger.info(
                     "Remote render waited %.2fs for global render slot",
                     queue_wait,
                 )
             return render_remote.render_all_cameras(
-                stage=stage,
-                image_width=image_width,
-                image_height=image_height,
-                cameras=cameras,
-                frames=frames,
-                api_key=self.api_key,
-                base_url=self.base_url,
-                timeout=self.timeout,
-                sensors=sensors,
-                apply_background_mask=apply_background_mask,
-                s3_bucket=self.s3_bucket,
-                s3_region=self.s3_region,
-                s3_profile=self.s3_profile,
-                max_workers=1,  # Disable per-camera parallelism
-                max_retries=self.max_retries,
-                retry_delay=self.retry_delay,
-                retry_backoff_factor=self.retry_backoff_factor,
-                retry_jitter=self.retry_jitter,
-                bundle_mdl_assets=self.bundle_mdl_assets,
-                use_data_uri=self.use_data_uri,
-                base_dir=base_dir,
+                **render_kwargs,
             )
 
 
@@ -699,7 +1010,7 @@ class OvRTXRenderingBackend(RenderingBackend):
     Requires: ovrtx == 0.3.0.312915
     """
 
-    SUPPORTED_SENSOR_MODES: ClassVar[list[str]] = ["depth"]
+    SUPPORTED_SENSOR_MODES: ClassVar[list[str]] = []
 
     def __init__(
         self,
@@ -707,6 +1018,8 @@ class OvRTXRenderingBackend(RenderingBackend):
         ovrtx_venv_dir: str | None = None,
         num_sensor_updates: int = 32,
         render_mode: str = "rt2",
+        add_preview_fallbacks: bool | None = None,
+        material_target: str | None = "auto",
     ):
         """Initialize the OvRTX rendering backend.
 
@@ -731,6 +1044,14 @@ class OvRTXRenderingBackend(RenderingBackend):
                 ~27 dB PSNR vs the Kit reference regardless of step
                 count). Use ``pt`` for Kit-equivalent ground-truth
                 quality at higher wall-clock cost.
+            add_preview_fallbacks: Legacy compatibility flag. If explicitly
+                True while ``material_target`` is ``auto``, request the
+                PreviewSurface fallback overlay. Explicit material targets
+                take precedence.
+            material_target: Explicit render material target. ``auto`` preserves
+                authored/native material outputs, ``preview_surface`` requests
+                the OVRTX PreviewSurface fallback overlay explicitly, and
+                ``openpbr_materialx`` preserves native OpenPBR/MaterialX output.
         """
         import os
         import stat
@@ -746,6 +1067,12 @@ class OvRTXRenderingBackend(RenderingBackend):
         self._ovrtx_venv_dir = ovrtx_venv_dir
         self._num_sensor_updates = num_sensor_updates
         self._render_mode = render_mode
+        self.material_target = normalize_render_material_target(material_target)
+        self.add_preview_fallbacks = preview_fallbacks_enabled_for_material_target(
+            self.material_target,
+            legacy_add_preview_fallbacks=add_preview_fallbacks,
+        )
+        self._material_target = self.material_target
         self._runtime_tmpdir = None
         self._daemon_script_path: Path | None = None
 
@@ -795,8 +1122,8 @@ class OvRTXRenderingBackend(RenderingBackend):
         )
 
     def supports_sensors(self) -> bool:
-        """OvRTX backend supports sensor rendering modes."""
-        return True
+        """OvRTX backend currently supports color rendering only."""
+        return False
 
     def get_supported_sensor_modes(self) -> list[str]:
         """Return list of sensor modes supported by OvRTX backend."""
@@ -830,12 +1157,16 @@ class OvRTXRenderingBackend(RenderingBackend):
             cull_style: Ignored (OvRTX uses its own settings).
             frames: Frame(s) to render (e.g., "0", "0:10", "0,5,10").
             renderer: Ignored (OvRTX uses RTX).
-            sensors: Additional sensors to render (e.g., ["depth"]).
+            sensors: Sensor outputs. Currently unsupported by OvRTX.
             num_sensor_updates: Samples per pixel for this call. ``None`` uses
                 the instance default (ctor argument).
             render_mode: ``rt1``/``rt2``/``pt`` for this call. ``None``
                 uses the instance default (ctor argument).
-            **kwargs: Additional parameters (ignored).
+            **kwargs: Additional parameters. ``base_dir`` resolves relative
+                assets for anonymous stages; ``material_target`` overrides the
+                instance material target; ``add_preview_fallbacks`` is a
+                legacy per-call PreviewSurface fallback request when the
+                effective material target is ``auto``.
 
         Returns:
             Dict with rendering results matching the base class specification.
@@ -846,12 +1177,42 @@ class OvRTXRenderingBackend(RenderingBackend):
             image_height = image_width
         base_dir = kwargs.get("base_dir")
 
+        if sensors:
+            import warnings
+
+            warnings.warn(
+                "OvRTXRenderingBackend no longer supports sensor/depth outputs; "
+                "use RemoteRenderingBackend or WarpRenderingBackend for sensor renders.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            raise ValueError(
+                "OvRTX rendering currently supports color renders only; "
+                "sensor outputs are not supported."
+            )
+
         effective_updates = (
             num_sensor_updates
             if num_sensor_updates is not None
             else self._num_sensor_updates
         )
         effective_mode = render_mode if render_mode is not None else self._render_mode
+        material_target_override = kwargs.get("material_target")
+        effective_material_target = normalize_render_material_target(
+            material_target_override or self.material_target
+        )
+        if effective_material_target == "auto":
+            add_preview_fallbacks_override = kwargs.get("add_preview_fallbacks")
+            if add_preview_fallbacks_override is None:
+                add_preview_fallbacks_enabled = (
+                    self.add_preview_fallbacks
+                    if material_target_override is None
+                    else False
+                )
+            else:
+                add_preview_fallbacks_enabled = bool(add_preview_fallbacks_override)
+            if add_preview_fallbacks_enabled:
+                effective_material_target = "preview_surface"
 
         return render_ovrtx.render_all_cameras(
             stage=stage,
@@ -864,6 +1225,7 @@ class OvRTXRenderingBackend(RenderingBackend):
             ovrtx_venv_dir=self._ovrtx_venv_dir,
             num_sensor_updates=effective_updates,
             render_mode=effective_mode,
+            material_target=effective_material_target,
             daemon=self._daemon,
             base_dir=base_dir,
         )
@@ -1010,6 +1372,8 @@ def prepare_render_prims(
         This prevents conflicts with the time-coded camera/visibility keyframes
         used for per-prim rendering. Set strip_existing_animation=False in
         RenderingConfig to preserve existing animation.
+        Selected instance-proxy paths are preserved by de-instancing only their
+        containing instance roots before authoring render state.
 
     Args:
         stage: The stage to prepare for rendering.
@@ -1027,6 +1391,18 @@ def prepare_render_prims(
     if config is None:
         config = RenderingConfig()
 
+    selected_prim_paths = set(prim_paths)
+    selected_assembly_target_members = {
+        target_path: member_paths
+        for target_path, member_paths in config.assembly_target_members.items()
+        if target_path in selected_prim_paths
+    }
+    _make_render_prims_editable(
+        stage,
+        prim_paths,
+        selected_assembly_target_members,
+    )
+
     # Optionally remove existing animation to prevent conflicts with our time-coded
     # camera/visibility keyframes. This converts animated attributes to static
     # values sampled at time 0.
@@ -1037,20 +1413,34 @@ def prepare_render_prims(
         if num_removed > 0:
             logger.debug(f"Removed animation from {num_removed} attributes")
 
+    _promote_recovered_guide_gprims_for_render(
+        stage,
+        prim_paths,
+        config.recovered_guide_gprim_targets,
+    )
+    _promote_assembly_target_geometry_for_render(
+        stage,
+        selected_assembly_target_members,
+    )
+
     if config.should_reset_materials:
         nullify_materials(stage)
 
     if not config.use_lights:
         remove_all_lights(stage)
 
-    # Calculate the bounding box — scope to root_prim_path when set
-    bbox_cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+    _make_render_ancestors_visible(stage, prim_paths)
+
+    # Calculate the bounding box — scope to root_prim_path when set.
     bbox_root = stage.GetPseudoRoot()
     if config.root_prim_path:
         rp = stage.GetPrimAtPath(config.root_prim_path)
         if rp and rp.IsValid():
             bbox_root = rp
-    scene_bbox = bbox_cache.ComputeWorldBound(bbox_root)
+    scene_bbox = get_bbox_from_prim(
+        bbox_root,
+        included_purposes=config.bbox_purposes,
+    )
     aligned_range = scene_bbox.ComputeAlignedRange()
     bbox_min = aligned_range.GetMin()
     bbox_max = aligned_range.GetMax()
@@ -1112,6 +1502,7 @@ def prepare_render_prims(
                     far_clip_margin=camera_spec.far_clip_margin,
                     max_scene_size=max_stage_size,
                     time=Usd.TimeCode.Default(),
+                    included_purposes=config.bbox_purposes,
                 )
             else:  # CameraViewType.SIDE
                 add_side_view_camera(
@@ -1126,20 +1517,29 @@ def prepare_render_prims(
                     far_clip_margin=camera_spec.far_clip_margin,
                     max_scene_size=max_stage_size,
                     time=Usd.TimeCode.Default(),
+                    included_purposes=config.bbox_purposes,
                 )
             camera_paths.append(camera_path)
 
-    # Cache all mesh prims and prepare baseline state (O(N) setup for O(1) per-frame ops)
-    mesh_colors: dict[str, tuple[float, float, float]] = {}
+    # Cache the geometry represented by each selected target. Normal Stage 1
+    # rows remain Gprims. A deliberately selected Xform represents one bounded
+    # assembly row and colors/shows its descendant Gprims together.
+    gprim_colors: dict[str, tuple[float, float, float]] = {}
+    target_gprim_paths: dict[str, list[str]] = {}
 
     for cached_prim_path in prim_paths:
         cached_prim = stage.GetPrimAtPath(cached_prim_path)
-        cached_mesh = UsdGeom.Mesh(cached_prim)
-        cached_path = cached_prim.GetPath().pathString
+        represented_gprims = _render_target_gprims(
+            stage,
+            cached_prim,
+            selected_assembly_target_members.get(cached_prim_path),
+        )
+        target_gprim_paths[cached_prim_path] = [
+            str(gprim.GetPath()) for gprim in represented_gprims
+        ]
 
-        # Generate and store random color
         if config.should_assign_random_colors:
-            mesh_colors[cached_path] = (
+            target_color = (
                 random.uniform(
                     config.other_color_range[0], config.other_color_range[1]
                 ),
@@ -1150,20 +1550,39 @@ def prepare_render_prims(
                     config.other_color_range[0], config.other_color_range[1]
                 ),
             )
-            set_mesh_display_color(
-                cached_mesh, mesh_colors[cached_path], time=Usd.TimeCode(0)
-            )
+            for represented_prim in represented_gprims:
+                represented_path = str(represented_prim.GetPath())
+                if represented_path in gprim_colors:
+                    continue
+                gprim_colors[represented_path] = target_color
+                set_gprim_display_color(
+                    UsdGeom.Gprim(represented_prim),
+                    target_color,
+                    time=Usd.TimeCode(0),
+                )
 
     if config.should_render_prim_only:
-        disable_visibility_for_all_mesh_prims(stage, time=Usd.TimeCode(0))
+        disable_visibility_for_all_gprims(stage, time=Usd.TimeCode(0))
 
     for i, prim_path in enumerate(prim_paths):
         prim = stage.GetPrimAtPath(prim_path)
+        represented_gprims = [
+            UsdGeom.Gprim(stage.GetPrimAtPath(path))
+            for path in target_gprim_paths[prim_path]
+        ]
 
-        if prim.IsInstance():
-            prim.SetInstanceable(False)
-
-        mesh = UsdGeom.Mesh(prim)
+        visible_gprim_ancestors = _make_render_ancestors_visible(
+            stage,
+            target_gprim_paths[prim_path],
+            time=Usd.TimeCode(i),
+        )
+        if config.should_render_prim_only and i + 1 < len(prim_paths):
+            for ancestor_path in visible_gprim_ancestors:
+                ancestor = UsdGeom.Gprim(stage.GetPrimAtPath(ancestor_path))
+                ancestor.GetVisibilityAttr().Set(
+                    UsdGeom.Tokens.invisible,
+                    time=Usd.TimeCode(i + 1),
+                )
 
         # If using prim focus mode, create cameras for each prim
         if focus_mode == CameraFocusMode.PRIM:
@@ -1178,63 +1597,121 @@ def prepare_render_prims(
 
                 dir_suffix = format_direction_for_filename(camera_spec.direction)
                 camera_path = f"{camera_root}/{config.camera_name_prefix}_{dir_suffix}"
+                camera_existed_before_focus = bool(stage.GetPrimAtPath(camera_path))
 
-                # Choose camera function based on camera_view_type
-                if camera_spec.view_type == CameraViewType.CORNER:
-                    add_focused_corner_view_camera(
-                        prim,
-                        margin=camera_spec.margin,
-                        camera_path=camera_path,
-                        direction=camera_spec.direction,
-                        focal_length=camera_spec.focal_length,
-                        horizontal_aperture=camera_spec.horizontal_aperture,
-                        vertical_aperture=camera_spec.vertical_aperture,
-                        near_clip_margin=camera_spec.near_clip_margin,
-                        far_clip_margin=camera_spec.far_clip_margin,
-                        max_scene_size=max_stage_size,
-                        time=Usd.TimeCode(i),
+                try:
+                    # Choose camera function based on camera_view_type
+                    if camera_spec.view_type == CameraViewType.CORNER:
+                        add_focused_corner_view_camera(
+                            prim,
+                            margin=camera_spec.margin,
+                            camera_path=camera_path,
+                            direction=camera_spec.direction,
+                            focal_length=camera_spec.focal_length,
+                            horizontal_aperture=camera_spec.horizontal_aperture,
+                            vertical_aperture=camera_spec.vertical_aperture,
+                            near_clip_margin=camera_spec.near_clip_margin,
+                            far_clip_margin=camera_spec.far_clip_margin,
+                            max_scene_size=max_stage_size,
+                            time=Usd.TimeCode(i),
+                            included_purposes=config.bbox_purposes,
+                        )
+                    else:  # CameraViewType.SIDE
+                        add_focused_side_view_camera(
+                            prim,
+                            margin=camera_spec.margin,
+                            camera_path=camera_path,
+                            direction=camera_spec.direction,
+                            focal_length=camera_spec.focal_length,
+                            horizontal_aperture=camera_spec.horizontal_aperture,
+                            vertical_aperture=camera_spec.vertical_aperture,
+                            near_clip_margin=camera_spec.near_clip_margin,
+                            far_clip_margin=camera_spec.far_clip_margin,
+                            max_scene_size=max_stage_size,
+                            time=Usd.TimeCode(i),
+                            included_purposes=config.bbox_purposes,
+                        )
+                except ValueError as exc:
+                    if "Bounding box is degenerate" not in str(exc):
+                        raise
+                    # Selection preflight removes known empty/degenerate bounds.
+                    # Keep a late or time-sampled bound failure local to this prim
+                    # so one bad frame cannot suppress the entire rendering mode.
+                    logger.warning(
+                        "Using stage-focused camera for render prim %s "
+                        "(reason=focused_camera_fallback): %s",
+                        prim_path,
+                        exc,
                     )
-                else:  # CameraViewType.SIDE
-                    add_focused_side_view_camera(
-                        prim,
-                        margin=camera_spec.margin,
-                        camera_path=camera_path,
-                        direction=camera_spec.direction,
-                        focal_length=camera_spec.focal_length,
-                        horizontal_aperture=camera_spec.horizontal_aperture,
-                        vertical_aperture=camera_spec.vertical_aperture,
-                        near_clip_margin=camera_spec.near_clip_margin,
-                        far_clip_margin=camera_spec.far_clip_margin,
-                        max_scene_size=max_stage_size,
-                        time=Usd.TimeCode(i),
-                    )
-                if i == 0:
+                    # Focused camera helpers may define the camera schema before
+                    # discovering a bad bound. Remove only that partial first-frame
+                    # definition; an existing camera carries earlier frame samples.
+                    if not camera_existed_before_focus and stage.GetPrimAtPath(
+                        camera_path
+                    ):
+                        stage.RemovePrim(camera_path)
+                    if camera_spec.view_type == CameraViewType.CORNER:
+                        add_corner_view_camera(
+                            stage,
+                            margin=camera_spec.margin,
+                            camera_path=camera_path,
+                            direction=camera_spec.direction,
+                            focal_length=camera_spec.focal_length,
+                            horizontal_aperture=camera_spec.horizontal_aperture,
+                            vertical_aperture=camera_spec.vertical_aperture,
+                            near_clip_margin=camera_spec.near_clip_margin,
+                            far_clip_margin=camera_spec.far_clip_margin,
+                            max_scene_size=max_stage_size,
+                            time=Usd.TimeCode(i),
+                            included_purposes=config.bbox_purposes,
+                        )
+                    else:
+                        add_side_view_camera(
+                            stage,
+                            margin=camera_spec.margin,
+                            camera_path=camera_path,
+                            direction=camera_spec.direction,
+                            focal_length=camera_spec.focal_length,
+                            horizontal_aperture=camera_spec.horizontal_aperture,
+                            vertical_aperture=camera_spec.vertical_aperture,
+                            near_clip_margin=camera_spec.near_clip_margin,
+                            far_clip_margin=camera_spec.far_clip_margin,
+                            max_scene_size=max_stage_size,
+                            time=Usd.TimeCode(i),
+                            included_purposes=config.bbox_purposes,
+                        )
+                if camera_path not in camera_paths:
                     camera_paths.append(camera_path)
 
-        # Highlight current prim at frame i (O(1) keyframe operation)
-        if config.should_highlight_prim and not prim.IsInstanceProxy():
-            set_mesh_display_color(mesh, config.highlight_color, time=Usd.TimeCode(i))
+        for represented_gprim in represented_gprims:
+            represented_path = str(represented_gprim.GetPath())
+            if config.should_highlight_prim:
+                set_gprim_display_color(
+                    represented_gprim,
+                    config.highlight_color,
+                    time=Usd.TimeCode(i),
+                )
 
-            # Reset highlight to random color at next and previous frame (to avoid interpolation artifacts)
-            if config.should_assign_random_colors:
-                if i > 0:
-                    set_mesh_display_color(
-                        mesh, mesh_colors[prim_path], time=Usd.TimeCode(i - 1)
-                    )
+                # Reset highlight to the baseline color around this target's
+                # frame so one assembly does not color an adjacent row.
+                if config.should_assign_random_colors:
+                    if i > 0:
+                        set_gprim_display_color(
+                            represented_gprim,
+                            gprim_colors[represented_path],
+                            time=Usd.TimeCode(i - 1),
+                        )
+                    if i + 1 < len(prim_paths):
+                        set_gprim_display_color(
+                            represented_gprim,
+                            gprim_colors[represented_path],
+                            time=Usd.TimeCode(i + 1),
+                        )
 
-                if i + 1 < len(prim_paths):
-                    set_mesh_display_color(
-                        mesh, mesh_colors[prim_path], time=Usd.TimeCode(i + 1)
-                    )
-
-        # Set visibility for current prim (O(1) keyframe operation)
-        if config.should_render_prim_only and not prim.IsInstanceProxy():
-            mesh.GetVisibilityAttr().Set(UsdGeom.Tokens.inherited, time=Usd.TimeCode(i))
-
-            # Hide at next frame
-            if i + 1 < len(prim_paths):
-                mesh.GetVisibilityAttr().Set(
-                    UsdGeom.Tokens.invisible, time=Usd.TimeCode(i + 1)
+            if config.should_render_prim_only and i + 1 < len(prim_paths):
+                represented_gprim.GetVisibilityAttr().Set(
+                    UsdGeom.Tokens.invisible,
+                    time=Usd.TimeCode(i + 1),
                 )
 
         frames += 1
@@ -1514,8 +1991,14 @@ def render_from_prepared_prims(
             api_key=rendering_backend.api_key,
             base_url=rendering_backend.base_url,
             timeout=rendering_backend.timeout,
+            max_retries=rendering_backend.max_retries,
+            retry_delay=rendering_backend.retry_delay,
+            retry_backoff_factor=rendering_backend.retry_backoff_factor,
+            retry_jitter=rendering_backend.retry_jitter,
             sensors=sensors,
             apply_background_mask=config.use_background_color,
+            add_preview_fallbacks=rendering_backend.add_preview_fallbacks,
+            material_target=rendering_backend.material_target,
             max_workers=1,  # Disable per-camera parallelism (matches original behavior)
         )
     else:
@@ -1643,8 +2126,14 @@ def render_from_prepared_composition(
             api_key=rendering_backend.api_key,
             base_url=rendering_backend.base_url,
             timeout=rendering_backend.timeout,
+            max_retries=rendering_backend.max_retries,
+            retry_delay=rendering_backend.retry_delay,
+            retry_backoff_factor=rendering_backend.retry_backoff_factor,
+            retry_jitter=rendering_backend.retry_jitter,
             sensors=sensors,
             apply_background_mask=config.use_background_color,
+            add_preview_fallbacks=rendering_backend.add_preview_fallbacks,
+            material_target=rendering_backend.material_target,
             max_workers=1,  # Disable per-camera parallelism (matches original behavior)
         )
 
@@ -1658,8 +2147,14 @@ def render_from_prepared_composition(
             api_key=rendering_backend.api_key,
             base_url=rendering_backend.base_url,
             timeout=rendering_backend.timeout,
+            max_retries=rendering_backend.max_retries,
+            retry_delay=rendering_backend.retry_delay,
+            retry_backoff_factor=rendering_backend.retry_backoff_factor,
+            retry_jitter=rendering_backend.retry_jitter,
             sensors=sensors,
             apply_background_mask=config.use_background_color,
+            add_preview_fallbacks=rendering_backend.add_preview_fallbacks,
+            material_target=rendering_backend.material_target,
             max_workers=1,  # Disable per-camera parallelism (matches original behavior)
         )
     else:

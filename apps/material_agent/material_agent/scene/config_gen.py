@@ -8,27 +8,329 @@ and forces layer_only output for each sub-asset.
 
 from __future__ import annotations
 
-import copy
 import logging
 import os
 import re
+import tempfile
 from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
 
 import yaml
+from world_understanding.agentic.config import clone_config_containers
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    ensure_no_inline_secrets,
+    find_inline_secret_paths,
+    path_exists_with_safe_diagnostics,
+    read_text_with_safe_diagnostics,
+    redact_sensitive_config,
+    redact_sensitive_path,
+    resolve_path_with_safe_diagnostics,
+)
 
 from .manifest import PayloadGroup, SceneManifest, SubAsset
 
 logger = logging.getLogger(__name__)
 
+_REDACTED_CREDENTIAL = "<redacted>"
+_MISSING = object()
 
-def generate_sub_asset_config(
+
+class CredentialOverlayError(ValueError):
+    """Base class for value-free scene credential-overlay mismatches."""
+
+    code = "credential_overlay_mismatch"
+
+
+class MissingCredentialSourceError(CredentialOverlayError):
+    """The current source config no longer supplies a required credential."""
+
+    code = "credential_source_missing"
+
+
+class CredentialOverlayShapeError(CredentialOverlayError):
+    """Durable config shape cannot accept the current source credential."""
+
+    code = "credential_overlay_shape_mismatch"
+
+
+def _is_redacted_credential(original: Any, redacted: Any) -> bool:
+    """Return whether ``redacted`` replaced an inline credential value."""
+    return bool(redacted == _REDACTED_CREDENTIAL and original != redacted)
+
+
+def _drop_redacted_credentials(original: Any, redacted: Any) -> Any:
+    """Copy a config while omitting credential values instead of masking them."""
+    if _is_redacted_credential(original, redacted):
+        # Mapping values can be omitted entirely by their caller. Sequence
+        # values need a non-secret tombstone so their positional identity is
+        # retained for the in-memory overlay.
+        return None
+    if isinstance(original, dict) and isinstance(redacted, dict):
+        durable: dict[Any, Any] = {}
+        for key, value in original.items():
+            redacted_value = redacted[key]
+            if _is_redacted_credential(value, redacted_value):
+                continue
+            durable[key] = _drop_redacted_credentials(value, redacted_value)
+        return durable
+    if isinstance(original, list) and isinstance(redacted, list):
+        return [
+            _drop_redacted_credentials(value, redacted[index])
+            for index, value in enumerate(original)
+        ]
+    if isinstance(original, tuple) and isinstance(redacted, tuple):
+        return tuple(
+            _drop_redacted_credentials(value, redacted[index])
+            for index, value in enumerate(original)
+        )
+    return clone_config_containers(original)
+
+
+def _credential_token_paths(
+    original: Any,
+    redacted: Any,
+    path: tuple[Any, ...] = (),
+) -> tuple[tuple[Any, ...], ...]:
+    """Return structural paths for values replaced by constant redaction."""
+    if _is_redacted_credential(original, redacted):
+        return (path,)
+    if isinstance(original, dict) and isinstance(redacted, dict):
+        return tuple(
+            credential_path
+            for key, value in original.items()
+            for credential_path in _credential_token_paths(
+                value, redacted[key], (*path, key)
+            )
+        )
+    if isinstance(original, list | tuple) and isinstance(redacted, list | tuple):
+        return tuple(
+            credential_path
+            for index, value in enumerate(original)
+            for credential_path in _credential_token_paths(
+                value, redacted[index], (*path, index)
+            )
+        )
+    return ()
+
+
+def _value_at_path(value: Any, path: tuple[Any, ...]) -> Any:
+    """Return a nested value, or a private sentinel when its shape drifted."""
+    current = value
+    for token in path:
+        if isinstance(current, dict):
+            if token not in current:
+                return _MISSING
+            current = current[token]
+        elif isinstance(current, list | tuple) and isinstance(token, int):
+            if token < 0 or token >= len(current):
+                return _MISSING
+            current = current[token]
+        else:
+            return _MISSING
+    return current
+
+
+def _has_nonsecret_context(value: Any) -> bool:
+    """Return whether a projection contains a non-tombstone scalar value."""
+    if isinstance(value, dict):
+        return any(_has_nonsecret_context(item) for item in value.values())
+    if isinstance(value, list | tuple):
+        return any(_has_nonsecret_context(item) for item in value)
+    return value is not None
+
+
+def _credential_binding_matches(
+    target: Any,
+    source: Any,
+    redacted: Any,
+    credential_path: tuple[Any, ...],
+) -> bool:
+    """Prove one credential still belongs to its nearest durable context."""
+    parent_path = credential_path[:-1]
+    credential_only_context_matches = False
+    while True:
+        source_parent = _value_at_path(source, parent_path)
+        redacted_parent = _value_at_path(redacted, parent_path)
+        target_parent = _value_at_path(target, parent_path)
+
+        if isinstance(source_parent, list | tuple) and isinstance(
+            redacted_parent, list | tuple
+        ):
+            if not isinstance(target_parent, list | tuple):
+                return False
+            projection = _drop_redacted_credentials(source_parent, redacted_parent)
+            if list(projection) != list(target_parent):
+                return False
+            credential_only_context_matches = True
+            # A list containing only credential tombstones proves positional
+            # identity, but not which provider or endpoint owns the value.
+            # Keep climbing until the nearest meaningful durable ancestor so a
+            # resumed config cannot bind a current credential to stale sibling
+            # context. Lists with their own non-secret members remain a complete
+            # local binding and can return immediately.
+            if _has_nonsecret_context(projection):
+                return True
+
+        if isinstance(source_parent, dict) and isinstance(redacted_parent, dict):
+            projection = _drop_redacted_credentials(source_parent, redacted_parent)
+            credential_only_context_matches = (
+                isinstance(target_parent, dict) and projection == target_parent
+            )
+            context_projection = clone_config_containers(projection)
+            next_token = credential_path[len(parent_path)]
+            if isinstance(context_projection, dict):
+                context_projection.pop(next_token, None)
+            if _has_nonsecret_context(context_projection):
+                return isinstance(target_parent, dict) and projection == target_parent
+
+        if not parent_path:
+            break
+        parent_path = parent_path[:-1]
+
+    return credential_only_context_matches
+
+
+def _credential_contexts_match(target: Any, source: Any, redacted: Any) -> bool:
+    """Return whether every credential is bound to unchanged durable context."""
+    return all(
+        _credential_binding_matches(target, source, redacted, credential_path)
+        for credential_path in _credential_token_paths(source, redacted)
+    )
+
+
+def _durable_config(config: dict[str, Any]) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Return a persistence-safe config and the omitted credential field paths."""
+    credential_paths = find_inline_secret_paths(config)
+    if not credential_paths:
+        cloned = clone_config_containers(config)
+        if not isinstance(cloned, dict):  # pragma: no cover - input contract
+            raise AssertionError("durable configuration clone must be a dictionary")
+        return cloned, ()
+
+    redacted = redact_sensitive_config(config)
+    durable = _drop_redacted_credentials(config, redacted)
+    if not isinstance(durable, dict):  # pragma: no cover - input contract guard
+        raise TypeError("Generated pipeline config must be a mapping")
+    ensure_no_inline_secrets(durable, context="generated scene pipeline config")
+    return durable, credential_paths
+
+
+def _overlay_inline_credentials(
+    target: Any,
+    source: Any,
+    redacted: Any,
+    *,
+    _context_validated: bool = False,
+) -> Any:
+    """Overlay only inline credential values from ``source`` onto ``target``."""
+    if (
+        not _context_validated
+        and isinstance(source, dict | list | tuple)
+        and not _credential_contexts_match(target, source, redacted)
+    ):
+        return target
+
+    if _is_redacted_credential(source, redacted):
+        return clone_config_containers(source)
+
+    if isinstance(source, dict) and isinstance(redacted, dict):
+        if not isinstance(target, dict):
+            return target
+
+        dict_result = clone_config_containers(target)
+        for key, source_value in source.items():
+            redacted_value = redacted[key]
+            if _is_redacted_credential(source_value, redacted_value):
+                dict_result[key] = clone_config_containers(source_value)
+                continue
+            if isinstance(
+                source_value, dict | list | tuple
+            ) and find_inline_secret_paths(source_value):
+                existing = dict_result.get(key)
+                overlaid = _overlay_inline_credentials(
+                    existing,
+                    source_value,
+                    redacted_value,
+                    _context_validated=True,
+                )
+                if overlaid is not existing:
+                    dict_result[key] = overlaid
+        return dict_result
+
+    if isinstance(source, list | tuple) and isinstance(redacted, list | tuple):
+        if not isinstance(target, list | tuple):
+            return target
+        target_items = list(clone_config_containers(target))
+        list_result = clone_config_containers(target_items)
+        for index, source_value in enumerate(source):
+            if index >= len(target_items) or not find_inline_secret_paths(source_value):
+                continue
+            list_result[index] = _overlay_inline_credentials(
+                list_result[index],
+                source_value,
+                redacted[index],
+                _context_validated=True,
+            )
+        return list_result
+
+    return target
+
+
+def _write_durable_config(path: Path, config: dict[str, Any]) -> tuple[str, ...]:
+    """Atomically persist a generated config with inline credentials omitted."""
+    durable, credential_paths = _durable_config(config)
+    create_directory_with_safe_diagnostics(
+        path.parent,
+        label="generated configuration directory",
+    )
+    diagnostic_path = redact_sensitive_path(path)
+    temp_path: Path | None = None
+    try:
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                encoding="utf-8",
+                delete=False,
+            ) as stream:
+                temp_path = Path(stream.name)
+                yaml.safe_dump(
+                    durable,
+                    stream,
+                    default_flow_style=False,
+                    sort_keys=False,
+                )
+                stream.flush()
+                os.fsync(stream.fileno())
+            temp_path.replace(path)
+        finally:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+    except OSError as error:
+        # The OS exception may carry either the raw output path or the derived
+        # temporary filename. Preserve its subtype and errno while replacing
+        # path-bearing diagnostics with the same safe projection used by the
+        # rest of the generated-config boundary.
+        raise type(error)(
+            error.errno,
+            "Unable to persist generated configuration",
+            diagnostic_path,
+        ) from None
+    return credential_paths
+
+
+def _build_sub_asset_config(
     sub_asset: SubAsset,
-    scene_config: dict,
+    scene_config: dict[str, Any],
     output_path: Path,
     scene_config_dir: Path | None = None,
     session_id: str | None = None,
-) -> Path:
-    """Generate a per-asset config from the scene config template.
+) -> dict[str, Any]:
+    """Build an isolated per-asset config from the scene config template.
 
     The generated config:
     - Rebases all relative paths so they resolve correctly from output_path
@@ -40,14 +342,14 @@ def generate_sub_asset_config(
     Args:
         sub_asset: The sub-asset to generate config for.
         scene_config: The scene-level config dict (will be deep-copied).
-        output_path: Where to write the generated YAML.
+        output_path: Path anchor for the generated config.
         scene_config_dir: Directory of the original scene config (for rebasing
             relative paths). If None, paths are kept as-is.
 
     Returns:
-        Path to the generated config file.
+        Generated config dictionary. The caller decides what may be persisted.
     """
-    config = copy.deepcopy(scene_config)
+    config = clone_config_containers(scene_config)
 
     # Remove scene section (not relevant for per-asset pipeline)
     config.pop("scene", None)
@@ -63,7 +365,17 @@ def generate_sub_asset_config(
     # Rebase relative paths from scene config dir to generated config dir
     if scene_config_dir is not None:
         output_dir = output_path.parent
-        _rebase_paths(config, scene_config_dir.resolve(), output_dir.resolve())
+        _rebase_paths(
+            config,
+            resolve_path_with_safe_diagnostics(
+                scene_config_dir,
+                label="scene configuration directory",
+            ),
+            resolve_path_with_safe_diagnostics(
+                output_dir,
+                label="generated configuration directory",
+            ),
+        )
 
     # Per-asset pipeline outputs must not share the scene-level working dir.
     # Keep each generated config self-contained beside its YAML file.
@@ -77,15 +389,27 @@ def generate_sub_asset_config(
     # the correct prims within the preserved hierarchy.
     if sub_asset.extracted_usd:
         extracted_path = Path(sub_asset.extracted_usd)
-        if extracted_path.exists():
+        if path_exists_with_safe_diagnostics(
+            extracted_path,
+            label="extracted USD path",
+        ):
+            resolved_extracted_path = resolve_path_with_safe_diagnostics(
+                extracted_path,
+                label="extracted USD path",
+            )
+            resolved_output_dir = resolve_path_with_safe_diagnostics(
+                output_path.parent,
+                label="generated configuration directory",
+            )
             try:
-                rel = os.path.relpath(
-                    extracted_path.resolve(), output_path.parent.resolve()
-                )
+                rel = os.path.relpath(resolved_extracted_path, resolved_output_dir)
             except ValueError:
-                rel = str(extracted_path.resolve())
+                rel = str(resolved_extracted_path)
             input_section["usd_path"] = rel
-            logger.info(f"  Using extracted USD: {rel} (instead of full scene)")
+            logger.info(
+                "  Using extracted USD: %s (instead of full scene)",
+                redact_sensitive_path(rel),
+            )
 
     # Set prim_path scoping — needed even with extracted USD because
     # the extracted file preserves the full prim hierarchy
@@ -126,18 +450,42 @@ def generate_sub_asset_config(
     if sub_asset.split_context:
         _inject_split_context(config, sub_asset)
 
-    # Write config
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    return config
 
-    logger.info(f"Generated config for '{sub_asset.name}': {output_path}")
+
+def generate_sub_asset_config(
+    sub_asset: SubAsset,
+    scene_config: dict[str, Any],
+    output_path: Path,
+    scene_config_dir: Path | None = None,
+    session_id: str | None = None,
+) -> Path:
+    """Generate a credential-safe per-asset YAML config.
+
+    Inline credential values remain in the caller-owned source config and are
+    omitted from the generated artifact. ``prepare_sub_asset_runtime_configs``
+    restores them only in a per-run in-memory config.
+    """
+    config = _build_sub_asset_config(
+        sub_asset,
+        scene_config,
+        output_path,
+        scene_config_dir=scene_config_dir,
+        session_id=session_id,
+    )
+    sub_asset.config_credential_paths = list(_write_durable_config(output_path, config))
+    logger.info(
+        "Generated config for '%s': %s",
+        sub_asset.name,
+        redact_sensitive_path(output_path),
+    )
     return output_path
 
 
 # Path keys in the config that contain file/directory paths needing rebasing
 _PATH_KEYS = frozenset(
     {
+        "reference_image_uris",
         "usd_path",
         "path",
         "working_dir",
@@ -147,12 +495,31 @@ _PATH_KEYS = frozenset(
 _PATH_LIST_KEYS = frozenset(
     {
         "reference_images",
+        "reference_image_uris",
         "reference_pdfs",
     }
 )
 
+_STEP1X_PATH_KEYS = frozenset(
+    {
+        "runtime_dir",
+        "model_dir",
+        "cache_dir",
+        "output_dir",
+        "python_executable",
+        "edit_script",
+    }
+)
+_STEP1X_CONFIG_BLOCKS = frozenset({"step1x", "step1x_material_anything"})
 
-def _rebase_paths(config: dict, old_base: Path, new_base: Path) -> None:
+
+def _rebase_paths(
+    config: dict,
+    old_base: Path,
+    new_base: Path,
+    *,
+    path: tuple[str, ...] = (),
+) -> None:
     """Rebase relative paths in config from old_base to new_base (in-place).
 
     Walks the config dict recursively. For known path keys, converts
@@ -160,24 +527,45 @@ def _rebase_paths(config: dict, old_base: Path, new_base: Path) -> None:
     the new base directory.
     """
     for key, value in config.items():
+        child_path = (*path, key)
         if isinstance(value, dict):
-            _rebase_paths(value, old_base, new_base)
-        elif isinstance(value, list) and key in _PATH_LIST_KEYS:
-            for i, item in enumerate(value):
-                if isinstance(item, str) and not Path(item).is_absolute():
-                    abs_path = (old_base / item).resolve()
-                    try:
-                        value[i] = str(os.path.relpath(abs_path, new_base))
-                    except ValueError:
-                        # Cross-drive on Windows; fall back to absolute
-                        value[i] = str(abs_path)
-        elif isinstance(value, str) and key in _PATH_KEYS:
-            if not Path(value).is_absolute():
-                abs_path = (old_base / value).resolve()
-                try:
-                    config[key] = str(os.path.relpath(abs_path, new_base))
-                except ValueError:
-                    config[key] = str(abs_path)
+            _rebase_paths(value, old_base, new_base, path=child_path)
+        elif isinstance(value, list):
+            if key in _PATH_LIST_KEYS:
+                for index, item in enumerate(value):
+                    if isinstance(item, str):
+                        value[index] = _rebase_path_value(item, old_base, new_base)
+            else:
+                for item in value:
+                    if isinstance(item, dict):
+                        _rebase_paths(item, old_base, new_base, path=child_path)
+        elif isinstance(value, str) and (
+            key in _PATH_KEYS or _is_step1x_path_key(key, path)
+        ):
+            config[key] = _rebase_path_value(value, old_base, new_base)
+
+
+def _is_step1x_path_key(key: str, path: tuple[str, ...]) -> bool:
+    return (
+        key in _STEP1X_PATH_KEYS
+        and len(path) >= 3
+        and path[-3:-1] == ("steps", "create_materials")
+        and path[-1] in _STEP1X_CONFIG_BLOCKS
+    )
+
+
+def _rebase_path_value(value: str, old_base: Path, new_base: Path) -> str:
+    if value == "" or urlparse(value).scheme or Path(value).is_absolute():
+        return value
+    abs_path = resolve_path_with_safe_diagnostics(
+        old_base / value,
+        label="configuration path",
+    )
+    try:
+        return str(os.path.relpath(abs_path, new_base))
+    except ValueError:
+        # Cross-drive on Windows; fall back to absolute.
+        return str(abs_path)
 
 
 def generate_all_configs(
@@ -232,14 +620,149 @@ def generate_all_configs(
     return manifest
 
 
-def generate_payload_config(
+def _load_and_sanitize_generated_config(
+    config_path: Path,
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Load a generated config and remove credentials left by older versions."""
+    diagnostic_path = redact_sensitive_path(config_path)
+    if not path_exists_with_safe_diagnostics(
+        config_path,
+        label="generated configuration",
+    ):
+        raise FileNotFoundError(f"Generated config not found: {diagnostic_path}")
+    try:
+        source = read_text_with_safe_diagnostics(
+            config_path,
+            label="generated configuration",
+        )
+        loaded = yaml.safe_load(source)
+    except (UnicodeError, yaml.YAMLError):
+        # Legacy generated files may contain credentials, and parser diagnostics
+        # can echo their source lines. Invalid UTF-8 can likewise echo source
+        # bytes. Expose only the diagnostic-safe selected artifact path.
+        raise ValueError(
+            f"Unable to parse generated scene config: {diagnostic_path}"
+        ) from None
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Generated config must contain a mapping: {diagnostic_path}")
+
+    durable, legacy_paths = _durable_config(loaded)
+    if legacy_paths:
+        _write_durable_config(config_path, durable)
+        logger.warning(
+            "Removed legacy inline credentials from generated scene config: %s",
+            diagnostic_path,
+        )
+    return durable, legacy_paths
+
+
+def _missing_credential_error(
+    *, config_path: Path, missing_paths: set[str]
+) -> MissingCredentialSourceError:
+    rendered = _render_credential_paths(missing_paths)
+    return MissingCredentialSourceError(
+        "Cannot rehydrate generated scene config "
+        f"{redact_sensitive_path(config_path)}: source scene config is missing "
+        "inline credentials at "
+        f"{rendered}"
+    )
+
+
+def _runtime_credential_overlay_error(
+    *, config_path: Path, missing_paths: set[str]
+) -> CredentialOverlayShapeError:
+    """Return a value-free error for credential paths lost to shape drift."""
+    rendered = _render_credential_paths(missing_paths)
+    return CredentialOverlayShapeError(
+        "Cannot rehydrate generated scene config "
+        f"{redact_sensitive_path(config_path)}: generated config structure "
+        "cannot accept inline "
+        f"credentials at {rendered}"
+    )
+
+
+def _render_credential_paths(paths: set[str]) -> str:
+    """Render a bounded list of credential field paths without their values."""
+    rendered = ", ".join(sorted(paths)[:8])
+    if len(paths) > 8:
+        rendered += f", and {len(paths) - 8} more"
+    return rendered
+
+
+def prepare_sub_asset_runtime_config(
+    sub_asset: SubAsset,
+    scene_config: dict[str, Any],
+    scene_config_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Build one in-memory per-asset config from a sanitized artifact + source."""
+    if not sub_asset.config_path:
+        raise ValueError(f"Sub-asset '{sub_asset.name}' has no config_path set")
+    config_path = Path(sub_asset.config_path)
+    durable, legacy_paths = _load_and_sanitize_generated_config(config_path)
+
+    project = durable.get("project", {})
+    generated_session_id = (
+        project.get("session_id") if isinstance(project, dict) else None
+    )
+    source_config = _build_sub_asset_config(
+        sub_asset,
+        scene_config,
+        config_path,
+        scene_config_dir=scene_config_dir,
+        session_id=str(generated_session_id or config_path.stem),
+    )
+    available_paths = set(find_inline_secret_paths(source_config))
+    required_paths = set(sub_asset.config_credential_paths) | set(legacy_paths)
+    missing_paths = required_paths - available_paths
+    if missing_paths:
+        raise _missing_credential_error(
+            config_path=config_path, missing_paths=missing_paths
+        )
+
+    runtime = _overlay_inline_credentials(
+        durable, source_config, redact_sensitive_config(source_config)
+    )
+    if not isinstance(runtime, dict):  # pragma: no cover - input contract guard
+        raise TypeError("Runtime scene config must be a mapping")
+    runtime_paths = set(find_inline_secret_paths(runtime))
+    missing_runtime_paths = (required_paths | available_paths) - runtime_paths
+    if missing_runtime_paths:
+        raise _runtime_credential_overlay_error(
+            config_path=config_path, missing_paths=missing_runtime_paths
+        )
+
+    sub_asset.config_credential_paths = sorted(available_paths)
+    return runtime
+
+
+def prepare_sub_asset_runtime_configs(
+    manifest: SceneManifest,
+    scene_config: dict[str, Any],
+    scene_config_dir: Path | None = None,
+    names_filter: list[str] | None = None,
+    assets: list[SubAsset] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Build isolated runtime configs keyed by sub-asset ID."""
+    selected_assets = (
+        assets if assets is not None else manifest.get_processable_assets(names_filter)
+    )
+    return {
+        sub_asset.id: prepare_sub_asset_runtime_config(
+            sub_asset, scene_config, scene_config_dir
+        )
+        for sub_asset in selected_assets
+        if sub_asset.config_path
+    }
+
+
+def _build_payload_config(
     payload_group: PayloadGroup,
-    scene_config: dict,
+    scene_config: dict[str, Any],
     output_path: Path,
     scene_config_dir: Path | None = None,
     sibling_names: list[str] | None = None,
-) -> Path:
-    """Generate a per-payload config from the scene config template.
+) -> dict[str, Any]:
+    """Build an isolated per-payload config from the scene config template.
 
     The generated config:
     - Sets input.usd_path to the payload file path (no prim_path scoping)
@@ -249,14 +772,14 @@ def generate_payload_config(
     Args:
         payload_group: The payload group to generate config for.
         scene_config: The scene-level config dict (will be deep-copied).
-        output_path: Where to write the generated YAML.
+        output_path: Path anchor for the generated config.
         scene_config_dir: Directory of the original scene config (for rebasing
             relative paths). If None, paths are kept as-is.
 
     Returns:
-        Path to the generated config file.
+        Generated config dictionary. The caller decides what may be persisted.
     """
-    config = copy.deepcopy(scene_config)
+    config = clone_config_containers(scene_config)
 
     # Remove scene section
     config.pop("scene", None)
@@ -271,7 +794,17 @@ def generate_payload_config(
     # Rebase relative paths from scene config dir to generated config dir
     if scene_config_dir is not None:
         output_dir = output_path.parent
-        _rebase_paths(config, scene_config_dir.resolve(), output_dir.resolve())
+        _rebase_paths(
+            config,
+            resolve_path_with_safe_diagnostics(
+                scene_config_dir,
+                label="scene configuration directory",
+            ),
+            resolve_path_with_safe_diagnostics(
+                output_dir,
+                label="generated configuration directory",
+            ),
+        )
 
     # Keep payload outputs isolated from the scene-level working directory and
     # sibling payloads.
@@ -287,10 +820,18 @@ def generate_payload_config(
     else:
         input_file = payload_group.modified_input_path or payload_group.payload_file
     payload_path = Path(input_file)
+    resolved_payload_path = resolve_path_with_safe_diagnostics(
+        payload_path,
+        label="payload path",
+    )
+    resolved_output_dir = resolve_path_with_safe_diagnostics(
+        output_path.parent,
+        label="generated configuration directory",
+    )
     try:
-        rel = os.path.relpath(payload_path.resolve(), output_path.parent.resolve())
+        rel = os.path.relpath(resolved_payload_path, resolved_output_dir)
     except ValueError:
-        rel = str(payload_path.resolve())
+        rel = str(resolved_payload_path)
     input_section["usd_path"] = rel
 
     # No prim_path scoping — process the entire payload file
@@ -347,7 +888,10 @@ def generate_payload_config(
         steps["optimize_usd"] = optimize_config
         # Store original payload path so the runner can fix output.usd sublayer
         config["_original_payload_file"] = str(
-            Path(payload_group.payload_file).resolve()
+            resolve_path_with_safe_diagnostics(
+                payload_group.payload_file,
+                label="original payload path",
+            )
         )
         logger.info("  Representative mode: SO split-only (no deinstance, no dedupe)")
 
@@ -356,13 +900,31 @@ def generate_payload_config(
     # like a lone tray or carton that lack visual context in isolation)
     _inject_payload_context(config, payload_group, sibling_names=sibling_names)
 
-    # Write config
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    return config
 
+
+def generate_payload_config(
+    payload_group: PayloadGroup,
+    scene_config: dict[str, Any],
+    output_path: Path,
+    scene_config_dir: Path | None = None,
+    sibling_names: list[str] | None = None,
+) -> Path:
+    """Generate a credential-safe per-payload YAML config."""
+    config = _build_payload_config(
+        payload_group,
+        scene_config,
+        output_path,
+        scene_config_dir=scene_config_dir,
+        sibling_names=sibling_names,
+    )
+    payload_group.config_credential_paths = list(
+        _write_durable_config(output_path, config)
+    )
     logger.info(
-        f"Generated payload config for '{payload_group.group_name}': {output_path}"
+        "Generated payload config for '%s': %s",
+        payload_group.group_name,
+        redact_sensitive_path(output_path),
     )
     return output_path
 
@@ -397,23 +959,7 @@ def generate_all_payload_configs(
     # Build sibling map from the DAG: for each payload, find siblings
     # (other children of the same parent payload). This gives the VLM
     # context about neighboring components in the same system.
-    sibling_map: dict[str, list[str]] = {}
-    all_pgs = manifest.payload_groups
-    file_to_name: dict[str, str] = {}
-    for pg in all_pgs:
-        resolved = str(Path(pg.payload_file).resolve()) if pg.payload_file else ""
-        if resolved:
-            file_to_name[resolved] = pg.group_name
-    for pg in all_pgs:
-        if pg.child_payload_files:
-            child_names = []
-            for cf in pg.child_payload_files:
-                resolved_cf = str(Path(cf).resolve())
-                name = file_to_name.get(resolved_cf)
-                if name:
-                    child_names.append(name)
-            for name in child_names:
-                sibling_map[name] = child_names
+    sibling_map = _build_payload_sibling_map(manifest)
 
     # Use a subdirectory for payload configs to keep them separate
     payload_configs_dir = configs_dir / "payloads"
@@ -440,6 +986,93 @@ def generate_all_payload_configs(
             pg.status = "failed"
 
     return manifest
+
+
+def _build_payload_sibling_map(manifest: SceneManifest) -> dict[str, list[str]]:
+    """Return payload sibling names derived from the manifest DAG."""
+    sibling_map: dict[str, list[str]] = {}
+    all_pgs = manifest.payload_groups
+    file_to_name: dict[str, str] = {}
+    for pg in all_pgs:
+        resolved = str(Path(pg.payload_file).resolve()) if pg.payload_file else ""
+        if resolved:
+            file_to_name[resolved] = pg.group_name
+    for pg in all_pgs:
+        if pg.child_payload_files:
+            child_names = []
+            for cf in pg.child_payload_files:
+                resolved_cf = str(Path(cf).resolve())
+                name = file_to_name.get(resolved_cf)
+                if name:
+                    child_names.append(name)
+            for name in child_names:
+                sibling_map[name] = child_names
+    return sibling_map
+
+
+def prepare_payload_runtime_config(
+    payload_group: PayloadGroup,
+    scene_config: dict[str, Any],
+    scene_config_dir: Path | None = None,
+    sibling_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build one in-memory payload config from a sanitized artifact + source."""
+    if not payload_group.config_path:
+        raise ValueError(
+            f"Payload group '{payload_group.group_name}' has no config_path set"
+        )
+    config_path = Path(payload_group.config_path)
+    durable, legacy_paths = _load_and_sanitize_generated_config(config_path)
+    source_config = _build_payload_config(
+        payload_group,
+        scene_config,
+        config_path,
+        scene_config_dir=scene_config_dir,
+        sibling_names=sibling_names,
+    )
+    available_paths = set(find_inline_secret_paths(source_config))
+    required_paths = set(payload_group.config_credential_paths) | set(legacy_paths)
+    missing_paths = required_paths - available_paths
+    if missing_paths:
+        raise _missing_credential_error(
+            config_path=config_path, missing_paths=missing_paths
+        )
+
+    runtime = _overlay_inline_credentials(
+        durable, source_config, redact_sensitive_config(source_config)
+    )
+    if not isinstance(runtime, dict):  # pragma: no cover - input contract guard
+        raise TypeError("Runtime payload config must be a mapping")
+    runtime_paths = set(find_inline_secret_paths(runtime))
+    missing_runtime_paths = (required_paths | available_paths) - runtime_paths
+    if missing_runtime_paths:
+        raise _runtime_credential_overlay_error(
+            config_path=config_path, missing_paths=missing_runtime_paths
+        )
+
+    payload_group.config_credential_paths = sorted(available_paths)
+    return runtime
+
+
+def prepare_payload_runtime_configs(
+    manifest: SceneManifest,
+    scene_config: dict[str, Any],
+    scene_config_dir: Path | None = None,
+    payloads: list[PayloadGroup] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Build isolated runtime configs keyed by payload-group ID."""
+    sibling_map = _build_payload_sibling_map(manifest)
+    groups = payloads if payloads is not None else manifest.get_processable_payloads()
+    return {
+        payload_group.id: prepare_payload_runtime_config(
+            payload_group,
+            scene_config,
+            scene_config_dir,
+            sibling_names=sibling_map.get(payload_group.group_name),
+        )
+        for payload_group in groups
+        if payload_group.config_path
+    }
 
 
 def _inject_payload_context(

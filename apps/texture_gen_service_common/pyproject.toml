@@ -1,0 +1,51 @@
+[project]
+name = "texture-gen-service-common"
+dynamic = ["version"]
+description = "Shared Texture Variation API service primitives"
+requires-python = ">=3.12"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+
+dependencies = [
+    "fastapi>=0.115.8",
+    "starlette>=1.3.1,<2.0.0",
+    "pydantic>=2.9.0",
+]
+
+[build-system]
+requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.5.0"
+from-file = { source = "../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+ignore-vcs = true
+
+[tool.hatch.build.targets.wheel.force-include]
+"apps_namespace_init.py" = "apps/__init__.py"
+"__init__.py" = "apps/texture_gen_service_common/__init__.py"
+"artifacts.py" = "apps/texture_gen_service_common/artifacts.py"
+"backend.py" = "apps/texture_gen_service_common/backend.py"
+"models.py" = "apps/texture_gen_service_common/models.py"
+"prompting.py" = "apps/texture_gen_service_common/prompting.py"
+"service.py" = "apps/texture_gen_service_common/service.py"
+"usd_package.py" = "apps/texture_gen_service_common/usd_package.py"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = [
+    "E501",
+]

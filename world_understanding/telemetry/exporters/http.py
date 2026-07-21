@@ -9,7 +9,7 @@ import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing imports.
     from opentelemetry.sdk.trace import ReadableSpan
     from opentelemetry.sdk.trace.export import SpanProcessor
 

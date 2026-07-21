@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # drop_settle scenario tuned against the Isaac SimReady Tire_B01 asset.
-# record_video is on so every trial writes a recording.usda + render mp4 we
+# record_video is on so every trial writes a recording.usd + render mp4 we
 # can inspect locally. Drop height + duration shrunk vs ladder (tire is ~0.42 m
 # radius vs ladder's ~1.7 m height) to keep wall time tight.
 
@@ -33,6 +33,7 @@ parameters:
   - name: static_friction
     min: 0.05
     max: 1.5
+  # Optimizers couple these ranges so dynamic friction never exceeds static.
   - name: dynamic_friction
     min: 0.05
     max: 1.5

@@ -5,7 +5,6 @@
 This module provides the base class for all embedding models (text, image, multimodal).
 """
 
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -242,7 +241,7 @@ class BaseEmbeddingModel(ABC):
         """Create an embedding model from environment variables.
 
         Args:
-            backend: Backend name ('nim', 'openai', 'perflab')
+            backend: Registered backend name.
             model: Model ID (optional, defaults used if not specified)
             **kwargs: Additional backend-specific arguments
 
@@ -252,14 +251,10 @@ class BaseEmbeddingModel(ABC):
         Raises:
             ValueError: If backend is not supported or required parameters missing
         """
-        # Get API key from environment
-        api_key = None
-        if backend == "nim":
-            api_key = os.getenv("NVIDIA_API_KEY")
-        elif backend == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
-        elif backend == "perflab":
-            api_key = os.getenv("NSTORAGE_API_KEY")
+        import world_understanding.functions.models.backends  # noqa: F401
+        from world_understanding.utils.credentials import get_env_api_key_for_backend
+
+        api_key = get_env_api_key_for_backend(backend)
 
         if api_key is None:
             raise ValueError(f"API key is required for {backend} backend")
@@ -267,7 +262,5 @@ class BaseEmbeddingModel(ABC):
         # Set default base URL for NIM
         if backend == "nim" and "base_url" not in kwargs:
             kwargs["base_url"] = "https://integrate.api.nvidia.com/v1"
-
-        # Perflab backend requires base_url to be passed explicitly (no default)
 
         return cls(api_key=api_key, model=model or cls.DEFAULT_MODEL, **kwargs)

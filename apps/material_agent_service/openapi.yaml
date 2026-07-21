@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Material Agent Service
   description: REST API for VLM-based material assignment to 3D USD objects.
-  version: "0.3.0"
+  version: "0.5.0"
 servers:
   - url: http://localhost:8000
     description: Local development server
@@ -97,7 +97,7 @@ paths:
                   description: Existing session ID from /upload-usd
                 user_email:
                   type: string
-                  description: Optional user email for usage tracking
+                  description: Optional user email for usage tracking. Omitted or blank values use MA_DEFAULT_USER_EMAIL, then anonymous@nvidia.com when that fallback is blank.
                 reference_images:
                   type: array
                   items: { type: string, format: binary }
@@ -105,13 +105,26 @@ paths:
                 reference_pdfs:
                   type: array
                   items: { type: string, format: binary }
-                  description: Reference PDFs to convert to images
+                  description: Reference PDFs retained as provenance outside visual-model inputs; this endpoint does not extract material claims from uploads
                 reference_descriptions:
                   type: string
                   description: JSON array of image descriptions
                 generated_reference_id:
                   type: string
                   description: Generated reference ID returned by generate-reference-image
+                enable_material_generation:
+                  type: string
+                  default: "false"
+                  description: Enable generated material-library mode for this pipeline. Requires at least one uploaded reference image or generated_reference_id and deployment image-generation configuration.
+                material_generation_guidance:
+                  type: string
+                  description: Optional guidance for asset-specific material generation
+                material_generation_texture_size:
+                  type: integer
+                  minimum: 64
+                  maximum: 4096
+                  default: 1024
+                  description: Texture map size for generated materials
                 pdf_descriptions:
                   type: string
                   description: JSON array of PDF descriptions
@@ -126,6 +139,11 @@ paths:
                   type: string
                   default: "+x+y+z,-x-y-z"
                   description: Comma-separated camera views
+                coverage_policy:
+                  type: string
+                  enum: [strict, allow_partial]
+                  default: allow_partial
+                  description: strict fails closed before final success when prediction or binding coverage is incomplete; allow_partial preserves artifacts with explicit partial readiness. Large-scene mode currently requires allow_partial and reports not_evaluated.
                 optimize_usd:
                   type: string
                   default: "true"
@@ -216,6 +234,10 @@ paths:
                   type: string
                   default: "true"
                   description: Generate the cluster HTML report when clustering runs
+                layer_only:
+                  type: string
+                  default: "false"
+                  description: Output only a material binding layer instead of a full USD (true/false, default false), preserving the original scene structure
       responses:
         "202":
           description: Pipeline started
@@ -224,6 +246,7 @@ paths:
               schema: { $ref: "#/components/schemas/SessionCreated" }
         "400": { description: Invalid input }
         "413": { description: File too large }
+        "503": { description: Image-generation configuration is required for generated material-library mode }
 
   /pipeline/{session_id}/status:
     get:
@@ -316,7 +339,10 @@ paths:
           description: Pipeline results
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PipelineResults" }
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/PipelineResults" }
+                  - { $ref: "#/components/schemas/PipelineError" }
         "202": { description: Still running }
         "404": { description: Session not found }
 
@@ -979,6 +1005,11 @@ components:
           type: boolean
           default: false
           description: Output only a material binding layer when re-running apply
+        coverage_policy:
+          type: string
+          enum: [strict, allow_partial]
+          nullable: true
+          description: Optional coverage policy override for this regeneration
 
     SessionCreated:
       type: object
@@ -1035,6 +1066,10 @@ components:
         elapsed_seconds: { type: integer }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+        coverage:
+          oneOf:
+            - { $ref: "#/components/schemas/MaterialCoverage" }
+            - { type: "null" }
 
     PipelineResults:
       type: object
@@ -1079,8 +1114,116 @@ components:
             cluster_report: { type: string }
             cluster_summary: { type: string }
             cluster_representatives: { type: string }
+            scene_manifest: { type: string }
+            scene_validation_report: { type: string }
+            scene_predictions: { type: string }
+            final_render: { type: string }
         duration_seconds: { type: integer }
         completed_at: { type: string, format: date-time }
+        coverage:
+          oneOf:
+            - { $ref: "#/components/schemas/MaterialCoverage" }
+            - { type: "null" }
+
+    PipelineError:
+      type: object
+      properties:
+        session_id: { type: string }
+        status: { type: string, const: failed }
+        error_message: { type: string }
+        failed_step: { type: string }
+        completed_steps:
+          type: array
+          items: { type: string }
+        partial_results:
+          type: object
+          nullable: true
+          properties:
+            stats:
+              type: object
+              additionalProperties: true
+            coverage:
+              $ref: "#/components/schemas/MaterialCoverage"
+        download_urls:
+          type: object
+          description: Artifact URLs preserved before failure.
+          properties:
+            output_usd: { type: string }
+            predictions: { type: string }
+            report: { type: string }
+            cluster_map: { type: string }
+            cluster_report: { type: string }
+            cluster_summary: { type: string }
+            cluster_representatives: { type: string }
+            scene_manifest: { type: string }
+            scene_validation_report: { type: string }
+            scene_predictions: { type: string }
+            final_render: { type: string }
+        coverage:
+          oneOf:
+            - { $ref: "#/components/schemas/MaterialCoverage" }
+            - { type: "null" }
+
+    MaterialCoverage:
+      type: object
+      required:
+        - schema_version
+        - policy
+        - readiness_grade
+        - target_count
+        - prepared_count
+        - predicted_count
+        - usable_prediction_count
+        - unknown_prediction_count
+        - fallback_count
+        - bound_count
+        - unbound_count
+        - prediction_coverage_ratio
+        - binding_coverage_ratio
+        - missing_prepared_prim_ids
+        - missing_prediction_prim_ids
+        - unknown_prim_ids
+        - fallback_prim_ids
+        - unbound_prim_ids
+        - extra_prediction_prim_ids
+        - warnings
+      properties:
+        schema_version: { type: string, example: "1.0" }
+        policy: { type: string, enum: [strict, allow_partial] }
+        readiness_grade:
+          type: string
+          enum: [complete, complete_with_fallback, partial, not_evaluated]
+        target_count: { type: integer, minimum: 0 }
+        prepared_count: { type: integer, minimum: 0 }
+        predicted_count: { type: integer, minimum: 0 }
+        usable_prediction_count: { type: integer, minimum: 0 }
+        unknown_prediction_count: { type: integer, minimum: 0 }
+        fallback_count: { type: integer, minimum: 0 }
+        bound_count: { type: integer, minimum: 0 }
+        unbound_count: { type: integer, minimum: 0 }
+        prediction_coverage_ratio: { type: number, minimum: 0, maximum: 1 }
+        binding_coverage_ratio: { type: number, minimum: 0, maximum: 1 }
+        missing_prepared_prim_ids:
+          type: array
+          items: { type: string }
+        missing_prediction_prim_ids:
+          type: array
+          items: { type: string }
+        unknown_prim_ids:
+          type: array
+          items: { type: string }
+        fallback_prim_ids:
+          type: array
+          items: { type: string }
+        unbound_prim_ids:
+          type: array
+          items: { type: string }
+        extra_prediction_prim_ids:
+          type: array
+          items: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
 
     PreviewList:
       type: object

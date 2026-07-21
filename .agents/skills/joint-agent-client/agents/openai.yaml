@@ -1,0 +1,4 @@
+interface:
+  display_name: "Joint Agent Client"
+  short_description: "Call the Joint Agent service"
+  default_prompt: "Use $joint-agent-client to make requests to the Joint Agent REST API service for VLM-based joint/articulation classification of 3D USD assets."

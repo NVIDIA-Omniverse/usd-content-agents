@@ -1,0 +1,86 @@
+# Public bring-your-own-asset template for Joint Agent 0.5 Research Preview.
+#
+# 1. Copy this file outside the checked-in configs directory.
+# 2. Replace input.usd_path with an absolute path to your USD-family asset.
+# 3. Run `joint-agent run YOUR_CONFIG.yaml --dry-run` before execution.
+# 4. Review Stage 2 candidates before setting apply_joint_rigger.enabled true.
+
+project:
+  name: joint_agent_byoa
+  description: Classify an articulated asset and prepare optional joint topology.
+  working_dir: .joint-agent-byoa
+
+input:
+  usd_path: /absolute/path/to/your_asset.usd
+
+steps:
+  optimize_usd:
+    enabled: false
+
+  identify_asset:
+    enabled: true
+    renderer:
+      backend: remote
+
+  analyze_structure:
+    enabled: true
+    strategy: auto
+    use_prompt_library: false
+    llm:
+      backend: nim
+      model: qwen/qwen3.5-397b-a17b
+
+  build_dataset_usd:
+    enabled: true
+    renderer:
+      backend: remote
+
+  build_dataset_prepare_dataset:
+    enabled: true
+    prompt_profile: prop_articulation
+
+  predict:
+    enabled: true
+    completion_retries: 3
+    vlm:
+      backend: nim
+      model: qwen/qwen3.5-397b-a17b
+
+  consistency_pass:
+    enabled: true
+    output_key: classification
+    harmonize_fields: [axis_hint]
+    harmonize_motion_profiles: true
+
+  infer_articulation_candidates:
+    enabled: true
+    output_key: classification
+    candidate_joint_types: [revolute, prismatic]
+    adjudication:
+      enabled: true
+      reconcile_topology: true
+      model_key: vlm
+      min_confidence: high
+      max_tokens: 8192
+      max_images: 64
+      require_source_images: true
+    vlm:
+      backend: nim
+      model: qwen/qwen3.5-397b-a17b
+
+  # Opt in only after reviewing the generated Stage 2 candidate document.
+  apply_joint_rigger:
+    enabled: false
+    adapter: owned_core
+    articulation_candidates_path: >-
+      .joint-agent-byoa/articulation_candidates/articulation_candidates.json
+    output_usd_path: .joint-agent-byoa/joint_rigger/rigged.usdz
+    apply_masses: false
+    apply_collision: false
+
+  author_physics_schemas:
+    enabled: false
+
+advanced:
+  keep_temp_files: true
+  log_level: INFO

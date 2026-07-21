@@ -1,0 +1,312 @@
+{
+  "$schema": "../../../schemas/skill_eval_suite.schema.json",
+  "schema_version": "1.0",
+  "suite_version": "1.0.0",
+  "skill": "physics-agent-client",
+  "source": {
+    "report": "skill-eval-report-iter1-2026-07-15.md",
+    "report_date": "2026-07-15",
+    "iteration": 1,
+    "original_cases_artifact": "unavailable",
+    "reconstruction_note": "The original generated case file was absent from the report archive. These ten approved case titles, prompts, and iteration-one corrections were reconstructed from the human-readable report."
+  },
+  "methodology": {
+    "isolation": {
+      "fresh_workspace_per_run": true,
+      "baseline_skill_access": "none",
+      "candidate_skill_access": "target-only",
+      "cleanup_between_runs": true,
+      "sibling_skill_stubs": [
+        "physics-agent-cli",
+        "deploy-physics-agent-docker",
+        "material-agent-client"
+      ]
+    },
+    "portability": {
+      "required_cells": [
+        {
+          "harness": "claude-code",
+          "model": "current-supported-claude"
+        },
+        {
+          "harness": "codex",
+          "model": "current-supported-gpt"
+        }
+      ],
+      "portable_uplift_requires_all_cells": true
+    }
+  },
+  "cases": [
+    {
+      "id": "positive-full-pipeline-upload",
+      "source_case": "Positive 1 - Run the full pipeline with a local USD and download output",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Use the already running Physics Agent REST service to upload the public lightbulb USD, run the full pipeline, monitor it, and download predictions and the simulation-ready output USD.",
+      "fixture_paths": [
+        "apps/physics_agent/data/examples/Lightbulb01/light_bulb_01.usda",
+        "apps/physics_agent_service/client/client.py",
+        "apps/physics_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "uses-supported-pipeline-contract",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Checks GET /health, uses one input source, submits POST /pipeline, monitors the matching status route with a timeout, and names the prediction and output-USD downloads without starting containers."
+        },
+        {
+          "id": "verifies-one-pipeline-session",
+          "leg": "live",
+          "evidence": "service-state",
+          "description": "Counts sessions from GET /sessions before and after, verifies exactly one new case-owned pipeline session completed, and confirms downloaded artifacts exist."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "A Physics Agent service is already running and GET /health succeeds.",
+          "Any bearer token is available through PHYSICS_AGENT_TOKEN without exposing it.",
+          "The service VLM, rendering, optimizer, storage, and physics-authoring dependencies are healthy."
+        ],
+        "side_effects": [
+          "Creates one service pipeline session and server-side artifacts.",
+          "Downloads predictions and an output USD into a case-specific temporary directory."
+        ],
+        "cleanup": [
+          "Delete the case-owned service session with DELETE /sessions/{id}.",
+          "Remove case-specific downloads and leave the pre-existing service running."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-curl-upload-monitor-download",
+      "source_case": "Positive 2 - Write a curl upload, watch, and download workflow",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Give me a robust curl and jq workflow to upload a USD to Physics Agent, watch events or poll status, handle terminal failures, and download the predictions, report, and output USD.",
+      "fixture_paths": [
+        "apps/physics_agent/data/examples/Lightbulb01/light_bulb_01.usda",
+        "apps/physics_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "writes-bounded-curl-workflow",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Uses fail-fast curl flags, safely extracts the session ID with jq, monitors a documented route with a timeout, handles failed and cancelled states, and downloads only after completed."
+        }
+      ]
+    },
+    {
+      "id": "positive-python-client-s3",
+      "source_case": "Positive 3 - Use the bundled Python client with an S3 URI",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Write a Python example using the bundled Physics Agent client to submit a user-provided S3 URI, monitor the pipeline, and download results without embedding cloud credentials.",
+      "fixture_paths": [
+        "apps/physics_agent_service/client/client.py",
+        "apps/physics_agent_service/client/README.md"
+      ],
+      "expected": [
+        {
+          "id": "uses-s3-input-mode",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Uses s3_uri as the only source, leaves cloud credentials server-side, applies bounded monitoring and terminal-state handling, and does not invent or expose a real bucket URI."
+        }
+      ]
+    },
+    {
+      "id": "positive-troubleshoot-instance-proxy",
+      "source_case": "Positive 4 - Troubleshoot an instance-proxy authoring failure",
+      "kind": "positive",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "A Physics Agent service pipeline failed in apply_physics on an instance proxy. Explain how to distinguish a schema-authoring failure from an optimizer failure and construct the corrected request.",
+      "fixture_paths": [
+        "apps/material_agent/data/regression/scene_optimizer/scene_optimizer_test.usda",
+        "apps/physics_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "diagnoses-before-retrying",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Inspects the failed step and error, explains that deinstance addresses non-writable instance proxies, uses optimize_usd with enable_deinstance, and does not claim every apply_physics schema error is fixed by preprocessing."
+        }
+      ]
+    },
+    {
+      "id": "positive-predict-only",
+      "source_case": "Positive 5 - Run the prediction-only endpoint",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Use the Physics Agent service prediction-only API on a prepared case-owned pipeline session. Submit the correct fields, wait for completion, and return predictions without running apply_physics again.",
+      "fixture_paths": [
+        "apps/physics_agent/data/examples/Lightbulb01/light_bulb_01.usda",
+        "apps/physics_agent_service/client/client.py",
+        "apps/physics_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "uses-predict-route-family",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Uses the documented POST /predict request fields and matching predict status and results routes, and clearly distinguishes prediction-only work from POST /pipeline."
+        },
+        {
+          "id": "verifies-in-place-predict-run",
+          "leg": "live",
+          "evidence": "service-state",
+          "description": "Uses GET /sessions to verify prediction reuses the existing session ID without creating another session, waits for it to complete, and retrieves non-empty predictions without asserting an authored output USD."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "A healthy Physics Agent service and a completed case-owned pipeline session with prepared data are available.",
+          "The service VLM provider is configured for prediction.",
+          "The evaluator can query GET /sessions and the predict result routes."
+        ],
+        "side_effects": [
+          "Mutates the case-owned pipeline session in place with prediction-only status and artifacts.",
+          "Downloads predict results into a case-specific temporary directory."
+        ],
+        "cleanup": [
+          "Delete the case-owned pipeline session after the prediction-only run.",
+          "Remove downloaded results and leave the service running."
+        ],
+        "timeout_seconds": 3600
+      }
+    },
+    {
+      "id": "positive-tune-authored-physics",
+      "source_case": "Positive 6 - Tune a physics-authored USD",
+      "kind": "positive",
+      "legs": [
+        "knowledge",
+        "live"
+      ],
+      "prompt": "Use the Physics Agent service tuning API on a physics-authored public tire USD, submit the drop-settle scenario with bounded trials, and return the best parameters and tuned USD.",
+      "fixture_paths": [
+        "apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml",
+        "apps/physics_agent/data/examples/Tire_B01/tire.usdc",
+        "apps/physics_agent_service/client/client.py",
+        "apps/physics_agent_service/openapi.yaml"
+      ],
+      "expected": [
+        {
+          "id": "uses-tune-route-fields",
+          "leg": "knowledge",
+          "evidence": "command",
+          "description": "Requires a physics-authored source, uses POST /tune with the documented scenario and optimizer fields, bounds trials, follows tune status and result routes, and rejects a fake engine as production evidence."
+        },
+        {
+          "id": "verifies-one-tune-session",
+          "leg": "live",
+          "evidence": "service-state",
+          "description": "Counts exactly one new tune session from GET /sessions, waits for terminal completion, and verifies best-parameter metadata and a downloadable tuned USD."
+        }
+      ],
+      "live": {
+        "prerequisites": [
+          "A healthy Physics Agent service has production tuning dependencies configured.",
+          "A case-owned physics-authored tire USD or completed pipeline session is available.",
+          "The evaluator has sufficient GPU and runtime capacity for bounded tuning."
+        ],
+        "side_effects": [
+          "Creates one tune session and multiple bounded simulation trial artifacts.",
+          "Downloads best parameters, score evidence, and a tuned physics USD."
+        ],
+        "cleanup": [
+          "Cancel the case-owned tune session on timeout and delete it after evidence collection.",
+          "Delete the case-owned source session and remove downloaded trial artifacts."
+        ],
+        "timeout_seconds": 7200
+      }
+    },
+    {
+      "id": "negative-run-local-cli",
+      "source_case": "Negative 1 - Run the local Physics Agent CLI",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "There is no REST service. Run Physics Agent directly from the local command line on my USD.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-physics-cli",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes to physics-agent-cli and does not invent a service endpoint or start containers."
+        }
+      ]
+    },
+    {
+      "id": "negative-deploy-service",
+      "source_case": "Negative 2 - Deploy the Physics Agent service with Docker",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "The service is unreachable. Build and start the Physics Agent Docker Compose stack, then retry the API request.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "refuses-docker-mutation",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Reports the failed health preflight, makes zero service submissions and zero Docker mutations, and routes deployment to deploy-physics-agent-docker."
+        }
+      ]
+    },
+    {
+      "id": "negative-call-material-service",
+      "source_case": "Negative 3 - Make a Material Agent service request",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "Upload this USD to a service that assigns realistic visual materials and download the materialized result.",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "routes-to-material-client",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Routes to material-agent-client and does not present Physics Agent's output USD as visual material assignment."
+        }
+      ]
+    },
+    {
+      "id": "negative-general-physx-question",
+      "source_case": "Negative 4 - Conceptual PhysX schema question",
+      "kind": "negative",
+      "legs": [
+        "knowledge"
+      ],
+      "prompt": "What do UsdPhysicsRigidBodyAPI and UsdPhysicsCollisionAPI represent?",
+      "fixture_paths": [],
+      "expected": [
+        {
+          "id": "answers-without-service-session",
+          "leg": "knowledge",
+          "evidence": "response",
+          "description": "Answers the conceptual question directly without contacting a service or fabricating a session."
+        }
+      ]
+    }
+  ]
+}

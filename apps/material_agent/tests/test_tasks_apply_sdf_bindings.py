@@ -45,6 +45,9 @@ class TestApplySkipInstanceCheck:
         context["allow_empty_predictions"] = True
         result = task.run(context, None)
         assert "output_usd_path" in result
+        assert result["resolved_material_profile"] == "auto"
+        assert result["material_profile_warnings"] == []
+        assert result["material_profile_errors"] == []
 
 
 class TestSdfLevelBindings:
@@ -98,6 +101,7 @@ class TestSdfLevelBindings:
             "skip_instance_check": True,
             "allow_empty_predictions": True,
             "fail_on_unknown_material": True,
+            "shader_target": "openpbr",
         }
         config_path = tmp_path / "apply_config.yaml"
         config_path.write_text(yaml.dump(config))
@@ -108,6 +112,7 @@ class TestSdfLevelBindings:
         assert result["skip_instance_check"] is True
         assert result["allow_empty_predictions"] is True
         assert result["fail_on_unknown_material"] is True
+        assert result["material_profile"] == "openpbr"
 
     def test_config_apply_validates_allow_empty_predictions(
         self, tmp_path: Path
@@ -128,6 +133,27 @@ class TestSdfLevelBindings:
         )
 
         with pytest.raises(ValueError, match="apply.allow_empty_predictions"):
+            ApplyConfigTask().run({"config_path": str(config_path)}, None)
+
+    def test_config_apply_validates_material_profile_string(
+        self, tmp_path: Path
+    ) -> None:
+        """ApplyConfigTask rejects non-string material profile aliases."""
+        import yaml
+
+        config_path = tmp_path / "apply_config.yaml"
+        config_path.write_text(
+            yaml.dump(
+                {
+                    "input_usd_path": "/dummy.usd",
+                    "predictions_path": "/dummy.jsonl",
+                    "output_usd_path": "/dummy_out.usd",
+                    "material_profile": 123,
+                }
+            )
+        )
+
+        with pytest.raises(ValueError, match="apply.material_profile"):
             ApplyConfigTask().run({"config_path": str(config_path)}, None)
 
     def test_config_apply_validates_fail_on_unknown_material(

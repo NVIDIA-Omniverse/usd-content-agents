@@ -14,9 +14,12 @@ from world_understanding.functions.knowledge.usd_search import USDSearchClient
 from world_understanding.functions.models.chat_models import create_chat_model
 
 from material_agent.materials import (
+    FALLBACK_MATERIAL_BINDING,
+    FALLBACK_MATERIAL_NAME,
     UNKNOWN_MATERIAL_SENTINEL,
     is_actionable_material_name,
     is_unknown_material_name,
+    material_mapping_with_fallback,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,13 +72,14 @@ class MaterialRetrievalTask(Task):
         # Handle both dict and list[dict] formats
         if isinstance(materials_mapping, dict):
             # Direct dictionary format (preferred)
-            mapping_dict = materials_mapping
+            mapping_dict = dict(materials_mapping)
         else:
             # Legacy list of dicts format - convert to dictionary
             mapping_dict = {}
             for item in materials_mapping:
                 if isinstance(item, dict):
                     mapping_dict.update(item)
+        mapping_dict = material_mapping_with_fallback(mapping_dict)
 
         # Check if this is a library-based mapping
         material_library_path = mapping_dict.get("material_library_path")
@@ -283,13 +287,18 @@ class MaterialRetrievalTask(Task):
 
         unique_materials = context.get("unique_materials", [])
         unknown_materials = [m for m in unique_materials if is_unknown_material_name(m)]
-        unique_materials = [
-            m for m in unique_materials if is_actionable_material_name(m)
-        ]
+        normalized_materials = []
+        for material in unique_materials:
+            if is_unknown_material_name(material):
+                normalized_materials.append(FALLBACK_MATERIAL_NAME)
+            elif is_actionable_material_name(material):
+                normalized_materials.append(material)
+        unique_materials = sorted(set(normalized_materials))
         if unknown_materials:
             listener.warning(
                 f"Ignoring {len(unknown_materials)} "
-                f"'{UNKNOWN_MATERIAL_SENTINEL}' material sentinel(s) during retrieval"
+                f"'{UNKNOWN_MATERIAL_SENTINEL}' material sentinel(s); "
+                f"retrieving '{FALLBACK_MATERIAL_NAME}' instead"
             )
             context["unique_materials"] = unique_materials
             existing_unknown_count = context.get("unknown_material_predictions", 0)
@@ -369,9 +378,25 @@ class MaterialRetrievalTask(Task):
         # Retrieve each material
         matched_materials = {}
         search_results = {}
+        search_materials = []
+        for material in unique_materials:
+            if material == FALLBACK_MATERIAL_NAME:
+                path_info = {
+                    "source_path": FALLBACK_MATERIAL_BINDING,
+                    "s3_path": None,
+                    "dependencies": [],
+                    "metadata": {"source": "canonical_fallback"},
+                }
+                matched_materials[material] = [path_info]
+                search_results[material] = [
+                    {"source": {"path": FALLBACK_MATERIAL_BINDING}}
+                ]
+                listener.info(f"Mapped '{material}' -> canonical fallback material")
+            else:
+                search_materials.append(material)
         failed_queries = 0
 
-        for material in unique_materials:
+        for material in search_materials:
             try:
                 if use_llm_retrieval and llm:
                     # Use LLM-enhanced hierarchical retrieval
@@ -466,7 +491,7 @@ class MaterialRetrievalTask(Task):
         Returns:
             LLM instance
         """
-        service = llm_config.get("service", "perflab_azure_openai")
+        service = llm_config.get("service", "nim")
         model = llm_config.get("model")
         temperature = llm_config.get("temperature", 0.1)
         max_tokens = llm_config.get("max_tokens", 512)
@@ -476,8 +501,6 @@ class MaterialRetrievalTask(Task):
         if not api_key:
             if service == "nim":
                 api_key = os.getenv("NVIDIA_API_KEY")
-            elif service == "perflab_azure_openai":
-                api_key = os.getenv("NSTORAGE_API_KEY")
 
         return create_chat_model(
             backend=service,

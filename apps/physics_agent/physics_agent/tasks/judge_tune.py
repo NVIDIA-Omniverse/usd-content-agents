@@ -54,12 +54,15 @@ import logging
 import math
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 from physics_agent.tuning.types import Scenario, TrialRecord, TunableParam
 from physics_agent.tuning.visual_evidence import (
+    DEFAULT_JUDGE_GENERATED_FRAMES,
+    DEFAULT_JUDGE_REFERENCE_FRAMES,
     JudgeVisualEvidence,
-    generated_frame_caption,
+    sample_visual_evidence_items,
+    validate_visual_frame_count,
 )
 
 __all__ = ["JudgeResult", "JudgeError", "run_tune_judge"]
@@ -80,14 +83,59 @@ _W_LLM = 0.40
 
 # Reasoning summary cap (chars). Mirrors the spec's "≤ ~500 chars".
 _REASONING_MAX = 500
+_BACKEND_HARD_FAILURE_RE = re.compile(r"(?:^|[;,\s])[^;=]+=\s*fail\b", re.I)
+_BACKEND_COMPONENT_RE = re.compile(
+    r"^\s*(upright|settled|finite_position|ground_clearance)\s*=\s*(pass|fail)\b",
+    re.I,
+)
+_CURRENT_BACKEND_COMPONENT_WEIGHTS = {
+    "settled": 0.3,
+    "finite_position": 0.3,
+    "ground_clearance": 0.6,
+}
 
-# Keep VLM calls below common provider image-count limits and avoid sending
-# every rendered video frame. Sampling is deterministic so reruns audit the
-# same evidence subset.
-_MAX_REFERENCE_IMAGES_FOR_JUDGE = 8
-_MAX_GENERATED_IMAGES_FOR_JUDGE = 16
 
-_T = TypeVar("_T")
+def _drop_legacy_upright_component(score: float, critique: str) -> tuple[float, str]:
+    """Remove the retired upright scorer from replayed backend metrics."""
+    components: list[tuple[str, bool, str]] = []
+    other_parts: list[str] = []
+    found_upright = False
+    for raw_part in critique.split(";"):
+        part = raw_part.strip()
+        match = _BACKEND_COMPONENT_RE.match(part)
+        if match is None:
+            if part:
+                other_parts.append(part)
+            continue
+        name = match.group(1).lower()
+        passed = match.group(2).lower() == "pass"
+        if name == "upright":
+            found_upright = True
+            continue
+        components.append((name, passed, part))
+
+    if not found_upright:
+        return score, critique
+
+    kept_parts = [part for _, _, part in components] + other_parts
+    cleaned_critique = "; ".join(kept_parts)
+    if not components:
+        return 1.0, cleaned_critique
+
+    total_weight = sum(
+        _CURRENT_BACKEND_COMPONENT_WEIGHTS[name] for name, _, _ in components
+    )
+    earned = sum(
+        _CURRENT_BACKEND_COMPONENT_WEIGHTS[name]
+        for name, passed, _ in components
+        if passed
+    )
+    return earned / total_weight, cleaned_critique
+
+
+def _has_backend_programmatic_hard_failure(critique: str) -> bool:
+    """Return true when backend trajectory checks marked any component failed."""
+    return bool(_BACKEND_HARD_FAILURE_RE.search(critique))
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +194,11 @@ def run_tune_judge(
     visual_evidence_enabled: bool = True,
     judge_max_tokens: int | None = None,
     judge_temperature: float | None = None,
+    judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES,
+    judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES,
     score_threshold: float = 0.7,
     iteration: int = 1,
+    prior_refine_history: list[dict[str, Any]] | None = None,
 ) -> JudgeResult:
     """Score a tune run and decide whether to approve or continue refining.
 
@@ -174,8 +225,16 @@ def run_tune_judge(
         judge_temperature: Optional temperature for the judge call.
             ``None`` uses ``scenario.extra["judge"]["temperature"]`` if
             present, else the physics judge default.
+        judge_reference_frames: Max reference images/video frames to send to
+            the VLM judge. Reference media is sampled evenly when there are
+            more items than this limit.
+        judge_generated_frames: Max generated render frames to send to the VLM
+            judge. Rendered videos are sampled evenly when there are more
+            frames than this limit.
         score_threshold: Combined-score cut-off for ``approve``. Default 0.7.
         iteration: Caller-tracked refine-loop iteration number (1-indexed).
+        prior_refine_history: Optional compact summaries of previous refine
+            iterations. Used only as prompt context for the VLM judge.
 
     Returns:
         :class:`JudgeResult` with the decision, sub-scores, and critique
@@ -184,6 +243,15 @@ def run_tune_judge(
     Raises:
         JudgeError: Only when the programmatic path itself fails.
     """
+    validated_judge_reference_frames = validate_visual_frame_count(
+        "judge_reference_frames",
+        judge_reference_frames,
+    )
+    validated_judge_generated_frames = validate_visual_frame_count(
+        "judge_generated_frames",
+        judge_generated_frames,
+    )
+
     # ---------------------------------------------------------- programmatic
     try:
         prog_score, prog_critique = _score_programmatic(scenario, history, best_params)
@@ -206,12 +274,16 @@ def run_tune_judge(
         programmatic_score=prog_score,
         judge_max_tokens=judge_max_tokens,
         judge_temperature=judge_temperature,
+        judge_reference_frames=validated_judge_reference_frames,
+        judge_generated_frames=validated_judge_generated_frames,
+        prior_refine_history=prior_refine_history,
     )
 
     # -------------------------------------------------- combine + decide
     combined = _W_PROGRAMMATIC * prog_score + _W_LLM * llm_score
     # Clamp into [0, 1] just in case sub-scores escaped their ranges.
     combined = max(0.0, min(1.0, combined))
+    backend_hard_failure = _has_backend_programmatic_hard_failure(prog_critique)
     decision: Literal["approve", "continue"]
     # Round-12 follow-up (CI flake fix for
     # ``test_threshold_one_only_approves_perfect``): the programmatic
@@ -224,7 +296,11 @@ def run_tune_judge(
     # judge-meaningful score difference (the LLM emits two-decimal
     # values).
     _SCORE_EPS = 1e-9
-    decision = "approve" if combined + _SCORE_EPS >= score_threshold else "continue"
+    if backend_hard_failure:
+        combined = min(combined, max(0.0, score_threshold - 1e-6))
+        decision = "continue"
+    else:
+        decision = "approve" if combined + _SCORE_EPS >= score_threshold else "continue"
 
     reasoning = _summarise_reasoning(
         decision=decision,
@@ -259,6 +335,8 @@ def run_tune_judge(
                 if effective_visual_evidence is not None
                 else 0
             ),
+            "judge_reference_frames": validated_judge_reference_frames,
+            "judge_generated_frames": validated_judge_generated_frames,
             "visual_evidence": (
                 effective_visual_evidence.to_metadata()
                 if effective_visual_evidence is not None
@@ -289,6 +367,12 @@ def _score_programmatic(
     * **10%** — finite best-score: 1.0 if the best history score is finite,
       else 0.0. With an empty history we default this to 1.0 (nothing to
       contradict).
+
+    When a backend trial reports its own deterministic ``programmatic_score``
+    (freeform does this for trajectory checks such as ground clearance), the
+    outer judge clamps the run-health score to that backend score. That prevents
+    the VLM/refine layer from approving a trial whose physics evaluator already
+    proved a hard objective failed.
     """
     notes: list[str] = []
 
@@ -362,6 +446,30 @@ def _score_programmatic(
     )
     score = max(0.0, min(1.0, score))
 
+    backend_programmatic_score: float | None = None
+    backend_programmatic_critique = ""
+    winning = _winning_trial(history)
+    if winning is not None:
+        backend_metrics = winning.backend_metrics or {}
+        raw_backend_score = backend_metrics.get("programmatic_score")
+        if isinstance(raw_backend_score, int | float) and not isinstance(
+            raw_backend_score, bool
+        ):
+            raw_backend_score = float(raw_backend_score)
+            if math.isfinite(raw_backend_score):
+                backend_programmatic_score = max(0.0, min(1.0, raw_backend_score))
+                backend_programmatic_critique = str(
+                    backend_metrics.get("programmatic_critique") or ""
+                )
+                (
+                    backend_programmatic_score,
+                    backend_programmatic_critique,
+                ) = _drop_legacy_upright_component(
+                    backend_programmatic_score,
+                    backend_programmatic_critique,
+                )
+                score = min(score, backend_programmatic_score)
+
     critique_bits: list[str] = []
     if param_score < 1.0:
         critique_bits.append(f"param_plausibility={param_score:.2f}")
@@ -369,6 +477,11 @@ def _score_programmatic(
         critique_bits.append(f"failed_penalty={failed_penalty_score:.2f}")
     if finite_score < 1.0:
         critique_bits.append(f"finite_best={finite_score:.2f}")
+    if backend_programmatic_score is not None and backend_programmatic_score < 1.0:
+        bit = f"backend_programmatic={backend_programmatic_score:.2f}"
+        if backend_programmatic_critique:
+            bit += f" ({backend_programmatic_critique})"
+        critique_bits.append(bit)
     if not critique_bits:
         critique = "all programmatic checks pass"
     else:
@@ -402,22 +515,6 @@ _VLM_SYSTEM_PROMPT = (
 )
 
 
-def _sample_evenly(items: list[_T], limit: int) -> list[_T]:  # noqa: UP047
-    """Return up to ``limit`` items, preserving endpoints when the limit allows."""
-    if limit <= 0 or not items:
-        return []
-    if len(items) <= limit:
-        return list(items)
-    if limit == 1:
-        return [items[0]]
-    indexes: list[int] = []
-    for i in range(limit):
-        idx = round(i * (len(items) - 1) / (limit - 1))
-        if idx not in indexes:
-            indexes.append(idx)
-    return [items[i] for i in indexes]
-
-
 def _score_vlm(
     *,
     scenario: Scenario,
@@ -429,6 +526,9 @@ def _score_vlm(
     programmatic_score: float,
     judge_max_tokens: int | None,
     judge_temperature: float | None,
+    judge_reference_frames: int,
+    judge_generated_frames: int,
+    prior_refine_history: list[dict[str, Any]] | None = None,
 ) -> tuple[float, str, bool]:
     """Ask a VLM to score the run.
 
@@ -482,19 +582,20 @@ def _score_vlm(
 
     image_caption_pairs: list[tuple[str, Any]] = []
     if visual_evidence is not None:
-        reference_pairs = _sample_evenly(
-            list(visual_evidence.reference_image_caption_pairs),
-            _MAX_REFERENCE_IMAGES_FOR_JUDGE,
-        )
-        generated_items = _sample_evenly(
-            list(enumerate(visual_evidence.generated_image_paths, 1)),
-            _MAX_GENERATED_IMAGES_FOR_JUDGE,
-        )
-        image_caption_pairs.extend(reference_pairs)
-        for idx, frame_path in generated_items:
-            image_caption_pairs.append(
-                (generated_frame_caption(idx, frame_path), frame_path)
+        try:
+            reference_pairs, generated_items = sample_visual_evidence_items(
+                visual_evidence,
+                max_reference_images=judge_reference_frames,
+                max_generated_images=judge_generated_frames,
             )
+        except ValueError as exc:
+            return (
+                programmatic_score,
+                f"VLM unavailable: invalid visual evidence config: {exc}",
+                True,
+            )
+        image_caption_pairs.extend(reference_pairs)
+        image_caption_pairs.extend(generated_items)
         dropped_reference = len(visual_evidence.reference_image_caption_pairs) - len(
             reference_pairs
         )
@@ -517,6 +618,7 @@ def _score_vlm(
             history=history,
             best_params=best_params,
             user_prompt=user_prompt,
+            prior_refine_history=prior_refine_history,
         )
     except Exception as exc:
         return programmatic_score, f"VLM unavailable: prompt build failed: {exc}", True
@@ -649,11 +751,14 @@ def _resolve_judge_temperature(
 _BACKEND_METRIC_WHITELIST: tuple[str, ...] = (
     "settle_distance",
     "max_bounce_height",
+    "first_bounce_height",
     "final_position",
     "rest_position",
     "world_up",
     "drop_height_m",
     "bbox_size_m",
+    "programmatic_score",
+    "programmatic_critique",
     "metric",
 )
 
@@ -800,6 +905,7 @@ def _build_llm_prompt(
     history: list[TrialRecord],
     best_params: dict[str, float],
     user_prompt: str | None,
+    prior_refine_history: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build a compact prompt — do NOT dump the entire history.jsonl."""
     history_summary = [
@@ -823,12 +929,14 @@ def _build_llm_prompt(
         "history_summary": history_summary,
         "history_length": len(history),
     }
+    if prior_refine_history is not None:
+        payload["prior_refine_history"] = list(prior_refine_history)
     if user_prompt:
         payload["user_prompt"] = user_prompt
 
     # Behavioral evidence on the winning trial — lifted from
     # ``trajectory.jsonl`` (the recorder's judge-readable companion to
-    # ``recording.usda``). Mirrors how material-agent's judge reads
+    # ``recording.usd``). Mirrors how material-agent's judge reads
     # ``predictions.jsonl``: the prompt now carries what the body
     # actually did, not just optimizer scoreboard numbers. Best-effort —
     # when the path is missing or unreadable the key is omitted.
@@ -852,6 +960,7 @@ def _build_visual_prompt(
     history: list[TrialRecord],
     best_params: dict[str, float],
     user_prompt: str | None,
+    prior_refine_history: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build the text half of the VLM prompt; images are supplied separately."""
     base = _build_llm_prompt(
@@ -859,6 +968,7 @@ def _build_visual_prompt(
         history=history,
         best_params=best_params,
         user_prompt=user_prompt,
+        prior_refine_history=prior_refine_history,
     )
     return (
         "Use any supplied images in order: reference media first, then "

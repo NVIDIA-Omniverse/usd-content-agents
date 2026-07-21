@@ -18,10 +18,13 @@ test suite.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+from typing import Any
 from uuid import uuid4
 
 import pytest
+import yaml
 
 
 def _scenario_yaml() -> str:
@@ -111,7 +114,7 @@ def _stub_tune_executor(monkeypatch: pytest.MonkeyPatch):
             )
         )
         (out / "report.md").write_text("# fake report\n")
-        (out / "tuned_physics.usda").write_text("#usda 1.0\n")
+        (out / "tuned_physics.usd").write_text("#usda 1.0\n")
         (out / "comparison.png").write_bytes(b"\x89PNG\r\n\x1a\nfake\n")
 
         # Honour cancellation midway: drop into a polling sleep then check.
@@ -167,6 +170,253 @@ def _stub_tune_executor(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.mark.api
 class TestTuneCreation:
+    @pytest.mark.parametrize("tainted_field", ["user_prompt", "scenario_yaml"])
+    async def test_rejects_secret_bearing_durable_content_before_session_creation(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+        tainted_field: str,
+    ) -> None:
+        """Tune scans both opaque text and parsed YAML before persistence."""
+        from ...service import config_persistence
+        from ...service.routers import tune_router
+
+        sentinel = "short-tune-secret"
+        signed_url = f"https://assets.example.test/a?X-Amz-Signature={sentinel}"
+        data = {
+            "scenario_yaml": _scenario_yaml(),
+            "user_prompt": "make this object bouncy",
+        }
+        if tainted_field == "user_prompt":
+            data["user_prompt"] = signed_url
+        else:
+            data["scenario_yaml"] += f"\ntokens:\n  - {sentinel}\n"
+
+        manager_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("secret guard must run before session creation")
+
+        monkeypatch.setattr(tune_router, "get_session_manager", fail_manager)
+        response = await client.post("/tune", files=_multipart_files(), data=data)
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            config_persistence.INVALID_DURABLE_INPUT_DETAIL
+        )
+        assert sentinel not in response.text
+        assert manager_calls == 0
+
+    @pytest.mark.parametrize(
+        ("scenario_yaml", "sentinel"),
+        [
+            (
+                _scenario_yaml() + "\n# source: https://assets.example.test/a?"
+                "X-Amz-Signature=tune-comment-sentinel\n",
+                "tune-comment-sentinel",
+            ),
+            (
+                _scenario_yaml() + "\nsource_url: https://assets.example.test/a?"
+                "X-Amz-Signature=tune-shadowed-url\n"
+                "source_url: https://assets.example.test/public\n",
+                "tune-shadowed-url",
+            ),
+            (
+                _scenario_yaml() + "\napi_key: q7Z9\napi_key: not-used\n",
+                "q7Z9",
+            ),
+        ],
+        ids=("signed-url-comment", "shadowed-signed-url", "shadowed-api-key"),
+    )
+    async def test_rejects_unparsed_or_shadowed_yaml_before_session_creation(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+        scenario_yaml: str,
+        sentinel: str,
+    ) -> None:
+        """Raw YAML and duplicate keys cannot bypass the durable guard."""
+        from ...service import config_persistence
+        from ...service.routers import tune_router
+
+        manager_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("YAML guard must run before session creation")
+
+        monkeypatch.setattr(tune_router, "get_session_manager", fail_manager)
+        response = await client.post(
+            "/tune",
+            files=_multipart_files(),
+            data={"scenario_yaml": scenario_yaml},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            config_persistence.INVALID_DURABLE_INPUT_DETAIL
+        )
+        for fragment in (sentinel, sentinel[:8], sentinel[-8:]):
+            assert fragment not in response.text
+        assert manager_calls == 0
+
+    async def test_rejects_binary_tag_before_session_creation(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Tagged bytes cannot bypass text scanning or leak via schema errors."""
+        from ...service import config_persistence
+        from ...service.routers import tune_router
+
+        sentinel = "tune-binary-sentinel"
+        signed_url = f"https://assets.example.test/a?X-Amz-Signature={sentinel}"
+        encoded = base64.b64encode(signed_url.encode()).decode()
+        scenario_yaml = _scenario_yaml() + f"\npayload: !!binary {encoded}\n"
+        manager_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("YAML guard must run before session creation")
+
+        monkeypatch.setattr(tune_router, "get_session_manager", fail_manager)
+        response = await client.post(
+            "/tune",
+            files=_multipart_files(),
+            data={"scenario_yaml": scenario_yaml},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            config_persistence.INVALID_DURABLE_INPUT_DETAIL
+        )
+        for fragment in (sentinel, sentinel[:8], encoded, encoded[:12]):
+            assert fragment not in response.text
+        assert manager_calls == 0
+
+    async def test_rejects_yaml_alias_before_construction(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Aliases cannot amplify a bounded request during canonicalization."""
+        from ...service import config_persistence
+        from ...service.routers import tune_router
+
+        scenario_yaml = """
+name: drop_settle
+parameter_defaults: &parameter_defaults
+  min: 0.5
+  max: 2.0
+parameters:
+  - name: mass_scale
+    <<: *parameter_defaults
+"""
+        manager_calls = 0
+
+        def fail_construction(*_args: Any, **_kwargs: Any) -> None:
+            raise AssertionError("alias must be rejected before YAML construction")
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("YAML guard must run before session creation")
+
+        monkeypatch.setattr(config_persistence.yaml, "load", fail_construction)
+        monkeypatch.setattr(config_persistence.yaml, "safe_dump", fail_construction)
+        monkeypatch.setattr(tune_router, "get_session_manager", fail_manager)
+        response = await client.post(
+            "/tune",
+            files=_multipart_files(),
+            data={"scenario_yaml": scenario_yaml},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            config_persistence.INVALID_DURABLE_INPUT_DETAIL
+        )
+        assert manager_calls == 0
+
+    async def test_persists_canonical_benign_scenario_yaml(self, client) -> None:
+        """The bytes that passed structural validation are the bytes persisted."""
+        from ...service.routers import tune_router
+
+        scenario_yaml = "# ordinary scenario comment\n" + _scenario_yaml()
+        response = await client.post(
+            "/tune",
+            files=_multipart_files(),
+            data={"scenario_yaml": scenario_yaml},
+        )
+
+        assert response.status_code == 202, response.text
+        session_dir = tune_router.get_session_manager().get_session_dir(
+            response.json()["session_id"]
+        )
+        persisted = (session_dir / "input" / "scenario.yaml").read_text(
+            encoding="utf-8"
+        )
+        assert "ordinary scenario comment" not in persisted
+        assert yaml.safe_load(persisted) == yaml.safe_load(scenario_yaml)
+
+    async def test_malformed_scenario_error_is_value_free(self, client) -> None:
+        sentinel = "never-echo-malformed-tune"
+        response = await client.post(
+            "/tune",
+            files=_multipart_files(),
+            data={"scenario_yaml": f"name: [{sentinel}\n"},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid scenario YAML"
+        for fragment in (sentinel, sentinel[:8], sentinel[-8:]):
+            assert fragment not in response.text
+
+    @pytest.mark.parametrize(
+        ("prompt_template", "sentinel"),
+        [
+            ("Authorization: Bearer {}", "never-persist-tune-bearer"),
+            ("use Bearer {} for the request", "never-persist-tune-bearer"),
+            ("use Bearer {} for the request", "a1-b"),
+        ],
+    )
+    async def test_rejects_plain_bearer_before_session_creation(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+        prompt_template: str,
+        sentinel: str,
+    ) -> None:
+        from ...service import config_persistence
+        from ...service.routers import tune_router
+
+        manager_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("bearer guard must run before session creation")
+
+        monkeypatch.setattr(tune_router, "get_session_manager", fail_manager)
+        response = await client.post(
+            "/tune",
+            files=_multipart_files(),
+            data={
+                "scenario_yaml": _scenario_yaml(),
+                "user_prompt": prompt_template.format(sentinel),
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            config_persistence.INVALID_DURABLE_INPUT_DETAIL
+        )
+        assert sentinel not in response.text
+        assert manager_calls == 0
+
     async def test_create_tune_with_upload(self, client) -> None:
         files = _multipart_files()
         data = {"scenario_yaml": _scenario_yaml()}
@@ -199,6 +449,67 @@ class TestTuneCreation:
         r = await client.post("/tune", data={"scenario_yaml": _scenario_yaml()})
         assert r.status_code == 400
         assert "Exactly one" in r.json()["detail"]
+
+    @pytest.mark.parametrize(
+        "allowed_buckets,s3_uri",
+        [
+            ("", "s3://trusted-input-bucket/path/physics.usda"),
+            ("trusted-input-bucket", "s3://foreign-bucket/path/physics.usda"),
+        ],
+    )
+    async def test_create_tune_rejects_unapproved_s3_before_download(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+        allowed_buckets: str,
+        s3_uri: str,
+    ) -> None:
+        """A foreign bucket must fail closed without making an S3 request."""
+        from ...service.routers import tune_router
+
+        monkeypatch.setattr(
+            tune_router.config,
+            "s3_allowed_buckets",
+            allowed_buckets,
+        )
+        manager_calls = 0
+        download_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("S3 policy must precede session-store access")
+
+        def fail_if_downloaded(*_args: Any, **_kwargs: Any) -> None:
+            nonlocal download_calls
+            download_calls += 1
+            raise AssertionError("foreign S3 bucket reached the downloader")
+
+        monkeypatch.setattr(
+            tune_router,
+            "get_session_manager",
+            fail_manager,
+        )
+        monkeypatch.setattr(
+            tune_router,
+            "download_file_from_s3",
+            fail_if_downloaded,
+        )
+
+        response = await client.post(
+            "/tune",
+            data={
+                "scenario_yaml": _scenario_yaml(),
+                "s3_uri": s3_uri,
+            },
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == (
+            "S3 URI is not permitted by the service's configured bucket allowlist"
+        )
+        assert manager_calls == 0
+        assert download_calls == 0
 
     async def test_create_tune_with_user_prompt_only(self, client) -> None:
         """Part 1.1 positive path: when ``user_prompt`` alone is supplied
@@ -299,7 +610,11 @@ class TestTuneResults:
 
         manager = tune_router.get_session_manager()
         sid = str(uuid4())
-        await manager.create_session(sid)
+        session_dir = await manager.create_session(sid)
+        tune_dir = session_dir / "tune"
+        tune_dir.mkdir()
+        (tune_dir / "best_params.json").write_text("{}", encoding="utf-8")
+        (tune_dir / "tune_results.json").write_text("{}", encoding="utf-8")
         await manager.update_session(
             sid,
             {
@@ -315,6 +630,10 @@ class TestTuneResults:
                     "optimizer_used": "random",
                     "engine_used": "fake",
                 },
+                "artifact_manifest": [
+                    "tune/best_params.json",
+                    "tune/tune_results.json",
+                ],
             },
         )
 
@@ -635,7 +954,7 @@ class TestTuneArtifacts:
             "tune_results.json": "application/json",
             "history.jsonl": "application/x-ndjson",
             "report.md": "text/markdown",
-            "tuned_physics.usda": "application/octet-stream",
+            "tuned_physics.usd": "application/octet-stream",
             "comparison.png": "image/png",
         }
         for name, ctype in expected.items():
@@ -650,6 +969,12 @@ class TestTuneArtifacts:
             assert actual == ctype, (
                 f"{name}: expected content-type {ctype!r}, got {actual!r}"
             )
+
+        legacy = await client.get(f"/tune/{sid}/artifacts/tuned_physics.usda")
+        assert legacy.status_code == 200, legacy.text
+        assert legacy.headers["content-disposition"].endswith(
+            'filename="tuned_physics.usd"'
+        )
 
 
 @pytest.mark.api

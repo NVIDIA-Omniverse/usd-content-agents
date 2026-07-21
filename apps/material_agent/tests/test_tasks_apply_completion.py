@@ -85,6 +85,7 @@ def test_apply_completion_defaults_and_single_render(
         {
             "matched_materials": {"Steel": ["/Looks/Steel"]},
             "search_stats": {"successful_queries": 0, "total_queries": 0},
+            "assignment_stats": {"unknown": "not-a-count"},
             "rendered_image_paths": [Path("/tmp/one.png")],
             "rendering_skipped": False,
         }

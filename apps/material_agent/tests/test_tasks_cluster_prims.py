@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 import logging
 from pathlib import Path
@@ -15,16 +16,20 @@ import pytest
 import yaml
 from PIL import Image
 
+import material_agent.tasks.cluster_prims as cluster_prims_module
 from material_agent.tasks.cluster_prims import (
     DEFAULT_COMPLEXITY_THRESHOLDS,
     ClusterPrimsTask,
     ExpandClusterPredictionsTask,
     _cluster_by_tier,
     _complexity_tier,
+    _default_embedding_model_for_service,
     _edge_density,
     _normalize_thresholds,
     _select_representatives,
     _split_large_clusters,
+    _validate_optional_non_negative_int,
+    _validate_optional_positive_int,
 )
 from material_agent.tasks.config_cluster_prims import (
     ClusterPrimsConfigTask,
@@ -66,6 +71,33 @@ class TestEdgeDensity:
 
         result = _edge_density(path)
         assert result == 0.0
+
+    def test_import_error_warns_once_and_returns_zero(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        original_import = builtins.__import__
+
+        def import_without_cv2(name, *args, **kwargs):
+            if name == "cv2":
+                raise ImportError("cv2 unavailable")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(cluster_prims_module, "_cv2_warned", False)
+        monkeypatch.setattr(builtins, "__import__", import_without_cv2)
+        caplog.set_level(logging.WARNING)
+
+        assert _edge_density("image.png") == 0.0
+        assert _edge_density("image.png") == 0.0
+        assert caplog.text.count("cv2 (opencv-python-headless)") == 1
+
+    def test_cv2_exception_returns_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class BrokenCv2:
+            def imread(self, path):
+                raise RuntimeError("bad decoder")
+
+        monkeypatch.setitem(__import__("sys").modules, "cv2", BrokenCv2())
+
+        assert _edge_density("broken.png") == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +166,27 @@ class TestNormalizeThresholds:
     def test_rejects_incomplete_upper_bound(self) -> None:
         with pytest.raises(ValueError, match="cover edge density values up to 1.0"):
             _normalize_thresholds({"low": [0.0, 0.9, 0.98]})
+
+
+class TestClusterConfigHelpers:
+    def test_default_embedding_model_for_unknown_service_uses_mock_default(
+        self,
+    ) -> None:
+        assert _default_embedding_model_for_service("other") == (
+            cluster_prims_module.DEFAULT_EMBEDDING_MODEL
+        )
+
+    @pytest.mark.parametrize("value", [None, ""])
+    def test_optional_positive_int_accepts_empty_values(self, value: object) -> None:
+        assert _validate_optional_positive_int("max_cluster_size", value) is None
+
+    @pytest.mark.parametrize("value", [None, ""])
+    def test_optional_non_negative_int_accepts_empty_values(
+        self, value: object
+    ) -> None:
+        assert (
+            _validate_optional_non_negative_int("report.max_singletons", value) is None
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +266,10 @@ class TestSplitLargeClusters:
 
         assert len(np.unique(labels)) == 3
         assert [int((labels == cid).sum()) for cid in np.unique(labels)] == [2, 2, 1]
+
+    def test_none_max_cluster_size_returns_original_labels(self) -> None:
+        labels = np.array([0, 0, 1])
+        assert _split_large_clusters(labels, None) is labels
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +386,75 @@ class TestClusterPrimsTaskRun:
         rows = _read_jsonl(Path(result["cluster_map_path"]))
         assert len(rows) == 3
         assert all(row["cluster_size"] == 1 for row in rows)
+
+    def test_no_image_path_absolutizes_v02_media_and_copies_dataset_config(
+        self, tmp_path: Path
+    ) -> None:
+        dataset_dir = tmp_path / "dataset"
+        dataset_dir.mkdir()
+        preview = dataset_dir / "preview.png"
+        Image.new("RGB", (8, 8), color="blue").save(preview)
+        dataset_jsonl = dataset_dir / "dataset.jsonl"
+        dataset_jsonl.write_text(
+            json.dumps(
+                {
+                    "id": "media_prim",
+                    "media": {
+                        "images": [
+                            {
+                                "path": "preview.png",
+                                "metadata": {"render_mode": "beauty"},
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n"
+            + json.dumps({"id": "legacy_prim", "images": {"prim_only": "not-a-list"}})
+            + "\n",
+            encoding="utf-8",
+        )
+        (dataset_dir / "dataset.json").write_text(
+            json.dumps({"system_prompt": "preserved"}),
+            encoding="utf-8",
+        )
+        context: dict[str, Any] = {
+            "dataset_path": str(dataset_jsonl),
+            "working_dir": str(tmp_path / "work"),
+            "cluster_prims_config": {"min_prims_to_activate": 1, "report": False},
+        }
+
+        result = ClusterPrimsTask().run(context)
+
+        assert result["cluster_prims_ran"] is True
+        copied_config = Path(result["cluster_summary_path"]).parent / "dataset.json"
+        assert json.loads(copied_config.read_text()) == {"system_prompt": "preserved"}
+        reps = _read_jsonl(Path(result["dataset_representatives_path"]))
+        reps_by_id = {row["id"]: row for row in reps}
+        assert reps_by_id["media_prim"]["media"]["images"][0]["path"] == str(
+            preview.resolve()
+        )
+        assert reps_by_id["legacy_prim"]["images"]["prim_only"] == "not-a-list"
+
+    def test_progress_listener_errors_are_debug_only(self, tmp_path: Path) -> None:
+        dataset_path = _make_dataset_jsonl(tmp_path / "dataset" / "dataset.jsonl", n=1)
+        listener = MagicMock()
+        listener.event.side_effect = RuntimeError("listener down")
+
+        with patch(
+            "material_agent.tasks.cluster_prims.get_listener",
+            return_value=listener,
+        ):
+            result = ClusterPrimsTask().run(
+                {
+                    "dataset_path": str(dataset_path),
+                    "working_dir": str(tmp_path / "work"),
+                    "cluster_prims_config": {"min_prims_to_activate": 5},
+                }
+            )
+
+        assert result["cluster_prims_ran"] is False
+        listener.event.assert_called_once()
 
     def test_copies_dataset_json_to_clusters_dir(self, tmp_path: Path) -> None:
         """Verify that dataset.json is copied into the clusters/ directory."""
@@ -470,6 +596,51 @@ class TestClusterPrimsTaskRun:
 
         create_model.assert_called_once()
         assert create_model.call_args.kwargs["api_key"] == "nvapi-real"
+
+    def test_cluster_api_key_env_resolves_endpoint_key(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("MA_CLUSTER_EMBEDDING_API_KEY", raising=False)
+        monkeypatch.delenv("MA_CLUSTER_EMBEDDING_API_KEY_ENV", raising=False)
+        dataset_dir = tmp_path / "dataset"
+        dataset_dir.mkdir()
+
+        img_path = dataset_dir / "prim_0.png"
+        Image.new("RGB", (8, 8), color="red").save(img_path)
+        dataset_jsonl = dataset_dir / "dataset.jsonl"
+        dataset_jsonl.write_text(
+            json.dumps({"id": "prim_0", "images": {"prim_only": [str(img_path)]}})
+            + "\n",
+            encoding="utf-8",
+        )
+
+        monkeypatch.setenv("CLUSTER_EMBEDDING_API_KEY", "endpoint-embedding-key")
+
+        mock_model = MagicMock()
+        mock_model.embedding_dimension = 8
+        mock_model.embed_images = MagicMock(return_value=[np.ones(8)])
+
+        with patch(
+            "world_understanding.functions.models.image_embedding_models.create_image_embedding_model",
+            return_value=mock_model,
+        ) as create_model:
+            ClusterPrimsTask().run(
+                {
+                    "dataset_path": str(dataset_jsonl),
+                    "working_dir": str(tmp_path / "work"),
+                    "cluster_prims_config": {
+                        "min_prims_to_activate": 1,
+                        "embedding_service": "nim",
+                        "embedding_model": "nvidia/llama-nemotron-embed-vl-1b-v2",
+                        "base_url": "http://embed-nim:8000/v1",
+                        "api_key_env": "CLUSTER_EMBEDDING_API_KEY",
+                        "report": False,
+                    },
+                }
+            )
+
+        create_model.assert_called_once()
+        assert create_model.call_args.kwargs["api_key"] == "endpoint-embedding-key"
 
     def test_retries_transient_embedding_batch_failure(self, tmp_path: Path) -> None:
         dataset_dir = tmp_path / "dataset"
@@ -642,6 +813,196 @@ class TestClusterPrimsTaskRun:
         summary = json.loads(Path(result["cluster_summary_path"]).read_text())
         assert summary["report_limits"]["max_members_per_cluster"] == 2
 
+    def test_v02_media_images_and_mixed_no_image_prims_are_clustered(
+        self, tmp_path: Path
+    ) -> None:
+        dataset_dir = tmp_path / "dataset"
+        dataset_dir.mkdir()
+        entries = []
+        for i in range(2):
+            img_path = dataset_dir / f"prim_{i}.png"
+            Image.new("RGB", (8, 8), color="green").save(img_path)
+            entries.append(
+                {
+                    "id": f"prim_{i}",
+                    "media": {
+                        "images": [
+                            {
+                                "path": img_path.name,
+                                "metadata": {"render_mode": "prim_only"},
+                            }
+                        ]
+                    },
+                }
+            )
+        entries.append({"id": "no_image", "images": {"prim_only": []}})
+        dataset_jsonl = dataset_dir / "dataset.jsonl"
+        dataset_jsonl.write_text(
+            "".join(json.dumps(entry) + "\n" for entry in entries),
+            encoding="utf-8",
+        )
+
+        mock_model = MagicMock()
+        mock_model.embedding_dimension = 4
+        mock_model.embed_images = MagicMock(return_value=[np.ones(4), np.ones(4)])
+
+        with patch(
+            "world_understanding.functions.models.image_embedding_models.create_image_embedding_model",
+            return_value=mock_model,
+        ):
+            result = ClusterPrimsTask().run(
+                {
+                    "dataset_path": str(dataset_jsonl),
+                    "working_dir": str(tmp_path / "work"),
+                    "cluster_prims_config": {
+                        "min_prims_to_activate": 1,
+                        "batch_size": 2,
+                        "max_workers": 1,
+                        "report": False,
+                    },
+                }
+            )
+
+        rows = _read_jsonl(Path(result["cluster_map_path"]))
+        no_image_row = next(row for row in rows if row["id"] == "no_image")
+        assert no_image_row["is_representative"] is True
+        assert no_image_row["cluster_size"] == 1
+        reps = _read_jsonl(Path(result["dataset_representatives_path"]))
+        assert len(reps) == 2
+
+    def test_logs_embedding_progress_every_twentieth_batch(
+        self, tmp_path: Path
+    ) -> None:
+        dataset_dir = tmp_path / "dataset"
+        dataset_dir.mkdir()
+        entries = []
+        for i in range(20):
+            img_path = dataset_dir / f"prim_{i}.png"
+            Image.new("RGB", (4, 4), color="red").save(img_path)
+            entries.append(
+                {"id": f"prim_{i}", "images": {"prim_only": [str(img_path)]}}
+            )
+        dataset_jsonl = dataset_dir / "dataset.jsonl"
+        dataset_jsonl.write_text(
+            "".join(json.dumps(entry) + "\n" for entry in entries),
+            encoding="utf-8",
+        )
+
+        mock_model = MagicMock()
+        mock_model.embedding_dimension = 4
+        mock_model.embed_images = MagicMock(return_value=[np.ones(4)])
+        listener = MagicMock()
+
+        with (
+            patch(
+                "world_understanding.functions.models.image_embedding_models.create_image_embedding_model",
+                return_value=mock_model,
+            ),
+            patch(
+                "material_agent.tasks.cluster_prims.get_listener",
+                return_value=listener,
+            ),
+        ):
+            ClusterPrimsTask().run(
+                {
+                    "dataset_path": str(dataset_jsonl),
+                    "working_dir": str(tmp_path / "work"),
+                    "cluster_prims_config": {
+                        "min_prims_to_activate": 1,
+                        "batch_size": 1,
+                        "max_workers": 1,
+                        "report": False,
+                    },
+                }
+            )
+
+        assert any(
+            "Embedded 20/20 images" in str(call)
+            for call in listener.info.call_args_list
+        )
+
+    def test_encode_image_handles_alpha_palette_and_failures(
+        self, tmp_path: Path
+    ) -> None:
+        rgba_path = tmp_path / "rgba.png"
+        Image.new("RGBA", (8, 8), color=(255, 0, 0, 128)).save(rgba_path)
+        palette_path = tmp_path / "palette.png"
+        Image.new("P", (8, 8)).save(palette_path)
+
+        assert ClusterPrimsTask._encode_image(str(rgba_path), fmt="jpeg")
+        assert ClusterPrimsTask._encode_image(str(palette_path), fmt="jpeg")
+        assert ClusterPrimsTask._encode_image(str(tmp_path / "missing.png")) is None
+
+    def test_generate_html_report_with_all_limits_visible_and_singletons(
+        self, tmp_path: Path
+    ) -> None:
+        image_path = tmp_path / "prim.png"
+        Image.new("RGB", (8, 8), color="purple").save(image_path)
+        report_path = tmp_path / "report.html"
+
+        ClusterPrimsTask()._generate_html_report(
+            report_path=report_path,
+            dataset=[
+                {"id": "rep<&>"},
+                {"id": "member"},
+                {"id": "singleton"},
+            ],
+            labels=np.array([0, 0, 1]),
+            reps={0: 0, 1: 2},
+            complexities=np.array([0.01, 0.01, 0.9]),
+            thresholds={"low": (0.0, 0.5, 0.9), "wild tier!": (0.5, 1.0, 0.8)},
+            prim_image_paths=[[str(image_path)], [str(image_path)], [str(image_path)]],
+            n_clusters=2,
+            reduction_pct=33.3,
+            image_max_size=16,
+            image_format="png",
+            image_quality=75,
+            max_multi_member_clusters=None,
+            max_members_per_cluster=None,
+            max_singletons=None,
+            listener=MagicMock(),
+        )
+
+        html = report_path.read_text()
+        assert "rep&lt;&amp;&gt;" in html
+        assert "Singletons (1)" in html
+        assert "data:image/png;base64" in html
+
+    def test_generate_html_report_notes_omitted_clusters_and_singletons(
+        self, tmp_path: Path
+    ) -> None:
+        report_path = tmp_path / "limited.html"
+
+        ClusterPrimsTask()._generate_html_report(
+            report_path=report_path,
+            dataset=[
+                {"id": "a"},
+                {"id": "b"},
+                {"id": "c"},
+                {"id": "d"},
+                {"id": "e"},
+                {"id": "f"},
+            ],
+            labels=np.array([0, 0, 1, 1, 2, 3]),
+            reps={0: 0, 1: 2, 2: 4, 3: 5},
+            complexities=np.zeros(6),
+            thresholds={"low": (0.0, 1.0, 0.9)},
+            prim_image_paths=[[] for _ in range(6)],
+            n_clusters=4,
+            reduction_pct=33.3,
+            image_max_size=16,
+            image_format="jpeg",
+            image_quality=75,
+            max_multi_member_clusters=1,
+            max_members_per_cluster=1,
+            max_singletons=1,
+            listener=MagicMock(),
+        )
+
+        html = report_path.read_text()
+        assert "additional multi-member clusters omitted" in html
+        assert "additional singletons omitted" in html
+
 
 # ---------------------------------------------------------------------------
 # ExpandClusterPredictionsTask.run
@@ -726,6 +1087,91 @@ class TestExpandClusterPredictionsTaskRun:
         assert member["cluster_representative_id"] == "prim_0"
         assert member["cluster_id"] == 0
 
+    def test_missing_representative_predictions_are_skipped_with_warning(
+        self, tmp_path: Path
+    ) -> None:
+        predictions_path = tmp_path / "predictions" / "predictions.jsonl"
+        cluster_map_path = tmp_path / "clusters" / "cluster_map.jsonl"
+        _write_jsonl(
+            predictions_path,
+            [
+                {"id": "predicted_rep", "material": "metal"},
+            ],
+        )
+        _write_jsonl(
+            cluster_map_path,
+            [
+                {
+                    "id": "predicted_rep",
+                    "cluster_id": 0,
+                    "is_representative": True,
+                    "cluster_representative_id": "predicted_rep",
+                    "cluster_size": 1,
+                },
+                {
+                    "id": "missing_rep",
+                    "cluster_id": 1,
+                    "is_representative": True,
+                    "cluster_representative_id": "missing_rep",
+                    "cluster_size": 2,
+                },
+                {
+                    "id": "member_missing_rep",
+                    "cluster_id": 1,
+                    "is_representative": False,
+                    "cluster_representative_id": "missing_rep",
+                    "cluster_size": 2,
+                },
+            ],
+        )
+        listener = MagicMock()
+        listener.event.side_effect = RuntimeError("listener down")
+
+        with patch(
+            "material_agent.tasks.cluster_prims.get_listener",
+            return_value=listener,
+        ):
+            result = ExpandClusterPredictionsTask().run(
+                {
+                    "cluster_prims_ran": True,
+                    "predictions_path": str(predictions_path),
+                    "cluster_map_path": str(cluster_map_path),
+                }
+            )
+
+        assert result["predictions_path"] == str(predictions_path)
+        assert _read_jsonl(predictions_path) == [
+            {"id": "predicted_rep", "material": "metal"}
+        ]
+        listener.warning.assert_called_once()
+        assert listener.event.call_count == 3
+
+    def test_raises_for_missing_prediction_or_cluster_map_files(
+        self, tmp_path: Path
+    ) -> None:
+        cluster_map_path = tmp_path / "clusters" / "cluster_map.jsonl"
+        _write_jsonl(cluster_map_path, [])
+
+        with pytest.raises(FileNotFoundError, match="predictions_path not found"):
+            ExpandClusterPredictionsTask().run(
+                {
+                    "cluster_prims_ran": True,
+                    "predictions_path": str(tmp_path / "missing.jsonl"),
+                    "cluster_map_path": str(cluster_map_path),
+                }
+            )
+
+        predictions_path = tmp_path / "predictions" / "predictions.jsonl"
+        _write_jsonl(predictions_path, [])
+        with pytest.raises(FileNotFoundError, match="cluster_map_path not found"):
+            ExpandClusterPredictionsTask().run(
+                {
+                    "cluster_prims_ran": True,
+                    "predictions_path": str(predictions_path),
+                    "cluster_map_path": str(tmp_path / "missing-map.jsonl"),
+                }
+            )
+
 
 # ---------------------------------------------------------------------------
 # Config tasks
@@ -750,6 +1196,30 @@ class TestClusterPrimsConfigTask:
         assert result["working_dir"] == "/some/workdir"
         assert result["cluster_prims_config"]["batch_size"] == 100
 
+    def test_resolves_relative_paths_against_config(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "configs" / "cluster.yaml"
+        config_path.parent.mkdir()
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "dataset_path": "data/dataset.jsonl",
+                    "working_dir": "run",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = ClusterPrimsConfigTask().run({"config_path": str(config_path)})
+
+        assert result["dataset_path"] == str(
+            config_path.parent / "data" / "dataset.jsonl"
+        )
+        assert result["working_dir"] == str(config_path.parent / "run")
+
+    def test_raises_when_both_config_sources_are_missing(self) -> None:
+        with pytest.raises(ValueError, match="config_dict or config_path"):
+            ClusterPrimsConfigTask().run({})
+
     def test_logs_redact_sensitive_config_values(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -757,7 +1227,10 @@ class TestClusterPrimsConfigTask:
             "dataset_path": "/some/dataset.jsonl",
             "working_dir": "/some/workdir",
             "api_key": "super-secret-key",
-            "nested": {"embedding_api_key": "nested-secret-key"},
+            "nested": {
+                "embedding_api_key": "nested-secret-key",
+                "list": [{"token": "list-secret-token"}],
+            },
         }
         config_path = tmp_path / "config.yaml"
         config_path.write_text(yaml.dump(config))
@@ -774,7 +1247,29 @@ class TestClusterPrimsConfigTask:
         )
         assert "super-secret-key" not in caplog.text
         assert "nested-secret-key" not in caplog.text
+        assert "list-secret-token" not in caplog.text
         assert "<redacted>" in caplog.text
+
+    def test_logs_redact_credential_bearing_dataset_path(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        sentinel = "api_key=cluster-dataset-path-713"
+        dataset_path = tmp_path / sentinel / "dataset.jsonl"
+        caplog.set_level(logging.INFO)
+
+        result = ClusterPrimsConfigTask().run(
+            {
+                "config_path": str(tmp_path / "config.yaml"),
+                "config_dict": {
+                    "dataset_path": str(dataset_path),
+                    "working_dir": str(tmp_path / "work"),
+                },
+            }
+        )
+
+        assert result["dataset_path"] == str(dataset_path)
+        assert sentinel not in caplog.text
+        assert "[cluster_prims] dataset: <redacted>" in caplog.text
 
     def test_raises_on_missing_dataset_path(self, tmp_path: Path) -> None:
         config = {"working_dir": "/some/workdir"}
@@ -828,6 +1323,61 @@ class TestExpandClusterPredictionsConfigTask:
 
         assert result["predictions_path"] == "/pred.jsonl"
         assert result["cluster_map_path"] == "/map.jsonl"
+
+    def test_resolves_relative_paths_against_config(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "configs" / "expand.yaml"
+        config_path.parent.mkdir()
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "cluster_prims_ran": True,
+                    "predictions_path": "predictions/out.jsonl",
+                    "cluster_map_path": "clusters/map.jsonl",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = ExpandClusterPredictionsConfigTask().run(
+            {"config_path": str(config_path)}
+        )
+
+        assert result["predictions_path"] == str(
+            config_path.parent / "predictions" / "out.jsonl"
+        )
+        assert result["cluster_map_path"] == str(
+            config_path.parent / "clusters" / "map.jsonl"
+        )
+
+    def test_logs_redact_credential_bearing_result_paths(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        predictions_sentinel = "api_key=cluster-predictions-path-713"
+        cluster_map_sentinel = "token=cluster-map-path-713"
+        predictions_path = tmp_path / predictions_sentinel / "predictions.jsonl"
+        cluster_map_path = tmp_path / cluster_map_sentinel / "cluster-map.jsonl"
+        caplog.set_level(logging.INFO)
+
+        result = ExpandClusterPredictionsConfigTask().run(
+            {
+                "config_path": str(tmp_path / "config.yaml"),
+                "config_dict": {
+                    "cluster_prims_ran": True,
+                    "predictions_path": str(predictions_path),
+                    "cluster_map_path": str(cluster_map_path),
+                },
+            }
+        )
+
+        assert result["predictions_path"] == str(predictions_path)
+        assert result["cluster_map_path"] == str(cluster_map_path)
+        assert predictions_sentinel not in caplog.text
+        assert cluster_map_sentinel not in caplog.text
+        assert caplog.text.count("<redacted>") == 2
+
+    def test_raises_when_both_config_sources_are_missing(self) -> None:
+        with pytest.raises(ValueError, match="config_dict or config_path"):
+            ExpandClusterPredictionsConfigTask().run({})
 
     def test_skips_when_cluster_not_ran(self, tmp_path: Path) -> None:
         config = {"cluster_prims_ran": False}

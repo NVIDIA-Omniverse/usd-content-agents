@@ -12,10 +12,15 @@ patch here so /predict runs deterministically without hitting a VLM.
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
+import threading
 from collections.abc import Callable
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
+import httpx
 import pytest
 
 from ..conftest import make_pipeline_files
@@ -198,6 +203,56 @@ async def _wait_completed(client, session_id: str, route: str = "predict") -> di
     return (await client.get(f"/{route}/{session_id}/status")).json()
 
 
+async def _bootstrap_terminal_predict_session(
+    client: httpx.AsyncClient,
+    tmp_path: Path,
+) -> tuple[str, Path, Path, Path]:
+    """Create one completed Mode-A session and a distinct retry dataset."""
+    first_dir = tmp_path / "accepted"
+    first_dir.mkdir()
+    first_dataset = first_dir / "dataset.jsonl"
+    first_dataset.write_text(
+        json.dumps(
+            {
+                "id": "/accepted",
+                "type": "Mesh",
+                "images": {"prim_only": "accepted.png"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    response = await client.post(
+        "/predict",
+        data={"dataset_path": str(first_dataset)},
+    )
+    assert response.status_code == 202, response.text
+    session_id = response.json()["session_id"]
+    await _wait_completed(client, session_id)
+
+    from ...service.routers import predict_router
+
+    session_dir = predict_router.get_session_manager().get_session_dir(session_id)
+    config_path = session_dir / "input" / "predict_config.yaml"
+    dataset_target = session_dir / "cache" / "dataset" / "dataset.jsonl"
+
+    retry_dir = tmp_path / "retry"
+    retry_dir.mkdir()
+    retry_dataset = retry_dir / "dataset.jsonl"
+    retry_dataset.write_text(
+        json.dumps(
+            {
+                "id": "/replacement",
+                "type": "Mesh",
+                "images": {"prim_only": "replacement.png"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return session_id, config_path, dataset_target, retry_dataset
+
+
 # ============================================================================
 # POST /predict
 # ============================================================================
@@ -230,6 +285,156 @@ class TestPredictCreation:
         r = await client.post("/predict")
         assert r.status_code == 400
 
+    @pytest.mark.parametrize(
+        ("data", "expected_detail"),
+        [
+            ({"render_backend": "typo"}, "Unknown rendering backend: typo"),
+            (
+                {
+                    "optimize_usd": "true",
+                    "enable_deinstance": "false",
+                    "enable_split": "false",
+                    "enable_deduplicate": "false",
+                },
+                "At least one optimization operation",
+            ),
+        ],
+    )
+    async def test_create_predict_rejects_invalid_mode_b_options_before_session_creation(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        data: dict[str, str],
+        expected_detail: str,
+    ) -> None:
+        """Invalid Mode B options return 400 before upload/session side effects."""
+        from ...service.routers import predict_router
+
+        manager = predict_router.get_session_manager()
+        sessions_before = {path.name for path in manager.storage_path.iterdir()}
+        create_session = manager.create_session
+        create_calls = 0
+
+        async def track_create_session(session_id: str) -> Path:
+            nonlocal create_calls
+            create_calls += 1
+            return await create_session(session_id)
+
+        monkeypatch.setattr(manager, "create_session", track_create_session)
+
+        response = await client.post(
+            "/predict",
+            files=make_pipeline_files(),
+            data=data,
+        )
+
+        assert response.status_code == 400
+        assert expected_detail in response.json()["detail"]
+        assert create_calls == 0
+        assert {path.name for path in manager.storage_path.iterdir()} == sessions_before
+
+    async def test_existing_mode_b_session_validates_before_syncing_remote_input(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A bad backend cannot trigger a remote Mode B input download."""
+        from ...service.routers import predict_router
+
+        manager = predict_router.get_session_manager()
+        session_id = "00000000-0000-4000-8000-000000000712"
+        await manager.create_session(session_id)
+        await manager.update_session(session_id, {"status": "completed"})
+        sync_calls: list[str] = []
+
+        async def track_sync_from_store(
+            synced_session_id: str, prefix: str = ""
+        ) -> int:
+            assert synced_session_id == session_id
+            sync_calls.append(prefix)
+            return 0
+
+        monkeypatch.setattr(manager, "sync_from_store", track_sync_from_store)
+
+        response = await client.post(
+            "/predict",
+            data={"session_id": session_id, "render_backend": "typo"},
+        )
+
+        assert response.status_code == 400
+        assert "Unknown rendering backend: typo" in response.json()["detail"]
+        assert sync_calls == ["cache/dataset/"]
+
+    @pytest.mark.parametrize(
+        "allowed_buckets,s3_uri",
+        [
+            ("", "s3://trusted-input-bucket/path/scene.usdz"),
+            ("trusted-input-bucket", "s3://foreign-bucket/path/scene.usdz"),
+        ],
+    )
+    async def test_create_predict_rejects_unapproved_s3_before_preflight(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+        allowed_buckets: str,
+        s3_uri: str,
+    ) -> None:
+        """Authorization must precede both the HEAD preflight and download."""
+        from ...service.routers import predict_router
+
+        monkeypatch.setattr(
+            predict_router.config,
+            "s3_allowed_buckets",
+            allowed_buckets,
+        )
+        manager_calls = 0
+        preflight_calls = 0
+        download_calls = 0
+
+        def fail_manager() -> None:
+            nonlocal manager_calls
+            manager_calls += 1
+            raise AssertionError("S3 policy must precede session-store access")
+
+        def fail_if_preflighted(*_args: Any, **_kwargs: Any) -> None:
+            nonlocal preflight_calls
+            preflight_calls += 1
+            raise AssertionError("foreign S3 bucket reached the HEAD preflight")
+
+        def fail_if_downloaded(*_args: Any, **_kwargs: Any) -> None:
+            nonlocal download_calls
+            download_calls += 1
+            raise AssertionError("foreign S3 bucket reached the downloader")
+
+        monkeypatch.setattr(
+            predict_router,
+            "get_session_manager",
+            fail_manager,
+        )
+        monkeypatch.setattr(
+            predict_router,
+            "_preflight_s3_object_size",
+            fail_if_preflighted,
+        )
+        monkeypatch.setattr(
+            predict_router,
+            "download_file_from_s3",
+            fail_if_downloaded,
+        )
+
+        response = await client.post(
+            "/predict",
+            data={"s3_uri": s3_uri},
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == (
+            "S3 URI is not permitted by the service's configured bucket allowlist"
+        )
+        assert manager_calls == 0
+        assert preflight_calls == 0
+        assert download_calls == 0
+
     async def test_create_predict_with_dataset_path_runs_mode_a(self, client, tmp_path):
         """A pre-prepared dataset.jsonl forces Mode A (predict-only)."""
         ds = tmp_path / "dataset.jsonl"
@@ -246,7 +451,15 @@ class TestPredictCreation:
 
         r = await client.post(
             "/predict",
-            data={"dataset_path": str(ds)},
+            data={
+                "dataset_path": str(ds),
+                # Mode A never renders, so Mode-B-only fields are ignored.
+                "render_backend": "future-server-backend",
+                "optimize_usd": "true",
+                "enable_deinstance": "false",
+                "enable_split": "false",
+                "enable_deduplicate": "false",
+            },
         )
         assert r.status_code == 202
         session_id = r.json()["session_id"]
@@ -552,6 +765,12 @@ class TestPredictCreation:
         )
         assert pending_writes[0].get("config", {}).get("user_prompt") == winner_prompt
 
+        persisted_config = (
+            manager.get_session_dir(session_id) / "input" / "predict_config.yaml"
+        ).read_text(encoding="utf-8")
+        assert winner_prompt in persisted_config
+        assert loser_prompt not in persisted_config
+
         # The registry must hold exactly the winner's task.
         registry = predict_router.get_job_registry()
         assert registry.is_running(session_id), (
@@ -564,8 +783,11 @@ class TestPredictCreation:
         executor_block.set()
 
     async def test_dataset_stage_failure_on_rerun_does_not_wedge_session(
-        self, client, monkeypatch, tmp_path
-    ):
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
         """Regression: a ``shutil.copyfile`` failure during dataset staging
         on a rerun (``session_created_here=False``) must NOT leave the
         session permanently stuck in ``status=pending``. A previous
@@ -602,6 +824,14 @@ class TestPredictCreation:
         manager = predict_router.get_session_manager()
         baseline = await manager.get_session_metadata(session_id) or {}
         assert baseline.get("status") == "completed"
+        config_path = (
+            manager.get_session_dir(session_id) / "input" / "predict_config.yaml"
+        )
+        baseline_config = config_path.read_bytes()
+        dataset_target = (
+            manager.get_session_dir(session_id) / "cache" / "dataset" / "dataset.jsonl"
+        )
+        baseline_dataset = dataset_target.read_bytes()
 
         # Now force shutil.copyfile to fail on the next /predict. We need a
         # *different* dataset_path than the session's own staged file or
@@ -615,15 +845,21 @@ class TestPredictCreation:
         copyfile_calls = {"count": 0}
         original_copyfile = predict_router.shutil.copyfile
 
-        def _exploding_copyfile(src, dst):
+        def _exploding_copyfile(src: Any, dst: Any) -> None:
             copyfile_calls["count"] += 1
+            assert Path(dst) != dataset_target
+            Path(dst).write_bytes(b"partial-dataset-copy")
             raise OSError("simulated EIO during dataset stage")
 
         monkeypatch.setattr(predict_router.shutil, "copyfile", _exploding_copyfile)
 
         r = await client.post(
             "/predict",
-            data={"session_id": session_id, "dataset_path": str(retry_ds)},
+            data={
+                "session_id": session_id,
+                "dataset_path": str(retry_ds),
+                "user_prompt": "must-not-replace-the-accepted-config",
+            },
         )
         assert r.status_code == 500
         assert "stage dataset" in r.json()["detail"].lower()
@@ -636,6 +872,9 @@ class TestPredictCreation:
             "rerun-staging-failure must not wedge the session in "
             f"pending; got status={post_failure.get('status')!r}"
         )
+        assert config_path.read_bytes() == baseline_config
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert not list(dataset_target.parent.glob(".dataset.jsonl.*.tmp"))
 
         # And a follow-up retry with a working copyfile must succeed
         # (otherwise the session would 409 forever).
@@ -643,6 +882,504 @@ class TestPredictCreation:
         retry = await client.post(
             "/predict",
             data={"session_id": session_id, "dataset_path": str(retry_ds)},
+        )
+        assert retry.status_code == 202, retry.text
+        await _wait_completed(client, session_id)
+
+    async def test_config_failure_after_dataset_stage_rolls_back_inputs(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """A post-write config failure must not publish either retry input."""
+        from ...service.routers import predict_router
+
+        first_dir = tmp_path / "first"
+        first_dir.mkdir()
+        first_ds = first_dir / "dataset.jsonl"
+        first_ds.write_text(
+            json.dumps(
+                {
+                    "id": "/accepted",
+                    "type": "Mesh",
+                    "images": {"prim_only": "accepted.png"},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        first_r = await client.post("/predict", data={"dataset_path": str(first_ds)})
+        assert first_r.status_code == 202
+        session_id = first_r.json()["session_id"]
+        await _wait_completed(client, session_id)
+
+        manager = predict_router.get_session_manager()
+        session_dir = manager.get_session_dir(session_id)
+        config_path = session_dir / "input" / "predict_config.yaml"
+        dataset_target = session_dir / "cache" / "dataset" / "dataset.jsonl"
+        baseline_config = config_path.read_bytes()
+        baseline_dataset = dataset_target.read_bytes()
+
+        retry_dir = tmp_path / "retry"
+        retry_dir.mkdir()
+        retry_ds = retry_dir / "dataset.jsonl"
+        retry_ds.write_text(
+            json.dumps(
+                {
+                    "id": "/replacement",
+                    "type": "Mesh",
+                    "images": {"prim_only": "replacement.png"},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        original_persist = predict_router.build_and_write_pipeline_config
+        persistence_calls = {"count": 0}
+
+        async def _persist_then_fail(**kwargs: Any) -> None:
+            persistence_calls["count"] += 1
+            assert list(dataset_target.parent.glob(".dataset.jsonl.*.tmp"))
+            await original_persist(**kwargs)
+            assert b"must-be-rolled-back" in config_path.read_bytes()
+            raise predict_router.HTTPException(
+                status_code=500,
+                detail="simulated config persistence failure",
+            )
+
+        monkeypatch.setattr(
+            predict_router,
+            "build_and_write_pipeline_config",
+            _persist_then_fail,
+        )
+
+        response = await client.post(
+            "/predict",
+            data={
+                "session_id": session_id,
+                "dataset_path": str(retry_ds),
+                "user_prompt": "must-be-rolled-back",
+            },
+        )
+
+        assert response.status_code == 500
+        assert persistence_calls["count"] == 1
+        metadata = await manager.get_session_metadata(session_id) or {}
+        assert metadata.get("status") == "completed"
+        assert config_path.read_bytes() == baseline_config
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert not list(dataset_target.parent.glob(".dataset.jsonl.*.tmp"))
+
+    async def test_dataset_publish_failure_rolls_back_persisted_config(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """A failed atomic dataset publish restores the prior config."""
+        from ...service.routers import predict_router
+
+        first_dir = tmp_path / "first"
+        first_dir.mkdir()
+        first_ds = first_dir / "dataset.jsonl"
+        first_ds.write_text(
+            json.dumps(
+                {
+                    "id": "/accepted",
+                    "type": "Mesh",
+                    "images": {"prim_only": "accepted.png"},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        first_r = await client.post("/predict", data={"dataset_path": str(first_ds)})
+        assert first_r.status_code == 202
+        session_id = first_r.json()["session_id"]
+        await _wait_completed(client, session_id)
+
+        manager = predict_router.get_session_manager()
+        session_dir = manager.get_session_dir(session_id)
+        config_path = session_dir / "input" / "predict_config.yaml"
+        dataset_target = session_dir / "cache" / "dataset" / "dataset.jsonl"
+        baseline_config = config_path.read_bytes()
+        baseline_dataset = dataset_target.read_bytes()
+
+        retry_dir = tmp_path / "retry"
+        retry_dir.mkdir()
+        retry_ds = retry_dir / "dataset.jsonl"
+        retry_ds.write_text(
+            json.dumps(
+                {
+                    "id": "/replacement",
+                    "type": "Mesh",
+                    "images": {"prim_only": "replacement.png"},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        original_replace = predict_router.os.replace
+        publish_calls = {"count": 0}
+
+        def _fail_dataset_publish(src: Any, dst: Any) -> None:
+            if Path(dst) == dataset_target:
+                publish_calls["count"] += 1
+                if publish_calls["count"] == 1:
+                    assert b"must-be-rolled-back" in config_path.read_bytes()
+                    raise OSError("simulated atomic dataset publish failure")
+            original_replace(src, dst)
+
+        monkeypatch.setattr(predict_router.os, "replace", _fail_dataset_publish)
+
+        response = await client.post(
+            "/predict",
+            data={
+                "session_id": session_id,
+                "dataset_path": str(retry_ds),
+                "user_prompt": "must-be-rolled-back",
+            },
+        )
+
+        assert response.status_code == 500
+        # One failed publish followed by one atomic rollback publication.
+        assert publish_calls["count"] == 2
+        metadata = await manager.get_session_metadata(session_id) or {}
+        assert metadata.get("status") == "completed"
+        assert config_path.read_bytes() == baseline_config
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert not list(dataset_target.parent.glob(".dataset.jsonl.*.tmp"))
+
+    async def test_cancel_after_config_replace_quiesces_writer_and_rolls_back(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """Cancellation cannot race a late config writer past input rollback."""
+        from ...service import config_persistence
+        from ...service.routers import predict_router
+
+        (
+            session_id,
+            config_path,
+            dataset_target,
+            retry_dataset,
+        ) = await _bootstrap_terminal_predict_session(client, tmp_path)
+        manager = predict_router.get_session_manager()
+        baseline_config = config_path.read_bytes()
+        baseline_dataset = dataset_target.read_bytes()
+        writer_replaced = threading.Event()
+        writer_release = threading.Event()
+        original_write = config_persistence.write_pipeline_config
+
+        def _replace_then_block(path: Path, config: dict[str, Any]) -> None:
+            original_write(path, config)
+            writer_replaced.set()
+            if not writer_release.wait(timeout=5):
+                raise TimeoutError("test writer was not released")
+
+        monkeypatch.setattr(
+            config_persistence,
+            "write_pipeline_config",
+            _replace_then_block,
+        )
+        persist_task = asyncio.create_task(
+            predict_router._persist_predict_inputs_transactionally(
+                predict_config={"project": {"name": "cancelled-publication"}},
+                config_path=config_path,
+                dataset_source=retry_dataset,
+                dataset_target=dataset_target,
+                manager=manager,
+                session_id=session_id,
+                session_created_here=False,
+            )
+        )
+        assert await asyncio.wait_for(
+            asyncio.to_thread(writer_replaced.wait, 2),
+            timeout=3,
+        )
+        assert b"cancelled-publication" in config_path.read_bytes()
+
+        persist_task.cancel()
+        await asyncio.sleep(0.05)
+        assert not persist_task.done(), "cancellation must drain the writer first"
+        writer_release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await persist_task
+
+        assert config_path.read_bytes() == baseline_config
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert not list(config_path.parent.glob(".predict_config.yaml.*.tmp"))
+        assert not list(dataset_target.parent.glob(".dataset.jsonl.*.tmp"))
+        await asyncio.sleep(0.05)
+        assert config_path.read_bytes() == baseline_config
+
+    async def test_worker_start_failure_restores_existing_session_and_retries(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        recwarn: pytest.WarningsRecorder,
+    ) -> None:
+        """Registration failure restores exact inputs/metadata and frees its slot."""
+        from ...service.routers import predict_router
+        from ...service.runtime import registry as registry_module
+
+        (
+            session_id,
+            config_path,
+            dataset_target,
+            retry_dataset,
+        ) = await _bootstrap_terminal_predict_session(client, tmp_path)
+        manager = predict_router.get_session_manager()
+        registry = predict_router.get_job_registry()
+        baseline_metadata = deepcopy(await manager.get_session_metadata(session_id))
+        baseline_config = config_path.read_bytes()
+        baseline_dataset = dataset_target.read_bytes()
+        baseline_events = deepcopy(
+            predict_router.get_event_bus().get_snapshot(session_id)
+        )
+
+        original_create_task = registry_module._create_job_task
+        captured: dict[str, Any] = {}
+
+        def _fail_start(wrapper: Any) -> None:
+            captured["wrapper"] = wrapper
+            raise RuntimeError("simulated worker registration failure")
+
+        monkeypatch.setattr(registry_module, "_create_job_task", _fail_start)
+        response = await client.post(
+            "/predict",
+            data={
+                "session_id": session_id,
+                "dataset_path": str(retry_dataset),
+                "user_prompt": "must-not-survive-start-failure",
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == predict_router._PREDICT_START_FAILED_DETAIL
+        assert await manager.get_session_metadata(session_id) == baseline_metadata
+        assert config_path.read_bytes() == baseline_config
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert (
+            predict_router.get_event_bus().get_snapshot(session_id) == baseline_events
+        )
+        assert registry.registered_count == 0
+        assert registry.active_count == 0
+        assert not registry.is_running(session_id)
+        assert captured["wrapper"].cr_frame is None
+
+        gc.collect()
+        assert not any("was never awaited" in str(item.message) for item in recwarn)
+
+        monkeypatch.setattr(
+            registry_module,
+            "_create_job_task",
+            original_create_task,
+        )
+        retry = await client.post(
+            "/predict",
+            data={"session_id": session_id, "dataset_path": str(retry_dataset)},
+        )
+        assert retry.status_code == 202, retry.text
+        await _wait_completed(client, session_id)
+
+    async def test_worker_start_failure_deletes_only_fresh_session(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """A failed start cannot orphan a request-owned fresh session."""
+        from ...service.routers import predict_router
+        from ...service.runtime import registry as registry_module
+
+        dataset_dir = tmp_path / "fresh"
+        dataset_dir.mkdir()
+        dataset_path = dataset_dir / "dataset.jsonl"
+        dataset_path.write_text(
+            '{"id":"/fresh","type":"Mesh","images":{}}\n',
+            encoding="utf-8",
+        )
+        manager = predict_router.get_session_manager()
+        registry = predict_router.get_job_registry()
+        sessions_before = set(await manager.list_sessions())
+        original_create_task = registry_module._create_job_task
+
+        def _fail_start(wrapper: Any) -> None:
+            raise RuntimeError("simulated fresh worker registration failure")
+
+        monkeypatch.setattr(registry_module, "_create_job_task", _fail_start)
+        response = await client.post(
+            "/predict",
+            data={"dataset_path": str(dataset_path)},
+        )
+
+        assert response.status_code == 500
+        assert set(await manager.list_sessions()) == sessions_before
+        assert registry.registered_count == 0
+        assert registry.active_count == 0
+
+        monkeypatch.setattr(
+            registry_module,
+            "_create_job_task",
+            original_create_task,
+        )
+        retry = await client.post(
+            "/predict",
+            data={"dataset_path": str(dataset_path)},
+        )
+        assert retry.status_code == 202, retry.text
+        await _wait_completed(client, retry.json()["session_id"])
+
+    async def test_metadata_transition_failure_restores_and_retries(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        recwarn: pytest.WarningsRecorder,
+    ) -> None:
+        """A post-registration metadata error cancels the gated worker safely."""
+        from ...service.routers import predict_router
+
+        (
+            session_id,
+            config_path,
+            dataset_target,
+            retry_dataset,
+        ) = await _bootstrap_terminal_predict_session(client, tmp_path)
+        manager = predict_router.get_session_manager()
+        registry = predict_router.get_job_registry()
+        baseline_metadata = deepcopy(await manager.get_session_metadata(session_id))
+        baseline_config = config_path.read_bytes()
+        baseline_dataset = dataset_target.read_bytes()
+        original_update = manager.update_session
+
+        async def _write_pending_then_fail(
+            target_session_id: str,
+            updates: dict[str, Any],
+        ) -> None:
+            await original_update(target_session_id, updates)
+            if target_session_id == session_id and updates.get("status") == "pending":
+                raise OSError("simulated metadata transition failure")
+
+        monkeypatch.setattr(manager, "update_session", _write_pending_then_fail)
+        response = await client.post(
+            "/predict",
+            data={
+                "session_id": session_id,
+                "dataset_path": str(retry_dataset),
+                "user_prompt": "must-not-survive-metadata-failure",
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == predict_router._PREDICT_START_FAILED_DETAIL
+        assert await manager.get_session_metadata(session_id) == baseline_metadata
+        assert config_path.read_bytes() == baseline_config
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert registry.registered_count == 0
+        assert registry.active_count == 0
+        assert not registry.is_running(session_id)
+
+        gc.collect()
+        assert not any("was never awaited" in str(item.message) for item in recwarn)
+
+        monkeypatch.setattr(manager, "update_session", original_update)
+        retry = await client.post(
+            "/predict",
+            data={"session_id": session_id, "dataset_path": str(retry_dataset)},
+        )
+        assert retry.status_code == 202, retry.text
+        await _wait_completed(client, session_id)
+
+    async def test_rollback_failure_is_contained_and_session_is_retryable(
+        self,
+        client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        recwarn: pytest.WarningsRecorder,
+    ) -> None:
+        """Rollback diagnostics stay fixed/value-free and do not leak a slot."""
+        from ...service.routers import predict_router
+
+        (
+            session_id,
+            config_path,
+            dataset_target,
+            retry_dataset,
+        ) = await _bootstrap_terminal_predict_session(client, tmp_path)
+        manager = predict_router.get_session_manager()
+        registry = predict_router.get_job_registry()
+        baseline_metadata = deepcopy(await manager.get_session_metadata(session_id))
+        baseline_config = config_path.read_bytes()
+        baseline_dataset = dataset_target.read_bytes()
+        original_update = manager.update_session
+        original_restore = predict_router._FileSnapshot.restore
+        restore_calls = {"count": 0}
+
+        async def _write_pending_then_fail(
+            target_session_id: str,
+            updates: dict[str, Any],
+        ) -> None:
+            await original_update(target_session_id, updates)
+            if target_session_id == session_id and updates.get("status") == "pending":
+                raise OSError("simulated startup transition failure")
+
+        def _fail_first_restore(
+            snapshot: predict_router._FileSnapshot,
+        ) -> None:
+            restore_calls["count"] += 1
+            if restore_calls["count"] == 1:
+                raise OSError("simulated rollback reporting failure")
+            original_restore(snapshot)
+
+        monkeypatch.setattr(manager, "update_session", _write_pending_then_fail)
+        monkeypatch.setattr(
+            predict_router._FileSnapshot,
+            "restore",
+            _fail_first_restore,
+        )
+        response = await client.post(
+            "/predict",
+            data={
+                "session_id": session_id,
+                "dataset_path": str(retry_dataset),
+                "user_prompt": "must-not-appear-in-rollback-diagnostics",
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == predict_router._PREDICT_START_FAILED_DETAIL
+        assert restore_calls["count"] == 2
+        assert "code=predict_start_input_restore_failed" in caplog.text
+        assert "must-not-appear-in-rollback-diagnostics" not in caplog.text
+        assert await manager.get_session_metadata(session_id) == baseline_metadata
+        assert config_path.read_bytes() != baseline_config
+        assert b"must-not-appear-in-rollback-diagnostics" in config_path.read_bytes()
+        assert dataset_target.read_bytes() == baseline_dataset
+        assert registry.registered_count == 0
+        assert registry.active_count == 0
+        assert not registry.is_running(session_id)
+
+        gc.collect()
+        assert not any("was never awaited" in str(item.message) for item in recwarn)
+
+        monkeypatch.setattr(manager, "update_session", original_update)
+        monkeypatch.setattr(
+            predict_router._FileSnapshot,
+            "restore",
+            original_restore,
+        )
+        retry = await client.post(
+            "/predict",
+            data={"session_id": session_id, "dataset_path": str(retry_dataset)},
         )
         assert retry.status_code == 202, retry.text
         await _wait_completed(client, session_id)
@@ -715,6 +1452,7 @@ class TestPredictCreation:
 
         from world_understanding.utils import s3_utils
 
+        monkeypatch.setattr(svc_config, "s3_allowed_buckets", "bucket")
         monkeypatch.setattr(
             s3_utils, "_create_s3_client", lambda profile_name=None: _StubS3Client()
         )

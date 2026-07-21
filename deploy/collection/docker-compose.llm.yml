@@ -36,7 +36,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=5)\nPY",
+          "python3 - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=5)\nPY",
         ]
       interval: 30s
       timeout: 10s

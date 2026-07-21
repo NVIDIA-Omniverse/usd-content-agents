@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import math
+from collections.abc import Iterable
 
 from pxr import Gf, Usd, UsdGeom
 
@@ -395,7 +396,6 @@ def _setup_side_view_camera(
         max_scene_size: Optional maximum size limit for the scene after
             margin is applied. If set, the effective size will be capped at this value.
         time: Time at which to set the camera attributes (default: Default)
-
     Returns:
         The camera prim
     """
@@ -586,6 +586,7 @@ def add_side_view_camera(
     far_clip: float | None = None,
     max_scene_size: float | None = None,
     time: Usd.TimeCode = Usd.TimeCode.Default(),
+    included_purposes: Iterable[str] | None = None,
 ) -> UsdGeom.Camera:
     """Create a camera looking at the scene from any cardinal direction.
 
@@ -610,13 +611,18 @@ def add_side_view_camera(
         max_scene_size: Optional maximum size limit for the scene after
             margin is applied. If set, the effective size will be capped at this value.
         time: Time at which to set the camera attributes (default: Default)
+        included_purposes: Optional UsdGeom purposes included in scene framing.
+            Defaults to ``default`` only.
 
     Returns:
         The camera prim
     """
-    # Compute the bounding box of the scene
-    bbox_cache = UsdGeom.BBoxCache(time, [UsdGeom.Tokens.default_])
-    scene_bbox = bbox_cache.ComputeWorldBound(stage.GetPseudoRoot())
+    # Compute the bounding box of the scene.
+    scene_bbox = get_bbox_from_prim(
+        stage.GetPseudoRoot(),
+        time=time,
+        included_purposes=included_purposes,
+    )
     aligned_range = scene_bbox.ComputeAlignedRange()
 
     # Get the bounding box extents
@@ -661,6 +667,7 @@ def add_focused_side_view_camera(
     far_clip: float | None = None,
     max_scene_size: float | None = None,
     time: Usd.TimeCode = Usd.TimeCode.Default(),
+    included_purposes: Iterable[str] | None = None,
 ) -> UsdGeom.Camera:
     """Create a camera focused on a specific prim from any cardinal direction.
 
@@ -685,6 +692,8 @@ def add_focused_side_view_camera(
         max_scene_size: Optional maximum size limit for the scene after
             margin is applied. If set, the effective size will be capped at this value.
         time: Time at which to set the camera attributes (default: Default)
+        included_purposes: Optional UsdGeom purposes included in prim framing.
+            Defaults to ``default`` only.
 
     Returns:
         The camera prim
@@ -693,7 +702,11 @@ def add_focused_side_view_camera(
     stage = prim_to_focus.GetStage()
 
     # Get the bounding box of the prim to focus on
-    bbox = get_bbox_from_prim(prim_to_focus)
+    bbox = get_bbox_from_prim(
+        prim_to_focus,
+        time=time,
+        included_purposes=included_purposes,
+    )
     aligned_range = bbox.ComputeAlignedRange()
 
     # Get the bounding box extents
@@ -800,7 +813,6 @@ def _setup_corner_view_camera(
         max_scene_size: Optional maximum size limit for the scene after
             margin is applied. If set, the effective size will be capped at this value.
         time: Time at which to set the camera attributes (default: Default)
-
     Returns:
         The camera prim
     """
@@ -989,6 +1001,7 @@ def add_corner_view_camera(
     target_x: float | None = None,
     target_y: float | None = None,
     target_z: float | None = None,
+    included_purposes: Iterable[str] | None = None,
 ) -> UsdGeom.Camera:
     """Create a camera looking at the scene from any corner direction.
 
@@ -1010,12 +1023,17 @@ def add_corner_view_camera(
         max_scene_size: Optional maximum size limit for the scene after
             margin is applied. If set, the effective size will be capped at this value.
         time: Time at which to set the camera attributes (default: Default)
+        included_purposes: Optional UsdGeom purposes included in scene framing.
+            Defaults to ``default`` only.
 
     Returns:
         The camera prim
     """
-    bbox_cache = UsdGeom.BBoxCache(time, [UsdGeom.Tokens.default_])
-    scene_bbox = bbox_cache.ComputeWorldBound(stage.GetPseudoRoot())
+    scene_bbox = get_bbox_from_prim(
+        stage.GetPseudoRoot(),
+        time=time,
+        included_purposes=included_purposes,
+    )
     aligned_range = scene_bbox.ComputeAlignedRange()
     bbox_min = aligned_range.GetMin()
     bbox_max = aligned_range.GetMax()
@@ -1067,6 +1085,7 @@ def add_focused_corner_view_camera(
     target_x: float | None = None,
     target_y: float | None = None,
     target_z: float | None = None,
+    included_purposes: Iterable[str] | None = None,
 ) -> UsdGeom.Camera:
     """Create a camera focused on a specific prim from any corner direction.
 
@@ -1089,13 +1108,19 @@ def add_focused_corner_view_camera(
         max_scene_size: Optional maximum size limit for the scene after
             margin is applied. If set, the effective size will be capped at this value.
         time: Time at which to set the camera attributes (default: Default)
+        included_purposes: Optional UsdGeom purposes included in prim framing.
+            Defaults to ``default`` only.
 
     Returns:
         The camera prim
     """
     stage = prim_to_focus.GetStage()
 
-    bbox = get_bbox_from_prim(prim_to_focus)
+    bbox = get_bbox_from_prim(
+        prim_to_focus,
+        time=time,
+        included_purposes=included_purposes,
+    )
     aligned_range = bbox.ComputeAlignedRange()
     bbox_min = aligned_range.GetMin()
     bbox_max = aligned_range.GetMax()

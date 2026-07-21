@@ -11,7 +11,7 @@ dependencies = [
     "python-dotenv==1.2.2",
     "rich>=14.0,<15.0.0",
     "typer==0.16.1",
-    "world-understanding>=0.3.17",
+    "world-understanding>=0.5.0",
 ]
 
 [build-system]
@@ -22,7 +22,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.4.3"
+fallback-version = "0.5.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -30,7 +30,7 @@ source = "uv-dynamic-versioning"
 
 [project.optional-dependencies]
 dev = [
-    "world-understanding[dev]>=0.3.17",
+    "world-understanding[dev]>=0.5.0",
 ]
 all = [
     "validation-agent[dev]",

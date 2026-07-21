@@ -7,7 +7,6 @@ import io
 import json
 import logging
 import mimetypes
-import shutil
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,9 +18,27 @@ import aioboto3
 from aiobotocore.config import AioConfig
 from botocore.exceptions import ClientError
 from cachetools import TTLCache
+from world_understanding.utils.artifacts import (
+    confined_atomic_writer,
+    is_pipeline_temp_path,
+    iter_open_regular_files,
+    open_confined_directory,
+    open_regular_file_no_follow,
+    remove_confined_tree,
+    validated_s3_object_suffix,
+)
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
 
 from ..json_utils import to_json_safe
-from .base import METADATA_KEY, SessionStore
+from .base import (
+    METADATA_KEY,
+    JsonPreconditionError,
+    SessionStore,
+    VersionedJson,
+)
 from .config import StorageConfig
 
 logger = logging.getLogger(__name__)
@@ -29,7 +46,7 @@ logger = logging.getLogger(__name__)
 # Cache key for sessions list (single key since we only cache one list per store)
 _SESSIONS_CACHE_KEY = "sessions"
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from types_aiobotocore_s3 import S3Client  # type: ignore[import-untyped]
 
 
@@ -234,6 +251,8 @@ class S3SessionStore(SessionStore):
     async def put_bytes(
         self, session_id: str, key: str, data: bytes, content_type: str | None = None
     ) -> None:
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
         async with self._client() as client:
             kwargs: dict[str, Any] = {
                 "Bucket": self.bucket,
@@ -247,18 +266,30 @@ class S3SessionStore(SessionStore):
     async def put_file(
         self, session_id: str, key: str, file_path: str, content_type: str | None = None
     ) -> None:
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
+        with open_regular_file_no_follow(file_path) as (source, _metadata):
+            async with self._client() as client:
+                extra: dict[str, Any] = {}
+                if content_type:
+                    extra["ContentType"] = content_type
+                await client.upload_fileobj(
+                    source,
+                    self.bucket,
+                    self._key(session_id, key),
+                    ExtraArgs=extra,
+                )
+
+    async def delete_file(self, session_id: str, key: str) -> None:
         async with self._client() as client:
-            extra: dict[str, Any] = {}
-            if content_type:
-                extra["ContentType"] = content_type
-            await client.upload_file(
-                file_path,
-                self.bucket,
-                self._key(session_id, key),
-                ExtraArgs=extra,
+            await client.delete_object(
+                Bucket=self.bucket,
+                Key=self._key(session_id, key),
             )
 
     async def open_read(self, session_id: str, key: str) -> io.BytesIO:
+        if is_pipeline_temp_path(key):
+            raise FileNotFoundError(key)
         async with self._client() as client:
             response = await client.get_object(
                 Bucket=self.bucket, Key=self._key(session_id, key)
@@ -266,7 +297,30 @@ class S3SessionStore(SessionStore):
             body = await response["Body"].read()
             return io.BytesIO(body)
 
+    async def iter_read(
+        self,
+        session_id: str,
+        key: str,
+        *,
+        chunk_size: int,
+    ) -> AsyncIterator[bytes]:
+        """Yield bounded chunks without materializing the S3 object."""
+        if is_pipeline_temp_path(key):
+            raise FileNotFoundError(key)
+        async with self._client() as client:
+            response = await client.get_object(
+                Bucket=self.bucket, Key=self._key(session_id, key)
+            )
+            body = response["Body"]
+            try:
+                while chunk := await body.read(chunk_size):
+                    yield chunk
+            finally:
+                body.close()
+
     async def exists(self, session_id: str, key: str) -> bool:
+        if is_pipeline_temp_path(key):
+            return False
         async with self._client() as client:
             try:
                 await client.head_object(
@@ -280,6 +334,8 @@ class S3SessionStore(SessionStore):
                 raise
 
     async def list_keys(self, session_id: str, prefix: str = "") -> list[str]:
+        if is_pipeline_temp_path(prefix):
+            return []
         out: list[str] = []
         pfx = self._key(session_id, prefix)
         async with self._client() as client:
@@ -288,7 +344,10 @@ class S3SessionStore(SessionStore):
                 for obj in page.get("Contents", []):
                     full = obj["Key"]
                     base_len = len(self._key(session_id, ""))
-                    out.append(full[base_len:].lstrip("/"))
+                    rel = full[base_len:].lstrip("/")
+                    if is_pipeline_temp_path(rel):
+                        continue
+                    out.append(rel)
         return out
 
     async def put_json(self, session_id: str, key: str, obj: dict) -> None:
@@ -300,15 +359,109 @@ class S3SessionStore(SessionStore):
         )
 
     async def get_json(self, session_id: str, key: str) -> dict | None:
+        return (await self.get_json_versioned(session_id, key)).value
+
+    async def get_json_versioned(self, session_id: str, key: str) -> VersionedJson:
+        if is_pipeline_temp_path(key):
+            return VersionedJson(value=None, version=None)
         async with self._client() as client:
             try:
                 response = await client.get_object(
                     Bucket=self.bucket, Key=self._key(session_id, key)
                 )
                 body = await response["Body"].read()
-                return json.loads(body)
+                etag = response.get("ETag")
+                if not isinstance(etag, str) or not etag:
+                    raise RuntimeError(
+                        f"S3 did not return an ETag for {session_id}/{key}"
+                    )
+                return VersionedJson(value=json.loads(body), version=etag)
             except client.exceptions.NoSuchKey:
-                return None
+                return VersionedJson(value=None, version=None)
+            except ClientError as exc:
+                error_code = exc.response.get("Error", {}).get("Code", "")
+                if error_code in ("404", "NoSuchKey"):
+                    return VersionedJson(value=None, version=None)
+                raise
+
+    async def replace_json_if_version(
+        self,
+        session_id: str,
+        key: str,
+        obj: dict,
+        expected_version: str | None,
+    ) -> str:
+        if is_pipeline_temp_path(key):
+            raise ValueError("Artifact path is reserved")
+        data = json.dumps(to_json_safe(obj)).encode("utf-8")
+        kwargs: dict[str, Any] = {
+            "Bucket": self.bucket,
+            "Key": self._key(session_id, key),
+            "Body": data,
+            "ContentType": "application/json",
+        }
+        if expected_version is None:
+            kwargs["IfNoneMatch"] = "*"
+        else:
+            kwargs["IfMatch"] = expected_version
+
+        async with self._client() as client:
+            try:
+                response = await client.put_object(**kwargs)
+            except ClientError as exc:
+                error_code = exc.response.get("Error", {}).get("Code", "")
+                conditional_target_missing = bool(
+                    expected_version is not None and error_code == "NoSuchKey"
+                )
+                if expected_version is not None and error_code in {
+                    "404",
+                    "NotFound",
+                }:
+                    # AWS may return 404 when a delete wins an If-Match race.
+                    # Verify that the target is actually absent so bucket,
+                    # authorization, and endpoint failures remain visible.
+                    try:
+                        head_response = await client.head_object(
+                            Bucket=self.bucket,
+                            Key=self._key(session_id, key),
+                        )
+                        current_etag = head_response.get("ETag")
+                        if (
+                            isinstance(current_etag, str)
+                            and current_etag != expected_version
+                        ):
+                            # A delete followed by recreation is also a lost CAS,
+                            # even though the verification HEAD now succeeds.
+                            conditional_target_missing = True
+                    except client.exceptions.NoSuchKey:
+                        conditional_target_missing = True
+                    except ClientError as verify_exc:
+                        verify_code = verify_exc.response.get("Error", {}).get(
+                            "Code", ""
+                        )
+                        if verify_code in {"404", "NoSuchKey", "NotFound"}:
+                            conditional_target_missing = True
+                        else:
+                            raise
+                if (
+                    error_code
+                    in (
+                        "409",
+                        "412",
+                        "ConditionalRequestConflict",
+                        "PreconditionFailed",
+                    )
+                    or conditional_target_missing
+                ):
+                    raise JsonPreconditionError(
+                        f"JSON version changed for {session_id}/{key}"
+                    ) from exc
+                raise
+
+        etag = response.get("ETag")
+        if not isinstance(etag, str) or not etag:
+            raise RuntimeError(f"S3 did not return an ETag for {session_id}/{key}")
+        return etag
 
     async def get_json_batch(
         self, session_ids: list[str], key: str
@@ -322,6 +475,8 @@ class S3SessionStore(SessionStore):
         Returns:
             List of dicts (or None for missing sessions), in the same order
         """
+        if is_pipeline_temp_path(key):
+            return [None for _ in session_ids]
 
         async def _fetch_one(client: S3Client, sid: str) -> dict | None:
             try:
@@ -333,8 +488,11 @@ class S3SessionStore(SessionStore):
             except client.exceptions.NoSuchKey:
                 return None
             except Exception:
-                logger.warning(
-                    f"Failed to fetch {key} for session {sid[:8]}: ", exc_info=True
+                log_durable_failure(
+                    logger,
+                    "material_s3_batch_read_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
                 )
                 return None
 
@@ -370,7 +528,7 @@ class S3SessionStore(SessionStore):
     async def make_public_url(
         self, session_id: str, key: str, expires_seconds: int = 3600
     ) -> str | None:
-        if not self.presign_by_default:
+        if is_pipeline_temp_path(key) or not self.presign_by_default:
             return None
         async with self._client() as client:
             return await client.generate_presigned_url(
@@ -395,49 +553,37 @@ class S3SessionStore(SessionStore):
         Returns:
             Number of files synced
         """
-        local_dir = Path(local_session_dir)
-        if not local_dir.exists():
+        try:
+            with open_confined_directory(local_session_dir) as source_descriptor:
+                count = 0
+                async with self._client() as client:
+                    for artifact in iter_open_regular_files(
+                        source_descriptor,
+                        prefix=prefix,
+                    ):
+                        s3_key = self._key(session_id, artifact.relative_key)
+                        try:
+                            await client.head_object(Bucket=self.bucket, Key=s3_key)
+                            continue
+                        except ClientError as exc:
+                            error_code = exc.response.get("Error", {}).get("Code", "")
+                            if error_code not in ("404", "NoSuchKey"):
+                                raise
+
+                        content_type, _ = mimetypes.guess_type(artifact.relative_key)
+                        extra: dict[str, Any] = {}
+                        if content_type:
+                            extra["ContentType"] = content_type
+                        await client.upload_fileobj(
+                            artifact.stream,
+                            self.bucket,
+                            s3_key,
+                            ExtraArgs=extra,
+                        )
+                        count += 1
+                return count
+        except FileNotFoundError:
             return 0
-
-        count = 0
-        async with self._client() as client:
-            for file_path in local_dir.rglob("*"):
-                if not file_path.is_file():
-                    continue
-
-                # Get relative path as key
-                rel_path = str(file_path.relative_to(local_dir))
-
-                # Filter by prefix if specified
-                if prefix and not rel_path.startswith(prefix):
-                    continue
-
-                # Check if file already exists on S3
-                s3_key = self._key(session_id, rel_path)
-                try:
-                    await client.head_object(Bucket=self.bucket, Key=s3_key)
-                    continue  # File exists, skip
-                except ClientError as e:
-                    error_code = e.response.get("Error", {}).get("Code", "")
-                    if error_code not in ("404", "NoSuchKey"):
-                        raise  # Re-raise non-404 errors
-
-                # Guess content type
-                content_type, _ = mimetypes.guess_type(str(file_path))
-
-                # Upload to S3
-                extra: dict[str, Any] = {}
-                if content_type:
-                    extra["ContentType"] = content_type
-                await client.upload_file(
-                    str(file_path),
-                    self.bucket,
-                    s3_key,
-                    ExtraArgs=extra,
-                )
-                count += 1
-
-        return count
 
     async def sync_to_local(
         self, session_id: str, local_session_dir: str, prefix: str = ""
@@ -454,27 +600,42 @@ class S3SessionStore(SessionStore):
         Returns:
             Number of files downloaded
         """
-        local_dir = Path(local_session_dir)
-        local_dir.mkdir(parents=True, exist_ok=True)
-
-        count = 0
+        remote_files: list[tuple[str, str]] = []
         async with self._client() as client:
             paginator = client.get_paginator("list_objects_v2")
             s3_prefix = self._key(session_id, prefix)
+            session_prefix = self._key(session_id, "")
             async for page in paginator.paginate(Bucket=self.bucket, Prefix=s3_prefix):
                 for obj in page.get("Contents", []):
-                    s3_key = obj["Key"]
-                    # Derive local relative path from the key
-                    rel_path = s3_key[len(self._key(session_id, "")) :]
-                    if prefix and not rel_path.startswith(prefix):
+                    s3_key = obj.get("Key")
+                    relative_key = validated_s3_object_suffix(
+                        s3_key,
+                        session_prefix,
+                    )
+                    if prefix and not relative_key.startswith(prefix):
                         continue
-                    local_path = local_dir / rel_path
-                    if local_path.exists():
-                        continue
-                    local_path.parent.mkdir(parents=True, exist_ok=True)
-                    await client.download_file(self.bucket, s3_key, str(local_path))
-                    count += 1
+                    remote_files.append((s3_key, relative_key))
 
+            count = 0
+            with open_confined_directory(
+                local_session_dir,
+                create=True,
+            ) as destination_descriptor:
+                for s3_key, relative_key in remote_files:
+                    with confined_atomic_writer(
+                        destination_descriptor,
+                        relative_key,
+                        overwrite=False,
+                    ) as destination:
+                        if destination.stream is None:
+                            continue
+                        await client.download_fileobj(
+                            self.bucket,
+                            s3_key,
+                            destination.stream,
+                        )
+                    if destination.published:
+                        count += 1
         return count
 
     async def cleanup_stale_local_sessions(
@@ -531,13 +692,18 @@ class S3SessionStore(SessionStore):
                 )
 
                 # Remove local directory
-                shutil.rmtree(session_dir)
+                remove_confined_tree(session_dir, local_root)
                 logger.info(f"Removed local cache for session {session_id[:8]}")
 
                 cleaned_count += 1
 
-            except Exception as e:
-                logger.warning(f"Failed to cleanup session {session_id[:8]}: {e}")
+            except Exception:
+                log_durable_failure(
+                    logger,
+                    "stale_session_cleanup_failed",
+                    phase=FailurePhase.ROLLBACK,
+                    retryable=True,
+                )
 
         if cleaned_count > 0:
             logger.info(

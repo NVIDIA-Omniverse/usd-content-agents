@@ -8,9 +8,35 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from world_understanding.agentic.config import clone_config_containers
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+    retain_safe_result_text,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
+
+from material_agent.api.diagnostics import (
+    diagnostic_path,
+    normalize_required_config,
+)
 from material_agent.api.types import APIResult
 
 logger = logging.getLogger(__name__)
+
+_REFINE_FAILURE_MESSAGE = "Material refinement failed"
+
+
+def _projected_int(mapping: dict[str, Any], key: str) -> int:
+    value = mapping.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _projected_float(mapping: dict[str, Any], key: str) -> float | None:
+    value = mapping.get(key)
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    return None
 
 
 @dataclass
@@ -19,6 +45,7 @@ class RefineInput:
 
     Args:
         config: Either a Path to a YAML config file or a dict with config contents
+        config_path: Optional source path used to anchor relative paths for dict config
         max_iterations_override: Override maximum iterations from config
         verbose: Enable verbose output
     """
@@ -26,17 +53,13 @@ class RefineInput:
     config: Path | dict[str, Any]
     max_iterations_override: int | None = None
     verbose: bool = False
+    config_path: Path | None = None
 
     def __post_init__(self):
         """Validate inputs."""
-        # Handle config as either Path or dict
-        if isinstance(self.config, dict):
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
+        if self.config_path is not None:
+            self.config_path = Path(self.config_path)
 
 
 @dataclass
@@ -50,8 +73,8 @@ class IterationResult:
     prims_with_materials: int = 0
 
 
-@dataclass
-class RefineOutput(APIResult):
+@dataclass(repr=False)
+class RefineOutput(SecretSafeReprMixin, APIResult):
     """Output results from refine API."""
 
     iteration_count: int = 0
@@ -88,7 +111,7 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        logger.info("Configuration file: %s", diagnostic_path(params.config))
 
     if params.max_iterations_override:
         logger.info(f"Max iterations override: {params.max_iterations_override}")
@@ -111,33 +134,59 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
 
         # Add config as either path or dict
         if isinstance(params.config, dict):
-            initial_context["config_dict"] = params.config
+            initial_context["config_dict"] = clone_config_containers(params.config)
+            if params.config_path is not None:
+                initial_context["config_path"] = str(params.config_path)
         else:
             initial_context["config_path"] = str(params.config)
 
         # Run the workflow
         logger.info("Running material refinement with iterative loop...")
         result = await workflow.arun(initial_context=initial_context)
+        safe_result = project_result_metadata(result)
 
         # Check if workflow was successful
         if result.get("iteration_count", 0) > 0:
-            iteration_count = result.get("iteration_count", 0)
-            iteration_results_raw = result.get("iteration_results", [])
-            final_iteration = result.get("final_iteration", {})
-            termination_reason = result.get("termination_reason", "unknown")
-            all_outputs = result.get("all_iteration_outputs", [])
-            final_output_path = result.get("final_output_path")
+            iteration_count = _projected_int(safe_result, "iteration_count")
+            iteration_results_raw = safe_result.get("iteration_results", [])
+            if not isinstance(iteration_results_raw, list):
+                iteration_results_raw = []
+            final_iteration = safe_result.get("final_iteration", {})
+            if not isinstance(final_iteration, dict):
+                final_iteration = {}
+            termination_reason = (
+                retain_safe_result_text(safe_result.get("termination_reason"))
+                or "unknown"
+            )
+            runtime_outputs = result.get("all_iteration_outputs", [])
+            all_outputs = (
+                [
+                    safe_path
+                    for value in runtime_outputs
+                    if (safe_path := retain_safe_result_path(value)) is not None
+                ]
+                if isinstance(runtime_outputs, list)
+                else []
+            )
+            final_output_path = retain_safe_result_path(result.get("final_output_path"))
 
             # Convert iteration results to structured format
             iteration_results = [
                 IterationResult(
-                    iteration=item.get("iteration", 0),
-                    judge_score=item.get("judge_score"),
-                    continue_iteration=item.get("continue_iteration", False),
-                    materials_applied_count=item.get("materials_applied_count", 0),
-                    prims_with_materials=item.get("prims_with_materials", 0),
+                    iteration=_projected_int(item, "iteration"),
+                    judge_score=_projected_float(item, "judge_score"),
+                    continue_iteration=(
+                        item.get("continue_iteration")
+                        if isinstance(item.get("continue_iteration"), bool)
+                        else False
+                    ),
+                    materials_applied_count=_projected_int(
+                        item, "materials_applied_count"
+                    ),
+                    prims_with_materials=_projected_int(item, "prims_with_materials"),
                 )
                 for item in iteration_results_raw
+                if isinstance(item, dict)
             ]
 
             logger.info(
@@ -147,14 +196,12 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
             return RefineOutput(
                 success=True,
                 iteration_count=iteration_count,
-                final_output_path=Path(final_output_path)
-                if final_output_path
-                else None,
-                final_judge_score=final_iteration.get("judge_score"),
+                final_output_path=final_output_path,
+                final_judge_score=_projected_float(final_iteration, "judge_score"),
                 termination_reason=termination_reason,
                 iteration_results=iteration_results,
-                all_iteration_outputs=[Path(p) for p in all_outputs],
-                raw_result=result,
+                all_iteration_outputs=all_outputs,
+                raw_result=safe_result,
             )
         else:
             error_msg = "Material refinement workflow did not complete successfully"
@@ -162,13 +209,14 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
             return RefineOutput(
                 success=False,
                 error=error_msg,
+                raw_result=safe_result,
             )
 
-    except Exception as e:
-        logger.error(f"Error during material refinement: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error(_REFINE_FAILURE_MESSAGE)
         return RefineOutput(
             success=False,
-            error=str(e),
+            error=_REFINE_FAILURE_MESSAGE,
         )
 
 

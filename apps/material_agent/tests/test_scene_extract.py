@@ -11,6 +11,7 @@ from material_agent.scene.extract import (
     _find_instances_recursive,
     _remove_prim_recursive,
     _sanitize_name,
+    _strip_instance_children,
     _unique_safe_names,
     extract_all,
     extract_sub_asset,
@@ -161,6 +162,9 @@ def test_collect_instanceable_prims_and_recursive_helpers() -> None:
     assert instance_paths == ["/World/Root/Inst"]
     assert mask_paths == ["/World/Root", "/Prototype"]
 
+    _collect_instanceable_prims(layer, "/World/Missing", instance_paths, mask_paths)
+    assert instance_paths == ["/World/Root/Inst"]
+
     nested_prim = _FakePrim(
         "/World/Root/Nested", False, [_FakePrim("/World/Root/Nested/Leaf", True)]
     )
@@ -196,6 +200,109 @@ def test_remove_prim_recursive_removes_children_before_parent() -> None:
     _remove_prim_recursive(layer, FakePath("/World/Root/Child"))
 
     assert root_spec.removed == [child_spec]
+
+
+def test_remove_prim_recursive_handles_missing_and_pseudo_root_parent() -> None:
+    class FakePath:
+        def __init__(self, value: str, parent: str) -> None:
+            self.value = value
+            self._parent = parent
+
+        def GetParentPath(self) -> str:
+            return self._parent
+
+        def AppendChild(self, name: str) -> FakePath:
+            return FakePath(f"{self.value}/{name}", self.value)
+
+        def __str__(self) -> str:
+            return self.value
+
+    root_child = _FakeSpec("/RootChild")
+    layer = _FakeLayer({"/RootChild": root_child})
+
+    _remove_prim_recursive(layer, FakePath("/Missing", "/"))
+    _remove_prim_recursive(layer, FakePath("/RootChild", "/"))
+
+    assert layer.pseudoRoot.removed == [root_child]
+
+
+def test_strip_instance_children_edge_paths(monkeypatch) -> None:
+    class FakePath:
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+        def AppendChild(self, name: str) -> FakePath:
+            return FakePath(f"{self.value}/{name}")
+
+        def GetParentPath(self) -> str:
+            return self.value.rsplit("/", 1)[0] or "/"
+
+        def __str__(self) -> str:
+            return self.value
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pxr",
+        SimpleNamespace(Sdf=SimpleNamespace(Path=FakePath)),
+    )
+
+    class FakeStage:
+        def __init__(self, root) -> None:
+            self.root = root
+
+        def GetPrimAtPath(self, path: str):
+            return self.root
+
+    layer = _FakeLayer({})
+    _strip_instance_children(layer, FakeStage(None), "/World/Root")
+
+    no_instance_root = _FakePrim(
+        "/World/Root", False, [_FakePrim("/World/Root/A", False)]
+    )
+    _strip_instance_children(layer, FakeStage(no_instance_root), "/World/Root")
+
+    inst_root = _FakePrim("/World/Root", False, [_FakePrim("/World/Root/Inst", True)])
+    _strip_instance_children(layer, FakeStage(inst_root), "/World/Root")
+
+    grand_spec = _FakeSpec("/World/Root/Inst/Child/Grand")
+    child_spec = _FakeSpec(
+        "/World/Root/Inst/Child",
+        children={"Grand": grand_spec},
+    )
+    inst_spec = _FakeSpec(
+        "/World/Root/Inst",
+        children={"Child": child_spec},
+    )
+    parent_spec = _FakeSpec("/World/Root/Inst", children={"Child": child_spec})
+
+    class FakeLayer(_FakeLayer):
+        def __init__(self) -> None:
+            super().__init__(
+                {
+                    "/World/Root/Inst": inst_spec,
+                    "/World/Root/Inst/Child": child_spec,
+                    "/World/Root/Inst/Child/Grand": grand_spec,
+                }
+            )
+            self.removed_if_inert: list[str] = []
+
+        def RemovePrimIfInert(self, path) -> None:
+            self.removed_if_inert.append(str(path))
+
+        def GetPrimAtPath(self, path):
+            if str(path) == "/World/Root/Inst/Child":
+                return child_spec
+            if str(path) == "/World/Root/Inst/Child/Grand":
+                return grand_spec
+            if str(path) == "/World/Root/Inst":
+                return parent_spec
+            return None
+
+    flat_layer = FakeLayer()
+    _strip_instance_children(flat_layer, FakeStage(inst_root), "/World/Root")
+
+    assert flat_layer.removed_if_inert == ["/World/Root/Inst/Child"]
+    assert parent_spec.removed == [child_spec]
 
 
 def test_extract_sub_asset_flatten_and_nonflatten_paths(
@@ -325,3 +432,47 @@ def test_extract_sub_asset_flatten_and_nonflatten_paths(
     assert stage.root.exported == [str(second_out)]
     assert stage.flat.exported == []
     assert strip_calls == []
+
+
+def test_extract_all_marks_failures_and_uses_thread_pool(
+    monkeypatch, tmp_path: Path
+) -> None:
+    failed = SubAsset(id="fail", name="Fail", prim_path="/World/Fail")
+    manifest = SceneManifest(sub_assets=[failed])
+    monkeypatch.setattr(
+        "material_agent.scene.extract.extract_sub_asset",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    extract_all(tmp_path / "scene.usda", manifest, tmp_path / "out")
+
+    assert failed.status == "failed"
+
+    first = SubAsset(id="a", name="A", prim_path="/World/A")
+    second = SubAsset(id="b", name="B", prim_path="/World/B")
+    threaded_manifest = SceneManifest(sub_assets=[first, second])
+    calls: list[str] = []
+
+    def fake_extract_sub_asset(**kwargs):
+        calls.append(kwargs["prim_path"])
+        kwargs["output_path"].parent.mkdir(parents=True, exist_ok=True)
+        kwargs["output_path"].write_text("usd", encoding="utf-8")
+        return kwargs["output_path"]
+
+    monkeypatch.setattr(
+        "material_agent.scene.extract.extract_sub_asset",
+        fake_extract_sub_asset,
+    )
+
+    extract_all(
+        tmp_path / "scene.usda",
+        threaded_manifest,
+        tmp_path / "threaded",
+        max_workers=2,
+    )
+
+    assert sorted(calls) == ["/World/A", "/World/B"]
+    assert [sa.status for sa in threaded_manifest.sub_assets] == [
+        "extracted",
+        "extracted",
+    ]

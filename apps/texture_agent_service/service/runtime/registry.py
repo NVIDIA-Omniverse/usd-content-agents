@@ -5,10 +5,46 @@
 import asyncio
 import inspect
 import logging
+import os
 from collections.abc import Callable
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+MAX_ACTIVE_SESSIONS_ENV_VAR = "TA_MAX_ACTIVE_SESSIONS"
+DEFAULT_MAX_ACTIVE_SESSIONS = 4
+
+
+def resolve_max_active_sessions() -> int:
+    """Resolve the configured session capacity with a safe fallback.
+
+    Zero is an explicit valid capacity. Unset, non-integer, and negative values
+    use :data:`DEFAULT_MAX_ACTIVE_SESSIONS`.
+    """
+    env_value = os.getenv(MAX_ACTIVE_SESSIONS_ENV_VAR)
+    if env_value is None:
+        return DEFAULT_MAX_ACTIVE_SESSIONS
+
+    try:
+        limit = int(env_value)
+    except ValueError:
+        logger.error(
+            "%s must be a valid integer, got '%s'. Falling back to default: %d",
+            MAX_ACTIVE_SESSIONS_ENV_VAR,
+            env_value,
+            DEFAULT_MAX_ACTIVE_SESSIONS,
+        )
+        return DEFAULT_MAX_ACTIVE_SESSIONS
+
+    if limit < 0:
+        logger.error(
+            "%s must be non-negative, got '%s'. Falling back to default: %d",
+            MAX_ACTIVE_SESSIONS_ENV_VAR,
+            env_value,
+            DEFAULT_MAX_ACTIVE_SESSIONS,
+        )
+        return DEFAULT_MAX_ACTIVE_SESSIONS
+    return limit
 
 
 class JobRegistry:
@@ -20,7 +56,7 @@ class JobRegistry:
 
     def __init__(
         self,
-        max_concurrent: int = 4,
+        max_concurrent: int,
         cancel_wait_seconds: float = 5.0,
     ):
         """Initialize job registry.
@@ -32,6 +68,7 @@ class JobRegistry:
                 is still draining.
         """
         self._tasks: dict[str, asyncio.Task] = {}
+        self._max_concurrent = max_concurrent
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._active_count = 0
         self._lock = asyncio.Lock()
@@ -277,6 +314,11 @@ class JobRegistry:
         """Get count of all registered jobs (active + queued)."""
         return len(self._tasks)
 
+    @property
+    def max_concurrent(self) -> int:
+        """Return the session capacity enforced by this registry."""
+        return self._max_concurrent
+
 
 # Global singleton job registry
 _job_registry: JobRegistry | None = None
@@ -286,8 +328,5 @@ def get_job_registry() -> JobRegistry:
     """Get the global job registry instance."""
     global _job_registry
     if _job_registry is None:
-        import os
-
-        max_concurrent = int(os.getenv("TA_MAX_ACTIVE_SESSIONS", "4"))
-        _job_registry = JobRegistry(max_concurrent=max_concurrent)
+        _job_registry = JobRegistry(max_concurrent=resolve_max_active_sessions())
     return _job_registry

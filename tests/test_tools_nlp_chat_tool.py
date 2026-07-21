@@ -10,6 +10,7 @@ import pytest
 from world_understanding.tools.nlp.chat_tool import (
     ChatInput,
     ChatOutput,
+    _display_chat_response,
     chat_tool,
 )
 
@@ -110,6 +111,36 @@ class TestChatOutput:
         assert output.response == "Test response"
         assert output.backend_used == "echo"
         assert output.model_used is None  # model_used is optional
+
+
+class RecordingConsole:
+    """Minimal console double that records print calls."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def print(self, *args, **kwargs) -> None:
+        self.calls.append((args, kwargs))
+
+
+def test_display_chat_response_includes_optional_model() -> None:
+    console = RecordingConsole()
+
+    _display_chat_response(
+        {
+            "backend_used": "openai",
+            "model_used": "gpt-5.4",
+            "response": "Hello from the model.",
+        },
+        console,
+        indent="  ",
+    )
+
+    rendered = "\n".join(str(call[0][0]) for call in console.calls)
+    assert "Chat Response" in rendered
+    assert "Backend: openai" in rendered
+    assert "Model: gpt-5.4" in rendered
+    assert "Hello from the model." in rendered
 
 
 class TestChatTool:

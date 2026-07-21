@@ -8,9 +8,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from material_agent.api.types import APIResult
+from world_understanding.utils.model_auth import (
+    MODEL_AUTHENTICATION_FAILURE_MESSAGE,
+    is_model_authentication_error,
+    public_model_failure_message,
+)
+from world_understanding.utils.result_projection import (
+    project_result_metadata,
+    retain_safe_result_path,
+)
+from world_understanding.utils.safe_repr import SecretSafeReprMixin
+
+from material_agent.api.diagnostics import diagnostic_path, normalize_required_config
+from material_agent.api.types import APIResult, projected_int
 
 logger = logging.getLogger(__name__)
+
+_PREDICT_FAILURE_MESSAGE = "Predict failed"
 
 
 @dataclass
@@ -27,20 +41,13 @@ class PredictInput:
     resume: bool = False
     verbose: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate inputs."""
-        # Handle config as either Path or dict
-        if isinstance(self.config, dict):
-            if not self.config:
-                raise ValueError("Config dictionary cannot be empty")
-        else:
-            self.config = Path(self.config)
-            if not self.config.exists():
-                raise FileNotFoundError(f"Config file not found: {self.config}")
+        self.config = normalize_required_config(self.config)
 
 
-@dataclass
-class PredictOutput(APIResult):
+@dataclass(repr=False)
+class PredictOutput(SecretSafeReprMixin, APIResult):
     """Output results from predict API."""
 
     predictions_path: Path | None = None
@@ -65,7 +72,7 @@ async def arun_predict(params: PredictInput) -> PredictOutput:
     if isinstance(params.config, dict):
         logger.info("Using in-memory config dictionary")
     else:
-        logger.info(f"Configuration file: {params.config}")
+        logger.info("Configuration file: %s", diagnostic_path(params.config))
 
     try:
         # Apply defaults if using dict config
@@ -96,29 +103,37 @@ async def arun_predict(params: PredictInput) -> PredictOutput:
         if pipeline_result.success:
             # Extract predict-specific results
             predict_result = pipeline_result.step_results.get("predict", {})
+            safe_predict_result = project_result_metadata(predict_result)
 
             return PredictOutput(
                 success=True,
-                predictions_path=Path(predict_result["predictions_path"])
-                if predict_result.get("predictions_path")
-                else None,
-                report_path=Path(predict_result["report_path"])
-                if predict_result.get("report_path")
-                else None,
-                num_predictions=predict_result.get("num_predictions", 0),
-                raw_result=predict_result,
+                predictions_path=retain_safe_result_path(
+                    predict_result.get("predictions_path")
+                ),
+                report_path=retain_safe_result_path(predict_result.get("report_path")),
+                num_predictions=projected_int(
+                    safe_predict_result.get("num_predictions")
+                ),
+                raw_result=safe_predict_result,
             )
         else:
+            failure_message = (
+                MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                if is_model_authentication_error(pipeline_result.error)
+                else _PREDICT_FAILURE_MESSAGE
+            )
+            logger.error(failure_message)
             return PredictOutput(
                 success=False,
-                error=pipeline_result.error,
+                error=failure_message,
             )
 
-    except Exception as e:
-        logger.error(f"Error running predict: {str(e)}", exc_info=True)
+    except Exception as error:
+        failure_message = public_model_failure_message(error, _PREDICT_FAILURE_MESSAGE)
+        logger.error(failure_message)
         return PredictOutput(
             success=False,
-            error=str(e),
+            error=failure_message,
         )
 
 

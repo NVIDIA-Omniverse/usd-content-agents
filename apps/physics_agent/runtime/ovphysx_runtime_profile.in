@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Exact Linux x86_64 OvPhysX daemon runtime. The wheel URL and digest avoid
+# floating through the compatibility package index during service builds.
+# Version 0.4.13 uses a py-less namespaced OpenUSD runtime instead of bundling
+# the vulnerable CPython 3.12.13 shared library present in 0.3.7.
+ovphysx @ https://files.pythonhosted.org/packages/0d/34/0052e734c9cfdf1c8d67772a7fa605d1984e4b7e732abd1acd205e371755/ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl#sha256=4bc5bd9976529f86248826916a12243813833607131ed17149f976262f04dec6
+numpy==2.4.4

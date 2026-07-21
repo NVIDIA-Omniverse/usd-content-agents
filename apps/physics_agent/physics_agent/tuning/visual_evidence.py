@@ -7,11 +7,16 @@ from __future__ import annotations
 import re
 import shutil
 from dataclasses import dataclass
+from numbers import Integral
 from pathlib import Path
 from typing import Any
 
 _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 _VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}
+DEFAULT_REFERENCE_VIDEO_FRAMES = 8
+DEFAULT_JUDGE_REFERENCE_FRAMES = 8
+DEFAULT_JUDGE_GENERATED_FRAMES = 16
+MAX_VISUAL_JUDGE_FRAMES = 64
 
 
 @dataclass(frozen=True)
@@ -101,7 +106,7 @@ def prepare_reference_media(
     reference_descriptions: list[str] | tuple[str, ...] | None = None,
     reference_video_descriptions: list[str] | tuple[str, ...] | None = None,
     output_dir: Path,
-    frames_per_video: int = 8,
+    frames_per_video: int = DEFAULT_REFERENCE_VIDEO_FRAMES,
 ) -> JudgeVisualEvidence:
     """Copy reference images/videos and extract video frames for VLM judging.
 
@@ -110,6 +115,10 @@ def prepare_reference_media(
     managed subdirectories so stale media from a previous run cannot leak
     into the current judge request.
     """
+    frames_per_video = validate_visual_frame_count(
+        "frames_per_video",
+        frames_per_video,
+    )
     image_paths = _coerce_paths(reference_images)
     video_paths = _coerce_paths(reference_videos)
     image_descriptions = _coerce_descriptions(
@@ -176,17 +185,18 @@ def write_comparison_contact_sheet(
     evidence: JudgeVisualEvidence,
     output_path: Path,
     *,
-    max_reference_images: int = 4,
-    max_generated_images: int = 8,
+    max_reference_images: int = DEFAULT_JUDGE_REFERENCE_FRAMES,
+    max_generated_images: int = DEFAULT_JUDGE_GENERATED_FRAMES,
 ) -> tuple[Path | None, str | None]:
     """Write a compact PNG contact sheet of reference and generated evidence."""
-    reference_items = list(evidence.reference_image_caption_pairs)[
-        :max_reference_images
-    ]
-    generated_items = [
-        (generated_frame_caption(idx, path), path)
-        for idx, path in enumerate(evidence.generated_image_paths, 1)
-    ][:max_generated_images]
+    try:
+        reference_items, generated_items = sample_visual_evidence_items(
+            evidence,
+            max_reference_images=max_reference_images,
+            max_generated_images=max_generated_images,
+        )
+    except ValueError as exc:
+        return None, str(exc)
     if not reference_items or not generated_items:
         return None, None
 
@@ -259,11 +269,11 @@ def resolve_default_judge_vlm() -> Any:
 
     from physics_agent.api.defaults import (
         DEFAULT_VLM_BACKEND,
-        DEFAULT_VLM_LLMGATEWAY_CONFIG,
         DEFAULT_VLM_MAX_TOKENS,
         DEFAULT_VLM_MODEL,
         DEFAULT_VLM_REASONING_EFFORT,
         DEFAULT_VLM_TEMPERATURE,
+        _vlm_endpoint_config,
     )
 
     vlm_config = apply_vlm_nim_env_override(
@@ -273,7 +283,7 @@ def resolve_default_judge_vlm() -> Any:
             "temperature": DEFAULT_VLM_TEMPERATURE,
             "max_tokens": DEFAULT_VLM_MAX_TOKENS,
             "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
-            "llmgateway": DEFAULT_VLM_LLMGATEWAY_CONFIG,
+            **_vlm_endpoint_config(),
         }
     )
     backend = str(vlm_config.get("backend") or vlm_config.get("provider") or "")
@@ -283,16 +293,88 @@ def resolve_default_judge_vlm() -> Any:
         "temperature": vlm_config["temperature"],
         "max_tokens": vlm_config["max_tokens"],
     }
+    reserved_keys = {
+        "api_key",
+        "api_key_env",
+        "backend",
+        "base_url",
+        "max_tokens",
+        "model",
+        "provider",
+        "reasoning_effort",
+        "temperature",
+    }
+    kwargs.update(
+        {key: value for key, value in vlm_config.items() if key not in reserved_keys}
+    )
     if vlm_config.get("base_url"):
         kwargs["base_url"] = vlm_config["base_url"]
     if backend_supports_reasoning_effort(backend):
         kwargs["reasoning_effort"] = vlm_config["reasoning_effort"]
-    if vlm_config.get("llmgateway") and "llmgateway" in backend:
-        kwargs["llmgateway"] = vlm_config["llmgateway"]
     api_key = get_api_key_for_model_config(backend, vlm_config, "VLM")
     if api_key:
         kwargs["api_key"] = api_key
     return create_vlm(**kwargs)
+
+
+def validate_visual_frame_count(field_name: str, value: int) -> int:
+    """Validate a user-facing visual-evidence frame limit."""
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise ValueError(
+            f"{field_name} must be an integer between 1 and "
+            f"{MAX_VISUAL_JUDGE_FRAMES}, got {value!r}"
+        )
+    count = int(value)
+    if not (1 <= count <= MAX_VISUAL_JUDGE_FRAMES):
+        raise ValueError(
+            f"{field_name} must be between 1 and {MAX_VISUAL_JUDGE_FRAMES}, got {value}"
+        )
+    return count
+
+
+def sample_evenly(items: list[Any], limit: int) -> list[Any]:
+    """Return up to ``limit`` items, preserving endpoints when possible."""
+    if limit <= 0 or not items:
+        return []
+    if len(items) <= limit:
+        return list(items)
+    if limit == 1:
+        return [items[0]]
+    indexes: list[int] = []
+    for i in range(limit):
+        idx = round(i * (len(items) - 1) / (limit - 1))
+        if idx not in indexes:
+            indexes.append(idx)
+    return [items[i] for i in indexes]
+
+
+def sample_visual_evidence_items(
+    evidence: JudgeVisualEvidence,
+    *,
+    max_reference_images: int = DEFAULT_JUDGE_REFERENCE_FRAMES,
+    max_generated_images: int = DEFAULT_JUDGE_GENERATED_FRAMES,
+) -> tuple[list[tuple[str, Path]], list[tuple[str, Path]]]:
+    """Sample reference/generated evidence exactly as the judge should see it."""
+    max_reference_images = validate_visual_frame_count(
+        "max_reference_images",
+        max_reference_images,
+    )
+    max_generated_images = validate_visual_frame_count(
+        "max_generated_images",
+        max_generated_images,
+    )
+    reference_items = sample_evenly(
+        list(evidence.reference_image_caption_pairs),
+        max_reference_images,
+    )
+    generated_items = [
+        (generated_frame_caption(idx, path), path)
+        for idx, path in sample_evenly(
+            list(enumerate(evidence.generated_image_paths, 1)),
+            max_generated_images,
+        )
+    ]
+    return reference_items, generated_items
 
 
 def _coerce_paths(value: list[Path] | tuple[Path, ...] | None) -> list[Path]:
@@ -303,8 +385,15 @@ def _coerce_paths(value: list[Path] | tuple[Path, ...] | None) -> list[Path]:
 
 def backend_supports_reasoning_effort(backend: str) -> bool:
     """Return whether a VLM backend accepts a reasoning_effort kwarg."""
-    normalized = str(backend).lower()
-    return normalized == "openai" or "llmgateway" in normalized
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        vlm_backend_supports,
+    )
+
+    try:
+        return vlm_backend_supports(str(backend).lower(), "reasoning_effort")
+    except ValueError:
+        return False
 
 
 def _coerce_descriptions(
@@ -418,10 +507,17 @@ def _paste_section(
 
 
 __all__ = [
+    "DEFAULT_JUDGE_GENERATED_FRAMES",
+    "DEFAULT_JUDGE_REFERENCE_FRAMES",
+    "DEFAULT_REFERENCE_VIDEO_FRAMES",
     "JudgeVisualEvidence",
+    "MAX_VISUAL_JUDGE_FRAMES",
     "generated_frame_caption",
     "has_reference_media",
     "prepare_reference_media",
     "resolve_default_judge_vlm",
+    "sample_evenly",
+    "sample_visual_evidence_items",
+    "validate_visual_frame_count",
     "write_comparison_contact_sheet",
 ]

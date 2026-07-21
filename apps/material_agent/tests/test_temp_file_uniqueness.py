@@ -1,144 +1,118 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Test that temporary config files have unique paths.
+"""Regression tests for secret-safe in-memory child workflow configuration."""
 
-These tests verify Critical Issue #1 fix: temp config files must have
-unique paths to prevent collisions during concurrent execution.
-"""
+from __future__ import annotations
 
-import tempfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
+import pytest
+
+import material_agent.workflows as workflows
 from material_agent.tasks.unified_pipeline_executor import UnifiedPipelineExecutorTask
 
 
-def test_temp_config_files_are_unique():
-    """Verify that repeated calls generate unique file paths."""
-    executor = UnifiedPipelineExecutorTask()
+class _CaptureWorkflow:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.contexts: dict[str, dict[str, Any]] = {}
+        self.lock = threading.Lock()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        working_dir = Path(tmpdir)
+    def run(self, context: dict[str, Any]) -> dict[str, Any]:
+        config = context["config_dict"]
+        request_id = config["request_id"]
+        time.sleep(0.005)
+        with self.lock:
+            self.contexts[request_id] = context
+        config["credentials"]["nested"][0]["token"] = "child-mutated"
+        if self.fail:
+            raise RuntimeError("expected child failure")
+        return {"predictions_path": f"{request_id}.jsonl"}
 
-        # Create 100 temp config files with same step name
-        paths = []
-        for i in range(100):
-            path = executor._create_temp_config_file(
-                step_name="predict",  # Same step name for all
-                step_config={"model": f"test_{i}"},
-                working_dir=working_dir,
-            )
-            paths.append(path)
 
-        # All paths must be unique
-        assert len(paths) == len(set(paths)), (
-            f"Found duplicate paths! {len(paths)} calls created "
-            f"{len(set(paths))} unique paths"
+def _execute_predict(
+    workflow: _CaptureWorkflow,
+    root: Path,
+    request_id: str,
+    secret: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    original = {
+        "request_id": request_id,
+        "credentials": {
+            "api_key": secret,
+            "nested": [{"token": f"nested-{secret}"}],
+        },
+    }
+    context = {
+        "working_dir": str(root / request_id),
+        "config_path": str(root / request_id / "pipeline.yaml"),
+    }
+    result = UnifiedPipelineExecutorTask()._execute_step(
+        "predict",
+        original,
+        context,
+        object_store=None,
+        pipeline_state={"step_outputs": {}},
+    )
+    return original, result
+
+
+def test_in_memory_config_preserves_nested_and_short_secrets_without_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflow = _CaptureWorkflow()
+    monkeypatch.setattr(
+        workflows, "create_prediction_workflow_from_config", lambda: workflow
+    )
+
+    original, result = _execute_predict(workflow, tmp_path, "one", "x")
+    received = workflow.contexts["one"]
+
+    assert result["predictions_path"] == "one.jsonl"
+    assert received["config_path"] == str(tmp_path / "one" / "pipeline.yaml")
+    assert received["config_dict"]["credentials"]["api_key"] == "x"
+    assert original["credentials"]["nested"][0]["token"] == "nested-x"
+    assert not list(tmp_path.rglob(".pipeline_temp"))
+    assert not list(tmp_path.rglob("*_config_*.yaml"))
+
+
+def test_concurrent_in_memory_configs_do_not_cross_talk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflow = _CaptureWorkflow()
+    monkeypatch.setattr(
+        workflows, "create_prediction_workflow_from_config", lambda: workflow
+    )
+    requests = [(f"request-{index}", f"key-{index}") for index in range(20)]
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(
+            pool.map(lambda item: _execute_predict(workflow, tmp_path, *item), requests)
         )
 
-        # All files should exist
-        assert all(p.exists() for p in paths), "Some temp files were not created"
-
-        # All should be in the same temp directory
-        assert all(p.parent == working_dir / ".pipeline_temp" for p in paths), (
-            "Temp files created in wrong directory"
-        )
-
-
-def test_temp_config_files_contain_correct_data():
-    """Verify that each temp file contains the correct configuration."""
-    import yaml
-
-    executor = UnifiedPipelineExecutorTask()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        working_dir = Path(tmpdir)
-
-        # Create multiple configs with different data
-        configs_created = []
-        for i in range(10):
-            config = {"model": f"model_{i}", "batch_size": i * 10}
-            path = executor._create_temp_config_file(
-                step_name="predict", step_config=config, working_dir=working_dir
-            )
-            configs_created.append((path, config))
-
-        # Read back each file and verify contents
-        for path, original_config in configs_created:
-            with open(path) as f:
-                loaded_config = yaml.safe_load(f)
-
-            # Should match what we wrote (subject to serialization)
-            assert "model" in loaded_config
-            assert loaded_config["model"] == original_config["model"]
+    assert len(workflow.contexts) == len(requests)
+    for (request_id, secret), (original, result) in zip(requests, results, strict=True):
+        received = workflow.contexts[request_id]["config_dict"]
+        assert received["credentials"]["api_key"] == secret
+        assert original["credentials"]["nested"][0]["token"] == f"nested-{secret}"
+        assert result["predictions_path"] == f"{request_id}.jsonl"
+    assert not list(tmp_path.rglob(".pipeline_temp"))
 
 
-def test_concurrent_temp_file_creation_no_collision():
-    """Test that concurrent threads don't overwrite each other's temp files."""
-    import yaml
+def test_child_failure_leaves_no_config_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflow = _CaptureWorkflow(fail=True)
+    monkeypatch.setattr(
+        workflows, "create_prediction_workflow_from_config", lambda: workflow
+    )
 
-    executor = UnifiedPipelineExecutorTask()
+    with pytest.raises(RuntimeError, match="expected child failure"):
+        _execute_predict(workflow, tmp_path, "failure", "tiny")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        working_dir = Path(tmpdir)
-
-        results = []
-        errors = []
-        lock = threading.Lock()
-
-        def create_and_verify(thread_id):
-            """Create temp config and verify it contains correct data after delay."""
-            try:
-                # Create config with thread-specific data
-                config = {"thread_id": thread_id, "data": f"thread_{thread_id}"}
-                path = executor._create_temp_config_file(
-                    step_name="predict",  # All threads use same step name
-                    step_config=config,
-                    working_dir=working_dir,
-                )
-
-                # Small delay to increase chance of collision (if bug exists)
-                time.sleep(0.01)
-
-                # Read back the file
-                with open(path) as f:
-                    loaded = yaml.safe_load(f)
-
-                # Verify we got OUR data, not another thread's
-                with lock:
-                    if loaded.get("thread_id") != thread_id:
-                        errors.append(
-                            {
-                                "thread": thread_id,
-                                "expected": thread_id,
-                                "actual": loaded.get("thread_id"),
-                                "path": str(path),
-                            }
-                        )
-                    else:
-                        results.append((thread_id, path))
-
-            except Exception as e:
-                with lock:
-                    errors.append({"thread": thread_id, "exception": str(e)})
-
-        # Launch 20 threads simultaneously
-        threads = [
-            threading.Thread(target=create_and_verify, args=(i,)) for i in range(20)
-        ]
-
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # Should have no errors or collisions
-        assert len(errors) == 0, f"Thread collisions detected: {errors}"
-
-        # Should have 20 successful results
-        assert len(results) == 20, f"Expected 20 successes, got {len(results)}"
-
-        # All paths should be unique
-        paths = [p for _, p in results]
-        assert len(paths) == len(set(paths)), "Threads created duplicate file paths"
+    assert not list(tmp_path.rglob(".pipeline_temp"))
+    assert not list(tmp_path.rglob("*_config_*.yaml"))

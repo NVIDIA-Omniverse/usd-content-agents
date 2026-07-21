@@ -13,6 +13,7 @@ from unittest.mock import Mock
 import pytest
 
 import material_agent.tasks.validate_predictions as validate_predictions
+from material_agent.materials import FALLBACK_MATERIAL_NAME
 from material_agent.tasks.validate_predictions import ValidatePredictionsTask
 
 VALID_NAMES = [
@@ -79,7 +80,7 @@ def test_run_with_llm_config_records_repairs_and_failures(
 
     reloaded = _read_predictions(predictions_path)
     assert reloaded[0]["materials"]["material"] == "Stainless Steel Polished"
-    assert reloaded[1]["materials"]["material"] == "second-invalid"
+    assert reloaded[1]["materials"]["material"] == FALLBACK_MATERIAL_NAME
 
     report = json.loads((tmp_path / "validate_report.json").read_text())
     assert report["llm_repaired"] == [
@@ -132,6 +133,54 @@ def test_run_with_llm_config_uses_best_fuzzy_fallback_on_repair_failure(
     )
 
 
+def test_llm_repair_returning_fallback_counts_as_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    predictions_path = tmp_path / "predictions.jsonl"
+    _write_predictions(
+        predictions_path,
+        [{"id": "/a", "materials": {"material": "invalid-material"}}],
+    )
+
+    monkeypatch.setattr(
+        validate_predictions,
+        "_best_fuzzy_match",
+        lambda name, valid_names: ("", 0.1),
+    )
+    monkeypatch.setattr(
+        ValidatePredictionsTask,
+        "_llm_repair",
+        lambda self, items, valid_names, llm_config, listener: [
+            (0, "invalid-material", FALLBACK_MATERIAL_NAME),
+        ],
+    )
+
+    result = ValidatePredictionsTask().run(
+        {
+            "predictions_path": str(predictions_path),
+            "material_names": VALID_NAMES,
+            "llm_config": {"backend": "mock"},
+        }
+    )
+
+    stats = result["validation_stats"]
+    assert stats["llm_repaired"] == 0
+    assert stats["failed"] == 1
+    assert stats["fallback_applied"] == 1
+
+    report = json.loads((tmp_path / "validate_report.json").read_text())
+    assert report["llm_repaired"] == []
+    assert report["fallback_applied"] == [
+        {
+            "index": 0,
+            "id": "/a",
+            "old": "invalid-material",
+            "new": FALLBACK_MATERIAL_NAME,
+            "reason": "unrepaired_invalid_material",
+        }
+    ]
+
+
 def test_run_without_llm_config_uses_fuzzy_fallback_only(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -169,7 +218,7 @@ def test_run_without_llm_config_uses_fuzzy_fallback_only(
 
     reloaded = _read_predictions(predictions_path)
     assert reloaded[0]["materials"]["material"] == "Plastic White"
-    assert reloaded[1]["materials"]["material"] == "unrepairable"
+    assert reloaded[1]["materials"]["material"] == FALLBACK_MATERIAL_NAME
 
 
 def test_llm_repair_returns_none_when_chat_model_unavailable(
@@ -234,6 +283,36 @@ def test_llm_repair_splits_batches_and_recovers_from_batch_failure(
     listener.info.assert_called_once()
 
 
+def test_llm_repair_single_batch_returns_batch_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(
+        sys.modules,
+        "world_understanding.functions.models.chat_models",
+        SimpleNamespace(create_chat_model_from_config=lambda config: object()),
+    )
+    listener = SimpleNamespace(info=Mock(), warning=Mock())
+    task = ValidatePredictionsTask()
+
+    monkeypatch.setattr(
+        task,
+        "_llm_repair_batch",
+        lambda batch, valid_names, llm, listener: [
+            (batch[0][0], batch[0][1], "Plastic White")
+        ],
+    )
+
+    result = task._llm_repair(
+        [(0, "bad-name", "Plastic White")],
+        VALID_NAMES,
+        {"backend": "mock"},
+        listener,
+    )
+
+    assert result == [(0, "bad-name", "Plastic White")]
+    listener.info.assert_not_called()
+
+
 def test_llm_repair_batch_success_and_parse_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -280,3 +359,29 @@ def test_llm_repair_batch_success_and_parse_failure(
 
     assert result == [(1, "still-bad", None)]
     listener.warning.assert_called_once()
+
+
+def test_llm_repair_batch_returns_none_results_on_invoke_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(
+        sys.modules,
+        "langchain_core.messages",
+        SimpleNamespace(
+            HumanMessage=lambda content: SimpleNamespace(content=content),
+            SystemMessage=lambda content: SimpleNamespace(content=content),
+        ),
+    )
+
+    class FailingLLM:
+        def invoke(self, messages):
+            raise RuntimeError("LLM unavailable")
+
+    result = ValidatePredictionsTask()._llm_repair_batch(
+        [(0, "bad-name", "Plastic White")],
+        VALID_NAMES,
+        FailingLLM(),
+        SimpleNamespace(warning=Mock()),
+    )
+
+    assert result == [(0, "bad-name", None)]

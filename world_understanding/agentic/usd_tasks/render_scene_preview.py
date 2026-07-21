@@ -15,28 +15,32 @@ Both the material agent (``render_preview`` pipeline step) and the asset agent
 
 import base64
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 from PIL import Image
-from pxr import Usd, UsdGeom
+from pxr import Usd
 
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.functions.graphics.rendering import (
-    OvRTXRenderingBackend,
-    RemoteRenderingBackend,
-    WarpRenderingBackend,
     add_corner_view_camera,
     add_side_view_camera,
     format_direction_for_filename,
 )
+from world_understanding.functions.graphics.rendering_backend_factory import (
+    create_rendering_backend,
+    validate_rendering_backend_name,
+)
 from world_understanding.utils.image_utils import paste_on_background
 from world_understanding.utils.object_store import ObjectStore
-from world_understanding.utils.usd.prim import nullify_materials, remove_all_lights
+from world_understanding.utils.usd.prim import (
+    get_bbox_from_prim,
+    nullify_materials,
+    remove_all_lights,
+)
 from world_understanding.utils.usd.stage import load_stage, prepare_stage_for_render
 
 logger = logging.getLogger(__name__)
@@ -52,7 +56,8 @@ class RenderScenePreviewTask(Task):
     Input context keys:
         - usd_path: Path to the USD file
         - render_config: Dictionary with rendering settings:
-            - backend: ``"remote"`` (default), ``"warp"``, or ``"ovrtx"``
+            - backend: ``"remote"`` (default), ``"warp"``, ``"ovrtx"``, or
+              ``"mock"``
             - image_width: int (default 512)
             - image_height: int (default image_width)
             - cameras: list of direction strings (default ``["+x+y+z"]``)
@@ -106,7 +111,9 @@ class RenderScenePreviewTask(Task):
         render_config: dict[str, Any] = context.get("render_config", {})
         output_dir = Path(context.get("output_dir", "."))
 
-        backend_type = render_config.get("backend", "remote")
+        backend_type = validate_rendering_backend_name(
+            render_config.get("backend", "remote")
+        )
         image_width = render_config.get("image_width", 512)
         image_height = render_config.get("image_height", image_width)
         camera_directions: list[str] = render_config.get("cameras", ["+x+y+z"])
@@ -146,10 +153,7 @@ class RenderScenePreviewTask(Task):
             render_asset_base_dir = str(usd_path.parent)
 
         # ── Scene bounding box ────────────────────────────────────────
-        bbox_cache = UsdGeom.BBoxCache(
-            Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]
-        )
-        scene_bbox = bbox_cache.ComputeWorldBound(preview_stage.GetPseudoRoot())
+        scene_bbox = get_bbox_from_prim(preview_stage.GetPseudoRoot())
         aligned_range = scene_bbox.ComputeAlignedRange()
         bbox_min = aligned_range.GetMin()
         bbox_max = aligned_range.GetMax()
@@ -227,7 +231,7 @@ class RenderScenePreviewTask(Task):
                 listener.info(f"Deactivated {deactivated} prims not matching filters")
 
         # ── Provision rendering backend ───────────────────────────────
-        rendering_backend = self._create_backend(backend_type, render_config)
+        rendering_backend = create_rendering_backend(backend_type, render_config)
 
         # ── Render ────────────────────────────────────────────────────
         rendered_paths: list[str] = []
@@ -300,39 +304,6 @@ class RenderScenePreviewTask(Task):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def _create_backend(
-        backend_type: str, render_config: dict[str, Any]
-    ) -> RemoteRenderingBackend | WarpRenderingBackend | OvRTXRenderingBackend:
-        """Provision a rendering backend from config."""
-        if backend_type == "remote":
-            api_key = os.environ.get("NGC_API_KEY")
-            kwargs: dict[str, Any] = {"api_key": api_key}
-            for key in (
-                "base_url",
-                "s3_bucket",
-                "s3_region",
-                "s3_profile",
-                "timeout",
-                "max_retries",
-                "retry_delay",
-                "retry_backoff_factor",
-                "retry_jitter",
-                "bundle_mdl_assets",
-                "use_data_uri",
-            ):
-                if key in render_config:
-                    kwargs[key] = render_config[key]
-            return RemoteRenderingBackend(**kwargs)
-
-        if backend_type == "warp":
-            return WarpRenderingBackend()
-
-        if backend_type == "ovrtx":
-            return OvRTXRenderingBackend()
-
-        raise ValueError(f"Unknown rendering backend: {backend_type}")
 
     @staticmethod
     def _apply_prim_filters(

@@ -22,7 +22,7 @@ from .http import HTTPJsonExporter, create_http_exporter
 from .langfuse import create_langfuse_exporter
 from .tempo import create_tempo_exporter
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - typing-only imports
     from opentelemetry.sdk.trace.export import SpanExporter, SpanProcessor
 
     from world_understanding.telemetry.config import (

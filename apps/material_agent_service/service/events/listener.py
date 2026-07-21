@@ -11,7 +11,7 @@ It also enriches events with service-specific data (thumbnails, material icons).
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from world_understanding.agentic.events import EventListener
 from world_understanding.utils.preview_paths import (
@@ -22,6 +22,10 @@ from world_understanding.utils.preview_paths import (
 
 from ..runtime import get_event_bus
 from ..runtime.events import ProgressEvent, StepState
+from .sanitization import bounded_step_completion_data
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..session.manager import RegenerationClaim
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,7 @@ class FastAPIEventListener(EventListener):
         session_dir: "Path | None" = None,
         loop: asyncio.AbstractEventLoop | None = None,
         session_material_icons: dict[str, str] | None = None,
+        regeneration_claim: "RegenerationClaim | None" = None,
     ):
         """Initialize FastAPI event listener.
 
@@ -50,10 +55,13 @@ class FastAPIEventListener(EventListener):
             session_dir: Session directory for finding thumbnails (optional)
             loop: Event loop (None = get running loop)
             session_material_icons: Mapping of material name to icon path for custom materials
+            regeneration_claim: Immutable owner for a regeneration listener;
+                None explicitly identifies an unbound standard or scene run
         """
         self.session_id = session_id
         self.session_dir = session_dir
         self.event_bus = get_event_bus()
+        self.regeneration_claim = regeneration_claim
         self.current_step: str | None = None
 
         # Track thumbnailed images to avoid duplicates
@@ -147,6 +155,16 @@ class FastAPIEventListener(EventListener):
             )
 
         step_name = task_to_step.get(str(step_name), step_name)
+
+        if event_type in {
+            "step.cancelled",
+            "task.cancelled",
+            "workflow.cancelled",
+        }:
+            # Core cancellation notifications may be scheduled after the
+            # owning worker has returned. The executor emits the sole terminal
+            # cancellation event after durable finalization and owner fencing.
+            return None
 
         # Step lifecycle events
         if event_type == "step.started":
@@ -281,7 +299,7 @@ class FastAPIEventListener(EventListener):
                 state=StepState.COMPLETED,
                 percent=100,
                 message=data.get("message", f"Completed {step_name}"),
-                extra=data,
+                extra=bounded_step_completion_data(data),
             )
 
         elif event_type == "step.failed" or event_type == "task.failed":
@@ -293,29 +311,13 @@ class FastAPIEventListener(EventListener):
                 extra=data,
             )
 
-        elif event_type == "step.cancelled" or event_type == "task.cancelled":
-            return ProgressEvent(
-                session_id=self.session_id,
-                step=step_name,
-                state=StepState.CANCELLED,
-                message=data.get("message", f"Cancelled {step_name}"),
-                extra=data,
-            )
-
         # Workflow events
         elif event_type == "workflow.completed":
-            # Emit a final completion event to trigger status update
-            # Mark with pipeline_completed flag so EventBus knows this is final
-            extra_data = dict(data) if data else {}
-            extra_data["pipeline_completed"] = True
-            return ProgressEvent(
-                session_id=self.session_id,
-                step="pipeline",
-                state=StepState.COMPLETED,
-                percent=100,
-                message="Pipeline completed successfully",
-                extra=extra_data,
-            )
+            # The core workflow is complete, but service-side result validation
+            # (including strict material coverage) still has to run.  The
+            # executor emits the authoritative terminal completion event only
+            # after final metadata has been persisted.
+            return None
 
         elif event_type == "workflow.failed":
             # Emit failure event
@@ -324,15 +326,6 @@ class FastAPIEventListener(EventListener):
                 step=self.current_step or "unknown",
                 state=StepState.FAILED,
                 message=data.get("error") or data.get("message", "Pipeline failed"),
-                extra=data,
-            )
-
-        elif event_type == "workflow.cancelled":
-            return ProgressEvent(
-                session_id=self.session_id,
-                step=self.current_step or data.get("step_name") or "scene_pipeline",
-                state=StepState.CANCELLED,
-                message=data.get("message", "Pipeline cancellation requested"),
                 extra=data,
             )
 
@@ -447,7 +440,12 @@ class FastAPIEventListener(EventListener):
             event: Progress event to emit
         """
         # Create coroutine and schedule it
-        asyncio.create_task(self.event_bus.emit(event))
+        asyncio.create_task(
+            self.event_bus.emit_for_owner(
+                event,
+                regeneration_claim=self.regeneration_claim,
+            )
+        )
 
     def _get_material_icon(self, material_name: str) -> str | None:
         """Get material icon path for a material name (service-specific).

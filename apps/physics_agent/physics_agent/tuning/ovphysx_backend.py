@@ -3,9 +3,8 @@
 """TuningBackend implementation for ovphysx via a daemon subprocess.
 
 PR #43 originally shipped a ``getattr(ovphysx, f"run_{scenario.name}")``
-adapter — those upstream helpers do not exist in ovphysx 0.3.7
-(verified by inspecting the installed package). This module replaces
-that broken adapter:
+adapter, but OvPhysX does not provide those scenario helpers. This module
+replaces that broken adapter:
 
 * ovphysx is hosted in its own venv (``~/.cache/wu/ovphysx_venv``)
   spawned as a long-running JSON-line subprocess by
@@ -14,7 +13,7 @@ that broken adapter:
   ``physics_agent.tuning.scenarios`` (``drop_settle.py`` or
   ``freeform.py``). Each evaluator authors its scene USD with pxr in
   the parent process, sends one daemon ``evaluate`` request, gets a
-  trajectory back, writes a time-sampled ``recording.usda``, and
+  trajectory back, writes a time-sampled ``recording.usd``, and
   returns the score the runner expects.
 
 Per-trial state reset (USD release + binding teardown) is handled by
@@ -30,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from .backend import ENGINE_OVPHYSX, validate_engine_supports_params
 from .capabilities import BindingCapability, usd_physics_capabilities
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing only
     from .types import Scenario
 
 

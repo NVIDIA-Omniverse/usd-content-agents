@@ -4,11 +4,12 @@
 
 Drives prediction in one of two modes:
 
-* **Mode A (dataset_only):** A prepared ``dataset.jsonl`` already exists
-  (either at ``cache/dataset/dataset.jsonl`` for the session, or supplied via
-  ``dataset_path``). Only the ``predict`` step runs.
-* **Mode B (full_predict):** Only an input USD is available. The minimum
-  upstream steps run before prediction:
+* **Mode A (dataset_only):** A readable ``dataset_path`` was supplied, or a
+  session-cached ``dataset.jsonl`` exists and its referenced images resolve.
+  Only the ``predict`` step runs.
+* **Mode B (full_predict):** No runnable session dataset is available and an
+  input USD exists. This includes a cached JSONL with missing image artifacts.
+  The minimum upstream steps run before prediction:
   ``optimize_usd`` (optional) → ``identify_asset`` → ``build_dataset_usd``
   → ``build_dataset_prepare_dataset`` → ``predict``.
 
@@ -36,12 +37,26 @@ from physics_agent.api import (
     arun_pipeline,
     arun_predict,
 )
+from world_understanding.utils.durable_diagnostics import (
+    DurableDiagnostic,
+    FailurePhase,
+    durable_diagnostic,
+    log_durable_failure,
+)
 
 from ..events.listener import FastAPIEventListener
 from ..runtime import get_event_bus
 from ..runtime.events import ProgressEvent, StepState
 
 logger = logging.getLogger(__name__)
+
+
+class _PredictResultError(RuntimeError):
+    """Stop post-processing after a runner returned a failed result."""
+
+    def __init__(self, diagnostic: DurableDiagnostic) -> None:
+        self.diagnostic = diagnostic
+        super().__init__(diagnostic.code)
 
 
 def _extract_image_paths(entry: dict[str, Any]) -> list[str]:
@@ -237,15 +252,18 @@ async def execute_predict_async(
     session_dir = session_manager.get_session_dir(session_id)
 
     # Pull cache/ from the shared store before mode detection so a session
-    # whose dataset.jsonl was prepared on a different instance is still
-    # detected as Mode A. Without this, multi-pod /predict would pick Mode B
-    # and re-render from USD even though a prepared dataset already exists.
+    # whose runnable dataset was prepared on a different instance is still
+    # detected as Mode A. A synced JSONL whose images do not resolve remains
+    # Mode B so the executor can rebuild from USD.
     if dataset_path is None:
         try:
             await session_manager.sync_from_store(session_id, prefix="cache/dataset/")
-        except Exception as e:  # noqa: BLE001
-            logger.debug(
-                f"sync_from_store(cache/dataset/) failed for {session_id[:8]}: {e}"
+        except Exception:  # noqa: BLE001
+            log_durable_failure(
+                logger,
+                "physics_predict_dataset_sync_failed",
+                phase=FailurePhase.SYNC_UPLOAD,
+                retryable=True,
             )
 
     mode, resolved_dataset = detect_predict_mode(
@@ -289,6 +307,7 @@ async def execute_predict_async(
     # a terminal "cancelled" status in session metadata + a CANCELLED event
     # on the bus. Without this wrapper, /predict/{id}/cancel would leave
     # status stuck on "cancelling".
+    execution_failure: DurableDiagnostic | None = None
     try:
         if mode == "dataset_only":
             # Seed an EventBus snapshot for Mode A so /predict/{id}/events
@@ -319,13 +338,13 @@ async def execute_predict_async(
             result = await arun_predict(params)
 
             if not result.success:
-                await _mark_failed(
-                    session_manager,
-                    session_id,
-                    result.error or "Predict failed",
-                    "predict",
+                raise _PredictResultError(
+                    durable_diagnostic(
+                        "physics_predict_result_failed",
+                        phase=FailurePhase.PIPELINE_EXECUTION,
+                        retryable=False,
+                    )
                 )
-                raise RuntimeError(f"Predict failed: {result.error}")
 
             stats = {
                 "predictions_made": result.predictions_count,
@@ -357,13 +376,13 @@ async def execute_predict_async(
             )
 
             if not result.success:
-                await _mark_failed(
-                    session_manager,
-                    session_id,
-                    result.error or "Pipeline failed",
-                    "predict",
+                raise _PredictResultError(
+                    durable_diagnostic(
+                        "physics_predict_result_failed",
+                        phase=FailurePhase.PIPELINE_EXECUTION,
+                        retryable=False,
+                    )
                 )
-                raise RuntimeError(f"Pipeline failed during /predict: {result.error}")
 
             stats = _extract_stats_from_pipeline_result(result, session_dir)
 
@@ -407,9 +426,12 @@ async def execute_predict_async(
             try:
                 n = await session_manager.sync_to_store(session_id, prefix=prefix)
                 synced += n
-            except Exception as e:
-                logger.warning(
-                    f"Failed to sync {prefix} to store for {session_id[:8]}: {e}"
+            except Exception:
+                log_durable_failure(
+                    logger,
+                    "physics_predict_artifact_sync_failed",
+                    phase=FailurePhase.SYNC_UPLOAD,
+                    retryable=True,
                 )
         if synced > 0:
             logger.info(
@@ -478,28 +500,57 @@ async def execute_predict_async(
                         message="Predict cancelled",
                     )
                 )
-        except Exception as cleanup_error:  # noqa: BLE001
-            logger.warning(
-                f"Failed to record cancellation for {session_id[:8]}: {cleanup_error}"
+        except Exception:  # noqa: BLE001
+            log_durable_failure(
+                logger,
+                "physics_predict_cancellation_record_failed",
+                phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                retryable=True,
             )
         raise
 
-    except Exception as e:  # noqa: BLE001
+    except _PredictResultError as failure:
+        diagnostic = failure.diagnostic
+        log_durable_failure(
+            logger,
+            diagnostic.code,
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        await _mark_failed(session_manager, session_id, diagnostic, "predict")
+        execution_failure = diagnostic
+
+    except Exception:  # noqa: BLE001
         # Catch-all: if arun_predict / arun_pipeline / stats extraction /
         # artifact sync raises an unexpected error, the explicit
         # result.success==False paths above don't cover it, so without this
         # the session would stay "running" forever. _mark_failed records
         # metadata and emits the FAILED event so /predict/{id}/status and
         # SSE both observe a definitive terminal state.
-        logger.exception(f"/predict unexpected failure for {session_id[:8]}: {e}")
-        await _mark_failed(session_manager, session_id, str(e) or repr(e), "predict")
-        raise
+        diagnostic = durable_diagnostic(
+            "physics_predict_execution_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        log_durable_failure(
+            logger,
+            diagnostic.code,
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
+        await _mark_failed(session_manager, session_id, diagnostic, "predict")
+        execution_failure = diagnostic
+
+    if execution_failure is not None:
+        # Raise after leaving the handler so the original exception is not
+        # retained as ``__context__`` on a background-task failure.
+        raise RuntimeError(execution_failure.code)
 
 
 async def _mark_failed(
     session_manager,
     session_id: str,
-    error: str,
+    diagnostic: DurableDiagnostic,
     failed_step: str,
 ) -> None:
     """Record a failure in session metadata and on the EventBus snapshot.
@@ -515,12 +566,18 @@ async def _mark_failed(
             session_id,
             {
                 "status": "failed",
-                "error": error,
+                "error": diagnostic.code,
+                "error_diagnostic": diagnostic.to_dict(),
                 "failed_step": failed_step,
             },
         )
-    except Exception as e:
-        logger.warning(f"Failed to write failure metadata for {session_id[:8]}: {e}")
+    except Exception:
+        log_durable_failure(
+            logger,
+            "physics_predict_failure_metadata_failed",
+            phase=FailurePhase.PERSISTENCE_VERIFICATION,
+            retryable=True,
+        )
 
     try:
         from ..runtime import get_event_bus
@@ -532,11 +589,20 @@ async def _mark_failed(
                     session_id=session_id,
                     step=failed_step,
                     state=StepState.FAILED,
-                    message=error,
+                    message=diagnostic.code,
+                    extra={
+                        "error": diagnostic.code,
+                        "error_diagnostic": diagnostic.to_dict(),
+                    },
                 )
             )
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"Failed to emit FAILED event for {session_id[:8]}: {e}")
+    except Exception:  # noqa: BLE001
+        log_durable_failure(
+            logger,
+            "physics_predict_failure_event_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
 
 
 def _extract_stats_from_pipeline_result(result, session_dir: Path) -> dict[str, Any]:
@@ -583,10 +649,12 @@ def _extract_stats_from_pipeline_result(result, session_dir: Path) -> dict[str, 
                 if not Path(restored_path).resolve().samefile(target):
                     shutil.copyfile(restored_path, target)
                 stats["predictions_path"] = str(target)
-            except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    f"Failed to mirror restored predictions for "
-                    f"{session_dir.name[:8]}: {e}"
+            except Exception:  # noqa: BLE001
+                log_durable_failure(
+                    logger,
+                    "physics_predict_stats_collection_failed",
+                    phase=FailurePhase.PIPELINE_EXECUTION,
+                    retryable=False,
                 )
 
     raw_result = result.raw_result or {}
@@ -611,8 +679,13 @@ def _extract_stats_from_pipeline_result(result, session_dir: Path) -> dict[str, 
         try:
             with open(predictions_file) as f:
                 stats["predictions_made"] = sum(1 for line in f if line.strip())
-        except Exception as e:
-            logger.warning(f"Failed to count predictions: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "physics_predict_stats_collection_failed",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
 
     if stats["predictions_path"] is None and predictions_file.exists():
         stats["predictions_path"] = str(predictions_file)
@@ -622,7 +695,12 @@ def _extract_stats_from_pipeline_result(result, session_dir: Path) -> dict[str, 
         try:
             with open(dataset_file) as f:
                 stats["prims_processed"] = sum(1 for line in f if line.strip())
-        except Exception as e:
-            logger.warning(f"Failed to count dataset entries: {e}")
+        except Exception:
+            log_durable_failure(
+                logger,
+                "physics_predict_stats_collection_failed",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
 
     return stats

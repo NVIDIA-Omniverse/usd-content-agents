@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - static typing import.
     from pxr import Usd
 
 # Default ground-plane footprint multiplier — the plane extent is
@@ -29,6 +29,9 @@ _GROUND_PLANE_OFFSET_MULTIPLIER = 0.015  # plane sits this fraction below bbox_m
 # Default material name for the physics ground plane.
 _DEFAULT_PLANE_PATH = "/World/GroundPlane"
 _DEFAULT_MATERIAL_PATH = "/World/GroundPlaneMaterial"
+_GROUND_VISUAL_COLOR = (0.14, 0.14, 0.14)
+_GROUND_VISUAL_ROUGHNESS = 0.86
+_GROUND_VISUAL_SPECULAR_COLOR = (0.0, 0.0, 0.0)
 
 
 def add_ground_plane(
@@ -150,6 +153,25 @@ def add_ground_plane(
     material_api.CreateStaticFrictionAttr(float(friction))
     material_api.CreateDynamicFrictionAttr(float(friction))
     material_api.CreateRestitutionAttr(float(restitution))
+
+    # Visual: keep the synthetic physics ground matte. Without an explicit
+    # surface shader, RTX renderers can fall back to glossy material defaults
+    # under the default HDRI dome, producing mirror-like ground highlights.
+    shader = UsdShade.Shader.Define(stage, f"{material_path}/PreviewSurface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(*_GROUND_VISUAL_COLOR)
+    )
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(
+        _GROUND_VISUAL_ROUGHNESS
+    )
+    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.0)
+    shader.CreateInput("useSpecularWorkflow", Sdf.ValueTypeNames.Int).Set(1)
+    shader.CreateInput("specularColor", Sdf.ValueTypeNames.Color3f).Set(
+        Gf.Vec3f(*_GROUND_VISUAL_SPECULAR_COLOR)
+    )
+    shader.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
 
     return mesh.GetPrim()

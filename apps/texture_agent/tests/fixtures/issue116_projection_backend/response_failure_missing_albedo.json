@@ -1,0 +1,74 @@
+{
+  "job_id": "fake-issue116-missing-albedo",
+  "status": "failed",
+  "progress": 100,
+  "error_message": "Backend did not return required albedo map.",
+  "result": {
+    "variant_asset_uri": "file:///work/ladder/.issue116/prepared/ladder_uv_ready.usd",
+    "variant_name": "ladder_aluminum_missing_albedo",
+    "generated_textures": {
+      "albedo": null,
+      "normal": "file:///work/ladder/.issue116/backend/fake-issue116-missing-albedo/normal.png",
+      "orm": null
+    },
+    "maps": {
+      "normal": {
+        "uri": "file:///work/ladder/.issue116/backend/fake-issue116-missing-albedo/normal.png",
+        "width": 1024,
+        "height": 1024,
+        "mime_type": "image/png",
+        "colorspace": "raw",
+        "packing": "tangent_space_rgb"
+      }
+    },
+    "auxiliary_artifacts": {
+      "masks": [],
+      "debug_previews": [],
+      "geometry": []
+    },
+    "metadata": {
+      "backend_name": "fake_projection_backend",
+      "model": "fake-projection-v1",
+      "endpoint_type": "fake_http",
+      "seed": 11631,
+      "texture_size": 1024,
+      "timings_ms": {
+        "total": 89
+      },
+      "custom_parameter_summary": {
+        "variant": "missing_albedo"
+      },
+      "capabilities": {
+        "image_conditioning": true,
+        "multiview": false,
+        "normal_map": true,
+        "orm": false,
+        "masks": false,
+        "coverage": false,
+        "geometry_output": "none"
+      },
+      "coverage": {},
+      "degraded_channels": [
+        "albedo",
+        "orm"
+      ]
+    },
+    "diagnostics": [
+      {
+        "schema_version": "texture-agent-diagnostic.v1",
+        "code": "BACKEND_MAP_MISSING",
+        "severity": "error",
+        "stage": "generate_textures",
+        "prim_path": "/RootNode/SM_Ladder_A/SM_Ladder_A_Aluminum_0",
+        "material_name": "Aluminum_Matte",
+        "message": "Backend did not return required albedo map.",
+        "recommended_action": "Treat this job as failed and retry or choose another backend.",
+        "details": {
+          "missing_maps": [
+            "albedo"
+          ]
+        }
+      }
+    ]
+  }
+}

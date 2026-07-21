@@ -7,15 +7,45 @@ UnifiedPipelineConfigTask, so it doesn't need to create temporary config files
 or load configs again.
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
 
-from world_understanding.agentic.base_pipeline_executor import BasePipelineExecutor
+from world_understanding.agentic.base_pipeline_executor import (
+    BasePipelineExecutor,
+    remove_legacy_pipeline_temp_with_safe_diagnostics,
+    safe_diagnostic_steps,
+    safe_diagnostic_text,
+    safe_step_failure_message,
+)
+from world_understanding.agentic.config import normalize_yaml_config_value
 from world_understanding.agentic.events import get_listener
+from world_understanding.utils.credentials import (
+    create_directory_with_safe_diagnostics,
+    redact_sensitive_config,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _cancel_requested(context: dict[str, Any]) -> bool:
+    """Return whether the caller asked the synchronous pipeline to stop."""
+    cancel_event = context.get("cancel_event")
+    is_set = getattr(cancel_event, "is_set", None)
+    return bool(callable(is_set) and is_set())
+
+
+def _cancelled_context(
+    context: dict[str, Any],
+    pipeline_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a distinguishable cancelled result with safe partial outputs."""
+    step_outputs = (pipeline_state or {}).get("step_outputs", {})
+    context["pipeline_results"] = dict(step_outputs)
+    context["pipeline_state"] = "cancelled"
+    context["pipeline_cancelled"] = True
+    context["workflow_terminated"] = True
+    return context
 
 
 def resolve_apply_physics_inputs(
@@ -125,6 +155,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         Returns:
             Updated context with pipeline results
         """
+        if _cancel_requested(context):
+            return _cancelled_context(context)
         listener = get_listener(context, logger_name=__name__)
 
         steps_to_run = context.get("steps_to_run", [])
@@ -136,80 +168,66 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         if not steps_to_run:
             raise ValueError("No steps to run in pipeline")
 
-        # Clean working directory if requested
+        # Clean working directory if requested. The base implementation keeps
+        # both safety-check and filesystem diagnostics value-safe.
         if clean:
-            import shutil
-
-            working_dir_path = Path(working_dir)
-
-            # Safety checks
-            if working_dir_path == Path.home() or working_dir_path == Path("/"):
-                raise ValueError(f"Refusing to delete: {working_dir_path}")
-
-            if len(working_dir_path.parts) < 2:
-                raise ValueError(f"Path too shallow: {working_dir_path}")
-
-            if working_dir_path.exists():
-                logger.info("Cleaning working directory: %s", working_dir_path)
-                shutil.rmtree(working_dir_path)
+            self._clean_directories(context)
 
         # Ensure working directory exists
-        Path(working_dir).mkdir(parents=True, exist_ok=True)
+        create_directory_with_safe_diagnostics(
+            working_dir,
+            label="pipeline working directory",
+        )
+        if remove_legacy_pipeline_temp_with_safe_diagnostics(working_dir):
+            logger.warning(
+                "Removed retained legacy .pipeline_temp before pipeline startup"
+            )
 
         # Get session info
         session_id = context.get("session_id")
         project_name = context.get("project_name")
 
-        # Initialize pipeline state
-        pipeline_state = {
-            "session_id": session_id,
-            "project_name": project_name,
-            "completed_steps": [],
-            "failed_steps": [],
-            "step_outputs": {},
-            "current_step": None,
-        }
-
-        # Load existing state if resuming
         state_file = Path(working_dir) / ".pipeline_state.json"
-        if resume and state_file.exists():
-            logger.info("Resuming from checkpoint: %s", state_file)
-            with open(state_file, encoding="utf-8") as f:
-                pipeline_state = json.load(f)
-            logger.info(
-                "Previously completed: %s", ", ".join(pipeline_state["completed_steps"])
-            )
+        pipeline_state = self._initialize_pipeline_state(context, resume)
+
+        safe_session_id = safe_diagnostic_text(session_id)
+        safe_project_name = safe_diagnostic_text(project_name)
+        safe_working_dir = safe_diagnostic_text(working_dir)
+        safe_steps = safe_diagnostic_steps(steps_to_run)
 
         # Display pipeline start
         logger.info("=" * 80)
         logger.info("PIPELINE STARTING")
         logger.info("=" * 80)
-        logger.info("Session ID: %s", session_id)
-        logger.info("Project: %s", project_name)
-        logger.info("Working Directory: %s", working_dir)
-        logger.info("Steps: %s", ", ".join(steps_to_run))
+        logger.info("Session ID: %s", safe_session_id)
+        logger.info("Project: %s", safe_project_name)
+        logger.info("Working Directory: %s", safe_working_dir)
+        logger.info("Steps: %s", ", ".join(safe_steps))
         logger.info("=" * 80)
 
         # Emit pipeline start event
         listener.event(
             "pipeline.started",
             {
-                "session_id": session_id,
-                "project_name": project_name,
-                "working_dir": str(working_dir),
-                "steps": steps_to_run,
+                "session_id": safe_session_id,
+                "project_name": safe_project_name,
+                "working_dir": safe_working_dir,
+                "steps": safe_steps,
             },
         )
 
         # Execute each step
         for i, step_name in enumerate(steps_to_run, 1):
+            if _cancel_requested(context):
+                return _cancelled_context(context, pipeline_state)
+            safe_step_name = safe_diagnostic_text(step_name)
             # Skip if already completed (resume mode)
             if resume and step_name in pipeline_state["completed_steps"]:
                 logger.info(
                     "[%d/%d] Skipping %s (already completed)",
                     i,
                     len(steps_to_run),
-                    step_name,
+                    safe_step_name,
                 )
                 continue
 
@@ -218,14 +236,17 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
             try:
                 logger.info(
-                    "\n[%d/%d] Executing step: %s", i, len(steps_to_run), step_name
+                    "\n[%d/%d] Executing step: %s",
+                    i,
+                    len(steps_to_run),
+                    safe_step_name,
                 )
 
                 if event_listener:
                     event_listener.event(
                         "step.started",
                         {
-                            "step_name": step_name,
+                            "step_name": safe_step_name,
                             "step_index": i,
                             "total_steps": len(steps_to_run),
                         },
@@ -244,28 +265,42 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 # Save checkpoint
                 self._save_checkpoint(pipeline_state, state_file)
 
-                logger.info("Step '%s' completed successfully", step_name)
+                logger.info("Step '%s' completed successfully", safe_step_name)
 
                 if event_listener:
                     event_listener.event(
                         "step.completed",
-                        {"step_name": step_name, "outputs": outputs},
+                        {
+                            "step_name": safe_step_name,
+                            "outputs": redact_sensitive_config(outputs),
+                        },
                     )
 
-            except Exception as e:
-                logger.error("Step '%s' failed: %s", step_name, e, exc_info=True)
+            except Exception as error:
+                safe_error = safe_step_failure_message(error)
+                logger.error("Step '%s' failed: %s", safe_step_name, safe_error)
                 pipeline_state["failed_steps"].append(step_name)
                 pipeline_state["current_step"] = None
 
                 self._save_checkpoint(pipeline_state, state_file)
+                context["pipeline_results"] = dict(pipeline_state["step_outputs"])
+                context["pipeline_state"] = "failed"
 
                 if event_listener:
                     event_listener.event(
                         "step.failed",
-                        {"step_name": step_name, "error": str(e)},
+                        {"step_name": safe_step_name, "error": safe_error},
                     )
 
-                raise RuntimeError(f"Pipeline failed at step '{step_name}': {e}") from e
+                raise RuntimeError(
+                    f"Pipeline failed at step '{safe_step_name}': {safe_error}"
+                ) from None
+
+        # A cancellation that arrived during the final synchronous step must
+        # win over successful terminal publication. The service waits for this
+        # thread to return before it records the cancelled state.
+        if _cancel_requested(context):
+            return _cancelled_context(context, pipeline_state)
 
         # Pipeline completed
         pipeline_state["current_step"] = None
@@ -274,16 +309,21 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         logger.info("=" * 80)
         logger.info("PIPELINE COMPLETED SUCCESSFULLY")
         logger.info("=" * 80)
-        logger.info("Session ID: %s", session_id)
-        logger.info("Completed Steps: %s", ", ".join(pipeline_state["completed_steps"]))
+        logger.info("Session ID: %s", safe_session_id)
+        logger.info(
+            "Completed Steps: %s",
+            ", ".join(safe_diagnostic_steps(pipeline_state["completed_steps"])),
+        )
         logger.info("=" * 80)
 
         listener.event(
             "pipeline.completed",
             {
-                "session_id": session_id,
-                "project_name": project_name,
-                "completed_steps": pipeline_state["completed_steps"],
+                "session_id": safe_session_id,
+                "project_name": safe_project_name,
+                "completed_steps": safe_diagnostic_steps(
+                    pipeline_state["completed_steps"]
+                ),
             },
         )
 
@@ -312,6 +352,11 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         Returns:
             Dictionary with relevant outputs
         """
+        # Each workflow receives its own YAML-equivalent copy. Auto-wiring must
+        # never mutate the shared step_configs mapping because API callers can
+        # run multiple pipelines concurrently with different credentials.
+        step_config = self._prepare_runtime_config(step_config)
+
         # Auto-wire outputs from previous steps if needed
         step_outputs = pipeline_state.get("step_outputs", {})
         working_dir = Path(context.get("working_dir", Path.cwd()))
@@ -436,11 +481,6 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     working_dir / "restored_predictions.jsonl"
                 )
 
-        # Create temporary config file for the step (after all auto-wiring)
-        temp_config_path = self._create_temp_config_file(
-            step_name, step_config, working_dir
-        )
-
         # Import workflows
         from physics_agent.workflows import (
             create_apply_physics_workflow_from_config,
@@ -469,8 +509,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         # Create workflow
         workflow = workflow_map[step_name]()
 
-        # Prepare step context
-        step_context = {"config_path": str(temp_config_path)}
+        # Keep the original config path only as a relative-path anchor. Runtime
+        # values, including credentials, stay in memory and are never serialized
+        # to .pipeline_temp.
+        step_context: dict[str, Any] = {"config_dict": step_config}
+        if config_path := context.get("config_path"):
+            step_context["config_path"] = str(config_path)
 
         if "event_listener" in context:
             step_context["event_listener"] = context["event_listener"]
@@ -508,73 +552,18 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         # Extract outputs
         return self._extract_step_outputs(step_name, result)
 
-    def _create_temp_config_file(
-        self, step_name: str, step_config: dict[str, Any], working_dir: Path
-    ) -> Path:
-        """Create temporary config file for a step.
-
-        Args:
-            step_name: Name of the step
-            step_config: Step configuration dictionary
-            working_dir: Working directory
-
-        Returns:
-            Path to the temporary config file
-        """
-        import uuid
-
-        import yaml
-
-        temp_dir = working_dir / ".pipeline_temp"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-
-        unique_id = uuid.uuid4().hex[:8]
-        temp_config_path = temp_dir / f"{step_name}_config_{unique_id}.yaml"
-
-        # Create serializable config
-        serializable_config = {}
+    def _prepare_runtime_config(self, step_config: dict[str, Any]) -> dict[str, Any]:
+        """Return an isolated, YAML-equivalent runtime configuration."""
+        runtime_config: dict[str, Any] = {}
         for key, value in step_config.items():
             if key == "renderer" and isinstance(value, dict):
-                # Skip non-serializable objects
-                renderer_copy = {
-                    k: v for k, v in value.items() if not k.startswith("_")
-                }
-                serializable_config[key] = self._make_yaml_safe(renderer_copy)
-            else:
-                serializable_config[key] = self._make_yaml_safe(value)
-
-        with open(temp_config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(
-                serializable_config,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-            )
-
-        logger.debug("Created temp config: %s", temp_config_path)
-        return temp_config_path
+                value = {k: v for k, v in value.items() if not k.startswith("_")}
+            runtime_config[key] = self._make_yaml_safe(value)
+        return runtime_config
 
     def _make_yaml_safe(self, value: Any) -> Any:
-        """Recursively convert runtime objects into safe YAML scalars."""
-        from dataclasses import asdict, is_dataclass
-        from enum import Enum
-
-        if isinstance(value, Enum):
-            return value.value
-        if isinstance(value, Path):
-            return str(value)
-        if is_dataclass(value) and not isinstance(value, type):
-            return self._make_yaml_safe(asdict(value))
-        if hasattr(value, "model_dump"):
-            return self._make_yaml_safe(value.model_dump())
-        if isinstance(value, dict):
-            return {
-                self._make_yaml_safe(key): self._make_yaml_safe(item)
-                for key, item in value.items()
-            }
-        if isinstance(value, list | tuple | set):
-            return [self._make_yaml_safe(item) for item in value]
-        return value
+        """Normalize explicit YAML-equivalent values without rendering objects."""
+        return normalize_yaml_config_value(value)
 
     def _extract_step_outputs(
         self, step_name: str, result: dict[str, Any]

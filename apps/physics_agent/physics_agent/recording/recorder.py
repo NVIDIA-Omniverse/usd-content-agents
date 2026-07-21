@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Author a time-sampled ``recording.usda`` from an ovphysx trajectory.
+"""Author a time-sampled ``recording.usd`` from an ovphysx trajectory.
 
 Per issue #50: the simulation loop emits a list of
 ``(t_seconds, pose7, vel6)`` tuples (raw simulator output — position
@@ -89,7 +89,7 @@ def _quantize_to_fps(
 
     Returns ``[(frame_index, t_quantized_seconds, pose, vel), ...]`` sorted
     by frame index. Mirrors the USD authoring path so the JSONL artifact
-    aligns frame-for-frame with the recording.usda.
+    aligns frame-for-frame with the recording.usd.
     """
     samples_by_frame: dict[int, tuple[list[float], list[float]]] = {}
     for t, pose, vel in truncated:
@@ -123,7 +123,7 @@ def author_trajectory_usda(
     fps: int = 30,
     max_duration_s: float = _DEFAULT_MAX_DURATION_S,
 ) -> Path:
-    """Author ``recording.usda`` and return its path.
+    """Author ``recording.usd`` and return its path.
 
     Args:
         scene_usd: Path to the simulation scene USD (the one fed to
@@ -217,7 +217,7 @@ def author_trajectory_jsonl(
     One JSON line per frame, sharing the same fps quantization and
     duration cap as ``author_trajectory_usda`` so the JSONL and USD
     artifacts cover the same span frame-for-frame. This is the
-    judge-readable companion to ``recording.usda`` — mirrors the
+    judge-readable companion to ``recording.usd`` — mirrors the
     material-agent pattern where ``predict`` writes ``predictions.jsonl``
     that the judge's programmatic side ingests.
 

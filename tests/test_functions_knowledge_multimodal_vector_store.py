@@ -3,7 +3,7 @@
 """Tests for multimodal vector store functions."""
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -13,6 +13,8 @@ from world_understanding.functions.knowledge.base_vector_store import BaseSearch
 from world_understanding.functions.knowledge.multimodal_vector_store import (
     MultimodalVectorStore,
     build_multimodal_vector_store,
+    collect_documents_from_vector_store,
+    find_similar_documents_from_vector_store,
 )
 from world_understanding.functions.models.multimodal_embedding_models import (
     BaseMultimodalEmbeddingModel,
@@ -409,6 +411,87 @@ class TestBuildMultimodalVectorStore:
 
         assert vector_store.num_documents == 2
 
+    def test_build_creates_embedding_model_from_api_key(self, monkeypatch):
+        """Test default embedding model creation when an API key is configured."""
+        monkeypatch.setenv("NVIDIA_API_KEY", "test-api-key")
+        mock_model = MockMultimodalEmbeddingModel(dimension=256)
+        expected_store = object()
+
+        with (
+            patch(
+                "world_understanding.functions.knowledge.multimodal_vector_store.create_multimodal_embedding_model",
+                return_value=mock_model,
+            ) as mock_create_model,
+            patch.object(
+                MultimodalVectorStore,
+                "build_vector_store",
+                return_value=expected_store,
+            ) as mock_build_vector_store,
+        ):
+            vector_store = build_multimodal_vector_store(text_source=["hello"])
+
+        assert vector_store is expected_store
+        mock_create_model.assert_called_once_with(backend="nim", api_key="test-api-key")
+        assert mock_build_vector_store.call_args.kwargs["embedding_model"] is mock_model
+
+
+class TestFindSimilarDocumentsFromVectorStore:
+    """Test find_similar_documents_from_vector_store helper dispatch."""
+
+    def test_find_similar_documents_loads_path_store(self):
+        """Test finding documents from a saved store path."""
+        mock_store = MagicMock()
+        expected_results = [object()]
+        mock_store.find_similar_documents.return_value = expected_results
+        store_path = Path("/tmp/multimodal-store")
+
+        with patch.object(
+            MultimodalVectorStore, "load", return_value=mock_store
+        ) as mock_load:
+            results = find_similar_documents_from_vector_store(
+                query="chair",
+                query_type="text",
+                store=store_path,
+                k=3,
+                filter_metadata={"category": "furniture"},
+                embedding_type="text",
+                caption_prompt="caption",
+                system_prompt="system",
+                vlm_backend="azure_openai",
+                vlm_model="gpt-4o-mini",
+                vlm_api_key="key",
+            )
+
+        assert results == expected_results
+        mock_load.assert_called_once_with(store_path)
+        mock_store.find_similar_documents.assert_called_once_with(
+            query="chair",
+            query_type="text",
+            k=3,
+            filter_metadata={"category": "furniture"},
+            embedding_type="text",
+            caption_prompt="caption",
+            system_prompt="system",
+            vlm_backend="azure_openai",
+            vlm_model="gpt-4o-mini",
+            vlm_api_key="key",
+        )
+
+    def test_find_similar_documents_uses_store_instance(self):
+        """Test finding documents from an existing store instance."""
+        mock_store = MagicMock()
+        expected_results = [object()]
+        mock_store.find_similar_documents.return_value = expected_results
+
+        results = find_similar_documents_from_vector_store(
+            query=np.ones(3),
+            query_type="embedding",
+            store=mock_store,
+        )
+
+        assert results == expected_results
+        mock_store.find_similar_documents.assert_called_once()
+
 
 class TestCollectDocuments:
     """Test collect_documents functionality."""
@@ -507,12 +590,23 @@ class TestCollectDocuments:
 class TestCollectDocumentsFromVectorStore:
     """Test collect_documents_from_vector_store function."""
 
-    def test_collect_documents_from_vector_store_function(self, tmp_path):
-        """Test the standalone collect_documents_from_vector_store function."""
-        from world_understanding.functions.knowledge.multimodal_vector_store import (
-            collect_documents_from_vector_store,
+    def test_collect_documents_uses_store_instance(self):
+        """Test collecting documents from an existing vector store instance."""
+        mock_store = MagicMock()
+        expected_documents = [object()]
+        mock_store.collect_documents.return_value = expected_documents
+
+        documents = collect_documents_from_vector_store(
+            mock_store, filter_metadata={"category": "test"}
         )
 
+        assert documents == expected_documents
+        mock_store.collect_documents.assert_called_once_with(
+            filter_metadata={"category": "test"}
+        )
+
+    def test_collect_documents_from_vector_store_function(self, tmp_path):
+        """Test the standalone collect_documents_from_vector_store function."""
         # Create a mock embedding model
         mock_model = MockMultimodalEmbeddingModel()
 

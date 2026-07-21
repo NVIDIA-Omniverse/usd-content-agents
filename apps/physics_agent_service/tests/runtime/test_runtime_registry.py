@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 import pytest
 
+from ...service.runtime import registry as registry_module
 from ...service.runtime.registry import _RESERVED, JobRegistry
 
 
@@ -317,3 +318,97 @@ async def test_register_releases_slot_on_start_failure() -> None:
     await _wait_until(started.is_set)
     second_release.set()
     await _wait_until(lambda: registry.registered_count == 0)
+
+
+async def test_start_closes_wrapper_and_inner_when_task_creation_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = JobRegistry(max_concurrent=1)
+    reservation = await registry.reserve("task-create-failure")
+    captured: dict[str, object] = {}
+
+    async def incoming_job() -> None:
+        await asyncio.sleep(0)
+
+    def fail_task_creation(wrapper: object) -> None:
+        captured["wrapper"] = wrapper
+        raise RuntimeError("simulated create_task failure")
+
+    monkeypatch.setattr(
+        registry_module,
+        "_create_job_task",
+        fail_task_creation,
+    )
+    incoming = incoming_job()
+    with pytest.raises(RuntimeError, match="create_task failure"):
+        await reservation.start(incoming)
+
+    wrapper = captured["wrapper"]
+    assert getattr(wrapper, "cr_frame") is None
+    assert incoming.cr_frame is None
+    await reservation.release()
+    assert registry.registered_count == 0
+    assert registry.active_count == 0
+
+
+async def test_start_cancellation_while_waiting_for_lock_closes_incoming_coro() -> None:
+    registry = JobRegistry(max_concurrent=1)
+    reservation = await registry.reserve("start-lock-cancel")
+
+    async def incoming_job() -> None:
+        raise AssertionError("incoming_job must not start before task ownership")
+
+    incoming = incoming_job()
+
+    async def start_reserved_job() -> None:
+        async with reservation:
+            await reservation.start(incoming)
+
+    await registry._lock.acquire()
+    try:
+        start_task = asyncio.create_task(start_reserved_job())
+        await _wait_until(lambda: bool(registry._lock._waiters))
+
+        start_task.cancel()
+        await _wait_until(lambda: incoming.cr_frame is None)
+        assert not start_task.done()
+        assert registry._tasks.get("start-lock-cancel") is _RESERVED
+        assert registry.is_running("start-lock-cancel")
+    finally:
+        registry._lock.release()
+
+    # start() closes the still-unowned coroutine, while the reservation context
+    # waits for the same lock so it can release the sentinel before propagating
+    # cancellation to the route.
+    with pytest.raises(asyncio.CancelledError):
+        await start_task
+    assert registry.registered_count == 0
+    assert not registry.is_running("start-lock-cancel")
+
+
+async def test_cancel_before_active_increment_preserves_capacity() -> None:
+    registry = JobRegistry(max_concurrent=1)
+    reservation = await registry.reserve("increment-race")
+
+    async def never_started() -> None:
+        await asyncio.Event().wait()
+
+    await reservation.start(never_started())
+    await registry._lock.acquire()
+    try:
+        # The wrapper acquires capacity, then blocks on the held registry lock
+        # before it can increment active_count.
+        await asyncio.sleep(0)
+        task = registry.get_task("increment-race")
+        assert task is not None
+        assert registry._semaphore._value == 0
+        task.cancel()
+    finally:
+        registry._lock.release()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert registry.active_count == 0
+    assert registry._semaphore._value == 1
+    assert registry.registered_count == 0
+    assert not registry.is_running("increment-race")

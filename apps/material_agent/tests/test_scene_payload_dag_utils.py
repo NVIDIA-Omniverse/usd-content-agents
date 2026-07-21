@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from pxr import Usd, UsdGeom
+from pxr import Sdf, Usd, UsdGeom
 
 from material_agent.scene.payload_dag_utils import (
     build_dag,
@@ -142,3 +142,92 @@ def test_rewrite_arcs_in_layer_handles_child_map_and_moved_layer(
     assert {item.assetPath for item in ref_items} == {"new_child.usda"}
     assert payload_items
     assert payload_items[0].assetPath.endswith("../original/other.usda")
+
+
+def test_collect_arcs_from_file_handles_missing_and_unopenable_layers(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    assert collect_arcs_from_file(str(tmp_path / "missing.usda")) == set()
+
+    existing = tmp_path / "existing.usda"
+    existing.write_text("#usda 1.0\n")
+    monkeypatch.setattr(Sdf.Layer, "FindOrOpen", staticmethod(lambda _path: None))
+    assert collect_arcs_from_file(str(existing)) == set()
+
+    def raise_open(_path: str) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(Sdf.Layer, "FindOrOpen", staticmethod(raise_open))
+    assert collect_arcs_from_file(str(existing)) == set()
+
+
+def test_collect_arcs_from_file_skips_bad_sublayers(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    sublayer = tmp_path / "sub.usda"
+    sub_stage = _make_stage(sublayer)
+    sub_stage.GetRootLayer().Save()
+    parent = tmp_path / "parent.usda"
+    stage = _make_stage(parent)
+    stage.GetRootLayer().subLayerPaths.append("./sub.usda")
+    stage.GetRootLayer().Save()
+
+    original_find_or_open = Sdf.Layer.FindOrOpen
+
+    def flaky_open(path: str):
+        if Path(path).resolve() == sublayer.resolve():
+            raise RuntimeError("bad sublayer")
+        return original_find_or_open(path)
+
+    monkeypatch.setattr(Sdf.Layer, "FindOrOpen", staticmethod(flaky_open))
+
+    assert collect_arcs_from_file(str(parent)) == set()
+
+
+def test_compute_depths_cycle_guard() -> None:
+    assert compute_depths({"/a.usd": {"/a.usd"}}) == {"/a.usd": 1}
+
+
+def test_rewrite_arcs_in_layer_handles_unopenable_resolve_source_and_empty_arcs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    layer_path = tmp_path / "layer.usda"
+    stage = _make_stage(layer_path)
+    prim = stage.DefinePrim("/World/Thing")
+    prim.GetReferences().AddReference("")
+    stage.GetRootLayer().Save()
+    layer = Sdf.Layer.FindOrOpen(str(layer_path))
+    assert layer is not None
+
+    original_find_or_open = Sdf.Layer.FindOrOpen
+
+    def fake_open(path: str):
+        if path == str(tmp_path / "resolve-source.usda"):
+            return None
+        return original_find_or_open(path)
+
+    monkeypatch.setattr(Sdf.Layer, "FindOrOpen", staticmethod(fake_open))
+
+    assert rewrite_arcs_in_layer(layer, {}) == 0
+    assert (
+        rewrite_arcs_in_layer(
+            layer,
+            {},
+            resolve_from=tmp_path / "resolve-source.usda",
+        )
+        == 0
+    )
+
+    spec = layer.GetPrimAtPath("/World/Thing")
+    assert spec is not None
+    ref_items = (
+        list(spec.referenceList.prependedItems)
+        + list(spec.referenceList.appendedItems)
+        + list(spec.referenceList.explicitItems)
+        + list(spec.referenceList.deletedItems)
+        + list(spec.referenceList.orderedItems)
+    )
+    assert any(item.assetPath == "" for item in ref_items)

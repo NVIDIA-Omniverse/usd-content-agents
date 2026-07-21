@@ -24,11 +24,34 @@ from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from physics_agent.tuning.visual_evidence import (
+    DEFAULT_JUDGE_GENERATED_FRAMES,
+    DEFAULT_JUDGE_REFERENCE_FRAMES,
+    DEFAULT_REFERENCE_VIDEO_FRAMES,
+    validate_visual_frame_count,
+)
 from sse_starlette import EventSourceResponse
-from world_understanding.utils.s3_utils import download_file_from_s3
+from world_understanding.functions.physics import ovphysx_runtime_available
+from world_understanding.utils.durable_diagnostics import (
+    FailurePhase,
+    log_durable_failure,
+)
+from world_understanding.utils.held_file_response import HeldFileResponse
+from world_understanding.utils.s3_utils import (
+    S3BucketNotAllowedError,
+    authorize_s3_uri_for_extensions,
+    download_file_from_s3,
+)
 
+from ..artifact_contract import (
+    TUNE_ARTIFACT_SPECS,
+    artifact_name_from_key,
+    available_artifact_keys,
+)
 from ..config import config
+from ..config_persistence import avalidate_durable_request_content
 from ..models.responses import (
+    S3_INPUT_ERROR_RESPONSES,
     PipelineError,
     SessionCreated,
     TuneResults,
@@ -54,6 +77,16 @@ def get_session_manager() -> SessionManager:
 def set_session_manager(manager: SessionManager) -> None:
     global session_manager
     session_manager = manager
+
+
+def _validate_ovphysx_runtime_for_request(engine: str) -> None:
+    """Reject OvPhysX work when the provisioned daemon runtime is unavailable."""
+
+    if engine == "ovphysx" and not ovphysx_runtime_available():
+        raise HTTPException(
+            status_code=503,
+            detail="OvPhysX runtime is not available in this deployment",
+        )
 
 
 _VALID_USD_EXTENSIONS = {".usd", ".usda", ".usdc", ".usdz"}
@@ -83,15 +116,23 @@ _MAX_REFERENCE_DESCRIPTIONS_BYTES = 16 * 1024
 _MAX_REFERENCE_DESCRIPTION_BYTES = 2 * 1024
 
 
-def _tune_download_urls(session_id: str) -> dict[str, str]:
-    return {
-        "best_params": f"/tune/{session_id}/artifacts/best_params.json",
-        "tune_results": f"/tune/{session_id}/artifacts/tune_results.json",
-        "history": f"/tune/{session_id}/artifacts/history.jsonl",
-        "report": f"/tune/{session_id}/artifacts/report.md",
-        "tuned_usd": f"/tune/{session_id}/artifacts/tuned_physics.usda",
-        "visual_comparison": f"/tune/{session_id}/artifacts/comparison.png",
+async def _tune_download_urls(
+    manager: SessionManager,
+    session_id: str,
+    metadata: dict,
+) -> dict[str, str]:
+    available = await available_artifact_keys(manager, session_id, metadata, "tune")
+    urls = {
+        spec.logical_name: (
+            f"/tune/{session_id}/artifacts/{artifact_name_from_key(spec.key, 'tune')}"
+        )
+        for spec in TUNE_ARTIFACT_SPECS
+        if spec.key in available
     }
+    legacy_tuned_usd = "tune/tuned_physics.usda"
+    if "tuned_usd" not in urls and legacy_tuned_usd in available:
+        urls["tuned_usd"] = f"/tune/{session_id}/artifacts/tuned_physics.usda"
+    return urls
 
 
 async def _stream_copy(
@@ -252,37 +293,54 @@ def _coerce_finite_score(value: object) -> float | None:
     return f
 
 
+def _validate_and_authorize_s3_usd_uri(s3_uri: str) -> str:
+    """Validate and authorize a client S3 USD URI without performing I/O."""
+    try:
+        return authorize_s3_uri_for_extensions(
+            s3_uri,
+            config.s3_allowed_buckets,
+            allowed_extensions=_VALID_USD_EXTENSIONS,
+        )
+    except S3BucketNotAllowedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
-    if not s3_uri.startswith("s3://") or s3_uri.count("/") < 3:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid S3 URI format: {s3_uri}. Expected s3://bucket/key",
-        )
-    s3_filename = s3_uri.rstrip("/").rsplit("/", 1)[-1]
-    if not s3_filename:
-        raise HTTPException(status_code=400, detail=f"S3 URI lacks key: {s3_uri}")
-    ext = Path(s3_filename).suffix.lower()
-    if ext not in _VALID_USD_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Invalid USD file type in S3 URI: {ext}. "
-                f"Allowed: {', '.join(sorted(_VALID_USD_EXTENSIONS))}"
-            ),
-        )
+    """Reauthorize and download a client-supplied S3 USD into session input."""
+    ext = _validate_and_authorize_s3_usd_uri(s3_uri)
 
     local_path = session_dir / "input" / f"physics{ext}"
     local_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         download_file_from_s3(s3_uri, local_path)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"S3 object not found: {s3_uri}")
-    except PermissionError:
-        raise HTTPException(
-            status_code=403, detail=f"Access denied to S3 object: {s3_uri}"
+        log_durable_failure(
+            logger,
+            "tune_s3_object_not_found",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
         )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"S3 download failed: {e}")
+        raise HTTPException(status_code=404, detail="S3 object not found") from None
+    except PermissionError:
+        log_durable_failure(
+            logger,
+            "tune_s3_access_denied",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
+        )
+        raise HTTPException(
+            status_code=403, detail="Access denied to S3 object"
+        ) from None
+    except Exception:
+        log_durable_failure(
+            logger,
+            "tune_s3_download_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
+        raise HTTPException(status_code=502, detail="S3 download failed") from None
     size_mb = local_path.stat().st_size / (1024 * 1024)
     if size_mb > config.max_upload_size_mb:
         local_path.unlink(missing_ok=True)
@@ -375,7 +433,12 @@ def _validate_engine_name_for_request(engine: str) -> None:
         )
 
 
-@router.post("", response_model=SessionCreated, status_code=202)
+@router.post(
+    "",
+    response_model=SessionCreated,
+    status_code=202,
+    responses=S3_INPUT_ERROR_RESPONSES,
+)
 async def create_tune(
     physics_usd: UploadFile = File(
         None,
@@ -408,6 +471,18 @@ async def create_tune(
         description=(
             "Optional JSON array of descriptions parallel to reference_videos"
         ),
+    ),
+    reference_video_frames: int = Form(
+        default=DEFAULT_REFERENCE_VIDEO_FRAMES,
+        description="Frames to extract from each reference video for visual judging",
+    ),
+    judge_reference_frames: int = Form(
+        default=DEFAULT_JUDGE_REFERENCE_FRAMES,
+        description="Max reference images/video frames to send to the VLM judge",
+    ),
+    judge_generated_frames: int = Form(
+        default=DEFAULT_JUDGE_GENERATED_FRAMES,
+        description="Max generated render frames to send to the VLM judge",
     ),
     scenario_yaml: str = Form(
         default="",
@@ -491,6 +566,7 @@ async def create_tune(
             ),
         )
     _validate_engine_name_for_request(engine)
+    _validate_ovphysx_runtime_for_request(engine)
     if len(scenario_yaml.encode("utf-8")) > _MAX_SCENARIO_YAML_BYTES:
         raise HTTPException(
             status_code=413,
@@ -516,6 +592,17 @@ async def create_tune(
                 "Either scenario_yaml or user_prompt must be supplied (both are empty)."
             ),
         )
+    canonical_yaml = await avalidate_durable_request_content(
+        {
+            "user_prompt": user_prompt_text or None,
+            "reference_descriptions": reference_descriptions,
+            "reference_video_descriptions": reference_video_descriptions,
+            "s3_uri": s3_uri,
+        },
+        yaml_documents={"scenario_yaml": scenario_yaml_text},
+        context="physics tune durable request content",
+    )
+    scenario_yaml_text = canonical_yaml["scenario_yaml"]
     if judge_max_iterations < 1 or judge_max_iterations > 10:
         raise HTTPException(
             status_code=400,
@@ -538,6 +625,21 @@ async def create_tune(
                 f"judge_temperature must be finite and >= 0, got {judge_temperature}."
             ),
         )
+    try:
+        reference_video_frames = validate_visual_frame_count(
+            "reference_video_frames",
+            reference_video_frames,
+        )
+        judge_reference_frames = validate_visual_frame_count(
+            "judge_reference_frames",
+            judge_reference_frames,
+        )
+        judge_generated_frames = validate_visual_frame_count(
+            "judge_generated_frames",
+            judge_generated_frames,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     reference_image_uploads = _nonempty_uploads(reference_images)
     reference_video_uploads = _nonempty_uploads(reference_videos)
     reference_upload_count = len(reference_image_uploads) + len(reference_video_uploads)
@@ -614,8 +716,11 @@ async def create_tune(
     if has_scenario:
         try:
             scenario_data = yaml.safe_load(scenario_yaml_text)
-        except yaml.YAMLError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid scenario YAML: {e}")
+        except yaml.YAMLError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid scenario YAML",
+            ) from None
         if not isinstance(scenario_data, dict):
             raise HTTPException(
                 status_code=400,
@@ -680,6 +785,9 @@ async def create_tune(
             scenario_param_names,
         )
 
+    if s3_uri:
+        _validate_and_authorize_s3_usd_uri(s3_uri)
+
     manager = get_session_manager()
     session_id = str(uuid.uuid4())
     session_dir = await manager.create_session(session_id)
@@ -720,9 +828,18 @@ async def create_tune(
     except HTTPException:
         await manager.delete_session(session_id)
         raise
-    except Exception as e:
+    except Exception:
+        log_durable_failure(
+            logger,
+            "tune_input_provision_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
         await manager.delete_session(session_id)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to provision input physics USD",
+        ) from None
 
     input_physics = _find_input_physics(session_dir)
     if not input_physics:
@@ -797,6 +914,9 @@ async def create_tune(
                 "reference_videos": [str(p) for p in reference_video_paths],
                 "reference_descriptions": parsed_reference_descriptions,
                 "reference_video_descriptions": (parsed_reference_video_descriptions),
+                "reference_video_frames": reference_video_frames,
+                "judge_reference_frames": judge_reference_frames,
+                "judge_generated_frames": judge_generated_frames,
                 "enable_judge": enable_judge,
                 "judge_max_iterations": judge_max_iterations,
                 "judge_max_tokens": judge_max_tokens,
@@ -824,6 +944,9 @@ async def create_tune(
             reference_videos=reference_video_paths,
             reference_descriptions=parsed_reference_descriptions,
             reference_video_descriptions=parsed_reference_video_descriptions,
+            reference_video_frames=reference_video_frames,
+            judge_reference_frames=judge_reference_frames,
+            judge_generated_frames=judge_generated_frames,
             engine=engine,
             optimizer=optimizer,
             max_trials=max_trials,
@@ -911,6 +1034,9 @@ async def get_tune_status(session_id: str) -> TuneStatus:
         best_params=best_params,
         elapsed_seconds=elapsed,
         can_cancel=metadata.get("status") in ("pending", "running"),
+        error_message=metadata.get("error")
+        if metadata.get("status") == "failed"
+        else None,
         created_at=metadata["created_at"],
         updated_at=metadata["updated_at"],
     )
@@ -935,7 +1061,7 @@ async def get_tune_results(session_id: str):
             n_trials=metadata.get("results", {}).get("n_trials", 0),
             optimizer_used=metadata.get("results", {}).get("optimizer_used", ""),
             engine_used=metadata.get("results", {}).get("engine_used", ""),
-            download_urls=_tune_download_urls(session_id),
+            download_urls=await _tune_download_urls(manager, session_id, metadata),
             duration_seconds=metadata.get("duration_seconds", 0),
             completed_at=metadata.get("completed_at", ""),
         )
@@ -950,7 +1076,7 @@ async def get_tune_results(session_id: str):
                 n_trials=results.get("n_trials", 0),
                 optimizer_used=results.get("optimizer_used", ""),
                 engine_used=results.get("engine_used", ""),
-                download_urls=_tune_download_urls(session_id),
+                download_urls=await _tune_download_urls(manager, session_id, metadata),
                 duration_seconds=metadata.get("duration_seconds", 0),
                 completed_at=metadata.get("completed_at", ""),
                 error_message=metadata.get("error", "Unknown error"),
@@ -980,7 +1106,7 @@ async def get_tune_results(session_id: str):
             n_trials=results.get("n_trials", 0),
             optimizer_used=results.get("optimizer_used", ""),
             engine_used=results.get("engine_used", ""),
-            download_urls=_tune_download_urls(session_id),
+            download_urls=await _tune_download_urls(manager, session_id, metadata),
             duration_seconds=metadata.get("duration_seconds", 0),
             completed_at=metadata.get("completed_at", ""),
         )
@@ -1088,7 +1214,7 @@ async def stream_tune_events(session_id: str):
                 detail="Tune is running on a different instance; use polling instead",
             )
 
-    async def event_generator():
+    async def event_generator():  # pragma: no cover - SSE transport loop
         queue = event_bus.get_queue(session_id)
         if snapshot is not None and snapshot.get("status") in terminal_states:
             final_state = snapshot["status"]
@@ -1159,30 +1285,48 @@ async def download_tune_artifact(session_id: str, name: str):
     Allowed names are exactly the artifact filenames the runner writes —
     anything else is rejected with 404 to avoid path traversal.
     """
-    from fastapi.responses import FileResponse
-
     manager = get_session_manager()
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
     allowed = {
-        "best_params.json": ("application/json", "best_params.json"),
-        "tune_results.json": ("application/json", "tune_results.json"),
-        "history.jsonl": ("application/x-ndjson", "history.jsonl"),
-        "report.md": ("text/markdown", "report.md"),
-        "tuned_physics.usda": ("application/octet-stream", "tuned_physics.usda"),
-        "comparison.png": ("image/png", "comparison.png"),
+        artifact_name_from_key(spec.key, "tune"): (
+            spec.media_type,
+            spec.download_name,
+        )
+        for spec in TUNE_ARTIFACT_SPECS
     }
+    allowed.update(
+        {
+            # Backward-compatible alias for sessions/clients created before the
+            # canonical tuned artifact switched to .usd.
+            "tuned_physics.usda": (
+                "application/octet-stream",
+                "tuned_physics.usda",
+            ),
+        }
+    )
     if name not in allowed:
         raise HTTPException(status_code=404, detail=f"Unknown artifact: {name}")
 
+    metadata = await manager.get_session_metadata(session_id) or {}
+    available = await available_artifact_keys(manager, session_id, metadata, "tune")
     media_type, filename = allowed[name]
-    session_dir = manager.get_session_dir(session_id)
-    artifact_path = session_dir / "tune" / name
-    if not artifact_path.exists():
-        # Try pulling from store (cross-instance / S3 case).
-        await manager.sync_from_store(session_id, prefix="tune/")
-    if not artifact_path.exists():
+    legacy_aliases = {"tuned_physics.usda": "tuned_physics.usd"}
+    requested_key = f"tune/{name}"
+    if requested_key not in available and name in legacy_aliases:
+        requested_key = f"tune/{legacy_aliases[name]}"
+    if requested_key not in available:
         raise HTTPException(status_code=404, detail=f"Artifact not available: {name}")
 
-    return FileResponse(artifact_path, media_type=media_type, filename=filename)
+    selected_key = requested_key
+    artifact = await manager.open_local_artifact_key(session_id, selected_key)
+    if artifact is None:
+        # Try pulling from store (cross-instance / S3 case).
+        await manager.sync_from_store(session_id, prefix="tune/")
+        artifact = await manager.open_local_artifact_key(session_id, selected_key)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail=f"Artifact not available: {name}")
+    if selected_key != f"tune/{name}":
+        filename = Path(selected_key).name
+    return HeldFileResponse(artifact, media_type=media_type, filename=filename)

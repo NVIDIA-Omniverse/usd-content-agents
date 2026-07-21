@@ -1,0 +1,55 @@
+# Franka Robotics FR3 — 7-DOF successor to the Panda.
+# Same kinematic structure as Panda, with benchmark labels mapped over the
+# standard Franka URDF convention (fr3_link0..fr3_link7 + fr3_hand).
+
+robot_id: franka_fr3
+aliases:
+  - fr3
+  - "franka_research_3"
+  - "franka research 3"
+  - "franka_fr3"
+  - "franka fr3"
+  - "fr 3"
+filename_aliases:
+  - fr3
+  - "franka_fr3"
+description: "Franka Robotics FR3 — 7-DOF research arm (Panda successor), 8 benchmark segments"
+topology: serial_chain
+num_dofs: 7
+component_names:
+  - link0_base
+  - link1
+  - link2
+  - link3
+  - link4
+  - link5
+  - link6
+  - link7_flange
+visual_cues:
+  link0_base: >-
+    Base mounting plate / pedestal at the bottom of the chain.
+  link1: >-
+    First revolute housing rotating about the vertical axis above the base.
+  link2: >-
+    First long forward-tilting link off the shoulder.
+  link3: >-
+    Second long link continuing the arm reach.
+  link4: >-
+    Elbow region link; together with link2 and link3 forms the redundant
+    7-DOF S-shape.
+  link5: >-
+    Forearm-length link continuing toward the wrist.
+  link6: >-
+    Compact wrist housing closer to the forearm.
+  link7_flange: >-
+    Final wrist link with the tool-mounting flange face. The terminal hand,
+    gripper body, and collision mesh belong to this benchmark label.
+tiebreakers:
+  - >-
+    Distinguish FR3 from Panda by URDF / prim path tokens — the kinematics
+    are visually similar but prim prefixes differ (fr3_ vs panda_).
+  - >-
+    7 DOFs implies all benchmark labels link0_base..link7_flange must appear;
+    the redundant elbow is not optional.
+completeness_required: true
+self_check: true

@@ -22,7 +22,7 @@ from world_understanding.utils.image_utils import image_to_base64
 from world_understanding.utils.token_tracking import TokenUsage
 
 # Default configurations
-_DEFAULT_NIM_VLM_MODEL = "qwen/qwen3.5-397b-a17b"
+_DEFAULT_NIM_VLM_MODEL = "google/gemma-4-31b-it"
 _DEFAULT_AZURE_VLM_MODEL = "gpt-5"
 _DEFAULT_OPENAI_MODEL = "gpt-5.4"
 _DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
@@ -1104,7 +1104,7 @@ class NvidiaNIMVLM(BaseVisionLanguageModel):
 
         Args:
             api_key: NVIDIA API key
-            model: Model name (defaults to qwen/qwen3.5-397b-a17b)
+            model: Model name (defaults to google/gemma-4-31b-it)
             timeout: Request timeout in seconds
             **kwargs: Additional configuration options
         """

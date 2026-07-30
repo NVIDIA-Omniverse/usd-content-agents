@@ -35,7 +35,7 @@ dependencies:
     # OpenAI-compatible /v1 endpoint for material and physics VLM calls.
     endpoint: ""
     backend: nim
-    model: qwen/qwen3.5-397b-a17b
+    model: google/gemma-4-31b-it
     # Optional: lower this for small self-hosted models with short context.
     # max_tokens: 512
 
@@ -45,7 +45,7 @@ dependencies:
     # OpenAI-compatible /v1 endpoint for material and texture text LLM calls.
     endpoint: ""
     backend: nim
-    model: qwen/qwen3.5-32b-instruct
+    model: google/gemma-4-31b-it
     # max_tokens: 512
 
   image_gen:

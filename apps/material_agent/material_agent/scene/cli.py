@@ -304,7 +304,7 @@ def analyze(
             # Default LLM config if not explicitly configured
             llm_config = {
                 "backend": "nim",
-                "model": "qwen/qwen3.5-397b-a17b",
+                "model": "google/gemma-4-31b-it",
                 "temperature": 0.1,
                 "max_tokens": 256,
             }
@@ -1205,7 +1205,7 @@ def _run_cmd_legacy(
         llm_section = analyze_opts.get("llm")
         llm_config = llm_section or {
             "backend": "nim",
-            "model": "qwen/qwen3.5-397b-a17b",
+            "model": "google/gemma-4-31b-it",
             "temperature": 0.1,
             "max_tokens": 256,
         }

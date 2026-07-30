@@ -28,7 +28,7 @@ services:
       - TA_IMAGE_GEN_MODEL=${TA_IMAGE_GEN_MODEL:-}
       - TA_IMAGE_GEN_BASE_URL=${TA_IMAGE_GEN_BASE_URL:-}
       - TA_LLM_BACKEND=${TA_LLM_BACKEND:-nim}
-      - TA_LLM_MODEL=${TA_LLM_MODEL:-qwen/qwen3.5-32b-instruct}
+      - TA_LLM_MODEL=${TA_LLM_MODEL:-google/gemma-4-31b-it}
       - TA_LLM_BASE_URL=${TA_LLM_BASE_URL:-}
       - TA_TEXTURE_SIZE=${TA_TEXTURE_SIZE:-1024}
       - TA_TEXTURE_WORKERS=${TA_TEXTURE_WORKERS:-4}

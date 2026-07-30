@@ -266,7 +266,7 @@ Configurable via `.env` at the repo root. Key settings:
 | `ANTHROPIC_API_KEY` | | Anthropic VLM provider |
 | `GOOGLE_API_KEY` | | Google Gemini VLM provider |
 | `PA_VLM_BACKEND` | `nim` | Which VLM backend to use |
-| `PA_VLM_MODEL` | `qwen/qwen3.5-397b-a17b` | Model id for the selected backend |
+| `PA_VLM_MODEL` | `google/gemma-4-31b-it` | Model id for the selected backend |
 | `PA_VLM_TEMPERATURE` | `1.0` | Sampling temperature |
 | `PA_REFINE_BACKEND` | `gemini` | `/refine` judge/refiner backend; must be registered for both chat and VLM |
 | `PA_REFINE_MODEL` | `gemini-3-pro-preview` | `/refine` judge/refiner model override |

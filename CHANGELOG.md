@@ -1,3 +1,18 @@
+# Content Agents 0.5.2 (28 Jul 2026)
+
+Content Agents 0.5.2 restores Gemma 4 31B as the consistent hosted public NIM
+model for release 0.5.
+
+## Changed
+
+- Restored `google/gemma-4-31b-it` as the public NIM default for VLM and LLM
+  workloads across Material, Physics, Joint, Texture, and Validation agents.
+- Aligned shared model helpers, services, collection deployment, examples,
+  public documentation, UI metadata, and regression coverage with the restored
+  default.
+- Preserved explicitly Qwen-specific self-hosting workflows and benchmark
+  configurations as opt-in model-specific paths.
+
 # Content Agents 0.5.0 (17 Jul 2026)
 
 Content Agents 0.5 adds the new Joint Agent Research Preview and expands the

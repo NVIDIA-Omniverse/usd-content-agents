@@ -1,7 +1,7 @@
 # Content Agents Agent Guide
 
 This file provides public, repo-local guidance for coding agents working in
-`NVIDIA-Omniverse/content-agents`.
+`NVIDIA-Omniverse/usd-content-agents`.
 
 ## Start Here
 

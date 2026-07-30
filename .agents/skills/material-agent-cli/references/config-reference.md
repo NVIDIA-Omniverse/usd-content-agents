@@ -120,7 +120,7 @@ steps:
   predict:
     vlm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 
   apply: {}
 

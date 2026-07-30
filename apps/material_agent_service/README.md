@@ -74,7 +74,7 @@ Service configuration is loaded from environment variables at startup. See [`.en
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Required if using `gemini` backend |
 | `MA_VLM_BACKEND` | Default: `nim` |
-| `MA_VLM_MODEL` | Default: `qwen/qwen3.5-397b-a17b` |
+| `MA_VLM_MODEL` | Default: `google/gemma-4-31b-it` |
 | `MA_IMAGE_GEN_BACKEND` | Shared image-generation backend for generated reference images and generated material-library textures (default: `gemini`) |
 | `MA_IMAGE_GEN_MODEL` | Optional shared image-generation model override |
 | `MA_IMAGE_GEN_BASE_URL` | Optional shared image-generation API base URL |

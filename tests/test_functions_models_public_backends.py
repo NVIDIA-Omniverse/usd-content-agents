@@ -139,7 +139,7 @@ def test_nim_chat_factory_builds_model_and_applies_timeout(
     )
 
     assert chat.kwargs == {
-        "model": "qwen/qwen3.5-397b-a17b",
+        "model": "google/gemma-4-31b-it",
         "nvidia_api_key": "nim-key",
         "streaming": True,
         "temperature": 0.2,

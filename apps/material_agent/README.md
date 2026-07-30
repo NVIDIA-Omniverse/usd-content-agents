@@ -280,7 +280,7 @@ steps:
   predict:
     vlm:
       backend: nim                  # or: openai, anthropic, gemini
-      model: qwen/qwen3.5-397b-a17b  # model from your chosen provider
+      model: google/gemma-4-31b-it  # model from your chosen provider
 
   render:
     backend: ovrtx

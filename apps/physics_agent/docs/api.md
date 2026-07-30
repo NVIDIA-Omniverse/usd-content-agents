@@ -195,7 +195,7 @@ config = {
     "predict": {
         "vlm": {
             "backend": "nim",                    # REQUIRED
-            "model": "qwen/qwen3.5-397b-a17b",    # REQUIRED
+            "model": "google/gemma-4-31b-it",    # REQUIRED
         },
     },
     "input": {

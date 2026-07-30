@@ -85,7 +85,7 @@ joint candidates, and publishes accepted topology as a self-contained
 
 ![Eight articulated USDZ examples showing joint-driven motion previews with cyan markers for predicted bodies](assets/images/joint_agent_physics_agent_working_examples.gif)
 
-- Public NIM defaults: `nim` with `qwen/qwen3.5-397b-a17b`
+- Public NIM defaults: `nim` with `google/gemma-4-31b-it`
 - Remote rendering through `RENDER_ENDPOINT` by default
 - Repo-owned, topology-only authoring with no external-rigger fallback
 - USDZ package readback and joint-graph evidence
@@ -432,8 +432,8 @@ run for model compilation.
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/NVIDIA-Omniverse/content-agents.git
-cd content-agents
+git clone https://github.com/NVIDIA-Omniverse/usd-content-agents.git
+cd usd-content-agents
 ```
 
 ### Environment Setup
@@ -691,7 +691,7 @@ are unchanged.
 ## Project Structure
 
 ```
-content-agents/
+usd-content-agents/
 ├── world_understanding/        # Core library (tools, functions, agentic framework)
 ├── apps/
 │   ├── material_agent/         # Material assignment agent (CLI)

@@ -9,7 +9,7 @@ The service ships with an NVIDIA-first default stack:
 | Role | Default | Env var | Model |
 |---|---|---|---|
 | Image generation | `nim` | `TA_IMAGE_GEN_BACKEND` | `black-forest-labs/flux_2-klein-4b` (build.nvidia.com) |
-| Auto-prompt LLM  | `nim` | `TA_LLM_BACKEND`       | `qwen/qwen3.5-32b-instruct` (build.nvidia.com) |
+| Auto-prompt LLM  | `nim` | `TA_LLM_BACKEND`       | `google/gemma-4-31b-it` (build.nvidia.com) |
 
 Both honor `NVIDIA_API_KEY`. One key unlocks the whole default path.
 

@@ -28,7 +28,7 @@ steps:
     use_prompt_library: false
     llm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 
   build_dataset_usd:
     enabled: true
@@ -44,7 +44,7 @@ steps:
     completion_retries: 3
     vlm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 
   consistency_pass:
     enabled: true
@@ -66,7 +66,7 @@ steps:
       require_source_images: true
     vlm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 
   # Opt in only after reviewing the generated Stage 2 candidate document.
   apply_joint_rigger:

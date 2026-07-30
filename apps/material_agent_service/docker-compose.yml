@@ -69,9 +69,9 @@ services:
       # Default: NVIDIA NIM (build.nvidia.com) with NVIDIA_API_KEY
       # Override via .env to use OpenAI, Anthropic, Gemini, or custom endpoints
       - MA_VLM_BACKEND=${MA_VLM_BACKEND:-nim}
-      - MA_VLM_MODEL=${MA_VLM_MODEL:-qwen/qwen3.5-397b-a17b}
+      - MA_VLM_MODEL=${MA_VLM_MODEL:-google/gemma-4-31b-it}
       - MA_LLM_BACKEND=${MA_LLM_BACKEND:-nim}
-      - MA_LLM_MODEL=${MA_LLM_MODEL:-qwen/qwen3.5-397b-a17b}
+      - MA_LLM_MODEL=${MA_LLM_MODEL:-google/gemma-4-31b-it}
 
       # Interactive generated reference images. Default uses the public Gemini
       # backend with GOOGLE_API_KEY; override in .env for OpenAI or NIM.

@@ -204,13 +204,13 @@ steps:
   predict:
     vlm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
       temperature: 1.0
       max_completion_tokens: 24576
     max_workers: 16
     llm:  # For structured output parsing
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
       temperature: 0.1
       max_tokens: 512
     report:

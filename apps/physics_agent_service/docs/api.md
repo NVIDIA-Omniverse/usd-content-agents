@@ -51,7 +51,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Physics Agent Service",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -109,7 +109,7 @@ Health check.
 {
   "status": "healthy",
   "service": "Physics Agent Service",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "api_keys_configured": true,
   "max_active_sessions": 1,
   "tuning_extra_available": true,
@@ -1636,7 +1636,7 @@ request authorization.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PA_VLM_BACKEND` | `nim` | VLM inference backend |
-| `PA_VLM_MODEL` | `qwen/qwen3.5-397b-a17b` | VLM model identifier |
+| `PA_VLM_MODEL` | `google/gemma-4-31b-it` | VLM model identifier |
 | `PA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
 | `PA_TUNE_BACKEND` | unset; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` | Optional `/tune` prompt-to-scenario interpreter backend override |
 | `PA_TUNE_MODEL` | unset; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` or the deployment default | Optional `/tune` prompt-to-scenario interpreter model override |

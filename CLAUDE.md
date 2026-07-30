@@ -1,7 +1,7 @@
 # Content Agents Claude Code Guide
 
 This file provides public, repo-local guidance for Claude Code working in
-`NVIDIA-Omniverse/content-agents`.
+`NVIDIA-Omniverse/usd-content-agents`.
 
 ## Start Here
 

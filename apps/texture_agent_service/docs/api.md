@@ -39,7 +39,7 @@ Health check.
 {
   "status": "healthy",
   "service": "Texture Agent Service",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "image_gen_backend": "nim",
   "active_backend_key_configured": true,
   "nvidia_api_key_configured": true,
@@ -536,7 +536,7 @@ service README rather than duplicated in this service API table.
 | `TA_IMAGE_GEN_BASE_URL` | — | Override image-gen base URL; used by the multi-gpu overlay to route at the local FLUX sidecar. |
 | `TA_IMAGE_GEN_API_KEY` | — | Endpoint-specific image-gen key. The multi-gpu overlay sets `not-used` for the local FLUX sidecar and overrides service-local env files. |
 | `TA_LLM_BACKEND` | `nim` | LLM backend for auto-prompt generation. |
-| `TA_LLM_MODEL` | `qwen/qwen3.5-32b-instruct` | LLM model. |
+| `TA_LLM_MODEL` | `google/gemma-4-31b-it` | LLM model. |
 | `TA_LLM_BASE_URL` | — | Override LLM base URL; set by the overlay when running `--profile llm`. |
 | `TA_TEXTURE_SIZE` | `1024` | Output texture resolution. |
 | `TA_TEXTURE_WORKERS` | `4` | Parallel texture generation workers. |

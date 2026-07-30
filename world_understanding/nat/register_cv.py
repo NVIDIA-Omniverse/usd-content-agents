@@ -234,7 +234,7 @@ async def vlm(config: VLMToolConfig, builder: Builder) -> Any:
                 if not api_key:
                     return "Error: NVIDIA_API_KEY environment variable not set"
                 if not model:
-                    model = "qwen/qwen3.5-397b-a17b"
+                    model = "google/gemma-4-31b-it"
 
             # Create VLM instance using the new create_vlm function
             try:

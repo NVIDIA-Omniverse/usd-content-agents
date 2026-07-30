@@ -509,8 +509,8 @@ async def get_vlm_models():
     """Return available VLM models for the UI dropdown."""
     models = [
         {
-            "value": "nim/qwen/qwen3.5-397b-a17b",
-            "label": "Qwen 3.5 397B (Default)",
+            "value": "nim/google/gemma-4-31b-it",
+            "label": "Gemma 4 31B (Default)",
             "is_default": True,
         },
         {

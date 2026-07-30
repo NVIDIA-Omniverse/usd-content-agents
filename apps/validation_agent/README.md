@@ -139,7 +139,7 @@ policy:
   visual_evidence_mode: canonical_usd
   look_right_vlm:
     backend: nim
-    model: qwen/qwen3.5-397b-a17b
+    model: google/gemma-4-31b-it
   reference_image_paths:
     - reference.png
 project:

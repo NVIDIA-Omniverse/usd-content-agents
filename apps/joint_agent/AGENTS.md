@@ -17,7 +17,7 @@ joint-agent run my_joint_asset.yaml --dry-run
 joint-agent run my_joint_asset.yaml
 ```
 
-The template uses `nim`, `qwen/qwen3.5-397b-a17b`, and remote rendering. Review
+The template uses `nim`, `google/gemma-4-31b-it`, and remote rendering. Review
 the generated Stage 2 candidate document before setting
 `steps.apply_joint_rigger.enabled: true`. Resume the run to publish
 `.joint-agent-byoa/joint_rigger/rigged.usdz` through `owned_core`.

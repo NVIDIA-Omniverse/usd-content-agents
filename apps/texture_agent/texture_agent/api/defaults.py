@@ -11,7 +11,7 @@ have the same mental model across agents.
 # ============================================================================
 
 DEFAULT_LLM_BACKEND: str = "nim"
-DEFAULT_LLM_MODEL: str = "qwen/qwen3.5-32b-instruct"
+DEFAULT_LLM_MODEL: str = "google/gemma-4-31b-it"
 DEFAULT_LLM_TEMPERATURE: float = 0.7
 # Sized for a multi-material JSON response. Verbose instruct models
 # (observed with cosmos-reason2-8b during sidecar testing) produce

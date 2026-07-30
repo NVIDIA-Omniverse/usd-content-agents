@@ -25,7 +25,7 @@ info:
     \ endpoint.\n    * Cancel running pipelines via a dedicated endpoint.\n\n* Visual\
     \ feedback\n    * Live preview gallery during the rendering stage.\n    * On-demand\
     \ HTML report generation with per-prim classifications.\n"
-  version: 0.5.0
+  version: 0.5.2
 paths:
   /pipeline/upload-usd:
     post:

@@ -125,7 +125,7 @@ Service configuration is loaded from environment variables at startup. Key setti
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` | Required if using `gemini` backend |
 | `PA_VLM_BACKEND` | Default: `nim` |
-| `PA_VLM_MODEL` | Default: `qwen/qwen3.5-397b-a17b` |
+| `PA_VLM_MODEL` | Default: `google/gemma-4-31b-it` |
 | `PA_TUNE_BACKEND` | Optional `/tune` prompt interpreter backend override; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` |
 | `PA_TUNE_MODEL` | Optional `/tune` prompt interpreter model override; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` |
 | `PA_REFINE_BACKEND` | Optional `/refine` judge/refiner backend override; falls back to `PA_VLM_BACKEND` |

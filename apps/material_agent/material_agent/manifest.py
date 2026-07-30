@@ -81,7 +81,7 @@ class GenerateManifestInput:
     max_workers: int = 4
     skip_descriptions: bool = False
     vlm_backend: str = "nim"
-    vlm_model: str | None = "qwen/qwen3.5-397b-a17b"
+    vlm_model: str | None = "google/gemma-4-31b-it"
     vlm_workers: int = 8
     list_materials: bool = False
     verbose: bool = False

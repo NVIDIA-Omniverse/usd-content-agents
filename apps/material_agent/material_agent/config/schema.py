@@ -293,7 +293,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "enabled": False,
             "llm_judge": {
                 "backend": "nim",
-                "model": "meta/llama-4-maverick-17b-128e-instruct",
+                "model": "google/gemma-4-31b-it",
                 "temperature": 0.7,
                 "max_tokens": 1024,
             },

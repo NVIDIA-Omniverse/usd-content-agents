@@ -128,7 +128,7 @@ def _generate_example_input(input_model: Any) -> dict[str, Any]:
             example[field_name] = field_info.get("default", "nim")
 
         elif field_name == "model":
-            example[field_name] = "meta/llama-4-maverick-17b-128e-instruct"
+            example[field_name] = "google/gemma-4-31b-it"
 
         elif field_name == "target_color":
             if "RGB" in description or "color" in description.lower():

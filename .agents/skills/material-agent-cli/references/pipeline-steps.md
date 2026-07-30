@@ -271,7 +271,7 @@ steps:
   benchmark:
     enabled: true
     vlm: { backend: nim, model: google/gemma-4-31b-it }
-    llm_judge: { backend: nim, model: meta/llama-4-maverick-17b-128e-instruct }
+    llm_judge: { backend: nim, model: google/gemma-4-31b-it }
     max_workers: 64
 ```
 
@@ -347,7 +347,7 @@ steps:
     enabled: true
     llm_judge:
       backend: nim
-      model: meta/llama-4-maverick-17b-128e-instruct
+      model: google/gemma-4-31b-it
     success_threshold: 4.0
     generate_html_report: true
 ```

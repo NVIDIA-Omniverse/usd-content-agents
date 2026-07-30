@@ -5,6 +5,11 @@ model for release 0.5.
 
 ## Changed
 
+- Retired the end-of-life `meta/llama-4-maverick-17b-128e-instruct` references,
+  including the Material Agent service model list and the `llm_judge` default,
+  replacing them with `google/gemma-4-31b-it`. That model reached end of life
+  on the same date as the Qwen 3.5 models and returns `410 Gone`, so any
+  configuration naming it failed at request time.
 - Restored `google/gemma-4-31b-it` as the public NIM default for VLM and LLM
   workloads across Material, Physics, Joint, Texture, and Validation agents.
 - Aligned shared model helpers, services, collection deployment, examples,

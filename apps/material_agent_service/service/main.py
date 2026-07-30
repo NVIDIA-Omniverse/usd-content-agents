@@ -514,11 +514,6 @@ async def get_vlm_models():
             "is_default": True,
         },
         {
-            "value": "nim/meta/llama-4-maverick-17b-128e-instruct",
-            "label": "Llama 4 Maverick 17B",
-            "is_default": False,
-        },
-        {
             "value": "nim/__custom__",
             "label": "NIM (Custom Model)",
             "is_default": False,

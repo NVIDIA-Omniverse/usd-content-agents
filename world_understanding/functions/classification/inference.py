@@ -688,7 +688,7 @@ def classify_object(
         from world_understanding.functions.models.chat_models import create_chat_model
 
         # Create VLM and LLM
-        vlm = create_vlm(backend="nim", model="meta/llama-4-maverick-17b")
+        vlm = create_vlm(backend="nim", model="google/gemma-4-31b-it")
         llm = create_chat_model(backend="nim")
 
         # Classify vehicle type

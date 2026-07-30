@@ -115,7 +115,7 @@ def test_openapi_documents_joint_rigger_service_surface() -> None:
     )
 
     repository_version = (REPO_ROOT / "VERSION.md").read_text(encoding="utf-8").strip()
-    assert openapi["info"]["version"] == repository_version == "0.5.0"
+    assert openapi["info"]["version"] == repository_version == "0.5.2"
 
     form_properties = openapi["paths"]["/pipeline"]["post"]["requestBody"]["content"][
         "multipart/form-data"

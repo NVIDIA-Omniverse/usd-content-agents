@@ -64,7 +64,7 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = os.environ.get("PA_VLM_BACKEND", "nim")
-DEFAULT_VLM_MODEL = os.environ.get("PA_VLM_MODEL", "qwen/qwen3.5-397b-a17b")
+DEFAULT_VLM_MODEL = os.environ.get("PA_VLM_MODEL", "google/gemma-4-31b-it")
 DEFAULT_VLM_TEMPERATURE = parse_float_env(
     "PA_VLM_TEMPERATURE", 1.0, minimum=0.0, maximum=2.0, logger=logger
 )

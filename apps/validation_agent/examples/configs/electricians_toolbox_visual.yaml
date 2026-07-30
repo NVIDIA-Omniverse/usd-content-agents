@@ -19,7 +19,7 @@ policy:
   visual_evidence_mode: canonical_usd
   look_right_vlm:
     backend: nim
-    model: qwen/qwen3.5-397b-a17b
+    model: google/gemma-4-31b-it
   reference_image_paths:
     - ../fixtures/simready/github/simready-foundation/sample_content/common_assets/props_general/obs_electricians_large_tool_box_a01/simready_usd/.thumbs/sm_obs_electricians_large_tool_box_a01_01_thumbnail.png
   reference_guidance: >

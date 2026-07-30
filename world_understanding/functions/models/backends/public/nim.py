@@ -14,7 +14,7 @@ from world_understanding.functions.models.backends.registry import (
 from world_understanding.functions.models.nim_timeout import _apply_nim_chat_timeout
 from world_understanding.utils.credentials import get_nim_api_key_for_base_url
 
-_DEFAULT_NIM_MODEL = "qwen/qwen3.5-397b-a17b"
+_DEFAULT_NIM_MODEL = "google/gemma-4-31b-it"
 _DEFAULT_TIMEOUT_SECONDS = 120.0
 
 

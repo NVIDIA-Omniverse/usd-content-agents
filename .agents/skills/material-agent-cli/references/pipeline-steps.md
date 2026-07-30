@@ -85,7 +85,7 @@ steps:
     enabled: true
     vlm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 ```
 
 **Output:** `{working_dir}/identification/identification.json` plus an
@@ -219,13 +219,13 @@ steps:
   predict:
     vlm:
       backend: nim                   # nim (default), openai, anthropic, gemini
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
       temperature: 1.0
       max_completion_tokens: 24576
     max_workers: 16                 # Parallel inference workers
     llm:                            # Optional LLM for post-processing
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
     report:
       image_max_size: 256
 ```
@@ -270,7 +270,7 @@ exclusive with `predict`.
 steps:
   benchmark:
     enabled: true
-    vlm: { backend: nim, model: qwen/qwen3.5-397b-a17b }
+    vlm: { backend: nim, model: google/gemma-4-31b-it }
     llm_judge: { backend: nim, model: meta/llama-4-maverick-17b-128e-instruct }
     max_workers: 64
 ```
@@ -289,7 +289,7 @@ steps:
     enabled: true
     llm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 ```
 
 **Output:** Updated prediction records for downstream `harmonize_predictions`,
@@ -307,7 +307,7 @@ steps:
     enabled: true
     llm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
 ```
 
 **Output:** Harmonized predictions for downstream material application.

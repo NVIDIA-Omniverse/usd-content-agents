@@ -205,11 +205,11 @@ def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
     assert steps["build_dataset_usd"]["renderer"]["backend"] == "remote"
     assert steps["analyze_structure"]["llm"] == {
         "backend": "nim",
-        "model": "qwen/qwen3.5-397b-a17b",
+        "model": "google/gemma-4-31b-it",
     }
     assert steps["predict"]["vlm"] == {
         "backend": "nim",
-        "model": "qwen/qwen3.5-397b-a17b",
+        "model": "google/gemma-4-31b-it",
     }
     assert steps["predict"]["completion_retries"] == 3
     assert steps["build_dataset_prepare_dataset"]["prompt_profile"] == (
@@ -230,7 +230,7 @@ def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
         },
         "vlm": {
             "backend": "nim",
-            "model": "qwen/qwen3.5-397b-a17b",
+            "model": "google/gemma-4-31b-it",
         },
     }
     apply_step = steps["apply_joint_rigger"]

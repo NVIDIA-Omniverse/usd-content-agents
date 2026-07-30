@@ -51,7 +51,7 @@ class SubAssetHarnessConfig:
     render_mode: Literal["remote"] = "remote"
     inference_mode: Literal["vlm"] = "vlm"
     vlm_backend: str = "nim"
-    vlm_model: str = "qwen/qwen3.5-397b-a17b"
+    vlm_model: str = "google/gemma-4-31b-it"
     max_iterations: int = 1
     max_rendered_prims: int | None = None
     apply_source_mode: Literal["copy", "overlay"] = "copy"

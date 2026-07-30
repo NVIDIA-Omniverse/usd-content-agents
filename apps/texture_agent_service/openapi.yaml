@@ -8,7 +8,7 @@ info:
     \ change)\n\nThe service ships with an NVIDIA-first default stack:\n\n| Role |\
     \ Default | Env var | Model |\n|---|---|---|---|\n| Image generation | `nim` |\
     \ `TA_IMAGE_GEN_BACKEND` | `black-forest-labs/flux_2-klein-4b` (build.nvidia.com)\
-    \ |\n| Auto-prompt LLM  | `nim` | `TA_LLM_BACKEND`       | `qwen/qwen3.5-32b-instruct`\
+    \ |\n| Auto-prompt LLM  | `nim` | `TA_LLM_BACKEND`       | `google/gemma-4-31b-it`\
     \ (build.nvidia.com) |\n\nBoth honor `NVIDIA_API_KEY`. One key unlocks the whole\
     \ default path.\n\n> **PBR coherence trade-off \u2014 read before deploying.**\n\
     >\n> The cloud `nim` image-gen endpoint does not accept reference images, so\n\
@@ -209,7 +209,7 @@ info:
     \ Dockerfile                  # Service image\n\u251C\u2500\u2500 openapi.yaml\
     \                # API specification\n\u2514\u2500\u2500 pyproject.toml      \
     \        # Install metadata\n```\n"
-  version: 0.5.0
+  version: 0.5.2
 paths:
   /pipeline/upload-usd:
     post:

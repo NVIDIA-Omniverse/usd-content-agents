@@ -33,7 +33,7 @@ services:
 
       # VLM/LLM configuration
       - PA_VLM_BACKEND=${PA_VLM_BACKEND:-nim}
-      - PA_VLM_MODEL=${PA_VLM_MODEL:-qwen/qwen3.5-397b-a17b}
+      - PA_VLM_MODEL=${PA_VLM_MODEL:-google/gemma-4-31b-it}
       - PA_VLM_TEMPERATURE=${PA_VLM_TEMPERATURE:-1.0}
 
       # NOTE: VLM provider API keys (NVIDIA_API_KEY, OPENAI_API_KEY,

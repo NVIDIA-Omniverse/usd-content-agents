@@ -125,7 +125,7 @@ input:
 predict:
   vlm:
     backend: nim                    # or: openai, anthropic, gemini
-    model: qwen/qwen3.5-397b-a17b
+    model: google/gemma-4-31b-it
 ```
 
 Paths in config files are relative to the config file's directory.

@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 # Public fallback model + backend per #51 spec. Service deployments override
 # these with PA_TUNE_*, PA_REFINE_*, or PA_VLM_* environment settings so
 # prompt-only /tune uses the same internal model backend as the service.
-_DEFAULT_CHAT_MODEL_NAME = "qwen/qwen3.5-397b-a17b"
+_DEFAULT_CHAT_MODEL_NAME = "google/gemma-4-31b-it"
 _DEFAULT_CHAT_BACKEND = "nim"
 
 
@@ -726,7 +726,7 @@ def infer_scenario_from_prompt(
             wins on every key conflict. The interpreter only fills gaps the
             user's config did not specify. Must be a dict if provided.
         chat_model: Optional pre-built chat model instance. When ``None`` the
-            project default (``qwen/qwen3.5-397b-a17b`` on the ``nim``
+            project default (``google/gemma-4-31b-it`` on the ``nim``
             backend) is resolved via
             :func:`world_understanding.functions.models.chat_models.create_chat_model`.
         audit_dir: Optional directory. When set, the post-merge final dict

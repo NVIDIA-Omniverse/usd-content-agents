@@ -21,7 +21,7 @@ export NVIDIA_API_KEY="YOUR_NVIDIA_API_KEY"
 export RENDER_ENDPOINT="http://renderer.example:8000"
 ```
 
-The public template defaults to `nim`, `qwen/qwen3.5-397b-a17b`, and remote
+The public template defaults to `nim`, `google/gemma-4-31b-it`, and remote
 rendering through `RENDER_ENDPOINT`.
 
 The prediction VLM requests up to 24,576 output tokens by default. Set

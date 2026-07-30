@@ -2,7 +2,7 @@
 # Classifies the materialized Isaac SimReady Tire_B01 asset shipped at
 # apps/physics_agent/data/examples/Tire_B01/tire.usdc, then bakes physics
 # schemas for the bounce refine flow. Uses the public NVIDIA NIM backend
-# (build.nvidia.com) with qwen/qwen3.5-397b-a17b — set NVIDIA_API_KEY.
+# (build.nvidia.com) with google/gemma-4-31b-it — set NVIDIA_API_KEY.
 # Swap the ``predict.vlm`` block for another supported backend if you
 # prefer OpenAI, Anthropic, or Gemini (see the commented examples there).
 
@@ -218,7 +218,7 @@ steps:
       # To use Anthropic: backend: anthropic, model: claude-sonnet-4-20250514
       # To use Gemini: backend: gemini, model: gemini-2.5-pro
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
       temperature: 0.3
       max_tokens: 8192
     max_workers: 64

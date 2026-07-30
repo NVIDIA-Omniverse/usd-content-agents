@@ -32,7 +32,7 @@ def test_display_vlm_response_includes_optional_model() -> None:
     _display_vlm_response(
         {
             "backend_used": "nim",
-            "model_used": "qwen/qwen3.5-397b-a17b",
+            "model_used": "google/gemma-4-31b-it",
             "images_analyzed": 2,
             "response": "Two objects are visible.",
         },
@@ -43,7 +43,7 @@ def test_display_vlm_response_includes_optional_model() -> None:
     rendered = "\n".join(str(call[0][0]) for call in console.calls)
     assert "VLM Analysis Results" in rendered
     assert "Backend: nim" in rendered
-    assert "Model: qwen/qwen3.5-397b-a17b" in rendered
+    assert "Model: google/gemma-4-31b-it" in rendered
     assert "Images Analyzed: 2" in rendered
     assert "Two objects are visible." in rendered
 
@@ -87,7 +87,7 @@ def test_vlm_tool_accepts_gemini_api_key_alias(
     ("backend", "expected_model", "custom_base_url"),
     (
         ("test-provider", None, None),
-        ("nim", "qwen/qwen3.5-397b-a17b", None),
+        ("nim", "google/gemma-4-31b-it", None),
         ("openai", "gpt-5.4", "https://api.openai.example/v1"),
         ("anthropic", "claude-opus-4-6", None),
     ),

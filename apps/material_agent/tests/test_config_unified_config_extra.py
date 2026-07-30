@@ -832,7 +832,7 @@ def test_autowire_validation_and_basic_setup_steps(tmp_path: Path) -> None:
 
     identify = task._autowire_paths(
         "identify_asset",
-        {"vlm": {"backend": "nim", "model": "qwen/qwen3.5-397b-a17b"}},
+        {"vlm": {"backend": "nim", "model": "google/gemma-4-31b-it"}},
         resolver,
         None,
         {},
@@ -841,14 +841,14 @@ def test_autowire_validation_and_basic_setup_steps(tmp_path: Path) -> None:
     assert identify["output_dir"] == str(resolver.get_step_output_dir("identify_asset"))
     assert identify["vlm_config"] == {
         "backend": "nim",
-        "model": "qwen/qwen3.5-397b-a17b",
+        "model": "google/gemma-4-31b-it",
     }
     assert "vlm" not in identify
 
     resolver.reference_images = [resolver.reference_images[0]]
     identify_with_refs = task._autowire_paths(
         "identify_asset",
-        {"vlm_config": {"backend": "nim", "model": "qwen/qwen3.5-397b-a17b"}},
+        {"vlm_config": {"backend": "nim", "model": "google/gemma-4-31b-it"}},
         resolver,
         None,
         {},

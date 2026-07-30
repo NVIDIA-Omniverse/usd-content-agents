@@ -101,7 +101,7 @@ def test_create_vlm_instance_defers_endpoint_env_key_resolution_to_factory(
 
     vlm_module.create_vlm_instance(
         backend,
-        model="qwen/qwen3.5-397b-a17b",
+        model="google/gemma-4-31b-it",
         base_url="https://custom.example.test/v1",
         timeout=7,
     )
@@ -110,7 +110,7 @@ def test_create_vlm_instance_defers_endpoint_env_key_resolution_to_factory(
         "backend": backend,
         "base_url": "https://custom.example.test/v1",
         "timeout": 7,
-        "model": "qwen/qwen3.5-397b-a17b",
+        "model": "google/gemma-4-31b-it",
     }
 
 

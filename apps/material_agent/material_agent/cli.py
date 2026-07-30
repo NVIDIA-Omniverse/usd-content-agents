@@ -3254,7 +3254,7 @@ def generate_manifest(
     vlm_model: Annotated[
         str | None,
         typer.Option("--vlm-model", help="VLM model name"),
-    ] = "qwen/qwen3.5-397b-a17b",
+    ] = "google/gemma-4-31b-it",
     vlm_workers: Annotated[
         int,
         typer.Option("--vlm-workers", help="Number of parallel VLM workers"),

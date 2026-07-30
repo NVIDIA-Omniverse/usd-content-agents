@@ -43,7 +43,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Joint Agent Service",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -80,7 +80,7 @@ Health check.
 {
   "status": "healthy",
   "service": "Joint Agent Service",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "api_keys_configured": true,
   "max_active_sessions": 1,
   "capabilities": {
@@ -859,7 +859,7 @@ request authorization.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JA_VLM_BACKEND` | `nim` | VLM inference backend |
-| `JA_VLM_MODEL` | `qwen/qwen3.5-397b-a17b` | VLM model identifier |
+| `JA_VLM_MODEL` | `google/gemma-4-31b-it` | VLM model identifier |
 | `JA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
 | `JA_VLM_MAX_WORKERS` | `64` | Maximum concurrent prediction VLM requests per pipeline. NVCF staging deployments default to `4`. |
 | `JA_RENDER_BACKEND` | `remote` | Rendering backend: `remote`, `warp`, `ovrtx`, or `mock`. Remote rendering resolves through `RENDER_ENDPOINT`; mock is test-only. |

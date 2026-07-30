@@ -7,7 +7,7 @@ info:
     optionally apply the Research Preview Joint Rigger, and stream real-time progress
     via SSE. The built-in owned_core adapter authors topology only and publishes a
     self-contained USDZ package; it does not author masses or collision.
-  version: "0.5.0"
+  version: "0.5.2"
   contact:
     name: NVIDIA Omniverse GenAI
 
@@ -754,7 +754,7 @@ components:
           example: Joint Agent Service
         version:
           type: string
-          example: "0.5.0"
+          example: "0.5.2"
         api_keys_configured:
           type: boolean
         max_active_sessions:

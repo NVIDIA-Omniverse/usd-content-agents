@@ -16,7 +16,7 @@ docker compose --env-file .env \
   -f apps/joint_agent_service/docker-compose.yml up --build
 ```
 
-The public service defaults to `nim`, `qwen/qwen3.5-397b-a17b`, and remote
+The public service defaults to `nim`, `google/gemma-4-31b-it`, and remote
 rendering through `RENDER_ENDPOINT`. Uploads have no fixed size cap by default;
 operators can set a positive `JA_MAX_UPLOAD_SIZE_MB` guard.
 

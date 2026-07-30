@@ -174,13 +174,13 @@ steps:
       # To use Anthropic: backend: anthropic, model: claude-sonnet-4-20250514
       # To use Gemini: backend: gemini, model: gemini-2.5-pro
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
       temperature: 1.0
       max_completion_tokens: 24576
     max_workers: 64
     llm:
       backend: nim
-      model: qwen/qwen3.5-397b-a17b
+      model: google/gemma-4-31b-it
       temperature: 0.1
       max_tokens: 512
     report:

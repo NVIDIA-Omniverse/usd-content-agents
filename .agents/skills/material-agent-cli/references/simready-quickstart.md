@@ -153,7 +153,7 @@ the first four steps. Probe it first with `wu chat` — same backend-resolution
 as the pipeline's predict step:
 
 ```bash
-wu chat "hi" --backend nim --model qwen/qwen3.5-397b-a17b --max-tokens 8
+wu chat "hi" --backend nim --model google/gemma-4-31b-it --max-tokens 8
 ```
 
 If you get a response, the key works. If you get `403 Forbidden`, the key is

@@ -18,7 +18,7 @@ from world_understanding.utils.credentials import (
 )
 
 # Default configurations
-_DEFAULT_NIM_MODEL = "qwen/qwen3.5-397b-a17b"
+_DEFAULT_NIM_MODEL = "google/gemma-4-31b-it"
 
 
 class EchoChatModel(BaseChatModel):

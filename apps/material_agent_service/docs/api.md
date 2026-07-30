@@ -42,7 +42,7 @@ Health check. Includes backend credential readiness, image-generation readiness,
 {
   "status": "healthy",
   "service": "Material Agent Service",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "api_keys_configured": true,
   "image_gen_configured": true,
   "max_active_sessions": 3
@@ -92,7 +92,7 @@ Start a material assignment pipeline on an existing session.
   "materials_manifest": "default",
   "vlm": {
     "backend": "nim",
-    "model": "qwen/qwen3.5-397b-a17b"
+    "model": "google/gemma-4-31b-it"
   },
   "reference_images": ["ref1.jpg"],
   "generated_reference_id": "optional-generated-reference-id",

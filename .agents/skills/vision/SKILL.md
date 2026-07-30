@@ -87,7 +87,7 @@ wu vision image.png --format json
 wu vision image.png --backend openai
 
 # Use a specific public NIM model.
-wu vision image.png --backend nim --model "qwen/qwen3.5-397b-a17b"
+wu vision image.png --backend nim --model "google/gemma-4-31b-it"
 ```
 
 ## Output Format

@@ -1,6 +1,6 @@
 # NVIDIA Content Agents Full Agent Index
 
-Repository: `NVIDIA-Omniverse/content-agents`
+Repository: `NVIDIA-Omniverse/usd-content-agents`
 
 Content Agents provides OpenUSD/USD workflow agents for VLM-based material
 assignment, physics property classification, joint and articulation authoring,

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Material Agent Service
   description: REST API for VLM-based material assignment to 3D USD objects.
-  version: "0.5.0"
+  version: "0.5.2"
 servers:
   - url: http://localhost:8000
     description: Local development server

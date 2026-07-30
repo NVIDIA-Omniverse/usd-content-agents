@@ -185,7 +185,7 @@ def test_openai_output_cap_resolves_supported_model_aliases(model_name: str) -> 
     [
         "gpt-5.4",
         "claude-opus-4-6",
-        "qwen/qwen3.5-397b-a17b",
+        "google/gemma-4-31b-it",
         "unknown-model",
         "gpt-4.10",
         "custom-gpt-4o-deployment",

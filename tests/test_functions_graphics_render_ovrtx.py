@@ -4248,7 +4248,7 @@ class TestEnsureLights:
 
 
 class TestCopyExportedRelativeAssets:
-    """Test local texture mirroring for exported OVRTX stages."""
+    """Test local asset mirroring for exported OVRTX stages."""
 
     def test_copies_relative_texture_assets_to_export_dir(self, tmp_path):
         from pxr import Sdf, Usd, UsdShade
@@ -4457,6 +4457,50 @@ class TestCopyExportedRelativeAssets:
         assert attr.default == Sdf.AssetPath(
             copied_textures[0].relative_to(export_dir).as_posix(),
         )
+
+    def test_localizes_relative_mdl_directory(self, tmp_path):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_dir = tmp_path / "source"
+        mdl_dir = source_dir
+        mdl_dir.mkdir()
+        (mdl_dir / "OmniPBR.mdl").write_text("mdl 1.7;", encoding="utf-8")
+        (mdl_dir / "OmniPBRBase.mdl").write_text("mdl 1.7;", encoding="utf-8")
+        (source_dir / "stage.usdc").write_bytes(b"source sentinel")
+
+        stage_path = source_dir / "asset.usda"
+        stage = Usd.Stage.CreateNew(str(stage_path))
+        shader = UsdShade.Shader.Define(stage, "/World/Looks/OmniPBR")
+        shader.GetPrim().CreateAttribute(
+            "info:mdl:sourceAsset",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("./OmniPBR.mdl"))
+        stage.GetRootLayer().Save()
+
+        reopened = Usd.Stage.Open(str(stage_path))
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        reopened.GetRootLayer().Export(str(exported_stage_path))
+
+        copied = _copy_exported_relative_assets(
+            reopened,
+            export_dir,
+            exported_stage_path=exported_stage_path,
+        )
+
+        assert copied == 1
+        copied_mdl = list((export_dir / "mdl_materials").glob("*/OmniPBR.mdl"))
+        assert len(copied_mdl) == 1
+        localized_path = copied_mdl[0].relative_to(export_dir)
+        assert (export_dir / localized_path.parent / "OmniPBRBase.mdl").is_file()
+        assert not (export_dir / "OmniPBR.mdl").exists()
+        assert exported_stage_path.read_bytes() != b"source sentinel"
+
+        exported_layer = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        shader_spec = exported_layer.GetPrimAtPath("/World/Looks/OmniPBR")
+        mdl_attribute = shader_spec.attributes["info:mdl:sourceAsset"]
+        assert mdl_attribute.default == Sdf.AssetPath(localized_path.as_posix())
 
 
 class TestDefaultNumSensorUpdates:

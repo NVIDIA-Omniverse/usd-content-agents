@@ -1311,14 +1311,14 @@ def _copy_exported_relative_assets(
     base_dir: str | Path | None = None,
     exported_stage_path: str | Path | None = None,
 ) -> int:
-    """Copy local texture assets next to an exported render stage.
+    """Copy local MDL and texture assets next to an exported render stage.
 
     ``render_all_cameras`` exports the caller's stage into an OVRTX IPC temp
-    directory before the isolated daemon opens it. Texture paths in that
+    directory before the isolated daemon opens it. Asset paths in that
     exported layer are interpreted from the new temp directory, not the
     original stage directory, so extracted ZIP/USDZ bundles and prepared stages
-    with host-absolute texture refs lose their textures unless we mirror those
-    files here and rewrite the exported layer to the mirrored paths.
+    lose package-local materials unless we mirror those files here and rewrite
+    the exported layer to the mirrored paths.
     """
     from pxr import Sdf
 
@@ -1358,7 +1358,19 @@ def _copy_exported_relative_assets(
         relative_source_by_path[candidate.as_posix()] = resolved_source
         return candidate
 
-    def resolved_texture_path(asset_path: str) -> str | None:
+    def localized_mdl_relative_path(source: Path) -> Path:
+        parent_digest = hashlib.sha256(
+            str(source.parent.resolve()).encode("utf-8")
+        ).hexdigest()[:12]
+        candidate = (
+            Path("mdl_materials")
+            / f"{source.parent.name}_{parent_digest}"
+            / source.name
+        )
+        relative_source_by_path[candidate.as_posix()] = source.resolve()
+        return candidate
+
+    def resolved_asset_path(asset_path: str) -> str | None:
         if not asset_path or _is_remote_asset_path(asset_path):  # pragma: no cover
             return None
         path = _local_asset_path(asset_path)
@@ -1373,6 +1385,41 @@ def _copy_exported_relative_assets(
     copied = 0
     localized_by_resolved: dict[str, str] = {}
     localized_by_attr: dict[tuple[str, str], str] = {}
+
+    from world_understanding.utils.usd.material import get_local_mdl_assets
+
+    copied_mdl_directories: set[tuple[Path, Path]] = set()
+    for asset in get_local_mdl_assets(stage, base_dir=resolved_base_dir):
+        if not asset.get("is_local") or not asset.get("resolved_path"):
+            continue
+
+        asset_path = str(asset.get("mdl_path", ""))
+        if not asset_path or _is_remote_asset_path(asset_path):
+            continue
+
+        source = Path(str(asset["resolved_path"]))
+        if not source.is_file():
+            continue
+
+        relative_path = localized_mdl_relative_path(source)
+        destination = export_dir / relative_path
+        directory_pair = (source.parent.resolve(), destination.parent.resolve())
+        if directory_pair not in copied_mdl_directories:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(
+                source.parent,
+                destination.parent,
+                dirs_exist_ok=True,
+            )
+            copied_mdl_directories.add(directory_pair)
+
+        localized_path = relative_path.as_posix()
+        localized_by_resolved[str(source.resolve())] = localized_path
+        localized_by_attr[
+            (str(asset["shader_path"]), "info:mdl:sourceAsset")
+        ] = localized_path
+        copied += 1
+
     for asset in get_local_texture_file_assets(stage, base_dir=resolved_base_dir):
         if not asset.get("is_local") or not asset.get("resolved_path"):
             continue
@@ -1405,7 +1452,7 @@ def _copy_exported_relative_assets(
     layer = Sdf.Layer.FindOrOpen(str(exported_stage_path))
     if layer is None:
         logger.warning(
-            "Could not reopen exported OVRTX stage for texture path localization: %s",
+            "Could not reopen exported OVRTX stage for asset path localization: %s",
             exported_stage_path,
         )
         return copied
@@ -1426,7 +1473,7 @@ def _copy_exported_relative_assets(
 
             new_path = localized_by_attr.get((prim_path, attr_name))
             if new_path is None:
-                resolved = resolved_texture_path(asset_path)
+                resolved = resolved_asset_path(asset_path)
                 new_path = (
                     localized_by_resolved.get(resolved)
                     if resolved is not None
@@ -1447,7 +1494,7 @@ def _copy_exported_relative_assets(
     if updated:
         layer.Save()
         logger.info(
-            "Localized %d exported OVRTX texture asset path(s) to render temp paths",
+            "Localized %d exported OVRTX asset path(s) to render temp paths",
             updated,
         )
 
@@ -3048,7 +3095,7 @@ def render_all_cameras(
         )
         if copied_assets:
             logger.info(
-                "Copied %d local texture asset(s) next to exported OVRTX stage",
+                "Copied %d local asset(s) next to exported OVRTX stage",
                 copied_assets,
             )
 

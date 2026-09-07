@@ -1,0 +1,4 @@
+interface:
+  display_name: "Image Generation"
+  short_description: "Generate images through companion or configured backends"
+  default_prompt: "Use $image-generation to generate or edit an image with the companion generator or an explicitly configured World Understanding backend."

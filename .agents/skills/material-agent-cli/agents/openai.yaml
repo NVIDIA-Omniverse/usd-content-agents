@@ -1,4 +1,0 @@
-interface:
-  display_name: "Material Agent CLI"
-  short_description: "Run the Material Agent CLI"
-  default_prompt: "Use $material-agent-cli to run the direct Material Agent CLI for a config-driven VLM material assignment pipeline."

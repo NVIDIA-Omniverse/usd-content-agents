@@ -1,0 +1,16 @@
+{{- if and (eq .Values.workspace.kind "pvc") (not .Values.workspace.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "geometry-agent-service.fullname" . }}
+  labels:
+    {{- include "geometry-agent-service.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.workspace.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.workspace.size }}
+{{- end }}

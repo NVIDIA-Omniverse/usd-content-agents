@@ -91,7 +91,7 @@ def test_interpreter_helpers_and_default_model_edges(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     example = interp._drop_settle_example_for_params(("mass_scale",))
-    assert example["parameters"] == [{"name": "mass_scale", "min": 0.5, "max": 2.0}]
+    assert example["parameters"] == [{"name": "mass_scale"}]
     assert "most relevant parameter" in interp._parameter_guidance(("contact_ke",))
     assert interp._extract_json('prefix {"text": "escaped \\" quote"} suffix') == {
         "text": 'escaped " quote'
@@ -543,6 +543,12 @@ def test_lazy_exports_defaults_pipeline_refine_and_workflow_edges(
     )
     assert dry.completed_steps == ["predict"]
     assert "apply_physics" in dry.skipped_steps
+    vomp_dry = pipeline_api._dry_run_pipeline(
+        pipeline_api.PipelineInput(
+            config={"steps": {"vomp_mass": {"enabled": True}}},
+        )
+    )
+    assert vomp_dry.completed_steps == ["vomp_mass"]
 
     captured_contexts: list[dict[str, Any]] = []
 
@@ -900,7 +906,7 @@ def test_drop_settle_and_freeform_render_unavailable_edges(
         {
             "name": "drop_settle",
             "metric": "settle_distance",
-            "target": {"vlm_check": "end_of_tune", "record_video": "end_of_tune"},
+            "target": {"vlm_check": "end_of_tune", "record_frames": "end_of_tune"},
             "parameters": [{"name": "mass_scale", "min": 0.5, "max": 2.0}],
         }
     )
@@ -913,7 +919,7 @@ def test_drop_settle_and_freeform_render_unavailable_edges(
         work_dir=tmp_path / "drop",
     )
     assert drop_result["vlm_check"]["status"] == "skipped"
-    assert drop_result["record_video"]["status"] == "skipped"
+    assert drop_result["record_frames"]["status"] == "skipped"
 
     free = parse_scenario(
         {
@@ -922,7 +928,7 @@ def test_drop_settle_and_freeform_render_unavailable_edges(
             "target": {
                 "description": "stay upright",
                 "observations": 3,
-                "record_video": "always",
+                "record_frames": "always",
             },
             "parameters": [{"name": "mass_scale", "min": 0.5, "max": 2.0}],
         }
@@ -937,7 +943,7 @@ def test_drop_settle_and_freeform_render_unavailable_edges(
         judge_callback=lambda *_args: {"score": 0.1},
     )
     assert "VLM unavailable" in free_result["reasoning"]
-    assert free_result["record_video"]["status"] == "skipped"
+    assert free_result["record_frames"]["status"] == "skipped"
 
 
 def test_visual_reporting_and_optimizer_reexport_edges(
@@ -998,7 +1004,7 @@ def test_visual_reporting_and_optimizer_reexport_edges(
     )
     monkeypatch.setattr(
         "physics_agent.tuning.visual_evidence.backend_supports_reasoning_effort",
-        lambda backend: backend == "test-reasoning-provider",
+        lambda backend, _model=None: backend == "test-reasoning-provider",
     )
     monkeypatch.setattr(
         vlm_models,

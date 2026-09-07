@@ -1,0 +1,55 @@
+{
+  "schema_version": "content-agent-workflows.large-scene-run.v1",
+  "revision": 1,
+  "run_id": "legacy-scene-fixture",
+  "source_scene": "__SOURCE_SCENE__",
+  "additional_instructions": "Use blue panels and white frames.",
+  "request_artifact_paths": [
+    "__REQUEST__",
+    "__GUIDANCE__",
+    "__REFERENCE_IMAGE__",
+    "__MATERIALS_YAML__",
+    "__MATERIALS_USD__"
+  ],
+  "requested_tasks": [
+    "material"
+  ],
+  "source_input_digest": "__SOURCE_INPUT_DIGEST__",
+  "current_phase": "decomposition",
+  "phases": {
+    "decomposition": {
+      "status": "ready",
+      "result_path": null,
+      "input_digest": "__SOURCE_INPUT_DIGEST__",
+      "output_digest": null,
+      "error": null
+    },
+    "asset_task_processing": {
+      "status": "pending",
+      "result_path": null,
+      "input_digest": null,
+      "output_digest": null,
+      "error": null
+    },
+    "collection": {
+      "status": "pending",
+      "result_path": null,
+      "input_digest": null,
+      "output_digest": null,
+      "error": null
+    }
+  },
+  "transitions": [
+    {
+      "timestamp": "2026-01-15T12:00:01Z",
+      "phase": "decomposition",
+      "from_status": "pending",
+      "to_status": "ready",
+      "reason": "Run created and source inputs digested.",
+      "actor": "content-workflow-cli",
+      "input_digest": "__SOURCE_INPUT_DIGEST__",
+      "result_path": null,
+      "output_digest": null
+    }
+  ]
+}

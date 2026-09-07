@@ -38,6 +38,22 @@ class ModelAuthenticationFailure(RuntimeError):
         super().__init__(MODEL_AUTHENTICATION_FAILURE_MESSAGE)
 
 
+def detach_model_authentication_failure(
+    error: ModelAuthenticationFailure,
+) -> ModelAuthenticationFailure:
+    """Clear provider-bearing exception state before crossing a callback boundary."""
+    error.args = (MODEL_AUTHENTICATION_FAILURE_MESSAGE,)
+    try:
+        del error.__notes__
+    except AttributeError:
+        pass
+    error.__cause__ = None
+    error.__context__ = None
+    error.__traceback__ = None
+    error.__suppress_context__ = True
+    return error
+
+
 def _exception_chain(
     error: BaseException,
 ) -> tuple[tuple[BaseException, ...], bool]:
@@ -92,7 +108,9 @@ def is_model_authentication_error(value: Any) -> bool:
 
 
 def raise_for_model_authentication(error: BaseException) -> None:
-    """Replace an auth exception with a detached, value-free failure."""
+    """Normalize an auth exception while preserving an already-safe identity."""
+    if isinstance(error, ModelAuthenticationFailure):
+        raise detach_model_authentication_failure(error) from None
     if is_model_authentication_error(error):
         raise ModelAuthenticationFailure() from None
 

@@ -10,6 +10,7 @@
 
 # Python cache files
 __pycache__
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -21,6 +22,7 @@ __pycache__
 !.build-resources/**/*.so.*
 .Python
 *.egg-info/
+**/*.egg-info/
 # dist/
 build/
 *.egg
@@ -99,12 +101,30 @@ apps/material_agent_service/combined_service_files.py
 **/output/
 .external/
 
+
 # Documentation
 docs/
 *.md
 !README.md
 !VERSION.md
+!THIRD_PARTY_NOTICE.md
+!apps/usd_cli/README.md
 !apps/material_agent_service/README.md
+!agentic/packages/sdf_tools/README.md
+# The direct OCP build packages reviewed source provenance with each wheel.
+!agentic/packages/cad_verifier/README.md
+!agentic/packages/geometry_authoring_contracts/README.md
+!agentic/packages/geometry_authoring_connectors/README.md
+!agentic/packages/geometry_repair/README.md
+!apps/geometry_agent_service/README.md
+!apps/physics_agent/README.md
+!apps/texture_agent/README.md
+!apps/texture_gen_service_common/README.md
+# Native builds copy these reviewed legal notices into images and wheels.
+!agentic/packages/openvdb_runtime/native/SOURCE_PROVENANCE.md
+!agentic/packages/openvdb_runtime/native/THIRD_PARTY_NOTICES.md
+!agentic/packages/geometry_repair/geometry_repair/GEOGRAM_THIRD_PARTY_NOTICES.md
+!agentic/packages/geometry_repair/geometry_repair/DEPENDENCY_AUDIT.md
 
 # Notebooks
 *.ipynb

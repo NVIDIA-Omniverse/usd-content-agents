@@ -2,6 +2,8 @@
 #
 # Usage:
 #   docker compose up --build                                    # main + rendering
+#   docker compose -f docker-compose.yml -f docker-compose.warp.yml \
+#       up --build                                                # WSL2 + WARP
 #   docker compose -f docker-compose.yml -f docker-compose.multi-gpu.yml \
 #       --profile vlm up --build                                 # + local VLM NIM (2+ GPUs)
 #   docker compose -f docker-compose.yml -f docker-compose.cluster-embedding.yml \
@@ -56,6 +58,7 @@ services:
         required: false
     environment:
       # Rendering: point at local OVRTX rendering API
+      - MA_RENDERER_BACKEND=remote
       - RENDER_ENDPOINT=http://ovrtx-rendering-api:8000
       - MA_RENDERING_USE_DATA_URI=true
 
@@ -69,9 +72,9 @@ services:
       # Default: NVIDIA NIM (build.nvidia.com) with NVIDIA_API_KEY
       # Override via .env to use OpenAI, Anthropic, Gemini, or custom endpoints
       - MA_VLM_BACKEND=${MA_VLM_BACKEND:-nim}
-      - MA_VLM_MODEL=${MA_VLM_MODEL:-google/gemma-4-31b-it}
+      - MA_VLM_MODEL=${MA_VLM_MODEL:-moonshotai/kimi-k3}
       - MA_LLM_BACKEND=${MA_LLM_BACKEND:-nim}
-      - MA_LLM_MODEL=${MA_LLM_MODEL:-google/gemma-4-31b-it}
+      - MA_LLM_MODEL=${MA_LLM_MODEL:-moonshotai/kimi-k3}
 
       # Interactive generated reference images. Default uses the public Gemini
       # backend with GOOGLE_API_KEY; override in .env for OpenAI or NIM.
@@ -110,6 +113,7 @@ services:
       # request concurrency at 1 unless the renderer is scaled separately.
       - MA_MAX_ACTIVE_SESSIONS=${MA_MAX_ACTIVE_SESSIONS:-1}
       - MA_MAX_UPLOAD_SIZE_MB=${MA_MAX_UPLOAD_SIZE_MB:-500}
+      - MA_S3_ALLOWED_BUCKETS=${MA_S3_ALLOWED_BUCKETS:-}
       - MA_MAX_RENDER_NUM_WORKERS=${MA_MAX_RENDER_NUM_WORKERS:-1}
       - WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS=${WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS:-1}
     volumes:
@@ -147,6 +151,7 @@ services:
       - "8001:8000"
     environment:
       - OVRTX_LOG_LEVEL=${OVRTX_LOG_LEVEL:-warn}
+      - OVRTX_S3_ALLOWED_BUCKETS=${OVRTX_S3_ALLOWED_BUCKETS:-}
       # 500 step() iterations per frame hit the PT convergence plateau on
       # the kit golden scene. Override with a smaller value for preview /
       # latency-sensitive deployments (each step ~9ms at 512x512).

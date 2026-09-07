@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
+from pathlib import Path
 from typing import Annotated, Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -12,11 +15,12 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 DEFAULT_SIMREADY_PROFILE = "Prop-Robotics-Neutral"
 DEFAULT_SIMREADY_PROFILE_VERSION = "1.0.0"
 DEFAULT_SIMREADY_FOUNDATION_REPO_URL = "https://github.com/NVIDIA/simready-foundation"
-DEFAULT_SIMREADY_FOUNDATION_REF = "main"
+DEFAULT_SIMREADY_FOUNDATION_REF = "v2026.04.1"
+DEFAULT_SIMREADY_FOUNDATION_COMMIT = "a1e9dd68ee2d107f74dc6cd6da875b54ad3f8fd3"
 
 SIMREADY_PREFLIGHT_SCHEMA_VERSION = "content-agent-workflows.simready-preflight.v1"
 SIMREADY_VALIDATION_SCHEMA_VERSION = (
-    "content-agent-workflows.simready-profile-validation.v1"
+    "content-agent-workflows.simready-profile-validation.v3"
 )
 SIMREADY_CONFORMANCE_SCHEMA_VERSION = (
     "content-agent-workflows.simready-profile-conformance.v1"
@@ -71,6 +75,7 @@ _PositiveFiniteFloat = Annotated[
 ]
 _Point3 = Annotated[list[_FiniteFloat], Field(min_length=3, max_length=3)]
 _NonNegativeStrictInt = Annotated[int, Field(strict=True, ge=0)]
+_PositiveStrictInt = Annotated[int, Field(strict=True, gt=0)]
 
 
 class SimReadyGraspPlanProvenance(BaseModel):
@@ -569,6 +574,15 @@ class SimReadyGraspPlan(BaseModel):
         return self
 
 
+def default_simready_report_name(asset_path: str | Path, *, kind: str) -> str:
+    """Namespace a default report by asset identity and report kind."""
+
+    asset = Path(asset_path).expanduser().resolve()
+    stem = re.sub(r"[^a-zA-Z0-9_.-]+", "-", asset.stem).strip("-.") or "asset"
+    identity = hashlib.sha256(str(asset).encode("utf-8")).hexdigest()[:12]
+    return f"{stem}-{identity}-simready-{kind}.json"
+
+
 class SimReadyPreflightReport(BaseModel):
     """Dependency and runtime readiness for SimReady Foundation workflows."""
 
@@ -581,15 +595,22 @@ class SimReadyPreflightReport(BaseModel):
     foundation_ref: str = DEFAULT_SIMREADY_FOUNDATION_REF
     foundation_root: str | None = None
     foundation_commit: str | None = None
+    foundation_checkout_verified: bool = False
+    foundation_requirements_sha256: str | None = None
+    foundation_spec_tree_sha256: str | None = None
     foundation_spec_root: str | None = None
     managed_foundation_checkout: bool = False
     venv_path: str | None = None
     validator_executable: str | None = None
+    validator_executable_sha256: str | None = None
+    validator_distributions_sha256: str | None = None
+    validator_runtime_verified: bool = False
     install_command: list[str] = Field(default_factory=list)
     command: list[str] = Field(default_factory=list)
     available_profiles: list[str] = Field(default_factory=list)
     specs_ready: bool = False
     runtime_ready: bool = False
+    runtime_contract_sha256: str | None = None
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
@@ -603,14 +624,21 @@ class SimReadyRuntimeInfo(BaseModel):
     foundation_ref: str = DEFAULT_SIMREADY_FOUNDATION_REF
     foundation_root: str | None = None
     foundation_commit: str | None = None
+    foundation_checkout_verified: bool = False
+    foundation_requirements_sha256: str | None = None
+    foundation_spec_tree_sha256: str | None = None
     foundation_spec_root: str | None = None
     managed_foundation_checkout: bool = False
     venv_path: str | None = None
     validator_executable: str | None = None
+    validator_executable_sha256: str | None = None
+    validator_distributions_sha256: str | None = None
+    validator_runtime_verified: bool = False
     install_command: list[str] = Field(default_factory=list)
     available_profiles: list[str] = Field(default_factory=list)
     specs_ready: bool = False
     runtime_ready: bool = False
+    runtime_contract_sha256: str | None = None
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
@@ -630,14 +658,21 @@ class SimReadyRuntimeInfo(BaseModel):
             foundation_ref=self.foundation_ref,
             foundation_root=self.foundation_root,
             foundation_commit=self.foundation_commit,
+            foundation_checkout_verified=self.foundation_checkout_verified,
+            foundation_requirements_sha256=self.foundation_requirements_sha256,
+            foundation_spec_tree_sha256=self.foundation_spec_tree_sha256,
             foundation_spec_root=self.foundation_spec_root,
             managed_foundation_checkout=self.managed_foundation_checkout,
             venv_path=self.venv_path,
             validator_executable=self.validator_executable,
+            validator_executable_sha256=self.validator_executable_sha256,
+            validator_distributions_sha256=self.validator_distributions_sha256,
+            validator_runtime_verified=self.validator_runtime_verified,
             install_command=self.install_command,
             available_profiles=self.available_profiles,
             specs_ready=self.specs_ready,
             runtime_ready=self.runtime_ready,
+            runtime_contract_sha256=self.runtime_contract_sha256,
             warnings=self.warnings,
             errors=self.errors,
         )
@@ -660,6 +695,51 @@ class SimReadyValidationInput(BaseModel):
     timeout_s: float = 300.0
     stdout_log_path: str | None = None
     stderr_log_path: str | None = None
+    resume: bool = False
+    max_stdout_log_bytes: _PositiveStrictInt | None = None
+    max_stderr_log_bytes: _PositiveStrictInt | None = None
+    max_support_file_bytes: _PositiveStrictInt | None = None
+    max_support_total_bytes: _PositiveStrictInt | None = None
+    max_support_file_count: _PositiveStrictInt | None = None
+    max_support_directory_count: _PositiveStrictInt | None = None
+
+    @model_validator(mode="after")
+    def validate_support_budget(self) -> SimReadyValidationInput:
+        """Require bounded-output policies as complete, coherent units."""
+
+        log_limits = (
+            self.max_stdout_log_bytes,
+            self.max_stderr_log_bytes,
+        )
+        if any(value is not None for value in log_limits) and not all(
+            value is not None for value in log_limits
+        ):
+            raise ValueError(
+                "max_stdout_log_bytes and max_stderr_log_bytes must be provided "
+                "together"
+            )
+
+        values = (
+            self.max_support_file_bytes,
+            self.max_support_total_bytes,
+            self.max_support_file_count,
+            self.max_support_directory_count,
+        )
+        if any(value is not None for value in values) and not all(
+            value is not None for value in values
+        ):
+            raise ValueError(
+                "all SimReady support budget limits must be provided together"
+            )
+        if (
+            self.max_support_file_bytes is not None
+            and self.max_support_total_bytes is not None
+            and self.max_support_file_bytes > self.max_support_total_bytes
+        ):
+            raise ValueError(
+                "max_support_file_bytes must not exceed max_support_total_bytes"
+            )
+        return self
 
 
 class SimReadyValidationReport(BaseModel):
@@ -669,6 +749,8 @@ class SimReadyValidationReport(BaseModel):
 
     schema_version: str = SIMREADY_VALIDATION_SCHEMA_VERSION
     asset_path: str
+    asset_sha256: str | None = None
+    asset_dependency_manifest: dict[str, Any] = Field(default_factory=dict)
     validator_skill: str = "content-workflow-simready"
     validator_tool: str = "simready-validate"
     passed: bool
@@ -679,8 +761,15 @@ class SimReadyValidationReport(BaseModel):
     command: list[str] = Field(default_factory=list)
     foundation_root: str | None = None
     foundation_commit: str | None = None
+    foundation_checkout_verified: bool = False
+    foundation_requirements_sha256: str | None = None
+    foundation_spec_tree_sha256: str | None = None
     foundation_spec_root: str | None = None
     validator_executable: str | None = None
+    validator_executable_sha256: str | None = None
+    validator_distributions_sha256: str | None = None
+    validator_runtime_verified: bool = False
+    runtime_contract_sha256: str | None = None
     available_profiles: list[str] = Field(default_factory=list)
     profile_results: Any = None
     feature_results: Any = None
@@ -698,6 +787,7 @@ class SimReadyValidationReport(BaseModel):
     stderr_log_path: str | None = None
     report_path: str | None = None
     raw_report_path: str | None = None
+    workflow_run_manifest_path: str | None = None
     next_step: str = "complete"
 
 
@@ -717,6 +807,7 @@ class SimReadyConformanceInput(BaseModel):
     grasp_prim_path: str | None = None
     foundation_root: str | None = None
     foundation_spec_root: str | None = None
+    venv_path: str | None = None
     expected_physics_inventory_sha256: _Sha256 | None = Field(
         default=None,
         description=(
@@ -726,6 +817,7 @@ class SimReadyConformanceInput(BaseModel):
     )
     repair_requirements: list[str] = Field(default_factory=list)
     force: bool = False
+    resume: bool = False
 
 
 class SimReadyConformanceReport(BaseModel):
@@ -741,7 +833,14 @@ class SimReadyConformanceReport(BaseModel):
     profile_version: str
     foundation_root: str | None = None
     foundation_commit: str | None = None
+    foundation_checkout_verified: bool = False
+    foundation_requirements_sha256: str | None = None
+    foundation_spec_tree_sha256: str | None = None
     foundation_spec_root: str | None = None
+    runtime_contract_sha256: str | None = None
+    validator_executable_sha256: str | None = None
+    validator_distributions_sha256: str | None = None
+    validator_runtime_verified: bool = False
     validation_report: str | None = None
     failed_requirements: list[str] = Field(default_factory=list)
     requirements_repaired: list[str] = Field(default_factory=list)
@@ -754,4 +853,5 @@ class SimReadyConformanceReport(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     report_path: str | None = None
+    workflow_run_manifest_path: str | None = None
     next_step: str = "simready-validate"

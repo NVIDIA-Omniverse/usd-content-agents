@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Physics Agent Docker"
+  short_description: "Fixed pipeline Physics Agent Docker deployment"
+  default_prompt: "Use $fixed-pipeline to deploy the physics-agent-service locally using Docker Compose with the bundled OVRTX GPU rendering sidecar, and to check tune/refine route readiness."

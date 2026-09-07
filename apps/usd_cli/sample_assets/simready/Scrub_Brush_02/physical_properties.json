@@ -1,0 +1,210 @@
+{
+  "asset_name": "scrubbrush_02",
+  "asset_type": "dish_scrub_brush",
+  "description": "Kitchen dish scrub brush with soap dispenser handle, sponge head with rough green scrubbing surface and soft yellow sponge, and blue pump/cap components",
+  "overall_dimensions_m": {
+    "width": 0.058,
+    "depth": 0.226,
+    "height": 0.101
+  },
+  "typical_specifications": {
+    "use_case": "dish_cleaning",
+    "soap_capacity_ml": 100,
+    "water_resistance": true
+  },
+  "components": {
+    "handle_mesh_00": {
+      "description": "Main handle body with integrated soap reservoir",
+      "function": "Holds soap/detergent and provides grip for user during scrubbing",
+      "usd_material": "/scrubbrush_02/Materials/opaque__plastic_white_01",
+      "physical_material": "polypropylene_plastic",
+      "usd_properties": {
+        "DiffuseTexture": "t_plastic_clean_white_v01_01_a.png",
+        "ior": 1.5,
+        "metallic": 0,
+        "opacity": 1,
+        "roughness": 0.5
+      },
+      "additional_properties": {
+        "hollow": true,
+        "wall_thickness_mm": 2.0,
+        "surface_finish": "smooth"
+      },
+      "physical_properties": {
+        "material_class": "polymer",
+        "density_kg_m3": 900,
+        "youngs_modulus_gpa": 1.5,
+        "poissons_ratio": 0.42,
+        "thermal_conductivity_w_mk": 0.22,
+        "specific_heat_j_kgk": 1800,
+        "coefficient_of_thermal_expansion": 1.5e-04,
+        "max_service_temp_c": 100,
+        "electrical_conductivity": "insulator",
+        "friction_coefficient": 0.4,
+        "water_absorption_percent": 0.03,
+        "chemical_resistance": "good"
+      }
+    },
+    "pump_nob_mesh_00": {
+      "description": "Blue pump button/nob for dispensing soap",
+      "function": "Activates pump mechanism to dispense soap through the brush head",
+      "usd_material": "/scrubbrush_02/Materials/opaque__plastic_blue_01",
+      "physical_material": "polypropylene_plastic",
+      "usd_properties": {
+        "DiffuseTexture": "t_plastic_blue_clean_v01_01_a.png",
+        "ior": 1.5,
+        "metallic": 0,
+        "opacity": 1,
+        "roughness": 0.3
+      },
+      "additional_properties": {
+        "color": "blue",
+        "surface_finish": "glossy"
+      },
+      "physical_properties": {
+        "material_class": "polymer",
+        "density_kg_m3": 900,
+        "youngs_modulus_gpa": 1.5,
+        "poissons_ratio": 0.42,
+        "thermal_conductivity_w_mk": 0.22,
+        "specific_heat_j_kgk": 1800,
+        "coefficient_of_thermal_expansion": 1.5e-04,
+        "max_service_temp_c": 100,
+        "electrical_conductivity": "insulator",
+        "friction_coefficient": 0.4,
+        "water_absorption_percent": 0.03,
+        "chemical_resistance": "good"
+      }
+    },
+    "refill_cap_mesh_00": {
+      "description": "Blue refill cap for soap reservoir",
+      "function": "Allows refilling of soap/detergent reservoir, provides seal to prevent leakage",
+      "usd_material": "/scrubbrush_02/Materials/opaque__plastic_blue_01",
+      "physical_material": "polypropylene_plastic",
+      "usd_properties": {
+        "DiffuseTexture": "t_plastic_blue_clean_v01_01_a.png",
+        "ior": 1.5,
+        "metallic": 0,
+        "opacity": 1,
+        "roughness": 0.3
+      },
+      "additional_properties": {
+        "color": "blue",
+        "thread_type": "screw_cap",
+        "seal_type": "rubber_gasket"
+      },
+      "physical_properties": {
+        "material_class": "polymer",
+        "density_kg_m3": 900,
+        "youngs_modulus_gpa": 1.5,
+        "poissons_ratio": 0.42,
+        "thermal_conductivity_w_mk": 0.22,
+        "specific_heat_j_kgk": 1800,
+        "coefficient_of_thermal_expansion": 1.5e-04,
+        "max_service_temp_c": 100,
+        "electrical_conductivity": "insulator",
+        "friction_coefficient": 0.4,
+        "water_absorption_percent": 0.03,
+        "chemical_resistance": "good"
+      }
+    },
+    "sponge_mesh/Subset": {
+      "description": "Green rough scrubbing surface of the sponge head",
+      "function": "Provides abrasive surface for removing tough, stuck-on food and grime",
+      "usd_material": "/scrubbrush_02/Materials/opaque__sponge__green_rough_01",
+      "physical_material": "polyurethane_foam_abrasive",
+      "usd_properties": {
+        "DiffuseTexture": "t_sponge_rough_green_v01_01_a.png",
+        "NormalTexture": "t_sponge_rough_green_v01_01_n.png",
+        "ior": 1.5,
+        "metallic": 0,
+        "opacity": 1,
+        "roughness": 1.0
+      },
+      "additional_properties": {
+        "color": "green",
+        "surface_type": "abrasive_scouring",
+        "abrasive_particles": "nylon_fibers"
+      },
+      "physical_properties": {
+        "material_class": "foam_composite",
+        "density_kg_m3": 80,
+        "youngs_modulus_gpa": 0.01,
+        "poissons_ratio": 0.3,
+        "thermal_conductivity_w_mk": 0.05,
+        "specific_heat_j_kgk": 1500,
+        "coefficient_of_thermal_expansion": 1.0e-04,
+        "max_service_temp_c": 80,
+        "electrical_conductivity": "insulator",
+        "friction_coefficient": 0.8,
+        "water_absorption_percent": 200,
+        "compressibility": "high",
+        "abrasion_resistance": "medium"
+      }
+    },
+    "sponge_mesh/Subset_1": {
+      "description": "Yellow/orange soft sponge portion of the brush head",
+      "function": "Absorbs water and soap, provides soft cleaning surface for delicate items",
+      "usd_material": "/scrubbrush_02/Materials/opaque__sponge__orange_01",
+      "physical_material": "polyurethane_foam",
+      "usd_properties": {
+        "DiffuseTexture": "t_sponge_yellow_v01_01_a.png",
+        "ior": 1.5,
+        "metallic": 0,
+        "opacity": 1,
+        "roughness": 1.0
+      },
+      "additional_properties": {
+        "color": "yellow_orange",
+        "surface_type": "soft_absorbent",
+        "cell_structure": "open_cell"
+      },
+      "physical_properties": {
+        "material_class": "foam",
+        "density_kg_m3": 30,
+        "youngs_modulus_gpa": 0.005,
+        "poissons_ratio": 0.35,
+        "thermal_conductivity_w_mk": 0.03,
+        "specific_heat_j_kgk": 1500,
+        "coefficient_of_thermal_expansion": 1.0e-04,
+        "max_service_temp_c": 80,
+        "electrical_conductivity": "insulator",
+        "friction_coefficient": 0.6,
+        "water_absorption_percent": 400,
+        "compressibility": "very_high",
+        "resilience": "good"
+      }
+    },
+    "sponge_plastic": {
+      "description": "White plastic mount connecting sponge head to handle",
+      "function": "Securely attaches replaceable sponge head to the brush handle",
+      "usd_material": "/scrubbrush_02/Materials/opaque__plastic_white_01",
+      "physical_material": "polypropylene_plastic",
+      "usd_properties": {
+        "DiffuseTexture": "t_plastic_clean_white_v01_01_a.png",
+        "ior": 1.5,
+        "metallic": 0,
+        "opacity": 1,
+        "roughness": 0.5
+      },
+      "additional_properties": {
+        "attachment_type": "snap_fit",
+        "replaceable_head": true
+      },
+      "physical_properties": {
+        "material_class": "polymer",
+        "density_kg_m3": 900,
+        "youngs_modulus_gpa": 1.5,
+        "poissons_ratio": 0.42,
+        "thermal_conductivity_w_mk": 0.22,
+        "specific_heat_j_kgk": 1800,
+        "coefficient_of_thermal_expansion": 1.5e-04,
+        "max_service_temp_c": 100,
+        "electrical_conductivity": "insulator",
+        "friction_coefficient": 0.4,
+        "water_absorption_percent": 0.03,
+        "chemical_resistance": "good"
+      }
+    }
+  }
+}

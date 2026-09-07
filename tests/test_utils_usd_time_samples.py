@@ -186,6 +186,70 @@ def test_preexisting_pose_ops_are_reused_and_old_samples_cleared(
     assert rb_api.GetAngularVelocityAttr().GetTimeSamples() == [0.0]
 
 
+def test_suffixed_translate_op_is_dropped_for_canonical_trajectory_op(
+    tmp_path: Path,
+) -> None:
+    stage, body_path = _make_stage_with_body(tmp_path)
+    body = stage.GetPrimAtPath(Sdf.Path(body_path))
+    xformable = UsdGeom.Xformable(body)
+    suffixed_translate = xformable.AddTranslateOp(opSuffix="x")
+    suffixed_translate.Set(Gf.Vec3d(99.0, 0.0, 0.0))
+
+    assert suffixed_translate.GetOpType() == UsdGeom.XformOp.TypeTranslate
+    assert str(suffixed_translate.GetOpName()) == "xformOp:translate:x"
+
+    add_pose_velocity_trajectory(
+        body,
+        [(0.0, [1.0, 2.0, 3.0] + _identity_quat(), [0.0] * 6)],
+    )
+
+    ordered = UsdGeom.Xformable(body).GetOrderedXformOps()
+    assert [str(op.GetOpName()) for op in ordered[:2]] == [
+        "xformOp:translate",
+        "xformOp:orient",
+    ]
+    assert "xformOp:translate:x" not in {str(op.GetOpName()) for op in ordered}
+
+
+@pytest.mark.skipif(
+    not hasattr(UsdGeom.XformOp, "TypeTranslateX"),
+    reason="this USD build has no single-axis translate xform ops",
+)
+def test_genuine_axis_translate_op_is_dropped_not_double_applied(
+    tmp_path: Path,
+) -> None:
+    """A genuine single-axis ``xformOp:translateX`` (its own op type on newer
+    USD, unlike the suffixed ``xformOp:translate:x`` above) is a pose op: it
+    must be dropped from xformOpOrder, not preserved after the freshly
+    authored translate/orient pair where it would re-apply the body's local
+    offset on top of the simulator's world-space pose on every sampled frame.
+    """
+    stage, body_path = _make_stage_with_body(tmp_path)
+    body = stage.GetPrimAtPath(Sdf.Path(body_path))
+    xformable = UsdGeom.Xformable(body)
+    axis_op = xformable.AddXformOp(
+        UsdGeom.XformOp.TypeTranslateX,
+        UsdGeom.XformOp.PrecisionDouble,
+    )
+    axis_op.Set(2.0)
+    assert str(axis_op.GetOpName()) == "xformOp:translateX"
+
+    add_pose_velocity_trajectory(
+        body,
+        [(0.0, [1.0, 2.0, 3.0] + _identity_quat(), [0.0] * 6)],
+    )
+
+    ordered = UsdGeom.Xformable(body).GetOrderedXformOps()
+    assert "xformOp:translateX" not in {str(op.GetOpName()) for op in ordered}
+    # The composed local transform must equal the simulator's pose exactly —
+    # no residual +2 along X from the stale axis op.
+    transform = UsdGeom.Xformable(body).GetLocalTransformation(Usd.TimeCode(0.0))
+    translation = transform.ExtractTranslation()
+    assert [translation[0], translation[1], translation[2]] == pytest.approx(
+        [1.0, 2.0, 3.0], abs=1e-6
+    )
+
+
 def test_velocity_attrs_are_rigidbodyapi(tmp_path: Path) -> None:
     """``physics:velocity`` + ``physics:angularVelocity`` come from the
     standard ``UsdPhysics.RigidBodyAPI`` schema, not custom attributes."""
@@ -438,6 +502,35 @@ def test_read_back_returns_seconds_after_fps_authoring(tmp_path: Path) -> None:
             assert b == pytest.approx(a, abs=1e-5)
         for a, b in zip(vel_in, vel_out, strict=True):
             assert b == pytest.approx(a, abs=1e-5)
+
+
+def test_frame_boundary_timecodes_are_exact_without_snapping_fractions(
+    tmp_path: Path,
+) -> None:
+    stage, body_path = _make_stage_with_body(tmp_path)
+    stage.SetTimeCodesPerSecond(30.0)
+    body = stage.GetPrimAtPath(Sdf.Path(body_path))
+    pose = [0.0, 0.0, 0.0] + _identity_quat()
+    trajectory = [
+        (0.125, pose, [0.0] * 6),
+        (31.0 / 30.0, pose, [0.0] * 6),
+        (62.0 / 30.0, pose, [0.0] * 6),
+    ]
+
+    add_pose_velocity_trajectory(body, trajectory)
+
+    xformable = UsdGeom.Xformable(body)
+    rigid_body = UsdPhysics.RigidBodyAPI(body)
+    attrs = [op.GetAttr() for op in xformable.GetOrderedXformOps()]
+    attrs.extend([rigid_body.GetVelocityAttr(), rigid_body.GetAngularVelocityAttr()])
+    for attr in attrs:
+        assert attr.GetTimeSamples() == [3.75, 31.0, 62.0]
+
+
+def test_seconds_to_timecode_preserves_nonfinite_values() -> None:
+    assert time_samples_utils._seconds_to_timecode(math.inf, 30.0) == math.inf
+    assert time_samples_utils._seconds_to_timecode(-math.inf, 30.0) == -math.inf
+    assert math.isnan(time_samples_utils._seconds_to_timecode(math.nan, 30.0))
 
 
 def test_metric_function_reads_back_same_numbers(tmp_path: Path) -> None:

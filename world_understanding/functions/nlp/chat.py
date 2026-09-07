@@ -6,24 +6,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-
-def _extract_text(content: Any) -> str:
-    """Extract text from LLM response content.
-
-    Handles both plain strings and list-of-parts responses
-    (e.g. thinking models that return content blocks with signatures).
-    """
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = [
-            p.get("text", "")
-            for p in content
-            if isinstance(p, dict) and p.get("type") == "text"
-        ]
-        parts = [p for p in parts if p]
-        return "\n".join(parts) if parts else str(content)
-    return str(content)
+from world_understanding.utils.response_content import extract_text_content
 
 
 def generate_chat_response(
@@ -48,7 +31,7 @@ def generate_chat_response(
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
 
         response_message = chat_model.invoke(messages)
-        response = _extract_text(response_message.content)
+        response = extract_text_content(response_message.content)
     except Exception as e:
         return {"error": f"Failed to generate response: {e}"}
 
@@ -74,7 +57,7 @@ async def agenerate_chat_response(
     try:
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
         response_message = await chat_model.ainvoke(messages)
-        response = _extract_text(response_message.content)
+        response = extract_text_content(response_message.content)
     except Exception as e:
         return {"error": f"Failed to generate response: {e}"}
     return {"response": response}

@@ -8,10 +8,13 @@ import hashlib
 import math
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Literal
 
 import pytest
@@ -1609,6 +1612,34 @@ def test_opaque_projection_allows_symlink_ancestor_outside_allowed_root(
     assert record.projected_path.read_text(encoding="utf-8") == "mdl 1.7;\n"
 
 
+def test_projection_copy_uses_confined_create_only_writer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "dependency.usda"
+    source.write_bytes(b"stable dependency bytes")
+    projection = _test_projection(tmp_path / "projection")
+    observed: list[tuple[str, bool]] = []
+    real_open = rv.open_confined_lock_file
+
+    @contextmanager
+    def record_open(
+        root_descriptor: int,
+        relative_key: str,
+        **kwargs: Any,
+    ) -> Iterator[int]:
+        observed.append((relative_key, kwargs.get("exclusive_create") is True))
+        with real_open(root_descriptor, relative_key, **kwargs) as descriptor:
+            yield descriptor
+
+    monkeypatch.setattr(rv, "open_confined_lock_file", record_open)
+
+    record = rv._copy_precomposition_file(projection, source)
+
+    assert record.projected_path.read_bytes() == b"stable dependency bytes"
+    assert observed == [(record.projected_path.name, True)]
+
+
 def test_dependency_inventory_does_not_duplicate_represented_opaque_asset(
     tmp_path: Path,
 ) -> None:
@@ -2449,6 +2480,37 @@ def test_precomposition_file_state_guards(
     assert retained_race.value.code == "dependency_artifact_invalid"
 
 
+def test_precomposition_windows_state_ignores_unstable_ctime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "dependency.usda"
+    target.write_bytes(b"stable")
+    metadata = target.stat()
+    monkeypatch.setattr(rv, "os", SimpleNamespace(name="nt"))
+
+    state = rv._precomposition_file_state(metadata)
+
+    assert state[-1] == 0
+
+
+def test_descriptor_read_fallback_preserves_position(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "dependency.usda"
+    target.write_bytes(b"0123456789")
+    descriptor = os.open(target, os.O_RDONLY)
+    try:
+        os.lseek(descriptor, 7, os.SEEK_SET)
+        monkeypatch.setattr(rv.os, "pread", None)
+
+        assert rv._read_descriptor_at(descriptor, 4, 2) == b"2345"
+        assert os.lseek(descriptor, 0, os.SEEK_CUR) == 7
+    finally:
+        os.close(descriptor)
+
+
 def test_precomposition_symlink_cycle_and_race_guards(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2682,6 +2744,359 @@ def test_dependency_paths_optionally_preserve_lexical_symlink_aliases(
         real_dependency.resolve(),
         dependency_alias.absolute(),
     }
+
+
+def test_full_dependency_inventory_preserves_nonlocal_opinions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root.usda"
+    root.write_text("#usda 1.0\n", encoding="utf-8")
+    resolved_root = root.resolve()
+    remote_identifier = "resolver://remote/layer.usda"
+    opaque_identifier = "s:opaque-material"
+    package_identifier = f"{resolved_root}[nested.usdz[root.usda]]"
+    monkeypatch.setattr(
+        rv,
+        "_enumerate_usd_dependencies",
+        lambda *_args, **_kwargs: (
+            rv._ResolvedUsdDependency(
+                kind="layer",
+                identifier=str(resolved_root),
+                lexical_path=resolved_root,
+                local_path=resolved_root,
+                package_relative=False,
+            ),
+            rv._ResolvedUsdDependency(
+                kind="layer",
+                identifier=remote_identifier,
+                lexical_path=None,
+                local_path=None,
+                package_relative=False,
+            ),
+            rv._ResolvedUsdDependency(
+                kind="opaque_asset",
+                identifier=opaque_identifier,
+                lexical_path=None,
+                local_path=None,
+                package_relative=False,
+            ),
+            rv._ResolvedUsdDependency(
+                kind="layer",
+                identifier=package_identifier,
+                lexical_path=resolved_root,
+                local_path=resolved_root,
+                package_relative=True,
+            ),
+        ),
+    )
+
+    inventory = rv.usd_dependency_inventory(root)
+
+    assert {(item.kind, item.identifier, item.local_path) for item in inventory} == {
+        ("layer", str(resolved_root), resolved_root),
+        ("layer", remote_identifier, None),
+        ("opaque_asset", opaque_identifier, None),
+        ("layer", package_identifier, resolved_root),
+    }
+    package_opinion = next(
+        item for item in inventory if item.identifier == package_identifier
+    )
+    assert package_opinion.package_outer_identifier == str(resolved_root)
+    assert package_opinion.package_members == ("nested.usdz", "root.usda")
+
+
+def test_dependency_opinion_preserves_identifier_when_sdf_split_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identifier = "resolver://opaque/layer.usda"
+    dependency = rv._ResolvedUsdDependency(
+        kind="layer",
+        identifier=identifier,
+        lexical_path=None,
+        local_path=None,
+        package_relative=False,
+    )
+
+    def fail_split(_identifier: str) -> tuple[str, dict[str, str]]:
+        raise RuntimeError("simulated resolver parser failure")
+
+    monkeypatch.setattr(Sdf.Layer, "SplitIdentifier", staticmethod(fail_split))
+
+    opinion = rv._dependency_opinion(dependency)
+
+    assert opinion.identifier == identifier
+    assert opinion.asset_identifier == identifier
+    assert opinion.package_outer_identifier is None
+    assert opinion.package_members == ()
+
+
+def test_retained_projected_file_rejects_digest_drift_after_stable_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    projected = tmp_path / "projected.usda"
+    projected.write_text("#usda 1.0\n", encoding="utf-8")
+    projected.chmod(0o400)
+    expected_state = rv._retained_projection_state(
+        os.stat(projected, follow_symlinks=False)
+    )
+
+    monkeypatch.setattr(
+        rv,
+        "_precomposition_descriptor_sha256",
+        lambda *_args, **_kwargs: "0" * 64,
+    )
+
+    with pytest.raises(JointRiggerContractError) as caught:
+        rv._require_retained_projected_file_unchanged(
+            projected,
+            expected_state=expected_state,
+            expected_sha256=_sha256(projected),
+        )
+
+    assert caught.value.code == "artifact_projection_mutated"
+    assert str(projected) in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("scenario", "message"),
+    [
+        ("missing_closure", "projection closure is unavailable"),
+        ("missing_file", "projection file is unavailable"),
+    ],
+)
+def test_retained_projected_closure_rejects_incomplete_bookkeeping(
+    tmp_path: Path,
+    scenario: str,
+    message: str,
+) -> None:
+    root = tmp_path / "root.usda"
+    root.write_text("#usda 1.0\n", encoding="utf-8")
+    projection = _test_projection(tmp_path / scenario)
+    if scenario == "missing_file":
+        projection.closures[root] = {root}
+
+    with pytest.raises(JointRiggerContractError) as caught:
+        rv._retained_projected_closure(projection, root)
+
+    assert caught.value.code == "artifact_projection_invalid"
+    assert message in str(caught.value)
+
+
+def test_retained_projected_closure_rejects_capture_time_state_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root.usda"
+    root.write_text("#usda 1.0\n", encoding="utf-8")
+    projection = _test_projection(tmp_path / "projection")
+    projected = projection.projected_path(root)
+    projected.parent.mkdir(parents=True)
+    projected.write_bytes(root.read_bytes())
+    projected.chmod(0o400)
+    projection.files[root] = rv._ProjectedLocalFile(
+        lexical_path=root,
+        backing_path=root,
+        projected_path=projected,
+        expected_state=rv._precomposition_file_state(
+            os.stat(root, follow_symlinks=False)
+        ),
+        symlink_hops=(),
+        sha256=_sha256(root),
+    )
+    projection.closures[root] = {root}
+    original_projection_state = rv._retained_projection_state
+    state_calls = 0
+
+    def drift_after_descriptor_hash(
+        value: os.stat_result,
+    ) -> tuple[int, int, int, int, int, int, int, int, int]:
+        nonlocal state_calls
+        state_calls += 1
+        observed = original_projection_state(value)
+        if state_calls == 3:
+            return (*observed[:-1], observed[-1] + 1)
+        return observed
+
+    monkeypatch.setattr(
+        rv,
+        "_retained_projection_state",
+        drift_after_descriptor_hash,
+    )
+
+    with pytest.raises(JointRiggerContractError) as caught:
+        rv._retained_projected_closure(projection, root)
+
+    assert caught.value.code == "artifact_projection_invalid"
+    assert "changed during capture" in str(caught.value)
+    assert state_calls == 4
+
+
+def test_retained_artifact_inspection_can_own_final_content_recheck(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact = tmp_path / "artifact.usda"
+    artifact.write_text("#usda 1.0\n", encoding="utf-8")
+    original_require_unchanged = rv._UsdCompositionProjection.require_unchanged
+    calls: list[tuple[Path, str, str | None]] = []
+
+    def track_require_unchanged(
+        projection: rv._UsdCompositionProjection,
+        root: Path,
+        *,
+        code: str,
+        root_code: str | None = None,
+    ) -> None:
+        calls.append((root, code, root_code))
+        original_require_unchanged(
+            projection,
+            root,
+            code=code,
+            root_code=root_code,
+        )
+
+    monkeypatch.setattr(
+        rv._UsdCompositionProjection,
+        "require_unchanged",
+        track_require_unchanged,
+    )
+
+    with rv.retain_usd_artifact_inspection(
+        artifact,
+        uri=SOURCE_URI,
+        expected_root_sha256=_sha256(artifact),
+        recheck_source_content_on_exit=True,
+    ) as inspection:
+        assert inspection.stage_path.read_bytes() == artifact.read_bytes()
+
+    assert calls[-1] == (
+        artifact.resolve(),
+        "artifact_dependency_mutated",
+        "artifact_mutated",
+    )
+
+
+def test_retained_artifact_inspection_rejects_insecure_projection_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact = tmp_path / "artifact.usda"
+    artifact.write_text("#usda 1.0\n", encoding="utf-8")
+    expected_sha256 = _sha256(artifact)
+    original_projection = rv._usd_composition_projection
+
+    @contextmanager
+    def insecure_projection(
+        paths: tuple[Path, ...],
+    ) -> Iterator[rv._UsdCompositionProjection]:
+        with original_projection(paths) as projection:
+            projection.projected_path(artifact).chmod(0o600)
+            yield projection
+
+    monkeypatch.setattr(rv, "_usd_composition_projection", insecure_projection)
+
+    with pytest.raises(JointRiggerContractError) as caught:
+        with rv.retain_usd_artifact_inspection(
+            artifact,
+            uri=SOURCE_URI,
+            expected_root_sha256=expected_sha256,
+        ):
+            pass
+
+    assert caught.value.code == "artifact_projection_invalid"
+
+
+def test_retained_artifact_inspection_rejects_source_mutation_on_release(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "artifact.usda"
+    artifact.write_text("#usda 1.0\n", encoding="utf-8")
+    expected_sha256 = _sha256(artifact)
+
+    with pytest.raises(JointRiggerContractError) as caught:
+        with rv.retain_usd_artifact_inspection(
+            artifact,
+            uri=SOURCE_URI,
+            expected_root_sha256=expected_sha256,
+        ):
+            artifact.write_text("#usda 1.0\n# mutated\n", encoding="utf-8")
+
+    assert caught.value.code == "artifact_mutated"
+
+
+@pytest.mark.parametrize(
+    "explicit_gate",
+    [True, False],
+    ids=["stage-handoff", "context-exit"],
+)
+def test_retained_artifact_inspection_rejects_projected_sublayer_mutation(
+    tmp_path: Path,
+    explicit_gate: bool,
+) -> None:
+    root = tmp_path / "root.usda"
+    dependency = tmp_path / "dependency.usda"
+    _write_value_layer(dependency, 1)
+    _write_sublayer_root(root, dependency.name)
+    source_root = root.read_bytes()
+    source_dependency = dependency.read_bytes()
+
+    with pytest.raises(JointRiggerContractError) as caught:
+        with rv.retain_usd_artifact_inspection(
+            root,
+            uri=SOURCE_URI,
+            expected_root_sha256=_sha256(root),
+        ) as inspection:
+            projected_dependency = inspection.stage_path.with_name(dependency.name)
+            assert projected_dependency.read_bytes() == source_dependency
+            projected_dependency.chmod(0o600)
+            mutated = projected_dependency.read_bytes().replace(b"= 1", b"= 2")
+            assert len(mutated) == len(source_dependency)
+            projected_dependency.write_bytes(mutated)
+            projected_dependency.chmod(0o400)
+            assert projected_dependency.read_bytes() != source_dependency
+            if explicit_gate:
+                inspection.require_stage_unchanged()
+
+    assert caught.value.code == "artifact_projection_mutated"
+    assert root.read_bytes() == source_root
+    assert dependency.read_bytes() == source_dependency
+
+
+def test_retained_artifact_inspection_gates_complete_projected_closure(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root.usda"
+    dependency = tmp_path / "dependency.usda"
+    texture = tmp_path / "texture.bin"
+    _write_value_layer(dependency, 1)
+    texture.write_bytes(b"retained texture")
+    root.write_text(
+        "#usda 1.0\n"
+        f"( subLayers = [@{dependency.name}@] )\n"
+        'def Xform "Root" {\n'
+        f"    custom asset test:asset = @{texture.name}@\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    with rv.retain_usd_artifact_inspection(
+        root,
+        uri=SOURCE_URI,
+        expected_root_sha256=_sha256(root),
+    ) as inspection:
+        projected_paths = {item[0] for item in inspection._projected_files}
+        assert projected_paths == {
+            inspection.stage_path,
+            inspection.stage_path.with_name(dependency.name),
+            inspection.stage_path.with_name(texture.name),
+        }
+        assert all(
+            path.is_file() and stat.S_IMODE(path.stat().st_mode) == 0o400
+            for path in projected_paths
+        )
+        inspection.require_stage_unchanged()
 
 
 @pytest.mark.parametrize("symlink_kind", ["leaf", "ancestor"])
@@ -8767,6 +9182,25 @@ def test_file_sha256_rejects_inode_and_content_races(
     with pytest.raises(JointRiggerContractError) as caught:
         rv._file_sha256(target, code="artifact_raced")
     assert caught.value.code == "artifact_raced"
+
+
+def test_file_sha256_pins_and_rechecks_supported_ancestor_symlink(
+    tmp_path: Path,
+) -> None:
+    real_root = tmp_path / "real-root"
+    real_root.mkdir()
+    target = real_root / "artifact.usda"
+    target.write_bytes(b"stable payload")
+    alias = tmp_path / "alias"
+    alias.symlink_to(real_root, target_is_directory=True)
+
+    assert (
+        rv._file_sha256(
+            alias / target.name,
+            code="artifact_missing",
+        )
+        == hashlib.sha256(b"stable payload").hexdigest()
+    )
 
 
 # OpenUSD process startup can exceed 15 seconds in the fully parallel CI suite.

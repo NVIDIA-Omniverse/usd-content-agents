@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import math
+import os
 import sys
 import threading
 import time
@@ -31,6 +33,13 @@ from apps.texture_gen_step1x_service.backend import (
 from fastapi.testclient import TestClient
 
 
+def _write_nonempty_files(root: Path, relative_paths: tuple[str, ...]) -> None:
+    for relative_path in relative_paths:
+        path = root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"model-fixture")
+
+
 class _RecordingRunner:
     def __init__(self) -> None:
         self.requests: list[Step1XRunRequest] = []
@@ -55,7 +64,7 @@ def _request() -> CreateJobRequest:
     return CreateJobRequest(
         source_asset_uri="file:///assets/chair.usd",
         conditioning=Conditioning(
-            text_prompt="aged red leather with worn edges",
+            text_prompt="aged red leather with darker edge patina",
             reference_image_uris=["file:///assets/ref.png"],
             multiview_image_uris=["file:///assets/view0.png"],
         ),
@@ -117,7 +126,7 @@ def test_generate_passes_texture_request_fields_to_runner(tmp_path: Path) -> Non
 
     assert len(runner.requests) == 1
     run_request = runner.requests[0]
-    assert run_request.prompt == "aged red leather with worn edges"
+    assert run_request.prompt == "aged red leather with darker edge patina"
     assert run_request.seed == 1234
     assert run_request.strength == 0.65
     assert run_request.texture_size == 512
@@ -136,7 +145,7 @@ def test_generate_passes_texture_request_fields_to_runner(tmp_path: Path) -> Non
     assert result.variant_name == "aged_leather"
 
 
-def test_albedo_only_result_reports_degraded_normal_and_orm(
+def test_albedo_only_result_is_not_degraded_when_optional_maps_are_absent(
     tmp_path: Path,
 ) -> None:
     runner = _RecordingRunner()
@@ -156,13 +165,78 @@ def test_albedo_only_result_reports_degraded_normal_and_orm(
     assert result.generated_textures.normal is None
     assert result.generated_textures.orm is None
     assert set(result.maps) == {"albedo"}
-    assert result.metadata["degraded_channels"] == ["normal", "orm"]
+    assert result.metadata["degraded_channels"] == []
+    assert result.diagnostics == []
+
+
+def test_generate_rejects_runner_result_without_albedo(tmp_path: Path) -> None:
+    class MissingAlbedoRunner(_RecordingRunner):
+        def run(
+            self,
+            request: Step1XRunRequest,
+            *,
+            cancel_event: threading.Event,
+        ) -> Step1XRunResult:
+            super().run(request, cancel_event=cancel_event)
+            return Step1XRunResult(
+                albedo_uri=None,  # type: ignore[arg-type]
+                width=request.texture_size,
+                height=request.texture_size,
+            )
+
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(validate_assets=False),
+        runner=MissingAlbedoRunner(),
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            _request(),
+            job_id="vj-missing-albedo",
+            output_dir=tmp_path,
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_OUTPUT_INVALID" in str(exc_info.value)
+    assert exc_info.value.result is not None
+    assert exc_info.value.result.diagnostics[0]["code"] == "STEP1X_OUTPUT_INVALID"
+
+
+def test_runner_declared_degradation_is_preserved(tmp_path: Path) -> None:
+    class DegradedRunner(_RecordingRunner):
+        def run(
+            self,
+            request: Step1XRunRequest,
+            *,
+            cancel_event: threading.Event,
+        ) -> Step1XRunResult:
+            super().run(request, cancel_event=cancel_event)
+            return Step1XRunResult(
+                albedo_uri=(request.output_dir / "albedo.png").as_uri(),
+                width=request.texture_size,
+                height=request.texture_size,
+                metadata={"degraded_channels": ["normal", "normal"]},
+            )
+
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(validate_assets=False),
+        runner=DegradedRunner(),
+    )
+
+    result = backend.generate(
+        _request(),
+        job_id="vj-degraded",
+        output_dir=tmp_path,
+        cancel_event=threading.Event(),
+    )
+
+    assert result.metadata["degraded_channels"] == ["normal"]
     assert result.diagnostics == [
         {
             "code": "STEP1X_MAPS_DEGRADED",
             "severity": "warning",
-            "message": "Step1X output omitted optional PBR maps.",
-            "channels": ["normal", "orm"],
+            "message": "Step1X runner reported degraded texture channels.",
+            "channels": ["normal"],
         }
     ]
 
@@ -220,6 +294,397 @@ def test_generate_rejects_upscale_when_upscaler_unavailable(
         "STEP1X_UPSCALER_UNAVAILABLE"
     )
     assert runner.requests == []
+
+
+@pytest.mark.parametrize(
+    ("profiles", "custom_parameters", "capability"),
+    (
+        (
+            ("texture-step1x-core",),
+            {"skip_material_anything": False},
+            "Material Anything",
+        ),
+        (("texture-step1x-core",), {"upscale": True}, "Swin2SR"),
+        (
+            ("texture-step1x-core", "texture-material-anything"),
+            {"upscale": True},
+            "Swin2SR",
+        ),
+        (
+            ("texture-step1x-core", "texture-swin2sr"),
+            {"skip_material_anything": False},
+            "Material Anything",
+        ),
+    ),
+)
+def test_generate_fails_before_backend_for_unselected_profile_capability(
+    tmp_path: Path,
+    profiles: tuple[str, ...],
+    custom_parameters: dict[str, object],
+    capability: str,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_profiles=profiles,
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters=custom_parameters,
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-profile-unavailable",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY" in str(exc_info.value)
+    assert capability in str(exc_info.value)
+    assert exc_info.value.result is not None
+    assert exc_info.value.result.diagnostics[0]["code"] == (
+        "STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY"
+    )
+    assert runner.requests == []
+
+
+def test_generate_rejects_corrupt_runtime_marker_before_runner(
+    tmp_path: Path,
+) -> None:
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir()
+    (runtime_dir / ".texture-agent-runtime.json").write_text(
+        "not-json\n",
+        encoding="utf-8",
+    )
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=runtime_dir,
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            _request(),
+            job_id="vj-corrupt-runtime-marker",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_RUNTIME_MARKER_INVALID" in str(exc_info.value)
+    assert exc_info.value.result is not None
+    assert exc_info.value.result.diagnostics[0]["code"] == (
+        "STEP1X_RUNTIME_PROFILE_INVALID"
+    )
+    assert runner.requests == []
+
+
+@pytest.mark.parametrize(
+    "custom_parameters",
+    (
+        {"skip_material_anything": False},
+        {"upscale": True},
+    ),
+)
+def test_command_template_cannot_bypass_enforced_profile_capabilities(
+    tmp_path: Path,
+    custom_parameters: dict[str, object],
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template=(
+                "runner {upscale} {upscale_target_size_arg} --usd {source_asset}"
+            ),
+            runtime_profiles=("texture-step1x-core",),
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            _copy_request(_request(), custom_parameters=custom_parameters),
+            job_id="vj-template-profile-bypass",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY" in str(exc_info.value)
+    assert runner.requests == []
+
+
+@pytest.mark.parametrize("target_size", (True, 0, 8193, 1.5, "4k"))
+def test_generate_rejects_invalid_upscale_target_size_before_backend(
+    tmp_path: Path,
+    target_size: object,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(validate_assets=False),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={
+            "upscale": True,
+            "upscale_target_size": target_size,
+        },
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-invalid-upscale-target",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_INVALID_UPSCALE_TARGET_SIZE" in str(exc_info.value)
+    assert runner.requests == []
+
+
+def test_generate_upscale_target_alone_triggers_upscaler_readiness(
+    tmp_path: Path,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(validate_assets=False),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={"upscale_target_size": 4096},
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-target-without-upscale",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_UPSCALER_UNAVAILABLE" in str(exc_info.value)
+    assert runner.requests == []
+
+
+def test_command_template_rejects_target_without_explicit_placeholder(
+    tmp_path: Path,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template="runner --usd {source_asset}",
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={"upscale_target_size": 4096},
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-template-target-unsupported",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_COMMAND_TEMPLATE_UPSCALE_UNSUPPORTED" in str(exc_info.value)
+    assert runner.requests == []
+
+
+def test_command_template_rejects_bare_upscale_target_placeholder(
+    tmp_path: Path,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template=(
+                "runner --target-size {upscale_target_size} --usd {source_asset}"
+            ),
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            _request(),
+            job_id="vj-template-bare-target",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_COMMAND_TEMPLATE_UPSCALE_UNSUPPORTED" in str(exc_info.value)
+    assert runner.requests == []
+
+
+def test_all_runners_must_return_the_exact_requested_albedo_size(
+    tmp_path: Path,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template=(
+                "runner {upscale} {upscale_target_size_arg} --usd {source_asset}"
+            ),
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={"upscale_target_size": 4096},
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-template-target-mismatch",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_UPSCALE_TARGET_MISMATCH" in str(exc_info.value)
+    assert len(runner.requests) == 1
+
+
+def test_command_template_can_publish_exact_requested_albedo_size(
+    tmp_path: Path,
+) -> None:
+    class ExactTargetRunner(_RecordingRunner):
+        def run(
+            self,
+            request: Step1XRunRequest,
+            *,
+            cancel_event: threading.Event,
+        ) -> Step1XRunResult:
+            self.requests.append(request)
+            target_size = int(request.custom_parameters["upscale_target_size"])
+            return Step1XRunResult(
+                albedo_uri=(request.output_dir / "albedo.png").as_uri(),
+                width=target_size,
+                height=target_size,
+            )
+
+    runner = ExactTargetRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template=(
+                "runner {upscale} {upscale_target_size_arg} --usd {source_asset}"
+            ),
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={"upscale_target_size": 4096},
+    )
+
+    result = backend.generate(
+        request,
+        job_id="vj-template-target-exact",
+        output_dir=tmp_path / "out",
+        cancel_event=threading.Event(),
+    )
+
+    assert result.maps["albedo"].width == 4096
+    assert result.maps["albedo"].height == 4096
+
+
+def test_upscale_target_rejects_lower_resolution_orm(tmp_path: Path) -> None:
+    from PIL import Image
+
+    class MixedResolutionRunner(_RecordingRunner):
+        def run(
+            self,
+            request: Step1XRunRequest,
+            *,
+            cancel_event: threading.Event,
+        ) -> Step1XRunResult:
+            self.requests.append(request)
+            albedo = request.output_dir / "final_albedo.png"
+            orm = request.output_dir / "final_orm.png"
+            request.output_dir.mkdir(parents=True, exist_ok=True)
+            Image.new("RGB", (8, 8), (128, 64, 32)).save(albedo)
+            Image.new("RGB", (4, 4), (255, 128, 0)).save(orm)
+            return Step1XRunResult(
+                albedo_uri=albedo.as_uri(),
+                orm_uri=orm.as_uri(),
+                width=8,
+                height=8,
+            )
+
+    runner = MixedResolutionRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template=(
+                "runner {upscale} {upscale_target_size_arg} --usd {source_asset}"
+            ),
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={
+            "skip_material_anything": False,
+            "upscale_target_size": 8,
+        },
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-mixed-map-size",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_UPSCALE_TARGET_MISMATCH" in str(exc_info.value)
+    assert "orm=4x4" in str(exc_info.value)
+    assert len(runner.requests) == 1
+
+
+def test_all_runners_must_return_orm_when_pbr_is_requested(
+    tmp_path: Path,
+) -> None:
+    runner = _RecordingRunner()
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            command_template="runner --usd {source_asset}",
+            validate_assets=False,
+        ),
+        runner=runner,
+    )
+    request = _copy_request(
+        _request(),
+        custom_parameters={"skip_material_anything": False},
+    )
+
+    with pytest.raises(TextureGenerationBackendError) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-template-pbr-incomplete",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+
+    assert "STEP1X_PBR_OUTPUT_INCOMPLETE" in str(exc_info.value)
+    assert len(runner.requests) == 1
 
 
 def test_backend_runtime_python_executable_resolution(tmp_path: Path) -> None:
@@ -288,12 +753,27 @@ def test_material_anything_readiness_probes_runtime_venv(
     runtime_python.write_text("#!/bin/sh\n", encoding="utf-8")
     captured: list[Path | None] = []
 
+    for label in ("material_estimator", "material_refiner"):
+        _write_nonempty_files(
+            runtime_dir
+            / "third_party"
+            / "MaterialAnything"
+            / "pretrained_models"
+            / label,
+            step1x_backend_module._MATERIAL_ANYTHING_MODEL_FILES,
+        )
+
     def fake_missing_modules(
         python_executable: Path | None,
         modules: tuple[str, ...],
+        **kwargs: object,
     ) -> list[str]:
         captured.append(python_executable)
         assert modules == step1x_backend_module._MATERIAL_ANYTHING_REQUIRED_MODULES
+        assert kwargs == {
+            "runtime_dir": runtime_dir,
+            "include_material_anything": True,
+        }
         return ["python module kaolin (not importable)"]
 
     monkeypatch.setattr(
@@ -345,8 +825,8 @@ def test_full_pbr_result_exposes_orm_without_degradation(tmp_path: Path) -> None
     assert result.generated_textures.orm == (tmp_path / "final_orm.png").as_uri()
     assert result.maps["orm"].uri == result.generated_textures.orm
     assert result.maps["orm"].packing == "occlusion_roughness_metallic"
-    assert result.metadata["degraded_channels"] == ["normal"]
-    assert result.diagnostics[0]["channels"] == ["normal"]
+    assert result.metadata["degraded_channels"] == []
+    assert result.diagnostics == []
 
 
 def test_scoped_result_preserves_source_normal_when_runner_omits_normal(
@@ -399,8 +879,8 @@ def test_scoped_result_preserves_source_normal_when_runner_omits_normal(
         result.metadata["source_normal_uri"] == (tmp_path / "paint_normal.bmp").as_uri()
     )
     assert result.metadata["preserved_channels"] == ["normal"]
-    assert result.metadata["degraded_channels"] == ["orm"]
-    assert result.diagnostics[0]["channels"] == ["orm"]
+    assert result.metadata["degraded_channels"] == []
+    assert result.diagnostics == []
 
 
 def test_preserve_source_normal_uses_source_size_when_result_omits_dimensions(
@@ -546,12 +1026,59 @@ def test_config_from_env_uses_internal_runtime_when_present(
         "TEXTURE_STEP1X_CACHE_DIR",
         "TEXTURE_STEP1X_PYTHON",
         "TEXTURE_STEP1X_COMMAND_TEMPLATE",
+        "TEXTURE_STEP1X_RUNTIME_PROFILE",
+        "TEXTURE_STEP1X_RUNTIME_PROFILES",
+        "TEXTURE_STEP1X_REQUIRED_EXECUTABLES",
+        "TEXTURE_STEP1X_ALLOWED_ASSET_ROOTS",
     ):
         monkeypatch.delenv(name, raising=False)
 
     config = Step1XBackendConfig.from_env()
 
     assert config.runtime_dir == _bundled_runtime_dir()
+    assert config.required_executables == ()
+    assert config.allowed_asset_roots == ()
+
+
+def test_config_from_env_parses_allowed_asset_roots(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    monkeypatch.setenv(
+        "TEXTURE_STEP1X_ALLOWED_ASSET_ROOTS",
+        os.pathsep.join((str(first), str(second))),
+    )
+
+    config = Step1XBackendConfig.from_env()
+
+    assert config.allowed_asset_roots == (first, second)
+
+
+def test_config_from_env_preserves_required_executable_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEXTURE_STEP1X_REQUIRED_EXECUTABLES", "uv, custom-helper")
+
+    config = Step1XBackendConfig.from_env()
+
+    assert config.required_executables == ("uv", "custom-helper")
+
+
+def test_config_from_env_preserves_explicit_runtime_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEXTURE_STEP1X_RUNTIME_PROFILES", "texture-full-pbr-upscale")
+    monkeypatch.setenv("TEXTURE_STEP1X_SKIP_MA", "true")
+    monkeypatch.setenv("TEXTURE_STEP1X_REQUIRE_UPSCALER", "false")
+
+    config = Step1XBackendConfig.from_env()
+
+    assert config.runtime_profiles == ("texture-full-pbr-upscale",)
+    # Request defaults remain independent from installed profile selection.
+    assert config.skip_material_anything is True
+    assert config.require_upscaler is False
 
 
 def test_health_reports_internal_runtime_management(
@@ -647,7 +1174,8 @@ def test_health_reports_external_runtime_management(tmp_path: Path) -> None:
         )
     )
 
-    runtime_info = backend.health().capabilities.model_dump()["external_runtime"]
+    capabilities = backend.health().capabilities.model_dump()
+    runtime_info = capabilities["external_runtime"]
 
     assert runtime_info == {
         "api_service": "repo_owned",
@@ -662,9 +1190,27 @@ def test_health_reports_external_runtime_management(tmp_path: Path) -> None:
         "validate_assets": False,
         "skip_material_anything_default": True,
         "require_upscaler": False,
-        "weights_policy": "downloadable_not_committed",
+        "runtime_profiles": {
+            "selected": ["texture-step1x-core"],
+            "selection_source": "legacy_flags",
+            "valid": True,
+            "capabilities": ["step1x"],
+            "supported_sets": [
+                ["texture-step1x-core"],
+                ["texture-step1x-core", "texture-material-anything"],
+                ["texture-step1x-core", "texture-swin2sr"],
+                ["texture-full-pbr-upscale"],
+            ],
+            "marker_profiles": None,
+            "marker_matches_selected": None,
+        },
+        "weights_policy": "operator_preloaded_runtime_required",
         "required_executables": [],
     }
+    assert capabilities["upscaler"]["auto_download_writable"] is False
+    assert (
+        capabilities["upscaler"]["model_policy"] == "operator_preloaded_cache_required"
+    )
 
 
 def test_health_reports_compose_managed_runtime(tmp_path: Path) -> None:
@@ -682,13 +1228,102 @@ def test_health_reports_compose_managed_runtime(tmp_path: Path) -> None:
         )
     )
 
-    runtime_info = backend.health().capabilities.model_dump()["external_runtime"]
+    health = backend.health()
+    runtime_info = health.capabilities.model_dump()["external_runtime"]
 
+    assert health.ready is False
+    assert "STEP1X_RUNTIME_PROFILES_MISSING_FROM_MARKER" in (health.error or "")
     assert runtime_info["step1x_runtime"] == "compose_managed"
     assert runtime_info["runtime_source"] == "compose_managed"
 
 
-def test_health_ignores_invalid_compose_runtime_marker(tmp_path: Path) -> None:
+def test_health_uses_profile_recorded_by_compose_runtime_marker(
+    tmp_path: Path,
+) -> None:
+    edit_script = tmp_path / "edit_texture.py"
+    edit_script.write_text("print('fake')\n", encoding="utf-8")
+    (tmp_path / ".texture-agent-runtime.json").write_text(
+        json.dumps(
+            {
+                "runtime_source": "compose_managed",
+                "runtime_profiles": ["texture-full-pbr-upscale"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=tmp_path,
+            validate_assets=False,
+            skip_material_anything=True,
+            require_upscaler=False,
+            required_executables=(),
+        )
+    )
+
+    health = backend.health()
+    profile = health.capabilities.model_dump()["external_runtime"]["runtime_profiles"]
+
+    assert health.ready is False
+    assert profile["selected"] == ["texture-full-pbr-upscale"]
+    assert profile["selection_source"] == "runtime_marker"
+    assert profile["marker_matches_selected"] is True
+    assert "Material Anything" in (health.error or "")
+
+
+def test_health_rejects_explicit_profile_marker_mismatch(tmp_path: Path) -> None:
+    edit_script = tmp_path / "edit_texture.py"
+    edit_script.write_text("print('fake')\n", encoding="utf-8")
+    (tmp_path / ".texture-agent-runtime.json").write_text(
+        json.dumps(
+            {
+                "runtime_source": "compose_managed",
+                "runtime_profiles": ["texture-step1x-core"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=tmp_path,
+            runtime_profiles=("texture-full-pbr-upscale",),
+            validate_assets=False,
+            required_executables=(),
+        )
+    )
+
+    health = backend.health()
+
+    assert health.ready is False
+    assert "STEP1X_RUNTIME_PROFILES_MISMATCH" in (health.error or "")
+    profile = health.capabilities.model_dump()["external_runtime"]["runtime_profiles"]
+    assert profile["selected"] == ["texture-full-pbr-upscale"]
+    assert profile["marker_profiles"] == ["texture-step1x-core"]
+    assert profile["marker_matches_selected"] is False
+
+
+def test_health_rejects_unknown_explicit_runtime_profile(tmp_path: Path) -> None:
+    edit_script = tmp_path / "edit_texture.py"
+    edit_script.write_text("print('fake')\n", encoding="utf-8")
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=tmp_path,
+            edit_script=edit_script,
+            runtime_profiles=("texture-mystery",),
+            validate_assets=False,
+            required_executables=(),
+        )
+    )
+
+    health = backend.health()
+
+    assert health.ready is False
+    assert "STEP1X_RUNTIME_PROFILE_INVALID" in (health.error or "")
+    profile = health.capabilities.model_dump()["external_runtime"]["runtime_profiles"]
+    assert profile["valid"] is False
+
+
+def test_health_rejects_corrupt_runtime_marker(tmp_path: Path) -> None:
     edit_script = tmp_path / "edit_texture.py"
     edit_script.write_text("print('fake')\n", encoding="utf-8")
     (tmp_path / ".texture-agent-runtime.json").write_text(
@@ -703,10 +1338,141 @@ def test_health_ignores_invalid_compose_runtime_marker(tmp_path: Path) -> None:
         )
     )
 
-    runtime_info = backend.health().capabilities.model_dump()["external_runtime"]
+    health = backend.health()
+    runtime_info = health.capabilities.model_dump()["external_runtime"]
 
+    assert health.ready is False
+    assert "STEP1X_RUNTIME_MARKER_INVALID" in (health.error or "")
     assert runtime_info["step1x_runtime"] == "operator_mounted"
     assert runtime_info["runtime_source"] == "operator_mounted"
+    assert runtime_info["runtime_profiles"]["selection_source"] == (
+        "invalid_runtime_marker"
+    )
+    assert runtime_info["runtime_profiles"]["valid"] is False
+
+
+def test_health_rejects_invalid_compose_runtime_profiles(tmp_path: Path) -> None:
+    edit_script = tmp_path / "edit_texture.py"
+    edit_script.write_text("print('fake')\n", encoding="utf-8")
+    (tmp_path / ".texture-agent-runtime.json").write_text(
+        json.dumps(
+            {
+                "runtime_source": "compose_managed",
+                "runtime_profiles": "texture-step1x-core",
+            }
+        ),
+        encoding="utf-8",
+    )
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=tmp_path,
+            validate_assets=False,
+            required_executables=(),
+        )
+    )
+
+    health = backend.health()
+
+    assert health.ready is False
+    assert "STEP1X_RUNTIME_PROFILES_INVALID_IN_MARKER" in (health.error or "")
+
+
+def test_managed_core_readiness_requires_nonempty_canonical_model_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_dir = tmp_path / "runtime"
+    (runtime_dir / "edit_texture.py").parent.mkdir(parents=True)
+    (runtime_dir / "edit_texture.py").write_text("print('fake')\n", encoding="utf-8")
+    runtime_python = runtime_dir / ".venv_gen" / "bin" / "python"
+    runtime_python.parent.mkdir(parents=True)
+    runtime_python.write_text("#!/bin/sh\n", encoding="utf-8")
+    runtime_python.chmod(0o755)
+    hf_home = tmp_path / "models" / "huggingface"
+    monkeypatch.setenv("HF_HOME", str(hf_home))
+    monkeypatch.delenv("HF_HUB_CACHE", raising=False)
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_python_modules_in_runtime",
+        lambda *_args, **_kwargs: [],
+    )
+    snapshots = step1x_backend_module._core_model_cache_paths(tmp_path / "models")
+    assert all(
+        str(path).startswith(str(hf_home / "hub")) for path in snapshots.values()
+    )
+    for snapshot in snapshots.values():
+        snapshot.mkdir(parents=True)
+
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=runtime_dir,
+            model_dir=tmp_path / "models",
+            runtime_profiles=("texture-step1x-core",),
+            validate_assets=False,
+            required_executables=(),
+        )
+    )
+
+    empty_health = backend.health()
+    assert empty_health.ready is False
+    assert "missing file" in (empty_health.error or "")
+
+    for label, (
+        _repo,
+        _revision,
+        required_files,
+    ) in step1x_backend_module._CORE_MODEL_FILES.items():
+        for relative_path in required_files:
+            path = snapshots[label] / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"model-fixture")
+
+    assert backend.health().ready is True
+    runtime_info = backend.health().capabilities.model_dump()["external_runtime"]
+    assert runtime_info["weights_policy"] == "operator_preloaded_runtime_required"
+
+
+@pytest.mark.parametrize(
+    ("env_name", "value"),
+    (
+        ("TEXTURE_STEP1X_HF_REPO", "other/repo"),
+        ("TEXTURE_STEP1X_HF_REVISION", "main"),
+        ("TEXTURE_SDXL_BASE_REVISION", "a" * 40),
+        ("TEXTURE_SDXL_VAE_REVISION", "A" * 40),
+    ),
+)
+def test_managed_core_readiness_rejects_unreviewed_model_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    env_name: str,
+    value: str,
+) -> None:
+    runtime_dir = tmp_path / "runtime"
+    (runtime_dir / "edit_texture.py").parent.mkdir(parents=True)
+    (runtime_dir / "edit_texture.py").write_text("print('fake')\n", encoding="utf-8")
+    runtime_python = runtime_dir / ".venv_gen" / "bin" / "python"
+    runtime_python.parent.mkdir(parents=True)
+    runtime_python.write_text("#!/bin/sh\n", encoding="utf-8")
+    runtime_python.chmod(0o755)
+    monkeypatch.setenv(env_name, value)
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_python_modules_in_runtime",
+        lambda *_args, **_kwargs: [],
+    )
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=runtime_dir,
+            runtime_profiles=("texture-step1x-core",),
+            validate_assets=False,
+            required_executables=(),
+        )
+    )
+
+    health = backend.health()
+
+    assert health.ready is False
+    assert env_name in (health.error or "")
 
 
 def test_health_reports_material_anything_disabled_without_blocking(
@@ -771,9 +1537,6 @@ def test_health_reports_material_anything_ready_when_assets_exist(
     )
     (ma_dir / "pretrained_models" / "material_estimator").mkdir(parents=True)
     (ma_dir / "pretrained_models" / "material_refiner").mkdir(parents=True)
-    controlnet = ma_dir / "models" / "ControlNet" / "models"
-    controlnet.mkdir(parents=True)
-    (controlnet / "control_sd15_depth.pth").write_bytes(b"fake")
     backend = Step1XBackend(
         config=Step1XBackendConfig(
             runtime_dir=tmp_path,
@@ -784,6 +1547,25 @@ def test_health_reports_material_anything_ready_when_assets_exist(
         )
     )
 
+    assert backend.health().ready is False
+    assert "missing file" in (backend.health().error or "")
+    for label in ("material_estimator", "material_refiner"):
+        _write_nonempty_files(
+            ma_dir / "pretrained_models" / label,
+            step1x_backend_module._MATERIAL_ANYTHING_MODEL_FILES,
+        )
+    empty_weight = (
+        ma_dir
+        / "pretrained_models"
+        / "material_estimator"
+        / "unet"
+        / "diffusion_pytorch_model.safetensors"
+    )
+    empty_weight.write_bytes(b"")
+    assert backend.health().ready is False
+    assert "empty file" in (backend.health().error or "")
+    empty_weight.write_bytes(b"model-fixture")
+
     health = backend.health()
     ma_info = health.capabilities.model_dump()["material_anything"]
 
@@ -791,6 +1573,8 @@ def test_health_reports_material_anything_ready_when_assets_exist(
     assert ma_info["enabled_by_default"] is True
     assert ma_info["ready"] is True
     assert ma_info["missing"] == []
+    assert ma_info["mode"] == "pbr_only"
+    assert not any("ControlNet" in path for path in ma_info["required_assets"])
 
 
 def test_health_checks_material_anything_modules_with_runtime_python(
@@ -807,6 +1591,11 @@ def test_health_checks_material_anything_modules_with_runtime_python(
     )
     (ma_dir / "pretrained_models" / "material_estimator").mkdir(parents=True)
     (ma_dir / "pretrained_models" / "material_refiner").mkdir(parents=True)
+    for label in ("material_estimator", "material_refiner"):
+        _write_nonempty_files(
+            ma_dir / "pretrained_models" / label,
+            step1x_backend_module._MATERIAL_ANYTHING_MODEL_FILES,
+        )
     controlnet = ma_dir / "models" / "ControlNet" / "models"
     controlnet.mkdir(parents=True)
     (controlnet / "control_sd15_depth.pth").write_bytes(b"fake")
@@ -814,12 +1603,14 @@ def test_health_checks_material_anything_modules_with_runtime_python(
     python_executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     python_executable.chmod(0o755)
     calls: list[list[str]] = []
+    environments: list[dict[str, str]] = []
 
     def fake_run(
         command: list[str],
-        **_: object,
+        **kwargs: object,
     ) -> object:
         calls.append(command)
+        environments.append(kwargs["env"])  # type: ignore[arg-type]
 
         class Result:
             returncode = 0
@@ -846,6 +1637,12 @@ def test_health_checks_material_anything_modules_with_runtime_python(
     assert calls
     assert calls[0][0] == str(python_executable)
     assert "kaolin" in calls[0][2]
+    pythonpath = environments[0]["PYTHONPATH"].split(os.pathsep)
+    assert pythonpath[:3] == [
+        str(tmp_path / "src"),
+        str(tmp_path / "third_party" / "Step1X-3D"),
+        str(tmp_path / "third_party" / "MaterialAnything"),
+    ]
 
 
 def test_health_reports_material_anything_missing_runtime_module(
@@ -862,6 +1659,11 @@ def test_health_reports_material_anything_missing_runtime_module(
     )
     (ma_dir / "pretrained_models" / "material_estimator").mkdir(parents=True)
     (ma_dir / "pretrained_models" / "material_refiner").mkdir(parents=True)
+    for label in ("material_estimator", "material_refiner"):
+        _write_nonempty_files(
+            ma_dir / "pretrained_models" / label,
+            step1x_backend_module._MATERIAL_ANYTHING_MODEL_FILES,
+        )
     controlnet = ma_dir / "models" / "ControlNet" / "models"
     controlnet.mkdir(parents=True)
     (controlnet / "control_sd15_depth.pth").write_bytes(b"fake")
@@ -916,6 +1718,11 @@ def test_health_reports_material_anything_runtime_probe_timeout(
     )
     (ma_dir / "pretrained_models" / "material_estimator").mkdir(parents=True)
     (ma_dir / "pretrained_models" / "material_refiner").mkdir(parents=True)
+    for label in ("material_estimator", "material_refiner"):
+        _write_nonempty_files(
+            ma_dir / "pretrained_models" / label,
+            step1x_backend_module._MATERIAL_ANYTHING_MODEL_FILES,
+        )
     controlnet = ma_dir / "models" / "ControlNet" / "models"
     controlnet.mkdir(parents=True)
     (controlnet / "control_sd15_depth.pth").write_bytes(b"fake")
@@ -998,9 +1805,11 @@ def test_health_can_require_upscaler_for_ready_state(
     health = backend.health()
     upscaler = health.capabilities.model_dump()["upscaler"]
 
-    assert health.ready is True
+    assert health.ready is False
     assert upscaler["required_for_ready"] is True
-    assert upscaler["auto_download_writable"] is True
+    assert upscaler["auto_download_writable"] is False
+    assert upscaler["model_policy"] == "operator_preloaded_cache_required"
+    assert "upscaler" in (health.error or "")
 
 
 def test_health_reports_swin2sr_as_default_upscaler(
@@ -1012,7 +1821,12 @@ def test_health_reports_swin2sr_as_default_upscaler(
     monkeypatch.setattr(
         step1x_backend_module,
         "_missing_swin2sr_upscaler_inputs",
-        lambda python_executable=None: [],
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_swin2sr_model_inputs",
+        lambda *_args, **_kwargs: [],
     )
     edit_script = tmp_path / "custom_edit.py"
     edit_script.write_text("print('fake')\n", encoding="utf-8")
@@ -1042,12 +1856,87 @@ def test_health_reports_swin2sr_as_default_upscaler(
     }
 
 
+def test_selected_swin2sr_profile_requires_preloaded_models_even_when_writable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEXTURE_UPSCALER_BACKEND", "auto")
+    hf_home = tmp_path / "models" / "huggingface"
+    monkeypatch.setenv("HF_HOME", str(hf_home))
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_python_modules_in_runtime",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_core_model_inputs",
+        lambda *_args, **_kwargs: [],
+    )
+    edit_script = tmp_path / "edit_texture.py"
+    edit_script.write_text("print('fake')\n", encoding="utf-8")
+    runtime_src = tmp_path / "src" / "texture_edit"
+    runtime_src.mkdir(parents=True)
+    (runtime_src / "upscaler.py").write_text("print('upscale')\n", encoding="utf-8")
+    runtime_python = tmp_path / ".venv_gen" / "bin" / "python"
+    runtime_python.parent.mkdir(parents=True)
+    runtime_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    runtime_python.chmod(0o755)
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=tmp_path,
+            edit_script=edit_script,
+            model_dir=tmp_path / "models",
+            runtime_profiles=("texture-step1x-core", "texture-swin2sr"),
+            validate_assets=False,
+            required_executables=(),
+        )
+    )
+
+    missing_health = backend.health()
+    missing_info = missing_health.capabilities.model_dump()["upscaler"]
+
+    assert missing_health.ready is False
+    assert missing_info["auto_download_writable"] is False
+    assert missing_info["ready"] is False
+    assert missing_info["model_policy"] == "operator_preloaded_cache_required"
+    assert any("model snapshot" in item for item in missing_info["missing"])
+
+    swin_paths = step1x_backend_module._swin2sr_model_cache_paths(tmp_path / "models")
+    for path in swin_paths.values():
+        path.mkdir(parents=True)
+
+    empty_health = backend.health()
+    assert empty_health.ready is False
+    assert "missing file" in (empty_health.error or "")
+    for label, path in swin_paths.items():
+        _write_nonempty_files(
+            path,
+            step1x_backend_module._SWIN2SR_MODEL_FILES[label],
+        )
+    empty_weight = swin_paths["x2"] / "model.safetensors"
+    empty_weight.write_bytes(b"")
+    assert backend.health().ready is False
+    assert "empty file" in (backend.health().error or "")
+    empty_weight.write_bytes(b"model-fixture")
+
+    ready_health = backend.health()
+    ready_info = ready_health.capabilities.model_dump()["upscaler"]
+    assert ready_health.ready is True
+    assert ready_info["ready"] is True
+
+
 def test_health_checks_swin2sr_modules_with_runtime_python(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("TEXTURE_UPSCALER_BACKEND", raising=False)
     monkeypatch.delenv("TEXTURE_REALESRGAN_BACKEND", raising=False)
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_swin2sr_model_inputs",
+        lambda *_args, **_kwargs: [],
+    )
     edit_script = tmp_path / "custom_edit.py"
     edit_script.write_text("print('fake')\n", encoding="utf-8")
     runtime_src = tmp_path / "src" / "texture_edit"
@@ -1097,6 +1986,11 @@ def test_health_reports_swin2sr_missing_module_from_runtime_python(
 ) -> None:
     monkeypatch.delenv("TEXTURE_UPSCALER_BACKEND", raising=False)
     monkeypatch.delenv("TEXTURE_REALESRGAN_BACKEND", raising=False)
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_swin2sr_model_inputs",
+        lambda *_args, **_kwargs: [],
+    )
     edit_script = tmp_path / "custom_edit.py"
     edit_script.write_text("print('fake')\n", encoding="utf-8")
     runtime_src = tmp_path / "src" / "texture_edit"
@@ -1212,7 +2106,7 @@ def test_create_app_uses_shared_harness(tmp_path: Path) -> None:
 
     assert status["status"] == "completed"
     assert status["result"]["generated_textures"]["normal"] is None
-    assert runner.requests[0].prompt == "aged red leather with worn edges"
+    assert runner.requests[0].prompt == "aged red leather with darker edge patina"
 
 
 def test_livez_route_reports_process_liveness() -> None:
@@ -1980,6 +2874,46 @@ def test_external_runner_command_failure_returns_structured_diagnostic(
     assert exc_info.value.result.diagnostics[0]["code"] == "STEP1X_COMMAND_FAILED"
 
 
+def test_external_runner_preserves_pbr_incomplete_child_diagnostic(
+    tmp_path: Path,
+) -> None:
+    source_usd = tmp_path / "asset.usda"
+    source_usd.write_text("#usda 1.0\n", encoding="utf-8")
+    edit_script = tmp_path / "edit_texture.py"
+    edit_script.write_text(
+        "from __future__ import annotations\n"
+        "import sys\n"
+        "print('RuntimeError: STEP1X_PBR_OUTPUT_INCOMPLETE: missing metallic', "
+        "file=sys.stderr)\n"
+        "raise SystemExit(7)\n",
+        encoding="utf-8",
+    )
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=tmp_path,
+            edit_script=edit_script,
+            python_executable=Path(sys.executable),
+            validate_assets=False,
+        )
+    )
+    request = _request().model_copy(update={"source_asset_uri": source_usd.as_uri()})
+
+    with pytest.raises(
+        TextureGenerationBackendError,
+        match="STEP1X_PBR_OUTPUT_INCOMPLETE",
+    ) as exc_info:
+        backend.generate(
+            request,
+            job_id="vj-external-incomplete-pbr",
+            output_dir=tmp_path / "out",
+            cancel_event=threading.Event(),
+        )
+    assert exc_info.value.result is not None
+    assert exc_info.value.result.diagnostics[0]["code"] == (
+        "STEP1X_PBR_OUTPUT_INCOMPLETE"
+    )
+
+
 def test_command_template_runs_without_runtime_dir(tmp_path: Path) -> None:
     source_usd = tmp_path / "asset.usda"
     source_usd.write_text("#usda 1.0\n", encoding="utf-8")
@@ -2173,6 +3107,67 @@ def test_command_template_substitution_keeps_prompt_in_single_argv_token(
     ]
 
 
+def test_command_template_substitutes_upscale_contract_as_argv_tokens(
+    tmp_path: Path,
+) -> None:
+    runner = ExternalStep1XRunner(
+        Step1XBackendConfig(
+            command_template=(
+                "runner {upscale} {upscale_target_size_arg} --usd {source_asset}"
+            ),
+        )
+    )
+    request = _step1x_run_request(
+        tmp_path,
+        custom_parameters={"upscale_target_size": 4096},
+    )
+
+    command = runner._build_command(request, tmp_path / "asset.usd")
+
+    assert command == [
+        "runner",
+        "--upscale",
+        "--upscale-target-size=4096",
+        "--usd",
+        str(tmp_path / "asset.usd"),
+    ]
+
+
+def test_command_template_rejects_non_atomic_upscale_target_placeholder(
+    tmp_path: Path,
+) -> None:
+    runner = ExternalStep1XRunner(
+        Step1XBackendConfig(
+            command_template=(
+                "runner --target-size {upscale_target_size} --usd {source_asset}"
+            ),
+        )
+    )
+
+    with pytest.raises(ValueError, match="atomic"):
+        runner._build_command(
+            _step1x_run_request(tmp_path, custom_parameters={}),
+            tmp_path / "asset.usd",
+        )
+
+
+def test_command_template_atomic_upscale_arg_is_safe_when_target_is_absent(
+    tmp_path: Path,
+) -> None:
+    runner = ExternalStep1XRunner(
+        Step1XBackendConfig(
+            command_template=(
+                "runner {upscale} {upscale_target_size_arg} --usd {source_asset}"
+            ),
+        )
+    )
+    request = _step1x_run_request(tmp_path, custom_parameters={})
+
+    command = runner._build_command(request, tmp_path / "asset.usd")
+
+    assert command == ["runner", "--usd", str(tmp_path / "asset.usd")]
+
+
 def test_default_command_can_enable_material_anything_and_upscale(
     tmp_path: Path,
 ) -> None:
@@ -2190,7 +3185,8 @@ def test_default_command_can_enable_material_anything_and_upscale(
             "skip_material_anything": False,
             "ma_steps": 10,
             "gpu": 1,
-            "upscale": True,
+            "upscale_target_size": 4096,
+            "debug": True,
         },
     )
 
@@ -2200,6 +3196,8 @@ def test_default_command_can_enable_material_anything_and_upscale(
     assert command[command.index("--ma-steps") + 1] == "10"
     assert command[command.index("--gpu") + 1] == "1"
     assert "--upscale" in command
+    assert "--debug" in command
+    assert command[command.index("--upscale-target-size") + 1] == "4096"
 
 
 def test_default_command_parses_string_false_for_material_anything(
@@ -2633,6 +3631,16 @@ def test_runtime_probe_helpers_report_failure_shapes(
     ) == ["runtime python module probe failed (unexpected output)"]
 
 
+def test_runtime_probe_reports_each_missing_module_once(tmp_path: Path) -> None:
+    assert step1x_backend_module._missing_python_modules_in_runtime(
+        Path(sys.executable),
+        ("texture_agent_definitely_missing_probe_module",),
+        runtime_dir=tmp_path,
+    ) == [
+        "python module texture_agent_definitely_missing_probe_module (not importable)"
+    ]
+
+
 def test_upscaler_readiness_helpers_cover_auto_and_download_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2646,12 +3654,17 @@ def test_upscaler_readiness_helpers_cover_auto_and_download_paths(
     monkeypatch.setattr(
         step1x_backend_module,
         "_missing_swin2sr_upscaler_inputs",
-        lambda python_executable=None: ["python module torch (not importable)"],
+        lambda *_args, **_kwargs: ["python module torch (not importable)"],
     )
     monkeypatch.setattr(
         step1x_backend_module,
         "_missing_ncnn_upscaler_inputs",
         lambda paths: ["ncnn_binary (not found)"],
+    )
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_swin2sr_model_inputs",
+        lambda *_args, **_kwargs: [],
     )
     assert step1x_backend_module._missing_upscaler_inputs(runtime_dir) == [
         "swin2sr python module torch (not importable)",
@@ -2703,6 +3716,48 @@ def test_step1x_error_and_uri_helpers_cover_negative_cases() -> None:
     assert (
         step1x_backend_module._local_path_from_uri("https://example.test/a.usd") is None
     )
+
+
+def test_local_source_path_is_confined_before_existence_check(tmp_path: Path) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside.usd"
+
+    for candidate in (outside, tmp_path / "missing.usd"):
+        with pytest.raises(
+            RuntimeError,
+            match="source asset is outside the configured roots",
+        ) as caught:
+            step1x_backend_module._local_path_from_uri(
+                candidate.as_uri(),
+                allowed_roots=(allowed,),
+            )
+        assert str(candidate) not in str(caught.value)
+
+
+def test_local_source_path_rejects_symlink_escape_and_redacts_missing_path(
+    tmp_path: Path,
+) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside.usd"
+    outside.write_text("#usda 1.0", encoding="utf-8")
+    alias = allowed / "alias.usd"
+    alias.symlink_to(outside)
+
+    with pytest.raises(RuntimeError, match="outside the configured roots"):
+        step1x_backend_module._local_path_from_uri(
+            alias.as_uri(),
+            allowed_roots=(allowed,),
+        )
+
+    missing = allowed / "missing.usd"
+    with pytest.raises(RuntimeError, match="source asset is not visible") as caught:
+        step1x_backend_module._local_path_from_uri(
+            missing.as_uri(),
+            allowed_roots=(allowed,),
+        )
+    assert str(missing) not in str(caught.value)
 
 
 def test_scope_resolution_infers_single_bound_material_from_target_prims(
@@ -3242,6 +4297,173 @@ def test_preserve_normal_and_process_helpers_cover_failures(
     assert process.terminated is True
     assert process.killed is True
     assert step1x_backend_module._tail_text(tmp_path / "missing.log") == ""
+
+
+def test_runtime_profile_helpers_cover_marker_and_legacy_edges(
+    tmp_path: Path,
+) -> None:
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            skip_material_anything=False,
+            require_upscaler=True,
+        )
+    )
+    assert backend._selected_runtime_profiles() == ("texture-full-pbr-upscale",)
+    assert step1x_backend_module._upscale_target_size("4096") == 4096
+    assert step1x_backend_module._marker_runtime_profiles(
+        {"runtime_profile": "texture-step1x-core"}
+    ) == ("texture-step1x-core",)
+
+    marker_path = tmp_path / ".texture-agent-runtime.json"
+    marker_path.write_text("[]\n", encoding="utf-8")
+    marker, issue = step1x_backend_module._runtime_marker_state(marker_path)
+    assert marker is None
+    assert issue == "STEP1X_RUNTIME_MARKER_INVALID (expected a JSON object)"
+
+
+def test_runtime_profile_configuration_handles_match_and_marker_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_dir = tmp_path / "runtime"
+    runtime_dir.mkdir()
+    marker_path = runtime_dir / ".texture-agent-runtime.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "runtime_source": "compose_managed",
+                "runtime_profiles": ["texture-step1x-core"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    backend = Step1XBackend(
+        config=Step1XBackendConfig(
+            runtime_dir=runtime_dir,
+            runtime_profiles=("texture-step1x-core",),
+        )
+    )
+
+    assert backend._runtime_profile_configuration_issues() == []
+
+    # Fail closed if the marker changes between validation and the second read.
+    monkeypatch.setattr(backend, "_runtime_marker_issue", lambda: None)
+    monkeypatch.setattr(
+        backend,
+        "_runtime_marker",
+        lambda: {"runtime_source": "compose_managed"},
+    )
+    assert backend._runtime_profile_configuration_issues() == [
+        "STEP1X_RUNTIME_PROFILES_MISSING_FROM_MARKER "
+        "(.texture-agent-runtime.json has no runtime_profiles)"
+    ]
+
+
+def test_upscaler_readiness_covers_required_swin_and_auto_model_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_dir = tmp_path / "runtime"
+    module_path = runtime_dir / "src" / "texture_edit" / "upscaler.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text("# upscaler\n", encoding="utf-8")
+
+    monkeypatch.setenv("TEXTURE_UPSCALER_BACKEND", "ncnn-vulkan")
+    missing = step1x_backend_module._missing_upscaler_inputs(
+        runtime_dir,
+        require_swin2sr=True,
+    )
+    assert any(
+        "selected texture-swin2sr profile requires Swin2SR" in item for item in missing
+    )
+
+    monkeypatch.setenv("TEXTURE_UPSCALER_BACKEND", "auto")
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_swin2sr_upscaler_inputs",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_ncnn_upscaler_inputs",
+        lambda _paths: ["binary (missing)"],
+    )
+    monkeypatch.setattr(
+        step1x_backend_module,
+        "_missing_swin2sr_model_inputs",
+        lambda _model_dir: ["Swin2SR model fixture (missing)"],
+    )
+
+    assert step1x_backend_module._missing_upscaler_inputs(runtime_dir) == [
+        "Swin2SR model fixture (missing)"
+    ]
+
+
+def test_model_cache_and_runtime_probe_environment_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hub_cache = tmp_path / "hub"
+    monkeypatch.setenv("HF_HUB_CACHE", str(hub_cache))
+    assert step1x_backend_module._canonical_hf_hub_cache(None) == hub_cache
+
+    for env_name in (
+        "TEXTURE_STEP1X_HF_REPO",
+        "TEXTURE_STEP1X_HF_REVISION",
+        "TEXTURE_SDXL_BASE_REVISION",
+        "TEXTURE_SDXL_VAE_REVISION",
+    ):
+        monkeypatch.delenv(env_name, raising=False)
+    missing_models = step1x_backend_module._missing_core_model_inputs(None)
+    assert missing_models
+    assert all("model snapshot" in item for item in missing_models)
+
+    configured_path = tmp_path / "configured-pythonpath"
+    monkeypatch.setenv("PYTHONPATH", str(configured_path))
+    environment = step1x_backend_module._runtime_probe_environment(
+        tmp_path / "runtime",
+        include_material_anything=False,
+    )
+    assert environment["PYTHONPATH"].split(os.pathsep)[-1] == str(configured_path)
+
+
+def test_nonempty_model_file_reports_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"model")
+    monkeypatch.setattr(step1x_backend_module.os, "access", lambda *_args: False)
+
+    assert (
+        step1x_backend_module._nonempty_model_file_issue(
+            "model",
+            model_file,
+        )
+        == f"model (not readable: {model_file})"
+    )
+
+
+def test_upscaler_auto_download_writable_without_bin_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert step1x_backend_module._upscaler_auto_download_writable(None) is False
+
+    runtime_dir = tmp_path / "runtime"
+    module_path = runtime_dir / "src" / "texture_edit" / "upscaler.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text("# upscaler\n", encoding="utf-8")
+    monkeypatch.setenv("TEXTURE_UPSCALER_BACKEND", "auto")
+
+    def fake_access(path: os.PathLike[str] | str, mode: int) -> bool:
+        candidate = Path(path)
+        return (candidate == module_path and mode == os.R_OK) or (
+            candidate == runtime_dir and mode == os.W_OK
+        )
+
+    monkeypatch.setattr(step1x_backend_module.os, "access", fake_access)
+    assert step1x_backend_module._upscaler_auto_download_writable(runtime_dir) is True
 
 
 def _step1x_run_request(

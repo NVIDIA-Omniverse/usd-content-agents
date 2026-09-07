@@ -6,10 +6,9 @@ Runs VLM inference on composition images to identify the whole asset
 (type, subtype, description) before per-component classification.
 """
 
-import concurrent.futures as _cf
 import json
 import logging
-import os
+import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -17,18 +16,23 @@ from typing import Any
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.utils.llm_parsing import extract_json_from_llm_response
+from world_understanding.utils.model_auth import raise_for_model_authentication
+from world_understanding.utils.model_timeout import (
+    NON_RETRYABLE_VLM_TIMEOUT_MESSAGE,
+    NonRetryableVLMTimeoutError,
+    is_model_timeout_error,
+)
 from world_understanding.utils.object_store import ObjectStore
 
 from physics_agent.api.defaults import DEFAULT_VLM_TEMPERATURE
+from physics_agent.functions.inference import get_fibonacci_delay
 
 logger = logging.getLogger(__name__)
 
-# Hard deadline for the VLM call in identify_asset. ChatNVIDIA's `timeout`
-# kwarg is silently forwarded to model_kwargs and does NOT set an HTTP
-# timeout, so a slow/hung NIM endpoint would otherwise block the pipeline
-# forever. Override via PA_IDENTIFY_ASSET_VLM_TIMEOUT env var.
-_IDENTIFY_ASSET_VLM_TIMEOUT = float(
-    os.environ.get("PA_IDENTIFY_ASSET_VLM_TIMEOUT", "180")
+_IDENTIFY_ASSET_VLM_MAX_RETRIES = 3
+_UNBOUNDED_IDENTIFY_VLM_MESSAGE = (
+    "Asset identification requires a VLM backend with a verified bounded "
+    "request timeout"
 )
 
 
@@ -47,7 +51,7 @@ class IdentifyAssetTask(Task):
         - identification_path: Path to identification.json
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the identify asset task."""
         self.name = "IdentifyAsset"
         self.description = "Identify whole asset from composition images"
@@ -110,64 +114,105 @@ class IdentifyAssetTask(Task):
             '"reasoning": "explanation of identification"}'
         )
 
-        try:
-            # Get invoke kwargs (temperature, max_tokens, etc.)
-            raw_vlm_invoke_kwargs = context.get("vlm_invoke_kwargs") or {}
-            vlm_invoke_kwargs: dict[str, Any] = (
-                dict(raw_vlm_invoke_kwargs)
-                if isinstance(raw_vlm_invoke_kwargs, Mapping)
-                else {}
-            )
-            raw_vlm_config = context.get("vlm_config") or {}
-            vlm_config: dict[str, Any] = (
-                dict(raw_vlm_config) if isinstance(raw_vlm_config, Mapping) else {}
-            )
-
-            # Wrap the VLM call in a hard deadline. ChatNVIDIA's timeout
-            # kwarg does not set an HTTP timeout, so on a slow/hung NIM
-            # endpoint this call could otherwise block indefinitely.
-            def _do_generate() -> str:
-                return vlm.generate(
-                    prompt=user_prompt,
-                    images=images_to_use,
-                    system_prompt=system_prompt if system_prompt else None,
-                    temperature=vlm_invoke_kwargs.get(
-                        "temperature",
-                        vlm_config.get("temperature", DEFAULT_VLM_TEMPERATURE),
-                    ),
-                    max_tokens=vlm_invoke_kwargs.get("max_tokens", 4096),
-                )
-
-            _executor = _cf.ThreadPoolExecutor(max_workers=1)
-            _fut = _executor.submit(_do_generate)
-            try:
-                response_text = _fut.result(timeout=_IDENTIFY_ASSET_VLM_TIMEOUT)
-            except _cf.TimeoutError as _te:
-                _fut.cancel()
-                raise TimeoutError(
-                    f"VLM did not respond within {_IDENTIFY_ASSET_VLM_TIMEOUT:.0f}s"
-                ) from _te
-            finally:
-                _executor.shutdown(wait=False, cancel_futures=True)
-
-            # Parse JSON from response
-            identification = self._parse_identification(response_text)
-
-            listener.info(
-                f"Identified asset: {identification.get('asset_type', 'unknown')} "
-                f"/ {identification.get('asset_subtype', 'unknown')} "
-                f"(confidence: {identification.get('confidence', 'unknown')})"
+        # Get invoke kwargs (temperature, max_tokens, etc.)
+        raw_vlm_invoke_kwargs = context.get("vlm_invoke_kwargs") or {}
+        vlm_invoke_kwargs: dict[str, Any] = (
+            dict(raw_vlm_invoke_kwargs)
+            if isinstance(raw_vlm_invoke_kwargs, Mapping)
+            else {}
+        )
+        raw_vlm_config = context.get("vlm_config") or {}
+        vlm_config: dict[str, Any] = (
+            dict(raw_vlm_config) if isinstance(raw_vlm_config, Mapping) else {}
+        )
+        max_retries = vlm_config.get("max_retries", _IDENTIFY_ASSET_VLM_MAX_RETRIES)
+        if (
+            isinstance(max_retries, bool)
+            or not isinstance(max_retries, int)
+            or max_retries < 1
+        ):
+            raise ValueError(
+                "identify_asset.vlm.max_retries must be a positive integer"
             )
 
-        except Exception as e:
-            logger.error("Asset identification failed: %s", e, exc_info=True)
-            identification = {
-                "asset_type": "unknown",
-                "asset_subtype": "unknown",
-                "asset_description": f"Identification failed: {e}",
-                "confidence": "low",
-                "reasoning": str(e),
+        if getattr(vlm, "has_bounded_request_timeout", False) is not True:
+            raise RuntimeError(_UNBOUNDED_IDENTIFY_VLM_MESSAGE)
+
+        # Provisioned VLM backends own their timeout behavior. Keep attempts
+        # synchronous so a retry cannot start until the previous request has
+        # terminated; abandoning a running call in a worker leaks the request.
+        extra_vlm_invoke_kwargs = {
+            key: value
+            for key, value in vlm_invoke_kwargs.items()
+            if key
+            not in {
+                "max_completion_tokens",
+                "max_retries",
+                "max_tokens",
+                "temperature",
             }
+        }
+
+        def _do_generate() -> Any:
+            return vlm.generate(
+                prompt=user_prompt,
+                images=images_to_use,
+                system_prompt=system_prompt if system_prompt else None,
+                temperature=vlm_invoke_kwargs.get(
+                    "temperature",
+                    vlm_config.get("temperature", DEFAULT_VLM_TEMPERATURE),
+                ),
+                max_tokens=vlm_invoke_kwargs.get("max_tokens", 4096),
+                **extra_vlm_invoke_kwargs,
+            )
+
+        response_text: str | None = None
+        for attempt in range(max_retries):
+            try:
+                response_text = _do_generate()
+                if not isinstance(response_text, str) or not response_text.strip():
+                    raise RuntimeError("VLM returned an empty response")
+                break
+            except Exception as error:
+                # Authentication errors are not transient and retain the
+                # shared stable public diagnostic.
+                raise_for_model_authentication(error)
+                if is_model_timeout_error(error):
+                    logger.error(
+                        "Asset identification VLM timed out with unverified "
+                        "remote completion; suppressing retries"
+                    )
+                    if isinstance(error, NonRetryableVLMTimeoutError):
+                        raise
+                    raise NonRetryableVLMTimeoutError(
+                        NON_RETRYABLE_VLM_TIMEOUT_MESSAGE
+                    ) from None
+                if attempt == max_retries - 1:
+                    logger.error(
+                        "Asset identification VLM failed after %d attempts",
+                        max_retries,
+                    )
+                    raise RuntimeError(
+                        f"Asset identification VLM failed after {max_retries} attempts"
+                    ) from None
+                retry_delay = get_fibonacci_delay(attempt, base_delay=1.0)
+                logger.warning(
+                    "Asset identification VLM attempt %d/%d failed; retrying "
+                    "in %.1f seconds",
+                    attempt + 1,
+                    max_retries,
+                    retry_delay,
+                )
+                time.sleep(retry_delay)
+
+        assert response_text is not None
+        identification = self._parse_identification(response_text)
+
+        listener.info(
+            f"Identified asset: {identification.get('asset_type', 'unknown')} "
+            f"/ {identification.get('asset_subtype', 'unknown')} "
+            f"(confidence: {identification.get('confidence', 'unknown')})"
+        )
 
         # Save results
         self._save_identification(identification, output_dir)
@@ -196,7 +241,8 @@ class IdentifyAssetTask(Task):
             result.setdefault("reasoning", "")
             return result
 
-        # Fallback: return raw text as description
+        # Fallback: return raw text as description, flagged machine-readably
+        # so downstream scoring can exclude or annotate the row.
         logger.warning("Could not parse identification JSON from VLM response")
         return {
             "asset_type": "unknown",
@@ -204,6 +250,7 @@ class IdentifyAssetTask(Task):
             "asset_description": text[:500],
             "confidence": "low",
             "reasoning": "Could not parse structured response",
+            "identification_failed": True,
         }
 
     def _save_identification(

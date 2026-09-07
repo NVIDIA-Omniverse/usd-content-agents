@@ -23,7 +23,26 @@ REST API for AI-driven texture generation on USD materials. Upload a materialize
 
 ## Authentication
 
-No authentication is required. The service accepts all origins via permissive CORS.
+Unauthenticated by default. Set `TEXTURE_AGENT_TOKEN` **in the server's environment** to require
+`Authorization: Bearer <token>` on `/pipeline`, `/artifacts`, and `/sessions` endpoints; requests without a matching
+token get `401` with `WWW-Authenticate: Bearer`. When the variable is unset — the
+default — the service accepts unauthenticated requests and must run behind a trusted
+network boundary. `/health`, `/api`, `/`, `/docs`, and `/openapi.json` never require a
+token so liveness probes keep working, and `GET /health` reports `auth_enforced`.
+Set `WU_SERVICE_AUTH_REQUIRED=1` to refuse startup without a token.
+
+An empty or whitespace-only `TEXTURE_AGENT_TOKEN` counts as **unset**, so enforcement stays off.
+That is deliberate: Compose `${VAR:-}` passthrough and Helm `value: ""` defaults both
+deliver an empty string, and treating those as "enabled" would reject every request
+with a token nobody can supply.
+
+Under Docker Compose, set `TEXTURE_AGENT_TOKEN` in the repo-root `.env` (or the
+service-local `.env`), which this service loads via `env_file`. Do not add it to the
+compose `environment:` block: that section overrides `env_file`, and `${VAR:-}`
+interpolation would replace a configured token with an empty string and silently
+disable enforcement.
+
+CORS remains permissive (`allow_origins=["*"]`); the token is the access control.
 
 ---
 
@@ -39,13 +58,30 @@ Health check.
 {
   "status": "healthy",
   "service": "Texture Agent Service",
-  "version": "0.5.2",
+  "auth_enforced": false,
+  "version": "0.6.0",
+  "build": {
+    "commit_sha": null,
+    "image_tag": null,
+    "timestamp": null
+  },
   "image_gen_backend": "nim",
   "active_backend_key_configured": true,
   "nvidia_api_key_configured": true,
   "max_active_sessions": 4
 }
 ```
+
+`build` identifies the running image. `version` alone cannot distinguish two
+builds of the same `VERSION.md` string, so use `build.commit_sha` to confirm a
+deployment carries the change you expect. Each field is `null` when the service
+runs from a source checkout rather than a built image.
+
+| Env var | Baked from |
+|---|---|
+| `TA_BUILD_COMMIT_SHA` | `--build-arg GIT_COMMIT` |
+| `TA_BUILD_IMAGE_TAG` | `--build-arg IMAGE_VERSION` (the resolved NGC tag) |
+| `TA_BUILD_TIMESTAMP` | `--build-arg BUILD_TIMESTAMP` |
 
 ### `GET /api`
 
@@ -98,9 +134,10 @@ Create a session and kick off the texture pipeline in one call.
 | `user_prompt` | string | Optional aesthetic direction, e.g. `"weathered mossy patina"`. Used by the LLM auto-prompt step. |
 | `auto_prompt_enabled` | boolean | Optional. Defaults to `true` for legacy service behavior. Set `false` to process only materials listed in `material_textures_json`. |
 | `texture_backend` | string | Optional texture backend override. Use `service` to route generation through a projection backend instead of the configured default backend. |
-| `texture_endpoint` | string | Optional projection backend endpoint. Required when the effective texture backend is `service`. |
+| `texture_endpoint` | string | Optional projection backend endpoint. Required when the effective texture backend is `service`; request overrides must exactly match a configured default or `TA_TEXTURE_ENDPOINT_ALLOWED_URLS`. |
 | `backend_engine` | string | Optional projection backend engine/model hint. |
 | `backend_custom_parameters_json` | string | Optional JSON object passed through to the projection backend, e.g. `{"variant":"success_full_pbr"}` for fake-backend tests. |
+| `external_authoring_json` | string | Optional versioned `texture-agent-external-authoring.v1` object for an approved headless DCC adapter. Credentials are forbidden; Texture Agent obtains a sanitized capability receipt before launching jobs. |
 | `detail_policy` | string | Optional global texture detail policy. Use `surface_only` for AOI/CAD/PCB assets where traces, vias, labels, seams, holes, components, or other semantic details already exist as geometry. Per-material and per-prim values in `material_textures_json` override this value. |
 | `reference_image_uris_json` | string | Optional global JSON list of reference image URIs. Merged with `reference_image_file` and per-material `reference_image_uris`. |
 | `turntable_video_uri` | string | Optional global turntable video URI. |
@@ -417,7 +454,49 @@ Discovered-material metadata from the `discover_materials` step.
 Run artifact manifest with schema version `texture-agent-artifacts.v1`. Includes
 UV report summary, generated and blended maps, output/package status, render
 paths, backend metadata, warnings, errors, and structured package diagnostics
-such as `PACKAGE_MISSING_ARTIFACT`.
+such as `PACKAGE_MISSING_ARTIFACT` and `PACKAGE_ABSOLUTE_TEXTURE_PATH`.
+
+For an uploaded layered USDZ, source-package reconstruction and USDZ packaging
+complete before rendering. A reconstruction or packaging error is therefore a
+terminal `apply_textures` failure and no render is produced; generated maps,
+the root-only apply USD, and the failure manifest are still checkpointed to
+shared storage for inspection. On success, the manifest reports the individual
+root-only USD as non-portable with
+`OUTPUT_LAYERED_USD_REQUIRES_USDZ`; clients should use the self-contained USDZ
+from `/artifacts/{session_id}/output`. `outputs.usdz_portability` reports the
+separate validation result for the reconstructed package source.
+
+The output packager preserves the archive-relative layout for both layered and
+single-layer inputs, with the composed USD root as the first member. This keeps
+equivalent Asset-, String-, and Token-typed texture references aligned instead
+of flattening only typed USD dependencies. Single-layer archives contain only
+the composed dependency closure and active packageable String/Token PNG texture
+inputs; run prompts, plans, renders, previews, manifests, inactive shader data,
+and unrelated intermediates are excluded. All raw-USD dependencies must resolve
+inside the run cache; packaging fails closed for external paths. Upload a
+self-contained USDZ for a source that requires multiple external layers or
+assets. The service retains the original uploaded USDZ path across UV
+preparation so a cache-local prepared layer does not bypass reconstruction.
+Only the prepared stage's changed prim and property opinions are transferred
+back to their original package authoring layers, so variant sets, payload load
+rules, inactive branches, nested default prims, and composition arcs do not
+disappear or become permanently active when UV preparation produces a
+flattened cache layer. If
+preparation flattens an existing member to an absolute
+`source.usdz[member]` path, every Asset-typed dependency is mapped back to the
+reconstructed member; active PNG/JPEG String/Token inputs are rewritten the
+same way, with each relative value rebased for the package layer that authors
+it. Asset-only upload bundles accept `.png`, `.jpg`, and `.jpeg` members.
+Generated maps use a collision-safe package namespace and cannot overwrite a
+source member with the same name. Missing local MDL defaults are cleared in
+their actual authoring layers rather than only in the reconstructed root edit
+target. The root-only layered USD remains
+intentionally non-portable and contributes one warning; package portability
+determines whether the run can succeed. Every reconstructed payload, reference,
+sublayer, and typed asset must resolve inside the extracted source tree.
+Cancellation waits for reconstruction or packaging threads to drain before the
+session worker lock is released, and a drain timeout is terminal even during
+late single-layer packaging.
 
 **Response** `200` — `application/json`.
 
@@ -536,7 +615,8 @@ service README rather than duplicated in this service API table.
 | `TA_IMAGE_GEN_BASE_URL` | — | Override image-gen base URL; used by the multi-gpu overlay to route at the local FLUX sidecar. |
 | `TA_IMAGE_GEN_API_KEY` | — | Endpoint-specific image-gen key. The multi-gpu overlay sets `not-used` for the local FLUX sidecar and overrides service-local env files. |
 | `TA_LLM_BACKEND` | `nim` | LLM backend for auto-prompt generation. |
-| `TA_LLM_MODEL` | `google/gemma-4-31b-it` | LLM model. |
+| `TA_LLM_MODEL` | `moonshotai/kimi-k3` | LLM model. |
+| `TA_LLM_REASONING_EFFORT` | model default | Optional auto-prompt reasoning override. |
 | `TA_LLM_BASE_URL` | — | Override LLM base URL; set by the overlay when running `--profile llm`. |
 | `TA_TEXTURE_SIZE` | `1024` | Output texture resolution. |
 | `TA_TEXTURE_WORKERS` | `4` | Parallel texture generation workers. |

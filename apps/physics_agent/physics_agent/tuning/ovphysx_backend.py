@@ -54,8 +54,12 @@ class OvPhysXBackend:
         # Lazy-init on first evaluate so importing this module is cheap
         # for code paths that never run a tune (CLI --help, etc.).
         self._daemon: Any | None = None
+        self._ground_clearance_support_cache: dict[str, dict[str, Any]] = {}
         self.judge_callback: Any | None = None
         self.final_state_judge: Any | None = None
+        # Extra TRUSTED roots for per-trial scene export (set externally by
+        # run_tune from TuneInput.approved_dependency_roots).
+        self.extra_approved_dependency_roots: tuple[Path, ...] = ()
 
     def _get_daemon(self) -> Any:
         if self._daemon is None:
@@ -120,10 +124,24 @@ class OvPhysXBackend:
         # it over to the scenario evaluator as ``simulator=`` so both
         # OvPhysX (here) and Newton can reuse the same evaluator code.
         kwargs: dict[str, Any] = {"simulator": self._get_daemon()}
+        if scenario.name in {"freeform", "drop_settle"}:
+            kwargs["extra_approved_dependency_roots"] = tuple(
+                self.extra_approved_dependency_roots
+            )
         if scenario.name == "freeform":
             kwargs["judge_callback"] = self.judge_callback
         elif scenario.name == "drop_settle":
             kwargs["final_state_judge"] = self.final_state_judge
+            kwargs["ground_clearance_support_cache"] = (
+                self._ground_clearance_support_cache
+            )
+            # Tuning parameters are authored into a per-trial patched USD, but
+            # they do not change the source geometry used for ground-clearance
+            # support. Key the cache from the unchanged input instead of the
+            # generated trial path so every trial can reuse the same decision.
+            kwargs["ground_clearance_support_cache_key"] = (
+                f"physics_usd:{Path(physics_usd).resolve()}"
+            )
         return evaluator(
             params=dict(params),
             scenario=scenario,
@@ -137,6 +155,9 @@ class OvPhysXBackend:
         if self._daemon is not None:
             self._daemon.shutdown()
             self._daemon = None
+        cache = getattr(self, "_ground_clearance_support_cache", None)
+        if cache is not None:
+            cache.clear()
 
 
 __all__ = ["OvPhysXBackend"]

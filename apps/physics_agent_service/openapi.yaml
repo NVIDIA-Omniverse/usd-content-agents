@@ -25,7 +25,7 @@ info:
     \ endpoint.\n    * Cancel running pipelines via a dedicated endpoint.\n\n* Visual\
     \ feedback\n    * Live preview gallery during the rendering stage.\n    * On-demand\
     \ HTML report generation with per-prim classifications.\n"
-  version: 0.5.2
+  version: 0.6.0
 paths:
   /pipeline/upload-usd:
     post:
@@ -574,8 +574,11 @@ paths:
         scene_physics.usd, scene_physics.usda, or scene_physics.usdc. USDZ
         inputs default to scene_physics.usda so Omniverse MDL shader references
         can remain as runtime-resolved asset paths instead of being bundled
-        into a new USDZ package. UsdPhysics schemas (RigidBodyAPI, CollisionAPI, MassAPI,
-        MaterialAPI) are authored on each predicted prim, plus a PhysicsScene.
+        into a new USDZ package. When a flattened output has localized filesystem
+        dependencies, the response is a ZIP containing the root layer and its
+        `<output-filename>_assets/` sidecar directory. UsdPhysics schemas (RigidBodyAPI, CollisionAPI, MassAPI,
+        MaterialAPI) are authored on each predicted prim, plus a PhysicsScene. Legacy
+        `<output-stem>_assets/` sidecars remain readable for existing sessions.
         Consumable by PhysX / Isaac.'
       operationId: download_output_usd_artifacts__session_id__output_usd_get
       parameters:
@@ -589,6 +592,10 @@ paths:
         '200':
           description: Successful Response
           content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
             application/octet-stream:
               schema:
                 type: string
@@ -669,6 +676,12 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '404':
+          description: Session not found
+        '409':
+          description: Session is active and cannot be deleted
+        '500':
+          description: Session deletion failed
         '422':
           description: Validation Error
           content:
@@ -1047,7 +1060,18 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  auth_enforced:
+                    type: boolean
+                    description: >-
+                      Whether bearer-token enforcement is active on this
+                      server. True when the service's *_AGENT_TOKEN variable
+                      is set in its environment.
   /api:
     get:
       summary: Root Api Info
@@ -1644,38 +1668,18 @@ components:
           title: Reference Images
           default: []
           description: Optional reference images for the visual/VLM judge
-        reference_videos:
-          items:
-            type: string
-            contentMediaType: application/octet-stream
-          type: array
-          title: Reference Videos
-          default: []
-          description: Optional reference videos for the visual/VLM judge
         reference_descriptions:
           type: string
           title: Reference Descriptions
           default: ''
           description: Optional JSON array of descriptions parallel to reference_images
-        reference_video_descriptions:
-          type: string
-          title: Reference Video Descriptions
-          default: ''
-          description: Optional JSON array of descriptions parallel to reference_videos
-        reference_video_frames:
-          type: integer
-          title: Reference Video Frames
-          maximum: 64
-          minimum: 1
-          default: 8
-          description: Frames to extract from each reference video for visual judging
         judge_reference_frames:
           type: integer
           title: Judge Reference Frames
           maximum: 64
           minimum: 1
           default: 8
-          description: Max reference images/video frames to send to the VLM judge
+          description: Max reference images to send to the VLM judge
         judge_generated_frames:
           type: integer
           title: Judge Generated Frames
@@ -1803,38 +1807,18 @@ components:
           title: Reference Images
           default: []
           description: Optional reference images for the visual/VLM judge
-        reference_videos:
-          items:
-            type: string
-            contentMediaType: application/octet-stream
-          type: array
-          title: Reference Videos
-          default: []
-          description: Optional reference videos for the visual/VLM judge
         reference_descriptions:
           type: string
           title: Reference Descriptions
           default: ''
           description: Optional JSON array of descriptions parallel to reference_images
-        reference_video_descriptions:
-          type: string
-          title: Reference Video Descriptions
-          default: ''
-          description: Optional JSON array of descriptions parallel to reference_videos
-        reference_video_frames:
-          type: integer
-          title: Reference Video Frames
-          maximum: 64
-          minimum: 1
-          default: 8
-          description: Frames to extract from each reference video for visual judging
         judge_reference_frames:
           type: integer
           title: Judge Reference Frames
           maximum: 64
           minimum: 1
           default: 8
-          description: Max reference images/video frames to send to the VLM judge
+          description: Max reference images to send to the VLM judge
         judge_generated_frames:
           type: integer
           title: Judge Generated Frames
@@ -1861,7 +1845,11 @@ components:
           type: string
           title: Engine
           default: ovphysx
-          description: ovphysx, newton, or fake
+          enum:
+          - ovphysx
+          - newton
+          - fake
+          description: ovphysx, newton, or fake. Fake refine requires visual_evidence_enabled=false.
         max_trials:
           type: integer
           title: Max Trials
@@ -1906,7 +1894,12 @@ components:
           type: boolean
           title: Visual Evidence Enabled
           default: true
-          description: Send generated/reference media to the VLM judge
+          description: Send generated/reference media to the VLM judge. Requires the winning trial to persist recording_usd.
+        visual_evidence_timeout_seconds:
+          type: number
+          title: Visual Evidence Timeout Seconds
+          default: 600.0
+          description: Wall-clock deadline for reference-media preparation and the winning-trial judge render
         llm_timeout_seconds:
           type: number
           title: Llm Timeout Seconds
@@ -1944,6 +1937,12 @@ components:
           anyOf:
           - type: number
           - type: 'null'
+        best_objective:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Best Objective
+          description: Raw objective value for the best completed trial
         best_params:
           anyOf:
           - type: object
@@ -1991,6 +1990,12 @@ components:
           anyOf:
           - type: number
           - type: 'null'
+        best_objective:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Best Objective
+          description: Raw objective value before conversion to optimizer score.
         n_trials:
           type: integer
         optimizer_used:
@@ -2136,3 +2141,19 @@ components:
       - completed_at
       type: object
       title: RefineResults
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Bearer token. The server enforces this ONLY when PHYSICS_AGENT_TOKEN is set in the
+        server's environment; when it is unset the service accepts
+        unauthenticated requests and every endpoint behaves as if no scheme
+        were declared. Send `Authorization: Bearer <token>`. Probe and
+        documentation endpoints (`/health`, `/api`, `/`, `/docs`,
+        `/openapi.json`) never require a token.
+
+security:
+  - {}
+  - bearerAuth: []

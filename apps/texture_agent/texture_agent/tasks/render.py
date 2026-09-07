@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from world_understanding.rendering_backend_contract import (
 from texture_agent.config.rendering_backends import (
     DEFAULT_TEXTURE_RENDERING_BACKEND,
     has_production_visual_evidence,
+    ovrtx_request_sha256,
     validate_texture_rendering_backend,
 )
 from texture_agent.tasks.render_results import render_result_items
@@ -24,6 +26,31 @@ logger = logging.getLogger(__name__)
 
 _DIAGNOSTIC_SCHEMA_VERSION = "texture-agent-diagnostic.v1"
 _DEFAULT_RENDER_SLOT_TIMEOUT_SEC = 300.0
+
+
+def _local_file_sha256(path_value: object) -> str | None:
+    if not isinstance(path_value, str | Path) or not str(path_value):
+        return None
+    try:
+        path = Path(path_value)
+        if not path.is_file():
+            return None
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except (OSError, ValueError):
+        return None
+
+
+def _source_usd_sha256(context: dict[str, Any]) -> str | None:
+    config = context.get("config")
+    input_config = config.get("input") if isinstance(config, dict) else None
+    source_path = (
+        input_config.get("usd_path") if isinstance(input_config, dict) else None
+    ) or context.get("usd_path")
+    return _local_file_sha256(source_path)
 
 
 def _render_result_items(results: Any) -> list[dict[str, Any]]:
@@ -381,6 +408,9 @@ class RenderOutputTask(Task):
 
     Context keys read:
         output_usd_paths (list[str]): From ApplyTexturesTask.
+        render_output_usd_paths (list[str], optional): Reconstructed layered
+            outputs to render while preserving ``output_usd_paths`` as the
+            downloadable apply artifacts.
         render_config (dict): backend, image_width, image_height, etc.
         working_dir (str): Working directory.
 
@@ -396,7 +426,9 @@ class RenderOutputTask(Task):
         self.description = "Render the final textured USD"
 
     def run(self, context: dict[str, Any], object_store: Any = None) -> dict[str, Any]:
-        output_usd_paths: list[str] = context.get("output_usd_paths", [])
+        output_usd_paths: list[str] = context.get(
+            "render_output_usd_paths"
+        ) or context.get("output_usd_paths", [])
         config: dict[str, Any] = context.get("render_config", {})
         working_dir = Path(context["working_dir"])
         backend_type = validate_texture_rendering_backend(
@@ -448,6 +480,8 @@ class RenderOutputTask(Task):
 
         image_width = config.get("image_width", 1024)
         image_height = config.get("image_height", image_width)
+        render_stats["image_width"] = image_width
+        render_stats["image_height"] = image_height
 
         from world_understanding.functions.graphics.rendering_backend_factory import (
             create_rendering_backend,
@@ -625,6 +659,7 @@ class RenderOutputTask(Task):
                         image_height=image_height,
                         cameras=camera_paths,
                         base_dir=Path(usd_path).parent,
+                        asset_root=working_dir,
                         render_slot_timeout_sec=render_slot_timeout,
                     )
                 except RemoteRenderingSlotTimeoutError as exc:
@@ -752,9 +787,40 @@ class RenderOutputTask(Task):
         context["rendered_image_paths"] = rendered
         render_stats["renders_count"] = len(rendered)
         render_stats["render_available"] = bool(rendered)
+        source_usd_sha256 = _source_usd_sha256(context)
+        rendered_usd_sha256 = [_local_file_sha256(path) for path in output_usd_paths]
+        ovrtx_metadata: dict[str, Any] | None = None
+        if backend_type == "ovrtx":
+            render_mode = config.get("render_mode", "rt2")
+            num_sensor_updates = config.get("num_sensor_updates", 32)
+            request_sha256 = ovrtx_request_sha256(
+                source_usd_sha256=source_usd_sha256,
+                rendered_usd_sha256=rendered_usd_sha256,
+                camera_paths=render_stats["camera_paths"],
+                image_width=image_width,
+                image_height=image_height,
+                render_mode=render_mode,
+                num_sensor_updates=num_sensor_updates,
+            )
+            ovrtx_metadata = {
+                "renderer": "OVRTX",
+                "render_mode": render_mode,
+                "num_sensor_updates": num_sensor_updates,
+                "rendered_usd_sha256": rendered_usd_sha256,
+                "request_sha256": request_sha256,
+            }
+            render_stats["source_usd_sha256"] = source_usd_sha256
+            render_stats["ovrtx"] = ovrtx_metadata
         render_stats["production_visual_evidence"] = has_production_visual_evidence(
             backend_type,
             render_count=len(rendered),
+            source_usd_sha256=source_usd_sha256,
+            expected_source_usd_sha256=source_usd_sha256,
+            ovrtx_metadata=ovrtx_metadata,
+            camera_paths=render_stats["camera_paths"],
+            image_width=image_width,
+            image_height=image_height,
+            rendered_usd_sha256=rendered_usd_sha256,
         )
         context["render_stats"] = render_stats
         context["render_diagnostics"] = diagnostics

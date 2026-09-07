@@ -104,7 +104,7 @@ def test_issue31_cli_ladder_smoke_uses_fake_backend_and_strict_scope(
                 },
                 "material_textures": {
                     "Aluminum_Matte": {
-                        "prompt": "deterministic rusty matte aluminum",
+                        "prompt": "deterministic aged matte aluminum",
                         "opacity": 0.85,
                     }
                 },

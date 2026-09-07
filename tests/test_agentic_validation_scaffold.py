@@ -9,6 +9,7 @@ import pytest
 from PIL import Image as PILImage
 from PIL import ImageDraw
 
+from world_understanding.agentic import validation_scaffold
 from world_understanding.agentic.validation_scaffold import (
     MAX_BEHAVIOR_RENDER_EVIDENCE_FILES,
     DraftTemplateResult,
@@ -551,6 +552,18 @@ def test_look_right_template_skips_when_live_vlm_unavailable(
         },
         "error_type": "RuntimeError",
         "error": "service unavailable for <redacted>",
+        # No HTTP status and not a known transport fault, so this is treated as
+        # permanent and fails on the first attempt rather than burning retries.
+        "attempts": 1,
+        "attempt_history": [
+            {
+                "attempt": 1,
+                "error_type": "RuntimeError",
+                "error": "service unavailable for <redacted>",
+                "status": None,
+                "retryable": False,
+            }
+        ],
     }
     serialized_details = json.dumps(look_right.issues[0].details)
     assert nested_api_key not in serialized_details
@@ -2668,3 +2681,194 @@ def test_template_failures_become_fail_verdict(tmp_path: Path) -> None:
     assert result.verdict == "fail"
     assert result.template_results[0].status == "error"
     assert result.issues[0].code == "agent.template_error"
+
+
+class _FlakyJudgeError(Exception):
+    """Stand in for a transport/server failure raised by the VLM client."""
+
+
+def _judge_config() -> dict[str, str]:
+    return {"backend": "nim", "model": "google/gemma-4-31b-it"}
+
+
+def test_look_right_judge_retries_transient_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A single upstream 5xx must not degrade the run to judge_unavailable."""
+
+    calls: list[int] = []
+
+    def flaky_invoke(judge_plan: Any, vlm: Any, **kwargs: Any) -> str:
+        calls.append(1)
+        if len(calls) == 1:
+            raise _FlakyJudgeError(
+                "[500] Internal Server Error\nInference connection error"
+            )
+        return "judged"
+
+    monkeypatch.setattr(
+        validation_scaffold,
+        "_create_live_look_right_vlm",
+        lambda config: object(),
+    )
+    monkeypatch.setattr(validation_scaffold, "invoke_look_right_judge", flaky_invoke)
+
+    invocation, issue = validation_scaffold._invoke_live_look_right_judge(
+        object(),
+        _judge_config(),
+        sleep=lambda _seconds: None,
+    )
+
+    assert issue is None
+    assert invocation == "judged"
+    assert len(calls) == 2
+
+
+def test_look_right_judge_does_not_retry_end_of_life_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 410 for a retired model is permanent; retrying only wastes the run."""
+
+    calls: list[int] = []
+
+    def gone(judge_plan: Any, vlm: Any, **kwargs: Any) -> str:
+        calls.append(1)
+        raise _FlakyJudgeError(
+            "[410] Gone\nThe model 'qwen/qwen3.5-397b-a17b' has reached its "
+            "end of life on 2026-07-27T00:00:00Z and is no longer available."
+        )
+
+    monkeypatch.setattr(
+        validation_scaffold,
+        "_create_live_look_right_vlm",
+        lambda config: object(),
+    )
+    monkeypatch.setattr(validation_scaffold, "invoke_look_right_judge", gone)
+
+    invocation, issue = validation_scaffold._invoke_live_look_right_judge(
+        object(),
+        _judge_config(),
+        sleep=lambda _seconds: None,
+    )
+
+    assert invocation is None
+    assert issue is not None
+    assert issue.code == "visual.judge_unavailable"
+    assert len(calls) == 1
+    assert issue.details["attempts"] == 1
+    assert issue.details["attempt_history"][0]["retryable"] is False
+    assert issue.details["attempt_history"][0]["status"] == 410
+
+
+def test_look_right_judge_fails_closed_after_exhausting_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Persistent transient failures still fail closed, never a silent pass."""
+
+    calls: list[int] = []
+
+    def always_flaky(judge_plan: Any, vlm: Any, **kwargs: Any) -> str:
+        calls.append(1)
+        raise _FlakyJudgeError("[503] Service Unavailable")
+
+    monkeypatch.setattr(
+        validation_scaffold,
+        "_create_live_look_right_vlm",
+        lambda config: object(),
+    )
+    monkeypatch.setattr(validation_scaffold, "invoke_look_right_judge", always_flaky)
+
+    slept: list[float] = []
+    invocation, issue = validation_scaffold._invoke_live_look_right_judge(
+        object(),
+        _judge_config(),
+        sleep=slept.append,
+    )
+
+    assert invocation is None
+    assert issue is not None
+    assert issue.code == "visual.judge_unavailable"
+    assert len(calls) == validation_scaffold.LOOK_RIGHT_JUDGE_MAX_ATTEMPTS
+    assert (
+        issue.details["attempts"] == validation_scaffold.LOOK_RIGHT_JUDGE_MAX_ATTEMPTS
+    )
+    # Backoff applies between attempts, not after the final one.
+    assert len(slept) == validation_scaffold.LOOK_RIGHT_JUDGE_MAX_ATTEMPTS - 1
+
+
+class _StatusAttrJudgeError(Exception):
+    """Client error that carries its HTTP status as an attribute, not in text."""
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__(f"upstream failure ({status_code})")
+        self.status_code = status_code
+
+
+def test_look_right_judge_reads_status_from_exception_attribute() -> None:
+    """Some clients expose the status as `.status_code` rather than in the text."""
+
+    assert validation_scaffold._judge_error_status(_StatusAttrJudgeError(503)) == 503
+    assert validation_scaffold._is_retryable_judge_error(_StatusAttrJudgeError(503))
+    assert validation_scaffold._judge_error_status(_StatusAttrJudgeError(410)) == 410
+    assert not validation_scaffold._is_retryable_judge_error(_StatusAttrJudgeError(410))
+
+
+class _ResponseStub:
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+
+
+class _RequestsStyleJudgeError(Exception):
+    """requests/httpx put the code on `.response` and use no bracket prefix."""
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__(
+            f"{status_code} Server Error: Internal Server Error for url: "
+            "https://integrate.api.nvidia.com/v1/chat/completions"
+        )
+        self.response = _ResponseStub(status_code)
+
+
+def test_look_right_judge_reads_status_from_response_object() -> None:
+    """requests/httpx errors carry the status on `.response`, not the message."""
+
+    assert validation_scaffold._judge_error_status(_RequestsStyleJudgeError(500)) == 500
+    assert validation_scaffold._is_retryable_judge_error(_RequestsStyleJudgeError(503))
+    assert not validation_scaffold._is_retryable_judge_error(
+        _RequestsStyleJudgeError(410)
+    )
+
+
+def test_look_right_judge_reads_bare_leading_status_in_message() -> None:
+    """A bare `500 Server Error: ...` prefix must not read as permanent."""
+
+    bare = Exception("500 Server Error: Internal Server Error for url: https://x")
+    assert validation_scaffold._judge_error_status(bare) == 500
+    assert validation_scaffold._is_retryable_judge_error(bare)
+    # A number that is not a status prefix must not be misread.
+    assert validation_scaffold._judge_error_status(Exception("500")) is None
+    assert (
+        validation_scaffold._judge_error_status(Exception("42 is not a status")) is None
+    )
+
+
+def test_look_right_judge_retry_classification() -> None:
+    """Transport faults and 5xx retry; auth, missing, and retired models do not."""
+
+    retryable = [
+        _FlakyJudgeError("[500] Internal Server Error"),
+        _FlakyJudgeError("[503] Service Unavailable"),
+        _FlakyJudgeError("[429] Too Many Requests"),
+        _FlakyJudgeError("[408] Request Timeout"),
+    ]
+    permanent = [
+        _FlakyJudgeError("[410] Gone"),
+        _FlakyJudgeError("[404] Not Found"),
+        _FlakyJudgeError("[401] Unauthorized"),
+        _FlakyJudgeError("[400] Bad Request"),
+        _FlakyJudgeError("no status code at all"),
+    ]
+    for exc in retryable:
+        assert validation_scaffold._is_retryable_judge_error(exc), exc
+    for exc in permanent:
+        assert not validation_scaffold._is_retryable_judge_error(exc), exc

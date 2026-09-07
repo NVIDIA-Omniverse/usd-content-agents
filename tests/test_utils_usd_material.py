@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 import zipfile
 from pathlib import Path
 
@@ -12,22 +13,201 @@ from PIL import Image
 
 pxr = pytest.importorskip("pxr")
 
-from pxr import Sdf, Usd, UsdGeom, UsdShade  # noqa: E402
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade  # noqa: E402
 
 from world_understanding.utils.usd import material as material_utils  # noqa: E402
 from world_understanding.utils.usd.material import (  # noqa: E402
+    PackageMdlLocalizationError,
+    PackageTextureLocalizationError,
     add_ovrtx_preview_fallbacks_for_materialx_openpbr,
     add_ovrtx_preview_fallbacks_for_texture_file_materials,
     add_ovrtx_preview_fallbacks_to_stage_file,
     bake_texture_file_materials_to_display_color_for_render,
     convert_custom_mdl_to_builtin,
+    define_materialx_openpbr_material,
     ensure_looks_scope,
     ensure_looks_scope_spec,
     get_local_mdl_assets,
     get_local_texture_file_assets,
+    localize_package_mdl_assets_for_render,
     localize_package_texture_assets_for_render,
     write_ovrtx_preview_fallback_overlay_for_materialx_openpbr,
 )
+
+
+def test_define_materialx_openpbr_material_authors_portable_texture_graph() -> None:
+    stage = Usd.Stage.CreateInMemory()
+
+    material = define_materialx_openpbr_material(
+        stage,
+        "/World/Looks/Copper",
+        base_color=(0.45, 0.2, 0.08),
+        opacity=0.95,
+        roughness=0.62,
+        metallic=0.8,
+        albedo_texture="textures/copper/albedo.png",
+        normal_texture="textures/copper/normal.png",
+        orm_texture="textures/copper/orm.png",
+        transmission_weight=0.1,
+        specular_ior=1.4,
+        thin_walled=True,
+    )
+
+    assert material.GetPath() == Sdf.Path("/World/Looks/Copper")
+    assert stage.GetPrimAtPath("/World/Looks").GetTypeName() == "Scope"
+    assert material.GetInput("base_metalness").Get() == pytest.approx(0.8)
+    assert material.GetInput("transmission_weight").Get() == pytest.approx(0.1)
+    assert material.GetInput("geometry_thin_walled").Get() is True
+
+    openpbr = UsdShade.Shader.Get(stage, "/World/Looks/Copper/OpenPBR")
+    assert openpbr.GetIdAttr().Get() == "ND_open_pbr_surface_surfaceshader"
+    assert material.GetSurfaceOutput("mtlx").HasConnectedSource()
+    assert openpbr.GetInput("base_color").HasConnectedSource()
+    assert openpbr.GetInput("geometry_normal").HasConnectedSource()
+    assert openpbr.GetInput("specular_roughness").HasConnectedSource()
+    assert openpbr.GetInput("base_metalness").HasConnectedSource()
+
+    albedo = UsdShade.Shader.Get(stage, "/World/Looks/Copper/Albedo")
+    normal = UsdShade.Shader.Get(stage, "/World/Looks/Copper/Normal")
+    orm = UsdShade.Shader.Get(stage, "/World/Looks/Copper/ORM")
+    assert albedo.GetInput("file").Get() == Sdf.AssetPath("textures/copper/albedo.png")
+    assert albedo.GetInput("file").GetAttr().GetColorSpace() == "sRGB"
+    assert normal.GetInput("file").GetAttr().GetColorSpace() == "raw"
+    assert orm.GetInput("file").GetAttr().GetColorSpace() == "raw"
+    assert (
+        UsdShade.Shader.Get(stage, "/World/Looks/Copper/NormalMap").GetIdAttr().Get()
+        == "ND_normalmap"
+    )
+    separate = UsdShade.Shader.Get(stage, "/World/Looks/Copper/SeparateORM")
+    assert separate.GetIdAttr().Get() == "ND_separate3_color3"
+    assert separate.GetOutput("outr")
+
+
+def test_define_materialx_openpbr_material_authors_scalar_graph() -> None:
+    stage = Usd.Stage.CreateInMemory()
+
+    material = define_materialx_openpbr_material(
+        stage,
+        "/World/Looks/Paint",
+        base_color=(0.02, 0.08, 0.42),
+        opacity=1.0,
+        roughness=0.48,
+        metallic=0.0,
+        albedo_texture=None,
+        normal_texture=None,
+        orm_texture=None,
+    )
+
+    openpbr = UsdShade.Shader.Get(stage, "/World/Looks/Paint/OpenPBR")
+    assert material.GetSurfaceOutput("mtlx").HasConnectedSource()
+    assert openpbr.GetInput("base_color").Get() == Gf.Vec3f(0.02, 0.08, 0.42)
+    assert openpbr.GetInput("specular_roughness").Get() == pytest.approx(0.48)
+    assert openpbr.GetInput("base_metalness").Get() == pytest.approx(0.0)
+    assert not stage.GetPrimAtPath("/World/Looks/Paint/Texcoord")
+    assert not stage.GetPrimAtPath("/World/Looks/Paint/Albedo")
+
+
+def test_define_materialx_openpbr_material_rejects_invalid_paths() -> None:
+    stage = Usd.Stage.CreateInMemory()
+
+    with pytest.raises(ValueError, match="absolute prim path"):
+        define_materialx_openpbr_material(
+            stage,
+            "Looks/Copper",
+            base_color=(0.5, 0.2, 0.1),
+            opacity=1.0,
+            roughness=0.5,
+            metallic=1.0,
+            albedo_texture="albedo.png",
+            normal_texture="normal.png",
+            orm_texture="orm.png",
+        )
+
+
+def test_define_materialx_openpbr_material_rejects_instance_proxy() -> None:
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/Prototype")
+    UsdGeom.Scope.Define(stage, "/Prototype/Looks")
+    UsdShade.Material.Define(stage, "/Prototype/Looks/Paint")
+    instance = UsdGeom.Xform.Define(stage, "/World/Asset").GetPrim()
+    instance.GetReferences().AddInternalReference("/Prototype")
+    instance.SetInstanceable(True)
+    proxy_path = "/World/Asset/Looks/Paint"
+
+    assert stage.GetPrimAtPath(proxy_path).IsInstanceProxy()
+    with pytest.raises(ValueError, match="read-only instance proxy"):
+        define_materialx_openpbr_material(
+            stage,
+            proxy_path,
+            base_color=(0.1, 0.2, 0.3),
+            opacity=1.0,
+            roughness=0.5,
+            metallic=0.0,
+            albedo_texture=None,
+            normal_texture=None,
+            orm_texture=None,
+        )
+
+
+def test_define_materialx_openpbr_material_disables_instanceable_ancestor() -> None:
+    stage = Usd.Stage.CreateInMemory()
+    ancestor = UsdGeom.Xform.Define(stage, "/World/Asset").GetPrim()
+    ancestor.SetInstanceable(True)
+
+    material = define_materialx_openpbr_material(
+        stage,
+        "/World/Asset/Looks/Paint",
+        base_color=(0.1, 0.2, 0.3),
+        opacity=1.0,
+        roughness=0.5,
+        metallic=0.0,
+        albedo_texture=None,
+        normal_texture=None,
+        orm_texture=None,
+    )
+
+    assert material
+    assert not ancestor.IsInstanceable()
+
+
+def test_define_materialx_openpbr_material_rejects_empty_texture_before_authoring() -> (
+    None
+):
+    stage = Usd.Stage.CreateInMemory()
+
+    with pytest.raises(ValueError, match="Albedo texture path must not be empty"):
+        define_materialx_openpbr_material(
+            stage,
+            "/Looks/Copper",
+            base_color=(0.5, 0.2, 0.1),
+            opacity=1.0,
+            roughness=0.5,
+            metallic=1.0,
+            albedo_texture="",
+            normal_texture="normal.png",
+            orm_texture="orm.png",
+        )
+
+    assert not stage.GetPrimAtPath("/Looks")
+
+
+def test_define_materialx_openpbr_material_rejects_partial_texture_set() -> None:
+    stage = Usd.Stage.CreateInMemory()
+
+    with pytest.raises(ValueError, match="Normal texture path must not be empty"):
+        define_materialx_openpbr_material(
+            stage,
+            "/Looks/Copper",
+            base_color=(0.5, 0.2, 0.1),
+            opacity=1.0,
+            roughness=0.5,
+            metallic=1.0,
+            albedo_texture="albedo.png",
+            normal_texture=None,
+            orm_texture="orm.png",
+        )
+
+    assert not stage.GetPrimAtPath("/Looks")
 
 
 def test_convert_custom_mdl_to_builtin_restores_blank_omnipbr_source_asset(
@@ -95,6 +275,54 @@ def test_asset_discovery_prefers_usd_resolved_path_for_sublayer_assets(
         str(texture_path.resolve())
     ]
     assert [asset["resolved_path"] for asset in mdl_assets] == [str(mdl_path.resolve())]
+
+
+def test_asset_discovery_preserves_direct_variant_owner_paths(tmp_path: Path) -> None:
+    for variant_name in ("red", "blue"):
+        (tmp_path / f"{variant_name}.png").write_bytes(variant_name.encode())
+        (tmp_path / f"{variant_name}.mdl").write_text(
+            "mdl 1.7;\n",
+            encoding="utf-8",
+        )
+
+    stage = Usd.Stage.CreateInMemory()
+    root = stage.DefinePrim("/Root")
+    variants = root.GetVariantSets().AddVariantSet("look")
+    for variant_name in ("red", "blue"):
+        variants.AddVariant(variant_name)
+        variants.SetVariantSelection(variant_name)
+        with variants.GetVariantEditContext():
+            root.CreateAttribute("inputs:file", Sdf.ValueTypeNames.Asset).Set(
+                Sdf.AssetPath(f"{variant_name}.png")
+            )
+            root.CreateAttribute(
+                "info:mdl:sourceAsset",
+                Sdf.ValueTypeNames.Asset,
+            ).Set(Sdf.AssetPath(f"{variant_name}.mdl"))
+
+    texture_assets = get_local_texture_file_assets(
+        stage,
+        base_dir=tmp_path,
+        deduplicate=False,
+    )
+    mdl_assets = get_local_mdl_assets(stage, base_dir=tmp_path)
+
+    assert {
+        (asset["file_path"], asset["prim_path"]) for asset in texture_assets
+    }.issuperset(
+        {
+            ("red.png", "/Root{look=red}"),
+            ("blue.png", "/Root{look=blue}"),
+        }
+    )
+    assert {
+        (asset["mdl_path"], asset["shader_path"]) for asset in mdl_assets
+    }.issuperset(
+        {
+            ("red.mdl", "/Root{look=red}"),
+            ("blue.mdl", "/Root{look=blue}"),
+        }
+    )
 
 
 def test_texture_asset_discovery_skips_embedded_data_uris(tmp_path: Path) -> None:
@@ -650,6 +878,342 @@ def test_localizes_usdz_package_texture_assets_for_render(tmp_path: Path) -> Non
         assert image.getpixel((0, 0)) == (5, 150, 20)
 
 
+def test_localizes_complete_usdz_package_for_mdl_rendering(tmp_path: Path) -> None:
+    from world_understanding.utils.usd.package import (
+        write_usdz_package_from_directory,
+    )
+
+    package_source = tmp_path / "package-source"
+    materials_dir = package_source / "Materials"
+    resources_dir = package_source / "Resources"
+    materials_dir.mkdir(parents=True)
+    resources_dir.mkdir()
+    (materials_dir / "Surface.mdl").write_text(
+        "mdl 1.7; import .::Support::*;\n",
+        encoding="utf-8",
+    )
+    (materials_dir / "Support.mdl").write_text("mdl 1.7;\n", encoding="utf-8")
+    (resources_dir / "albedo.png").write_bytes(b"texture-resource")
+
+    source_stage = Usd.Stage.CreateNew(str(package_source / "asset.usda"))
+    shader = UsdShade.Shader.Define(source_stage, "/World/Looks/Surface")
+    shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("./Materials/Surface.mdl"))
+    source_stage.GetRootLayer().Save()
+
+    package_path = tmp_path / "asset.usdz"
+    write_usdz_package_from_directory(
+        package_source,
+        Path("asset.usda"),
+        package_path,
+    )
+    original_bytes = package_path.read_bytes()
+    packaged_stage = Usd.Stage.Open(str(package_path))
+    assert packaged_stage is not None
+    original_asset = packaged_stage.GetAttributeAtPath(
+        "/World/Looks/Surface.info:mdl:sourceAsset"
+    ).Get()
+    assert original_asset.path == "./Materials/Surface.mdl"
+    assert original_asset.resolvedPath.endswith("asset.usdz[Materials/Surface.mdl]")
+
+    render_stage = Usd.Stage.Open(packaged_stage.Flatten())
+    assert render_stage is not None
+    localized_root = tmp_path / "localized"
+    assert (
+        localize_package_mdl_assets_for_render(
+            render_stage,
+            localized_root,
+            base_dir=tmp_path,
+            allowed_package_root=tmp_path,
+            strict=True,
+        )
+        == 1
+    )
+
+    localized_asset = render_stage.GetAttributeAtPath(
+        "/World/Looks/Surface.info:mdl:sourceAsset"
+    ).Get()
+    localized_mdl = Path(localized_asset.path)
+    extracted_package = localized_mdl.parents[1]
+    assert localized_mdl.read_text(encoding="utf-8").startswith("mdl 1.7")
+    assert (extracted_package / "Materials" / "Support.mdl").is_file()
+    assert (extracted_package / "Resources" / "albedo.png").read_bytes() == (
+        b"texture-resource"
+    )
+    assert package_path.read_bytes() == original_bytes
+    assert (
+        packaged_stage.GetAttributeAtPath("/World/Looks/Surface.info:mdl:sourceAsset")
+        .Get()
+        .path
+        == "./Materials/Surface.mdl"
+    )
+
+
+def test_package_mdl_localization_rejects_package_outside_root(
+    tmp_path: Path,
+) -> None:
+    from world_understanding.utils.usd.package import (
+        write_usdz_package_from_directory,
+    )
+
+    allowed_root = tmp_path / "allowed"
+    allowed_root.mkdir()
+    package_source = tmp_path / "package-source"
+    package_source.mkdir()
+    (package_source / "asset.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    (package_source / "Surface.mdl").write_text("mdl 1.7;\n", encoding="utf-8")
+    package_path = tmp_path / "external.usdz"
+    write_usdz_package_from_directory(
+        package_source,
+        Path("asset.usda"),
+        package_path,
+    )
+
+    stage = Usd.Stage.CreateInMemory()
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Surface")
+    attr = shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset",
+        Sdf.ValueTypeNames.Asset,
+    )
+    attr.Set(Sdf.AssetPath(f"{package_path}[Surface.mdl]"))
+
+    with pytest.raises(
+        PackageMdlLocalizationError,
+        match="outside the authorized asset root",
+    ):
+        localize_package_mdl_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            allowed_package_root=allowed_root,
+            strict=True,
+        )
+
+    assert attr.Get().path == f"{package_path}[Surface.mdl]"
+
+
+def test_localizes_every_time_sampled_usdz_texture_opinion(tmp_path: Path) -> None:
+    package_path = tmp_path / "animated.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/a.png", b"a")
+        package.writestr("0/b.png", b"b")
+
+    stage = Usd.Stage.CreateInMemory()
+    attr = stage.DefinePrim("/World").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    )
+    attr.Set(Sdf.AssetPath(f"{package_path}[0/a.png]"), 1.0)
+    attr.Set(Sdf.AssetPath(f"{package_path}[0/b.png]"), 2.0)
+
+    assert (
+        localize_package_texture_assets_for_render(stage, tmp_path / "localized") == 2
+    )
+
+    first = Path(attr.Get(1.0).path)
+    second = Path(attr.Get(2.0).path)
+    assert first.read_bytes() == b"a"
+    assert second.read_bytes() == b"b"
+    assert first != second
+
+
+def test_strict_localization_rejects_usdz_texture_asset_array(
+    tmp_path: Path,
+) -> None:
+    package_path = tmp_path / "array.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/a.png", b"a")
+        package.writestr("0/b.png", b"b")
+
+    stage = Usd.Stage.CreateInMemory()
+    attr = stage.DefinePrim("/World").CreateAttribute(
+        "inputs:files",
+        Sdf.ValueTypeNames.AssetArray,
+    )
+    original = Sdf.AssetPathArray(
+        [
+            Sdf.AssetPath(f"{package_path}[0/a.png]"),
+            Sdf.AssetPath(f"{package_path}[0/b.png]"),
+        ]
+    )
+    attr.Set(original)
+
+    with pytest.raises(
+        PackageTextureLocalizationError,
+        match="package texture arrays cannot be localized",
+    ):
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            strict=True,
+        )
+
+    assert [value.path for value in attr.Get()] == [value.path for value in original]
+
+
+def test_strict_localization_ignores_remote_package_texture_array(
+    tmp_path: Path,
+) -> None:
+    package_path = tmp_path / "local.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/local.png", b"local")
+
+    stage = Usd.Stage.CreateInMemory()
+    local_attr = stage.DefinePrim("/Local").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    )
+    local_attr.Set(Sdf.AssetPath(f"{package_path}[0/local.png]"))
+    remote_attr = stage.DefinePrim("/Remote").CreateAttribute(
+        "inputs:files",
+        Sdf.ValueTypeNames.AssetArray,
+    )
+    remote_value = Sdf.AssetPathArray(
+        [Sdf.AssetPath("https://example.test/remote.usdz[0/remote.png]")]
+    )
+    remote_attr.Set(remote_value)
+
+    assert (
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            strict=True,
+        )
+        == 1
+    )
+    assert Path(local_attr.Get().path).read_bytes() == b"local"
+    assert [value.path for value in remote_attr.Get()] == [
+        value.path for value in remote_value
+    ]
+
+
+def test_non_strict_localization_preserves_time_sampled_package_texture_array(
+    tmp_path: Path,
+) -> None:
+    package_path = tmp_path / "array.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/a.png", b"a")
+
+    stage = Usd.Stage.CreateInMemory()
+    attr = stage.DefinePrim("/World").CreateAttribute(
+        "inputs:files",
+        Sdf.ValueTypeNames.AssetArray,
+    )
+    original = Sdf.AssetPathArray(
+        [
+            Sdf.AssetPath("ordinary.png"),
+            Sdf.AssetPath(f"{package_path}[0/a.png]"),
+        ]
+    )
+    attr.Set(original, 1.0)
+
+    assert (
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+        )
+        == 0
+    )
+    assert [value.path for value in attr.Get(1.0)] == [value.path for value in original]
+
+
+def test_localization_skips_composed_opinion_removed_during_recomposition(
+    tmp_path: Path,
+) -> None:
+    package_path = tmp_path / "asset.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/a.png", b"a")
+
+    class _TransientAttribute:
+        def __init__(self) -> None:
+            self._reads = 0
+
+        def GetTypeName(self) -> object:
+            return Sdf.ValueTypeNames.Asset
+
+        def Get(self) -> Sdf.AssetPath | None:
+            self._reads += 1
+            if self._reads == 1:
+                return Sdf.AssetPath(f"{package_path}[0/a.png]")
+            return None
+
+        def GetTimeSamples(self) -> list[float]:
+            return []
+
+        def GetPath(self) -> Sdf.Path:
+            return Sdf.Path("/World.inputs:file")
+
+    transient_attr = _TransientAttribute()
+
+    class _TransientPrim:
+        def IsInstanceProxy(self) -> bool:
+            return False
+
+        def GetAttributes(self) -> list[_TransientAttribute]:
+            return [transient_attr]
+
+        def IsInstance(self) -> bool:
+            return False
+
+        def IsInstanceable(self) -> bool:
+            return False
+
+    root_layer = Sdf.Layer.CreateAnonymous("transient.usda")
+
+    class _TransientStage:
+        def Traverse(self) -> list[_TransientPrim]:
+            return [_TransientPrim()]
+
+        def GetAttributeAtPath(self, path: Sdf.Path) -> _TransientAttribute:
+            assert path == Sdf.Path("/World.inputs:file")
+            return transient_attr
+
+        def GetRootLayer(self) -> Sdf.Layer:
+            return root_layer
+
+    assert (
+        localize_package_texture_assets_for_render(
+            _TransientStage(),  # type: ignore[arg-type]
+            tmp_path / "localized",
+        )
+        == 0
+    )
+
+
+def test_localizes_raw_inactive_layer_time_sample(tmp_path: Path) -> None:
+    package_path = tmp_path / "inactive.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/a.png", b"a")
+
+    layer = Sdf.Layer.CreateAnonymous("inactive.usda")
+    prim_spec = Sdf.CreatePrimInLayer(layer, "/Inactive")
+    prim_spec.active = False
+    attr_spec = Sdf.AttributeSpec(
+        prim_spec,
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    )
+    layer.SetTimeSample(
+        attr_spec.path,
+        1.0,
+        Sdf.AssetPath(f"{package_path}[0/a.png]"),
+    )
+    stage = Usd.Stage.Open(layer)
+    assert stage is not None
+    assert list(stage.Traverse()) == []
+
+    assert (
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+        )
+        == 1
+    )
+    localized = layer.QueryTimeSample(attr_spec.path, 1.0)
+    assert Path(localized.path).read_bytes() == b"a"
+
+
 def test_localize_package_texture_assets_skips_oversized_member(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -679,6 +1243,154 @@ def test_localize_package_texture_assets_skips_oversized_member(
         / "0"
         / "painted_albedo.png"
     ).exists()
+
+
+def _package_texture_stage(asset_path: str) -> tuple[Usd.Stage, Usd.Attribute]:
+    stage = Usd.Stage.CreateInMemory()
+    material = UsdShade.Material.Define(stage, "/World/Looks/Painted")
+    attr = material.GetPrim().CreateAttribute(
+        "inputs:base_color_texture_file",
+        Sdf.ValueTypeNames.Asset,
+    )
+    attr.Set(Sdf.AssetPath(asset_path))
+    return stage, attr
+
+
+def test_localize_package_texture_assets_strict_rejects_missing_package(
+    tmp_path: Path,
+) -> None:
+    asset_path = f"{tmp_path / 'missing.usdz'}[0/albedo.png]"
+    stage, attr = _package_texture_stage(asset_path)
+
+    with pytest.raises(
+        PackageTextureLocalizationError,
+        match="Unable to resolve USDZ package texture safely",
+    ):
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            strict=True,
+        )
+
+    assert attr.Get().path == asset_path
+
+
+def test_localize_package_texture_assets_non_strict_skips_missing_package(
+    tmp_path: Path,
+) -> None:
+    asset_path = f"{tmp_path / 'missing.usdz'}[0/albedo.png]"
+    stage, attr = _package_texture_stage(asset_path)
+
+    assert (
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+        )
+        == 0
+    )
+
+    assert attr.Get().path == asset_path
+
+
+def test_localize_package_texture_assets_strict_rejects_unsafe_member(
+    tmp_path: Path,
+) -> None:
+    package_path = tmp_path / "asset.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/albedo.png", b"texture")
+    asset_path = f"{package_path}[../albedo.png]"
+    stage, attr = _package_texture_stage(asset_path)
+
+    with pytest.raises(
+        PackageTextureLocalizationError,
+        match="Unable to resolve USDZ package texture safely",
+    ):
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            strict=True,
+        )
+
+    assert attr.Get().path == asset_path
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX file URI construction")
+def test_localize_package_texture_assets_resolves_package_before_root_check(
+    tmp_path: Path,
+) -> None:
+    allowed_root = tmp_path / "allowed"
+    allowed_root.mkdir()
+    external_package = tmp_path / "external.usdz"
+    with zipfile.ZipFile(external_package, "w") as package:
+        package.writestr("0/albedo.png", b"texture")
+
+    raw_package = Path(f"{allowed_root}/../{external_package.name}")
+    path_parts = raw_package.parts
+    assert path_parts[0] == "/"
+    package_uri = f"file://{path_parts[1]}/{'/'.join(path_parts[2:])}"
+    asset_path = f"{package_uri}[0/albedo.png]"
+    stage, attr = _package_texture_stage(asset_path)
+
+    with pytest.raises(
+        PackageTextureLocalizationError,
+        match="outside the authorized asset root",
+    ):
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            allowed_package_root=allowed_root,
+            strict=True,
+        )
+
+    assert attr.Get().path == asset_path
+
+
+def test_localize_package_texture_assets_strict_rejects_oversized_member(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package_path = tmp_path / "asset.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/albedo.png", b"abcd")
+    asset_path = f"{package_path}[0/albedo.png]"
+    stage, attr = _package_texture_stage(asset_path)
+    monkeypatch.setattr(material_utils, "_MAX_PACKAGE_TEXTURE_BYTES", 3)
+
+    with pytest.raises(
+        PackageTextureLocalizationError,
+        match="exceeds the render-export limit",
+    ):
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            strict=True,
+        )
+
+    assert attr.Get().path == asset_path
+
+
+@pytest.mark.parametrize("package_contents", [b"not-a-zip", None])
+def test_localize_package_texture_assets_strict_rejects_unreadable_or_missing_member(
+    tmp_path: Path,
+    package_contents: bytes | None,
+) -> None:
+    package_path = tmp_path / "asset.usdz"
+    if package_contents is None:
+        with zipfile.ZipFile(package_path, "w") as package:
+            package.writestr("0/other.png", b"texture")
+    else:
+        package_path.write_bytes(package_contents)
+    asset_path = f"{package_path}[0/albedo.png]"
+    stage, attr = _package_texture_stage(asset_path)
+
+    with pytest.raises(PackageTextureLocalizationError):
+        localize_package_texture_assets_for_render(
+            stage,
+            tmp_path / "localized",
+            strict=True,
+        )
+
+    assert attr.Get().path == asset_path
 
 
 def test_localizes_package_texture_assets_after_disabling_regular_instance(

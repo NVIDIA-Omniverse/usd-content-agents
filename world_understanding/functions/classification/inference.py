@@ -33,8 +33,12 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from PIL import Image as PILImage
 
+from world_understanding.functions.models.token_limits import (
+    model_uses_openai_responses_api,
+)
 from world_understanding.functions.models.vision_language_models import (
     BaseVisionLanguageModel,
+    NonRetryableVLMTimeoutError,
 )
 from world_understanding.utils.llm_parsing import (
     extract_json_from_llm_response,
@@ -44,13 +48,28 @@ from world_understanding.utils.llm_parsing import (
 )
 from world_understanding.utils.model_auth import (
     ModelAuthenticationFailure,
+    detach_model_authentication_failure,
     raise_for_model_authentication,
 )
+from world_understanding.utils.response_content import extract_text_content
 from world_understanding.utils.token_tracking import TokenTracker
 
 logger = logging.getLogger(__name__)
 
+
+class _AttemptCallbackError(RuntimeError):
+    """Prevent evidence persistence failures from becoming transport retries."""
+
+
 _DEFAULT_VLM_GENERATE_TIMEOUT_SECONDS = 180.0
+_RESERVED_VLM_INVOKE_KEYS = frozenset(
+    {
+        "max_completion_tokens",
+        "max_retries",
+        "max_tokens",
+        "temperature",
+    }
+)
 _UNSTRUCTURED_LABEL_PATTERNS = (
     re.compile(
         r"\b(?:must|should|would|can|will|is|are)?\s*(?:be\s+)?"
@@ -78,6 +97,27 @@ _UNSTRUCTURED_LABEL_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+
+
+def _split_vlm_invoke_kwargs(
+    invoke_kwargs: dict[str, Any] | None,
+) -> tuple[Any, Any, dict[str, Any]]:
+    """Separate common call arguments while preserving provider invoke options."""
+    options = {
+        key: value for key, value in (invoke_kwargs or {}).items() if value is not None
+    }
+    temperature = options.get("temperature")
+    max_tokens = options.get("max_tokens")
+    if max_tokens is None:
+        max_tokens = options.get("max_completion_tokens")
+    provider_kwargs = {
+        key: value
+        for key, value in options.items()
+        if key not in _RESERVED_VLM_INVOKE_KEYS
+    }
+    return temperature, max_tokens, provider_kwargs
+
+
 _NEGATED_LABEL_CONTEXT_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|shouldn't|won't|isn't|aren't|"
     r"mustn't|must\s+not|should\s+not|could\s+not|would\s+not)\b",
@@ -157,13 +197,22 @@ def _call_sync_with_timeout(
     *,
     timeout_seconds: float,
     operation_name: str,
+    timeout_owner: Any | None = None,
 ) -> Any:
     """Execute a synchronous callable with a hard deadline."""
+    if getattr(timeout_owner, "has_bounded_request_timeout", False):
+        return func()
+
     executor = ThreadPoolExecutor(max_workers=1)
     future = executor.submit(func)
     try:
         return future.result(timeout=timeout_seconds)
     except FutureTimeoutError as exc:
+        # ``concurrent.futures.TimeoutError`` aliases the built-in TimeoutError.
+        # Preserve a TimeoutError raised by the backend itself; only translate
+        # the exception when waiting for the future actually expired.
+        if future.done():
+            return future.result()
         future.cancel()
         raise TimeoutError(
             f"{operation_name} did not respond within {timeout_seconds:.0f}s"
@@ -177,11 +226,20 @@ async def _call_async_with_timeout(
     *,
     timeout_seconds: float,
     operation_name: str,
+    timeout_owner: Any | None = None,
 ) -> Any:
     """Await a coroutine with a hard deadline."""
+    if getattr(timeout_owner, "has_bounded_request_timeout", False):
+        return await awaitable
+
+    task = asyncio.ensure_future(awaitable)
     try:
-        return await asyncio.wait_for(awaitable, timeout=timeout_seconds)
+        return await asyncio.wait_for(task, timeout=timeout_seconds)
     except TimeoutError as exc:
+        # asyncio also uses the built-in TimeoutError. Preserve an exception
+        # raised by the backend; a wait_for deadline cancels its task instead.
+        if task.done() and not task.cancelled():
+            return task.result()
         raise TimeoutError(
             f"{operation_name} did not respond within {timeout_seconds:.0f}s"
         ) from exc
@@ -194,36 +252,48 @@ def _invoke_parser_with_chat_model(
     max_tokens: int,
 ) -> str:
     """Invoke a chat-style parser model and return plain text content."""
-    if (
-        hasattr(parser_model, "model")
-        and "gpt-5" in str(getattr(parser_model, "model", "")).lower()
-    ):
-        try:
-            response = parser_model.invoke(messages, max_completion_tokens=max_tokens)
-        except Exception as e:
-            raise_for_model_authentication(e)
-            raise
-    else:
-        try:
-            response = parser_model.invoke(
-                messages, temperature=0.1, max_tokens=max_tokens
-            )
-        except Exception as e:
-            raise_for_model_authentication(e)
-            error_msg = str(e)
-            if "max_tokens" in error_msg and "max_completion_tokens" in error_msg:
-                try:
-                    response = parser_model.invoke(
-                        messages, max_completion_tokens=max_tokens
-                    )
-                except Exception as retry_error:
-                    raise_for_model_authentication(retry_error)
-                    raise
-            else:
+    invoke_kwargs = _parser_chat_invoke_kwargs(parser_model, max_tokens=max_tokens)
+    try:
+        response = parser_model.invoke(messages, **invoke_kwargs)
+    except Exception as e:
+        raise_for_model_authentication(e)
+        error_msg = str(e)
+        if (
+            "max_tokens" in invoke_kwargs
+            and "max_tokens" in error_msg
+            and "max_completion_tokens" in error_msg
+        ):
+            try:
+                response = parser_model.invoke(
+                    messages, max_completion_tokens=max_tokens
+                )
+            except Exception as retry_error:
+                raise_for_model_authentication(retry_error)
                 raise
+        else:
+            raise
 
     content = getattr(response, "content", response)
-    return content if isinstance(content, str) else str(content)
+    return extract_text_content(content)
+
+
+def _parser_chat_invoke_kwargs(
+    parser_model: Any,
+    *,
+    max_tokens: int,
+) -> dict[str, Any]:
+    """Build parser invoke kwargs without overriding Responses API policy."""
+    parser_model_name = str(getattr(parser_model, "model", ""))
+    uses_responses_api = bool(
+        getattr(parser_model, "use_responses_api", False)
+    ) or model_uses_openai_responses_api(parser_model_name)
+    if uses_responses_api:
+        # Keep the constructor's model-aware output-token floor and omit
+        # Chat Completions-only sampling parameters.
+        return {}
+    if "gpt-5" in parser_model_name.lower():
+        return {"max_completion_tokens": max_tokens}
+    return {"temperature": 0.1, "max_tokens": max_tokens}
 
 
 async def _ainvoke_parser_with_chat_model(
@@ -234,14 +304,20 @@ async def _ainvoke_parser_with_chat_model(
 ) -> str:
     """Invoke a chat-style parser model asynchronously and return text content."""
     if hasattr(parser_model, "ainvoke"):
+        invoke_kwargs = _parser_chat_invoke_kwargs(
+            parser_model,
+            max_tokens=max_tokens,
+        )
         try:
-            response = await parser_model.ainvoke(
-                messages, temperature=0.1, max_tokens=max_tokens
-            )
+            response = await parser_model.ainvoke(messages, **invoke_kwargs)
         except Exception as e:
             raise_for_model_authentication(e)
             error_msg = str(e)
-            if "max_tokens" in error_msg and "max_completion_tokens" in error_msg:
+            if (
+                "max_tokens" in invoke_kwargs
+                and "max_tokens" in error_msg
+                and "max_completion_tokens" in error_msg
+            ):
                 try:
                     response = await parser_model.ainvoke(
                         messages, max_completion_tokens=max_tokens
@@ -260,7 +336,7 @@ async def _ainvoke_parser_with_chat_model(
         )
 
     content = getattr(response, "content", response)
-    return content if isinstance(content, str) else str(content)
+    return extract_text_content(content)
 
 
 def _invoke_parser_with_vlm(
@@ -286,6 +362,7 @@ def _invoke_parser_with_vlm(
         _generate,
         timeout_seconds=timeout_seconds,
         operation_name="Parser VLM generate",
+        timeout_owner=parser_model,
     )
     return result if isinstance(result, str) else str(result)
 
@@ -311,6 +388,7 @@ async def _ainvoke_parser_with_vlm(
             ),
             timeout_seconds=timeout_seconds,
             operation_name="Parser VLM agenerate",
+            timeout_owner=parser_model,
         )
     else:
         result = await asyncio.to_thread(
@@ -657,6 +735,7 @@ def classify_object(
     output_key: str = "class",
     token_tracker: TokenTracker | None = None,
     unknown_sentinel: str | None = None,
+    on_attempt: Any | None = None,
 ) -> dict[str, Any]:
     """Classify an object using Vision-Language Model.
 
@@ -677,6 +756,14 @@ def classify_object(
         token_tracker: Optional TokenTracker to collect usage statistics
         unknown_sentinel: Optional explicit sentinel value to preserve when the
             VLM says the object is unknown/unclassifiable
+        on_attempt: Optional callback receiving each bounded transport attempt
+            outcome before response parsing or caller-specific normalization.
+            Payloads include attempt number, outcome, raw response, error, and
+            ``request_kind="contract_correction"`` for fallback-parser calls.
+            Returning a ``BaseException`` supplies an opaque failure carrier;
+            recorder failures and exhausted parser transport then propagate
+            through the callback boundary. Without a callback, the legacy soft
+            parser fallback remains unchanged.
 
     Returns:
         Dict with output_key and "original_response" keys
@@ -688,7 +775,7 @@ def classify_object(
         from world_understanding.functions.models.chat_models import create_chat_model
 
         # Create VLM and LLM
-        vlm = create_vlm(backend="nim", model="google/gemma-4-31b-it")
+        vlm = create_vlm(backend="nim", model="moonshotai/kimi-k3")
         llm = create_chat_model(backend="nim")
 
         # Classify vehicle type
@@ -711,15 +798,9 @@ def classify_object(
         # Output: {"material": "rubber", "original_response": "..."}
         ```
     """
-    # Extract temperature and max_tokens from invoke_kwargs if present
-    temperature = None
-    max_tokens = None
-    if invoke_kwargs:
-        temperature = invoke_kwargs.get("temperature")
-        mt = invoke_kwargs.get("max_tokens")
-        max_tokens = (
-            mt if mt is not None else invoke_kwargs.get("max_completion_tokens")
-        )
+    temperature, max_tokens, provider_invoke_kwargs = _split_vlm_invoke_kwargs(
+        invoke_kwargs
+    )
     # Default system prompt if not provided
     if system_prompt is None:
         system_prompt = (
@@ -751,6 +832,30 @@ def classify_object(
     current_max_tokens = max_tokens  # Track current token limit for adaptive retry
     timeout_seconds = _get_vlm_generate_timeout_seconds()
 
+    def _emit_attempt(
+        *,
+        attempt_number: int,
+        outcome: str,
+        raw_response: str | None = None,
+        error: BaseException | None = None,
+        request_kind: str | None = None,
+    ) -> BaseException | None:
+        if on_attempt is None:
+            return None
+        attempt_payload = {
+            "attempt_number": attempt_number,
+            "outcome": outcome,
+            "raw_response": raw_response,
+            "error": error,
+        }
+        if request_kind is not None:
+            attempt_payload["request_kind"] = request_kind
+        try:
+            callback_result = on_attempt(attempt_payload)
+        except Exception as callback_error:
+            raise _AttemptCallbackError(str(callback_error)) from callback_error
+        return callback_result if isinstance(callback_result, BaseException) else None
+
     for attempt in range(max_retries):
         try:
             if image_prompts and len(image_prompts) == len(images):
@@ -768,12 +873,14 @@ def classify_object(
                         system_prompt=system_prompt,
                         temperature=temperature,
                         max_tokens=current_max_tokens,
+                        **provider_invoke_kwargs,
                     )
 
                 vlm_response = _call_sync_with_timeout(
                     _generate_with_pairs,
                     timeout_seconds=timeout_seconds,
                     operation_name="VLM generate_with_image_caption_pairs",
+                    timeout_owner=vlm,
                 )
             else:
                 # Standard generation without individual image captions
@@ -792,12 +899,14 @@ def classify_object(
                         system_prompt=system_prompt,
                         temperature=temperature,
                         max_tokens=current_max_tokens,
+                        **provider_invoke_kwargs,
                     )
 
                 vlm_response = _call_sync_with_timeout(
                     _generate,
                     timeout_seconds=timeout_seconds,
                     operation_name="VLM generate",
+                    timeout_owner=vlm,
                 )
 
             # Track token usage if tracker provided
@@ -806,12 +915,22 @@ def classify_object(
 
             # Check if response is empty or just whitespace
             if vlm_response and vlm_response.strip():
+                _emit_attempt(
+                    attempt_number=attempt + 1,
+                    outcome="response_received",
+                    raw_response=vlm_response,
+                )
                 # Got a valid response, break out of retry loop
                 logger.debug(
                     f"VLM response received on attempt {attempt + 1}/{max_retries}"
                 )
                 break
             else:
+                _emit_attempt(
+                    attempt_number=attempt + 1,
+                    outcome="empty_response",
+                    raw_response=vlm_response,
+                )
                 # Empty response, retry if we have attempts left
                 if attempt < max_retries - 1:
                     # Double max_tokens for next attempt (helps with reasoning models like GPT-5)
@@ -838,10 +957,36 @@ def classify_object(
                     vlm_response = ""
 
         except Exception as e:
-            raise_for_model_authentication(e)
+            if isinstance(e, _AttemptCallbackError):
+                raise
+            try:
+                raise_for_model_authentication(e)
+            except ModelAuthenticationFailure as authentication_failure:
+                detach_model_authentication_failure(authentication_failure)
+                failure_carrier = _emit_attempt(
+                    attempt_number=attempt + 1,
+                    outcome="transport_error",
+                    error=authentication_failure,
+                )
+                if failure_carrier is not None:
+                    raise _AttemptCallbackError(
+                        "provider attempt requires an explicit failure carrier"
+                    ) from failure_carrier
+                raise
+            failure_carrier = _emit_attempt(
+                attempt_number=attempt + 1,
+                outcome="transport_error",
+                error=e,
+            )
             logger.error(
                 f"VLM inference error on attempt {attempt + 1}/{max_retries}: {e}"
             )
+            if isinstance(e, NonRetryableVLMTimeoutError):
+                if failure_carrier is not None:
+                    raise _AttemptCallbackError(
+                        "provider attempt requires an explicit failure carrier"
+                    ) from failure_carrier
+                raise
             if attempt < max_retries - 1:
                 retry_delay = get_fibonacci_delay(attempt, base_delay=1.0)
                 logger.info(f"Retrying in {retry_delay:.1f} seconds...")
@@ -849,6 +994,10 @@ def classify_object(
 
                 time.sleep(retry_delay)
             else:
+                if failure_carrier is not None:
+                    raise _AttemptCallbackError(
+                        "provider attempt requires an explicit failure carrier"
+                    ) from failure_carrier
                 raise
 
     logger.debug(
@@ -1112,11 +1261,23 @@ Return ONLY a JSON object with this exact structure:
                 )
 
                 if parsed_response and parsed_response.strip():
+                    _emit_attempt(
+                        attempt_number=llm_attempt + 1,
+                        outcome="response_received",
+                        raw_response=parsed_response,
+                        request_kind="contract_correction",
+                    )
                     logger.debug(
                         f"LLM parsing response received on attempt {llm_attempt + 1}/{max_retries}"
                     )
                     break
                 else:
+                    _emit_attempt(
+                        attempt_number=llm_attempt + 1,
+                        outcome="empty_response",
+                        raw_response=parsed_response,
+                        request_kind="contract_correction",
+                    )
                     if llm_attempt < max_retries - 1:
                         llm_retry_delay = get_fibonacci_delay(
                             llm_attempt, base_delay=0.5
@@ -1133,11 +1294,40 @@ Return ONLY a JSON object with this exact structure:
                         )
                         parsed_response = ""
 
+            except _AttemptCallbackError:
+                raise
             except Exception as e:
-                raise_for_model_authentication(e)
+                try:
+                    raise_for_model_authentication(e)
+                except ModelAuthenticationFailure as authentication_failure:
+                    detach_model_authentication_failure(authentication_failure)
+                    failure_carrier = _emit_attempt(
+                        attempt_number=llm_attempt + 1,
+                        outcome="transport_error",
+                        error=authentication_failure,
+                        request_kind="contract_correction",
+                    )
+                    if failure_carrier is not None:
+                        raise _AttemptCallbackError(
+                            "fallback parser attempt requires an explicit "
+                            "failure carrier"
+                        ) from failure_carrier
+                    raise
+                failure_carrier = _emit_attempt(
+                    attempt_number=llm_attempt + 1,
+                    outcome="transport_error",
+                    error=e,
+                    request_kind="contract_correction",
+                )
                 logger.error(
                     f"LLM parsing error on attempt {llm_attempt + 1}/{max_retries}: {e}"
                 )
+                if isinstance(e, NonRetryableVLMTimeoutError):
+                    if failure_carrier is not None:
+                        raise _AttemptCallbackError(
+                            "fallback parser provider attempt failed"
+                        ) from failure_carrier
+                    raise
                 if llm_attempt < max_retries - 1:
                     llm_retry_delay = get_fibonacci_delay(llm_attempt, base_delay=0.5)
                     logger.info(
@@ -1147,6 +1337,10 @@ Return ONLY a JSON object with this exact structure:
 
                     time.sleep(llm_retry_delay)
                 else:
+                    if failure_carrier is not None:
+                        raise _AttemptCallbackError(
+                            "fallback parser provider attempt failed"
+                        ) from failure_carrier
                     raise
 
         result = _parse_single_result_from_response_text(
@@ -1177,8 +1371,12 @@ Return ONLY a JSON object with this exact structure:
                 "original_response": vlm_response,
             }
 
+    except _AttemptCallbackError:
+        raise
     except Exception as e:
         raise_for_model_authentication(e)
+        if isinstance(e, NonRetryableVLMTimeoutError):
+            raise
         logger.error(f"Error parsing VLM response with LLM: {e}")
         # Fallback: return a dict with the raw response
         return {
@@ -1204,6 +1402,7 @@ def batch_classify_objects(
     output_key: str = "class",
     token_tracker: TokenTracker | None = None,
     unknown_sentinel: str | None = None,
+    on_attempt: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Process multiple classification tasks in batch with optional parallel execution.
 
@@ -1230,6 +1429,9 @@ def batch_classify_objects(
         token_tracker: Optional TokenTracker to collect usage statistics across all calls
         unknown_sentinel: Optional explicit sentinel value to preserve when the
             VLM says an object is unknown/unclassifiable
+        on_attempt: Optional callback function(entry_id, attempt) called for
+            every provider transport attempt before response normalization.
+            It follows ``classify_object`` payload and failure-carrier semantics.
 
     Returns:
         List of dictionaries containing:
@@ -1311,6 +1513,7 @@ def batch_classify_objects(
             output_key=output_key,
             token_tracker=token_tracker,
             unknown_sentinel=unknown_sentinel,
+            on_attempt=on_attempt,
         )
     else:
         logger.info("Using sequential processing")
@@ -1329,6 +1532,7 @@ def batch_classify_objects(
             output_key=output_key,
             token_tracker=token_tracker,
             unknown_sentinel=unknown_sentinel,
+            on_attempt=on_attempt,
         )
 
 
@@ -1444,6 +1648,7 @@ def _process_sequential(
     output_key: str,
     token_tracker: TokenTracker | None = None,
     unknown_sentinel: str | None = None,
+    on_attempt: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Process entries sequentially (original behavior)."""
     results = []
@@ -1566,6 +1771,11 @@ def _process_sequential(
                 output_key=output_key,
                 token_tracker=token_tracker,
                 unknown_sentinel=unknown_sentinel,
+                on_attempt=(
+                    (lambda attempt, entry_id=entry_id: on_attempt(entry_id, attempt))
+                    if on_attempt
+                    else None
+                ),
             )
 
             # Log response preview
@@ -1619,8 +1829,12 @@ def _process_sequential(
                 except Exception as cb_e:
                     logger.warning(f"on_result callback failed for {entry_id}: {cb_e}")
 
+        except _AttemptCallbackError:
+            raise
         except Exception as e:
             raise_for_model_authentication(e)
+            if isinstance(e, NonRetryableVLMTimeoutError):
+                raise
             error_msg = str(e)
             logger.error(f"Entry {entry_id} failed: {error_msg}", exc_info=True)
             # Even on failure, record timing and print ETA if we started timing
@@ -1687,16 +1901,28 @@ def _process_parallel(
     output_key: str,
     token_tracker: TokenTracker | None = None,
     unknown_sentinel: str | None = None,
+    on_attempt: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Process entries in parallel using ThreadPoolExecutor."""
     results = []
     auth_abort = Event()
+    auth_failure_lock = Lock()
+    auth_failure: ModelAuthenticationFailure | None = None
 
     # Thread-safe statistics
     stats_lock = Lock()
     total_assignment_seconds = 0.0
     timed_assignments = 0
     completed_count = 0
+
+    def _bound_auth_failure(
+        error: ModelAuthenticationFailure | None = None,
+    ) -> ModelAuthenticationFailure:
+        nonlocal auth_failure
+        with auth_failure_lock:
+            if auth_failure is None:
+                auth_failure = error or ModelAuthenticationFailure()
+            return auth_failure
 
     def _format_duration(total_seconds: float) -> str:
         """Format seconds as H:MM:SS."""
@@ -1816,6 +2042,11 @@ def _process_parallel(
                 output_key=output_key,
                 token_tracker=token_tracker,
                 unknown_sentinel=unknown_sentinel,
+                on_attempt=(
+                    (lambda attempt, entry_id=entry_id: on_attempt(entry_id, attempt))
+                    if on_attempt
+                    else None
+                ),
             )
 
             # Log response preview
@@ -1874,11 +2105,16 @@ def _process_parallel(
 
             return result
 
+        except _AttemptCallbackError:
+            raise
         except Exception as e:
             try:
                 raise_for_model_authentication(e)
-            except ModelAuthenticationFailure:
+            except ModelAuthenticationFailure as error:
+                _bound_auth_failure(error)
                 auth_abort.set()
+                raise detach_model_authentication_failure(error) from None
+            if isinstance(e, NonRetryableVLMTimeoutError):
                 raise
             error_msg = str(e)
             logger.error(f"Entry {entry_id} failed: {error_msg}", exc_info=True)
@@ -1914,7 +2150,6 @@ def _process_parallel(
             return error_result
 
     # Process entries in parallel using ThreadPoolExecutor
-    auth_failure: ModelAuthenticationFailure | None = None
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_entry = {
@@ -1926,11 +2161,23 @@ def _process_parallel(
             try:
                 result = future.result()
                 results.append(result)
+            except _AttemptCallbackError:
+                for sibling in future_to_entry:
+                    if sibling is not future:
+                        sibling.cancel()
+                raise
+            except NonRetryableVLMTimeoutError:
+                # Queued work is cancelled; provider calls already running in
+                # sibling threads may still continue until they complete.
+                for sibling in future_to_entry:
+                    if sibling is not future:
+                        sibling.cancel()
+                raise
             except Exception as e:
                 try:
                     raise_for_model_authentication(e)
                 except ModelAuthenticationFailure as error:
-                    auth_failure = error
+                    _bound_auth_failure(error)
                     for sibling in future_to_entry:
                         if sibling is not future:
                             sibling.cancel()
@@ -1949,7 +2196,7 @@ def _process_parallel(
                 results.append(error_result)
 
     if auth_failure is not None:
-        raise auth_failure from None
+        raise detach_model_authentication_failure(auth_failure) from None
 
     # Log summary
     successful = sum(1 for r in results if r["status"] == "success")
@@ -2013,15 +2260,9 @@ def classify_objects_multi_prim(
         Only successfully parsed objects are included. Missing objects indicate
         partial failure — the caller should handle re-queuing.
     """
-    # Extract temperature and max_tokens from invoke_kwargs if present
-    temperature = None
-    max_tokens = None
-    if invoke_kwargs:
-        temperature = invoke_kwargs.get("temperature")
-        max_tokens = invoke_kwargs.get(
-            "max_tokens",
-            invoke_kwargs.get("max_completion_tokens"),
-        )
+    temperature, max_tokens, provider_invoke_kwargs = _split_vlm_invoke_kwargs(
+        invoke_kwargs
+    )
 
     if system_prompt is None:
         system_prompt = (
@@ -2051,6 +2292,7 @@ def classify_objects_multi_prim(
                     system_prompt=system_prompt,
                     temperature=temperature,
                     max_tokens=current_max_tokens,
+                    **provider_invoke_kwargs,
                 )
             else:
                 if image_prompts and len(image_prompts) != len(images):
@@ -2064,6 +2306,7 @@ def classify_objects_multi_prim(
                     system_prompt=system_prompt,
                     temperature=temperature,
                     max_tokens=current_max_tokens,
+                    **provider_invoke_kwargs,
                 )
 
             if token_tracker is not None and vlm.last_token_usage is not None:
@@ -2100,6 +2343,8 @@ def classify_objects_multi_prim(
             logger.error(
                 f"VLM inference error on attempt {attempt + 1}/{max_retries}: {e}"
             )
+            if isinstance(e, NonRetryableVLMTimeoutError):
+                raise
             if attempt < max_retries - 1:
                 import time
 
@@ -2404,6 +2649,8 @@ otherwise use your best guess from the available options.
             except Exception as e:
                 raise_for_model_authentication(e)
                 logger.error(f"LLM parsing attempt {llm_attempt + 1} failed: {e}")
+                if isinstance(e, NonRetryableVLMTimeoutError):
+                    raise
                 if llm_attempt < max_retries - 1:
                     import time
 
@@ -2411,6 +2658,8 @@ otherwise use your best guess from the available options.
 
     except Exception as e:
         raise_for_model_authentication(e)
+        if isinstance(e, NonRetryableVLMTimeoutError):
+            raise
         logger.error(f"LLM fallback failed entirely: {e}")
 
     logger.error(
@@ -2460,15 +2709,9 @@ async def async_classify_object(
     Returns:
         Dict with output_key and "original_response" keys
     """
-    # Extract temperature and max_tokens from invoke_kwargs if present
-    temperature = None
-    max_tokens = None
-    if invoke_kwargs:
-        temperature = invoke_kwargs.get("temperature")
-        mt = invoke_kwargs.get("max_tokens")
-        max_tokens = (
-            mt if mt is not None else invoke_kwargs.get("max_completion_tokens")
-        )
+    temperature, max_tokens, provider_invoke_kwargs = _split_vlm_invoke_kwargs(
+        invoke_kwargs
+    )
     # Default system prompt if not provided
     if system_prompt is None:
         system_prompt = (
@@ -2507,9 +2750,11 @@ async def async_classify_object(
                         system_prompt=system_prompt,
                         temperature=temperature,
                         max_tokens=current_max_tokens,
+                        **provider_invoke_kwargs,
                     ),
                     timeout_seconds=timeout_seconds,
                     operation_name="VLM agenerate_with_image_caption_pairs",
+                    timeout_owner=vlm,
                 )
             else:
                 if image_prompts and len(image_prompts) != len(images):
@@ -2524,9 +2769,11 @@ async def async_classify_object(
                         system_prompt=system_prompt,
                         temperature=temperature,
                         max_tokens=current_max_tokens,
+                        **provider_invoke_kwargs,
                     ),
                     timeout_seconds=timeout_seconds,
                     operation_name="VLM agenerate",
+                    timeout_owner=vlm,
                 )
 
             # Track token usage if tracker provided
@@ -2565,6 +2812,8 @@ async def async_classify_object(
             logger.error(
                 f"VLM inference error on attempt {attempt + 1}/{max_retries}: {e}"
             )
+            if isinstance(e, NonRetryableVLMTimeoutError):
+                raise
             if attempt < max_retries - 1:
                 retry_delay = get_fibonacci_delay(attempt, base_delay=1.0)
                 logger.info(f"Retrying in {retry_delay:.1f} seconds...")
@@ -2717,6 +2966,8 @@ Return ONLY a JSON object with this exact structure:
                 logger.error(
                     f"LLM parsing error on attempt {llm_attempt + 1}/{max_retries}: {e}"
                 )
+                if isinstance(e, NonRetryableVLMTimeoutError):
+                    raise
                 if llm_attempt < max_retries - 1:
                     llm_retry_delay = get_fibonacci_delay(llm_attempt, base_delay=0.5)
                     await asyncio.sleep(llm_retry_delay)
@@ -2745,6 +2996,8 @@ Return ONLY a JSON object with this exact structure:
 
     except Exception as e:
         raise_for_model_authentication(e)
+        if isinstance(e, NonRetryableVLMTimeoutError):
+            raise
         logger.error(f"Error parsing VLM response with LLM: {e}")
         return {
             output_key: "Error during parsing",
@@ -2977,6 +3230,8 @@ async def async_batch_classify_objects(
                 except ModelAuthenticationFailure:
                     auth_abort.set()
                     raise
+                if isinstance(e, NonRetryableVLMTimeoutError):
+                    raise
                 error_msg = str(e)
                 logger.error(f"Entry {entry_id} failed: {error_msg}", exc_info=True)
                 if on_error:
@@ -3004,6 +3259,14 @@ async def async_batch_classify_objects(
     ]
     try:
         results = await asyncio.gather(*tasks)
+    except NonRetryableVLMTimeoutError:
+        # Task cancellation cleans up local coroutines, but cannot guarantee
+        # that already-dispatched provider work stopped remotely.
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
     except Exception as error:
         try:
             raise_for_model_authentication(error)
@@ -3012,7 +3275,7 @@ async def async_batch_classify_objects(
                 if not task.done():
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
-            raise auth_failure from None
+            raise detach_model_authentication_failure(auth_failure) from None
         raise
 
     # Log summary

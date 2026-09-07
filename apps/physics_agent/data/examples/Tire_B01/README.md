@@ -21,10 +21,6 @@ canonical input for the `physics-agent refine` bounce-flow demo at
   this asset should consult `apps/material_agent/configs/` for the
   current public backend selection.
 - **Materialization date**: 2026-05-13.
-- **Reference video**: `reference_media/tire_bounce_reference.mov` is a
-  2.4 s, 720x960, 29.58 fps phone capture of a physical tire drop/bounce.
-  It is bundled as optional visual judge evidence for the refine demo and
-  can be passed to `physics-agent refine` with `--reference-video`.
 - **Bundled textures**: `Textures/` ships three PBR maps
   (`t_rubber_new_a01_tile_alb.png`, `_nor.png`, `_orm.png`), downscaled
   from the SimReady 4K sources to 1K so the example asset stays under
@@ -82,26 +78,24 @@ physics-agent run apps/physics_agent/configs/tire_bounce.yaml
 
 # Iteratively tune the bounce parameters with a small text-only smoke run.
 # Requires physics_agent[tuning] plus a simulation backend such as OvPhysX.
+# --no-visual-evidence keeps this smoke run independent of a USD renderer.
 physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml \
   --physics-usd apps/physics_agent/configs/.tire_bounce/physics/tire_physics.usdc \
   --user-prompt "make this object bouncy" \
   --output-dir /tmp/tire_bouncy \
   --engine ovphysx --optimizer random \
-  --max-trials 4 --max-iterations 3 --score-threshold 0.7
+  --max-trials 4 --max-iterations 3 --score-threshold 0.7 \
+  --no-visual-evidence
 
-# Run the full reference-video tire-bounce refine example. This uses the
-# bundled phone video as visual judge evidence; do not pass
-# --reference-video-description unless you intentionally want to override
-# frame-based interpretation. Configure the judge backend and credentials
+# Run the full behavior-guided tire-bounce refine example. The winning trial is
+# rendered to PNG evidence frames. Configure the judge backend and credentials
 # for your environment before running this example.
 physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml \
   --physics-usd apps/physics_agent/configs/.tire_bounce/physics/tire_physics.usdc \
-  --user-prompt "Match the bounce behavior shown in the reference video." \
-  --reference-video apps/physics_agent/data/examples/Tire_B01/reference_media/tire_bounce_reference.mov \
-  --reference-video-frames 32 \
+  --user-prompt "Show a visible airborne first rebound, natural tipping motion, and final settling." \
   --judge-reference-frames 32 \
   --judge-generated-frames 32 \
-  --output-dir /tmp/tire_bouncy_refvideo \
+  --output-dir /tmp/tire_bouncy_frames \
   --engine ovphysx --optimizer botorch \
   --max-trials 30 --max-iterations 12 --score-threshold 0.9 \
   --seed 42
@@ -117,6 +111,6 @@ physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml
   flat ground but wrong for downstream multi-body / friction contact
   studies.
 - **Camera framing**: the `tire_b01_drop_settle.yaml` refine scenario
-  sets `camera_ground_bias_fraction: 0.75` so the recorded mp4 keeps
+  sets `camera_ground_bias_fraction: 0.75` so the rendered PNG sequence keeps
   both the falling tire and the ground in frame for the full
   `drop_height_m: 1.0` trajectory.

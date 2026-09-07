@@ -1,4 +1,0 @@
-interface:
-  display_name: "Texture Agent Client"
-  short_description: "Call the Texture Agent service"
-  default_prompt: "Use $texture-agent-client to make requests to the Texture Agent REST API service for AI-driven texture generation on materialized USD assets."

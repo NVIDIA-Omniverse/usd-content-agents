@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import fcntl
 import hashlib
 import json
 import logging
-import os
 import time
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import contextmanager, suppress
@@ -18,6 +16,7 @@ from world_understanding.utils.artifacts import (
     ArtifactPathError,
     append_bytes_to_confined,
     confined_artifact_exists,
+    confined_directory_identity,
     copy_open_file_to_confined,
     delete_confined_file,
     is_pipeline_temp_path,
@@ -37,6 +36,7 @@ from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     log_durable_failure,
 )
+from world_understanding.utils.file_locking import exclusive_descriptor_lock
 from world_understanding.utils.session_paths import (
     confined_session_path,
     confined_storage_child_path,
@@ -48,6 +48,7 @@ from ..json_utils import to_json_safe
 from .base import (
     JsonPreconditionError,
     SessionMetadataContentionError,
+    SessionStoragePathError,
     SessionStore,
     VersionedJson,
 )
@@ -97,23 +98,25 @@ class LocalSessionStore(SessionStore):
         with open_confined_directory(self.root, create=True) as root_descriptor:
             with open_confined_lock_file(root_descriptor, lock_key) as lock_descriptor:
                 deadline = time.monotonic() + _JSON_LOCK_TIMEOUT_SECONDS
+                lock = None
                 while True:
+                    candidate = exclusive_descriptor_lock(lock_descriptor)
                     try:
-                        fcntl.flock(
-                            lock_descriptor,
-                            fcntl.LOCK_EX | fcntl.LOCK_NB,
-                        )
-                        break
+                        candidate.__enter__()
                     except BlockingIOError as exc:
                         if time.monotonic() >= deadline:
                             raise SessionMetadataContentionError(
                                 "Session metadata is temporarily busy"
                             ) from exc
                         time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
+                    else:
+                        lock = candidate
+                        break
                 try:
                     yield root_descriptor
                 finally:
-                    fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
+                    assert lock is not None
+                    lock.__exit__(None, None, None)
 
     @contextmanager
     def _locked_json(self, session_id: str, key: str) -> Iterator[int]:
@@ -157,13 +160,16 @@ class LocalSessionStore(SessionStore):
 
     async def init_session(self, session_id: str) -> None:
         self._session_dir(session_id)
-        with open_confined_directory(self.root, create=True) as root_descriptor:
-            with open_confined_directory_at(
-                root_descriptor,
-                session_id,
-                create=True,
-            ):
-                pass
+        try:
+            with open_confined_directory(self.root, create=True) as root_descriptor:
+                with open_confined_directory_at(
+                    root_descriptor,
+                    session_id,
+                    create=True,
+                ):
+                    pass
+        except ArtifactPathError as exc:
+            raise SessionStoragePathError("Session storage root is unsafe") from exc
 
     async def delete_session(self, session_id: str) -> None:
         for attempt in range(3):
@@ -449,12 +455,9 @@ class LocalSessionStore(SessionStore):
                     local_session_dir,
                     create=True,
                 ) as destination_descriptor:
-                    source_identity = os.fstat(source_descriptor)
-                    destination_identity = os.fstat(destination_descriptor)
-                    if (
-                        source_identity.st_dev == destination_identity.st_dev
-                        and source_identity.st_ino == destination_identity.st_ino
-                    ):
+                    if confined_directory_identity(
+                        source_descriptor
+                    ) == confined_directory_identity(destination_descriptor):
                         return 0
                     count = 0
                     for artifact in iter_open_regular_files(

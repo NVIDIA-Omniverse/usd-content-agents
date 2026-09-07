@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import ctypes
 import errno
-import fcntl
 import hashlib
+import importlib
 import json
 import os
 import secrets
@@ -25,6 +25,20 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+
+def _load_fcntl() -> Any:
+    """Return the POSIX descriptor module without breaking Windows imports."""
+
+    if os.name != "posix":  # pragma: no cover - selected on native Windows
+        return None
+    try:
+        return importlib.import_module("fcntl")
+    except ImportError:  # pragma: no cover - supported Linux provides fcntl
+        return None
+
+
+fcntl: Any = _load_fcntl()
+
 _SIDECAR_BUNDLE_SCHEMA_VERSION = "world-understanding-joint-rigger-sidecar-v1"
 _DIRECTORY_TREE_SCHEMA_VERSION = "world-understanding-artifact-tree-v1"
 _CAPTURED_TARGET_TREE_SCHEMA_VERSION = (
@@ -35,7 +49,20 @@ _ARTIFACT_TREE_MAX_ENTRIES = 100_000
 _ARTIFACT_TREE_MAX_BYTES = 8 * 1024 * 1024 * 1024
 _RENAME_NOREPLACE = 1
 _PROC_SELF_FDINFO = Path("/proc/self/fdinfo")
-_LIBC = ctypes.CDLL(None, use_errno=True)
+
+
+def _load_process_libc() -> Any:
+    """Return the POSIX process handle without breaking non-POSIX imports."""
+
+    if os.name != "posix":  # pragma: no cover - selected on native Windows
+        return None
+    try:
+        return ctypes.CDLL(None, use_errno=True)
+    except (OSError, TypeError):  # pragma: no cover - supported Linux has libc
+        return None
+
+
+_LIBC = _load_process_libc()
 _RENAMEAT2: Any
 try:
     _RENAMEAT2 = _LIBC.renameat2

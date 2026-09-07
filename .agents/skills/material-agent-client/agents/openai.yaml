@@ -1,4 +1,0 @@
-interface:
-  display_name: "Material Agent Client"
-  short_description: "Call the Material Agent service"
-  default_prompt: "Use $material-agent-client to make requests to the Material Agent REST API service for VLM-based material assignment."

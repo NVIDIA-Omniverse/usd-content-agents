@@ -111,6 +111,7 @@ class OwnedTopologyBackend:
                         author_aggregate_rigid_links(stage, request)
                     else:
                         validate_authored_rigid_links(stage, request)
+                    _validate_v2_rigid_body_membership(stage, request)
                     _author_v2_articulation_roots(stage, request)
                 _preflight_topology_authoring(stage, topology_plan)
             finally:
@@ -174,6 +175,7 @@ class OwnedTopologyBackend:
             try:
                 if isinstance(request, JointRiggerInputV2):
                     author_aggregate_rigid_links(stage, request)
+                    _validate_v2_rigid_body_membership(stage, request)
                     _author_v2_articulation_roots(stage, request)
                 source_preflight = _preflight_topology_authoring(
                     stage,
@@ -205,6 +207,10 @@ class OwnedTopologyBackend:
                     try:
                         if isinstance(request, JointRiggerInputV2):
                             validate_authored_rigid_links(
+                                verification_stage,
+                                request,
+                            )
+                            _validate_v2_rigid_body_membership(
                                 verification_stage,
                                 request,
                             )
@@ -332,8 +338,30 @@ def _topology_diagnostics_for_request(
     decisions = tuple(
         decision
         for decision in diagnostics.field_decisions
-        if decision.field != "articulation_root"
+        if decision.field not in {"articulation_root", "rigid_bodies"}
     )
+    if request.plan.rigid_bodies:
+        decisions += tuple(
+            FieldDecisionV1(
+                field=f"rigid_bodies[{body.prim_path}].rigid_body",
+                disposition="accepted",
+                provenance=body.provenance,
+                detail=(
+                    "Validated the exact pre-authored RigidBodyAPI membership in "
+                    "the bound input; no mass or collider schemas were authored."
+                ),
+            )
+            for body in request.plan.rigid_bodies
+        )
+    else:
+        decisions += (
+            FieldDecisionV1(
+                field="rigid_bodies",
+                disposition="ignored",
+                reason_code="not_provided",
+                detail="No rigid-body membership fact was supplied.",
+            ),
+        )
     if request.plan.articulation_roots:
         decisions += tuple(
             FieldDecisionV1(
@@ -379,6 +407,46 @@ def _author_v2_articulation_roots(stage: Any, request: JointRiggerInputV2) -> No
             raise JointRiggerArtifactError(
                 f"Could not apply ArticulationRootAPI to {root.prim_path}"
             )
+    _validate_v2_articulation_roots(stage, request)
+
+
+def _validate_v2_rigid_body_membership(
+    stage: Any,
+    request: JointRiggerInputV2,
+) -> None:
+    """Require every V2 body opinion to be an exact pre-authored membership."""
+
+    from pxr import UsdPhysics
+
+    unsupported = tuple(
+        body.prim_path
+        for body in request.plan.rigid_bodies
+        if body.mass is not None or body.colliders
+    )
+    if unsupported:
+        raise JointRiggerBackendIncompatibleError(
+            "Owned topology authoring does not consume V2 mass or collider facts: "
+            f"{', '.join(unsupported)}"
+        )
+    missing = tuple(
+        body.prim_path
+        for body in request.plan.rigid_bodies
+        if not stage.GetPrimAtPath(body.prim_path).HasAPI(UsdPhysics.RigidBodyAPI)
+    )
+    if missing:
+        raise JointRiggerContractError(
+            "accepted_rigid_body_membership_missing",
+            "V2 rigid-body membership must already exist in the bound input: "
+            f"missing={list(missing)}",
+        )
+
+
+def validate_v2_articulation_roots(
+    stage: Any,
+    request: JointRiggerInputV2,
+) -> None:
+    """Require a saved stage to expose exactly the request's V2 roots."""
+
     _validate_v2_articulation_roots(stage, request)
 
 
@@ -1111,4 +1179,5 @@ __all__ = [
     "TOPOLOGY_AUTHOR_VERSION",
     "OwnedTopologyBackend",
     "author_joint_topology",
+    "validate_v2_articulation_roots",
 ]

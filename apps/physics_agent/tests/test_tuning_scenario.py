@@ -46,7 +46,7 @@ def test_parse_scenario_defaults_metric_when_missing() -> None:
     assert sc.metric == "settle_distance"  # default
 
 
-def test_parse_scenario_uses_default_param_bounds_when_omitted() -> None:
+def test_parse_scenario_tracks_omitted_param_bounds_for_resolution() -> None:
     raw = {
         "name": "drop_settle",
         "parameters": [{"name": "mass_scale"}],
@@ -55,6 +55,61 @@ def test_parse_scenario_uses_default_param_bounds_when_omitted() -> None:
     lo, hi = DEFAULT_PARAM_BOUNDS["mass_scale"]
     assert sc.params[0].min_value == lo
     assert sc.params[0].max_value == hi
+    assert sc.auto_bound_fields == {"mass_scale": frozenset({"min", "max"})}
+
+
+@pytest.mark.parametrize(
+    "parameter",
+    [
+        {"name": "mass_scale", "min": 0.5},
+        {"name": "mass_scale", "max": 2.0},
+    ],
+)
+def test_parse_scenario_rejects_one_sided_bounds(parameter: dict) -> None:
+    with pytest.raises(
+        ScenarioParseError,
+        match=r"must specify both 'min' and 'max', or omit both",
+    ):
+        parse_scenario(
+            {
+                "name": "drop_settle",
+                "parameters": [parameter],
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        [
+            {"name": "static_friction", "min": 0.1, "max": 1.0},
+            {"name": "dynamic_friction"},
+        ],
+        [
+            {"name": "static_friction"},
+            {"name": "dynamic_friction", "min": 0.1, "max": 1.0},
+        ],
+    ],
+)
+def test_parse_scenario_rejects_mixed_friction_bound_modes(
+    parameters: list[dict],
+) -> None:
+    with pytest.raises(
+        ScenarioParseError,
+        match=r"must both use automatic bounds or both specify explicit",
+    ):
+        parse_scenario(
+            {
+                "name": "drop_settle",
+                "parameters": parameters,
+            }
+        )
+
+
+def test_parse_scenario_explicit_bounds_are_not_marked_for_resolution() -> None:
+    sc = parse_scenario(_good_scenario())
+
+    assert sc.auto_bound_fields == {}
 
 
 def test_parse_scenario_rejects_unknown_scenario() -> None:
@@ -167,7 +222,7 @@ def test_parse_scenario_rejects_infeasible_friction_ranges() -> None:
 
 def test_parse_scenario_rejects_non_numeric_bound() -> None:
     raw = _good_scenario()
-    raw["parameters"] = [{"name": "mass_scale", "min": "low"}]
+    raw["parameters"] = [{"name": "mass_scale", "min": "low", "max": 2.0}]
     with pytest.raises(ScenarioParseError, match="must be a number"):
         parse_scenario(raw)
 
@@ -270,6 +325,17 @@ def test_parse_scenario_validates_drop_settle_target_numerics() -> None:
     raw = _good_scenario()
     raw["target"] = {"drop_height_m": [1, 2]}
     with pytest.raises(ScenarioParseError, match="target.drop_height_m"):
+        parse_scenario(raw)
+
+
+def test_parse_scenario_validates_freeform_gravity() -> None:
+    raw = {
+        "name": "freeform",
+        "target": {"gravity": [1, 2]},
+        "parameters": [{"name": "mass_scale", "min": 0.5, "max": 2.0}],
+    }
+
+    with pytest.raises(ScenarioParseError, match="target.gravity"):
         parse_scenario(raw)
 
 

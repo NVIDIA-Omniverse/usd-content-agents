@@ -73,6 +73,7 @@ def _tune_results_metadata(result: Any) -> dict[str, Any]:
     return {
         "best_params": dict(getattr(result, "best_params", {}) or {}),
         "best_score": _finite_best_score(getattr(result, "best_score", None)),
+        "best_objective": _finite_best_score(getattr(result, "best_objective", None)),
         "n_trials": int(getattr(result, "n_trials", 0) or 0),
         "optimizer_used": str(getattr(result, "optimizer_used", "") or ""),
         "engine_used": str(getattr(result, "engine_used", "") or ""),
@@ -93,7 +94,10 @@ async def _publish_tune_artifacts(
 ) -> tuple[list[str], DurableDiagnostic | None]:
     manifest = collect_public_artifact_manifest(session_dir, "tune")
     try:
-        await session_manager.sync_to_store(session_id, prefix="tune/")
+        await session_manager.sync_to_store(
+            session_id,
+            prefix=("input/", "tune/"),
+        )
     except Exception:
         diagnostic = durable_diagnostic(
             "physics_tune_artifact_sync_failed",
@@ -283,6 +287,20 @@ async def _emit_terminal_bus_event(
         )
 
 
+async def _commit_terminal_unless_cancelled(
+    session_manager: Any,
+    session_id: str,
+    updates: dict[str, Any],
+) -> bool:
+    commit = getattr(session_manager, "update_session_if_not_cancelled", None)
+    if commit is not None:
+        return bool(await commit(session_id, updates))
+    if await session_manager.is_cancelled(session_id):
+        return False
+    await session_manager.update_session(session_id, updates)
+    return True
+
+
 async def _watch_for_cancel(
     session_manager: Any,
     session_id: str,
@@ -330,10 +348,7 @@ async def execute_tune_async(
     judge_max_tokens: int | None = None,
     judge_temperature: float | None = None,
     reference_images: list[Path] | None = None,
-    reference_videos: list[Path] | None = None,
     reference_descriptions: list[str] | None = None,
-    reference_video_descriptions: list[str] | None = None,
-    reference_video_frames: int = 8,
     judge_reference_frames: int = 8,
     judge_generated_frames: int = 16,
 ) -> None:
@@ -364,10 +379,7 @@ async def execute_tune_async(
                     physics_usd=physics_usd,
                     output_dir=output_dir,
                     reference_images=reference_images,
-                    reference_videos=reference_videos,
                     reference_descriptions=reference_descriptions,
-                    reference_video_descriptions=reference_video_descriptions,
-                    reference_video_frames=reference_video_frames,
                     judge_reference_frames=judge_reference_frames,
                     judge_generated_frames=judge_generated_frames,
                     engine=engine,
@@ -588,6 +600,7 @@ async def execute_tune_async(
             percent=percent,
             extra={
                 "best_score": _finite_best_score(result.best_score),
+                "best_objective": _finite_best_score(result.best_objective),
                 "best_params": result.best_params,
                 "n_trials": result.n_trials,
             },
@@ -631,7 +644,28 @@ async def execute_tune_async(
             # completed/cancelled runs so REST clients can fetch artifacts.
             updates["results"] = partial_results
             updates["partial_results"] = partial_results
-        await session_manager.update_session(session_id, updates)
+        if not await _commit_terminal_unless_cancelled(
+            session_manager,
+            session_id,
+            updates,
+        ):
+            await session_manager.update_session(
+                session_id,
+                {
+                    "status": "cancelled",
+                    "completed_at": datetime.now(UTC).isoformat(),
+                    "duration_seconds": duration,
+                    "can_cancel": False,
+                    "artifact_manifest": artifact_manifest,
+                    "results": partial_results or {},
+                },
+            )
+            await _emit_terminal_bus_event(
+                session_id,
+                StepState.CANCELLED,
+                "Tune cancelled",
+            )
+            return
         await _emit_terminal_bus_event(
             session_id,
             StepState.FAILED,
@@ -664,10 +698,28 @@ async def execute_tune_async(
                 "artifact_sync_diagnostic": artifact_sync_diagnostic.to_dict(),
             }
         )
-    await session_manager.update_session(
+    if not await _commit_terminal_unless_cancelled(
+        session_manager,
         session_id,
         updates,
-    )
+    ):
+        await session_manager.update_session(
+            session_id,
+            {
+                "status": "cancelled",
+                "completed_at": datetime.now(UTC).isoformat(),
+                "duration_seconds": duration,
+                "can_cancel": False,
+                "artifact_manifest": artifact_manifest,
+                "results": results,
+            },
+        )
+        await _emit_terminal_bus_event(
+            session_id,
+            StepState.CANCELLED,
+            "Tune cancelled",
+        )
+        return
     if status == "failed":
         await _emit_terminal_bus_event(
             session_id,

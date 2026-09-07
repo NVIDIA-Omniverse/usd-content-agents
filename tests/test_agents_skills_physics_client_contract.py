@@ -10,7 +10,15 @@ import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKILL_PATH = REPO_ROOT / ".agents" / "skills" / "physics-agent-client" / "SKILL.md"
+SKILL_PATH = (
+    REPO_ROOT
+    / ".agents"
+    / "skills"
+    / "fixed-pipeline"
+    / "references"
+    / "physics-agent-client"
+    / "reference.md"
+)
 HELPER_PATH = SKILL_PATH.parent / "scripts" / "request_helpers.sh"
 
 
@@ -129,7 +137,8 @@ def test_client_skill_health_preflight_hard_stops_before_submission() -> None:
     assert "Run the curl workflow's `physics_client_health_preflight`" in skill
     assert "Treat its nonzero result as a hard stop" in skill
     assert (
-        "source .agents/skills/physics-agent-client/scripts/request_helpers.sh" in bash
+        "source .agents/skills/fixed-pipeline/references/physics-agent-client/scripts/request_helpers.sh"
+        in bash
     )
     health_failure_branch = "if ! physics_client_health_preflight; then\n  exit 1\nfi"
     assert health_failure_branch in bash

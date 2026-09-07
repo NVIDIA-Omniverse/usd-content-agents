@@ -1,0 +1,13 @@
+diff --git a/src/lib/geogram/CMakeLists.txt b/src/lib/geogram/CMakeLists.txt
+--- a/src/lib/geogram/CMakeLists.txt
++++ b/src/lib/geogram/CMakeLists.txt
+@@ -67,3 +67,5 @@ if(GEOGRAM_WITH_TBB)
+ target_link_libraries(geogram TBB::tbb) # TODO: Use PRIVATE keyword here
+ target_compile_definitions(geogram PRIVATE -DGEO_TBB)
++else()
++target_compile_definitions(geogram PRIVATE GEO_NO_PARALLEL_STL)
+ endif()
+@@ -74,2 +76,2 @@ if(LINUX AND NOT GEOGRAM_WITH_EMSCRIPTEN)
+-target_link_libraries(geogram tbb)
++# TBB linkage is controlled by GEOGRAM_WITH_TBB above.
+ endif()

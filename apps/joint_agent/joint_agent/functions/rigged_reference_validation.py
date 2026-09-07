@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import math
@@ -23,6 +24,12 @@ REFERENCE_MANIFEST_SCHEMA_VERSION: Literal[
 VALIDATION_SCHEMA_VERSION: Literal["joint-agent-rigged-reference-validation-v0"] = (
     "joint-agent-rigged-reference-validation-v0"
 )
+NORMALIZED_CONNECTIONS_SCHEMA_VERSION: Literal[
+    "joint-agent-normalized-reference-connections-v1"
+] = "joint-agent-normalized-reference-connections-v1"
+PHYSICAL_CONNECTION_NORMALIZATION_POLICY: Literal[
+    "joint-agent-physical-connection-signature-v1"
+] = "joint-agent-physical-connection-signature-v1"
 DEFAULT_LIMIT_TOLERANCE = 1e-4
 _PATH_REVIEW_THRESHOLD = 45
 _PATH_LEAF_SCORE = 65
@@ -46,6 +53,15 @@ _REFERENCE_SUBSET_IDENTITY_FIELDS = (
     "body0",
     "body1",
     "axis",
+    "lower_limit",
+    "upper_limit",
+)
+PHYSICAL_CONNECTION_SIGNATURE_FIELDS = (
+    "joint_type",
+    "body0",
+    "body1",
+    "axis",
+    "axis_world",
     "lower_limit",
     "upper_limit",
 )
@@ -87,6 +103,42 @@ class RiggedReferenceManifest(BaseModel):
     source_usd_path: str
     summary: dict[str, Any]
     joints: list[ReferenceJoint] = Field(default_factory=list)
+
+
+class NormalizedReferenceConnection(BaseModel):
+    """One physical connection and the raw authored joints that express it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    connection_id: str
+    signature_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    joint_type: str
+    body0: str | None = None
+    body1: str | None = None
+    axis: str | None = None
+    axis_world: list[float] | None = Field(default=None, min_length=3, max_length=3)
+    lower_limit: float | None = None
+    upper_limit: float | None = None
+    raw_joint_paths: list[str] = Field(min_length=1)
+
+
+class NormalizedReferenceConnections(BaseModel):
+    """Reviewed physical-connection projection of a raw authored manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["joint-agent-normalized-reference-connections-v1"] = (
+        NORMALIZED_CONNECTIONS_SCHEMA_VERSION
+    )
+    policy: Literal["joint-agent-physical-connection-signature-v1"] = (
+        PHYSICAL_CONNECTION_NORMALIZATION_POLICY
+    )
+    signature_fields: list[str]
+    raw_authored_joint_count: int = Field(ge=0)
+    physical_connection_count: int = Field(ge=0)
+    duplicate_raw_joint_count: int = Field(ge=0)
+    duplicate_signature_count: int = Field(ge=0)
+    connections: list[NormalizedReferenceConnection] = Field(default_factory=list)
 
 
 class ValidationFieldCheck(BaseModel):
@@ -159,7 +211,11 @@ def extract_reference_articulation_manifest(
 
         body0 = _single_relationship_target(prim, "physics:body0")
         body1 = _single_relationship_target(prim, "physics:body1")
-        axis = _normalize_axis(_effective_attribute_value(prim, "physics:axis"))
+        axis = (
+            None
+            if joint_type == "spherical"
+            else _normalize_axis(_effective_attribute_value(prim, "physics:axis"))
+        )
         reference_joint = ReferenceJoint(
             joint_prim_path=str(prim.GetPath()),
             joint_type=joint_type,
@@ -167,11 +223,19 @@ def extract_reference_articulation_manifest(
             body1=body1,
             axis=axis,
             axis_world=_reference_axis_world(stage, prim, body0, body1, axis),
-            lower_limit=_optional_float(
-                _authored_attribute_value(prim, "physics:lowerLimit")
+            lower_limit=(
+                None
+                if joint_type == "spherical"
+                else _optional_float(
+                    _authored_attribute_value(prim, "physics:lowerLimit")
+                )
             ),
-            upper_limit=_optional_float(
-                _authored_attribute_value(prim, "physics:upperLimit")
+            upper_limit=(
+                None
+                if joint_type == "spherical"
+                else _optional_float(
+                    _authored_attribute_value(prim, "physics:upperLimit")
+                )
             ),
             authored_metadata=_extract_authored_metadata(stage, prim, body0, body1),
         )
@@ -346,6 +410,7 @@ def compare_articulation_candidates_to_reference(
         if isinstance(candidate, Mapping)
     ]
 
+    normalized_connections = normalize_reference_connections(manifest)
     assignments, candidate_matches = _assign_candidate_matches(
         manifest.joints,
         candidates,
@@ -386,10 +451,17 @@ def compare_articulation_candidates_to_reference(
         for index, candidate in enumerate(candidates)
         if index not in matched_candidate_indices
     ]
+    normalized_matches = _normalized_connection_matches(
+        normalized_connections,
+        candidates,
+        limit_tolerance=limit_tolerance,
+    )
     summary = _validation_summary(
         manifest=manifest,
         candidate_document=candidate_document,
         matches=matches,
+        normalized_connections=normalized_connections,
+        normalized_matches=normalized_matches,
         extra_candidate_count=len(extra_candidates),
     )
     validation_document = {
@@ -398,9 +470,137 @@ def compare_articulation_candidates_to_reference(
         "candidate_schema_version": candidate_document.get("schema_version"),
         "summary": summary,
         "matches": [match.model_dump(mode="json") for match in matches],
+        "normalization": normalized_connections.model_dump(mode="json"),
+        "normalized_matches": normalized_matches,
         "extra_candidates": extra_candidates,
     }
     return validation_document
+
+
+def normalize_reference_connections(
+    reference_manifest: RiggedReferenceManifest | Mapping[str, Any],
+) -> NormalizedReferenceConnections:
+    """Collapse exact duplicate authored joints into physical connections.
+
+    The policy is intentionally conservative. It compares only authored reference
+    facts and requires exact equality for joint type, ordered endpoints, local and
+    world axes, and limits. It never consults candidates, asset names, filenames,
+    or path patterns, and therefore cannot act as a runtime inference input.
+    """
+
+    manifest = (
+        reference_manifest
+        if isinstance(reference_manifest, RiggedReferenceManifest)
+        else RiggedReferenceManifest.model_validate(reference_manifest)
+    )
+    seen_paths: set[str] = set()
+    grouped: dict[str, tuple[dict[str, Any], list[ReferenceJoint]]] = {}
+    for joint in manifest.joints:
+        if not joint.joint_prim_path or joint.joint_prim_path in seen_paths:
+            raise ValueError(
+                "reference manifest joint paths must be unique nonempty strings"
+            )
+        seen_paths.add(joint.joint_prim_path)
+        signature = _physical_connection_signature(joint)
+        signature_json = json.dumps(
+            signature,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        signature_sha256 = hashlib.sha256(signature_json.encode("utf-8")).hexdigest()
+        existing = grouped.get(signature_sha256)
+        if existing is not None and existing[0] != signature:
+            raise ValueError("physical connection signature SHA-256 collision")
+        grouped.setdefault(signature_sha256, (signature, []))[1].append(joint)
+
+    connections: list[NormalizedReferenceConnection] = []
+    for index, signature_sha256 in enumerate(sorted(grouped), 1):
+        signature, raw_joints = grouped[signature_sha256]
+        connections.append(
+            NormalizedReferenceConnection(
+                connection_id=f"physical_connection_{index:04d}",
+                signature_sha256=signature_sha256,
+                raw_joint_paths=sorted(joint.joint_prim_path for joint in raw_joints),
+                **signature,
+            )
+        )
+    duplicate_groups = [
+        connection for connection in connections if len(connection.raw_joint_paths) > 1
+    ]
+    return NormalizedReferenceConnections(
+        signature_fields=list(PHYSICAL_CONNECTION_SIGNATURE_FIELDS),
+        raw_authored_joint_count=len(manifest.joints),
+        physical_connection_count=len(connections),
+        duplicate_raw_joint_count=sum(
+            len(connection.raw_joint_paths) - 1 for connection in duplicate_groups
+        ),
+        duplicate_signature_count=len(duplicate_groups),
+        connections=connections,
+    )
+
+
+def _physical_connection_signature(joint: ReferenceJoint) -> dict[str, Any]:
+    return {
+        field: getattr(joint, field) for field in PHYSICAL_CONNECTION_SIGNATURE_FIELDS
+    }
+
+
+def _normalized_connection_matches(
+    normalized: NormalizedReferenceConnections,
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    limit_tolerance: float,
+) -> list[dict[str, Any]]:
+    representatives = [
+        ReferenceJoint(
+            joint_prim_path=connection.connection_id,
+            joint_type=connection.joint_type,
+            body0=connection.body0,
+            body1=connection.body1,
+            axis=connection.axis,
+            axis_world=connection.axis_world,
+            lower_limit=connection.lower_limit,
+            upper_limit=connection.upper_limit,
+        )
+        for connection in normalized.connections
+    ]
+    assignments, candidate_matches = _assign_candidate_matches(
+        representatives,
+        candidates,
+    )
+    records: list[dict[str, Any]] = []
+    for reference_index, (connection, reference) in enumerate(
+        zip(normalized.connections, representatives, strict=True)
+    ):
+        candidate_index = assignments.get(reference_index)
+        if candidate_index is None:
+            match = _missing_candidate_match(reference).model_dump(mode="json")
+        else:
+            candidate = dict(candidates[candidate_index])
+            candidate_match = candidate_matches[(reference_index, candidate_index)]
+            checks = _compare_reference_to_candidate(
+                reference,
+                candidate,
+                endpoint_match=candidate_match.endpoint_match,
+                limit_tolerance=limit_tolerance,
+            )
+            match = ValidationJointMatch(
+                reference_joint_path=connection.connection_id,
+                candidate_id=_candidate_id(candidate),
+                status="matched",
+                match_score=candidate_match.score,
+                checks=checks,
+                mismatch_reasons=_mismatch_reasons(checks),
+                reference=reference.model_dump(mode="json"),
+                candidate=candidate,
+            ).model_dump(mode="json")
+        match["reference_connection_id"] = connection.connection_id
+        match["reference_signature_sha256"] = connection.signature_sha256
+        match["raw_joint_paths"] = list(connection.raw_joint_paths)
+        records.append(match)
+    return records
 
 
 def load_json_document(path: str | Path) -> dict[str, Any]:
@@ -446,6 +646,7 @@ def write_rigged_reference_validation_report_html(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     summary = validation_document.get("summary", {})
     matches = validation_document.get("matches", [])
+    normalization = validation_document.get("normalization", {})
     extra_candidates = validation_document.get("extra_candidates", [])
     rows = []
     match_rows: Sequence[Any] = []
@@ -495,6 +696,39 @@ def write_rigged_reference_validation_report_html(
         for candidate in extra_candidates
         if isinstance(candidate, Mapping)
     )
+    duplicate_groups = []
+    raw_connections = (
+        normalization.get("connections", [])
+        if isinstance(normalization, Mapping)
+        else []
+    )
+    if isinstance(raw_connections, Sequence) and not isinstance(raw_connections, str):
+        for connection in raw_connections:
+            if not isinstance(connection, Mapping):
+                continue
+            raw_joint_paths = connection.get("raw_joint_paths")
+            if (
+                isinstance(raw_joint_paths, Sequence)
+                and not isinstance(raw_joint_paths, str)
+                and len(raw_joint_paths) > 1
+            ):
+                duplicate_groups.append(
+                    f"{_e(connection.get('connection_id'))}: "
+                    + ", ".join(_e(path) for path in raw_joint_paths)
+                )
+    duplicate_bits = "<br>".join(duplicate_groups) or "none"
+    benchmark_identity = validation_document.get("benchmark_identity", {})
+    benchmark_bits = ""
+    if isinstance(benchmark_identity, Mapping) and benchmark_identity:
+        benchmark_bits = (
+            '<div class="meta">'
+            f"Case: {_e(benchmark_identity.get('case_id'))} · "
+            f"Lane: {_e(benchmark_identity.get('lane_id'))} · "
+            f"Selected mode: {_e(benchmark_identity.get('selected_mode'))} · "
+            f"Evidence identity: "
+            f"{_e(benchmark_identity.get('evidence_identity_sha256'))}"
+            "</div>"
+        )
     html_text = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -516,11 +750,16 @@ def write_rigged_reference_validation_report_html(
 </head>
 <body>
   <h1>Rigged-Reference Validation</h1>
+  {benchmark_bits}
   <div class="summary">
-    <div>Reference joints: {_e(summary.get("reference_joint_count", 0))}</div>
+    <div>Raw authored joints: {_e(summary.get("raw_authored_joint_count", summary.get("reference_joint_count", 0)))}</div>
+    <div>Raw matched joints: {_e(summary.get("raw_matched_authored_joint_count", summary.get("matched_reference_count", 0)))}</div>
+    <div>Raw authored-joint recall: {_e(summary.get("raw_authored_joint_recall", summary.get("candidate_recall", 0.0)))}</div>
+    <div>Normalized physical connections: {_e(summary.get("normalized_physical_connection_count", 0))}</div>
+    <div>Normalized matched connections: {_e(summary.get("normalized_matched_connection_count", 0))}</div>
+    <div>Normalized physical-connection coverage: {_e(summary.get("normalized_physical_connection_coverage", 0.0))}</div>
+    <div>Duplicate raw joints: {_e(summary.get("duplicate_raw_joint_count", 0))}</div>
     <div>Candidates: {_e(summary.get("candidate_count", 0))}</div>
-    <div>Matched references: {_e(summary.get("matched_reference_count", 0))}</div>
-    <div>Candidate recall: {_e(summary.get("candidate_recall", 0.0))}</div>
     <div>Joint type matches: {_e(summary.get("joint_type_match_count", 0))}</div>
     <div>Body1 matches: {_e(summary.get("body1_match_count", 0))}</div>
     <div>Body0 matches: {_e(summary.get("body0_match_count", 0))}</div>
@@ -528,6 +767,7 @@ def write_rigged_reference_validation_report_html(
     <div>Limit matches: {_e(summary.get("limit_value_match_count", 0))}</div>
     <div>Missing candidates: {_e(summary.get("missing_candidate_count", 0))}</div>
     <div>Extra candidates: {_e(summary.get("extra_candidate_count", 0))}</div>
+    <div>Duplicate signature groups: {duplicate_bits}</div>
   </div>
   <table>
     <thead>
@@ -554,7 +794,7 @@ def write_rigged_reference_validation_report_html(
 
 def _assign_candidate_matches(
     references: Sequence[ReferenceJoint],
-    candidates: list[Mapping[str, Any]],
+    candidates: Sequence[Mapping[str, Any]],
 ) -> tuple[dict[int, int], dict[tuple[int, int], _CandidateMatch]]:
     candidate_matches: dict[tuple[int, int], _CandidateMatch] = {}
     for reference_index, reference in enumerate(references):
@@ -1093,10 +1333,24 @@ def _validation_summary(
     manifest: RiggedReferenceManifest,
     candidate_document: Mapping[str, Any],
     matches: list[ValidationJointMatch],
+    normalized_connections: NormalizedReferenceConnections,
+    normalized_matches: Sequence[Mapping[str, Any]],
     extra_candidate_count: int,
 ) -> dict[str, Any]:
     reference_joint_count = len(manifest.joints)
     matched_reference_count = sum(1 for match in matches if match.status == "matched")
+    normalized_matched_count = sum(
+        match.get("status") == "matched" for match in normalized_matches
+    )
+    normalized_count = normalized_connections.physical_connection_count
+    raw_recall = (
+        matched_reference_count / reference_joint_count
+        if reference_joint_count
+        else 0.0
+    )
+    normalized_coverage = (
+        normalized_matched_count / normalized_count if normalized_count else 0.0
+    )
     checks_by_name = {
         "joint_type": "joint_type_match_count",
         "body1": "body1_match_count",
@@ -1106,13 +1360,17 @@ def _validation_summary(
     }
     summary = {
         "reference_joint_count": reference_joint_count,
+        "raw_authored_joint_count": reference_joint_count,
         "candidate_count": _candidate_count(candidate_document),
         "matched_reference_count": matched_reference_count,
-        "candidate_recall": (
-            matched_reference_count / reference_joint_count
-            if reference_joint_count
-            else 0.0
-        ),
+        "raw_matched_authored_joint_count": matched_reference_count,
+        "candidate_recall": raw_recall,
+        "raw_authored_joint_recall": raw_recall,
+        "normalized_physical_connection_count": normalized_count,
+        "normalized_matched_connection_count": normalized_matched_count,
+        "normalized_physical_connection_coverage": normalized_coverage,
+        "duplicate_raw_joint_count": normalized_connections.duplicate_raw_joint_count,
+        "duplicate_signature_count": normalized_connections.duplicate_signature_count,
         "missing_candidate_count": sum(
             1 for match in matches if match.status == "missing_candidate"
         ),

@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Any
 
 from physics_agent.api import RefineInput, arun_refine
+from physics_agent.tuning.visual_evidence import (
+    DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
+)
 from world_understanding.agentic.events import EventListener
 from world_understanding.utils.durable_diagnostics import (
     DurableDiagnostic,
@@ -137,7 +140,10 @@ async def _publish_refine_artifacts(
 ) -> tuple[list[str], DurableDiagnostic | None]:
     manifest = collect_public_artifact_manifest(session_dir, "refine")
     try:
-        await session_manager.sync_to_store(session_id, prefix="refine/")
+        await session_manager.sync_to_store(
+            session_id,
+            prefix=("input/", "refine/"),
+        )
     except Exception:
         diagnostic = durable_diagnostic(
             "physics_refine_artifact_sync_failed",
@@ -183,6 +189,9 @@ def _build_refine_models(
             vlm_backend_requires_api_key,
         )
         from world_understanding.functions.models.chat_models import create_chat_model
+        from world_understanding.functions.models.token_limits import (
+            model_reasoning_effort_default,
+        )
         from world_understanding.functions.models.vision_language_models import (
             create_vlm,
         )
@@ -218,6 +227,15 @@ def _build_refine_models(
     }
     if api_key:
         chat_kwargs["api_key"] = api_key
+    reasoning_effort = os.getenv(
+        "PA_REFINE_REASONING_EFFORT"
+    ) or model_reasoning_effort_default(
+        model,
+        fallback=DEFAULT_VLM_REASONING_EFFORT,
+    )
+    supports_reasoning_effort = backend_supports_reasoning_effort(backend, model)
+    if supports_reasoning_effort and reasoning_effort:
+        chat_kwargs["reasoning_effort"] = reasoning_effort
     chat_model = create_chat_model(**chat_kwargs)
     vlm_config: dict[str, Any] = {
         "backend": backend,
@@ -232,15 +250,14 @@ def _build_refine_models(
             if judge_max_tokens is not None
             else DEFAULT_JUDGE_MAX_TOKENS
         ),
-        "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
     }
+    if supports_reasoning_effort and reasoning_effort:
+        vlm_config["reasoning_effort"] = reasoning_effort
     if api_key:
         vlm_config["api_key"] = api_key
     resolved_vlm_api_key = get_api_key_for_model_config(backend, vlm_config, "vlm")
     if resolved_vlm_api_key:
         vlm_config["api_key"] = resolved_vlm_api_key
-    if not backend_supports_reasoning_effort(backend):
-        vlm_config.pop("reasoning_effort", None)
     vlm_model = create_vlm(**vlm_config)
     return chat_model, vlm_model
 
@@ -484,6 +501,45 @@ async def _emit_terminal_bus_event(
         )
 
 
+def _ensure_failed_refine_diagnostic(
+    status: str,
+    terminal_diagnostic: DurableDiagnostic | None,
+    updates: dict[str, Any],
+    results: dict[str, Any],
+) -> DurableDiagnostic | None:
+    """Keep every failed terminal state durably diagnosable."""
+    if status != "failed" or terminal_diagnostic is not None:
+        return terminal_diagnostic
+    terminal_diagnostic = durable_diagnostic(
+        "physics_refine_terminal_state_invalid",
+        phase=FailurePhase.PIPELINE_EXECUTION,
+        retryable=False,
+    )
+    updates.update(
+        {
+            "error": terminal_diagnostic.code,
+            "error_diagnostic": terminal_diagnostic.to_dict(),
+            "failed_step": "refine",
+            "partial_results": results,
+        }
+    )
+    return terminal_diagnostic
+
+
+async def _commit_terminal_unless_cancelled(
+    session_manager: Any,
+    session_id: str,
+    updates: dict[str, Any],
+) -> bool:
+    commit = getattr(session_manager, "update_session_if_not_cancelled", None)
+    if commit is not None:
+        return bool(await commit(session_id, updates))
+    if await session_manager.is_cancelled(session_id):
+        return False
+    await session_manager.update_session(session_id, updates)
+    return True
+
+
 async def execute_refine_async(
     session_id: str,
     session_manager: Any,
@@ -500,13 +556,11 @@ async def execute_refine_async(
     judge_max_tokens: int | None = None,
     judge_temperature: float | None = None,
     reference_images: list[Path] | None = None,
-    reference_videos: list[Path] | None = None,
     reference_descriptions: list[str] | None = None,
-    reference_video_descriptions: list[str] | None = None,
-    reference_video_frames: int = 8,
     judge_reference_frames: int = 8,
     judge_generated_frames: int = 16,
     visual_evidence_enabled: bool = True,
+    visual_evidence_timeout_seconds: float = (DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS),
     llm_timeout_seconds: float = 180.0,
 ) -> None:
     """Run an iterative refine session and persist service metadata."""
@@ -540,10 +594,7 @@ async def execute_refine_async(
                 user_prompt=user_prompt,
                 output_dir=output_dir,
                 reference_images=reference_images,
-                reference_videos=reference_videos,
                 reference_descriptions=reference_descriptions,
-                reference_video_descriptions=reference_video_descriptions,
-                reference_video_frames=reference_video_frames,
                 judge_reference_frames=judge_reference_frames,
                 judge_generated_frames=judge_generated_frames,
                 engine=engine,
@@ -556,9 +607,10 @@ async def execute_refine_async(
                 judge_temperature=judge_temperature,
                 chat_model=chat_model,
                 vlm_model=vlm_model,
-                force_record_video="off",
+                force_record_frames="off",
                 render_winning_trial=False,
                 visual_evidence_enabled=visual_evidence_enabled,
+                visual_evidence_timeout_seconds=visual_evidence_timeout_seconds,
                 llm_timeout_seconds=llm_timeout_seconds,
                 cancel_event=cancel_event,
                 event_listener=listener,
@@ -719,22 +771,33 @@ async def execute_refine_async(
                 }
             )
 
-    if status == "failed" and terminal_diagnostic is None:
-        terminal_diagnostic = durable_diagnostic(
-            "physics_refine_terminal_state_invalid",
-            phase=FailurePhase.PIPELINE_EXECUTION,
-            retryable=False,
-        )
-        updates.update(
-            {
-                "error": terminal_diagnostic.code,
-                "error_diagnostic": terminal_diagnostic.to_dict(),
-                "failed_step": "refine",
-                "partial_results": results,
-            }
-        )
+    terminal_diagnostic = _ensure_failed_refine_diagnostic(
+        status,
+        terminal_diagnostic,
+        updates,
+        results,
+    )
 
-    await session_manager.update_session(session_id, updates)
+    if status == "cancelled":
+        await session_manager.update_session(session_id, updates)
+    elif not await _commit_terminal_unless_cancelled(
+        session_manager,
+        session_id,
+        updates,
+    ):
+        status = "cancelled"
+        updates = {
+            "status": status,
+            "completed_at": datetime.now(UTC).isoformat(),
+            "duration_seconds": duration,
+            "can_cancel": False,
+            "results": results,
+            "artifact_manifest": artifact_manifest,
+        }
+        if artifact_sync_diagnostic is not None:
+            updates["artifact_sync_error"] = artifact_sync_diagnostic.code
+            updates["artifact_sync_diagnostic"] = artifact_sync_diagnostic.to_dict()
+        await session_manager.update_session(session_id, updates)
 
     if status == "completed":
         await _emit_terminal_bus_event(

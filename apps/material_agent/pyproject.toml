@@ -8,8 +8,8 @@ authors = [
     {name = "Omniverse GenAI Team"},
 ]
 dependencies = [
-    # The shared rendering backend factory first ships in v0.5.0.
-    "world-understanding>=0.5.0",
+    # Material refinement uses shared run_tuning/run_refinement from v0.5.3.
+    "world-understanding>=0.5.3",
     "setuptools>=80.9.0",
 ]
 
@@ -21,7 +21,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -29,7 +29,7 @@ source = "uv-dynamic-versioning"
 
 [project.optional-dependencies]
 dev = [
-    "world-understanding[dev]>=0.5.0",
+    "world-understanding[dev]>=0.5.3",
     "texture-gen-service-common>=0.4.2",
     "texture-gen-step1x-service>=0.4.2",
 ]
@@ -37,8 +37,13 @@ step1x = [
     "texture-gen-service-common>=0.4.2",
     "texture-gen-step1x-service>=0.4.2",
 ]
+refinement = [
+    # BoTorch support for the default automatic optimizer resolution.
+    "world-understanding[optimization]>=0.5.3",
+]
 all = [
     "material-agent[dev,step1x]",
+    "material-agent[refinement]",
 ]
 
 [tool.uv.sources]

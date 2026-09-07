@@ -27,12 +27,40 @@ BUILD_RESOURCES="${SO_CORE_BUILD_RESOURCES:-$REPO_ROOT/.build-resources}"
 PKG_DIR="$BUILD_RESOURCES/scene_optimizer_core"
 
 SO_CORE_ARCH="${SO_CORE_ARCH:-$(uname -m)}"
+# Scene Optimizer Core publishes a windows-x86_64 package beside the manylinux
+# ones. Detect a Windows shell (Git Bash, MSYS2, Cygwin) so the release asset
+# matches the host instead of resolving to a Linux package that cannot load.
+SO_CORE_OS="${SO_CORE_OS:-$(uname -s)}"
+case "$SO_CORE_OS" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        SO_CORE_HOST_OS="windows"
+        ;;
+    *)
+        SO_CORE_HOST_OS="linux"
+        ;;
+esac
+
 case "$SO_CORE_ARCH" in
     x86_64|amd64)
-        SO_CORE_PLATFORM="manylinux_2_35_x86_64"
+        if [[ "$SO_CORE_HOST_OS" == "windows" ]]; then
+            SO_CORE_PLATFORM="windows-x86_64"
+        else
+            SO_CORE_PLATFORM="manylinux_2_35_x86_64"
+        fi
         ;;
     aarch64|arm64)
-        SO_CORE_PLATFORM="manylinux_2_35_aarch64"
+        if [[ "$SO_CORE_HOST_OS" == "windows" ]]; then
+            # The override has to be honoured here too, or the message below
+            # advertises a way out that this branch never reaches.
+            if [[ -z "${SO_CORE_URL:-}" ]]; then
+                echo "ERROR: Scene Optimizer Core publishes no windows-aarch64 package" >&2
+                echo "       Set SO_CORE_URL to an explicit package URL to override." >&2
+                exit 1
+            fi
+            SO_CORE_PLATFORM="custom"
+        else
+            SO_CORE_PLATFORM="manylinux_2_35_aarch64"
+        fi
         ;;
     *)
         if [[ -z "${SO_CORE_URL:-}" ]]; then
@@ -48,6 +76,40 @@ esac
 DEFAULT_URL="https://github.com/NVIDIA-Omniverse/usd-optimize/releases/download/v1.0.3/scene_optimizer_core_usd_25.11_py_3.12%401.0.3.1-0-3.506.5ccdcb0b.gl.${SO_CORE_PLATFORM}.release.zip"
 URL="${SO_CORE_URL:-$DEFAULT_URL}"
 URL_SHA256="$(printf "%s" "$URL" | sha256sum | awk '{print $1}')"
+# curl uses exponential backoff when no explicit --retry-delay is supplied.
+# The overrides keep failure-path tests fast without weakening production defaults.
+SO_CORE_CURL_RETRIES="${SO_CORE_CURL_RETRIES:-5}"
+SO_CORE_CURL_CONNECT_TIMEOUT="${SO_CORE_CURL_CONNECT_TIMEOUT:-15}"
+SO_CORE_CURL_RETRY_MAX_TIME="${SO_CORE_CURL_RETRY_MAX_TIME:-120}"
+SO_CORE_CURL_MAX_TIME="${SO_CORE_CURL_MAX_TIME:-600}"
+SO_CORE_CURL_SPEED_LIMIT="${SO_CORE_CURL_SPEED_LIMIT:-1024}"
+SO_CORE_CURL_SPEED_TIME="${SO_CORE_CURL_SPEED_TIME:-60}"
+
+validate_nonnegative_integer() {
+    local name="$1"
+    local value="$2"
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: $name must be a non-negative integer, got: $value" >&2
+        exit 1
+    fi
+}
+
+validate_positive_integer() {
+    local name="$1"
+    local value="$2"
+    validate_nonnegative_integer "$name" "$value"
+    if [[ "$value" == "0" ]]; then
+        echo "ERROR: $name must be greater than zero" >&2
+        exit 1
+    fi
+}
+
+validate_nonnegative_integer SO_CORE_CURL_RETRIES "$SO_CORE_CURL_RETRIES"
+validate_positive_integer SO_CORE_CURL_CONNECT_TIMEOUT "$SO_CORE_CURL_CONNECT_TIMEOUT"
+validate_positive_integer SO_CORE_CURL_RETRY_MAX_TIME "$SO_CORE_CURL_RETRY_MAX_TIME"
+validate_positive_integer SO_CORE_CURL_MAX_TIME "$SO_CORE_CURL_MAX_TIME"
+validate_positive_integer SO_CORE_CURL_SPEED_LIMIT "$SO_CORE_CURL_SPEED_LIMIT"
+validate_positive_integer SO_CORE_CURL_SPEED_TIME "$SO_CORE_CURL_SPEED_TIME"
 
 if [[ "${SO_CORE_PRINT_URL_ONLY:-}" == "1" || "${SO_CORE_PRINT_URL_ONLY:-}" == "true" ]]; then
     echo "$URL"
@@ -96,7 +158,29 @@ UNPACK_DIR="$TMP_DIR/scene_optimizer_core"
 ZIP_PATH="$TMP_DIR/scene_optimizer_core.zip"
 echo "Fetching Scene Optimizer Core from:"
 echo "  $URL"
-curl --fail --location --silent --show-error --output "$ZIP_PATH" "$URL"
+CURL_HELP_ALL="$(curl --help all 2>/dev/null || true)"
+CURL_RETRY_ARGS=(--retry "$SO_CORE_CURL_RETRIES")
+if grep -Fq -- "--retry-connrefused" <<< "$CURL_HELP_ALL"; then
+    CURL_RETRY_ARGS+=(--retry-connrefused)
+fi
+if grep -Fq -- "--retry-all-errors" <<< "$CURL_HELP_ALL"; then
+    CURL_RETRY_ARGS+=(--retry-all-errors)
+else
+    echo "curl does not support --retry-all-errors; using compatible retries" >&2
+fi
+curl \
+    --fail \
+    --location \
+    --silent \
+    --show-error \
+    "${CURL_RETRY_ARGS[@]}" \
+    --connect-timeout "$SO_CORE_CURL_CONNECT_TIMEOUT" \
+    --retry-max-time "$SO_CORE_CURL_RETRY_MAX_TIME" \
+    --max-time "$SO_CORE_CURL_MAX_TIME" \
+    --speed-limit "$SO_CORE_CURL_SPEED_LIMIT" \
+    --speed-time "$SO_CORE_CURL_SPEED_TIME" \
+    --output "$ZIP_PATH" \
+    "$URL"
 
 echo "Unpacking into temporary directory ..."
 mkdir -p "$UNPACK_DIR"
@@ -133,7 +217,31 @@ if [[ -e "$PKG_DIR" ]]; then
     fi
 fi
 
-if ! mv "$UNPACK_DIR" "$PKG_DIR"; then
+# Renaming a freshly unpacked tree can lose a race with an on-access scanner
+# still holding the new binaries, which surfaces as a transient EACCES. Retry a
+# few times before treating the install as failed.
+install_unpacked_package() {
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        # mv moves the source INTO the destination when the destination is an
+        # existing directory. A retry after a partial install would then create
+        # $PKG_DIR/scene_optimizer_core, report success, and leave the platform
+        # marker unfindable.
+        if [[ -n "$PKG_DIR" && -e "$PKG_DIR" ]]; then
+            rm -rf "$PKG_DIR"
+        fi
+        if mv "$UNPACK_DIR" "$PKG_DIR"; then
+            return 0
+        fi
+        if [[ "$attempt" -lt 5 ]]; then
+            echo "Install attempt $attempt failed; retrying ..." >&2
+            sleep "$attempt"
+        fi
+    done
+    return 1
+}
+
+if ! install_unpacked_package; then
     echo "ERROR: failed to install Scene Optimizer Core into $PKG_DIR" >&2
     if [[ -n "${BACKUP_DIR:-}" && -e "$BACKUP_DIR" ]]; then
         if mv "$BACKUP_DIR" "$PKG_DIR"; then

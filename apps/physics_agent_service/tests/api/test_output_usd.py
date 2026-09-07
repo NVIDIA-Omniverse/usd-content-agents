@@ -94,13 +94,17 @@ class TestOutputUsdDownload:
             / "scene_physics.usda"
         )
         output_path.write_text(
-            '#usda 1.0\n\ndef "Root" (\n    assetInfo = {\n'
-            "        asset texture = @scene_physics_assets/Textures/diffuse.png@\n"
-            "    }\n)\n",
+            '#usda 1.0\n\ndef "Root"\n{\n'
+            "    asset texture = "
+            "@scene_physics.usda_assets/Textures/diffuse.png@\n"
+            "}\n",
             encoding="utf-8",
         )
         texture_path = (
-            output_path.parent / "scene_physics_assets" / "Textures" / "diffuse.png"
+            output_path.parent
+            / "scene_physics.usda_assets"
+            / "Textures"
+            / "diffuse.png"
         )
         texture_path.parent.mkdir(parents=True, exist_ok=True)
         texture_path.write_bytes(b"texture-bytes")
@@ -115,9 +119,9 @@ class TestOutputUsdDownload:
         with zipfile.ZipFile(BytesIO(r.content)) as archive:
             names = set(archive.namelist())
             assert "scene_physics.usda" in names
-            assert "scene_physics_assets/Textures/diffuse.png" in names
+            assert "scene_physics.usda_assets/Textures/diffuse.png" in names
             assert (
-                archive.read("scene_physics_assets/Textures/diffuse.png")
+                archive.read("scene_physics.usda_assets/Textures/diffuse.png")
                 == b"texture-bytes"
             )
 
@@ -132,15 +136,22 @@ class TestOutputUsdDownload:
         assert (
             _archive_name_for_store_sidecar(
                 output_key,
+                "cache/physics/scene_physics.usda_assets/Textures/diffuse.png",
+            )
+            == "scene_physics.usda_assets/Textures/diffuse.png"
+        )
+        assert (
+            _archive_name_for_store_sidecar(
+                output_key,
                 "cache/physics/scene_physics_assets/Textures/diffuse.png",
             )
             == "scene_physics_assets/Textures/diffuse.png"
         )
 
         for sidecar_key in (
-            "cache/physics/scene_physics_assets/../evil.txt",
-            "cache/physics/scene_physics_assets/C:/evil.txt",
-            "cache/physics/scene_physics_assets/Textures\\evil.txt",
+            "cache/physics/scene_physics.usda_assets/../evil.txt",
+            "cache/physics/scene_physics.usda_assets/C:/evil.txt",
+            "cache/physics/scene_physics.usda_assets/Textures\\evil.txt",
         ):
             with pytest.raises(ValueError):
                 _archive_name_for_store_sidecar(output_key, sidecar_key)
@@ -153,8 +164,16 @@ class TestOutputUsdDownload:
         )
 
         output_path = tmp_path / "scene_physics.usda"
-        output_path.write_text("#usda 1.0\n", encoding="utf-8")
-        texture_path = tmp_path / "scene_physics_assets" / "Textures" / "diffuse.png"
+        output_path.write_text(
+            '#usda 1.0\n\ndef "Root"\n{\n'
+            "    asset texture = "
+            "@scene_physics.usda_assets/Textures/diffuse.png@\n"
+            "}\n",
+            encoding="utf-8",
+        )
+        texture_path = (
+            tmp_path / "scene_physics.usda_assets" / "Textures" / "diffuse.png"
+        )
         texture_path.parent.mkdir(parents=True)
         texture_path.write_bytes(b"texture")
 
@@ -165,7 +184,7 @@ class TestOutputUsdDownload:
                 names = archive.namelist()
                 assert names == [
                     "scene_physics.usda",
-                    "scene_physics_assets/Textures/diffuse.png",
+                    "scene_physics.usda_assets/Textures/diffuse.png",
                 ]
                 for name in names:
                     path = PurePosixPath(name)

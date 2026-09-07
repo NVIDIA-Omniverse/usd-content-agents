@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from material_agent.tasks.iteration import IterationTask
 
 
@@ -80,6 +82,8 @@ def test_iteration_task_runs_until_approved_and_propagates_feedback(
         "iter1_predictions.jsonl"
     )
     assert second_context["resolved_assignments"] == {"/B": "Rubber"}
+    assert second_context["input_usd_path"] == str(tmp_path / "input.usd")
+    assert second_context["iteration_results_history"] == []
 
 
 def test_iteration_task_stops_at_max_iterations_without_intermediate_outputs(
@@ -107,6 +111,38 @@ def test_iteration_task_records_errors() -> None:
     assert result["termination_reason"] == "error"
     assert result["iteration_error"] == "boom"
     assert result["final_iteration"] is None
+
+
+@pytest.mark.parametrize("max_iterations", (0, -1))
+def test_iteration_task_treats_non_positive_limit_as_exhausted(
+    max_iterations: int,
+) -> None:
+    workflow = _FakeWorkflow()
+
+    result = IterationTask(workflow).run({"max_iterations": max_iterations})
+
+    assert workflow.contexts == []
+    assert result["termination_reason"] == "max_iterations"
+    assert result["iteration_count"] == 0
+    assert result["iteration_results"] == []
+    assert result["final_iteration"] is None
+
+
+def test_iteration_task_propagates_iteration_setup_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workflow = _FakeWorkflow()
+    task = IterationTask(workflow)
+
+    def fail_setup(**_kwargs: object) -> dict:
+        raise OSError("read-only iteration directory")
+
+    monkeypatch.setattr(task, "_prepare_iteration_context", fail_setup)
+
+    with pytest.raises(OSError, match="read-only iteration directory"):
+        task.run({"max_iterations": 1})
+
+    assert workflow.contexts == []
 
 
 def test_iteration_prepare_context_uses_previous_iteration_output(

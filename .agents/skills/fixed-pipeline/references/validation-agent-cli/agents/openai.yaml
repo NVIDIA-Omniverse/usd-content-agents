@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Validation Agent CLI"
+  short_description: "Fixed pipeline: Run the Validation Agent CLI"
+  default_prompt: "Use $fixed-pipeline to run Validation Agent for config-driven or prompt-driven asset validation."

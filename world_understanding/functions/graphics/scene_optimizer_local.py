@@ -32,6 +32,7 @@ import sys
 import sysconfig
 import tempfile
 import time
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 # Path to the worker script (executed in the isolated subprocess)
 _SO_WORKER_PATH = Path(__file__).parent / "so_worker.py"
+_SO_EXPORT_PATH = Path(__file__).parent / "so_export.py"
 
 
 def _build_operations_list(settings: dict[str, Any]) -> list[tuple[str, dict]]:
@@ -257,6 +259,11 @@ def _subprocess_env(so_package_dir: Path, so_python: str) -> dict[str, str]:
     - ``PXR_PLUGINPATH_NAME`` points USD's plugin registry at
       ``extraLibs/usd`` so plugin discovery is independent of how the
       libs were loaded.
+    - On Windows, ``PXR_USD_WINDOWS_DLL_PATH`` is **replaced** with the SO
+      bundle's ``lib`` and ``extraLibs`` directories, and those directories
+      are prepended to ``PATH``.  The parent process may already point
+      ``PXR_USD_WINDOWS_DLL_PATH`` at a different OpenUSD provider; inheriting
+      that value mixes incompatible DLLs before Python can import ``pxr.Tf``.
 
     Note that the worker is also launched with ``-S`` (see callers) so
     ``site.py`` doesn't auto-add the parent venv's ``site-packages`` to
@@ -265,11 +272,26 @@ def _subprocess_env(so_package_dir: Path, so_python: str) -> dict[str, str]:
     """
     env = os.environ.copy()
 
-    ld_paths = [str(so_package_dir / "lib"), str(so_package_dir / "extraLibs")]
+    bundle_lib_paths = [
+        str(so_package_dir / "lib"),
+        str(so_package_dir / "extraLibs"),
+    ]
+    ld_paths = list(bundle_lib_paths)
     py_libdir = _python_libdir(so_python)
     if py_libdir:
         ld_paths.append(py_libdir)
     env["LD_LIBRARY_PATH"] = os.pathsep.join(ld_paths)
+
+    if sys.platform == "win32":
+        # usdpy/pxr/Tf/__init__.py gives this variable priority over PATH and
+        # registers every listed directory with os.add_dll_directory().  Make
+        # it authoritative so a parent usd-exchange installation cannot leak
+        # an ABI-incompatible OpenUSD DLL directory into the isolated worker.
+        env["PXR_USD_WINDOWS_DLL_PATH"] = os.pathsep.join(bundle_lib_paths)
+        inherited_path = env.get("PATH")
+        env["PATH"] = os.pathsep.join(
+            [*bundle_lib_paths, inherited_path] if inherited_path else bundle_lib_paths
+        )
 
     env["PYTHONPATH"] = os.pathsep.join(
         [str(so_package_dir / "python"), str(so_package_dir / "usdpy")]
@@ -282,6 +304,8 @@ def optimize_usd_local(
     input_path: Path | str,
     output_path: Path | str,
     optimization_config: dict[str, Any] | None = None,
+    *,
+    approved_dependency_roots: Iterable[Path | str] | None = None,
 ) -> dict[str, Any]:
     """Optimize a USD file locally using the Scene Optimizer package.
 
@@ -295,6 +319,9 @@ def optimize_usd_local(
         output_path: Path where the optimized USD will be written.
         optimization_config: Dict with ``scene_optimizer_settings`` and
             optional ``generate_report``, ``capture_stats``, ``verbose`` keys.
+        approved_dependency_roots: Filesystem roots from which the isolated
+            worker may copy dependencies into the portable output sidecar.
+            Defaults to the input USD parent.
 
     Returns:
         Result dict with keys matching the NVCF backend:
@@ -321,17 +348,31 @@ def optimize_usd_local(
 
     input_path = Path(input_path)
     output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    root_values: tuple[Path | str, ...]
+    if approved_dependency_roots is None:
+        root_values = (input_path.resolve().parent,)
+    else:
+        root_values = tuple(approved_dependency_roots)
+    # Validate in the parent before launching the ABI-isolated worker so bad
+    # trust roots surface as precise caller errors instead of subprocess
+    # failures. Keep this contract aligned with the local UV worker path.
+    from world_understanding.functions.graphics.so_export import (
+        _normalize_dependency_roots,
+    )
+
+    dependency_roots = [str(root) for root in _normalize_dependency_roots(root_values)]
 
     with tempfile.TemporaryDirectory(prefix="so_local_") as tmp_dir:
         worker_path = os.path.join(tmp_dir, "_so_worker.py")
         manifest_path = os.path.join(tmp_dir, "manifest.json")
 
         shutil.copy2(str(_SO_WORKER_PATH), worker_path)
+        shutil.copy2(str(_SO_EXPORT_PATH), os.path.join(tmp_dir, "so_export.py"))
 
         params = {
             "input_usd_path": str(input_path),
             "output_usd_path": str(output_path),
+            "approved_dependency_roots": dependency_roots,
             "operations": operations,
             "generate_report": settings.get("generate_report", True),
             "capture_stats": settings.get("capture_stats", True),

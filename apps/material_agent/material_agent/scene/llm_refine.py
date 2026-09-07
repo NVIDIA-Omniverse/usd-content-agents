@@ -168,7 +168,10 @@ def refine_objects_with_llm(
 
     llm = create_chat_model_from_config(
         llm_config,
-        defaults={"model": "gcp/google/gemini-3.1-pro-preview", "max_tokens": 256},
+        defaults={
+            "model": "openai/openai/gpt-5.6-sol",
+            "max_tokens": 16384,
+        },
     )
     if llm is None:
         logger.warning("No API key for LLM refinement — skipping")

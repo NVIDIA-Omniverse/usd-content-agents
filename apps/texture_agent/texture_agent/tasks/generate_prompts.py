@@ -23,7 +23,10 @@ from texture_agent.api.defaults import (
     DEFAULT_LLM_MODEL,
     DEFAULT_LLM_TEMPERATURE,
 )
-from texture_agent.functions.cached_apply import is_cached_apply_context
+from texture_agent.functions.cached_apply import (
+    allows_non_executable_cached_apply_plan,
+    is_cached_apply_context,
+)
 from texture_agent.functions.material_discovery import (
     MaterialInfo,
     expand_to_prim_units,
@@ -32,7 +35,7 @@ from texture_agent.functions.prompt_generation import (
     _fallback_prompts,
     generate_texture_prompts,
 )
-from texture_agent.planning import TexturePlan, TexturePlanUnit, TextureUnitMode
+from texture_agent.planning import TexturePlan, TexturePlanUnit
 from texture_agent.planning.contracts import validate_texture_plan_payload
 
 logger = logging.getLogger(__name__)
@@ -84,6 +87,60 @@ def _load_resumed_material_textures(
     return merged
 
 
+def _load_resumed_prompt_provenance(
+    *,
+    working_dir: str | Path | None,
+    resume: bool,
+) -> dict[str, Any] | None:
+    """Load prompt provenance written with cached prompt specs, when available."""
+    if not resume or not working_dir:
+        return None
+
+    provenance_path = Path(working_dir) / "prompts" / "prompt_provenance.json"
+    if not provenance_path.is_file():
+        return None
+    try:
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        raise ValueError(
+            f"Failed to load cached prompt provenance from {provenance_path}: {err}"
+        ) from err
+    fallback_materials = (
+        provenance.get("fallback_materials") if isinstance(provenance, dict) else None
+    )
+    auto_prompt_materials = (
+        provenance.get("auto_prompt_materials", fallback_materials)
+        if isinstance(provenance, dict)
+        else None
+    )
+    if (
+        not isinstance(provenance, dict)
+        or not isinstance(provenance.get("prompt_source"), str)
+        or not isinstance(fallback_materials, list)
+        or any(not isinstance(name, str) for name in fallback_materials)
+        or not isinstance(auto_prompt_materials, list)
+        or any(not isinstance(name, str) for name in auto_prompt_materials)
+    ):
+        raise ValueError(
+            "Cached prompt provenance must contain a prompt source and a list of "
+            f"fallback material names: {provenance_path}"
+        )
+    return {**provenance, "auto_prompt_materials": auto_prompt_materials}
+
+
+def _prompt_source(
+    auto_prompt_materials: set[str], fallback_materials: set[str]
+) -> str:
+    """Classify the effective selected prompt set by generation provenance."""
+    if not auto_prompt_materials:
+        return "material_textures"
+    if auto_prompt_materials == fallback_materials:
+        return "auto_prompt_fallback"
+    if fallback_materials:
+        return "auto_prompt_llm_with_fallback"
+    return "auto_prompt_llm"
+
+
 def _load_resumed_texture_plan(
     context: dict[str, Any],
     *,
@@ -98,10 +155,7 @@ def _load_resumed_texture_plan(
     if not context.get("resume") and not cached_apply:
         return None
 
-    planning_config = context.get("planning_config") or {}
-    if planning_config.get("resume_apply_textures") and not planning_config.get(
-        "apply_texture_plan_unit_ids"
-    ):
+    if allows_non_executable_cached_apply_plan(context):
         # The service creates a fresh plan while hydrating pre-plan sessions,
         # but their existing cache filenames still use legacy display keys.
         return None
@@ -127,7 +181,7 @@ def _material_sample_label(material: MaterialInfo) -> str:
     """Return a rejection-message label that includes the USD material path."""
     if material.prim_path:
         return f"{material.name} ({material.prim_path})"
-    return material.name
+    return str(material.name)
 
 
 def _auto_prompt_material_limit(auto_prompt_config: dict) -> int | None:
@@ -208,19 +262,18 @@ def _apply_texture_plan_scope(
     for material in materials:
         if not _material_aliases(material).intersection(selected_material_paths):
             continue
-        scoped = material
-        if plan.request.unit_mode is TextureUnitMode.PER_PRIM:
-            scoped = replace(
-                material,
-                bound_prim_paths=[
-                    path for path in material.bound_prim_paths if path in selected_prims
-                ],
-                bound_subset_paths=[
-                    path
-                    for path in material.bound_subset_paths
-                    if path in selected_subsets
-                ],
-            )
+        # A plan selected through an explicit prim scope remains exact even in
+        # per-material mode.  Unit mode controls texture sharing; it must not
+        # re-expand one accepted member back to every member of that material.
+        scoped = replace(
+            material,
+            bound_prim_paths=[
+                path for path in material.bound_prim_paths if path in selected_prims
+            ],
+            bound_subset_paths=[
+                path for path in material.bound_subset_paths if path in selected_subsets
+            ],
+        )
         scoped_materials.append(scoped)
 
     return scoped_materials, scoped_textures
@@ -264,10 +317,21 @@ class GeneratePromptsTask(Task):
     def run(self, context: dict[str, Any], object_store: Any = None) -> dict[str, Any]:
         materials: list[MaterialInfo] = context.get("discovered_materials", [])
         material_textures: dict = context.get("material_textures", {})
+        cached_material_textures: dict = context.get("cached_material_textures", {})
+        configured_material_textures = {
+            key: value
+            for key, value in material_textures.items()
+            if key not in cached_material_textures
+        }
         auto_prompt_config: dict = context.get("auto_prompt_config", {})
         texture_config: dict = context.get("texture_config", {})
         working_dir = context.get("working_dir")
         cached_apply = is_cached_apply_context(context)
+        resume_cached_prompts = bool(
+            context.get("resume")
+            or cached_apply
+            or (context.get("planning_config") or {}).get("resume_execution")
+        )
         resumed_plan = _load_resumed_texture_plan(
             context,
             working_dir=working_dir,
@@ -275,15 +339,45 @@ class GeneratePromptsTask(Task):
         material_textures = _load_resumed_material_textures(
             material_textures=material_textures,
             working_dir=working_dir,
-            resume=bool(context.get("resume") or cached_apply),
+            resume=resume_cached_prompts,
+        )
+        resumed_prompt_provenance = _load_resumed_prompt_provenance(
+            working_dir=working_dir,
+            resume=resume_cached_prompts,
         )
         materials, material_textures = _apply_texture_plan_scope(
             materials,
             material_textures,
             context,
         )
+        active_material_keys = {
+            key
+            for material in materials
+            for key in {material.name, *_material_aliases(material)}
+        }
+        material_textures = {
+            key: value
+            for key, value in material_textures.items()
+            if key in active_material_keys
+        }
         context["texture_plan_scoped_materials"] = materials
         context["material_textures"] = material_textures
+
+        material_by_name = {material.name: material for material in materials}
+        resumed_auto_prompt_materials = {
+            name
+            for name in (resumed_prompt_provenance or {}).get(
+                "auto_prompt_materials", []
+            )
+            if name in material_by_name
+            and _spec_for_material(material_by_name[name], configured_material_textures)
+            is None
+        }
+        resumed_fallback_materials = {
+            name
+            for name in (resumed_prompt_provenance or {}).get("fallback_materials", [])
+            if name in resumed_auto_prompt_materials
+        }
 
         if not materials and resumed_plan is None:
             logger.info("No materials discovered -- skipping prompt generation")
@@ -355,6 +449,7 @@ class GeneratePromptsTask(Task):
                 )
                 llm = None
 
+            fallback_material_names: set[str] = set()
             if llm is None:
                 # create_chat_model_from_config returns None (no warning
                 # above) when the backend has no API key available; the
@@ -362,12 +457,14 @@ class GeneratePromptsTask(Task):
                 auto_specs = _fallback_prompts(
                     needs_prompt, user_prompt, default_opacity
                 )
+                fallback_material_names.update(auto_specs)
             else:
                 auto_specs = generate_texture_prompts(
                     materials=needs_prompt,
                     llm=llm,
                     user_prompt=user_prompt,
                     default_opacity=default_opacity,
+                    fallback_material_names=fallback_material_names,
                 )
 
             # Merge auto-generated specs into material_textures
@@ -375,6 +472,19 @@ class GeneratePromptsTask(Task):
             material_textures.update(auto_specs)
             context["material_textures"] = material_textures
             context["auto_prompt_additions"] = auto_specs
+            effective_auto_prompt_materials = resumed_auto_prompt_materials | set(
+                auto_specs
+            )
+            effective_fallback_materials = (
+                resumed_fallback_materials | fallback_material_names
+            )
+            context["auto_prompt_materials"] = sorted(effective_auto_prompt_materials)
+            context["auto_prompt_fallback_materials"] = sorted(
+                effective_fallback_materials
+            )
+            context["auto_prompt_source"] = _prompt_source(
+                effective_auto_prompt_materials, effective_fallback_materials
+            )
 
             logger.info(
                 "Auto-generated prompts for %d materials "
@@ -396,6 +506,13 @@ class GeneratePromptsTask(Task):
                 )
         elif needs_prompt:
             context["auto_prompt_additions"] = {}
+            context["auto_prompt_materials"] = sorted(resumed_auto_prompt_materials)
+            context["auto_prompt_fallback_materials"] = sorted(
+                resumed_fallback_materials
+            )
+            context["auto_prompt_source"] = _prompt_source(
+                resumed_auto_prompt_materials, resumed_fallback_materials
+            )
             logger.info(
                 "Auto-prompt disabled; %d discovered materials without explicit "
                 "material_textures specs will be skipped",
@@ -403,6 +520,13 @@ class GeneratePromptsTask(Task):
             )
         else:
             context["auto_prompt_additions"] = {}
+            context["auto_prompt_materials"] = sorted(resumed_auto_prompt_materials)
+            context["auto_prompt_fallback_materials"] = sorted(
+                resumed_fallback_materials
+            )
+            context["auto_prompt_source"] = _prompt_source(
+                resumed_auto_prompt_materials, resumed_fallback_materials
+            )
             logger.info(
                 "All %d materials have explicit prompts -- skipping LLM",
                 len(materials),
@@ -414,6 +538,16 @@ class GeneratePromptsTask(Task):
             out_dir.mkdir(parents=True, exist_ok=True)
             (out_dir / "material_prompts.json").write_text(
                 json.dumps(material_textures, indent=2)
+            )
+            (out_dir / "prompt_provenance.json").write_text(
+                json.dumps(
+                    {
+                        "prompt_source": context["auto_prompt_source"],
+                        "auto_prompt_materials": context["auto_prompt_materials"],
+                        "fallback_materials": context["auto_prompt_fallback_materials"],
+                    },
+                    indent=2,
+                )
             )
 
         # Expand to prim texture units

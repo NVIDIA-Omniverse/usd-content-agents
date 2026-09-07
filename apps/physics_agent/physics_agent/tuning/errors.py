@@ -13,6 +13,10 @@ class TuningError(RuntimeError):
     """Base class for physics-agent tuning failures."""
 
 
+class TuningConfigError(ValueError):
+    """Base class for invalid tuning configuration."""
+
+
 class BoTorchUnavailableError(TuningError):
     """Raised when the BoTorch optimizer is requested but not installed.
 

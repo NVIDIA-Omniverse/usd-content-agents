@@ -10,14 +10,21 @@ from typing import Any
 import pytest
 
 from physics_agent.tuning.backend import FakeBackend
-from physics_agent.tuning.capabilities import capabilities_for_backend
+from physics_agent.tuning.capabilities import (
+    BINDING_KIND_SIMULATOR_PARAMETER,
+    BINDING_KIND_USD_ATTRIBUTE,
+    BindingCapability,
+    capabilities_for_backend,
+)
 from physics_agent.tuning.errors import TuningError
 from physics_agent.tuning.newton_backend import NewtonBackend
 from physics_agent.tuning.ovphysx_backend import OvPhysXBackend
 from physics_agent.tuning.scenario import load_scenario, parse_scenario
 from physics_agent.tuning.scenario_resolution import (
+    AUTHORED_BOUND_MULTIPLIER,
     RESOLVED_BINDINGS_EXTRA_KEY,
     resolve_scenario_bindings,
+    resolve_scenario_parameter_bounds,
 )
 from physics_agent.tuning.types import Scenario
 
@@ -28,6 +35,9 @@ def _author_physics_usd(
     include_collision: bool = True,
     include_material: bool = True,
     include_authored_mass: bool = True,
+    static_friction: float = 0.4,
+    dynamic_friction: float = 0.3,
+    restitution: float = 0.2,
 ) -> Path:
     from pxr import Usd, UsdGeom, UsdPhysics, UsdShade
 
@@ -45,9 +55,9 @@ def _author_physics_usd(
     if include_material:
         mat = UsdShade.Material.Define(stage, "/Mat")
         mat_api = UsdPhysics.MaterialAPI.Apply(mat.GetPrim())
-        mat_api.CreateStaticFrictionAttr(0.4)
-        mat_api.CreateDynamicFrictionAttr(0.3)
-        mat_api.CreateRestitutionAttr(0.2)
+        mat_api.CreateStaticFrictionAttr(static_friction)
+        mat_api.CreateDynamicFrictionAttr(dynamic_friction)
+        mat_api.CreateRestitutionAttr(restitution)
 
     stage.SetDefaultPrim(body_prim)
     stage.GetRootLayer().Save()
@@ -96,6 +106,278 @@ def test_legacy_params_resolve_to_ovphysx_usd_bindings(tmp_path: Path) -> None:
     assert bindings["restitution"]["prim_paths"] == ["/Mat"]
     assert bindings["mass_scale"]["kind"] == "usd_mass_scale"
     assert bindings["mass_scale"]["prim_paths"] == ["/Body"]
+
+
+def test_omitted_bounds_resolve_from_authored_usd_values(tmp_path: Path) -> None:
+    physics_usd = _author_physics_usd(tmp_path / "physics.usda")
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [
+                {"name": "mass_scale"},
+                {"name": "static_friction"},
+                {"name": "dynamic_friction"},
+                {"name": "restitution"},
+            ],
+        }
+    )
+
+    resolved = resolve_scenario_bindings(
+        scenario,
+        physics_usd=physics_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    params = resolved.param_dict()
+    assert params["mass_scale"].min_value == pytest.approx(
+        1.0 / AUTHORED_BOUND_MULTIPLIER
+    )
+    assert params["mass_scale"].max_value == pytest.approx(AUTHORED_BOUND_MULTIPLIER)
+    for name, authored_value in (
+        ("static_friction", 0.4),
+        ("dynamic_friction", 0.3),
+        ("restitution", 0.2),
+    ):
+        assert params[name].min_value == pytest.approx(
+            authored_value / AUTHORED_BOUND_MULTIPLIER
+        )
+        assert params[name].max_value == pytest.approx(
+            authored_value * AUTHORED_BOUND_MULTIPLIER
+        )
+    assert resolved.auto_bound_fields == {}
+
+
+def test_missing_authored_values_use_capability_defaults(tmp_path: Path) -> None:
+    physics_usd = _author_physics_usd(tmp_path / "physics.usda")
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [{"name": "contact_ke"}, {"name": "contact_kd"}],
+        }
+    )
+
+    resolved = resolve_scenario_parameter_bounds(
+        scenario,
+        physics_usd=physics_usd,
+        backend=NewtonBackend(),
+    )
+
+    assert resolved.param_dict()["contact_ke"].min_value == 100.0
+    assert resolved.param_dict()["contact_ke"].max_value == 100000.0
+    assert resolved.param_dict()["contact_kd"].min_value == 0.0
+    assert resolved.param_dict()["contact_kd"].max_value == 5000.0
+
+
+def test_authored_zero_uses_capability_default_range(tmp_path: Path) -> None:
+    physics_usd = _author_physics_usd(
+        tmp_path / "physics.usda",
+        restitution=0.0,
+    )
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [{"name": "restitution"}],
+        }
+    )
+
+    resolved = resolve_scenario_parameter_bounds(
+        scenario,
+        physics_usd=physics_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    assert resolved.param_dict()["restitution"].min_value == 0.0
+    assert resolved.param_dict()["restitution"].max_value == 1.0
+
+
+def test_authored_restitution_bounds_are_clamped_to_physical_range(
+    tmp_path: Path,
+) -> None:
+    physics_usd = _author_physics_usd(
+        tmp_path / "physics.usda",
+        restitution=1.0,
+    )
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [{"name": "restitution"}],
+        }
+    )
+
+    resolved = resolve_scenario_parameter_bounds(
+        scenario,
+        physics_usd=physics_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    restitution = resolved.param_dict()["restitution"]
+    assert restitution.min_value == pytest.approx(1.0 / AUTHORED_BOUND_MULTIPLIER)
+    assert restitution.max_value == 1.0
+
+
+def test_conflicting_authored_friction_uses_capability_defaults(
+    tmp_path: Path,
+) -> None:
+    physics_usd = _author_physics_usd(
+        tmp_path / "physics.usda",
+        static_friction=0.3,
+        dynamic_friction=0.5,
+    )
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [
+                {"name": "static_friction"},
+                {"name": "dynamic_friction"},
+            ],
+        }
+    )
+
+    resolved = resolve_scenario_parameter_bounds(
+        scenario,
+        physics_usd=physics_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    static_friction = resolved.param_dict()["static_friction"]
+    dynamic_friction = resolved.param_dict()["dynamic_friction"]
+    assert (static_friction.min_value, static_friction.max_value) == (0.05, 1.5)
+    assert (dynamic_friction.min_value, dynamic_friction.max_value) == (0.05, 1.5)
+
+
+def test_missing_sibling_value_does_not_hide_authored_value(tmp_path: Path) -> None:
+    physics_usd = _author_physics_usd(tmp_path / "physics.usda")
+
+    from pxr import Usd, UsdPhysics, UsdShade
+
+    stage = Usd.Stage.Open(str(physics_usd))
+    missing_material = UsdShade.Material.Define(stage, "/MissingMaterial")
+    UsdPhysics.MaterialAPI.Apply(missing_material.GetPrim())
+    stage.GetRootLayer().Save()
+
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [{"name": "restitution"}],
+        }
+    )
+
+    resolved = resolve_scenario_parameter_bounds(
+        scenario,
+        physics_usd=physics_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    restitution = resolved.param_dict()["restitution"]
+    assert restitution.min_value == pytest.approx(0.2 / AUTHORED_BOUND_MULTIPLIER)
+    assert restitution.max_value == pytest.approx(0.2 * AUTHORED_BOUND_MULTIPLIER)
+
+
+def test_simulator_only_parameter_requires_explicit_bounds(tmp_path: Path) -> None:
+    class SimulatorOnlyBackend:
+        name = "simulator-only"
+
+        @staticmethod
+        def tuning_capabilities() -> tuple[BindingCapability, ...]:
+            return (
+                BindingCapability(
+                    param_name="restitution",
+                    concept="bounce_response",
+                    binding_kind=BINDING_KIND_SIMULATOR_PARAMETER,
+                    simulator_parameter="solver.restitution",
+                    default_range=(0.0, 1.0),
+                ),
+            )
+
+    physics_usd = _author_physics_usd(tmp_path / "physics.usda")
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [{"name": "restitution"}],
+        }
+    )
+
+    with pytest.raises(
+        TuningError,
+        match=r"simulator-only parameter 'restitution'.*Specify min and max",
+    ):
+        resolve_scenario_parameter_bounds(
+            scenario,
+            physics_usd=physics_usd,
+            backend=SimulatorOnlyBackend(),
+        )
+
+
+def test_explicit_bounds_remain_authoritative(tmp_path: Path) -> None:
+    physics_usd = _author_physics_usd(tmp_path / "physics.usda")
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [
+                {"name": "restitution", "min": 0.6, "max": 0.9},
+            ],
+        }
+    )
+
+    resolved = resolve_scenario_parameter_bounds(
+        scenario,
+        physics_usd=physics_usd,
+        backend=OvPhysXBackend(),
+    )
+
+    assert resolved is scenario
+    assert resolved.param_dict()["restitution"].min_value == 0.6
+    assert resolved.param_dict()["restitution"].max_value == 0.9
+
+
+def test_disjoint_automatic_friction_fallbacks_fail_resolution(
+    tmp_path: Path,
+) -> None:
+    class DisjointFallbackBackend:
+        name = "disjoint-fallback"
+
+        @staticmethod
+        def tuning_capabilities() -> tuple[BindingCapability, ...]:
+            return (
+                BindingCapability(
+                    param_name="static_friction",
+                    concept="surface_grip",
+                    binding_kind=BINDING_KIND_USD_ATTRIBUTE,
+                    schema="UsdPhysics.MaterialAPI",
+                    attribute="physics:staticFriction",
+                    default_range=(0.01, 0.02),
+                ),
+                BindingCapability(
+                    param_name="dynamic_friction",
+                    concept="surface_grip",
+                    binding_kind=BINDING_KIND_USD_ATTRIBUTE,
+                    schema="UsdPhysics.MaterialAPI",
+                    attribute="physics:dynamicFriction",
+                    default_range=(0.05, 0.1),
+                ),
+            )
+
+    physics_usd = _author_physics_usd(
+        tmp_path / "physics.usda",
+        static_friction=0.01,
+        dynamic_friction=0.1,
+    )
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [
+                {"name": "static_friction"},
+                {"name": "dynamic_friction"},
+            ],
+        }
+    )
+
+    with pytest.raises(TuningError, match="remain infeasible after capability"):
+        resolve_scenario_parameter_bounds(
+            scenario,
+            physics_usd=physics_usd,
+            backend=DisjointFallbackBackend(),
+        )
 
 
 def test_tire_bounce_yaml_resolves_for_ovphysx() -> None:

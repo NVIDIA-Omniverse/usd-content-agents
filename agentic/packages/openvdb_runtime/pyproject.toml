@@ -1,0 +1,80 @@
+[project]
+name = "openvdb-runtime"
+dynamic = ["version"]
+description = "Internal OpenVDB 13 driver runtime for backend-neutral SDF tools"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "sdf-tools",
+]
+
+[project.entry-points."sdf_tools.backends"]
+openvdb = "openvdb_runtime.sdf_backend:sdf_backend_extension"
+
+[tool.uv.sources]
+sdf-tools = { path = "../sdf_tools", editable = true }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "ruff>=0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["openvdb_runtime"]
+ignore-vcs = true
+
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSE" = "openvdb_runtime/LICENSE"
+"native/release-lock.json" = "openvdb_runtime/_release_lock.json"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/native",
+    "/openvdb_runtime",
+    "/pyproject.toml",
+    "/tests",
+    "/uv.lock",
+]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.32.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.6.0"
+from-file = { source = "../../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.format]
+# This verifier is a hash-bound native release input. Formatting it requires
+# regenerating the complete candidate, reproducibility, and promotion evidence.
+exclude = ["native/verify_wheel_license_policy.py"]

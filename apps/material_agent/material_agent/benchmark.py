@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from rich.console import Console
 from rich.table import Table
+from world_understanding.utils.response_content import extract_text_content
 
 from material_agent.functions.inference import batch_assign_materials
 
@@ -301,7 +302,7 @@ Respond with a JSON object containing:
                 response = self.llm_judge.invoke(messages, **invoke_kwargs)
 
                 # Parse judge response
-                judge_text = response.content
+                judge_text = extract_text_content(response.content)
                 # Try to extract JSON from response
                 json_match = re.search(r"\{.*\}", judge_text, re.DOTALL)
                 if json_match:

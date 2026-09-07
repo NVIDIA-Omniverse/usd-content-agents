@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -26,6 +28,10 @@ def _load_planner() -> ModuleType:
 
 
 BREV = _load_planner()
+POSIX_SHELL_ONLY = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="credential-transfer execution tests require Bash and POSIX tools",
+)
 
 
 def _plan(
@@ -250,18 +256,57 @@ def test_texture_hybrid_defaults_to_brev_image_gen_without_llm() -> None:
     env_file_commands = [
         command.argv
         for command in plan.deploy_commands
-        if command.label == "Create a minimal local NGC/HF env file for FLUX NIM"
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
     ]
     assert len(env_file_commands) == 1
     env_file_shell = env_file_commands[0][2]
-    assert 'test -n "$NGC_API_KEY" && test -n "$HF_TOKEN"' in env_file_shell
-    assert "printf 'NGC_API_KEY=%s\\nHF_TOKEN=%s\\n'" in env_file_shell
-    assert "set -e; umask 077" in deploy_shell
-    assert "if [ -f ./.env ]; then" in deploy_shell
-    assert "brev copy /tmp/wu-ngc-nim.env" in deploy_shell
-    assert "--env-file /home/ubuntu/.ngc-nim.env" in deploy_shell
-    assert "brev copy .env" not in deploy_shell
+    credential_python = env_file_commands[0][6]
+    remote_install_shell = env_file_commands[0][7]
+    assert env_file_commands[0][5] == sys.executable
+    assert env_file_commands[0][8] == str(REPO_ROOT)
+    assert 'credential_env="$("$2" -c "$3" "$5")"' in env_file_shell
+    assert (
+        'printf "%s\\n" "$credential_env" | '
+        "ssh -o BatchMode=yes -o ConnectTimeout=10 "
+        "-o StrictHostKeyChecking=yes "
+        '-o UserKnownHostsFile=~/.ssh/known_hosts "$1" "$4"' in env_file_shell
+    )
+    direct_ssh_commands = [
+        command.argv
+        for command in plan.deploy_commands
+        if command.argv and command.argv[0] == "ssh"
+    ]
+    assert direct_ssh_commands
+    for command in direct_ssh_commands:
+        assert "StrictHostKeyChecking=yes" in command
+        assert "UserKnownHostsFile=~/.ssh/known_hosts" in command
+    assert "dotenv_values(dotenv_path=dotenv_path, interpolate=False)" in (
+        credential_python
+    )
+    assert 'dotenv_path = Path(sys.argv[1]) / ".env"' in credential_python
+    assert 'credential_names = ("NGC_API_KEY", "HF_TOKEN")' in credential_python
+    assert 'if "\\n" in value or "\\r" in value' in credential_python
+    assert 'tmp_env="$(mktemp "${destination}.XXXXXX")"' in remote_install_shell
+    assert 'chmod 600 "$tmp_env"' in remote_install_shell
+    assert 'mv -f -- "$tmp_env" "$destination"' in remote_install_shell
+    assert "trap cleanup EXIT" in remote_install_shell
+    assert 'destination="$HOME/.ngc-nim.env"' in remote_install_shell
+    assert "set -e -o pipefail" in deploy_shell
+    assert ". ./.env" not in deploy_shell
+    assert "/tmp/wu-ngc-nim.env" not in deploy_shell
+    assert '--env-file "$HOME/.ngc-nim.env"' in deploy_shell
+    assert "brev copy" not in env_file_shell
     assert "/home/ubuntu/.env" not in deploy_shell
+    login_command = next(
+        command.argv[-1]
+        for command in plan.deploy_commands
+        if command.label == "Log Docker into nvcr.io without exposing the NGC token"
+    )
+    assert '. "$HOME/.ngc-nim.env"' not in login_command
+    assert '"$HOME/.ngc-nim.env"' in login_command
+    assert "sed -n 's/^NGC_API_KEY=//p'" in login_command
+    assert "tr -d '\\r\\n'" in login_command
+    assert 'test "$cleaned" = "$NGC_API_KEY"' in login_command
     assert "flux.2-klein-4b:1.0.1-variant" in deploy_shell
     image_readiness_commands = [
         command.argv
@@ -293,6 +338,323 @@ def test_texture_hybrid_defaults_to_brev_image_gen_without_llm() -> None:
     assert any("explicit prompts" in entry for entry in plan.environment)
     assert any("skipped by default" in note for note in plan.notes)
     assert any("Brev-hosted dependency endpoints" in note for note in plan.notes)
+
+
+def test_texture_hybrid_can_target_an_exact_existing_image_gen_node() -> None:
+    plan = _plan(
+        "texture",
+        "hybrid",
+        image_gen_node_name="content-image-gen",
+    )
+    (image_gen_node,) = plan.nodes
+
+    assert image_gen_node.name == "content-image-gen"
+    assert image_gen_node.dry_run.argv[2] == "content-image-gen"
+    assert all(
+        "wu-test-texture-image-gen" not in command.argv
+        for command in plan.deploy_commands
+    )
+    assert any(
+        command.argv[-2:] == ("content-image-gen", "true")
+        for command in plan.deploy_commands
+    )
+
+
+@POSIX_SHELL_ONLY
+def test_texture_hybrid_streams_credentials_without_a_local_secret_file(
+    tmp_path: Path,
+) -> None:
+    plan = _plan("texture", "hybrid")
+    env_file_command = next(
+        command
+        for command in plan.deploy_commands
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
+    )
+    temp_dir = tmp_path / "tmp"
+    temp_dir.mkdir()
+    captured_env = tmp_path / "captured.env"
+    shell_script = (
+        'ssh() { test "$9" = wu-test-texture-image-gen; '
+        'cat > "$SSH_CAPTURE"; }; ' + env_file_command.argv[2]
+    )
+    environment = {
+        **os.environ,
+        "SSH_CAPTURE": str(captured_env),
+        "HF_TOKEN": "test-hf-token",
+        "NGC_API_KEY": "test-ngc-key",
+        "TMPDIR": str(temp_dir),
+    }
+    command_args = (*env_file_command.argv[3:-1], str(tmp_path))
+
+    subprocess.run(
+        ("bash", "-c", shell_script, *command_args),
+        cwd=tmp_path,
+        env=environment,
+        check=True,
+    )
+
+    assert captured_env.read_text(encoding="utf-8") == (
+        "NGC_API_KEY=test-ngc-key\nHF_TOKEN=test-hf-token\n"
+    )
+    assert list(temp_dir.iterdir()) == []
+
+    failed = subprocess.run(
+        (
+            "bash",
+            "-c",
+            "ssh() { cat >/dev/null; return 9; }; " + env_file_command.argv[2],
+            *command_args,
+        ),
+        cwd=tmp_path,
+        env=environment,
+        check=False,
+    )
+
+    assert failed.returncode == 9
+
+
+@pytest.mark.parametrize("missing_credential", ["NGC_API_KEY", "HF_TOKEN"])
+@POSIX_SHELL_ONLY
+def test_texture_hybrid_requires_each_credential_before_ssh(
+    tmp_path: Path,
+    missing_credential: str,
+) -> None:
+    plan = _plan("texture", "hybrid")
+    env_file_command = next(
+        command
+        for command in plan.deploy_commands
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
+    )
+    ssh_marker = tmp_path / "ssh-called"
+    shell_script = (
+        'ssh() { : > "$SSH_MARKER"; cat >/dev/null; }; ' + env_file_command.argv[2]
+    )
+    environment = {
+        **os.environ,
+        "SSH_MARKER": str(ssh_marker),
+        "HF_TOKEN": "test-hf-token",
+        "NGC_API_KEY": "test-ngc-key",
+    }
+    environment.pop(missing_credential)
+    command_args = (*env_file_command.argv[3:-1], str(tmp_path))
+
+    failed = subprocess.run(
+        ("bash", "-c", shell_script, *command_args),
+        cwd=tmp_path,
+        env=environment,
+        check=False,
+    )
+
+    assert failed.returncode != 0
+    assert not ssh_marker.exists()
+
+
+@pytest.mark.parametrize("credential_name", ["NGC_API_KEY", "HF_TOKEN"])
+@pytest.mark.parametrize("line_break", ["\n", "\r"], ids=["lf", "cr"])
+@POSIX_SHELL_ONLY
+def test_texture_hybrid_rejects_multiline_credential_before_ssh(
+    tmp_path: Path,
+    credential_name: str,
+    line_break: str,
+) -> None:
+    plan = _plan("texture", "hybrid")
+    env_file_command = next(
+        command
+        for command in plan.deploy_commands
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
+    )
+    ssh_marker = tmp_path / "ssh-called"
+    shell_script = (
+        'ssh() { : > "$SSH_MARKER"; cat >/dev/null; }; ' + env_file_command.argv[2]
+    )
+    environment = {
+        **os.environ,
+        "SSH_MARKER": str(ssh_marker),
+        "HF_TOKEN": "test-hf_token",
+        "NGC_API_KEY": "test-ngc_key+=:/@%",
+    }
+    environment[credential_name] = f"line-one{line_break}line-two"
+    command_args = (*env_file_command.argv[3:-1], str(tmp_path))
+
+    failed = subprocess.run(
+        ("bash", "-c", shell_script, *command_args),
+        cwd=tmp_path,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert failed.returncode != 0
+    assert failed.stderr.strip() == f"{credential_name} must be a single-line value"
+    assert not ssh_marker.exists()
+
+
+@POSIX_SHELL_ONLY
+def test_texture_hybrid_prefers_exported_credentials_without_executing_dotenv(
+    tmp_path: Path,
+) -> None:
+    plan = _plan("texture", "hybrid")
+    env_file_command = next(
+        command
+        for command in plan.deploy_commands
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
+    )
+    captured_env = tmp_path / "captured.env"
+    injection_marker = tmp_path / "dotenv-command-ran"
+    (tmp_path / ".env").write_text(
+        'NGC_API_KEY="ngc-!$\'(),;[]"\n'
+        "HF_TOKEN='hf-!$\"(),;[]'\n"
+        f"IGNORED=$(touch {injection_marker})\n",
+        encoding="utf-8",
+    )
+    shell_script = 'ssh() { cat > "$SSH_CAPTURE"; }; ' + env_file_command.argv[2]
+    environment = {
+        **os.environ,
+        "SSH_CAPTURE": str(captured_env),
+        "HF_TOKEN": "environment-hf-token",
+        "NGC_API_KEY": "environment-ngc-key",
+    }
+    command_args = (*env_file_command.argv[3:-1], str(tmp_path))
+
+    subprocess.run(
+        ("bash", "-c", shell_script, *command_args),
+        cwd=tmp_path,
+        env=environment,
+        check=True,
+    )
+
+    assert captured_env.read_text(encoding="utf-8") == (
+        "NGC_API_KEY=environment-ngc-key\nHF_TOKEN=environment-hf-token\n"
+    )
+    assert not injection_marker.exists()
+
+
+@POSIX_SHELL_ONLY
+def test_texture_hybrid_uses_dotenv_when_credentials_are_not_exported(
+    tmp_path: Path,
+) -> None:
+    plan = _plan("texture", "hybrid")
+    env_file_command = next(
+        command
+        for command in plan.deploy_commands
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
+    )
+    captured_env = tmp_path / "captured.env"
+    (tmp_path / ".env").write_text(
+        "NGC_API_KEY=\"ngc-!$'(),;[]\"\nHF_TOKEN='hf-!$\"(),;[]'\n",
+        encoding="utf-8",
+    )
+    shell_script = 'ssh() { cat > "$SSH_CAPTURE"; }; ' + env_file_command.argv[2]
+    environment = {
+        **os.environ,
+        "SSH_CAPTURE": str(captured_env),
+    }
+    environment.pop("HF_TOKEN", None)
+    environment.pop("NGC_API_KEY", None)
+    command_args = (*env_file_command.argv[3:-1], str(tmp_path))
+
+    subprocess.run(
+        ("bash", "-c", shell_script, *command_args),
+        cwd=tmp_path,
+        env=environment,
+        check=True,
+    )
+
+    assert captured_env.read_text(encoding="utf-8") == (
+        "NGC_API_KEY=ngc-!$'(),;[]\nHF_TOKEN=hf-!$\"(),;[]\n"
+    )
+
+
+@pytest.mark.parametrize("credential_name", ["NGC_API_KEY", "HF_TOKEN"])
+@POSIX_SHELL_ONLY
+def test_texture_hybrid_rejects_an_explicit_empty_credential_without_dotenv_fallback(
+    tmp_path: Path,
+    credential_name: str,
+) -> None:
+    plan = _plan("texture", "hybrid")
+    env_file_command = next(
+        command
+        for command in plan.deploy_commands
+        if command.label == "Stream a minimal NGC/HF env file securely to FLUX NIM"
+    )
+    ssh_marker = tmp_path / "ssh-called"
+    (tmp_path / ".env").write_text(
+        "NGC_API_KEY=dotenv-ngc-key\nHF_TOKEN=dotenv-hf-token\n",
+        encoding="utf-8",
+    )
+    shell_script = (
+        'ssh() { : > "$SSH_MARKER"; cat >/dev/null; }; ' + env_file_command.argv[2]
+    )
+    environment = {
+        **os.environ,
+        "SSH_MARKER": str(ssh_marker),
+        credential_name: "",
+    }
+    environment.pop(
+        "HF_TOKEN" if credential_name == "NGC_API_KEY" else "NGC_API_KEY",
+        None,
+    )
+    command_args = (*env_file_command.argv[3:-1], str(tmp_path))
+
+    failed = subprocess.run(
+        ("bash", "-c", shell_script, *command_args),
+        cwd=tmp_path,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert failed.returncode != 0
+    assert failed.stderr.strip() == f"{credential_name} is required"
+    assert not ssh_marker.exists()
+
+
+@POSIX_SHELL_ONLY
+def test_remote_credential_install_is_mode_0600_and_symlink_safe(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "credentials.env"
+    victim = tmp_path / "victim"
+    injection_marker = tmp_path / "stdin-was-executed"
+    victim.write_text("unchanged\n", encoding="utf-8")
+    destination.symlink_to(victim)
+    remote_shell = BREV.REMOTE_CREDENTIAL_INSTALL_SHELL.replace(
+        'destination="$HOME/.ngc-nim.env"', f'destination="{destination}"'
+    )
+    payload = (
+        f"NGC_API_KEY=ngc-!$;$(touch {injection_marker})[]\n"
+        'HF_TOKEN=hf-`false`-$HOME-"quoted"\n'
+    )
+
+    subprocess.run(
+        ("bash", "-c", remote_shell),
+        input=payload,
+        text=True,
+        check=True,
+    )
+
+    assert not destination.is_symlink()
+    assert destination.read_text(encoding="utf-8") == payload
+    assert destination.stat().st_mode & 0o777 == 0o600
+    assert victim.read_text(encoding="utf-8") == "unchanged\n"
+    assert not injection_marker.exists()
+    assert list(tmp_path.glob("credentials.env.*")) == []
+
+
+def test_texture_hybrid_requires_python_dotenv_before_render(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_find_spec = BREV.importlib.util.find_spec
+    monkeypatch.setattr(
+        BREV.importlib.util,
+        "find_spec",
+        lambda name: None if name == "dotenv" else original_find_spec(name),
+    )
+
+    with pytest.raises(RuntimeError, match="Activate the repository \\.venv"):
+        _plan("texture", "hybrid")
 
 
 def test_texture_hybrid_can_include_optional_small_qwen_llm() -> None:

@@ -138,6 +138,26 @@ class ApplyJointRiggerConfigTask(Task):
                 "owned_core is topology-only; apply_masses and apply_collision "
                 "must both be false"
             )
+        # Internal Joint 0.6 opt-in. Only the owned core authors the wider
+        # source-backed shapes, so any other adapter must fail closed instead
+        # of quietly dropping the request.
+        enable_source_backed_v1_breadth = self._optional_bool(
+            config,
+            "enable_source_backed_v1_breadth",
+            False,
+        )
+        if enable_source_backed_v1_breadth and adapter != "owned_core":
+            raise ValueError(
+                "enable_source_backed_v1_breadth requires adapter: owned_core"
+            )
+        # `owned_core` is prediction-optional in general, but the wider
+        # source-backed shapes are derived from Stage 1 evidence, so breadth
+        # without predictions is rejected here rather than part-way through the
+        # pipeline where `apply_joint_rigger` would refuse it anyway.
+        if enable_source_backed_v1_breadth and predictions_path is None:
+            raise ValueError(
+                "enable_source_backed_v1_breadth requires predictions_path"
+            )
 
         context.update(
             {
@@ -160,6 +180,7 @@ class ApplyJointRiggerConfigTask(Task):
                 "joint_rigger_template": joint_rigger_template,
                 "apply_masses": apply_masses,
                 "apply_collision": apply_collision,
+                "enable_source_backed_v1_breadth": enable_source_backed_v1_breadth,
             }
         )
 

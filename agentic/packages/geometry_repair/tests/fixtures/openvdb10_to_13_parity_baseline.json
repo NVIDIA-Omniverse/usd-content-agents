@@ -1,0 +1,243 @@
+{
+  "schema_version": "geometry-repair.openvdb-major-parity.v1",
+  "recorded_at": "2026-08-08",
+  "status": "passed",
+  "claim_scope": "one controlled Phase 2 signed-topology-closing migration sentinel",
+  "fixture": {
+    "case_id": "hard_01_small_hole_sphere",
+    "generator": "openvdb_small_hole_sphere",
+    "manifest_schema": "cad-agent/geometry-repair-phase2-hard-mesh@1",
+    "recipe": {
+      "primitive": "trimesh.creation.icosphere",
+      "radius_m": 0.05,
+      "subdivisions": 3,
+      "removed_face_indices": [
+        0
+      ]
+    },
+    "source_arrays": {
+      "triangles": {
+        "dtype": "int32",
+        "shape": [
+          1279,
+          3
+        ],
+        "sha256": "5f093a351f866bf2122f41a8fc6a59eb50435b945715c4e0a848f9da1dd5a3eb"
+      },
+      "vertices": {
+        "dtype": "float32",
+        "shape": [
+          642,
+          3
+        ],
+        "sha256": "844eaddcce108df44a4c9f7e8796b02c431884bdf145ffa22ab525b323b0f850"
+      }
+    },
+    "ground_truth_arrays": {
+      "triangles": {
+        "dtype": "int32",
+        "shape": [
+          1280,
+          3
+        ],
+        "sha256": "da609a09ad4a77a26ec4379b247f06f238d5c5a8f0d11044b35e068f2b97ee48"
+      },
+      "vertices": {
+        "dtype": "float32",
+        "shape": [
+          642,
+          3
+        ],
+        "sha256": "844eaddcce108df44a4c9f7e8796b02c431884bdf145ffa22ab525b323b0f850"
+      }
+    }
+  },
+  "controls": {
+    "adaptivity": 0.05,
+    "closing_steps": 2,
+    "deterministic_seed": 0,
+    "half_width": 3.0,
+    "max_active_voxels": 50000000,
+    "max_grid_dimension": 128,
+    "max_input_faces": 5000000,
+    "max_input_vertices": 5000000,
+    "max_output_faces": 1000000,
+    "mode": "signed",
+    "offset_voxels": 0.75,
+    "smoothing_steps": 1,
+    "voxel_size": 0.001443375694482038
+  },
+  "openvdb10_observation": {
+    "adapter": {
+      "backend_source_id": "openvdb-10.0.1",
+      "executable_sha256": "6ab7956b23717d061a69019bbcaba0730e89eb353af1cb44a2dc9eb2a4a9171e",
+      "implementation_version": "geometry-repair-openvdb-adapter-1+openvdb-10.0.1",
+      "loaded_library_soname": "libopenvdb.so.10.0",
+      "reported_library_version": [
+        10,
+        0,
+        1
+      ],
+      "retired_source_blob_sha256": "b76cbc0ff76a9ed15df41fcdcd55a75e3e7e4c83267a9075b05a03ce822e0580",
+      "retired_source_git_commit": "6eb2300bbece6d717c45889a34ba21778132384a"
+    },
+    "algorithm": {
+      "explicit_closing_operator_applied": true,
+      "fallback_used": false,
+      "filter_operator": "level_set_mean",
+      "route": "signed_topology_closing",
+      "single_thread": true
+    },
+    "capture": {
+      "canonical_mesh_artifact": {
+        "format": "numpy-npz-float32-vertices-int32-triangles",
+        "path": "openvdb10_grid128_canonical_mesh.npz",
+        "sha256": "2ff4d79d35753c39567d4db43b8eeb537244a7cb1a944b80585ce0840fa05cf2"
+      },
+      "input_neutral_obj_sha256": "5358ae7fd6398d12824039bf121f871a50ab8023a7bbdbf97fe984c8cb215283",
+      "operation": "per_part_signed_level_set_reconstruction",
+      "output_neutral_obj_sha256": "d11205040bf7b2f6b17e117a8851f57bdebb553de6667dcedd39a2c3ee2de981"
+    },
+    "output_arrays": {
+      "triangles": {
+        "dtype": "int32",
+        "shape": [
+          2256,
+          3
+        ],
+        "sha256": "e4843fa7c1382445ae5c56246fe4eeb4ff1a9b3fb447ad24e7c56a30ef8e2555"
+      },
+      "vertices": {
+        "dtype": "float32",
+        "shape": [
+          1130,
+          3
+        ],
+        "sha256": "682511c9b06cc908ba88481cb0e81bc9af65d6ba1791e248ceacb06152e252a6"
+      }
+    },
+    "semantic_metrics": {
+      "bounds_max": [
+        0.050315890461206436,
+        0.05031602829694748,
+        0.05031599849462509
+      ],
+      "bounds_min": [
+        -0.050315890461206436,
+        -0.05031602829694748,
+        -0.05031599849462509
+      ],
+      "component_count": 1,
+      "ground_truth_to_output_surface_distance": {
+        "max": 0.0006323653100663082,
+        "p99": 0.0005537243712685914
+      },
+      "output_to_ground_truth_surface_distance": {
+        "max": 0.0005093530628013863,
+        "p99": 0.0004975951126553318
+      },
+      "signed_volume": 0.0005156159351891867,
+      "surface_area": 0.031171463951798418,
+      "triangle_count": 2256,
+      "vertex_count": 1130,
+      "watertight": true,
+      "winding_consistent": true
+    }
+  },
+  "openvdb13_observation": {
+    "canonical_arrays_equal_to_openvdb10": true,
+    "output_arrays": {
+      "triangles": {
+        "dtype": "int32",
+        "shape": [
+          2256,
+          3
+        ],
+        "sha256": "e4843fa7c1382445ae5c56246fe4eeb4ff1a9b3fb447ad24e7c56a30ef8e2555"
+      },
+      "vertices": {
+        "dtype": "float32",
+        "shape": [
+          1130,
+          3
+        ],
+        "sha256": "682511c9b06cc908ba88481cb0e81bc9af65d6ba1791e248ceacb06152e252a6"
+      }
+    },
+    "semantic_metrics": {
+      "bounds_max": [
+        0.050315890461206436,
+        0.05031602829694748,
+        0.05031599849462509
+      ],
+      "bounds_min": [
+        -0.050315890461206436,
+        -0.05031602829694748,
+        -0.05031599849462509
+      ],
+      "component_count": 1,
+      "ground_truth_to_output_surface_distance": {
+        "max": 0.0006323653100663082,
+        "p99": 0.0005537243712685914
+      },
+      "output_to_ground_truth_surface_distance": {
+        "max": 0.0005093530628013863,
+        "p99": 0.0004975951126553318
+      },
+      "signed_volume": 0.0005156159351891867,
+      "surface_area": 0.031171463951798418,
+      "triangle_count": 2256,
+      "vertex_count": 1130,
+      "watertight": true,
+      "winding_consistent": true
+    },
+    "runtime": {
+      "distribution_version": "13.0.0+wu.3",
+      "library_version": [
+        13,
+        0,
+        0
+      ],
+      "module_sha256": "6077fb6c0d1373c22d4679a2fe9888ec86465e6d78385bd3cce18d47e466c6b1",
+      "source_commit": "7c03e1f084873cd1b3422c7ff7aec6ee681b3b38",
+      "source_lock_sha256": "de73f6d8c34b7dc838e2754e08276021b67a101ce47bdd24d2f60a133ea312b6",
+      "wheel_sha256": "840b2874dbd2f7c6628ba5a50092857ae71ad6402a3ef69c69709167e9c538b6"
+    }
+  },
+  "direct_surface_distance_method": {
+    "closest_point_implementation": "trimesh.proximity.closest_point_naive",
+    "gate_statistic": "maximum",
+    "max_query_points_per_direction": 4096,
+    "query_points": "all_vertices_and_triangle_centroids_then_even_index_subsample"
+  },
+  "approved_tolerances": {
+    "bounds_absolute_m": 0.0003608439236205095,
+    "component_count_must_match": true,
+    "direct_bidirectional_surface_distance_m": 0.0003608439236205095,
+    "positive_volume_required": true,
+    "relative_surface_area": 0.01,
+    "relative_volume": 0.01,
+    "surface_distance_delta_m": 0.0003608439236205095,
+    "watertight_required": true,
+    "winding_consistent_required": true
+  },
+  "recorded_comparison": {
+    "bidirectional_surface_distance_m": 0.0,
+    "bounds_match": true,
+    "canonical_array_hashes_match": true,
+    "component_count_match": true,
+    "positive_volume_match": true,
+    "surface_area_match": true,
+    "verdict": "pass",
+    "volume_match": true,
+    "watertight_match": true,
+    "winding_match": true
+  },
+  "claim_boundary": [
+    "The OpenVDB 10 observation came from the retained pre-removal helper, whose reported version, loaded major library, executable digest, and retired source identity were recorded.",
+    "No independently signed build attestation links that retired executable digest to the source blob, so this is a migration baseline rather than a redistributable OpenVDB 10 release artifact.",
+    "The recorded OpenVDB 13 comparison executed the source-locked 13.0.0+wu.3 wheel in-process; the helper executable was used only to capture the retired OpenVDB 10 side.",
+    "This sentinel covers the accepted hard_01 grid-128 signed topology-closing candidate. It does not claim that the full historical 12-case Phase 2 benchmark was rerun under OpenVDB 13.",
+    "A missing OpenVDB 13 runtime skips the live regression and does not satisfy the merge gate. A present runtime with the wrong distribution or source identity fails it."
+  ]
+}

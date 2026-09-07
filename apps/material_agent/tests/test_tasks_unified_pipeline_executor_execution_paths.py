@@ -123,6 +123,49 @@ def test_execute_step_evaluate_wires_paths_and_report_context(
     assert workflow.last_context["num_images"] == 24
 
 
+@pytest.mark.asyncio
+async def test_execute_step_path_logs_escape_line_breaks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    malicious_path = "preds/secret\nforged-log-line.jsonl"
+    pipeline_state = {
+        "step_outputs": {
+            "harmonize_predictions": {"predictions_path": malicious_path},
+            "build_dataset_prepare_dataset": {
+                "dataset_jsonl_path": "dataset/dataset.jsonl"
+            },
+        }
+    }
+    context = {"working_dir": str(tmp_path / "work")}
+
+    with caplog.at_level("INFO"):
+        sync_workflow = _WorkflowCapture({"evaluation_path": "eval/evaluation.json"})
+        _patch_workflow_factory(monkeypatch, "evaluate", sync_workflow)
+        executor._execute_step(
+            "evaluate",
+            {},
+            context,
+            object_store=None,
+            pipeline_state=pipeline_state,
+        )
+
+        async_workflow = _WorkflowCapture({"evaluation_path": "eval/evaluation.json"})
+        _patch_workflow_factory(monkeypatch, "evaluate", async_workflow)
+        await executor._aexecute_step(
+            "evaluate",
+            {},
+            context,
+            object_store=None,
+            pipeline_state=pipeline_state,
+        )
+
+    assert r"secret\nforged-log-line.jsonl" in caplog.text
+    assert malicious_path not in caplog.text
+
+
 def test_execute_identify_step_protects_runtime_control_context(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -15,14 +15,25 @@ Covers the issue's acceptance criteria:
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 from typer.testing import CliRunner
 
 from physics_agent.api import PredictInput, PredictOutput
 from physics_agent.cli import app
+
+
+@pytest.fixture(autouse=True)
+def _isolate_cli_logging(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep CLI setup from replacing pytest's capture handlers."""
+    monkeypatch.setattr(
+        "physics_agent.cli.setup_logging",
+        lambda **_kwargs: logging.getLogger("physics_agent.tests.cli_predict"),
+    )
 
 
 def _write_minimal_config(tmp_path: Path) -> Path:

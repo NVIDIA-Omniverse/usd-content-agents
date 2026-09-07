@@ -212,6 +212,37 @@ class TestCustomMaterialsUpload:
         assert not (tmp_path / "escape.txt").exists()
         assert not (extract_dir / "materials.yaml").exists()
 
+    def test_materials_zip_library_path_cannot_forge_log_lines(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Archive-controlled library names stay on one physical log line."""
+        from ...service.routers.pipeline_router import (
+            _extract_and_validate_materials_zip,
+        )
+
+        library_name = "materials_libs\nforged-log-line.usda"
+        zip_path = tmp_path / "materials.zip"
+        extract_dir = tmp_path / "extract"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr(
+                "materials.yaml",
+                'library_path: "materials_libs\\nforged-log-line.usda"\n'
+                "entries:\n  - name: Test_Metal\n",
+            )
+            zf.writestr(library_name, "#usda 1.0\n")
+
+        with caplog.at_level(logging.INFO):
+            library_path, _ = _extract_and_validate_materials_zip(
+                zip_path,
+                extract_dir,
+            )
+
+        assert Path(library_path).name == library_name
+        assert r"materials_libs\nforged-log-line.usda" in caplog.text
+        assert library_name not in caplog.text
+
     def test_materials_zip_does_not_validate_against_stale_extract(
         self, tmp_path: Path
     ):

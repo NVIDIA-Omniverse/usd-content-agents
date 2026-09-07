@@ -8,13 +8,16 @@ Tests:
 """
 
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+import world_understanding.utils.artifacts as artifacts_module
 
 from ...service.storage import LocalSessionStore, StorageConfig
 from ...service.storage import local_store as local_store_module
-from ...service.storage.base import METADATA_KEY
+from ...service.storage.base import METADATA_KEY, SessionStoragePathError
 
 
 @pytest.mark.unit
@@ -26,6 +29,19 @@ class TestLocalSessionStoreCRUD:
         store = LocalSessionStore(root_dir=str(tmp_path))
         await store.init_session("s1")
         assert (tmp_path / "s1").is_dir()
+
+    @pytest.mark.asyncio
+    async def test_init_session_reports_unsafe_symlinked_root(
+        self, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "real-root"
+        target.mkdir()
+        symlink_root = tmp_path / "symlink-root"
+        symlink_root.symlink_to(target, target_is_directory=True)
+        store = LocalSessionStore(root_dir=str(symlink_root))
+
+        with pytest.raises(SessionStoragePathError, match="storage root is unsafe"):
+            await store.init_session("s1")
 
     @pytest.mark.asyncio
     async def test_init_session_rejects_nested_identifier(self, tmp_path):
@@ -102,6 +118,43 @@ class TestLocalSessionStoreCRUD:
         assert await store.exists("s1", "claim") is False
 
     @pytest.mark.asyncio
+    async def test_compare_and_swap_uses_portable_blocking_lock(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        store = LocalSessionStore(root_dir=str(tmp_path))
+        await store.init_session("s1")
+        await store.put_bytes("s1", "claim", b"run-a")
+
+        assert await store.compare_and_swap_bytes("s1", "claim", b"run-a", b"run-b")
+        assert await store.compare_and_swap_bytes("s1", "claim", b"run-b", b"run-c")
+
+        operations: list[tuple[str, int]] = []
+
+        @contextmanager
+        def portable_lock(descriptor: int) -> Iterator[None]:
+            operations.append(("acquire", descriptor))
+            try:
+                yield
+            finally:
+                operations.append(("release", descriptor))
+
+        monkeypatch.setattr(
+            local_store_module,
+            "blocking_exclusive_descriptor_lock",
+            portable_lock,
+        )
+
+        assert await store.compare_and_swap_bytes("s1", "claim", b"run-c", b"run-d")
+        assert (tmp_path / "s1" / "claim").read_bytes() == b"run-d"
+        assert [operation for operation, _descriptor in operations] == [
+            "acquire",
+            "release",
+        ]
+        assert operations[0][1] == operations[1][1]
+
+    @pytest.mark.asyncio
     async def test_put_bytes_if_absent_publishes_only_complete_file(
         self, tmp_path, monkeypatch
     ):
@@ -109,8 +162,8 @@ class TestLocalSessionStoreCRUD:
         await store.init_session("s1")
         claim_path = tmp_path / "s1" / ".active_run"
         payload = b"complete-run-claim"
-        real_write = local_store_module.os.write
-        real_link = local_store_module.os.link
+        real_write = artifacts_module.os.write
+        real_link = artifacts_module.os.link
         write_count = 0
 
         def write_one_byte(descriptor, buffer):
@@ -142,8 +195,8 @@ class TestLocalSessionStoreCRUD:
                 follow_symlinks=follow_symlinks,
             )
 
-        monkeypatch.setattr(local_store_module.os, "write", write_one_byte)
-        monkeypatch.setattr(local_store_module.os, "link", publish)
+        monkeypatch.setattr(artifacts_module.os, "write", write_one_byte)
+        monkeypatch.setattr(artifacts_module.os, "link", publish)
 
         assert await store.put_bytes_if_absent("s1", ".active_run", payload) is True
         assert write_count == len(payload)
@@ -162,7 +215,7 @@ class TestLocalSessionStoreCRUD:
             written_descriptors.append(descriptor)
             raise OSError("injected write failure")
 
-        monkeypatch.setattr(local_store_module.os, "write", fail_write)
+        monkeypatch.setattr(artifacts_module.os, "write", fail_write)
 
         with pytest.raises(OSError, match="injected write failure"):
             await store.put_bytes_if_absent("s1", ".active_run", b"run-a")

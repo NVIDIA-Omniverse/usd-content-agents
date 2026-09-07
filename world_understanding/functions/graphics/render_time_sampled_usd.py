@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,11 @@ from world_understanding.functions.graphics.rendering_backend_factory import (
 
 logger = logging.getLogger(__name__)
 
+# Written beside the rendered frames so callers publishing them as final
+# visual evidence can digest-bind the actual backend render response
+# (AGENTS.md: final images must carry their render metadata).
+RENDER_RESPONSE_METADATA_FILENAME = "render_response_metadata.json"
+
 
 def render_time_sampled_usd(
     time_sampled_usd: Path | str,
@@ -30,7 +37,6 @@ def render_time_sampled_usd(
     cameras: list[str] | None = None,
     image_width: int = 512,
     image_height: int = 512,
-    make_mp4: bool = True,
     max_duration_seconds: float = 2.0,
     num_sensor_updates: int | None = None,
     render_mode: str | None = None,
@@ -121,12 +127,19 @@ def render_time_sampled_usd(
     if render_mode is not None:
         render_kwargs["render_mode"] = render_mode
     result = backend.render(stage, **render_kwargs)
-    png_paths, image_sequences = _save_rendered_images(result, frame_list, output_path)
+    png_paths = _save_rendered_images(result, frame_list, output_path)
     if not png_paths:
         raise RuntimeError("Renderer produced no images")
 
-    if make_mp4:
-        _write_mp4_sequences(image_sequences, output_path, fps_value)
+    _write_response_metadata(
+        result,
+        output_path,
+        renderer=renderer,
+        frames_arg=frames_arg,
+        fps=fps_value,
+        image_width=image_width,
+        image_height=image_height,
+    )
 
     return png_paths
 
@@ -137,6 +150,10 @@ def _resolve_fps(stage: Any, fps: int | None) -> float:
     else:
         fps_value = float(stage.GetTimeCodesPerSecond() or 24.0)
 
+    if not math.isfinite(fps_value):
+        # NaN slips past both range checks below and would serialize into
+        # the digest-bound response metadata as an invalid bare token.
+        raise ValueError("fps must be finite")
     if fps_value <= 0:
         raise ValueError("fps must be positive")
     if fps_value > 60:
@@ -280,16 +297,74 @@ def _make_backend(renderer: str) -> RenderingBackend:
     return create_rendering_backend(renderer)
 
 
+def _sanitize_response_value(value: Any) -> Any:
+    """Drop image payloads and coerce non-JSON values for metadata capture."""
+
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_response_value(item)
+            for key, item in value.items()
+            if key != "images"
+        }
+    if isinstance(value, list):
+        return [_sanitize_response_value(item) for item in value]
+    if isinstance(value, float) and not math.isfinite(value):
+        # json.dumps would emit bare NaN/Infinity tokens that strict
+        # json.loads rejects when the digest-bound metadata is re-parsed at
+        # evidence publication, failing an otherwise-succeeded render.
+        return repr(value)
+    if isinstance(value, str | int | float | bool) or value is None:
+        return value
+    return repr(value)
+
+
+def _write_response_metadata(
+    result: dict[str, Any],
+    output_dir: Path,
+    *,
+    renderer: str,
+    frames_arg: str,
+    fps: float,
+    image_width: int,
+    image_height: int,
+) -> Path:
+    """Persist the backend's non-image response fields beside the frames.
+
+    Rendered frames become final visual evidence downstream, and final
+    evidence must carry the metadata of the render response that produced it,
+    not a reconstruction from the requested configuration. Callers publishing
+    the frames digest-bind this file alongside them.
+    """
+
+    payload = {
+        "schema_version": "wu.render-response-metadata.v1",
+        "renderer": renderer,
+        "frames": frames_arg,
+        "fps": fps,
+        "image_width": image_width,
+        "image_height": image_height,
+        "response": _sanitize_response_value(result),
+    }
+    path = output_dir / RENDER_RESPONSE_METADATA_FILENAME
+    # allow_nan=False backstops the sanitizer: this file is re-parsed with
+    # strict json.loads at evidence publication, so a non-finite float must
+    # fail here, not there.
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, allow_nan=False),
+        encoding="utf-8",
+    )
+    return path
+
+
 def _save_rendered_images(
     result: dict[str, Any], frame_list: list[int], output_dir: Path
-) -> tuple[list[Path], list[tuple[str, list[Path]]]]:
+) -> list[Path]:
     render_results = result.get("results")
     if not isinstance(render_results, list):
         raise RuntimeError("Renderer result missing results list")
 
     single_camera = len(render_results) == 1
     written: list[Path] = []
-    image_sequences: list[tuple[str, list[Path]]] = []
     # Track final slugs already used in this pass — not just base slugs —
     # so a third camera whose own normalized name happens to equal a
     # previously-disambiguated suffix (e.g. ``Cam A`` then ``Cam_A``
@@ -316,7 +391,6 @@ def _save_rendered_images(
         used_final_slugs.add(candidate)
         camera_slug = candidate
         camera_prefix = "" if single_camera else f"{camera_slug}__"
-        camera_paths: list[Path] = []
         for frame, image in zip(frame_list, images, strict=True):
             if not isinstance(image, Image.Image):
                 raise RuntimeError(
@@ -325,43 +399,10 @@ def _save_rendered_images(
             frame_path = output_dir / f"{camera_prefix}frame_{frame:04d}.png"
             image.save(frame_path)
             written.append(frame_path)
-            camera_paths.append(frame_path)
 
-        image_sequences.append((camera_slug, camera_paths))
-
-    return written, image_sequences
+    return written
 
 
 def _slug(value: Any) -> str:
     text = str(value or "camera").strip().strip("/") or "camera"
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", text)
-
-
-def _write_mp4_sequences(
-    image_sequences: list[tuple[str, list[Path]]], output_dir: Path, fps_value: float
-) -> None:
-    if len(image_sequences) == 1:
-        _maybe_write_mp4(image_sequences[0][1], output_dir / "render.mp4", fps_value)
-        return
-
-    for camera_slug, png_paths in image_sequences:
-        _maybe_write_mp4(
-            png_paths, output_dir / f"{camera_slug}__render.mp4", fps_value
-        )
-
-
-def _maybe_write_mp4(
-    png_paths: list[Path], output_path: Path, fps_value: float
-) -> None:
-    try:
-        import imageio.v3 as iio  # type: ignore[import-not-found,unused-ignore]
-        import numpy as np
-    except ImportError:
-        logger.info("imageio is unavailable; skipping mp4 creation")
-        return
-
-    try:
-        frames = [np.asarray(Image.open(path).convert("RGB")) for path in png_paths]
-        iio.imwrite(output_path, frames, fps=fps_value)
-    except Exception as exc:  # pragma: no cover - depends on optional codecs
-        logger.warning("Failed to write mp4 render %s: %s", output_path, exc)

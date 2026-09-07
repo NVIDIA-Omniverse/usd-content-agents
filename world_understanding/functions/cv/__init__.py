@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Computer vision functions."""
 
-from . import find_similar_color, get_dominant_colors, look_right, video_frames, vlm
+from . import find_similar_color, get_dominant_colors, look_right, vlm
 
 __all__ = [
     "find_similar_color",
     "get_dominant_colors",
     "look_right",
-    "video_frames",
     "vlm",
 ]

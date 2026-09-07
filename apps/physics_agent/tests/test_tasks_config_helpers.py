@@ -150,6 +150,20 @@ def test_predict_config_task_validates_allow_empty_predictions(tmp_path: Path):
         )
 
 
+def test_predict_config_rejects_malformed_jsonl_and_ignores_bad_metadata(
+    tmp_path: Path,
+) -> None:
+    dataset_path = tmp_path / "dataset.jsonl"
+    dataset_path.write_text("{not-json}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Malformed prediction dataset JSONL"):
+        PredictConfigTask()._load_dataset(dataset_path)
+
+    dataset_path.write_text('{"id":"prim-1"}\n', encoding="utf-8")
+    (tmp_path / "dataset.json").write_text("{not-json}", encoding="utf-8")
+    assert PredictConfigTask()._extract_system_prompt(dataset_path) is None
+
+
 def test_predict_dataset_override_diagnostics_hide_sensitive_paths(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -276,6 +290,7 @@ def test_identify_asset_config_task_applies_defaults_and_relative_paths(tmp_path
         {
             "usd_path": "asset.usd",
             "renderer": {"backend": "ovrtx", "image_width": 256},
+            "vlm": {"timeout": 321},
             "prompts": {"system": "identify it"},
         },
     )
@@ -287,6 +302,7 @@ def test_identify_asset_config_task_applies_defaults_and_relative_paths(tmp_path
     assert result["render_config"]["backend"] == "ovrtx"
     assert result["render_config"]["image_width"] == 256
     assert result["render_config"]["image_height"] == 512
+    assert result["vlm_config"]["timeout"] == 321
     assert result["identify_system_prompt"] == "identify it"
 
 
@@ -304,6 +320,7 @@ def test_apply_physics_config_task_validates_mass_scale_policy(tmp_path: Path):
             "output_usd_path": "out.usda",
             "mass_scale_policy": "skip_mass",
             "allow_empty_predictions": True,
+            "approved_dependency_roots": [".", "session-cache"],
         },
     )
 
@@ -312,6 +329,10 @@ def test_apply_physics_config_task_validates_mass_scale_policy(tmp_path: Path):
     assert result["mass_scale_policy"] == "skip_mass"
     assert result["allow_empty_predictions"] is True
     assert result["usd_path"] == str(usd_path.resolve())
+    assert result["approved_dependency_roots"] == [
+        str(tmp_path.resolve()),
+        str((tmp_path / "session-cache").resolve()),
+    ]
 
     anchored_result = ApplyPhysicsConfigTask().run(
         {
@@ -379,6 +400,18 @@ def test_apply_physics_config_task_validates_mass_scale_policy(tmp_path: Path):
             }
         )
 
+    with pytest.raises(ValueError, match="approved_dependency_roots"):
+        ApplyPhysicsConfigTask().run(
+            {
+                "config_dict": {
+                    "usd_path": str(usd_path),
+                    "predictions_path": str(predictions_path),
+                    "output_usd_path": str(tmp_path / "out.usda"),
+                    "approved_dependency_roots": [],
+                }
+            }
+        )
+
 
 def test_apply_physics_config_task_copies_in_memory_config() -> None:
     source: dict[str, object] = {
@@ -415,6 +448,7 @@ def test_apply_physics_malformed_yaml_uses_value_free_parse_error(
 
 def test_apply_physics_task_forwards_authoring_policies(monkeypatch, tmp_path: Path):
     captured: dict[str, object] = {}
+    dependency_roots = [str(tmp_path), "~/approved-dependencies"]
 
     def fake_apply_physics(**kwargs):
         captured.update(kwargs)
@@ -434,6 +468,7 @@ def test_apply_physics_task_forwards_authoring_policies(monkeypatch, tmp_path: P
             "output_key": "analysis",
             "mass_scale_policy": "fail",
             "allow_empty_predictions": True,
+            "approved_dependency_roots": dependency_roots,
         }
     )
 
@@ -442,6 +477,7 @@ def test_apply_physics_task_forwards_authoring_policies(monkeypatch, tmp_path: P
     assert captured["output_key"] == "analysis"
     assert captured["mass_scale_policy"] == "fail"
     assert captured["allow_empty_predictions"] is True
+    assert captured["approved_dependency_roots"] == dependency_roots
 
 
 def test_dataset_loading_task_validates_entries_and_updates_context(

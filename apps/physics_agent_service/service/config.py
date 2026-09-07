@@ -138,6 +138,7 @@ class ServiceConfig(BaseSettings):
     storage_s3_create_bucket: bool = False
     storage_s3_presign: bool = True
     storage_s3_sessions_cache_ttl: int = 5
+    storage_s3_generation_retention: int = Field(default=5, ge=1)
 
     # VLM/LLM settings
     vlm_backend: str = Field(
@@ -247,6 +248,7 @@ class ServiceConfig(BaseSettings):
                 s3_create_bucket=self.storage_s3_create_bucket,
                 s3_presign=self.storage_s3_presign,
                 s3_sessions_cache_ttl=self.storage_s3_sessions_cache_ttl,
+                s3_generation_retention=self.storage_s3_generation_retention,
             )
             return S3SessionStore.from_config(storage_cfg)
 

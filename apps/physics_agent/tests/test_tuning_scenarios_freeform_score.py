@@ -251,8 +251,9 @@ def test_ground_clearance_summary_uses_rotated_bbox_corners() -> None:
         trajectory,
         {
             "world_up": [0.0, 0.0, 1.0],
-            "bbox_min_local_stage": [-0.20, -0.05, 0.0],
-            "bbox_max_local_stage": [0.20, 0.05, 0.10],
+            "bbox_min_local_stage": [-20.0, -5.0, 0.0],
+            "bbox_max_local_stage": [20.0, 5.0, 10.0],
+            "bbox_local_stage_scale": [0.01, 0.01, 0.01],
         },
     )
     assert summary["min_ground_clearance"] == pytest.approx(-0.10)

@@ -342,7 +342,7 @@ def test_preserves_nested_package_dependency_bytes(tmp_path: Path) -> None:
     assert output.GetPrimAtPath("/DependencyMarker")
 
 
-def test_streams_and_preserves_usdz_without_member_size_guard(tmp_path: Path) -> None:
+def test_streams_and_preserves_usdz_within_resource_limits(tmp_path: Path) -> None:
     package_root, root_path = _write_asset(tmp_path)
     dependency = package_root / "dependency.usda"
     dependency.write_text('#usda 1.0\ndef Xform "Dependency" {}\n', encoding="utf-8")
@@ -394,6 +394,26 @@ def test_streams_and_preserves_usdz_without_member_size_guard(tmp_path: Path) ->
     )
 
 
+def test_rejects_usdz_member_over_resource_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    usdz_path = tmp_path / "oversized.usdz"
+    with zipfile.ZipFile(usdz_path, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("asset.usda", "#usda 1.0\n")
+    extraction_dir = tmp_path / "extract"
+    extraction_dir.mkdir()
+    monkeypatch.setattr(filter_module, "_MAX_USDZ_MEMBER_BYTES", 4)
+
+    with pytest.raises(ValueError, match="uncompressed size limit"):
+        filter_module._extract_usdz_with_resource_limits(
+            asset_path=usdz_path,
+            extraction_dir=extraction_dir,
+        )
+
+    assert list(extraction_dir.iterdir()) == []
+
+
 @pytest.mark.parametrize(
     "members",
     [
@@ -420,7 +440,7 @@ def test_rejects_usdz_file_ancestor_collision_before_extraction(
             "textures and textures/albedo.png"
         ),
     ):
-        filter_module._extract_usdz_without_size_limit(
+        filter_module._extract_usdz_with_resource_limits(
             asset_path=usdz_path,
             extraction_dir=extraction_dir,
         )
@@ -440,7 +460,7 @@ def test_rejects_usdz_file_directory_collision_before_extraction(
     extraction_dir.mkdir()
 
     with pytest.raises(ValueError, match="USDZ contains a file/directory collision"):
-        filter_module._extract_usdz_without_size_limit(
+        filter_module._extract_usdz_with_resource_limits(
             asset_path=usdz_path,
             extraction_dir=extraction_dir,
         )
@@ -472,7 +492,7 @@ def test_rejects_package_paths_before_recursive_io_can_overflow(
     extraction_dir.mkdir()
 
     with pytest.raises(ValueError, match="maximum package path depth"):
-        filter_module._extract_usdz_without_size_limit(
+        filter_module._extract_usdz_with_resource_limits(
             asset_path=usdz_path,
             extraction_dir=extraction_dir,
         )
@@ -491,7 +511,7 @@ def test_source_package_propagates_interrupt_and_cleans_extraction(
 
     monkeypatch.setattr(
         filter_module,
-        "_extract_usdz_without_size_limit",
+        "_extract_usdz_with_resource_limits",
         interrupt_extraction,
     )
 

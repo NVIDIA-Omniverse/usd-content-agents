@@ -69,6 +69,10 @@ class ApplyJointRiggerTask(Task):
             ),
             apply_masses=context.get("apply_masses"),
             apply_collision=context.get("apply_collision"),
+            enable_source_backed_v1_breadth=context.get(
+                "enable_source_backed_v1_breadth",
+                False,
+            ),
         )
 
         context.update(result)

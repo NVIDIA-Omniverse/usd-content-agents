@@ -9,11 +9,12 @@ import json
 import os
 import stat
 import tempfile
-from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections import Counter, defaultdict
+from collections.abc import Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from world_understanding.functions.physics.joint_rigger import (
     ArtifactIdentityV1,
@@ -26,7 +27,9 @@ from world_understanding.functions.physics.joint_rigger import (
 )
 
 from joint_agent.functions import candidate_edge_authoring
-from joint_agent.functions.articulation_candidates import Stage2ArticulationCandidate
+from joint_agent.functions.articulation_candidates import (
+    Stage2ArticulationCandidate,
+)
 from joint_agent.functions.articulation_contract import (
     ARTICULATION_CONTRACT_SCHEMA_VERSION,
     ArticulationContractV1,
@@ -36,9 +39,21 @@ from joint_agent.functions.articulation_contract import (
     LinkRecordV1,
     PrimRecordV1,
 )
+from joint_agent.functions.bound_source_projection import (
+    SourceProjectionMessages,
+    bound_source_projection,
+)
 from joint_agent.functions.consistency import (
     canonical_link_instance_id,
     is_model_supplied_link_instance_id,
+)
+from joint_agent.functions.joint_0_6_capabilities import (
+    CONTINUOUS_DERIVATION,
+    INTERNAL_V1_BREADTH_CAPABILITY_IDS,
+    INTERNAL_V1_BREADTH_STAGE2_TYPES,
+    PUBLIC_OWNED_CORE_STAGE2_CAPABILITY_IDS,
+    PUBLIC_OWNED_CORE_STAGE2_TYPES,
+    SOURCE_BACKED_DERIVATION,
 )
 from joint_agent.functions.joint_rigger_core_bridge import (
     NoReadyJointCandidatesError,
@@ -49,13 +64,16 @@ from joint_agent.functions.joint_rigger_core_bridge import (
     _write_sealed_candidate_snapshot,
     build_stage2_candidate_edges_input,
 )
+
+if TYPE_CHECKING:  # pragma: no cover - imports only for static type checking
+    from joint_agent.functions.joint_0_6_breadth import SourceBackedBreadthProof
 from joint_agent.functions.stage1_schema import unwrap_stage1_prediction_payload
 
 _DERIVATION = "preflighted_stage2_v0_to_articulation_contract_v1"
 _AGGREGATE_BODY_DERIVATION = "deterministic_flat_member_aggregate_target_v1"
 _FIXED_BODY_DERIVATION = "stage1_fixed_body_membership_projection_v1"
 _FIXED_ALIAS_DERIVATION = "stage1_fixed_body_alias_canonicalization_v1"
-_SUPPORTED_STAGE2_TYPES = frozenset({"prismatic", "revolute"})
+_SUPPORTED_STAGE2_TYPES = PUBLIC_OWNED_CORE_STAGE2_TYPES
 _UNRESOLVED_ROLES = frozenset({"", "unknown", "none", "null", "n/a", "na"})
 _FIXED_JOINT_HINTS = frozenset({"none", "fixed"})
 _MAX_PREDICTIONS_BYTES = 64 * 1024 * 1024
@@ -67,10 +85,17 @@ class _FixedAssemblyProjection:
     link_id: str
     parent_path: str
     member_paths: tuple[str, ...]
+    owner_path: str | None = None
 
     @property
     def aliases(self) -> frozenset[str]:
-        return frozenset((*self.member_paths, self.parent_path))
+        return frozenset(
+            (
+                *self.member_paths,
+                self.parent_path,
+                *((self.owner_path,) if self.owner_path is not None else ()),
+            )
+        )
 
 
 @dataclass(frozen=True)
@@ -86,6 +111,7 @@ def build_articulation_contract_from_stage2(
     predictions_path: str | Path | None = None,
     expected_articulation_candidates_sha256: str | None = None,
     allow_ready_subset: bool = False,
+    enable_source_backed_v1_breadth: bool = False,
 ) -> ArticulationContractV1:
     """Build a first-class contract from one exact, ready Stage 2 artifact.
 
@@ -95,7 +121,13 @@ def build_articulation_contract_from_stage2(
     reimplementing those rules. Review-required candidates are rejected as a
     whole unless the caller explicitly requests a ready-subset projection. The
     subset remains evidence-bound to the complete Stage 2 artifact.
+
+    ``enable_source_backed_v1_breadth`` is an internal opt-in for the Joint 0.6
+    source-backed adapter. The default keeps the released 0.5 surface limited
+    to the public owned-core revolute and prismatic shapes.
     """
+    if type(enable_source_backed_v1_breadth) is not bool:
+        raise TypeError("enable_source_backed_v1_breadth must be a bool")
 
     source_path = Path(input_usd_path)
     candidates_path = Path(articulation_candidates_path)
@@ -108,6 +140,11 @@ def build_articulation_contract_from_stage2(
         )
     candidate_binding: Any | None = None
     primary_error: BaseException | None = None
+    preflight_source_asset: ArtifactIdentityV1 | None = None
+    preflight_joint_plans: tuple[JointPlanV1, ...] = ()
+    source_backed_candidate_ids: frozenset[str] = frozenset()
+    private_projection_candidate_ids: frozenset[str] = frozenset()
+    source_backed_proof_by_id: dict[str, SourceBackedBreadthProof] = {}
     try:
         candidate_binding = _create_sealed_candidate_binding(
             candidates_path,
@@ -131,19 +168,55 @@ def build_articulation_contract_from_stage2(
             candidates = _load_candidates(
                 candidate_bytes,
                 path=candidates_path,
+                enable_source_backed_v1_breadth=enable_source_backed_v1_breadth,
             )
             review_required = sorted(
                 candidate.candidate_id
                 for candidate in candidates
                 if candidate.review_status != "ready_for_rigger_input"
             )
+            ready_candidates = tuple(
+                candidate
+                for candidate in candidates
+                if candidate.review_status == "ready_for_rigger_input"
+            )
+            source_backed_admissions: tuple[Any, ...] = ()
+            if enable_source_backed_v1_breadth:
+                from joint_agent.functions import stage2_breadth_adapter
+
+                validated_source_admissions = (
+                    stage2_breadth_adapter.admit_ready_candidates(ready_candidates)
+                )
+                source_backed_admissions = (
+                    stage2_breadth_adapter.direct_breadth_admissions(
+                        validated_source_admissions
+                    )
+                )
+                private_projection_candidate_ids = (
+                    stage2_breadth_adapter.legacy_preflight_deferred_candidate_ids(
+                        candidates
+                    )
+                )
+                source_backed_candidate_ids = frozenset(
+                    admission.candidate.candidate_id
+                    for admission in source_backed_admissions
+                )
+                source_backed_proof_by_id = {
+                    admission.candidate.candidate_id: admission.proof
+                    for admission in source_backed_admissions
+                }
+            legacy_ready_exists = any(
+                candidate.candidate_id not in source_backed_candidate_ids
+                for candidate in ready_candidates
+            )
             no_ready = not candidates or len(review_required) == len(candidates)
-            if no_ready:
+            if no_ready and not private_projection_candidate_ids:
                 preflight_bytes = candidate_bytes
             else:
                 preflight_bytes = _topology_preflight_bytes(
                     candidate_bytes,
                     candidates,
+                    excluded_candidate_ids=private_projection_candidate_ids,
                 )
             preflight_sha256 = hashlib.sha256(preflight_bytes).hexdigest()
             preflight_snapshot = candidate_snapshot
@@ -156,15 +229,36 @@ def build_articulation_contract_from_stage2(
                     preflight_bytes,
                 )
             request: JointRiggerInputV1 | None = None
-            try:
-                request = _build_preflight_request(
-                    source_path=source_path,
-                    candidate_snapshot=preflight_snapshot,
-                    expected_candidates_sha256=preflight_sha256,
+            direct_plans: tuple[JointPlanV1, ...] = ()
+            if legacy_ready_exists or no_ready:
+                try:
+                    request = _build_preflight_request(
+                        source_path=source_path,
+                        candidate_snapshot=preflight_snapshot,
+                        expected_candidates_sha256=preflight_sha256,
+                    )
+                except NoReadyJointCandidatesError:
+                    if not no_ready:
+                        raise
+            if enable_source_backed_v1_breadth and source_backed_admissions:
+                from joint_agent.functions import stage2_breadth_adapter
+
+                preflight_source_asset = identify_usd_artifact(
+                    source_path,
+                    uri=str(source_path),
                 )
-            except NoReadyJointCandidatesError:
-                if not no_ready:
-                    raise
+                direct_plans = stage2_breadth_adapter.build_source_backed_joint_plans(
+                    source_path=source_path,
+                    source_asset=preflight_source_asset,
+                    candidate_artifact=ArtifactIdentityV1(
+                        uri=str(candidates_path),
+                        root_sha256=candidates_sha256,
+                    ),
+                    admissions=source_backed_admissions,
+                    legacy_joint_plans=(
+                        tuple(request.plan.joints) if request is not None else ()
+                    ),
+                )
             try:
                 _require_sealed_candidate_binding(candidate_binding)
                 _require_candidate_path_authority(candidates_path, candidate_binding)
@@ -175,8 +269,26 @@ def build_articulation_contract_from_stage2(
                     "stage2_artifact_mutated",
                     "Stage 2 candidate document changed while the contract was built",
                 ) from exc
+            if source_backed_admissions:
+                assert preflight_source_asset is not None
+                if request is not None:
+                    if request.source_asset != preflight_source_asset:
+                        raise JointRiggerContractError(
+                            "stage2_source_mutated",
+                            "source USD changed between legacy and source-backed "
+                            "preflight",
+                        )
+                    preflight_joint_plans = (*request.plan.joints, *direct_plans)
+                else:
+                    preflight_joint_plans = direct_plans
+            elif request is not None:
+                # An opt-in with no actual breadth admission is operationally
+                # identical to 0.5: reuse the already bound legacy preflight
+                # instead of reopening or independently identifying the source.
+                preflight_source_asset = request.source_asset
+                preflight_joint_plans = tuple(request.plan.joints)
             if no_ready:
-                if request is not None:  # pragma: no cover - preflight invariant
+                if preflight_joint_plans:  # pragma: no cover - preflight invariant
                     raise JointRiggerContractError(
                         "stage2_preflight_projection_mismatch",
                         "candidate readiness and preflighted topology differ",
@@ -192,19 +304,21 @@ def build_articulation_contract_from_stage2(
                     "first-class promotion found no ready candidates; "
                     "review-required candidates: " + ", ".join(review_required),
                 )
-            assert request is not None
+            if not preflight_joint_plans:
+                raise JointRiggerContractError(
+                    "stage2_preflight_projection_mismatch",
+                    "ready candidates produced no preflighted topology",
+                )
             if review_required and not allow_ready_subset:
                 raise JointRiggerContractError(
                     "stage2_candidates_require_review",
                     "first-class promotion is all-or-nothing; review-required "
                     "candidates: " + ", ".join(review_required),
                 )
-            ready_candidates = tuple(
-                candidate
-                for candidate in candidates
-                if candidate.review_status == "ready_for_rigger_input"
+            candidate_by_key = _index_candidates(
+                ready_candidates,
+                source_backed_candidate_ids=source_backed_candidate_ids,
             )
-            candidate_by_key = _index_candidates(ready_candidates)
             _require_unique_child_topologies(candidate_by_key)
             link_candidate_by_body = _link_candidates_for_ready_subset(
                 candidates=candidates,
@@ -230,6 +344,7 @@ def build_articulation_contract_from_stage2(
                         cleanup_errors,
                     )
 
+    assert preflight_source_asset is not None
     if stage1_predictions is not None:
         assert prediction_artifact is not None
         fixed_assembly = _build_fixed_assembly_projection(
@@ -245,9 +360,9 @@ def build_articulation_contract_from_stage2(
         _validate_fixed_assembly_source_members(
             source_path,
             fixed_assembly,
-            expected_source=request.source_asset,
+            expected_source=preflight_source_asset,
         )
-    plan_by_key = _index_plans(request.plan.joints)
+    plan_by_key = _index_plans(preflight_joint_plans)
     if set(candidate_by_key) != set(plan_by_key):
         missing = sorted(set(candidate_by_key) - set(plan_by_key), key=str)
         extra = sorted(set(plan_by_key) - set(candidate_by_key), key=str)
@@ -294,7 +409,7 @@ def build_articulation_contract_from_stage2(
         _validate_moving_aggregate_source_members(
             source_path,
             tuple(sorted(moving_aggregate_members)),
-            expected_source=request.source_asset,
+            expected_source=preflight_source_asset,
         )
 
     records: list[PrimRecordV1 | LinkRecordV1 | JointRecordV1] = []
@@ -326,6 +441,11 @@ def build_articulation_contract_from_stage2(
                 body_path,
                 candidate_by_key.values(),
             )
+        body_source_proof = (
+            source_backed_proof_by_id.get(body_source.candidate_id)
+            if body_source is not None
+            else None
+        )
         axis = incoming_axis.get(body_path)
         if is_projected_fixed_body:
             assert fixed_assembly is not None
@@ -351,22 +471,45 @@ def build_articulation_contract_from_stage2(
             }
         else:
             assert body_source is not None
+            body_path_properties = (
+                (
+                    "moving_part_prims",
+                    "connectivity_evidence",
+                    "field_sources",
+                )
+                if body_candidate is not None
+                else (
+                    "fixed_parent_prim",
+                    "parent_resolution_source",
+                    "connectivity_evidence",
+                    "field_sources",
+                )
+            )
             link_evidence = {
                 "body_prim_path": _evidence(
                     candidate_artifact,
                     body_source,
                     prim_path=body_path,
                     properties=(
-                        ("moving_part_prims",)
-                        if body_candidate is not None
-                        else ("fixed_parent_prim",)
+                        body_path_properties
+                        if body_source_proof is not None
+                        else (
+                            ("moving_part_prims",)
+                            if body_candidate is not None
+                            else ("fixed_parent_prim",)
+                        )
                     ),
                     field="body_prim_path",
                     derivation=(
-                        _AGGREGATE_BODY_DERIVATION
-                        if body_authoring == "aggregate"
-                        else _DERIVATION
+                        SOURCE_BACKED_DERIVATION
+                        if body_source_proof is not None
+                        else (
+                            _AGGREGATE_BODY_DERIVATION
+                            if body_authoring == "aggregate"
+                            else _DERIVATION
+                        )
                     ),
+                    source_proof=body_source_proof,
                 ),
                 "role": _evidence(
                     candidate_artifact,
@@ -386,8 +529,18 @@ def build_articulation_contract_from_stage2(
                 candidate_artifact,
                 body_source,
                 prim_path=body_path,
-                properties=("motion_axis_world",),
+                properties=(
+                    ("motion_axis_world", "axis_evidence", "field_sources")
+                    if body_source_proof is not None
+                    else ("motion_axis_world",)
+                ),
                 field="axis_stage",
+                derivation=(
+                    SOURCE_BACKED_DERIVATION
+                    if body_source_proof is not None
+                    else _DERIVATION
+                ),
+                source_proof=body_source_proof,
             )
         records.append(
             LinkRecordV1(
@@ -414,8 +567,24 @@ def build_articulation_contract_from_stage2(
                     candidate_artifact,
                     cast(Stage2ArticulationCandidate, body_source),
                     prim_path=member_path,
-                    properties=("moving_part_prims", "fixed_parent_prim"),
+                    properties=(
+                        (
+                            "moving_part_prims",
+                            "fixed_parent_prim",
+                            "parent_resolution_source",
+                            "connectivity_evidence",
+                            "field_sources",
+                        )
+                        if body_source_proof is not None
+                        else ("moving_part_prims", "fixed_parent_prim")
+                    ),
                     field="link_id",
+                    derivation=(
+                        SOURCE_BACKED_DERIVATION
+                        if body_source_proof is not None
+                        else _DERIVATION
+                    ),
+                    source_proof=body_source_proof,
                 )
             )
             records.append(
@@ -432,46 +601,100 @@ def build_articulation_contract_from_stage2(
         plan = plan_by_key[key]
         topology = plan.topology
         body0_link = canonical_body0_by_key[key]
+        source_proof = source_backed_proof_by_id.get(candidate.candidate_id)
+        source_joint_type = (
+            source_proof.source_joint_type if source_proof is not None else None
+        )
+        source_backed_direct = source_proof is not None
         field_evidence = {
             "motion_type": _evidence(
                 candidate_artifact,
                 candidate,
                 prim_path=topology.body1,
-                properties=("motion_type",),
+                properties=(
+                    ("motion_type", "source_joint_type", "field_sources")
+                    if source_joint_type == "continuous"
+                    else (
+                        ("motion_type", "field_sources")
+                        if source_backed_direct
+                        else ("motion_type",)
+                    )
+                ),
                 field="motion_type",
+                derivation=(
+                    CONTINUOUS_DERIVATION
+                    if source_joint_type == "continuous"
+                    else (
+                        SOURCE_BACKED_DERIVATION
+                        if source_backed_direct
+                        else _DERIVATION
+                    )
+                ),
+                source_proof=source_proof,
             ),
             "body0_link": _evidence(
                 candidate_artifact,
                 candidate,
                 prim_path=topology.body0,
-                properties=("fixed_parent_prim", "connectivity_evidence"),
+                properties=(
+                    (
+                        "fixed_parent_prim",
+                        "parent_resolution_source",
+                        "connectivity_evidence",
+                        "field_sources",
+                    )
+                    if source_backed_direct
+                    else ("fixed_parent_prim", "connectivity_evidence")
+                ),
                 field="body0_link",
                 derivation=(
                     _FIXED_ALIAS_DERIVATION
                     if body0_link != topology.body0
-                    else _DERIVATION
+                    else (
+                        SOURCE_BACKED_DERIVATION
+                        if source_backed_direct
+                        else _DERIVATION
+                    )
                 ),
+                source_proof=source_proof,
             ),
             "body1_link": _evidence(
                 candidate_artifact,
                 candidate,
                 prim_path=topology.body1,
-                properties=("moving_part_prims", "connectivity_evidence"),
+                properties=(
+                    ("moving_part_prims", "connectivity_evidence", "field_sources")
+                    if source_backed_direct
+                    else ("moving_part_prims", "connectivity_evidence")
+                ),
                 field="body1_link",
+                derivation=(
+                    SOURCE_BACKED_DERIVATION if source_backed_direct else _DERIVATION
+                ),
+                source_proof=source_proof,
             ),
         }
-        if topology.axis_stage is None:
+        if topology.axis_stage is None and topology.joint_type != "spherical":
             raise JointRiggerContractError(
                 "stage2_preflight_axis_unresolved",
                 f"preflighted joint {topology.joint_id!r} has no stage-frame axis",
             )
-        field_evidence["axis_stage"] = _evidence(
-            candidate_artifact,
-            candidate,
-            prim_path=topology.body1,
-            properties=("motion_axis_world", "axis_evidence"),
-            field="axis_stage",
-        )
+        if topology.axis_stage is not None:
+            field_evidence["axis_stage"] = _evidence(
+                candidate_artifact,
+                candidate,
+                prim_path=topology.body1,
+                properties=(
+                    ("motion_axis_world", "axis_evidence", "field_sources")
+                    if source_backed_direct
+                    else ("motion_axis_world", "axis_evidence")
+                ),
+                field="axis_stage",
+                derivation=(
+                    SOURCE_BACKED_DERIVATION if source_backed_direct else _DERIVATION
+                ),
+                source_proof=source_proof,
+            )
         records.append(
             JointRecordV1(
                 kind="joint",
@@ -485,6 +708,7 @@ def build_articulation_contract_from_stage2(
                     artifact=candidate_artifact,
                     candidate=candidate,
                     prim_path=topology.body1,
+                    source_proof=source_proof,
                 ),
                 field_evidence=field_evidence,
                 review_status="ready_for_rigger_input",
@@ -495,7 +719,7 @@ def build_articulation_contract_from_stage2(
     link_count = sum(isinstance(record, LinkRecordV1) for record in records)
     joint_count = sum(isinstance(record, JointRecordV1) for record in records)
     child_link_ids = {plan.topology.body1 for plan in plan_by_key.values()}
-    source_identities = [request.source_asset, candidate_artifact]
+    source_identities = [preflight_source_asset, candidate_artifact]
     if prediction_artifact is not None:
         source_identities.append(prediction_artifact)
     return ArticulationContractV1(
@@ -585,6 +809,13 @@ def _build_fixed_assembly_projection(
 ) -> _FixedAssemblyProjection | None:
     member_paths: list[str] = []
     member_instance_ids: set[str] = set()
+    reconciled_owner_paths: set[str] = set()
+    reconciled_owner_members: set[frozenset[str]] = set()
+    reconciled_representatives: set[str] = set()
+    reconciled_manifest_prims: set[str] = set()
+    reconciled_owner_receipt_count = 0
+    reconciled_owner_manifest_count = 0
+    reconciled_document_digests: list[str] = []
     for prediction in predictions:
         prim_path = prediction.prim_path
         payload = prediction.payload
@@ -616,6 +847,93 @@ def _build_fixed_assembly_projection(
             )
         member_instance_ids.add(instance_id)
         member_paths.append(prim_path)
+        provenance = payload.get("provenance")
+        history = (
+            provenance.get("topology_reconciliation_history")
+            if isinstance(provenance, Mapping)
+            else None
+        )
+        if isinstance(history, list) and history:
+            latest = history[-1]
+            raw_group = (
+                latest.get("topology_evidence_group")
+                if isinstance(latest, Mapping)
+                else None
+            )
+            reconciled_link = (
+                latest.get("reconciled_link") if isinstance(latest, Mapping) else None
+            )
+            if raw_group is not None:
+                raw_owner_path = (
+                    raw_group.get("owner_path")
+                    if isinstance(raw_group, Mapping)
+                    else None
+                )
+                group_members = (
+                    raw_group.get("member_prims")
+                    if isinstance(raw_group, Mapping)
+                    else None
+                )
+                reconciled_members = (
+                    reconciled_link.get("member_prims")
+                    if isinstance(reconciled_link, Mapping)
+                    else None
+                )
+                representative_prim = (
+                    raw_group.get("representative_prim")
+                    if isinstance(raw_group, Mapping)
+                    else None
+                )
+                if (
+                    latest.get("source") != "llm_adjudicated"
+                    or latest.get("link_id") != instance_id
+                    or not isinstance(reconciled_link, Mapping)
+                    or reconciled_link.get("kind") != "fixed"
+                    or reconciled_link.get("link_id") != instance_id
+                    or not isinstance(raw_owner_path, str)
+                    or not _is_absolute_prim_path(raw_owner_path)
+                    or not isinstance(group_members, list)
+                    or not group_members
+                    or any(
+                        not isinstance(member, str)
+                        or not _is_absolute_prim_path(member)
+                        for member in group_members
+                    )
+                    or len(set(group_members)) != len(group_members)
+                    or not isinstance(reconciled_members, list)
+                    or any(not isinstance(member, str) for member in reconciled_members)
+                    or len(set(reconciled_members)) != len(reconciled_members)
+                    or set(reconciled_members) != set(group_members)
+                    or not isinstance(representative_prim, str)
+                    or representative_prim not in group_members
+                    or prim_path not in group_members
+                ):
+                    raise JointRiggerContractError(
+                        "stage1_fixed_body_owner_receipt_invalid",
+                        f"role=body prediction {prim_path!r} has an invalid "
+                        "authoritative owner receipt",
+                    )
+                reconciled_owner_paths.add(raw_owner_path)
+                reconciled_owner_members.add(frozenset(group_members))
+                reconciled_representatives.add(representative_prim)
+                reconciled_manifest_prims.add(prim_path)
+                reconciled_owner_receipt_count += 1
+                reconciled_owner_manifest_count += 1
+                document_digest = latest.get("topology_document_sha256")
+                if isinstance(document_digest, str) and document_digest:
+                    reconciled_document_digests.append(document_digest)
+            elif (
+                isinstance(latest, Mapping)
+                and latest.get("source") == "llm_adjudicated"
+                and reconciled_link is None
+                and latest.get("link_id") == instance_id
+                and isinstance(latest.get("topology_document_sha256"), str)
+                and latest.get("topology_document_sha256")
+            ):
+                reconciled_owner_receipt_count += 1
+                reconciled_document_digests.append(
+                    cast(str, latest["topology_document_sha256"])
+                )
 
     if not member_paths:
         # Stage 2 already carries an exact fixed parent for every accepted edge.
@@ -643,14 +961,46 @@ def _build_fixed_assembly_projection(
             "direct-parent prim",
         )
     ordered_members = tuple(sorted(member_paths))
+    owner_path: str | None = None
+    if reconciled_owner_receipt_count:
+        if (
+            reconciled_owner_receipt_count != len(member_paths)
+            or reconciled_owner_manifest_count not in {1, len(member_paths)}
+            or len(reconciled_owner_paths) != 1
+            or reconciled_owner_members != {frozenset(member_paths)}
+            or len(reconciled_representatives) != 1
+        ):
+            raise JointRiggerContractError(
+                "stage1_fixed_body_owner_receipt_invalid",
+                "role=body predictions do not share one complete authoritative "
+                "owner receipt",
+            )
+        if (
+            len(reconciled_document_digests) != len(member_paths)
+            or len(set(reconciled_document_digests)) != 1
+            or (
+                reconciled_owner_manifest_count == 1
+                and reconciled_manifest_prims != reconciled_representatives
+            )
+        ):
+            raise JointRiggerContractError(
+                "stage1_fixed_body_owner_receipt_invalid",
+                "role=body predictions do not share one document-bound owner manifest",
+            )
+        owner_path = next(iter(reconciled_owner_paths))
     return _FixedAssemblyProjection(
         artifact=prediction_artifact,
         # One fixed member is already a valid existing rigid body. Multiple
         # siblings need one deterministic aggregate link rooted at their
         # shared direct parent.
-        link_id=ordered_members[0] if len(ordered_members) == 1 else parent_path,
+        link_id=(
+            ordered_members[0]
+            if len(ordered_members) == 1
+            else owner_path or parent_path
+        ),
         parent_path=parent_path,
         member_paths=ordered_members,
+        owner_path=owner_path,
     )
 
 
@@ -783,74 +1133,106 @@ def _validate_source_member_paths(
             "OpenUSD bindings are required to validate aggregate source members",
         ) from exc
 
-    try:
-        stage = Usd.Stage.Open(str(source_path))
-    except Exception as exc:
-        raise JointRiggerContractError(
-            f"{error_prefix}_source_invalid",
-            f"cannot open source stage {source_path}: {exc}",
-        ) from exc
-    if stage is None:
-        raise JointRiggerContractError(
-            f"{error_prefix}_source_invalid",
-            f"cannot open source stage {source_path}",
-        )
-
-    root_layer = stage.GetRootLayer()
-    try:
-        for member_path in member_paths:
-            prim = stage.GetPrimAtPath(member_path)
-            if (
-                not prim
-                or not prim.IsValid()
-                or not prim.IsActive()
-                or not prim.IsDefined()
-            ):
-                raise JointRiggerContractError(
-                    f"{error_prefix}_member_missing",
-                    f"{member_label} must be active and defined in "
-                    f"the bound source: {member_path}",
-                )
-            aggregate_incompatible = require_root_authorship and (
-                prim.IsInstance() or prim.IsInstanceable()
+    with _bound_source_projection_for_validation(
+        source_path=source_path,
+        expected_source=expected_source,
+        error_prefix=error_prefix,
+        member_label=member_label,
+    ) as bound_source:
+        try:
+            stage = Usd.Stage.Open(str(bound_source))
+        except Exception as exc:
+            raise JointRiggerContractError(
+                f"{error_prefix}_source_invalid",
+                f"cannot open bound source stage for {source_path}: {exc}",
+            ) from exc
+        if stage is None:
+            raise JointRiggerContractError(
+                f"{error_prefix}_source_invalid",
+                f"cannot open bound source stage for {source_path}",
             )
-            if (
-                aggregate_incompatible
-                or prim.IsInstanceProxy()
-                or prim.IsPrototype()
-                or prim.IsInPrototype()
-            ):
-                raise JointRiggerContractError(
-                    f"{error_prefix}_member_instance_unsupported",
-                    f"{member_label} cannot use an unsupported instance or "
-                    f"prototype prim: {member_path}",
-                )
-            if require_root_authorship:
-                prim_stack = tuple(prim.GetPrimStack())
+
+        try:
+            root_layer = stage.GetRootLayer()
+            for member_path in member_paths:
+                prim = stage.GetPrimAtPath(member_path)
                 if (
-                    len(prim_stack) != 1
-                    or prim_stack[0].layer.identifier != root_layer.identifier
+                    not prim
+                    or not prim.IsValid()
+                    or not prim.IsActive()
+                    or not prim.IsDefined()
                 ):
                     raise JointRiggerContractError(
-                        f"{error_prefix}_member_authorship_unsupported",
-                        f"{member_label} must have exactly one root-layer "
-                        f"PrimSpec: {member_path}",
+                        f"{error_prefix}_member_missing",
+                        f"{member_label} must be active and defined in "
+                        f"the bound source: {member_path}",
                     )
-                if prim_stack[0].path.ContainsPrimVariantSelection():
+                aggregate_incompatible = require_root_authorship and (
+                    prim.IsInstance() or prim.IsInstanceable()
+                )
+                if (
+                    aggregate_incompatible
+                    or prim.IsInstanceProxy()
+                    or prim.IsPrototype()
+                    or prim.IsInPrototype()
+                ):
                     raise JointRiggerContractError(
-                        f"{error_prefix}_member_variant_unsupported",
-                        f"{member_label} cannot be authored inside a "
-                        f"variant: {member_path}",
+                        f"{error_prefix}_member_instance_unsupported",
+                        f"{member_label} cannot use an unsupported instance or "
+                        f"prototype prim: {member_path}",
                     )
-    finally:
-        del stage
+                if require_root_authorship:
+                    prim_stack = tuple(prim.GetPrimStack())
+                    if (
+                        len(prim_stack) != 1
+                        or prim_stack[0].layer.identifier != root_layer.identifier
+                    ):
+                        raise JointRiggerContractError(
+                            f"{error_prefix}_member_authorship_unsupported",
+                            f"{member_label} must have exactly one root-layer "
+                            f"PrimSpec: {member_path}",
+                        )
+                    if prim_stack[0].path.ContainsPrimVariantSelection():
+                        raise JointRiggerContractError(
+                            f"{error_prefix}_member_variant_unsupported",
+                            f"{member_label} cannot be authored inside a "
+                            f"variant: {member_path}",
+                        )
+        finally:
+            del stage
 
-    current_source = identify_usd_artifact(source_path, uri=str(source_path))
-    if current_source != expected_source:
-        raise JointRiggerContractError(
-            f"{error_prefix}_source_mutated",
-            f"source USD changed while {member_label} membership was validated",
-        )
+
+@contextmanager
+def _bound_source_projection_for_validation(
+    *,
+    source_path: Path,
+    expected_source: ArtifactIdentityV1,
+    error_prefix: str,
+    member_label: str,
+) -> Iterator[Path]:
+    """Yield one immutable source closure for aggregate membership checks."""
+
+    with bound_source_projection(
+        source_path=source_path,
+        expected_source=expected_source,
+        error_prefix=error_prefix,
+        messages=SourceProjectionMessages(
+            binding_mismatch=(
+                "source USD or its dependency closure changed before "
+                f"{member_label} membership validation"
+            ),
+            materialization_failure=(
+                f"cannot materialize source closure for {member_label} validation"
+            ),
+            changed_before_use=(
+                f"bound source changed before {member_label} validation"
+            ),
+            changed_during_use=(
+                f"bound source changed during {member_label} validation"
+            ),
+        ),
+    ) as bound_source:
+        yield bound_source
 
 
 def _canonical_parent_links(
@@ -933,7 +1315,17 @@ def _load_candidates(
     candidate_bytes: bytes,
     *,
     path: Path,
+    enable_source_backed_v1_breadth: bool = False,
 ) -> tuple[Stage2ArticulationCandidate, ...]:
+    if enable_source_backed_v1_breadth:
+        from joint_agent.functions import stage2_breadth_adapter
+
+        return tuple(
+            stage2_breadth_adapter.load_breadth_candidates(
+                candidate_bytes,
+                path=path,
+            )
+        )
     try:
         document = candidate_edge_authoring._parse_and_validate_document(
             candidate_bytes,
@@ -991,15 +1383,29 @@ def _write_private_candidate_snapshot(path: Path, payload: bytes) -> None:
 def _topology_preflight_bytes(
     candidate_bytes: bytes,
     candidates: tuple[Stage2ArticulationCandidate, ...],
+    *,
+    excluded_candidate_ids: frozenset[str] = frozenset(),
 ) -> bytes:
     if all(
-        candidate.review_status != "ready_for_rigger_input"
-        or len(candidate.moving_part_prims) == 1
+        (
+            candidate.review_status != "ready_for_rigger_input"
+            or len(candidate.moving_part_prims) == 1
+        )
+        and candidate.candidate_id not in excluded_candidate_ids
         for candidate in candidates
     ):
         return candidate_bytes
 
-    raw = json.loads(candidate_bytes)
+    try:
+        raw = json.loads(
+            candidate_bytes,
+            object_pairs_hook=candidate_edge_authoring._object_without_duplicate_keys,
+        )
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise JointRiggerContractError(
+            "stage2_artifact_invalid",
+            f"cannot project Stage 2 candidate document: {exc}",
+        ) from exc
     raw_candidates = raw["candidates"]
     projected_candidates: list[dict[str, Any]] = []
     for raw_candidate, candidate in zip(raw_candidates, candidates, strict=True):
@@ -1012,6 +1418,8 @@ def _topology_preflight_bytes(
                 "validated Stage 2 candidate order does not match its JSON document",
             )
         projected = dict(raw_candidate)
+        if candidate.candidate_id in excluded_candidate_ids:
+            _defer_private_candidate_for_legacy_preflight(projected)
         if (
             candidate.review_status == "ready_for_rigger_input"
             and candidate.moving_part_prims
@@ -1020,6 +1428,57 @@ def _topology_preflight_bytes(
         projected_candidates.append(projected)
     projected_document = dict(raw)
     projected_document["candidates"] = projected_candidates
+    projected_ready_count = sum(
+        candidate.get("review_status") == "ready_for_rigger_input"
+        for candidate in projected_candidates
+    )
+    projected_summary = dict(projected_document.get("summary", {}))
+    # These totals are mandatory in the Stage 2 envelope (and in the stricter
+    # _Stage2BreadthSummary), so projection always repairs them. Optional
+    # counters below remain presence-gated to preserve the producer's shape.
+    projected_summary.update(
+        {
+            "candidate_count": len(projected_candidates),
+            "ready_candidate_count": projected_ready_count,
+            "review_required_candidate_count": (
+                len(projected_candidates) - projected_ready_count
+            ),
+        }
+    )
+    summary_counters = {
+        "joint_type_counts": Counter(
+            str(candidate.get("joint_type_hint", "unknown"))
+            for candidate in projected_candidates
+        ),
+        "review_status_counts": Counter(
+            str(candidate.get("review_status", "review_required"))
+            for candidate in projected_candidates
+        ),
+        "limit_readiness_counts": Counter(
+            str(candidate.get("limit_readiness", "not_provided"))
+            for candidate in projected_candidates
+        ),
+        "reason_code_counts": Counter(
+            str(code)
+            for candidate in projected_candidates
+            for code in candidate.get("unresolved_reason_codes", ())
+        ),
+    }
+    for field, counts in summary_counters.items():
+        if field in projected_summary:
+            projected_summary[field] = dict(sorted(counts.items()))
+    if "unresolved_axis_count" in projected_summary:
+        projected_summary["unresolved_axis_count"] = sum(
+            candidate.get("motion_axis_world") is None
+            and candidate.get("motion_type") != "spherical"
+            for candidate in projected_candidates
+        )
+    if "unresolved_parent_count" in projected_summary:
+        projected_summary["unresolved_parent_count"] = sum(
+            candidate.get("fixed_parent_prim") is None
+            for candidate in projected_candidates
+        )
+    projected_document["summary"] = projected_summary
     return json.dumps(
         projected_document,
         sort_keys=True,
@@ -1027,6 +1486,52 @@ def _topology_preflight_bytes(
         ensure_ascii=False,
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _defer_private_candidate_for_legacy_preflight(
+    candidate: dict[str, Any],
+) -> None:
+    """Remove private opinions from one review-only public preflight row.
+
+    The original sealed bytes remain the sole evidence used by the private
+    adapter.  This copy exists only so the released 0.5 parser can preflight
+    neighboring legacy rows without interpreting 0.6 fields.
+    """
+
+    candidate.pop("source_joint_type", None)
+    candidate.update(
+        {
+            "motion_type": "unknown",
+            "joint_type_hint": "unknown",
+            "axis_hint": "unknown",
+            "motion_axis_world": None,
+            "axis_evidence": [],
+            "lower_limit": None,
+            "upper_limit": None,
+            "limit_unit": "unknown",
+            "limit_source": "unknown",
+            "limit_readiness": "not_provided",
+            "limit_evidence": [],
+            "review_status": "review_required",
+            "unresolved_reason_codes": ["role_deferred_0_5"],
+            "unresolved_questions": [
+                "Use the source-backed Joint 0.6 contract adapter."
+            ],
+        }
+    )
+    raw_field_sources = candidate.get("field_sources")
+    field_sources = (
+        dict(raw_field_sources) if isinstance(raw_field_sources, dict) else {}
+    )
+    field_sources.pop("source_joint_type", None)
+    field_sources.update(
+        {
+            "motion_type": "unknown",
+            "axis_hint": "unknown",
+            "motion_axis_world": "unknown",
+        }
+    )
+    candidate["field_sources"] = field_sources
 
 
 def _minimal_member_roots(paths: set[str]) -> tuple[str, ...]:
@@ -1082,6 +1587,8 @@ def _topology_key(
 
 def _index_candidates(
     candidates: tuple[Stage2ArticulationCandidate, ...],
+    *,
+    source_backed_candidate_ids: frozenset[str] = frozenset(),
 ) -> Mapping[
     tuple[str, str, str, tuple[float, float, float] | None],
     Stage2ArticulationCandidate,
@@ -1091,7 +1598,13 @@ def _index_candidates(
         Stage2ArticulationCandidate,
     ] = {}
     for candidate in candidates:
-        if candidate.motion_type not in _SUPPORTED_STAGE2_TYPES:
+        source_backed = candidate.candidate_id in source_backed_candidate_ids
+        supported_types = (
+            INTERNAL_V1_BREADTH_STAGE2_TYPES
+            if source_backed
+            else _SUPPORTED_STAGE2_TYPES
+        )
+        if candidate.motion_type not in supported_types:
             raise JointRiggerContractError(
                 "stage2_joint_type_unsupported",
                 f"candidate {candidate.candidate_id!r} uses unsupported legacy "
@@ -1102,15 +1615,30 @@ def _index_candidates(
                 "stage2_topology_incomplete",
                 f"candidate {candidate.candidate_id!r} has unresolved endpoints",
             )
-        if candidate.motion_axis_world is None:
+        if candidate.motion_axis_world is None and not (
+            source_backed and candidate.motion_type == "spherical"
+        ):
             raise JointRiggerContractError(
                 "stage2_axis_unresolved",
                 f"candidate {candidate.candidate_id!r} has no stage-frame axis",
             )
+        if (
+            candidate.motion_type == "spherical"
+            and candidate.motion_axis_world is not None
+        ):
+            raise JointRiggerContractError(
+                "stage2_spherical_axis_not_applicable",
+                f"candidate {candidate.candidate_id!r} passive spherical "
+                "topology must not carry a stage-frame axis",
+            )
         axis = (
-            float(candidate.motion_axis_world[0]),
-            float(candidate.motion_axis_world[1]),
-            float(candidate.motion_axis_world[2]),
+            None
+            if candidate.motion_axis_world is None
+            else (
+                float(candidate.motion_axis_world[0]),
+                float(candidate.motion_axis_world[1]),
+                float(candidate.motion_axis_world[2]),
+            )
         )
         primary_moving_prim = candidate.moving_part_prims[0]
         key = _topology_key(
@@ -1188,24 +1716,27 @@ def _link_candidates_for_ready_subset(
     """Require every candidate-supplied parent link to be independently ready."""
 
     result = {key[2]: candidate for key, candidate in ready_candidate_by_key.items()}
-    candidates_by_primary_body: dict[str, list[Stage2ArticulationCandidate]] = (
-        defaultdict(list)
+    candidates_by_member: dict[str, list[Stage2ArticulationCandidate]] = defaultdict(
+        list
     )
     for candidate in candidates:
-        if candidate.moving_part_prims:
-            candidates_by_primary_body[candidate.moving_part_prims[0]].append(candidate)
+        for member_path in candidate.moving_part_prims:
+            candidates_by_member[member_path].append(candidate)
+
+    for member_path, owners in sorted(candidates_by_member.items()):
+        if len(owners) <= 1:
+            continue
+        candidate_ids = ", ".join(
+            repr(candidate.candidate_id)
+            for candidate in sorted(owners, key=lambda item: item.candidate_id)
+        )
+        raise JointRiggerContractError(
+            "stage2_parent_link_ambiguous",
+            f"candidates {candidate_ids} all claim moving member {member_path}",
+        )
 
     for parent_body in sorted(key[1] for key in ready_candidate_by_key):
-        matches = candidates_by_primary_body.get(parent_body, [])
-        if len(matches) > 1:
-            candidate_ids = ", ".join(
-                repr(candidate.candidate_id)
-                for candidate in sorted(matches, key=lambda item: item.candidate_id)
-            )
-            raise JointRiggerContractError(
-                "stage2_parent_link_ambiguous",
-                f"candidates {candidate_ids} all supply parent link {parent_body}",
-            )
+        matches = candidates_by_member.get(parent_body, [])
         if matches:
             parent_candidate = matches[0]
             if (
@@ -1225,6 +1756,13 @@ def _link_candidates_for_ready_subset(
                     f"parent link {parent_body!r} depends on candidate "
                     f"{parent_candidate.candidate_id!r}, which is not independently "
                     f"ready: {detail}",
+                )
+            if parent_body != parent_candidate.moving_part_prims[0]:
+                raise JointRiggerContractError(
+                    "stage2_parent_link_aggregate_member_unsupported",
+                    f"parent link {parent_body!r} is a secondary member of ready "
+                    f"aggregate candidate {parent_candidate.candidate_id!r}; no "
+                    "canonical aggregate-parent semantics are proven",
                 )
             if parent_body not in result:  # pragma: no cover - readiness invariant
                 raise JointRiggerContractError(
@@ -1264,17 +1802,35 @@ def _evidence(
     properties: tuple[str, ...],
     field: str,
     derivation: str = _DERIVATION,
+    source_proof: SourceBackedBreadthProof | None = None,
 ) -> FieldProvenanceV1:
+    evidence = (
+        f"Validated Stage 2 candidate {candidate.candidate_id!r} supplies "
+        f"first-class {field}."
+    )
+    if source_proof is not None:
+        authorities = [
+            f"motion={source_proof.motion_source}",
+            f"parent={source_proof.parent_source}",
+            f"connectivity={source_proof.connectivity_source}",
+        ]
+        if source_proof.axis_source is not None:
+            authorities.append(f"axis={source_proof.axis_source}")
+        if source_proof.limit is not None:
+            authorities.append(f"limit={source_proof.limit.source}")
+        evidence = (
+            f"Shared source proof admitted Stage 2 candidate "
+            f"{candidate.candidate_id!r} for first-class {field}; "
+            + ", ".join(authorities)
+            + "."
+        )
     return FieldProvenanceV1(
         source="accepted_manifest",
         artifact=artifact,
         prim_path=prim_path,
         properties=properties,
         derivation=derivation,
-        evidence=(
-            f"Validated Stage 2 candidate {candidate.candidate_id!r} supplies "
-            f"first-class {field}."
-        ),
+        evidence=evidence,
     )
 
 
@@ -1304,9 +1860,11 @@ def _rebind_limit(
     artifact: ArtifactIdentityV1,
     candidate: Stage2ArticulationCandidate,
     prim_path: str,
+    source_proof: SourceBackedBreadthProof | None = None,
 ) -> JointLimitV1 | None:
     if limit is None:
         return None
+    source_backed_direct = source_proof is not None
     return JointLimitV1(
         lower=limit.lower,
         upper=limit.upper,
@@ -1315,10 +1873,31 @@ def _rebind_limit(
             artifact,
             candidate,
             prim_path=prim_path,
-            properties=("lower_limit", "upper_limit", "limit_unit"),
+            properties=(
+                (
+                    "lower_limit",
+                    "upper_limit",
+                    "limit_unit",
+                    "limit_source",
+                    "limit_readiness",
+                    "limit_evidence",
+                )
+                if source_backed_direct
+                else ("lower_limit", "upper_limit", "limit_unit")
+            ),
             field="limit",
+            derivation=(
+                SOURCE_BACKED_DERIVATION if source_backed_direct else _DERIVATION
+            ),
+            source_proof=source_proof,
         ),
     )
 
 
-__all__ = ["build_articulation_contract_from_stage2"]
+__all__ = [
+    "INTERNAL_V1_BREADTH_CAPABILITY_IDS",
+    "INTERNAL_V1_BREADTH_STAGE2_TYPES",
+    "PUBLIC_OWNED_CORE_STAGE2_CAPABILITY_IDS",
+    "PUBLIC_OWNED_CORE_STAGE2_TYPES",
+    "build_articulation_contract_from_stage2",
+]

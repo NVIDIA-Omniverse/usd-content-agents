@@ -258,6 +258,38 @@ def render_prop_articulation_system_prompt() -> str:
                 "label alone does not force role unknown."
             ),
             "",
+            "## Semantic role and motion capability",
+            (
+                "Keep role on the closed 0.5 enum above. When an independently "
+                "moving mechanism is recognizable but its semantic noun is outside "
+                "that enum, set role unknown and add semantic_role as a concise "
+                "lowercase underscore token. Do not map a semantic noun directly to "
+                "a joint type, axis, endpoint, limit, drive, control, or dynamic claim."
+            ),
+            (
+                "For such a mechanism, add one typed motion_capability decision. Use "
+                "kind passive_rotation only when supplied visual or source evidence "
+                "supports both free/passive behavior and rotation. That capability "
+                "maps only to a reviewable revolute candidate; use axis_hint unknown "
+                "and omit rigger endpoints or limits unless separate explicit evidence "
+                "supports them. Never infer continuous or unbounded travel from the "
+                "semantic role or likely behavior."
+            ),
+            (
+                "Use kind unsupported when the observed motion needs a contract this "
+                "workflow does not provide, and name that contract in missing_contract. "
+                "Use kind unresolved when motion kind, passivity, or the selected "
+                "motion contract lacks evidence, and list one or more of motion_kind, "
+                "passivity, and motion_contract as individual missing_evidence values. "
+                "Unsupported and unresolved decisions must keep "
+                "is_articulation_candidate false and joint_type_hint unknown; never "
+                "fall back to a different joint type."
+            ),
+            (
+                "Every motion_capability decision carries source and evidence. Use "
+                "source predicted for a decision made from the supplied model context."
+            ),
+            "",
             "## Rigid assembly membership and role completeness",
             (
                 "Classify every rendered geometry prim as exactly one supported role. "
@@ -334,6 +366,26 @@ def render_prop_articulation_system_prompt() -> str:
                 "role, moving joint type, stage-space axis, and instance_id, and must not "
                 "claim a different parent or moving body. Do not emit several joints for "
                 "the geometry members of one rigid link."
+            ),
+            (
+                "Classify membership separately from joint type. Use membership "
+                "disposition independent_motion only when this physical owner has "
+                "its own degree of freedom; co_rigid when this prim is geometry of "
+                "another physical owner; explicit_fixed only for a distinct link "
+                "whose reviewed attachment must remain an explicit two-body fixed "
+                "constraint; and unresolved when evidence is insufficient or "
+                "conflicting. Give exact absolute physical_owner_prim and, for an "
+                "explicit fixed attachment, exact attachment_parent_prim and "
+                "attachment_child_prim. Never turn likely co-motion or a moving "
+                "joint hint inherited from a carrier into independent motion."
+            ),
+            (
+                "The membership object records only the disposition and exact "
+                "identities. It does not supply attachment frames or authorize fixed "
+                "authoring; fixed frame validation remains a downstream reviewed "
+                "capability. Use source predicted for model evidence, and never claim "
+                "accepted_manifest, human_reviewed, or authored provenance unless it "
+                "is explicitly supplied by the input context."
             ),
             "",
             "## Functional motion axes and repeated parts",
@@ -532,6 +584,14 @@ def render_prop_articulation_system_prompt() -> str:
             '  "component_type": "descriptive component category",',
             '  "component_name": "descriptive name of this prim",',
             '  "role": "body|drawer|door|lid|wheel|caster_frame|knob|unknown",',
+            '  "semantic_role": "recognized open semantic noun or omit",',
+            '  "motion_capability": {',
+            '    "kind": "passive_rotation|unsupported|unresolved",',
+            '    "source": "predicted",',
+            '    "evidence": "evidence for the capability disposition",',
+            '    "missing_evidence": ["motion_kind"],',
+            '    "missing_contract": "required contract name or null"',
+            "  },",
             '  "instance_id": "stable physical rigid-link membership identifier or null",',
             '  "is_articulation_candidate": true|false,',
             ('  "joint_type_hint": "revolute|prismatic|spherical|fixed|none|unknown",'),
@@ -542,6 +602,19 @@ def render_prop_articulation_system_prompt() -> str:
             '  "confidence": "high|medium|low",',
             '  "evidence": "brief visual evidence for the role and joint decision",',
             '  "reasoning": "brief explanation",',
+            '  "membership": {',
+            (
+                '    "disposition": "co_rigid|explicit_fixed|independent_motion|unresolved",'
+            ),
+            '    "physical_owner_prim": "exact physical owner prim path or null",',
+            (
+                '    "attachment_parent_prim": "exact explicit-fixed parent path or null",'
+            ),
+            ('    "attachment_child_prim": "exact explicit-fixed child path or null",'),
+            '    "confidence": "high|medium|low",',
+            '    "source": "predicted",',
+            '    "rationale": "membership evidence"',
+            "  },",
             '  "rigger_evidence": {',
             (
                 '    "body0": {"value": "exact fixed parent prim path", '
@@ -595,8 +668,12 @@ def render_prop_articulation_user_prompt() -> str:
         "Please analyze this 3D component for prop articulation.\n\n"
         "Determine:\n"
         "1. Which supported 0.5 role best fits this prim, or unknown.\n"
-        "2. Whether this prim is likely part of a simple joint.\n"
-        "3. The likely joint type and motion axis if visible.\n"
-        "4. The likely parent/support and child/moving part if inferable.\n"
-        "5. The evidence and confidence for the decision.\n"
+        "2. For a recognizable mechanism outside that role enum, its semantic_role "
+        "and typed motion_capability disposition.\n"
+        "3. Whether this prim is likely part of a simple joint.\n"
+        "4. The likely joint type and motion axis if visible.\n"
+        "5. The likely parent/support and child/moving part if inferable.\n"
+        "6. Whether the prim is co-rigid membership, an explicit fixed attachment, "
+        "independent motion, or unresolved.\n"
+        "7. The evidence and confidence for the decision.\n"
     )

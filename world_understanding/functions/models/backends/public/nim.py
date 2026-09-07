@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """NIM backend for chat, VLM, and image generation models."""
 
-from typing import Any
+from typing import Any, ClassVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -12,10 +12,69 @@ from world_understanding.functions.models.backends.registry import (
     register_vlm_backend,
 )
 from world_understanding.functions.models.nim_timeout import _apply_nim_chat_timeout
+from world_understanding.functions.models.token_limits import (
+    ensure_model_output_token_budget,
+    model_output_token_floor,
+)
 from world_understanding.utils.credentials import get_nim_api_key_for_base_url
 
-_DEFAULT_NIM_MODEL = "google/gemma-4-31b-it"
+_DEFAULT_NIM_MODEL = "moonshotai/kimi-k3"
 _DEFAULT_TIMEOUT_SECONDS = 120.0
+
+
+def _normalize_nim_output_token_kwargs(
+    model_name: str,
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    """Normalize per-call NIM output tokens before payload construction."""
+    options = dict(kwargs)
+    max_completion_tokens = options.pop("max_completion_tokens", None)
+    max_tokens = options.pop("max_tokens", None)
+    requested = (
+        max_completion_tokens if max_completion_tokens is not None else max_tokens
+    )
+    if requested is not None:
+        options["max_tokens"] = ensure_model_output_token_budget(
+            model_name,
+            requested,
+        )
+    return options
+
+
+class _NIMOutputTokenBudgetMixin:
+    """Apply model output-token policy to every ChatNVIDIA request path."""
+
+    _nim_output_token_model: ClassVar[str]
+
+    def _prepare_inputs_and_payload(
+        self,
+        messages: Any,
+        stop: Any = None,
+        stream: bool = False,
+        **kwargs: Any,
+    ) -> Any:
+        parent: Any = super()
+        return parent._prepare_inputs_and_payload(
+            messages,
+            stop=stop,
+            stream=stream,
+            **_normalize_nim_output_token_kwargs(
+                self._nim_output_token_model,
+                kwargs,
+            ),
+        )
+
+
+def _request_budgeted_chat_type(chat_type: Any, model_name: str) -> Any:
+    """Compose request normalization with the lazily imported SDK class."""
+    if not isinstance(chat_type, type):
+        # Unit-test mocks are callable instances rather than SDK classes.
+        return chat_type
+    return type(
+        f"_RequestBudgeted{chat_type.__name__}",
+        (_NIMOutputTokenBudgetMixin, chat_type),
+        {"_nim_output_token_model": model_name},
+    )
 
 
 def create_nim_chat(
@@ -40,8 +99,18 @@ def create_nim_chat(
         chat_kwargs["temperature"] = temperature
     if top_p is not None:
         chat_kwargs["top_p"] = top_p
-    if max_tokens is not None:
-        chat_kwargs["max_tokens"] = max_tokens
+    effective_model = model or _DEFAULT_NIM_MODEL
+    max_completion_tokens = kwargs.pop("max_completion_tokens", None)
+    requested_max_tokens = (
+        max_completion_tokens if max_completion_tokens is not None else max_tokens
+    )
+    if requested_max_tokens is None:
+        requested_max_tokens = model_output_token_floor(effective_model)
+    if requested_max_tokens is not None:
+        chat_kwargs["max_tokens"] = ensure_model_output_token_budget(
+            effective_model,
+            requested_max_tokens,
+        )
     # api_version and other stray keys are not valid ChatNVIDIA ctor params;
     # langchain would otherwise push them into model_kwargs and they would
     # be serialized as body fields. Strict NIM serving (e.g. Nemotron Nano
@@ -60,8 +129,9 @@ def create_nim_chat(
     ctor_kwargs: dict[str, Any] = {}
     if streaming:
         ctor_kwargs["streaming"] = True
-    chat_model = ChatNVIDIA(
-        model=model or _DEFAULT_NIM_MODEL,
+    request_budgeted_chat = _request_budgeted_chat_type(ChatNVIDIA, effective_model)
+    chat_model = request_budgeted_chat(
+        model=effective_model,
         nvidia_api_key=api_key,
         **ctor_kwargs,
         **chat_kwargs,

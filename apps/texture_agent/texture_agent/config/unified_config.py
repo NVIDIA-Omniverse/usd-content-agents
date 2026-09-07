@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+)
 from world_understanding.utils.credentials import (
     LOCAL_NIM_API_KEY_PLACEHOLDER,
     is_local_base_url,
@@ -79,6 +82,11 @@ def load_config(
         if not usd_path.is_absolute():
             usd_path = (config_dir / usd_path).resolve()
         input_cfg["usd_path"] = str(usd_path)
+    if "dependency_root" in input_cfg:
+        dependency_root = Path(input_cfg["dependency_root"])
+        if not dependency_root.is_absolute():
+            dependency_root = (config_dir / dependency_root).resolve()
+        input_cfg["dependency_root"] = str(dependency_root)
 
     # Apply defaults for texture config
     texture = config.setdefault("texture", {})
@@ -124,6 +132,27 @@ def load_config(
     usd_path = Path(input_cfg["usd_path"])
     if not usd_path.exists():
         raise FileNotFoundError(f"Input USD file does not exist: {usd_path}")
+    dependency_root_value = input_cfg.get("dependency_root")
+    if dependency_root_value:
+        dependency_root = Path(dependency_root_value)
+        if not dependency_root.is_dir():
+            raise ValueError(
+                "input.dependency_root must be an existing directory: "
+                f"{dependency_root}"
+            )
+        resolved_dependency_root = dependency_root.resolve()
+        if resolved_dependency_root == Path(resolved_dependency_root.anchor):
+            raise ValueError(
+                "input.dependency_root must not resolve to the filesystem root: "
+                f"{dependency_root}"
+            )
+        try:
+            usd_path.resolve().relative_to(resolved_dependency_root)
+        except ValueError as exc:
+            raise ValueError(
+                "input.usd_path must be inside input.dependency_root: "
+                f"{usd_path} is outside {dependency_root}"
+            ) from exc
 
     # Create working directory structure
     working_dir_path = Path(working_dir)
@@ -188,6 +217,7 @@ def apply_runtime_endpoint_overrides(config: dict[str, Any]) -> None:
     llm_overrides = {
         "backend": _env_value("TA_LLM_BACKEND"),
         "model": _env_value("TA_LLM_MODEL"),
+        "reasoning_effort": _env_value("TA_LLM_REASONING_EFFORT"),
         "base_url": llm_base_url,
         "api_key": _env_value("TA_LLM_API_KEY"),
         "api_key_env": _env_value("TA_LLM_API_KEY_ENV"),
@@ -206,6 +236,19 @@ def apply_runtime_endpoint_overrides(config: dict[str, Any]) -> None:
             llm["backend"] = backend
         if model := llm_overrides["model"]:
             llm["model"] = model
+        requested_reasoning_effort = llm_overrides["reasoning_effort"] or llm.get(
+            "reasoning_effort"
+        )
+        reasoning_effort = resolve_reasoning_effort_for_backend(
+            llm.get("backend"),
+            llm.get("model"),
+            explicit=requested_reasoning_effort,
+            interface="chat",
+        )
+        if reasoning_effort:
+            llm["reasoning_effort"] = reasoning_effort
+        else:
+            llm.pop("reasoning_effort", None)
         if base_url := llm_overrides["base_url"]:
             llm["base_url"] = base_url
         elif backend_changed:
@@ -336,10 +379,12 @@ def config_to_context(config: dict[str, Any]) -> dict[str, Any]:
     """
     return {
         "usd_path": config["input"]["usd_path"],
+        "usd_dependency_root": config["input"].get("dependency_root"),
         "prim_paths": config["input"].get("prim_paths"),
         "working_dir": config["project"]["working_dir"],
         "texture_config": config.get("texture", {}),
         "material_textures": config.get("material_textures", {}),
+        "cached_material_textures": config.get("cached_material_textures", {}),
         "blend_config": config["steps"].get("blend_textures", {}),
         "render_preview_config": config["steps"].get("render_previews", {}),
         "render_config": config["steps"].get("render", {}),

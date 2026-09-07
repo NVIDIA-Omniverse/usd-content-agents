@@ -1,0 +1,22 @@
+# Exact isolated OVRTX render-daemon runtime, provisioned by
+# usd_core/render/ovrtx.py::_provision_venv from the hash-pinned lock compiled
+# out of this profile (pylock.ovrtx-runtime.toml, installed with
+# --require-hashes --no-deps so nothing outside the reviewed lock can land).
+#
+# ovrtx/ovstage/Warp must match the qualified runtime profile in ovrtx.py and resolve only from
+# pypi.nvidia.com; numpy/pillow are the repo's tested constraints
+# (requirements/constraints.txt). Regenerate the lock from the repo root with:
+#
+#   bash scripts/gen-ovrtx-lock.sh
+#
+# ALWAYS regenerate through that script, never with a bare `uv pip compile`:
+# after compiling it re-appends the `# pragma: allowlist secret` marker to
+# every sha256 digest line, which secret scanners (detect-secrets) require to
+# not misread the package digests as leaked credentials — including scanners
+# in repos that vendor this tree and pass no exclusion flags. A lock missing
+# the pragmas fails tests/test_pr819_review_fixes.py.
+ovrtx==0.4.1.364340
+ovstage==0.1.1.355824
+warp-lang==1.16.0
+numpy==2.4.6
+pillow==12.3.0

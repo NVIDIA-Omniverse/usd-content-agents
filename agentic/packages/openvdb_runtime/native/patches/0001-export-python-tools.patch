@@ -1,0 +1,32 @@
+diff --git a/openvdb/openvdb/python/CMakeLists.txt b/openvdb/openvdb/python/CMakeLists.txt
+index a2a1093f..15287a4b 100644
+--- a/openvdb/openvdb/python/CMakeLists.txt
++++ b/openvdb/openvdb/python/CMakeLists.txt
+@@ -72,6 +72,7 @@ nanobind_add_module(openvdb_python ${NANOBIND_MODULE_ARGS} NB_STATIC
+   pyOpenVDBModule.cc
+   pyPointGrid.cc
+   pyTransform.cc
++  pyTools.cc
+   pyVec3Grid.cc)
+ unset(NANOBIND_MODULE_ARGS)
+
+diff --git a/openvdb/openvdb/python/pyOpenVDBModule.cc b/openvdb/openvdb/python/pyOpenVDBModule.cc
+index e0e6734c..39cbbf05 100644
+--- a/openvdb/openvdb/python/pyOpenVDBModule.cc
++++ b/openvdb/openvdb/python/pyOpenVDBModule.cc
+@@ -29,6 +29,7 @@ void exportFloatGrid(nb::module_ m);
+ void exportIntGrid(nb::module_ m);
+ void exportVec3Grid(nb::module_ m);
+ void exportPointGrid(nb::module_ m);
++void exportTools(nb::module_ m);
+
+ namespace _openvdbmodule {
+
+@@ -366,6 +367,7 @@ NB_MODULE(openvdb, m)
+     exportIntGrid(m);
+     exportVec3Grid(m);
+     exportPointGrid(m);
++    exportTools(m);
+
+
+     m.def("read",

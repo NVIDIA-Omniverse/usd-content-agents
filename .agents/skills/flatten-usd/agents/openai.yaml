@@ -1,4 +1,0 @@
-interface:
-  display_name: "Flatten USD"
-  short_description: "Help with Flatten USD tasks"
-  default_prompt: "Use $flatten-usd to flatten a composed USD stage into a single self-contained file."

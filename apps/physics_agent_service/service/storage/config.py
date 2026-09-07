@@ -6,6 +6,11 @@ import os
 from dataclasses import dataclass
 
 
+def _env_int(name: str, default: int) -> int:
+    """Parse an integer environment value, treating an empty value as absent."""
+    return int(os.getenv(name) or str(default))
+
+
 @dataclass
 class StorageConfig:
     kind: str = os.getenv("PA_STORAGE_KIND", "local")  # local | s3
@@ -26,4 +31,5 @@ class StorageConfig:
         os.getenv("PA_STORAGE_S3_CREATE_BUCKET", "false").lower() == "true"
     )
     s3_presign: bool = os.getenv("PA_STORAGE_S3_PRESIGN", "true").lower() == "true"
-    s3_sessions_cache_ttl: int = int(os.getenv("PA_STORAGE_S3_SESSIONS_CACHE_TTL", "5"))
+    s3_sessions_cache_ttl: int = _env_int("PA_STORAGE_S3_SESSIONS_CACHE_TTL", 5)
+    s3_generation_retention: int = _env_int("PA_STORAGE_S3_GENERATION_RETENTION", 5)

@@ -70,6 +70,8 @@ class JointAgentClient:
         self._http.headers.update({"User-Agent": "joint-agent-client/1.0"})
         if self._token:
             self._http.headers.update({"Authorization": f"Bearer {self._token}"})
+        if version_id := os.getenv("NVCF_INVOKE_VERSION_ID"):
+            self._http.headers.update({"Function-Version-Id": version_id})
 
     # -------- Core operations
     def upload_usd(

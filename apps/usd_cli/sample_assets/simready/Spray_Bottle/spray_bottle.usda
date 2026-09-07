@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "spray_bottle"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "spray_bottle" (
+    prepend apiSchemas = ["GeomModelAPI"]
+    assetInfo = {
+        string name = "spray_bottle"
+    }
+    kind = "component"
+    prepend payload = @./Payload/Contents.usda@
+)
+{
+    float3[] extentsHint = [(-0.058622, -0.052945, 0.000666), (0.049303, 0.045002, 0.248178)]
+}

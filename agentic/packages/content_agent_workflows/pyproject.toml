@@ -2,23 +2,34 @@
 name = "content-agent-workflows"
 version = "0.1.0"
 description = "Reusable workflow contracts for agentic asset workflows"
-requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
 authors = [
     {name = "Omniverse GenAI Team"},
 ]
 dependencies = [
-    "content-workbench",
-    "content-workbench-agent-client",
+    "cad-verifier",
+    "defusedxml>=0.7.1,<1",
     "filelock>=3.20.3",
+    "geometry-repair",
+    "joint-agent",
+    "geometry-authoring-contracts",
+    "numpy>=2.3,<3.0.0",
+    "sdf-tools",
     "physics-agent",
     "pillow>=12.1.1,<13.0.0",
     "pydantic>=2.11,<3.0.0",
     "PyYAML>=6.0,<7",
     "requests>=2.32,<3",
+    "texture-agent",
+    "usd-cli[cli,server]",
     "world-understanding",
 ]
 
 [project.scripts]
+content-agent-memory = "content_agent_workflows.common.memory_cli:main"
+content-workflow-asset-state = "content_agent_workflows.asset_composition.cli:main"
 content-workflow-convert-to-usd = "content_agent_workflows.convert_to_usd.cli:main"
 content-workflow-convert-to-usd-preflight = "content_agent_workflows.convert_to_usd.preflight:main"
 content-workflow-scene-decompose = "content_agent_workflows.scene_decomposition.cli:main"
@@ -28,13 +39,29 @@ content-workflow-simready-conform-profile = "content_agent_workflows.simready.co
 content-workflow-simready-generate-grasp-plan = "content_agent_workflows.simready.grasp_plan_generator:main"
 content-workflow-simready-physics-profile-plan = "content_agent_workflows.simready.physics_profile_plan:main"
 content-workflow-simready-preflight = "content_agent_workflows.simready.preflight:main"
+content-workflow-simready-runtime-validate = "content_agent_workflows.simready.runtime_benchmark:main"
 content-workflow-simready-validate-profile = "content_agent_workflows.simready.validate_profile:main"
 
+[project.entry-points."content_agent_workflows.asset_leaf_runtime_bundles"]
+shared = "content_agent_workflows.asset_composition.catalog_adapters:shared_asset_leaf_runtime_bundle"
+release-composed = "content_agent_workflows.asset_composition.release_leaf_adapters:release_composed_asset_leaf_runtime_bundle"
+
 [tool.uv.sources]
-content-workbench = { path = "../content_workbench", editable = true }
-content-workbench-agent-client = { path = "../content_workbench_agent_client", editable = true }
+cad-verifier = { path = "../cad_verifier", editable = true }
+geometry-repair = { path = "../geometry_repair", editable = true }
+joint-agent = { path = "../../../apps/joint_agent", editable = true }
+geometry-authoring-contracts = { path = "../geometry_authoring_contracts", editable = true }
+sdf-tools = { path = "../sdf_tools", editable = true }
 physics-agent = { path = "../../../apps/physics_agent", editable = true }
+texture-agent = { path = "../../../apps/texture_agent", editable = true }
+usd-cli = { path = "../../../apps/usd_cli", editable = true }
 world-understanding = { path = "../../..", editable = true }
+
+[tool.uv]
+override-dependencies = [
+    # world-understanding supplies usd-exchange as the sole pxr provider.
+    "usd-core; python_version < '0'",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -44,6 +71,21 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["content_agent_workflows"]
+ignore-vcs = true
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/pyproject.toml",
+    "/content_agent_workflows",
+    "/docs/verified_operation_ingress.md",
+    "/examples",
+    "/tests",
+]
+exclude = [
+    "/docs/internal",
+    "/tests/internal",
+]
 ignore-vcs = true
 
 [build-system]

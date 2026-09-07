@@ -2118,6 +2118,37 @@ def redact_sensitive_path(value: str | os.PathLike[str] | None) -> str:
     return str(redact_sensitive_config(path_text, _path_context=True))
 
 
+_LOG_LINE_BREAK_ESCAPES = str.maketrans(
+    {
+        "\r": r"\r",
+        "\n": r"\n",
+        "\v": r"\v",
+        "\f": r"\f",
+        "\x1c": r"\x1c",
+        "\x1d": r"\x1d",
+        "\x1e": r"\x1e",
+        "\x85": r"\x85",
+        "\u2028": r"\u2028",
+        "\u2029": r"\u2029",
+    }
+)
+
+
+def redact_sensitive_log_text(value: Any) -> str:
+    """Return one credential-safe, single-line representation for logs.
+
+    Logging arguments may originate in filenames, paths, model output, or
+    exception text. Redact credential-bearing content first, then escape every
+    Unicode line-break form so one value cannot forge an additional log entry.
+    """
+    try:
+        projected = redact_sensitive_config(value)
+        safe_text = redact_sensitive_path(str(projected))
+        return safe_text.translate(_LOG_LINE_BREAK_ESCAPES)
+    except Exception:  # pragma: no cover - defensive diagnostic boundary
+        return "<unavailable>"
+
+
 def resolve_path_with_safe_diagnostics(
     value: str | os.PathLike[str], *, label: str
 ) -> Path:
@@ -2262,7 +2293,7 @@ _LLM_NIM_ENV_BASE_URL_VARS = (
     "MA_LLM_NIM_BASE_URL",
     *_VLM_NIM_ENV_BASE_URL_VARS,
 )
-_NIM_API_KEY_ENV_VARS = (
+NIM_API_KEY_ENV_VARS = (
     "WU_NIM_API_KEY",
     "PA_NIM_API_KEY",
     "TA_NIM_API_KEY",
@@ -2496,7 +2527,7 @@ def get_nim_api_key_for_base_url(
         return LOCAL_NIM_API_KEY_PLACEHOLDER
 
     is_nvidia_endpoint = is_nvidia_provider_base_url(base_url)
-    nim_api_key = _first_env_value(_NIM_API_KEY_ENV_VARS)
+    nim_api_key = _first_env_value(NIM_API_KEY_ENV_VARS)
     if not is_nvidia_endpoint:
         # Non-hosted NIM (local sidecar or custom remote NIM URL): the
         # operator must opt in with a NIM-scoped key (real value or the

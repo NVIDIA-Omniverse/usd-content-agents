@@ -680,6 +680,14 @@ class EventBus:
             state["failed_step"] = event.step
             state["failed_at"] = event.timestamp
             state["_pipeline_terminal"] = True
+            if event.extra and isinstance(event.extra.get("error_diagnostic"), dict):
+                state["error_diagnostic"] = to_json_safe(
+                    event.extra["error_diagnostic"]
+                )
+            if event.extra and isinstance(event.extra.get("failure_evidence"), dict):
+                state["failure_evidence"] = to_json_safe(
+                    event.extra["failure_evidence"]
+                )
 
             # Persist failed status to disk
             await self._persist_status(state["session_id"], "failed")
@@ -730,6 +738,8 @@ class EventBus:
             "failed_at",
             "cancelled_at",
             "error",
+            "error_diagnostic",
+            "failure_evidence",
             "failed_step",
         ):
             state.pop(key, None)

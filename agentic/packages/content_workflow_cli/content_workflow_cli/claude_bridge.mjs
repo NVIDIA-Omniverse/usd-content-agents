@@ -7,6 +7,9 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
+import { preToolUsePythonPolicy } from "./codex_sdk_bridge.mjs";
+
+const REASONING_ADAPTER_HOSTS = new Set(["127.0.0.1", "[::1]"]);
 const DEFAULT_TOOLS = [
   "Read",
   "Glob",
@@ -27,6 +30,7 @@ const SUPPORTED_CLAUDE_CONFIG_KEYS = new Set([
   "settings",
 ]);
 const SECURITY_CRITICAL_CLAUDE_CONFIG_KEYS = [
+  "additionalDirectories",
   "allowedTools",
   "allowDangerouslySkipPermissions",
   "cwd",
@@ -39,6 +43,7 @@ const SECURITY_CRITICAL_CLAUDE_CONFIG_KEYS = [
 ];
 const DANGEROUS_CLAUDE_ENV_KEYS = new Set([
   "ALL_PROXY",
+  "CONTENT_WORKFLOW_CONTROLLED_ARTIFACT_ROOT",
   "HTTP_PROXY",
   "HTTPS_PROXY",
   "LD_PRELOAD",
@@ -46,10 +51,41 @@ const DANGEROUS_CLAUDE_ENV_KEYS = new Set([
   "NODE_OPTIONS",
   "NO_PROXY",
   "PATH",
+  "PYTHONHOME",
+  "PYTHONINSPECT",
+  "PYTHONNOUSERSITE",
+  "PYTHONPATH",
+  "PYTHONSAFEPATH",
+  "PYTHONSTARTUP",
+  "PYTHONUSERBASE",
+  "PYTHONWARNINGS",
+  "3DSC_NO_DAEMON",
+  "OV_NO_DAEMON",
+  "USD_CLI_NO_DAEMON",
+  "USD_CLI_AGENT",
+  "USD_CLI_REMOTE_RENDER_STAGING_ROOT",
+  "WARP_CACHE_PATH",
+  "XDG_CACHE_HOME",
   "all_proxy",
   "http_proxy",
   "https_proxy",
   "no_proxy",
+]);
+const USD_CLI_CREDENTIAL_ENV_KEYS = new Set([
+  "OVRTX_API_KEY",
+  "3DSC_RENDER_REMOTE_API_KEY",
+  "OV_RENDER_REMOTE_API_KEY",
+  "USD_CLI_RENDER_REMOTE_API_KEY",
+  "3DSC_RENDER_BACKEND_API_KEYS_JSON",
+  "OV_RENDER_BACKEND_API_KEYS_JSON",
+  "USD_CLI_RENDER_BACKEND_API_KEYS_JSON",
+  "USD_CLI_TOKEN",
+  "USD_CLI_SERVER_TOKEN",
+  "OV_TOKEN",
+  "OV_SERVER_TOKEN",
+  "3DSC_TOKEN",
+  "3DSC_SERVER_TOKEN",
+  "CONTENT_WORKFLOW_PARENT_USD_CLI_TOKEN",
 ]);
 const BASE_SYSTEM_PROMPT_APPEND =
   "You are running as a non-interactive child agent inside content-workflow-cli. " +
@@ -61,14 +97,14 @@ const BASE_SYSTEM_PROMPT_APPEND =
   "job), run it as one blocking Bash call, such as a shell loop that polls and " +
   "sleeps until the work is done (e.g. `until <condition>; do sleep N; done`), " +
   "or simply run it in the foreground and wait for it to exit. " +
-  "Bash commands run in a mandatory OS sandbox: use Bash for Content " +
-  "Workbench requests and for creating artifacts inside the run directory. " +
+  "Bash commands run in a mandatory OS sandbox: use Bash for selected " +
+  "scene-backend requests and for creating artifacts inside the run directory. " +
   "The sandbox blocks writes outside that directory; only the configured " +
-  "Workbench host is pre-authorized for Bash network access. Use sandboxed " +
+  "scene-backend hosts are pre-authorized for Bash network access. Use sandboxed " +
   "Bash to read input paths outside the run directory; those paths are not " +
   "added as writable Claude workspaces.";
-const MATERIAL_SYSTEM_PROMPT_APPEND =
-  "Use the Content Workbench API for scene inspection/material edits/renders, and do not modify source USD files.";
+const MATERIAL_USD_CLI_SYSTEM_PROMPT_APPEND =
+  "Use the workflow-selected usd-cli scene backend through the package-owned usd-cli-tel executable, require OVRTX for renders, and do not modify source USD files.";
 
 async function main() {
   const requestPath = process.argv[2];
@@ -83,35 +119,61 @@ async function main() {
   let resultMessage = null;
   const prompt = await buildPrompt(request);
   validateClaudePrompt(prompt);
-  const artifacts = prepareRunArtifacts(request);
+  // Do not create the adopted child-final artifact until the structured result
+  // is known to be present.  Evidence remains available for failed turns.
+  const artifacts = prepareRunArtifacts(request, false);
+  let observableArtifact = null;
 
   try {
+    observableArtifact = request.observable_events_path
+      ? prepareRunArtifact(request, request.observable_events_path)
+      : null;
     for await (const message of query({
       prompt,
       options: buildOptions(request),
     })) {
       messages.push(toJsonable(message));
       writeProgress(message);
+      const insight = observableInsightFromMessage(message);
+      if (insight && observableArtifact) {
+        appendPreparedRunArtifact(
+          observableArtifact,
+          JSON.stringify(sanitizeObservableRecord(insight)) + "\n",
+        );
+      }
       if (message?.type === "result") {
         resultMessage = message;
-        finalResponse = String(message.result ?? "");
+        finalResponse = finalResponseFromResult(message, request.output_schema);
       }
     }
 
-    if (!finalResponse) {
+    const missingStructuredOutput = !finalResponse && request.output_schema;
+    if (!finalResponse && !missingStructuredOutput) {
       finalResponse = collectAssistantText(messages);
     }
 
-    writePreparedRunArtifact(artifacts[0], finalResponse);
     writePreparedRunArtifact(
-      artifacts[1],
+      artifacts[0],
       JSON.stringify(toJsonable(messages), null, 2),
     );
     if (request.result_path) {
       writePreparedRunArtifact(
-        artifacts[2],
+        artifacts[1],
         JSON.stringify(toJsonable(resultMessage ?? {}), null, 2),
       );
+    }
+
+    if (missingStructuredOutput) {
+      throw new Error(
+        "Claude structured-output turn completed without structured_output",
+      );
+    }
+
+    const finalArtifact = prepareRunArtifact(request, request.child_final_path);
+    try {
+      writePreparedRunArtifact(finalArtifact, finalResponse);
+    } finally {
+      fs.closeSync(finalArtifact.fd);
     }
 
     if (finalResponse) {
@@ -124,7 +186,88 @@ async function main() {
     for (const artifact of artifacts) {
       fs.closeSync(artifact.fd);
     }
+    if (observableArtifact) {
+      fs.closeSync(observableArtifact.fd);
+    }
   }
+}
+
+export function observableInsightFromMessage(message) {
+  if (message?.type !== "assistant") {
+    return null;
+  }
+  const blocks = Array.isArray(message.message?.content)
+    ? message.message.content
+    : [];
+  const publicText = blocks
+    .filter((block) => block?.type === "text")
+    .map((block) => String(block.text ?? "").trim())
+    .filter(Boolean)
+    .join("\n");
+  const toolNames = blocks
+    .filter((block) => block?.type === "tool_use")
+    .map((block) => String(block.name ?? "tool"));
+  if (!publicText && toolNames.length === 0) {
+    return null;
+  }
+  return {
+    schema_version: "content-agents.observable-insight.v1",
+    id: String(message.uuid ?? message.message?.id ?? `assistant-${Date.now()}`),
+    time: new Date().toISOString(),
+    phase: "reasoning",
+    source: "claude_sdk",
+    kind: publicText ? "commentary" : "action",
+    title: publicText ? "Agent update" : "Agent tool call",
+    summary: boundedObservableText(publicText || toolNames.join(", ")),
+    status: "success",
+  };
+}
+
+function boundedObservableText(value, limit = 1200) {
+  const redacted = String(value ?? "")
+    .replace(
+      /\b(?:Basic|Bearer|Token)\s+(?:"[^"]*"|'[^']*'|`[^`]*`|[^\s,;&]+)/gi,
+      "credential [redacted]",
+    )
+    .replace(
+      /\b([a-z0-9_-]*(?:api[_-]?key|authorization|cookie|credential|password|secret|signature|token)[a-z0-9_-]*)\b\s*([=:])\s*(?:"[^"]*"|'[^']*'|`[^`]*`|[^\s,;&]+)/gi,
+      "$1$2[redacted]",
+    )
+    .replace(
+      /(--(?:api[-_]?key|authorization|cookie|credential|password|secret|signature|token))(?:\s+|=)(?:"[^"]*"|'[^']*'|[^\s,;&]+)/gi,
+      "$1 [redacted]",
+    )
+    .replace(
+      /\b([A-Z][A-Z0-9_]*(?:API_KEY|ACCESS_KEY|SECRET_KEY|SECRET|SIGNATURE|TOKEN|PASSWORD|COOKIE|CREDENTIAL|AUTHORIZATION))\s*=\s*(?:"[^"]*"|'[^']*'|[^\s,;&]+)/g,
+      "$1=[redacted]",
+    )
+    .trim();
+  return redacted.length <= limit ? redacted : `${redacted.slice(0, limit)}…`;
+}
+
+export function sanitizeObservableRecord(value, depth = 0) {
+  if (depth >= 32) {
+    return "[truncated]";
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeObservableRecord(item, depth + 1));
+  }
+  if (value && typeof value === "object") {
+    const sanitized = {};
+    for (const [key, item] of Object.entries(value)) {
+      const canonicalKey = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+      sanitized[key] = /apikey|accesskey|authorization|cookie|credential|password|secret|signature|token/.test(
+        canonicalKey,
+      )
+        ? "[redacted]"
+        : sanitizeObservableRecord(item, depth + 1);
+    }
+    return sanitized;
+  }
+  if (typeof value === "string") {
+    return boundedObservableText(value);
+  }
+  return value;
 }
 
 export function writeRunArtifact(request, filePath, content) {
@@ -136,9 +279,9 @@ export function writeRunArtifact(request, filePath, content) {
   }
 }
 
-function prepareRunArtifacts(request) {
+export function prepareRunArtifacts(request, includeChildFinal = true) {
   const paths = [
-    request.child_final_path,
+    ...(includeChildFinal ? [request.child_final_path] : []),
     request.items_path,
     ...(request.result_path ? [request.result_path] : []),
   ];
@@ -156,21 +299,34 @@ function prepareRunArtifacts(request) {
   }
 }
 
-export function prepareRunArtifact(request, filePath) {
-  const lexicalRunDir = path.resolve(request.run_dir);
-  const realRunDir = fs.realpathSync(lexicalRunDir);
-  if (lexicalRunDir !== realRunDir) {
-    throw new Error(`Run directory must not be a symlink: ${lexicalRunDir}`);
+function containedWithin(rootPath, resolvedPath) {
+  const lexicalRoot = path.resolve(rootPath);
+  const realRoot = fs.realpathSync(lexicalRoot);
+  if (lexicalRoot !== realRoot) {
+    throw new Error(`Bridge artifact root must not be a symlink: ${lexicalRoot}`);
   }
-  const resolvedPath = path.resolve(filePath);
-  const relativePath = path.relative(lexicalRunDir, resolvedPath);
-  if (
+  const relativePath = path.relative(lexicalRoot, resolvedPath);
+  return !(
     !relativePath ||
     relativePath === ".." ||
     relativePath.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relativePath)
-  ) {
-    throw new Error(`Bridge artifact must stay inside run_dir: ${filePath}`);
+  );
+}
+
+export function prepareRunArtifact(request, filePath) {
+  const resolvedPath = path.resolve(filePath);
+  // The runner stages host-bridge outputs outside the child-writable run
+  // directory on purpose, so confinement is checked against the run directory
+  // or the single staging root the runner declared -- never an arbitrary path.
+  const roots = [request.run_dir];
+  if (request.bridge_staging_root) {
+    roots.push(request.bridge_staging_root);
+  }
+  if (!roots.some((root) => containedWithin(root, resolvedPath))) {
+    throw new Error(
+      `Bridge artifact must stay inside run_dir or the declared staging root: ${filePath}`,
+    );
   }
   const parentPath = path.dirname(resolvedPath);
   const realParentPath = fs.realpathSync(parentPath);
@@ -234,6 +390,14 @@ export function writePreparedRunArtifact(artifact, content) {
   assertPreparedRunArtifact(artifact);
 }
 
+export function appendPreparedRunArtifact(artifact, content) {
+  assertPreparedRunArtifact(artifact);
+  fs.writeSync(artifact.fd, content, null, "utf8");
+  fs.fchmodSync(artifact.fd, 0o600);
+  fs.fsyncSync(artifact.fd);
+  assertPreparedRunArtifact(artifact);
+}
+
 export function readJsonRequest(requestPath) {
   try {
     return JSON.parse(fs.readFileSync(requestPath, "utf8"));
@@ -248,10 +412,31 @@ async function loadClaudeAgentSdk() {
   try {
     return await import("@anthropic-ai/claude-agent-sdk");
   } catch (error) {
+    // `npm ci` installs the exact lockfile version the sandbox mask allowlist
+    // in runner.py was validated against. `npm install` can resolve a
+    // different SDK build whose mask surface has drifted.
     process.stderr.write(
-      "Unable to import @anthropic-ai/claude-agent-sdk. Install it with `npm install @anthropic-ai/claude-agent-sdk` in agentic/packages/content_workflow_cli.\n",
+      "Unable to import @anthropic-ai/claude-agent-sdk. From the repository root, run `npm ci --prefix agentic/packages/content_workflow_cli`.\n",
     );
     throw error;
+  }
+}
+
+export function dropForbiddenEnvironmentNames(
+  environment,
+  forbiddenNames,
+  platform = process.platform,
+) {
+  for (const environmentName of forbiddenNames ?? []) {
+    if (typeof environmentName !== "string") continue;
+    if (platform === "win32") {
+      const canonicalName = environmentName.toUpperCase();
+      for (const key of Object.keys(environment)) {
+        if (key.toUpperCase() === canonicalName) delete environment[key];
+      }
+    } else {
+      delete environment[environmentName];
+    }
   }
 }
 
@@ -268,21 +453,61 @@ export function buildOptions(request) {
       ? claudeConfig.env
       : {};
   const configEnv = filterClaudeConfigEnv(rawConfigEnv);
+  const childEnv = {
+    ...process.env,
+    CLAUDE_AGENT_SDK_CLIENT_APP: "nvidia-content-workflow-cli/0.1.0",
+    ...configEnv,
+  };
+  if (process.platform === "win32" && typeof process.env.PATH === "string") {
+    // Windows environment names are case-insensitive, but object spread keeps
+    // the host's display spelling (commonly `Path`). Expose one canonical key
+    // without allowing claude_config.env to replace the trusted host value.
+    for (const key of Object.keys(childEnv)) {
+      if (key !== "PATH" && key.toUpperCase() === "PATH") delete childEnv[key];
+    }
+    childEnv.PATH = process.env.PATH;
+  }
+  dropForbiddenEnvironmentNames(
+    childEnv,
+    request.child_launch?.credential_policy?.forbidden_environment_names,
+  );
   delete claudeConfig.env;
+  // repo_root is always the run directory (_agent_working_directory confines
+  // every child runner there), which is also where _stage_agent_skills copies
+  // the trusted skills the child discovers.
+  const childCwd = request.repo_root;
   const options = {
-    cwd: request.repo_root,
-    env: {
-      ...process.env,
-      CLAUDE_AGENT_SDK_CLIENT_APP: "nvidia-content-workflow-cli/0.1.0",
-      ...configEnv,
-    },
+    cwd: childCwd,
+    env: childEnv,
     ...claudeConfig,
-    allowedTools: DEFAULT_TOOLS,
+    allowedTools: request.tools_disabled ? [] : DEFAULT_TOOLS,
     permissionMode,
     allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
     persistSession: false,
     sandbox: buildSandboxSettings(request),
-    settingSources: [],
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: "Bash",
+          hooks: [
+            async (input) =>
+              preToolUsePythonPolicy(
+                input,
+                request.trusted_repo_root ?? null,
+                null,
+              ),
+          ],
+        },
+      ],
+    },
+    // "project" enables discovery of the skills staged under
+    // <run_dir>/.claude/skills. The project root is the child-writable run
+    // directory, so child-authored project instructions, hooks, or permission
+    // allowlists could otherwise survive into the next turn.
+    // _sanitize_child_project_surfaces purges all child-owned provider project
+    // trees before each launch, and _stage_agent_skills then restores only the
+    // trusted skill catalog required by that turn.
+    settingSources: ["project"],
     systemPrompt: {
       type: "preset",
       preset: "claude_code",
@@ -292,10 +517,20 @@ export function buildOptions(request) {
   // acceptEdits and bypassPermissions auto-approve direct file mutations.
   // Restrict the SDK's actual tool surface in both modes to read-only tools
   // plus Bash. The mandatory OS sandbox confines Bash writes and network.
-  if (SANDBOXED_PERMISSION_MODES.has(permissionMode)) {
+  if (request.tools_disabled) {
+    options.tools = [];
+  } else if (SANDBOXED_PERMISSION_MODES.has(permissionMode)) {
     options.tools = SANDBOXED_TOOLS;
   } else {
     delete options.tools;
+  }
+  const additionalDirectories = sanitizeAdditionalDirectories(
+    request.additional_directories,
+  );
+  if (additionalDirectories.length > 0) {
+    // The run directory can live outside the agent working directory; grant
+    // it explicitly so the child can write the required run artifacts.
+    options.additionalDirectories = additionalDirectories;
   }
   if (request.model) {
     options.model = request.model;
@@ -307,22 +542,74 @@ export function buildOptions(request) {
   if (request.claude_max_turns) {
     options.maxTurns = request.claude_max_turns;
   }
+  if (request.output_schema) {
+    options.outputFormat = {
+      type: "json_schema",
+      schema: request.output_schema,
+    };
+  }
   return options;
 }
 
+export function sanitizeAdditionalDirectories(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(
+    (dir) => typeof dir === "string" && dir.length > 0 && path.isAbsolute(dir),
+  );
+}
+
 function buildSandboxSettings(request) {
+  const launchNetworkPolicy = request.child_launch?.network_policy;
+  if (launchNetworkPolicy !== undefined) {
+    const allowedDomains = Array.isArray(launchNetworkPolicy.allowed_hosts)
+      ? launchNetworkPolicy.allowed_hosts.filter(
+          (host) => typeof host === "string" && host.length > 0,
+        )
+      : [];
+    if (launchNetworkPolicy.mode === "reasoning_transport_only") {
+      if (
+        launchNetworkPolicy.tool_network_access === true ||
+        allowedDomains.some((host) => !REASONING_ADAPTER_HOSTS.has(host))
+      ) {
+        throw new Error(
+          "Reasoning-only child launch network policy can allow only loopback adapters",
+        );
+      }
+    } else if (
+      launchNetworkPolicy.tool_network_access !== true &&
+      allowedDomains.length > 0
+    ) {
+      throw new Error(
+        "Child launch network policy cannot allow domains when tool network is disabled",
+      );
+    }
+    return {
+      enabled: true,
+      failIfUnavailable: true,
+      autoAllowBashIfSandboxed: true,
+      allowUnsandboxedCommands: false,
+      network: { allowedDomains },
+    };
+  }
   const allowedDomains = [];
-  if (request.workbench_url) {
-    let parsed;
-    try {
-      parsed = new URL(request.workbench_url);
-    } catch {
-      throw new Error(`Invalid workbench_url: ${request.workbench_url}`);
+  if (
+    request.scene_backend === "usd-cli" &&
+    !allowedDomains.includes("127.0.0.1")
+  ) {
+    // The package-owned CLI talks to the wrapper-started, identity-checked
+    // project daemon on this fixed loopback host.
+    allowedDomains.push("127.0.0.1");
+  }
+  // The tuning broker listens on loopback at an ephemeral port. With the
+  // usd-cli daemon host the endpoints coincide, but an additional remote host
+  // would otherwise leave the broker outside the allowlist and every sweep
+  // would exit 6 ("broker unreachable").
+  for (const host of request.extra_allowed_hosts ?? []) {
+    if (typeof host === "string" && host && !allowedDomains.includes(host)) {
+      allowedDomains.push(host);
     }
-    if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) {
-      throw new Error(`Invalid workbench_url: ${request.workbench_url}`);
-    }
-    allowedDomains.push(parsed.hostname);
   }
   return {
     enabled: true,
@@ -335,7 +622,7 @@ function buildSandboxSettings(request) {
 
 export function buildSystemPromptAppend(request) {
   if (request.workflow === "materials.assign") {
-    return `${BASE_SYSTEM_PROMPT_APPEND} ${MATERIAL_SYSTEM_PROMPT_APPEND}`;
+    return `${BASE_SYSTEM_PROMPT_APPEND} ${MATERIAL_USD_CLI_SYSTEM_PROMPT_APPEND}`;
   }
   return BASE_SYSTEM_PROMPT_APPEND;
 }
@@ -344,7 +631,20 @@ function filterClaudeConfigEnv(configEnv) {
   const filtered = {};
   const droppedKeys = [];
   for (const [key, value] of Object.entries(configEnv)) {
-    if (DANGEROUS_CLAUDE_ENV_KEYS.has(key)) {
+    const canonicalKey = key.toUpperCase();
+    if (
+      DANGEROUS_CLAUDE_ENV_KEYS.has(canonicalKey) ||
+      USD_CLI_CREDENTIAL_ENV_KEYS.has(canonicalKey) ||
+      canonicalKey === "TRACEPARENT" ||
+      canonicalKey === "TRACESTATE" ||
+      canonicalKey === "USD_CLI_EXTERNAL_LIFECYCLE_BOOTSTRAP" ||
+      canonicalKey === "USD_CLI_LIFECYCLE_EXTERNALLY_OWNED" ||
+      canonicalKey.startsWith("CONTENT_WORKFLOW_PARENT_USD_CLI_") ||
+      canonicalKey.startsWith("CONTENT_WORKFLOW_USD_CLI_") ||
+      canonicalKey.startsWith("PYTHON") ||
+      canonicalKey.startsWith("USD_CLI_SERVER_") ||
+      canonicalKey.startsWith("USD_CLI_TEL_")
+    ) {
       droppedKeys.push(key);
       continue;
     }
@@ -602,6 +902,17 @@ function writeProgress(message) {
   } else if (message?.type === "result") {
     process.stdout.write(`Claude result: ${message.subtype}\n`);
   }
+}
+
+/** Return the child-final artifact content for one Claude result event. */
+export function finalResponseFromResult(message, outputSchema) {
+  if (outputSchema) {
+    if (message?.structured_output === undefined) {
+      return "";
+    }
+    return JSON.stringify(message.structured_output);
+  }
+  return String(message?.result ?? "");
 }
 
 function collectAssistantText(messages) {

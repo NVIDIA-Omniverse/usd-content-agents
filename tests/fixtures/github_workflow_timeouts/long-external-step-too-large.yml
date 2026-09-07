@@ -1,0 +1,10 @@
+name: overlong external step
+on: push
+jobs:
+  long:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Restore a cache
+        timeout-minutes: 30
+        uses: actions/cache@v4

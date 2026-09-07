@@ -70,40 +70,46 @@ def test_prepare_reference_media_validates_files_and_extensions(
         prepare_reference_media(reference_images=[bad_ext], output_dir=tmp_path / "out")
 
 
-def test_prepare_reference_video_captions_include_timestamps(
+def test_prepare_reference_media_rejects_managed_source_before_cleanup(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "out"
+    managed_source = output_dir / "reference_media/images/reference_image_01.png"
+    managed_source.parent.mkdir(parents=True)
+    managed_source.write_bytes(b"existing image")
+
+    with pytest.raises(ValueError, match="managed reference_media/images"):
+        prepare_reference_media(
+            reference_images=[managed_source],
+            output_dir=output_dir,
+        )
+
+    assert managed_source.read_bytes() == b"existing image"
+
+
+def test_prepare_reference_media_preserves_prior_set_when_staging_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    src = tmp_path / "input.mp4"
-    src.write_bytes(b"fake video bytes")
+    import physics_agent.tuning.visual_evidence as visual_evidence
 
-    def fake_extract_frames(
-        _video_path: Path,
-        output_dir: Path,
-        *,
-        n: int,
-    ) -> list[Path]:
-        assert n == 3
-        output_dir.mkdir(parents=True, exist_ok=True)
-        frame = output_dir / "frame_0001__t500.png"
-        frame.write_bytes(b"fake frame bytes")
-        return [frame]
+    output_dir = tmp_path / "out"
+    prior = output_dir / "reference_media/images/reference_image_01.png"
+    prior.parent.mkdir(parents=True)
+    prior.write_bytes(b"prior image")
+    source = tmp_path / "new.png"
+    source.write_bytes(b"new image")
 
     monkeypatch.setattr(
-        "world_understanding.functions.cv.video_frames.extract_frames",
-        fake_extract_frames,
+        visual_evidence,
+        "_copy_file",
+        lambda *_args: (_ for _ in ()).throw(OSError("copy failed")),
     )
 
-    evidence = prepare_reference_media(
-        reference_videos=[src],
-        reference_video_descriptions=["target motion"],
-        output_dir=tmp_path / "out",
-        frames_per_video=3,
-    )
+    with pytest.raises(OSError, match="copy failed"):
+        prepare_reference_media(reference_images=[source], output_dir=output_dir)
 
-    assert evidence.reference_image_caption_pairs[0][0] == (
-        "Reference Video 1 - Frame 1 (t=0.500s): target motion"
-    )
+    assert prior.read_bytes() == b"prior image"
 
 
 def test_generated_frame_caption_includes_timestamp() -> None:
@@ -263,6 +269,32 @@ def test_default_judge_vlm_filters_reasoning_effort_for_nim(
     assert "reasoning_effort" not in captured
 
 
+def test_default_judge_vlm_keeps_reasoning_effort_for_kimi_k3(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from physics_agent.api import defaults
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_BACKEND", "nim")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_MODEL", "moonshotai/kimi-k3")
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_TEMPERATURE", 1.0)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_MAX_TOKENS", 24576)
+    monkeypatch.setattr(defaults, "DEFAULT_VLM_REASONING_EFFORT", "max")
+    monkeypatch.setattr(
+        "world_understanding.agentic.config.get_api_key_for_model_config",
+        lambda _backend, _config, _model_type: "key",
+    )
+    monkeypatch.setattr(
+        "world_understanding.functions.models.vision_language_models.create_vlm",
+        lambda **kwargs: captured.update(kwargs) or object(),
+    )
+
+    resolve_default_judge_vlm()
+
+    assert captured["model"] == "moonshotai/kimi-k3"
+    assert captured["reasoning_effort"] == "max"
+
+
 def test_default_judge_vlm_honors_nim_base_url_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -374,7 +406,6 @@ def test_default_judge_vlm_rejects_unset_configured_api_key(
     assert "MISSING_CUSTOM_VLM_KEY" not in str(exc_info.value)
 
 
-def test_has_reference_media_detects_images_or_videos(tmp_path: Path) -> None:
+def test_has_reference_media_detects_images(tmp_path: Path) -> None:
     assert has_reference_media() is False
     assert has_reference_media(reference_images=[tmp_path / "ref.png"]) is True
-    assert has_reference_media(reference_videos=[tmp_path / "ref.mp4"]) is True

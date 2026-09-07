@@ -3,11 +3,9 @@
 
 from __future__ import annotations
 
-import builtins
 import hashlib
 import importlib
-import sys
-import types
+import json
 from pathlib import Path
 from typing import Any
 
@@ -138,7 +136,6 @@ def test_explicit_frames_are_rendered_chronologically(
         frames="10,0,5",
         image_width=8,
         image_height=6,
-        make_mp4=False,
     )
 
     assert fake_backend.calls[0]["frames"] == "0,5,10"
@@ -148,6 +145,108 @@ def test_explicit_frames_are_rendered_chronologically(
         "frame_0010.png",
     ]
     assert all(path.exists() for path in paths)
+
+
+def test_render_writes_response_metadata_beside_frames(
+    tmp_path: Path, fake_backend: FakeBackend
+) -> None:
+    """Frames become final visual evidence downstream, and final evidence
+    must carry the actual backend render response, not a reconstruction from
+    the requested configuration; publishers digest-bind this file."""
+
+    usd_path = _write_time_sampled_usd(tmp_path / "time_sampled.usda")
+
+    render_time_sampled_usd(
+        usd_path,
+        tmp_path / "renders",
+        frames="0,5",
+        image_width=8,
+        image_height=6,
+    )
+
+    metadata_path = tmp_path / "renders" / rt.RENDER_RESPONSE_METADATA_FILENAME
+    payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "wu.render-response-metadata.v1"
+    assert payload["frames"] == "0,5"
+    assert payload["image_width"] == 8
+    # The backend response is captured with image payloads stripped.
+    camera_result = payload["response"]["results"][0]
+    assert "images" not in camera_result
+    assert camera_result["status"] == "success"
+
+
+def test_sanitize_response_value_strips_images_and_coerces() -> None:
+    """Image payloads are dropped by key everywhere in the tree and
+    non-JSON values are captured as their repr instead of failing the
+    metadata write."""
+
+    sanitized = rt._sanitize_response_value(
+        {
+            "results": [{"camera": "/Cam", "images": [object()], "count": 2}],
+            "elapsed": 1.5,
+            "ok": True,
+            "note": None,
+            "opaque": Path("/somewhere"),
+        }
+    )
+    assert sanitized == {
+        "results": [{"camera": "/Cam", "count": 2}],
+        "elapsed": 1.5,
+        "ok": True,
+        "note": None,
+        "opaque": repr(Path("/somewhere")),
+    }
+
+
+def test_sanitize_response_value_coerces_non_finite_floats() -> None:
+    """NaN/Infinity would serialize as bare tokens that strict json.loads
+    rejects when the digest-bound metadata is re-parsed at evidence
+    publication; they are captured as their repr instead."""
+
+    sanitized = rt._sanitize_response_value(
+        {
+            "nan": float("nan"),
+            "inf": float("inf"),
+            "ninf": float("-inf"),
+            "finite": 1.5,
+        }
+    )
+    assert sanitized == {
+        "nan": "nan",
+        "inf": "inf",
+        "ninf": "-inf",
+        "finite": 1.5,
+    }
+
+
+def test_write_response_metadata_rejects_non_finite_payloads(
+    tmp_path: Path,
+) -> None:
+    """allow_nan=False backstops the sanitizer: a non-finite float reaching
+    the serializer fails the write instead of corrupting the metadata file."""
+
+    with pytest.raises(ValueError):
+        rt._write_response_metadata(
+            {"ok": True},
+            tmp_path,
+            renderer="mock",
+            frames_arg="0:2",
+            fps=float("nan"),
+            image_width=8,
+            image_height=6,
+        )
+
+
+def test_resolve_fps_rejects_non_finite_values(tmp_path: Path) -> None:
+    """NaN passes both range comparisons, so a dedicated finite check is
+    required before fps flows into the digest-bound metadata."""
+
+    usd_path = _write_time_sampled_usd(tmp_path / "fps.usda")
+    stage = Usd.Stage.Open(str(usd_path))
+    with pytest.raises(ValueError, match="finite"):
+        rt._resolve_fps(stage, float("nan"))
+    with pytest.raises(ValueError, match="finite"):
+        rt._resolve_fps(stage, float("inf"))
 
 
 def test_mock_backend_renders_time_sampled_evidence(tmp_path: Path) -> None:
@@ -160,7 +259,6 @@ def test_mock_backend_renders_time_sampled_evidence(tmp_path: Path) -> None:
         frames="0:2",
         image_width=8,
         image_height=6,
-        make_mp4=False,
     )
 
     assert [path.name for path in paths] == [
@@ -181,7 +279,6 @@ def test_infers_stage_range(tmp_path: Path, fake_backend: FakeBackend) -> None:
         tmp_path / "renders",
         image_width=4,
         image_height=4,
-        make_mp4=False,
     )
 
     assert fake_backend.calls[0]["frames"] == "2:4"
@@ -202,7 +299,6 @@ def test_falls_back_to_authored_time_samples(
         tmp_path / "renders",
         image_width=4,
         image_height=4,
-        make_mp4=False,
     )
 
     assert fake_backend.calls[0]["frames"] == "3:5"
@@ -220,7 +316,6 @@ def test_multiple_cameras_are_prefixed(
         cameras=["/World/Cam A", "/Camera"],
         image_width=4,
         image_height=4,
-        make_mp4=False,
     )
 
     assert fake_backend.calls[0]["cameras"] == ["/World/Cam A", "/Camera"]
@@ -243,7 +338,6 @@ def test_fps_override_does_not_modify_input_usd(
         fps=30,
         image_width=4,
         image_height=4,
-        make_mp4=False,
     )
 
     assert fake_backend.calls[0]["stage_fps"] == 30.0
@@ -261,7 +355,6 @@ def test_backend_specific_options_are_forwarded(
         frames="0",
         image_width=4,
         image_height=4,
-        make_mp4=False,
         num_sensor_updates=7,
         render_mode="rt2",
     )
@@ -270,37 +363,6 @@ def test_backend_specific_options_are_forwarded(
         "num_sensor_updates": 7,
         "render_mode": "rt2",
     }
-
-
-def test_make_mp4_invokes_sequence_writer(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    fake_backend: FakeBackend,
-) -> None:
-    usd_path = _write_time_sampled_usd(tmp_path / "mp4.usda")
-    calls: list[tuple[list[tuple[str, list[Path]]], Path, float]] = []
-
-    def fake_write_mp4_sequences(
-        image_sequences: list[tuple[str, list[Path]]],
-        output_path: Path,
-        fps_value: float,
-    ) -> None:
-        calls.append((image_sequences, output_path, fps_value))
-
-    monkeypatch.setattr(rt, "_write_mp4_sequences", fake_write_mp4_sequences)
-
-    render_time_sampled_usd(
-        usd_path,
-        tmp_path / "renders",
-        frames="0",
-        image_width=4,
-        image_height=4,
-        make_mp4=True,
-    )
-
-    assert calls
-    assert calls[0][1] == tmp_path / "renders"
-    assert calls[0][2] == 24.0
 
 
 def test_infers_start_frame_when_no_range_or_samples(
@@ -313,7 +375,6 @@ def test_infers_start_frame_when_no_range_or_samples(
         tmp_path / "renders",
         image_width=4,
         image_height=4,
-        make_mp4=False,
     )
 
     assert fake_backend.calls[0]["frames"] == "0"
@@ -342,7 +403,6 @@ def test_frame_cap_warns_but_does_not_block_extra_frames(
             frames="0:2",
             image_width=4,
             image_height=4,
-            make_mp4=False,
             max_duration_seconds=1.0,
         )
 
@@ -388,7 +448,6 @@ def test_frame_count_beyond_tolerance_raises(
             frames="0:4",
             image_width=4,
             image_height=4,
-            make_mp4=False,
             max_duration_seconds=1.0,
         )
 
@@ -421,7 +480,6 @@ def test_remote_sparse_frames_are_rejected(
             frames="0,5,10",
             image_width=4,
             image_height=4,
-            make_mp4=False,
         )
 
     # Guard trips pre-backend; no backend call should land.
@@ -440,7 +498,6 @@ def test_time_sampled_render_rejects_legacy_nvcf_backend(tmp_path: Path) -> None
             frames="0",
             image_width=4,
             image_height=4,
-            make_mp4=False,
         )
 
     assert not output_dir.exists()
@@ -457,7 +514,6 @@ def test_non_integer_time_samples_are_rejected(
             tmp_path / "renders",
             image_width=4,
             image_height=4,
-            make_mp4=False,
         )
 
     assert fake_backend.calls == []
@@ -530,89 +586,6 @@ def test_save_rendered_images_rejects_frame_count_mismatch(tmp_path: Path) -> No
         )
 
 
-def test_write_mp4_sequences_handles_single_and_multi_camera(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    calls: list[tuple[list[Path], Path, float]] = []
-
-    def fake_write_mp4(
-        png_paths: list[Path], output_path: Path, fps_value: float
-    ) -> None:
-        calls.append((png_paths, output_path, fps_value))
-
-    monkeypatch.setattr(rt, "_maybe_write_mp4", fake_write_mp4)
-
-    rt._write_mp4_sequences([("Camera", [tmp_path / "frame.png"])], tmp_path, 12.0)
-    rt._write_mp4_sequences(
-        [
-            ("Camera_A", [tmp_path / "a.png"]),
-            ("Camera_B", [tmp_path / "b.png"]),
-        ],
-        tmp_path,
-        24.0,
-    )
-
-    assert calls == [
-        ([tmp_path / "frame.png"], tmp_path / "render.mp4", 12.0),
-        ([tmp_path / "a.png"], tmp_path / "Camera_A__render.mp4", 24.0),
-        ([tmp_path / "b.png"], tmp_path / "Camera_B__render.mp4", 24.0),
-    ]
-
-
-def test_maybe_write_mp4_skips_when_imageio_unavailable(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    real_import = builtins.__import__
-
-    def fake_import(
-        name: str,
-        globals: dict[str, object] | None = None,
-        locals: dict[str, object] | None = None,
-        fromlist: tuple[str, ...] = (),
-        level: int = 0,
-    ) -> object:
-        if name == "imageio.v3":
-            raise ImportError("missing imageio")
-        return real_import(name, globals, locals, fromlist, level)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-
-    rt._maybe_write_mp4([], tmp_path / "render.mp4", 24.0)
-
-
-def test_maybe_write_mp4_reads_pngs_and_calls_writer(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    png_path = tmp_path / "frame.png"
-    Image.new("RGB", (2, 2), (255, 0, 0)).save(png_path)
-    fake_imageio = types.ModuleType("imageio")
-    fake_iio = types.ModuleType("imageio.v3")
-    fake_numpy = types.ModuleType("numpy")
-    writes: list[tuple[Path, list[tuple[int, int]], float]] = []
-
-    def fake_asarray(image: Image.Image) -> tuple[int, int]:
-        return image.size
-
-    def fake_imwrite(
-        output_path: Path, frames: list[tuple[int, int]], fps: float
-    ) -> None:
-        writes.append((output_path, frames, fps))
-
-    fake_numpy.asarray = fake_asarray  # type: ignore[attr-defined]
-    fake_iio.imwrite = fake_imwrite  # type: ignore[attr-defined]
-    fake_imageio.v3 = fake_iio  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "imageio", fake_imageio)
-    monkeypatch.setitem(sys.modules, "imageio.v3", fake_iio)
-    monkeypatch.setitem(sys.modules, "numpy", fake_numpy)
-
-    rt._maybe_write_mp4([png_path], tmp_path / "render.mp4", 1.0)
-
-    assert writes == [(tmp_path / "render.mp4", [(2, 2)], 1.0)]
-
-
 def test_authored_single_frame_range_is_honored(
     tmp_path: Path, fake_backend: FakeBackend
 ) -> None:
@@ -632,7 +605,6 @@ def test_authored_single_frame_range_is_honored(
         tmp_path / "renders",
         image_width=8,
         image_height=8,
-        make_mp4=False,
     )
     assert len(paths) == 1
     # The driver formats single-frame selections as the bare integer.
@@ -663,7 +635,6 @@ def test_three_way_slug_collision_dedups_to_unique_paths(
         frames="0:1",
         image_width=8,
         image_height=8,
-        make_mp4=False,
     )
     # 3 cameras × 2 frames = 6 unique PNG paths.
     assert len(paths) == 6
@@ -674,7 +645,7 @@ def test_collision_in_camera_slugs_does_not_overwrite(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Two camera paths that normalize to the same slug must produce
-    # disambiguated PNG/mp4 names — otherwise the second camera's PNGs
+    # disambiguated PNG names — otherwise the second camera's PNGs
     # silently overwrite the first's. ``/World/Cam A`` and
     # ``/World/Cam_A`` both go through _slug() to the same string;
     # the dedup in _save_rendered_images must add a suffix to the
@@ -698,7 +669,6 @@ def test_collision_in_camera_slugs_does_not_overwrite(
         frames="0:1",
         image_width=8,
         image_height=8,
-        make_mp4=False,
     )
 
     # 2 cameras × 2 frames = 4 unique PNG paths.

@@ -1,0 +1,88 @@
+{
+  "schema_version": "content-agent-workflows.large-scene-run.v1",
+  "revision": 7,
+  "run_id": "legacy-scene-fixture",
+  "source_scene": "__SOURCE_SCENE__",
+  "additional_instructions": "Use blue panels and white frames.",
+  "request_artifact_paths": [
+    "__REQUEST__",
+    "__GUIDANCE__",
+    "__REFERENCE_IMAGE__",
+    "__MATERIALS_YAML__",
+    "__MATERIALS_USD__"
+  ],
+  "requested_tasks": [
+    "material"
+  ],
+  "source_input_digest": "__SOURCE_INPUT_DIGEST__",
+  "current_phase": null,
+  "phases": {
+    "decomposition": {
+      "status": "completed",
+      "result_path": null,
+      "input_digest": "__SOURCE_INPUT_DIGEST__",
+      "output_digest": "legacy-decomposition-output",
+      "error": null
+    },
+    "asset_task_processing": {
+      "status": "completed",
+      "result_path": null,
+      "input_digest": "legacy-decomposition-output",
+      "output_digest": "__COLLECTION_INPUT_DIGEST__",
+      "error": null
+    },
+    "collection": {
+      "status": "completed",
+      "result_path": "__COLLECTION_RESULT__",
+      "input_digest": "__COLLECTION_INPUT_DIGEST__",
+      "output_digest": "__COLLECTION_OUTPUT_DIGEST__",
+      "error": null
+    }
+  },
+  "transitions": [
+    {
+      "timestamp": "2026-01-15T12:00:01Z",
+      "phase": "decomposition",
+      "from_status": "pending",
+      "to_status": "ready",
+      "reason": "Run created and source inputs digested.",
+      "actor": "content-workflow-cli",
+      "input_digest": "__SOURCE_INPUT_DIGEST__",
+      "result_path": null,
+      "output_digest": null
+    },
+    {
+      "timestamp": "2026-01-15T12:10:00Z",
+      "phase": "decomposition",
+      "from_status": "running",
+      "to_status": "completed",
+      "reason": "Phase handoff validated.",
+      "actor": "legacy-agent",
+      "input_digest": "__SOURCE_INPUT_DIGEST__",
+      "result_path": null,
+      "output_digest": "legacy-decomposition-output"
+    },
+    {
+      "timestamp": "2026-01-15T12:20:00Z",
+      "phase": "asset_task_processing",
+      "from_status": "running",
+      "to_status": "completed",
+      "reason": "Phase handoff validated.",
+      "actor": "legacy-agent",
+      "input_digest": "legacy-decomposition-output",
+      "result_path": null,
+      "output_digest": "__COLLECTION_INPUT_DIGEST__"
+    },
+    {
+      "timestamp": "2026-01-15T12:30:00Z",
+      "phase": "collection",
+      "from_status": "running",
+      "to_status": "completed",
+      "reason": "Phase handoff validated.",
+      "actor": "legacy-agent",
+      "input_digest": "__COLLECTION_INPUT_DIGEST__",
+      "result_path": "__COLLECTION_RESULT__",
+      "output_digest": "__COLLECTION_OUTPUT_DIGEST__"
+    }
+  ]
+}

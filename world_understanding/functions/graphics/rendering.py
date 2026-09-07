@@ -818,6 +818,9 @@ class RemoteRenderingBackend(RenderingBackend):
         use_data_uri: bool | None = None,
         add_preview_fallbacks: bool | None = None,
         material_target: str | None = "auto",
+        allow_redirects: bool = True,
+        num_sensor_updates: int | None = None,
+        render_mode: str | None = None,
     ):
         """Initialize the REST rendering backend.
 
@@ -855,6 +858,12 @@ class RemoteRenderingBackend(RenderingBackend):
                          preserves authored/native material outputs. Use
                          ``preview_surface`` to request render-export
                          PreviewSurface fallback authoring.
+            allow_redirects: Whether REST render requests may follow HTTP
+                         redirects. Defaults to True for backward compatibility.
+            num_sensor_updates: Optional OVRTX progressive-update count forwarded
+                         to compatible REST renderers.
+            render_mode: Optional OVRTX mode (``rt1``, ``rt2``, or ``pt``)
+                         forwarded to compatible REST renderers.
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -873,6 +882,9 @@ class RemoteRenderingBackend(RenderingBackend):
             self.material_target,
             legacy_add_preview_fallbacks=add_preview_fallbacks,
         )
+        self.allow_redirects = allow_redirects
+        self.num_sensor_updates = num_sensor_updates
+        self.render_mode = render_mode
 
     def supports_sensors(self) -> bool:
         """REST renderer backend supports sensor rendering modes."""
@@ -912,7 +924,8 @@ class RemoteRenderingBackend(RenderingBackend):
             apply_background_mask: If True, apply background masking during rendering. Default: False
             **kwargs: Additional parameters. ``max_workers`` opts into bounded
                 per-camera parallelism; ``render_slot_timeout_sec`` bounds
-                process-wide slot acquisition.
+                process-wide slot acquisition. ``asset_root`` explicitly
+                confines assets that may be bundled around ``base_dir``.
 
         Returns:
             Dict with rendering results matching the base class specification
@@ -921,6 +934,7 @@ class RemoteRenderingBackend(RenderingBackend):
         if image_height is None:
             image_height = image_width
         base_dir = kwargs.get("base_dir")
+        asset_root = kwargs.get("asset_root")
 
         from world_understanding.functions.graphics.render_remote_async import (
             get_global_remote_render_limit,
@@ -967,6 +981,10 @@ class RemoteRenderingBackend(RenderingBackend):
             "add_preview_fallbacks": self.add_preview_fallbacks,
             "material_target": self.material_target,
             "base_dir": base_dir,
+            "asset_root": asset_root,
+            "allow_redirects": self.allow_redirects,
+            "num_sensor_updates": self.num_sensor_updates,
+            "render_mode": self.render_mode,
         }
         if requested_max_workers > 1:
             # Parallel workers must acquire the shared slot per camera. Holding
@@ -1007,7 +1025,7 @@ class OvRTXRenderingBackend(RenderingBackend):
     The isolated venv is auto-provisioned on first use at
     ``~/.cache/wu/ovrtx_venv`` (override via ``ovrtx_venv_dir``).
 
-    Requires: ovrtx == 0.3.0.312915
+    Requires: ovrtx == 0.4.1.364340
     """
 
     SUPPORTED_SENSOR_MODES: ClassVar[list[str]] = []
@@ -1020,6 +1038,7 @@ class OvRTXRenderingBackend(RenderingBackend):
         render_mode: str = "rt2",
         add_preview_fallbacks: bool | None = None,
         material_target: str | None = "auto",
+        setup_deadline_monotonic: float | None = None,
     ):
         """Initialize the OvRTX rendering backend.
 
@@ -1052,6 +1071,8 @@ class OvRTXRenderingBackend(RenderingBackend):
                 authored/native material outputs, ``preview_surface`` requests
                 the OVRTX PreviewSurface fallback overlay explicitly, and
                 ``openpbr_materialx`` preserves native OpenPBR/MaterialX output.
+            setup_deadline_monotonic: Optional absolute monotonic deadline for
+                runtime provisioning during backend construction.
         """
         import os
         import stat
@@ -1062,7 +1083,13 @@ class OvRTXRenderingBackend(RenderingBackend):
 
         # Eagerly provision the ovrtx venv so errors surface at init time
         venv_dir = Path(ovrtx_venv_dir) if ovrtx_venv_dir else None
-        self._ovrtx_python = render_ovrtx._get_ovrtx_python(venv_dir=venv_dir)
+        if setup_deadline_monotonic is None:
+            self._ovrtx_python = render_ovrtx._get_ovrtx_python(venv_dir=venv_dir)
+        else:
+            self._ovrtx_python = render_ovrtx._get_ovrtx_python(
+                venv_dir=venv_dir,
+                deadline_monotonic=setup_deadline_monotonic,
+            )
         self.log_level = log_level
         self._ovrtx_venv_dir = ovrtx_venv_dir
         self._num_sensor_updates = num_sensor_updates
@@ -1084,17 +1111,37 @@ class OvRTXRenderingBackend(RenderingBackend):
         runtime_dir_env = os.environ.get("WU_OVRTX_RUNTIME_DIR")
         if runtime_dir_env:
             runtime_dir = Path(runtime_dir_env)
+            runtime_dir_existed = runtime_dir.exists()
             runtime_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             if runtime_dir.is_symlink():
                 raise RuntimeError("WU_OVRTX_RUNTIME_DIR must not be a symlink")
+            if not runtime_dir_existed:
+                runtime_dir.chmod(0o700)
             runtime_stat = runtime_dir.stat()
             if current_uid is not None and runtime_stat.st_uid != current_uid:
                 raise RuntimeError(
                     "WU_OVRTX_RUNTIME_DIR must be owned by the current user"
                 )
-            if stat.S_IMODE(runtime_stat.st_mode) & 0o077:
-                raise RuntimeError(
-                    "WU_OVRTX_RUNTIME_DIR must not be group or world accessible"
+            # POSIX mode bits are the privacy control for the generated daemon
+            # script this directory holds. Windows does not implement them:
+            # ``chmod(0o700)`` only toggles the read-only flag and directories
+            # always stat as ``0o777``, so this check would reject every
+            # explicit runtime directory. The ACL-based equivalent is not
+            # implemented yet, so an operator-supplied directory is trusted
+            # there; the default branch below stays inside the per-user
+            # temporary directory.
+            if os.name == "posix":
+                if stat.S_IMODE(runtime_stat.st_mode) & 0o077:
+                    raise RuntimeError(
+                        "WU_OVRTX_RUNTIME_DIR must not be group or world accessible"
+                    )
+            else:  # pragma: no cover - POSIX-only CI never takes this branch
+                logger.warning(
+                    "WU_OVRTX_RUNTIME_DIR %s is trusted without ownership or "
+                    "permission checks on this platform; it holds the generated "
+                    "daemon script, so a directory other users can write to is "
+                    "a code-execution surface",
+                    runtime_dir,
                 )
         else:
             uid_label = current_uid if current_uid is not None else "nouid"
@@ -1102,6 +1149,7 @@ class OvRTXRenderingBackend(RenderingBackend):
                 prefix=f"wu_ovrtx_{uid_label}_"
             )
             runtime_dir = Path(self._runtime_tmpdir.name)
+            runtime_dir.chmod(0o700)
 
         with tempfile.NamedTemporaryFile(
             "w",
@@ -1113,6 +1161,7 @@ class OvRTXRenderingBackend(RenderingBackend):
         ) as daemon_script:
             daemon_script.write(render_ovrtx._DAEMON_SCRIPT)
             daemon_script_path = Path(daemon_script.name)
+        daemon_script_path.chmod(0o600)
         self._daemon_script_path = daemon_script_path
         self._daemon = render_ovrtx._OvRTXDaemon(
             ovrtx_python=self._ovrtx_python,
@@ -1120,6 +1169,24 @@ class OvRTXRenderingBackend(RenderingBackend):
             log_level=log_level,
             ovrtx_venv_dir=venv_dir,
         )
+
+    @property
+    def num_sensor_updates(self) -> int:
+        """Return the configured progressive render-update count."""
+
+        return self._num_sensor_updates
+
+    @property
+    def render_mode(self) -> str:
+        """Return the configured OVRTX render mode."""
+
+        return self._render_mode
+
+    @property
+    def daemon_render_timeout_s(self) -> float:
+        """Return the configured persistent-daemon render deadline in seconds."""
+
+        return self._daemon.render_timeout_s
 
     def supports_sensors(self) -> bool:
         """OvRTX backend currently supports color rendering only."""
@@ -1166,7 +1233,9 @@ class OvRTXRenderingBackend(RenderingBackend):
                 assets for anonymous stages; ``material_target`` overrides the
                 instance material target; ``add_preview_fallbacks`` is a
                 legacy per-call PreviewSurface fallback request when the
-                effective material target is ``auto``.
+                effective material target is ``auto``;
+                ``daemon_render_timeout_s`` is an optional positive deadline in
+                seconds for either daemon or one-shot rendering.
 
         Returns:
             Dict with rendering results matching the base class specification.
@@ -1228,6 +1297,8 @@ class OvRTXRenderingBackend(RenderingBackend):
             material_target=effective_material_target,
             daemon=self._daemon,
             base_dir=base_dir,
+            daemon_render_timeout_s=kwargs.get("daemon_render_timeout_s"),
+            render_deadline_monotonic=kwargs.get("render_deadline_monotonic"),
         )
 
     def __del__(self) -> None:
@@ -1999,6 +2070,7 @@ def render_from_prepared_prims(
             apply_background_mask=config.use_background_color,
             add_preview_fallbacks=rendering_backend.add_preview_fallbacks,
             material_target=rendering_backend.material_target,
+            allow_redirects=rendering_backend.allow_redirects,
             max_workers=1,  # Disable per-camera parallelism (matches original behavior)
         )
     else:
@@ -2134,6 +2206,7 @@ def render_from_prepared_composition(
             apply_background_mask=config.use_background_color,
             add_preview_fallbacks=rendering_backend.add_preview_fallbacks,
             material_target=rendering_backend.material_target,
+            allow_redirects=rendering_backend.allow_redirects,
             max_workers=1,  # Disable per-camera parallelism (matches original behavior)
         )
 
@@ -2155,6 +2228,7 @@ def render_from_prepared_composition(
             apply_background_mask=config.use_background_color,
             add_preview_fallbacks=rendering_backend.add_preview_fallbacks,
             material_target=rendering_backend.material_target,
+            allow_redirects=rendering_backend.allow_redirects,
             max_workers=1,  # Disable per-camera parallelism (matches original behavior)
         )
     else:

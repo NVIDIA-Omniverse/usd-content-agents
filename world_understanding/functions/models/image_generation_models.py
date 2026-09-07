@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import numpy as np
 from PIL import Image as PILImage
@@ -884,6 +885,16 @@ class OpenAIImageGenerationModel(BaseImageGenerationModel):
             if item.url:
                 import urllib.request
 
+                parsed_url = urlparse(item.url)
+                if (
+                    parsed_url.scheme != "https"
+                    or not parsed_url.hostname
+                    or parsed_url.username is not None
+                    or parsed_url.password is not None
+                ):
+                    raise ValueError(
+                        "OpenAI image response URL must be an HTTPS URL without credentials"
+                    )
                 with urllib.request.urlopen(  # noqa: S310
                     item.url, timeout=_DEFAULT_TIMEOUT_SECONDS
                 ) as resp:

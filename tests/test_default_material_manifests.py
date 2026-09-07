@@ -14,9 +14,15 @@ import yaml
 
 Usd = pytest.importorskip("pxr.Usd")
 UsdShade = pytest.importorskip("pxr.UsdShade")
+UsdUtils = pytest.importorskip("pxr.UsdUtils")
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_MANIFEST_PATHS = (
+    REPO_ROOT
+    / "apps/material_agent/data/materials/material_libs_default/materials.yaml",
+    REPO_ROOT / "apps/material_agent_service/materials/default/materials.yaml",
+)
 
 
 def _manifest_data(manifest_path: Path) -> tuple[Path, list[dict[str, object]]]:
@@ -86,11 +92,7 @@ def _assert_manifest_bindings_resolve_to_materials(manifest_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "manifest_path",
-    [
-        REPO_ROOT
-        / "apps/material_agent/data/materials/material_libs_default/materials.yaml",
-        REPO_ROOT / "apps/material_agent_service/materials/default/materials.yaml",
-    ],
+    DEFAULT_MANIFEST_PATHS,
 )
 def test_default_material_manifest_bindings_resolve_to_materials(
     manifest_path: Path,
@@ -98,12 +100,29 @@ def test_default_material_manifest_bindings_resolve_to_materials(
     _assert_manifest_bindings_resolve_to_materials(manifest_path)
 
 
+def test_default_material_libraries_are_dependency_closed_and_synchronized() -> None:
+    library_paths = [
+        _manifest_data(manifest_path)[0] for manifest_path in DEFAULT_MANIFEST_PATHS
+    ]
+
+    assert library_paths[0].read_bytes() == library_paths[1].read_bytes()
+
+    for library_path in library_paths:
+        _layers, assets, unresolved = UsdUtils.ComputeAllDependencies(str(library_path))
+        assert list(assets) == [], (
+            f"{library_path} has resolved external USD assets: "
+            f"{sorted(map(str, assets))}"
+        )
+        assert list(unresolved) == [], (
+            f"{library_path} has unresolved USD dependencies: "
+            f"{sorted(map(str, unresolved))}"
+        )
+
+
 def test_service_default_materials_zip_bindings_resolve_to_materials(
     tmp_path: Path,
 ) -> None:
-    service_manifest_path = (
-        REPO_ROOT / "apps/material_agent_service/materials/default/materials.yaml"
-    )
+    service_manifest_path = DEFAULT_MANIFEST_PATHS[1]
     zip_path = (
         REPO_ROOT
         / "apps/material_agent_service/materials/default/default_materials.zip"

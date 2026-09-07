@@ -1,0 +1,10 @@
+name: dynamic step exceeds branch
+on: push
+jobs:
+  dynamic:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ github.event_name == 'schedule' && 15 || 120 }}
+    steps:
+      - name: Overlong scheduled branch
+        timeout-minutes: ${{ github.event_name == 'schedule' && 20 || 100 }}
+        run: echo overlong

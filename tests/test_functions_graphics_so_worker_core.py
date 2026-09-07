@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import runpy
 import sys
 import types
 from pathlib import Path
@@ -48,11 +49,19 @@ class _Prim:
 
 class _Stage:
     def __init__(
-        self, prims: list[_Prim] | None = None, *, export_ok: bool = True
+        self,
+        prims: list[_Prim] | None = None,
+        *,
+        export_ok: bool = True,
+        layered: bool = False,
     ) -> None:
         self.prims = prims or []
         self.export_ok = export_ok
         self.removed = False
+        self.layered = layered
+        self.flattened = False
+        self._session = object()
+        self._extra = object()
 
     def GetPseudoRoot(self) -> _Stage:
         return self
@@ -60,9 +69,69 @@ class _Stage:
     def GetRootLayer(self) -> _Stage:
         return self
 
+    def GetSessionLayer(self) -> object:
+        return self._session
+
+    def GetUsedLayers(self) -> list[object]:
+        # A single-layer stage: the worker exports the root layer directly and
+        # keeps authored structure. Include the session layer exactly as USD
+        # does so the production filter is exercised. ``layered=True`` adds a
+        # second composed layer and takes the flatten branch.
+        layers = [self, self._session]
+        if self.layered:
+            layers.append(self._extra)
+        return layers
+
+    def Flatten(self) -> _Stage:
+        self.flattened = True
+        return self
+
     def Export(self, path: str) -> bool:
         Path(path).write_text("usd", encoding="utf-8")
         return self.export_ok
+
+
+@pytest.mark.parametrize(
+    ("worker_filename", "expected_exports"),
+    [
+        (
+            "so_worker.py",
+            {
+                "_export_layer_for",
+                "_normalize_dependency_roots",
+                "export_stage_portably",
+            },
+        ),
+        (
+            "so_uv_worker.py",
+            {"_normalize_dependency_roots", "export_stage_portably"},
+        ),
+    ],
+)
+def test_worker_script_imports_shared_export_without_package(
+    monkeypatch: pytest.MonkeyPatch,
+    worker_filename: str,
+    expected_exports: set[str],
+) -> None:
+    """Copied ABI-isolated workers must import their sibling helper as scripts."""
+    standalone_export = types.ModuleType("so_export")
+    export_layer_for = object()
+    export_stage_portably = object()
+    normalize_dependency_roots = object()
+    standalone_export.export_layer_for = export_layer_for
+    standalone_export.export_stage_portably = export_stage_portably
+    standalone_export._normalize_dependency_roots = normalize_dependency_roots
+    monkeypatch.setitem(sys.modules, "so_export", standalone_export)
+
+    namespace = runpy.run_path(
+        str(Path(worker.__file__).with_name(worker_filename)),
+        run_name="abi_isolated_worker",
+    )
+
+    if "_export_layer_for" in expected_exports:
+        assert namespace["_export_layer_for"] is export_layer_for
+    assert namespace["_normalize_dependency_roots"] is normalize_dependency_roots
+    assert namespace["export_stage_portably"] is export_stage_portably
 
 
 def _install_pxr(monkeypatch: pytest.MonkeyPatch, stage: _Stage | None = None) -> None:
@@ -89,12 +158,18 @@ def _install_pxr(monkeypatch: pytest.MonkeyPatch, stage: _Stage | None = None) -
     monkeypatch.setitem(sys.modules, "pxr", pxr_mod)
     monkeypatch.setitem(sys.modules, "pxr.Usd", usd_mod)
     monkeypatch.setitem(sys.modules, "pxr.UsdGeom", usd_geom_mod)
+    monkeypatch.setattr(
+        worker,
+        "export_stage_portably",
+        lambda stage, path, **_kwargs: worker.export_layer_for(stage).Export(path),
+    )
 
 
 def _install_scene_optimizer(
     monkeypatch: pytest.MonkeyPatch,
     *,
     fail_operation: str | None = None,
+    operation_results: dict[str, object] | None = None,
 ) -> list[str]:
     calls: list[str] = []
     omni_mod = types.ModuleType("omni")
@@ -120,10 +195,11 @@ def _install_scene_optimizer(
 
         def executeOperation(
             self, op_name: str, _ctx: ExecutionContext, _params: dict[str, Any]
-        ) -> None:
+        ) -> object:
             calls.append(op_name)
             if op_name == fail_operation:
                 raise RuntimeError("operation failed")
+            return (operation_results or {}).get(op_name, (True, None, None))
 
     core_mod.ExecutionContext = ExecutionContext
     core_mod.SceneOptimizerCore = SceneOptimizerCore
@@ -166,10 +242,72 @@ def test_merge_split_mappings_handles_empty_and_independent_new_mappings() -> No
         {"/World/A": ["/World/A_part"]},
         {"/World/B": ["/World/B_part"]},
     )
-
     assert result == {
         "/World/A": ["/World/A_part"],
         "/World/B": ["/World/B_part"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        (
+            (),
+            (
+                False,
+                "Scene Optimizer executeOperation returned an invalid tuple of length 0; "
+                "expected 3",
+                None,
+            ),
+        ),
+        (
+            (1, None, {"output": True}),
+            (
+                False,
+                "Scene Optimizer executeOperation returned a non-boolean success value: 1",
+                {"output": True},
+            ),
+        ),
+        (
+            (True, 7, None),
+            (
+                False,
+                "Scene Optimizer executeOperation returned a non-string error value: 7",
+                None,
+            ),
+        ),
+        (
+            (False, None, None),
+            (False, "Scene Optimizer operation reported failure", None),
+        ),
+        (True, (True, None, None)),
+        (False, (False, "Scene Optimizer operation reported failure", None)),
+        (
+            "unsupported",
+            (
+                False,
+                "Scene Optimizer executeOperation returned an unsupported result of type str",
+                None,
+            ),
+        ),
+    ],
+)
+def test_parse_operation_result_contracts(
+    result: object,
+    expected: tuple[bool, str | None, object | None],
+) -> None:
+    assert worker._parse_operation_result(result) == expected
+
+
+def test_operation_output_accepts_none() -> None:
+    assert worker._json_safe_operation_output(None) is None
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_operation_output_rejects_non_finite_json_numbers(value: float) -> None:
+    assert worker._json_safe_operation_output(value) == {
+        "serializable": False,
+        "type": "float",
     }
 
 
@@ -225,11 +363,12 @@ def test_track_deduplicate_geometry_reads_internal_references(
 
 def test_build_correspondence_map_resolves_geometry_children_and_prototypes() -> None:
     result = worker.build_correspondence_map(
-        ["/World/A", "/World/B", "/World/Prototype"],
+        ["/World/A", "/World/B", "/World/C", "/World/Prototype"],
         {"/World/A": ["/World/A_part"]},
         {
             "/World/A_part/Geometry": "/World/Prototype/Geometry",
             "/World/B/Geometry": "/World/Prototype/Geometry",
+            "/World/C": "/World/Prototype/Geometry",
         },
         True,
         True,
@@ -238,6 +377,7 @@ def test_build_correspondence_map_resolves_geometry_children_and_prototypes() ->
     assert result["full_mapping"]["original_to_prototype"] == {
         "/World/A": ["/World/Prototype/Geometry"],
         "/World/B": ["/World/Prototype/Geometry"],
+        "/World/C": ["/World/Prototype/Geometry"],
         "/World/Prototype": ["/World/Prototype/Geometry"],
     }
 
@@ -283,6 +423,38 @@ def test_main_writes_error_manifest_for_missing_required_params(
     assert "input_usd_path" in manifest["error"]
 
 
+def test_main_rejects_invalid_dependency_roots_before_scene_optimizer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    calls = _install_scene_optimizer(monkeypatch)
+    _install_pxr(monkeypatch, _Stage())
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "so_worker.py",
+            json.dumps(
+                {
+                    "manifest_path": str(manifest_path),
+                    "input_usd_path": "in.usd",
+                    "output_usd_path": str(tmp_path / "out.usd"),
+                    "approved_dependency_roots": [str(Path(tmp_path.anchor))],
+                    "operations": [["cleanup", {}]],
+                }
+            ),
+        ],
+    )
+
+    worker.main()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["status"] == "error"
+    assert "must not contain filesystem roots" in manifest["error"]
+    assert calls == []
+
+
 def test_main_writes_success_manifest_for_all_operation_types(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -319,6 +491,7 @@ def test_main_writes_success_manifest_for_all_operation_types(
                     "manifest_path": str(manifest_path),
                     "input_usd_path": "in.usd",
                     "output_usd_path": str(output_path),
+                    "approved_dependency_roots": [str(tmp_path)],
                     "operations": [
                         ["splitMeshes", {}],
                         ["deduplicateGeometry", {}],
@@ -359,6 +532,7 @@ def test_main_writes_error_manifest_when_stage_cannot_open(
                     "manifest_path": str(manifest_path),
                     "input_usd_path": "missing.usd",
                     "output_usd_path": str(tmp_path / "out.usd"),
+                    "approved_dependency_roots": [str(tmp_path)],
                     "operations": [],
                 }
             ),
@@ -392,6 +566,7 @@ def test_main_stops_after_operation_failure(
                     "manifest_path": str(manifest_path),
                     "input_usd_path": "in.usd",
                     "output_usd_path": str(tmp_path / "out.usd"),
+                    "approved_dependency_roots": [str(tmp_path)],
                     "operations": [["badOp", {}], ["never", {}]],
                 }
             ),
@@ -404,6 +579,182 @@ def test_main_stops_after_operation_failure(
     assert manifest["status"] == "error"
     assert manifest["operations_executed"][0]["success"] is False
     assert manifest["error"] == "Operation(s) failed: badOp"
+
+
+def test_main_stops_on_native_operation_failure_and_records_diagnostics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    output_path = tmp_path / "out.usd"
+    _install_pxr(monkeypatch, _Stage())
+    calls = _install_scene_optimizer(
+        monkeypatch,
+        operation_results={
+            "badOp": (
+                False,
+                "native operation failed",
+                {"failed_prim": "/World/A"},
+            )
+        },
+    )
+    monkeypatch.setattr(
+        worker, "capture_mesh_paths", lambda *args, **kwargs: ["/World/A"]
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "so_worker.py",
+            json.dumps(
+                {
+                    "manifest_path": str(manifest_path),
+                    "input_usd_path": "in.usd",
+                    "output_usd_path": str(output_path),
+                    "approved_dependency_roots": [str(tmp_path)],
+                    "operations": [["badOp", {}], ["never", {}]],
+                }
+            ),
+        ],
+    )
+
+    worker.main()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    operation = manifest["operations_executed"][0]
+    assert manifest["status"] == "error"
+    assert calls == ["badOp"]
+    assert operation["success"] is False
+    assert operation["error"] == "native operation failed"
+    assert operation["output"] == {"failed_prim": "/World/A"}
+    assert not output_path.exists()
+
+
+def test_main_records_native_operation_success_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    output_path = tmp_path / "out.usd"
+    _install_pxr(monkeypatch, _Stage())
+    calls = _install_scene_optimizer(
+        monkeypatch,
+        operation_results={"cleanup": (True, None, {"processed_meshes": 1})},
+    )
+    monkeypatch.setattr(
+        worker, "capture_mesh_paths", lambda *args, **kwargs: ["/World/A"]
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "so_worker.py",
+            json.dumps(
+                {
+                    "manifest_path": str(manifest_path),
+                    "input_usd_path": "in.usd",
+                    "output_usd_path": str(output_path),
+                    "approved_dependency_roots": [str(tmp_path)],
+                    "operations": [["cleanup", {}]],
+                }
+            ),
+        ],
+    )
+
+    worker.main()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    operation = manifest["operations_executed"][0]
+    assert manifest["status"] == "success"
+    assert calls == ["cleanup"]
+    assert operation["success"] is True
+    assert operation["output"] == {"processed_meshes": 1}
+    assert output_path.exists()
+
+
+def test_main_accepts_legacy_void_scene_optimizer_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    output_path = tmp_path / "out.usd"
+    _install_pxr(monkeypatch, _Stage())
+    _install_scene_optimizer(
+        monkeypatch,
+        operation_results={"cleanup": None},
+    )
+    monkeypatch.setattr(
+        worker, "capture_mesh_paths", lambda *args, **kwargs: ["/World/A"]
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "so_worker.py",
+            json.dumps(
+                {
+                    "manifest_path": str(manifest_path),
+                    "input_usd_path": "in.usd",
+                    "output_usd_path": str(output_path),
+                    "approved_dependency_roots": [str(tmp_path)],
+                    "operations": [["cleanup", {}]],
+                }
+            ),
+        ],
+    )
+
+    worker.main()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    operation = manifest["operations_executed"][0]
+    assert manifest["status"] == "success"
+    assert operation["success"] is True
+    assert operation["result_contract"] == "legacy_void"
+    assert output_path.exists()
+
+
+def test_main_records_opaque_native_output_without_breaking_failure_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    output_path = tmp_path / "out.usd"
+    _install_pxr(monkeypatch, _Stage())
+    _install_scene_optimizer(
+        monkeypatch,
+        operation_results={"badOp": (False, "native failure", object())},
+    )
+    monkeypatch.setattr(
+        worker, "capture_mesh_paths", lambda *args, **kwargs: ["/World/A"]
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "so_worker.py",
+            json.dumps(
+                {
+                    "manifest_path": str(manifest_path),
+                    "input_usd_path": "in.usd",
+                    "output_usd_path": str(output_path),
+                    "approved_dependency_roots": [str(tmp_path)],
+                    "operations": [["badOp", {}]],
+                }
+            ),
+        ],
+    )
+
+    worker.main()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    operation = manifest["operations_executed"][0]
+    assert manifest["status"] == "error"
+    assert operation["success"] is False
+    assert operation["output"] == {
+        "serializable": False,
+        "type": "object",
+    }
+    assert not output_path.exists()
 
 
 def test_main_records_export_failure(
@@ -426,6 +777,7 @@ def test_main_records_export_failure(
                     "manifest_path": str(manifest_path),
                     "input_usd_path": "in.usd",
                     "output_usd_path": str(tmp_path / "out.usd"),
+                    "approved_dependency_roots": [str(tmp_path)],
                     "operations": [],
                 }
             ),
@@ -437,3 +789,55 @@ def test_main_records_export_failure(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["status"] == "error"
     assert "Failed to export USD stage" in manifest["error"]
+
+
+def _run_worker_main(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stage: _Stage, tag: str
+) -> dict[str, object]:
+    """Drive ``worker.main`` through a single cleanup op against ``stage``."""
+    manifest_path = tmp_path / f"manifest_{tag}.json"
+    output_path = tmp_path / f"out_{tag}.usd"
+    _install_pxr(monkeypatch, stage)
+    _install_scene_optimizer(monkeypatch)
+    monkeypatch.setattr(worker, "capture_mesh_paths", lambda *a, **k: ["/World/A"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "so_worker.py",
+            json.dumps(
+                {
+                    "manifest_path": str(manifest_path),
+                    "input_usd_path": "in.usd",
+                    "output_usd_path": str(output_path),
+                    "approved_dependency_roots": [str(tmp_path)],
+                    "operations": [["cleanup", {}]],
+                }
+            ),
+        ],
+    )
+    worker.main()
+    return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def test_main_flattens_only_a_layered_stage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Flatten a layered stage on export, but leave a single-layer stage alone.
+
+    Exporting only the root layer drops relative sublayer arcs when the output
+    lands outside the source directory, silently emptying a layered asset.
+    Flattening collapses variant sets to their active selections, so it must not
+    apply to a stage that does not need it. See issue #963.
+    """
+    single = _Stage([_Prim("/World/A")])
+    assert _run_worker_main(tmp_path, monkeypatch, single, "single")["status"] == (
+        "success"
+    )
+    assert single.flattened is False, "a single-layer stage must not be flattened"
+
+    layered = _Stage([_Prim("/World/A")], layered=True)
+    assert _run_worker_main(tmp_path, monkeypatch, layered, "layered")["status"] == (
+        "success"
+    )
+    assert layered.flattened is True, "a layered stage must be flattened"

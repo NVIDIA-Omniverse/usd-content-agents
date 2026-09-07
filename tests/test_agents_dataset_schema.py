@@ -20,6 +20,8 @@ from world_understanding.agentic.dataset.schema import (
     PromptConfig,
     SourceInfo,
     TaskConfig,
+    UntrustedSpecEvidence,
+    UntrustedSpecReferencePage,
     export_json_schema,
     validate_dataset_config_file,
     validate_dataset_entry,
@@ -354,6 +356,36 @@ class TestDatasetEntry:
         )
 
         assert entry.ground_truth.material == "002_plastic_black"
+
+    def test_with_untrusted_spec_evidence(self):
+        """Test specification provenance survives schema serialization."""
+        entry = DatasetEntry(
+            id="/prim/path",
+            source=SourceInfo(type="usd_prim", prim_path="/prim/path"),
+            user_prompt="Test",
+            media=MediaConfig(
+                images=[ImageObject(path="renders/part1.png", type="render")]
+            ),
+            untrusted_spec_evidence=UntrustedSpecEvidence(
+                extracted_text="Material Type: Steel",
+                reference_pdf_pages=[
+                    UntrustedSpecReferencePage(
+                        path="references/spec_page_1.png",
+                        description="Datasheet page 1",
+                    )
+                ],
+            ),
+        )
+
+        assert entry.model_dump()["untrusted_spec_evidence"] == {
+            "extracted_text": "Material Type: Steel",
+            "reference_pdf_pages": [
+                {
+                    "path": "references/spec_page_1.png",
+                    "description": "Datasheet page 1",
+                }
+            ],
+        }
 
 
 class TestSchemaHelpers:

@@ -9,7 +9,7 @@ physics simulator and return a scalar metric". Three implementations:
   default ``--engine fake`` path. No external dependencies.
 * OvPhysX — lazy-loaded via :func:`load_ovphysx_backend` when the user opts in
   with ``--engine ovphysx``. Runs through a daemon subprocess (separate venv)
-  because its bundled OpenUSD conflicts with the parent's ``usd-core``.
+  because its bundled OpenUSD conflicts with the parent's OpenUSD provider.
 * Newton — lazy-loaded via :func:`load_newton_backend` when the user opts in
   with ``--engine newton``. NVIDIA Newton (open-source GPU/Warp + MuJoCo-warp).
   Installable via the ``apps/physics_agent[newton]`` extra; no daemon needed
@@ -77,7 +77,11 @@ class TuningBackend(Protocol):
         Required output keys:
             ``score`` (float, lower is better) — the optimization objective.
 
-        Optional keys (passed through to ``trial.backend_metrics``):
+        Optional recognized keys:
+            ``objective_value`` (float) — the meaningful raw task result before
+            conversion into the lower-is-better optimizer score.
+
+        All other keys are passed through to ``trial.backend_metrics``, including:
             ``trajectory`` (path to a per-trial trajectory file),
             ``raw_log`` (path to a raw simulator log),
             anything scenario-specific.
@@ -124,6 +128,7 @@ class FakeBackend:
             contribution[tp.name] = term
         return {
             "score": float(score),
+            "objective_value": float(score),
             "target_params": {
                 tp.name: _scenario_target(tp.name, tp.min_value, tp.max_value, seed)
                 for tp in scenario.params
@@ -219,7 +224,7 @@ def load_ovphysx_backend() -> TuningBackend:
     (:class:`world_understanding.functions.physics.ovphysx_daemon._OvPhysXDaemon`),
     which lives in its own venv (``WU_OVPHYSX_VENV_DIR``, default
     ``~/.cache/wu/ovphysx_venv``) precisely because ovphysx ships a
-    bundled OpenUSD that conflicts with the parent's ``usd-core``. We
+    bundled OpenUSD that conflicts with the parent's OpenUSD provider. We
     therefore must NOT ``import ovphysx`` in the parent process — that
     would (a) defeat the daemon-isolation contract, (b) trigger the
     USD-version conflict the daemon is meant to avoid, and (c) reject

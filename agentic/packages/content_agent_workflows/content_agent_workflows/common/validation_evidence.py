@@ -1,15 +1,21 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Validation evidence schema for agentic asset workflows."""
+"""Legacy aggregate validation summaries for agentic asset workflows.
+
+``EvidenceArtifact`` is intentionally path-only for fixed-pipeline compatibility. It
+is not canonical input to verified-operation ingestion; a domain-owned
+projector must instead publish the versioned digest-bound Validation envelope.
+"""
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 VALIDATION_EVIDENCE_SCHEMA_VERSION = "content-agent-workflows.validation-evidence.v1"
+PATH_ONLY_EVIDENCE_IS_CANONICAL_PROVIDED_INPUT: Final[Literal[False]] = False
 VALIDATION_TIERS = ("T1_basic_stability", "T2_simulation_match", "T3_real_comparison")
 SIM_READY_STATUSES = ("pass", "conditional", "fail", "not_evaluated")
 VALIDATION_CHECK_TAXONOMY = (
@@ -37,7 +43,7 @@ CheckStatus = Literal["pass", "fail", "warning", "not_evaluated"]
 
 
 class EvidenceArtifact(BaseModel):
-    """Artifact referenced by validation evidence."""
+    """Classic path-only artifact; never canonical provided-result evidence."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -120,7 +126,7 @@ def material_assignment_validation_evidence(
                 failures=failure_items,
                 warnings=warning_items,
                 repair_hints=[
-                    "Refine material assignment with focused Workbench renders and VQA."
+                    "Refine material assignment with focused usd-cli renders and VQA."
                 ]
                 if unresolved_items or failure_items
                 else [],

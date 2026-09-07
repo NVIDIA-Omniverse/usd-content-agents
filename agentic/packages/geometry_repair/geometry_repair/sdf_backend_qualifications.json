@@ -1,0 +1,42 @@
+{
+  "schema_version": "geometry-repair.sdf-backend-qualifications.v1",
+  "default_backend_id": "openvdb",
+  "backends": {
+    "openvdb": {
+      "qualification_id": "geometry-repair.openvdb13.v1",
+      "required_operations": [
+        "active_value_mask",
+        "extract_enclosed_region",
+        "field_to_mesh",
+        "mesh_to_sdf",
+        "mesh_to_udf",
+        "smooth_scalar",
+        "smooth_sdf",
+        "topology_to_sdf"
+      ],
+      "expected_identity": {
+        "backend_id": "openvdb",
+        "execution_mode": "in_process",
+        "implementation_version": "openvdb-runtime-13.0.0+wu.3"
+      },
+      "expected_provenance": {
+        "distribution_version": "13.0.0+wu.3",
+        "library_version": [
+          13,
+          0,
+          0
+        ],
+        "source_commit": "7c03e1f084873cd1b3422c7ff7aec6ee681b3b38",
+        "source_distribution_version": "13.0.0+wu.3"
+      },
+      "nonempty_provenance": [
+        "module_path",
+        "source_lock_path"
+      ],
+      "sha256_provenance": [
+        "module_sha256",
+        "source_lock_sha256"
+      ]
+    }
+  }
+}

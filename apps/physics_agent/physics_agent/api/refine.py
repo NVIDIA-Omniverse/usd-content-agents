@@ -55,7 +55,8 @@ from physics_agent.api.types import APIResult
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
     DEFAULT_JUDGE_REFERENCE_FRAMES,
-    DEFAULT_REFERENCE_VIDEO_FRAMES,
+    DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
+    validate_reference_image_path,
     validate_visual_frame_count,
 )
 
@@ -100,20 +101,11 @@ class RefineInput:
     reference_images: list[Path] | None = None
     """Optional reference images for the visual/VLM judge."""
 
-    reference_videos: list[Path] | None = None
-    """Optional reference videos for the visual/VLM judge."""
-
     reference_descriptions: list[str] | None = None
     """Optional descriptions parallel to ``reference_images``."""
 
-    reference_video_descriptions: list[str] | None = None
-    """Optional descriptions parallel to ``reference_videos``."""
-
-    reference_video_frames: int = DEFAULT_REFERENCE_VIDEO_FRAMES
-    """Number of frames to extract from each reference video for visual judging."""
-
     judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES
-    """Max reference images/video frames to send to the VLM judge."""
+    """Max reference images to send to the VLM judge."""
 
     judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES
     """Max generated render frames to send to the VLM judge."""
@@ -163,21 +155,26 @@ class RefineInput:
     """Optional pre-built VLM instance used by the judge. When no media is
     supplied, the judge still calls this VLM with an empty media list."""
 
-    force_record_video: str | None = "off"
-    """When set, every iteration's ``scenario.target.record_video`` is
+    force_record_frames: str | None = "off"
+    """When set, every iteration's ``scenario.target.record_frames`` is
     overwritten to this value, overriding both the initial YAML and any
     LLM-refined value. The CLI default is ``"off"`` so per-trial render
     cost is avoided. Pass ``None`` to honor the YAML / refine flow instead."""
 
     render_winning_trial: bool = False
     """Post-tune render of the best trial's recording.usd into
-    ``iter_N/render/`` as PNG judge evidence. Refine never encodes MP4;
-    the time-sampled recording USD is its portable motion artifact."""
+    ``iter_N/render/`` as PNG judge evidence. The time-sampled recording USD
+    is its portable motion artifact."""
 
     visual_evidence_enabled: bool = True
     """Whether generated/reference media should be sent to the VLM judge.
-    Disabling this keeps tune/render artifacts intact but forces the judge
-    VLM call to use text-only evidence."""
+    Disabling this forces the judge VLM call to use text-only evidence and
+    skips the automatic winning-trial judge render unless
+    ``render_winning_trial`` is also enabled."""
+
+    visual_evidence_timeout_seconds: float = DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS
+    """Wall-clock deadline for reference-media preparation and the automatic
+    winning-trial judge render. Set ``0`` (or any non-positive value) to disable."""
 
     llm_timeout_seconds: float = 180.0
     """Wall-clock deadline (seconds) for each judge / refine LLM call.
@@ -199,6 +196,14 @@ class RefineInput:
     """Enable verbose progress logging."""
 
     def __post_init__(self) -> None:
+        from physics_agent.tuning.optimizers import get_supported_optimizer_names
+
+        supported_optimizers = get_supported_optimizer_names()
+        if self.optimizer not in supported_optimizers:
+            raise ValueError(
+                f"Unknown optimizer {self.optimizer!r}. "
+                f"Supported: {list(supported_optimizers)}"
+            )
         if not self.user_prompt or not str(self.user_prompt).strip():
             raise ValueError("user_prompt must be a non-empty string")
         if self.max_iterations < 1:
@@ -240,6 +245,25 @@ class RefineInput:
                 f"llm_timeout_seconds must be finite, got {self.llm_timeout_seconds}"
             )
         self.llm_timeout_seconds = timeout_seconds
+        try:
+            visual_timeout_seconds = float(self.visual_evidence_timeout_seconds)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "visual_evidence_timeout_seconds must be finite, "
+                f"got {self.visual_evidence_timeout_seconds}"
+            ) from exc
+        if not math.isfinite(visual_timeout_seconds):
+            raise ValueError(
+                "visual_evidence_timeout_seconds must be finite, "
+                f"got {self.visual_evidence_timeout_seconds}"
+            )
+        self.visual_evidence_timeout_seconds = visual_timeout_seconds
+        if self.engine == "fake" and self.visual_evidence_enabled:
+            raise ValueError(
+                "engine='fake' does not produce recording_usd required for visual "
+                "evidence; set visual_evidence_enabled=False "
+                "(--no-visual-evidence in CLI)"
+            )
         if self.judge_max_tokens is not None and self.judge_max_tokens < 1:
             raise ValueError(
                 f"judge_max_tokens must be >= 1, got {self.judge_max_tokens}"
@@ -251,10 +275,6 @@ class RefineInput:
                     "judge_temperature must be finite and >= 0, "
                     f"got {self.judge_temperature}"
                 )
-        self.reference_video_frames = validate_visual_frame_count(
-            "reference_video_frames",
-            self.reference_video_frames,
-        )
         self.judge_reference_frames = validate_visual_frame_count(
             "judge_reference_frames",
             self.judge_reference_frames,
@@ -286,41 +306,24 @@ class RefineInput:
         if not self.physics_usd.exists():
             raise FileNotFoundError(f"physics_usd file not found: {self.physics_usd}")
         if self.reference_images is not None:
-            self.reference_images = [Path(p) for p in self.reference_images]
-            for path in self.reference_images:
-                if not path.exists():
-                    raise FileNotFoundError(f"reference image not found: {path}")
-                if not path.is_file():
-                    raise ValueError(f"reference image must be a file: {path}")
-        if self.reference_videos is not None:
-            self.reference_videos = [Path(p) for p in self.reference_videos]
-            for path in self.reference_videos:
-                if not path.exists():
-                    raise FileNotFoundError(f"reference video not found: {path}")
-                if not path.is_file():
-                    raise ValueError(f"reference video must be a file: {path}")
+            self.reference_images = [
+                validate_reference_image_path(path) for path in self.reference_images
+            ]
         if self.reference_descriptions is not None and len(
             self.reference_descriptions
         ) != len(self.reference_images or []):
             raise ValueError(
                 "reference_descriptions must be supplied once per reference_images item"
             )
-        if self.reference_video_descriptions is not None and len(
-            self.reference_video_descriptions
-        ) != len(self.reference_videos or []):
-            raise ValueError(
-                "reference_video_descriptions must be supplied once per "
-                "reference_videos item"
-            )
         self.output_dir = Path(self.output_dir)
-        if self.force_record_video is not None and self.force_record_video not in {
+        if self.force_record_frames is not None and self.force_record_frames not in {
             "off",
             "end_of_tune",
             "always",
         }:
             raise ValueError(
-                "force_record_video must be one of {'off','end_of_tune','always'} "
-                f"or None, got {self.force_record_video!r}"
+                "force_record_frames must be one of {'off','end_of_tune','always'} "
+                f"or None, got {self.force_record_frames!r}"
             )
 
 
@@ -460,15 +463,13 @@ async def arun_refine(params: RefineInput) -> RefineOutput:
         chat_model=params.chat_model,
         vlm_model=params.vlm_model,
         reference_images=params.reference_images,
-        reference_videos=params.reference_videos,
         reference_descriptions=params.reference_descriptions,
-        reference_video_descriptions=params.reference_video_descriptions,
-        reference_video_frames=params.reference_video_frames,
         judge_reference_frames=params.judge_reference_frames,
         judge_generated_frames=params.judge_generated_frames,
-        force_record_video=params.force_record_video,
+        force_record_frames=params.force_record_frames,
         render_winning_trial=params.render_winning_trial,
         visual_evidence_enabled=params.visual_evidence_enabled,
+        visual_evidence_timeout_seconds=params.visual_evidence_timeout_seconds,
         llm_timeout_seconds=params.llm_timeout_seconds,
         cancel_event=params.cancel_event,
     )

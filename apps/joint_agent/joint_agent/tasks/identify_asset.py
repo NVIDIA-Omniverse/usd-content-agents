@@ -102,13 +102,29 @@ class IdentifyAssetTask(Task):
             vlm_invoke_kwargs: dict[str, Any] = dict(
                 context.get("vlm_invoke_kwargs", {})
             )
+            extra_vlm_invoke_kwargs = {
+                key: value
+                for key, value in vlm_invoke_kwargs.items()
+                if value is not None
+                and key
+                not in {
+                    "max_completion_tokens",
+                    "max_retries",
+                    "max_tokens",
+                    "temperature",
+                }
+            }
+            max_tokens = vlm_invoke_kwargs.get("max_tokens")
+            if max_tokens is None:
+                max_tokens = vlm_invoke_kwargs.get("max_completion_tokens", 4096)
 
             response_text = vlm.generate(
                 prompt=user_prompt,
                 images=images_to_use,
                 system_prompt=system_prompt if system_prompt else None,
                 temperature=vlm_invoke_kwargs.get("temperature", 0.3),
-                max_tokens=vlm_invoke_kwargs.get("max_tokens", 4096),
+                max_tokens=max_tokens,
+                **extra_vlm_invoke_kwargs,
             )
 
             # Parse JSON from response
@@ -121,14 +137,8 @@ class IdentifyAssetTask(Task):
             )
 
         except Exception as e:
-            logger.error("Asset identification failed: %s", e, exc_info=True)
-            identification = {
-                "asset_type": "unknown",
-                "asset_subtype": "unknown",
-                "asset_description": f"Identification failed: {e}",
-                "confidence": "low",
-                "reasoning": str(e),
-            }
+            logger.error("Asset identification provider request failed", exc_info=True)
+            raise RuntimeError("Asset identification provider request failed") from e
 
         # Save results
         self._save_identification(identification, output_dir)

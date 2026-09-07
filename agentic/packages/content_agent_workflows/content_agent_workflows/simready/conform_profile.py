@@ -21,19 +21,29 @@ from pathlib import Path
 from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
+from world_understanding.utils.physics_units import stage_linear_unit_scale
 from world_understanding.utils.usd.package import (
     extract_usdz_members_to_dir,
     safe_usdz_member_parts,
 )
 
-from .foundation_runtime import resolve_simready_runtime
+from content_agent_workflows.common.artifacts import atomic_write_json
+from content_agent_workflows.common.run_record import WorkflowRunRecorder
+
+from .asset_identity import asset_dependency_identity_errors
+from .foundation_runtime import (
+    resolve_simready_runtime,
+    verify_simready_runtime_identity,
+)
 from .models import (
     DEFAULT_SIMREADY_PROFILE,
     DEFAULT_SIMREADY_PROFILE_VERSION,
+    SIMREADY_VALIDATION_SCHEMA_VERSION,
     SimReadyConformanceInput,
     SimReadyConformanceReport,
     SimReadyGraspLinePlan,
     SimReadyGraspPlan,
+    default_simready_report_name,
 )
 
 FOUNDATION_SKILL_BY_AREA = {
@@ -64,10 +74,24 @@ MULTIBODY_REQUIREMENTS = {"RB.MB.001"}
 GRASP_REQUIREMENTS = {"GSP.001"}
 PHYSICS_MATERIAL_REQUIREMENTS = {"PMT.001"}
 PHYSICS_MATERIAL_PURPOSE = "physics"
+_VM_TEX_002_SRGB_ATTR_NAMES = {
+    "inputs:UV_VertexColor",
+    "inputs:Set1SuperAlbedo",
+    "inputs:Set2SuperAlbedo",
+}
+_GIT_COMMIT_PATTERN = re.compile(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}")
+_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+_OPTIONAL_VALIDATION_DIGEST_FIELDS = (
+    "foundation_spec_tree_sha256",
+    "validator_executable_sha256",
+    "validator_distributions_sha256",
+)
+_MISSING = object()
 ATOMIC_ASSET_PATH_REQUIREMENT = "AA.001"
 ISAAC_COMPOSITION_REQUIREMENT = "ISA.001"
 GATE3A_HYGIENE_REQUIREMENT = "G3A.HYG.001"
 GATE3A_HYGIENE_OUTPUT_DIR = "gate3a-hygiene"
+NP005_OUTPUT_DIR = "np005-conformed"
 GATE3A_HYGIENE_RECEIPT_SCHEMA_VERSION = (
     "content-agent-workflows.simready-gate3a-hygiene-receipt.v1"
 )
@@ -104,6 +128,12 @@ class _RepairResult:
     report_path: Path | None = None
 
 
+def _conformance_run_record_subdir(report_path: Path) -> Path:
+    """Return a deterministic recorder namespace for one conformance report."""
+
+    return Path(f".{report_path.name}.workflow-run")
+
+
 @dataclass(frozen=True)
 class _GSP001SourceLineage:
     receipt_path: Path
@@ -132,6 +162,21 @@ class _AA001Plan:
 def run_simready_profile_conformance(
     params: SimReadyConformanceInput,
 ) -> SimReadyConformanceReport:
+    """Run conformance and durably record unexpected failures."""
+
+    recorders: list[WorkflowRunRecorder] = []
+    try:
+        return _run_simready_profile_conformance(params, recorders)
+    except Exception as exc:
+        if recorders:
+            recorders[-1].finalize_unexpected_failure(exc)
+        raise
+
+
+def _run_simready_profile_conformance(
+    params: SimReadyConformanceInput,
+    recorders: list[WorkflowRunRecorder],
+) -> SimReadyConformanceReport:
     """Route profile failures to Foundation conformance skills safely."""
 
     asset_path = _absolute_path(Path(params.asset_path).expanduser())
@@ -139,9 +184,91 @@ def run_simready_profile_conformance(
     report_path = (
         Path(params.report_path).expanduser().resolve()
         if params.report_path is not None
-        else output_dir / "simready-conform-profile.json"
+        else output_dir / default_simready_report_name(asset_path, kind="conformance")
     )
     output_dir.mkdir(parents=True, exist_ok=True)
+    request = params.model_dump(mode="json")
+    request.pop("resume", None)
+    recorder = WorkflowRunRecorder.start(
+        output_dir,
+        workflow="simready_profile_conformance",
+        request=request,
+        source_path=asset_path if asset_path.is_file() else None,
+        backend={
+            "kind": "simready_foundation",
+            "conformance_router": "content_agent_workflows.simready",
+        },
+        policy={
+            "profile": params.profile,
+            "profile_version": params.profile_version,
+            "repair_requirements": list(params.repair_requirements),
+            "force": params.force,
+        },
+        required_artifacts=["conformance_report"],
+        resume=params.resume,
+        record_subdir=_conformance_run_record_subdir(report_path),
+    )
+    recorders.append(recorder)
+
+    def finish(report: SimReadyConformanceReport) -> SimReadyConformanceReport:
+        report.workflow_run_manifest_path = str(recorder.path)
+        written = _write_report(report_path, report)
+        try:
+            report_record = recorder.record_artifact(
+                "conformance_report",
+                report_path,
+                kind="simready_conformance",
+            )
+        except ValueError:
+            canonical_report_path = atomic_write_json(
+                output_dir / f".{report_path.name}.run.json",
+                written,
+            )
+            report_record = recorder.record_artifact(
+                "conformance_report",
+                canonical_report_path,
+                kind="simready_conformance",
+            )
+        recorded = [report_record.logical_name]
+        output_path = Path(report.output_usd_path)
+        if output_path.is_file():
+            try:
+                output_record = recorder.record_artifact(
+                    "conformed_usd",
+                    output_path,
+                    kind="usd",
+                    required=False,
+                )
+            except ValueError:
+                pass
+            else:
+                recorded.append(output_record.logical_name)
+        for requirement, path_text in sorted(report.reports.items()):
+            try:
+                repair_record = recorder.record_artifact(
+                    f"repair_report:{requirement}",
+                    Path(path_text),
+                    kind="simready_repair_report",
+                    required=False,
+                )
+            except (FileNotFoundError, ValueError):
+                continue
+            recorded.append(repair_record.logical_name)
+        recorder.checkpoint("conformed", recorded)
+        status = (
+            "pass"
+            if report.passed
+            else "blocked"
+            if report.status == "BLOCKED"
+            else "fail"
+        )
+        recorder.finalize(
+            status,
+            failure={"errors": report.errors, "next_step": report.next_step}
+            if not report.passed
+            else None,
+        )
+        return written
 
     if not asset_path.exists():
         report = SimReadyConformanceReport(
@@ -154,11 +281,12 @@ def run_simready_profile_conformance(
             status="FAIL",
             errors=[f"Asset path does not exist: {asset_path}"],
         )
-        return _write_report(report_path, report)
+        return finish(report)
 
     runtime = resolve_simready_runtime(
         foundation_root=params.foundation_root,
         foundation_spec_root=params.foundation_spec_root,
+        venv_path=params.venv_path,
         install_missing=False,
     )
     foundation_root = (
@@ -166,6 +294,32 @@ def run_simready_profile_conformance(
         if runtime.foundation_root
         else None
     )
+    if (
+        getattr(runtime, "managed_foundation_checkout", False)
+        and foundation_root is not None
+        and foundation_root.exists()
+        and not runtime.foundation_checkout_verified
+    ):
+        report = SimReadyConformanceReport(
+            input_usd_path=str(asset_path),
+            output_usd_path=str(asset_path),
+            output_dir=str(output_dir),
+            profile=params.profile,
+            profile_version=params.profile_version,
+            foundation_root=runtime.foundation_root,
+            foundation_commit=runtime.foundation_commit,
+            foundation_checkout_verified=False,
+            foundation_requirements_sha256=runtime.foundation_requirements_sha256,
+            foundation_spec_root=runtime.foundation_spec_root,
+            runtime_contract_sha256=runtime.runtime_contract_sha256,
+            passed=False,
+            status="BLOCKED",
+            warnings=runtime.warnings,
+            errors=runtime.errors
+            or ["Managed SimReady Foundation checkout identity is unverified."],
+            next_step="prepare-simready-foundation-runtime",
+        )
+        return finish(report)
     foundation_missing = foundation_root is None or not foundation_root.exists()
 
     validation_report_path = (
@@ -183,10 +337,42 @@ def run_simready_profile_conformance(
         if params.source_asset is not None
         else asset_path
     )
-    failed_requirements, report_errors = _failed_requirements(validation_report_path)
+    validation_payload: dict[str, Any] | None = None
+    failed_requirements: list[str] = []
+    if validation_report_path is not None:
+        validation_payload, report_errors = _identity_bound_validation_report(
+            validation_report_path,
+            asset_path=asset_path,
+            profile=params.profile,
+            profile_version=params.profile_version,
+            runtime=runtime,
+        )
+        if report_errors:
+            report = SimReadyConformanceReport(
+                input_usd_path=str(asset_path),
+                output_usd_path=str(asset_path),
+                output_dir=str(output_dir),
+                profile=params.profile,
+                profile_version=params.profile_version,
+                validation_report=str(validation_report_path),
+                passed=False,
+                status="BLOCKED",
+                warnings=_dedupe(runtime.warnings),
+                errors=_dedupe(
+                    [
+                        "Validation evidence is not identity-bound and was not "
+                        "used for SimReady conformance.",
+                        *report_errors,
+                    ]
+                ),
+                next_step="simready-validate",
+            )
+            return finish(report)
+        failed_requirements = _failed_requirements(validation_payload)
     requested_requirements = sorted(
         set(params.repair_requirements) | set(failed_requirements)
     )
+    evidence_identity = _conformance_evidence_identity(runtime, validation_payload)
 
     try:
         latest_output, latest_package_root, stage_warnings = _stage_input(
@@ -201,6 +387,7 @@ def run_simready_profile_conformance(
             output_dir=str(output_dir),
             profile=params.profile,
             profile_version=params.profile_version,
+            **evidence_identity,
             validation_report=str(validation_report_path)
             if validation_report_path
             else None,
@@ -208,12 +395,37 @@ def run_simready_profile_conformance(
             passed=False,
             status="FAIL",
             errors=[
-                *report_errors,
                 f"Could not stage asset for SimReady conformance: {exc}",
             ],
             next_step="fix-asset-staging",
         )
-        return _write_report(report_path, report)
+        return finish(report)
+    if validation_payload is not None:
+        staged_identity_errors = verify_simready_runtime_identity(runtime)
+        if _regular_file_sha256(latest_output) != validation_payload.get(
+            "asset_sha256"
+        ):
+            staged_identity_errors.append(
+                "Staged asset content no longer matches the identity-bound "
+                "SimReady validation evidence."
+            )
+        if staged_identity_errors:
+            report = SimReadyConformanceReport(
+                input_usd_path=str(asset_path),
+                output_usd_path=str(latest_output),
+                output_dir=str(output_dir),
+                profile=params.profile,
+                profile_version=params.profile_version,
+                **evidence_identity,
+                validation_report=str(validation_report_path),
+                failed_requirements=failed_requirements,
+                passed=False,
+                status="BLOCKED",
+                warnings=_dedupe([*stage_warnings, *runtime.warnings]),
+                errors=_dedupe(staged_identity_errors),
+                next_step="simready-validate",
+            )
+            return finish(report)
     selected_requirements = sorted(
         _expanded_repair_requirements(
             requested_requirements,
@@ -235,8 +447,6 @@ def run_simready_profile_conformance(
             "SimReady Foundation checkout is unavailable; conformance routing "
             "for requirements without deterministic local repairs will be blocked."
         )
-    errors.extend(report_errors)
-
     for requirement in selected_requirements:
         skill = _skill_for_requirement(requirement)
         has_local_repair = _has_local_repair(requirement)
@@ -353,9 +563,7 @@ def run_simready_profile_conformance(
         output_dir=str(output_dir),
         profile=params.profile,
         profile_version=params.profile_version,
-        foundation_root=runtime.foundation_root,
-        foundation_commit=runtime.foundation_commit,
-        foundation_spec_root=runtime.foundation_spec_root,
+        **evidence_identity,
         validation_report=str(validation_report_path)
         if validation_report_path
         else None,
@@ -371,7 +579,7 @@ def run_simready_profile_conformance(
         errors=_dedupe(errors),
         next_step="simready-validate",
     )
-    return _write_report(report_path, report)
+    return finish(report)
 
 
 def _repair_requirement(
@@ -420,6 +628,12 @@ def _repair_requirement(
             package_root=package_root,
             output_dir=output_dir,
         )
+    if requirement == "NP.005":
+        return _repair_asset_folder_structure(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+        )
     if requirement == "NP.006":
         return _repair_simready_metadata(
             requirement=requirement,
@@ -442,6 +656,12 @@ def _repair_requirement(
         )
     if requirement == "VM.MAT.001":
         return _repair_missing_visual_material_bindings(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+        )
+    if requirement == "VM.TEX.002":
+        return _repair_texture_color_spaces(
             requirement=requirement,
             asset_path=asset_path,
             output_dir=output_dir,
@@ -474,6 +694,8 @@ def _repair_requirement(
 
 
 def _repair_order_key(requirement: str) -> tuple[int, str]:
+    if requirement == "NP.005":
+        return (0, requirement)
     if requirement == "NP.006":
         return (1, requirement)
     if requirement in {"UN.006", "UN.007"}:
@@ -482,6 +704,8 @@ def _repair_order_key(requirement: str) -> tuple[int, str]:
         return (10, requirement)
     if requirement == "VM.MAT.001":
         return (20, requirement)
+    if requirement == "VM.TEX.002":
+        return (25, requirement)
     if requirement == "PMT.001":
         return (30, requirement)
     if requirement == GATE3A_HYGIENE_REQUIREMENT:
@@ -853,6 +1077,7 @@ def _aa001_source_package(
         _absolute_path(output_dir / ISAAC_COMPOSITION_OUTPUT_DIR),
         _absolute_path(output_dir / GSP001_OUTPUT_DIR),
         _absolute_path(output_dir / GATE3A_HYGIENE_OUTPUT_DIR),
+        _absolute_path(output_dir / NP005_OUTPUT_DIR),
     )
     if not any(_relative_to(source_tree, root) is not None for root in allowed_roots):
         raise ValueError(
@@ -1334,7 +1559,11 @@ def _aa001_stage_fingerprint(
         text = str(asset_path)
         if not text:
             return text
-        if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", text) or "[" in text or "]" in text:
+        has_uri_scheme = bool(
+            re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", text)
+            and not re.match(r"^[A-Za-z]:[\\/]", text)
+        )
+        if has_uri_scheme or "[" in text or "]" in text:
             raise ValueError(f"Flattened stage contains non-local asset path: {text}")
         path = Path(text)
         path = path if path.is_absolute() else stage_root / path
@@ -1355,6 +1584,16 @@ def _publish_aa001_tree(
         publish_root=publish_root,
         tree_sha256=tree_sha256,
     )
+
+
+def _content_address_component(sha256: str) -> str:
+    """Keep nested content-addressed Windows paths below legacy MAX_PATH."""
+
+    if not re.fullmatch(r"[0-9a-f]{64}", sha256):
+        raise ValueError(f"Invalid SHA-256 content address: {sha256!r}")
+    # The full digest remains in receipts and is rechecked on every cache hit;
+    # a prefix collision therefore fails closed instead of reusing other bytes.
+    return sha256[:32] if os.name == "nt" else sha256
 
 
 def _repair_isaac_composition(
@@ -2083,7 +2322,7 @@ def _publish_isa001_tree(
             "ISA.001 atomic publication requires the build tree to be a direct "
             f"child of the publish root: {build_dir}"
         )
-    final_tree = publish_root / tree_sha256
+    final_tree = publish_root / _content_address_component(tree_sha256)
     if final_tree.exists() or final_tree.is_symlink():
         if final_tree.is_symlink() or not final_tree.is_dir():
             raise ValueError(
@@ -2596,6 +2835,188 @@ def _repair_missing_visual_material_bindings(
     )
 
 
+def _repair_texture_color_spaces(
+    *, requirement: str, asset_path: Path, output_dir: Path
+) -> _RepairResult:
+    """Apply only unambiguous VM.TEX.002 color-space repairs.
+
+    The pinned Foundation validator currently treats every authored color-space
+    opinion outside a small sRGB allowlist as ``raw``.  That is not enough
+    semantic information to rewrite an explicitly authored sRGB texture: base
+    color and emission textures are commonly sRGB, and silently demoting one
+    changes appearance.  Fail closed before mutating the stage when such an
+    ambiguous opinion is present.
+    """
+
+    try:
+        from pxr import Sdf, Usd
+    except ImportError as exc:
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=f"OpenUSD Python APIs are unavailable: {exc}",
+        )
+
+    stage, _opened_path, open_error = _open_stage(asset_path, Usd)
+    if stage is None:
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=open_error or f"Unable to open staged USD: {asset_path}",
+        )
+
+    ambiguous: list[dict[str, str]] = []
+    for prim in stage.Traverse():
+        for attr in prim.GetAttributes():
+            if not attr.HasColorSpace():
+                continue
+            actual = str(attr.GetColorSpace())
+            is_empty_asset = False
+            if (
+                attr.GetTypeName() == Sdf.ValueTypeNames.Asset
+                and not attr.GetTimeSamples()
+                and not attr.GetConnections()
+            ):
+                default_value = attr.Get()
+                is_empty_asset = not str(getattr(default_value, "path", "") or "")
+            if (
+                attr.GetName() not in _VM_TEX_002_SRGB_ATTR_NAMES
+                and actual != "raw"
+                and not is_empty_asset
+            ):
+                ambiguous.append(
+                    {
+                        "attribute_path": str(attr.GetPath()),
+                        "color_space": actual,
+                        "validator_expected_color_space": "raw",
+                    }
+                )
+    if ambiguous:
+        return _write_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            status="BLOCKED",
+            passed=False,
+            reason=(
+                "VM.TEX.002 requires a color-space change whose texture semantic "
+                "cannot be inferred safely; preserve the authored opinions and "
+                "request an explicit material decision."
+            ),
+            report={
+                "schema_version": "content-agent-workflows.simready-repair.v1",
+                "requirement": requirement,
+                "asset_path": str(asset_path),
+                "changed_attributes": [],
+                "ambiguous_attributes": ambiguous,
+                "remaining_findings": ambiguous,
+                "policy": {
+                    "srgb_attribute_names": sorted(_VM_TEX_002_SRGB_ATTR_NAMES),
+                    "all_other_authored_color_spaces": (
+                        "preserve-and-block-when-not-raw"
+                    ),
+                },
+            },
+        )
+
+    changed: list[dict[str, str]] = []
+    try:
+        for prim in stage.Traverse():
+            for attr in prim.GetAttributes():
+                if not attr.HasColorSpace():
+                    continue
+                expected = (
+                    "sRGB" if attr.GetName() in _VM_TEX_002_SRGB_ATTR_NAMES else "raw"
+                )
+                actual = str(attr.GetColorSpace())
+                if actual == expected:
+                    continue
+                attr.SetColorSpace(expected)
+                if str(attr.GetColorSpace()) != expected:
+                    raise ValueError(
+                        f"Could not author colorSpace={expected!r} on {attr.GetPath()}"
+                    )
+                changed.append(
+                    {
+                        "attribute_path": str(attr.GetPath()),
+                        "previous_color_space": actual,
+                        "color_space": expected,
+                    }
+                )
+        save_error = _save_stage_root_layer(stage)
+        if save_error:
+            raise ValueError(save_error)
+    except (OSError, RuntimeError, ValueError) as exc:
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=f"Could not safely repair VM.TEX.002 color spaces: {exc}",
+        )
+
+    reopened, _opened_path, reopen_error = _open_stage(asset_path, Usd)
+    if reopened is None:
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=reopen_error or f"Unable to reopen repaired USD: {asset_path}",
+        )
+    remaining: list[dict[str, str]] = []
+    for prim in reopened.Traverse():
+        for attr in prim.GetAttributes():
+            if not attr.HasColorSpace():
+                continue
+            expected = (
+                "sRGB" if attr.GetName() in _VM_TEX_002_SRGB_ATTR_NAMES else "raw"
+            )
+            actual = str(attr.GetColorSpace())
+            if actual != expected:
+                remaining.append(
+                    {
+                        "attribute_path": str(attr.GetPath()),
+                        "color_space": actual,
+                        "expected_color_space": expected,
+                    }
+                )
+
+    report = {
+        "schema_version": "content-agent-workflows.simready-repair.v1",
+        "requirement": requirement,
+        "asset_path": str(asset_path),
+        "changed_attributes": changed,
+        "remaining_findings": remaining,
+        "policy": {
+            "srgb_attribute_names": sorted(_VM_TEX_002_SRGB_ATTR_NAMES),
+            "all_other_authored_color_spaces": "raw",
+        },
+    }
+    if remaining:
+        return _write_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            status="BLOCKED",
+            passed=False,
+            reason="Some authored color-space metadata still violates VM.TEX.002.",
+            report=report,
+        )
+    return _write_repair_result(
+        requirement=requirement,
+        asset_path=asset_path,
+        output_dir=output_dir,
+        status="REPAIRED",
+        passed=True,
+        reason=(
+            f"Normalized {len(changed)} authored color-space opinion(s) to the "
+            "Foundation VM.TEX.002 policy."
+        ),
+        report=report,
+    )
+
+
 def _repair_missing_physics_material_bindings(
     *, requirement: str, asset_path: Path, output_dir: Path
 ) -> _RepairResult:
@@ -2659,7 +3080,30 @@ def _repair_missing_physics_material_bindings(
                 "UsdShade Material with UsdPhysics.MaterialAPI exists."
             ),
         )
-    if len(materials) > 1:
+    computed_materials: dict[str, Any] = {}
+    for prim in colliders:
+        relationship = prim.GetRelationship("material:binding:physics")
+        if relationship and relationship.GetTargets():
+            continue
+        material, _computed_relationship = _computed_physics_material_binding(
+            prim, UsdShade
+        )
+        if material and material.GetPrim().HasAPI(UsdPhysics.MaterialAPI):
+            computed_materials[str(prim.GetPath())] = material
+
+    unresolved_material_paths = {
+        str(prim.GetPath())
+        for prim in colliders
+        if str(prim.GetPath()) not in computed_materials
+        and not (
+            (relationship := prim.GetRelationship("material:binding:physics"))
+            and len(relationship.GetTargets()) == 1
+            and _is_physics_material_target(
+                stage, relationship.GetTargets()[0], UsdPhysics, UsdShade
+            )
+        )
+    }
+    if unresolved_material_paths and len(materials) > 1:
         return _write_repair_result(
             requirement=requirement,
             asset_path=asset_path,
@@ -2679,28 +3123,24 @@ def _repair_missing_physics_material_bindings(
                     str(material.GetPath()) for material in materials
                 ],
                 "initial_findings": initial_findings,
+                "unresolved_colliders": sorted(unresolved_material_paths),
             },
         )
 
-    material = materials[0]
+    fallback_material = materials[0] if len(materials) == 1 else None
 
     bound_paths: list[str] = []
     replaced_paths: list[str] = []
     for prim in colliders:
         relationship = prim.GetRelationship("material:binding:physics")
         targets = relationship.GetTargets() if relationship else []
-        if (
-            len(targets) == 1
-            and all(
-                _is_physics_material_target(stage, target, UsdPhysics, UsdShade)
-                for target in targets
-            )
-        ) or (
-            not targets
-            and _is_computed_physics_material_binding_valid(
-                prim, UsdPhysics=UsdPhysics, UsdShade=UsdShade
-            )
+        if len(targets) == 1 and all(
+            _is_physics_material_target(stage, target, UsdPhysics, UsdShade)
+            for target in targets
         ):
+            continue
+        material = computed_materials.get(str(prim.GetPath())) or fallback_material
+        if material is None:
             continue
         prim.CreateRelationship("material:binding:physics").SetTargets(
             [material.GetPath()]
@@ -2719,7 +3159,14 @@ def _repair_missing_physics_material_bindings(
         "schema_version": "content-agent-workflows.simready-repair.v1",
         "requirement": requirement,
         "asset_path": str(asset_path),
-        "physics_material_path": str(material.GetPath()),
+        "physics_material_paths": sorted(
+            {str(material.GetPath()) for material in (*computed_materials.values(),)}
+            | (
+                {str(fallback_material.GetPath())}
+                if fallback_material is not None
+                else set()
+            )
+        ),
         "bound_colliders": bound_paths,
         "replaced_invalid_bindings": replaced_paths,
         "remaining_findings": remaining_findings,
@@ -2755,8 +3202,8 @@ def _repair_missing_physics_material_bindings(
         status="REPAIRED",
         passed=True,
         reason=(
-            f"Bound {len(bound_paths)} collider prim(s) to physics material "
-            f"{material.GetPath()}."
+            f"Bound {len(bound_paths)} collider prim(s) to direct physics "
+            "material relationships."
         ),
         report=report,
     )
@@ -2880,15 +3327,26 @@ def _physics_material_binding_findings(
         relationship = prim.GetRelationship("material:binding:physics")
         targets = relationship.GetTargets() if relationship else []
         if not targets:
-            if _is_computed_physics_material_binding_valid(
-                prim, UsdPhysics=UsdPhysics, UsdShade=UsdShade
-            ):
-                continue
+            computed_material, computed_relationship = (
+                _computed_physics_material_binding(prim, UsdShade)
+            )
             findings.append(
                 {
                     "prim_path": str(prim.GetPath()),
                     "reason": (
-                        "CollisionAPI prim lacks computed material:binding:physics."
+                        "CollisionAPI prim lacks a direct "
+                        "material:binding:physics relationship."
+                    ),
+                    "computed_material_path": (
+                        str(computed_material.GetPath())
+                        if computed_material
+                        and computed_material.GetPrim().HasAPI(UsdPhysics.MaterialAPI)
+                        else None
+                    ),
+                    "computed_relationship_path": (
+                        str(computed_relationship.GetPath())
+                        if computed_relationship is not None
+                        else None
                     ),
                 }
             )
@@ -3005,6 +3463,284 @@ def _repair_simready_metadata(
             "source_asset": source_asset,
         },
     )
+
+
+def _repair_asset_folder_structure(
+    *, requirement: str, asset_path: Path, output_dir: Path
+) -> _RepairResult:
+    """Stage an atomic USD under the Foundation-defined NP.005 layout."""
+
+    if not asset_path.is_file():
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=(
+                "NP.005 automatic repair requires an unambiguous main USD file; "
+                f"received directory asset: {asset_path}"
+            ),
+        )
+    if asset_path.suffix.lower() not in {".usd", ".usda", ".usdc"}:
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=(
+                "NP.005 automatic repair requires an unpacked USD, USDA, or "
+                f"USDC main asset: {asset_path}"
+            ),
+        )
+
+    dependencies, dependency_warnings = _usd_dependency_paths(asset_path)
+    external_dependencies = sorted(
+        {
+            str(_absolute_path(path))
+            for path in dependencies
+            if _absolute_path(path) != _absolute_path(asset_path)
+        }
+    )
+    if dependency_warnings:
+        return _write_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            status="BLOCKED",
+            passed=False,
+            reason=(
+                "NP.005 dependency discovery was incomplete; the asset cannot be "
+                "relocated safely until every composed dependency is known."
+            ),
+            report={
+                "schema_version": "content-agent-workflows.simready-repair.v1",
+                "requirement": requirement,
+                "asset_path": str(asset_path),
+                "dependencies": external_dependencies,
+                "dependency_warnings": dependency_warnings,
+            },
+        )
+    asset_root_name = re.sub(r"[^a-z0-9_-]+", "_", asset_path.stem.lower()).strip("_-")
+    if not asset_root_name:
+        asset_root_name = "asset"
+    publish_root = output_dir / NP005_OUTPUT_DIR
+    build_dir: Path | None = None
+    try:
+        publish_root.mkdir(parents=True, exist_ok=True)
+        publish_root_mode = publish_root.lstat().st_mode
+        if stat.S_ISLNK(publish_root_mode) or not stat.S_ISDIR(publish_root_mode):
+            raise ValueError(
+                f"NP.005 publish root is not a regular directory: {publish_root}"
+            )
+        build_dir = _private_mkdtemp(prefix=".np005-build-", directory=publish_root)
+        build_asset_root = build_dir / asset_root_name
+        build_intermediate_dir = build_asset_root / "simready_usd"
+        build_output_path = (
+            build_intermediate_dir / f"{asset_root_name}{asset_path.suffix.lower()}"
+        )
+        build_intermediate_dir.mkdir(parents=True)
+        _copy_staging_file(str(asset_path), str(build_output_path))
+
+        packaged_dependencies: list[dict[str, str]] = []
+        if external_dependencies:
+            packaged_dependencies = _package_np005_dependencies(
+                asset_path=asset_path,
+                output_path=build_output_path,
+                asset_root=build_asset_root,
+                dependencies=[Path(path) for path in external_dependencies],
+            )
+
+        output_tree_sha256 = _isa001_tree_sha256(build_dir)
+        published_build_dir = build_dir
+        final_tree, reused_output = _publish_isa001_tree(
+            build_dir=build_dir,
+            publish_root=publish_root,
+            tree_sha256=output_tree_sha256,
+        )
+        asset_root = final_tree / asset_root_name
+        intermediate_dir = asset_root / "simready_usd"
+        output_path = intermediate_dir / f"{asset_root_name}{asset_path.suffix.lower()}"
+        for record in packaged_dependencies:
+            packaged_path = Path(record["output_path"])
+            packaged_relative = packaged_path.relative_to(published_build_dir)
+            record["output_path"] = str(final_tree / packaged_relative)
+        build_dir = None
+        for candidate in (asset_root, intermediate_dir, output_path):
+            candidate_mode = candidate.lstat().st_mode
+            if stat.S_ISLNK(candidate_mode):
+                raise ValueError(f"NP.005 output path is symlinked: {candidate}")
+        for directory in (asset_root, intermediate_dir):
+            directory_mode = directory.lstat().st_mode
+            if stat.S_ISLNK(directory_mode) or not stat.S_ISDIR(directory_mode):
+                raise ValueError(
+                    f"NP.005 output directory is not a regular directory: {directory}"
+                )
+        output_mode = output_path.lstat().st_mode
+        if stat.S_ISLNK(output_mode) or not stat.S_ISREG(output_mode):
+            raise ValueError(
+                f"NP.005 output target is not a regular file: {output_path}"
+            )
+    except (OSError, ValueError) as exc:
+        if build_dir is not None:
+            shutil.rmtree(build_dir, ignore_errors=True)
+        return _blocked_repair_result(
+            requirement=requirement,
+            asset_path=asset_path,
+            output_dir=output_dir,
+            reason=f"Could not safely stage the NP.005 asset layout: {exc}",
+        )
+
+    report = {
+        "schema_version": "content-agent-workflows.simready-repair.v1",
+        "requirement": requirement,
+        "asset_path": str(asset_path),
+        "publish_root": str(publish_root),
+        "output_tree_sha256": output_tree_sha256,
+        "asset_root": str(asset_root),
+        "intermediate_dir": str(intermediate_dir),
+        "output_path": str(output_path),
+        "reused_output": reused_output,
+        "dependencies": external_dependencies,
+        "packaged_dependencies": packaged_dependencies,
+        "dependency_warnings": dependency_warnings,
+    }
+    return _write_repair_result(
+        requirement=requirement,
+        asset_path=output_path,
+        output_dir=output_dir,
+        status="REPAIRED",
+        passed=True,
+        reason=(
+            "Staged the main USD one directory below its asset root with the "
+            "asset-root name in the filename."
+        ),
+        report=report,
+        package_root=asset_root,
+    )
+
+
+def _package_np005_dependencies(
+    *,
+    asset_path: Path,
+    output_path: Path,
+    asset_root: Path,
+    dependencies: list[Path],
+) -> list[dict[str, str]]:
+    """Copy external assets into NP.005 and rewrite every relocated USD layer."""
+
+    try:
+        from pxr import Sdf, UsdUtils
+    except ImportError as exc:
+        raise ValueError(
+            f"OpenUSD Python APIs are required to package NP.005 dependencies: {exc}"
+        ) from exc
+
+    dependency_dir = asset_root / "dependencies"
+    dependency_dir.mkdir(parents=True, exist_ok=True)
+    dependency_dir_mode = dependency_dir.lstat().st_mode
+    if stat.S_ISLNK(dependency_dir_mode) or not stat.S_ISDIR(dependency_dir_mode):
+        raise ValueError(
+            f"NP.005 dependency directory is not a regular directory: {dependency_dir}"
+        )
+
+    source_to_target: dict[Path, Path] = {}
+    records: list[dict[str, str]] = []
+    for source in sorted({_absolute_path(path) for path in dependencies}):
+        try:
+            source_mode = source.stat(follow_symlinks=False).st_mode
+        except OSError as exc:
+            raise ValueError(f"Could not inspect NP.005 dependency: {source}") from exc
+        if stat.S_ISLNK(source_mode) or not stat.S_ISREG(source_mode):
+            raise ValueError(f"NP.005 dependency is not a regular file: {source}")
+        digest = _regular_file_sha256(source)
+        if digest is None:
+            raise ValueError(f"NP.005 dependency is not a regular file: {source}")
+        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", source.name).strip("._")
+        safe_name = safe_name or "dependency"
+        target = dependency_dir / _content_address_component(digest) / safe_name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target_symlink = _aa001_symlink_component(target, asset_root)
+        if target_symlink is not None:
+            raise ValueError(
+                f"NP.005 dependency target uses a symlink: {target_symlink}"
+            )
+        if target.exists():
+            target_mode = target.lstat().st_mode
+            if stat.S_ISLNK(target_mode) or not stat.S_ISREG(target_mode):
+                raise ValueError(
+                    f"NP.005 dependency target is not a regular file: {target}"
+                )
+            if _regular_file_sha256(target) != digest:
+                raise ValueError(
+                    "NP.005 dependency target already exists with different content: "
+                    f"{target}"
+                )
+        else:
+            _copy_staging_file(str(source), str(target))
+        source_to_target[source] = target
+        records.append(
+            {
+                "source_path": str(source),
+                "output_path": str(target),
+                "sha256": digest,
+            }
+        )
+
+    usd_suffixes = {".usd", ".usda", ".usdc"}
+    layer_pairs = [(asset_path, output_path)]
+    layer_pairs.extend(
+        (source, target)
+        for source, target in source_to_target.items()
+        if source.suffix.lower() in usd_suffixes
+    )
+    for source_layer_path, output_layer_path in layer_pairs:
+        layer = Sdf.Layer.FindOrOpen(str(output_layer_path))
+        if layer is None:
+            raise ValueError(f"Could not open copied NP.005 layer: {output_layer_path}")
+        source_root = _absolute_path(source_layer_path.parent)
+
+        def relocate(authored_path: str) -> str:
+            text = str(authored_path).strip()
+            if not text or text.startswith(
+                ("anon:", "omniverse:", "http://", "https://")
+            ):
+                return text
+            raw_path = Path(text)
+            source = _absolute_path(
+                raw_path if raw_path.is_absolute() else source_root / raw_path
+            )
+            target = source_to_target.get(source)
+            if target is None:
+                return text
+            try:
+                relative = Path(os.path.relpath(target, output_layer_path.parent))
+            except ValueError as exc:
+                raise ValueError(
+                    f"Could not relocate NP.005 dependency across filesystems: {source}"
+                ) from exc
+            return relative.as_posix()
+
+        UsdUtils.ModifyAssetPaths(layer, relocate)
+        if not layer.Save():
+            raise ValueError(
+                f"Could not save rewritten NP.005 layer: {output_layer_path}"
+            )
+
+    relocated_dependencies, relocated_warnings = _usd_dependency_paths(output_path)
+    if relocated_warnings:
+        raise ValueError(
+            "NP.005 dependency verification was incomplete after relocation: "
+            + "; ".join(relocated_warnings)
+        )
+    escaped = sorted(
+        str(path)
+        for path in relocated_dependencies
+        if _relative_to(_absolute_path(path), _absolute_path(asset_root)) is None
+    )
+    if escaped:
+        raise ValueError(
+            "NP.005 dependency rewriting left assets outside the package: "
+            + ", ".join(escaped)
+        )
+    return records
 
 
 def _prepend_xform_op(xformable: Any, xform_op: Any) -> None:
@@ -3419,7 +4155,10 @@ def _repair_stage_metrics(
                 repair_report["scaled_physics_linear_quantities"] = (
                     _scale_authored_physics_linear_quantities(
                         stage,
-                        factor=source_meters_per_unit,
+                        factor=stage_linear_unit_scale(
+                            source_meters_per_unit,
+                            1.0,
+                        ),
                         Gf=Gf,
                         UsdPhysics=UsdPhysics,
                     )
@@ -4351,10 +5090,24 @@ def _private_mkdtemp(*, prefix: str, directory: Path) -> Path:
 
     path = Path(tempfile.mkdtemp(prefix=prefix, dir=directory))
     try:
-        os.chmod(path, stat.S_IRWXU, follow_symlinks=False)
-        mode = stat.S_IMODE(path.stat(follow_symlinks=False).st_mode)
-        if mode != stat.S_IRWXU:
-            raise OSError(f"Temporary directory is not mode 0700: {path}")
+        if os.name == "nt":
+            # Windows does not implement chmod(..., follow_symlinks=False), and
+            # POSIX mode bits do not express its directory ACLs. tempfile has
+            # already created the directory without traversing a caller path;
+            # reject a reparse-point swap before continuing.
+            metadata = path.stat(follow_symlinks=False)
+            attributes = getattr(metadata, "st_file_attributes", 0) or 0
+            if (
+                attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+                or path.is_symlink()
+                or not stat.S_ISDIR(metadata.st_mode)
+            ):
+                raise OSError(f"Temporary directory is not a real directory: {path}")
+        else:
+            os.chmod(path, stat.S_IRWXU, follow_symlinks=False)
+            mode = stat.S_IMODE(path.stat(follow_symlinks=False).st_mode)
+            if mode != stat.S_IRWXU:
+                raise OSError(f"Temporary directory is not mode 0700: {path}")
     except BaseException:
         shutil.rmtree(path, ignore_errors=True)
         raise
@@ -4364,7 +5117,7 @@ def _private_mkdtemp(*, prefix: str, directory: Path) -> Path:
 def _publish_gsp001_tree(
     *, build_dir: Path, publish_root: Path, tree_sha256: str
 ) -> tuple[Path, str]:
-    final_tree = publish_root / tree_sha256
+    final_tree = publish_root / _content_address_component(tree_sha256)
     if final_tree.exists() or final_tree.is_symlink():
         if final_tree.is_symlink() or not final_tree.is_dir():
             raise ValueError(
@@ -4389,13 +5142,22 @@ def _publish_gsp001_tree(
 
 def _remove_gsp001_build_tree(build_dir: Path) -> None:
     def make_owner_writable(path: Path) -> None:
-        mode = path.stat(follow_symlinks=False).st_mode
-        if stat.S_ISLNK(mode):
-            raise ValueError(f"GSP.001 build tree contains a symlink: {path}")
+        metadata = path.stat(follow_symlinks=False)
+        mode = metadata.st_mode
+        attributes = getattr(metadata, "st_file_attributes", 0) or 0
+        if stat.S_ISLNK(mode) or attributes & getattr(
+            stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0
+        ):
+            raise ValueError(
+                f"GSP.001 build tree contains a symlink or reparse point: {path}"
+            )
         writable_mode = mode | stat.S_IRUSR | stat.S_IWUSR
         if stat.S_ISDIR(mode):
             writable_mode |= stat.S_IXUSR
-        os.chmod(path, writable_mode, follow_symlinks=False)
+        if os.name == "nt":
+            os.chmod(path, writable_mode)
+        else:
+            os.chmod(path, writable_mode, follow_symlinks=False)
 
     def raise_walk_error(error: OSError) -> None:
         raise error
@@ -4864,19 +5626,460 @@ def _stage_copy_ignore(output_dir: Path, staged_dir: Path) -> Any:
     return ignore
 
 
-def _failed_requirements(
-    validation_report_path: Path | None,
-) -> tuple[list[str], list[str]]:
-    if validation_report_path is None:
-        return [], []
+def _identity_bound_validation_report(
+    validation_report_path: Path,
+    *,
+    asset_path: Path,
+    profile: str,
+    profile_version: str,
+    runtime: Any,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Load evidence only when its schema and recorded identities match this run.
+
+    This is a deterministic stale/mismatch gate, not a cryptographic signature.
+    Repairs remain bounded operations and their output must be revalidated.
+    """
+
     if not validation_report_path.exists():
-        return [], [f"Validation report does not exist: {validation_report_path}"]
+        return None, [f"Validation report does not exist: {validation_report_path}"]
     try:
         payload = json.loads(validation_report_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        return [], [f"Validation report could not be parsed: {exc}"]
+        return None, [f"Validation report could not be parsed: {exc}"]
     if not isinstance(payload, dict):
-        return [], [f"Validation report is not a JSON object: {validation_report_path}"]
+        return None, [
+            f"Validation report is not a JSON object: {validation_report_path}"
+        ]
+
+    errors = _validation_report_contract_errors(payload)
+    errors.extend(
+        _validation_report_identity_errors(
+            payload,
+            asset_path=asset_path,
+            profile=profile,
+            profile_version=profile_version,
+            runtime=runtime,
+        )
+    )
+    if errors:
+        return None, _dedupe(errors)
+    return payload, []
+
+
+def _validation_report_contract_errors(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    schema_version = payload.get("schema_version", _MISSING)
+    if schema_version != SIMREADY_VALIDATION_SCHEMA_VERSION:
+        errors.append(
+            "Validation report schema_version mismatch: expected "
+            f"{SIMREADY_VALIDATION_SCHEMA_VERSION!r}, observed "
+            f"{_evidence_value(schema_version)}."
+        )
+
+    required_strings = (
+        "asset_path",
+        "asset_sha256",
+        "profile_name",
+        "profile_version",
+        "profile_target",
+        "foundation_root",
+        "foundation_commit",
+        "foundation_requirements_sha256",
+        "foundation_spec_root",
+        "runtime_contract_sha256",
+        "status",
+        "validator_tool",
+    )
+    for field_name in required_strings:
+        value = payload.get(field_name, _MISSING)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(
+                f"Validation report {field_name} must be a non-empty string; "
+                f"observed {_evidence_value(value)}."
+            )
+
+    for field_name in ("passed", "needs_rerun", "foundation_checkout_verified"):
+        value = payload.get(field_name, _MISSING)
+        if not isinstance(value, bool):
+            errors.append(
+                f"Validation report {field_name} must be a boolean; observed "
+                f"{_evidence_value(value)}."
+            )
+
+    for field_name in (
+        "errors",
+        "ignored_issues",
+        "issues",
+        "rerun_reasons",
+        "warnings",
+    ):
+        value = payload.get(field_name, _MISSING)
+        if not isinstance(value, list):
+            errors.append(
+                f"Validation report {field_name} must be a list; observed "
+                f"{_evidence_value(value)}."
+            )
+
+    for field_name in ("errors", "rerun_reasons", "warnings"):
+        value = payload.get(field_name)
+        if isinstance(value, list) and any(not isinstance(item, str) for item in value):
+            errors.append(f"Validation report {field_name} must contain only strings.")
+    for field_name in ("ignored_issues", "issues"):
+        value = payload.get(field_name)
+        if isinstance(value, list) and any(
+            not isinstance(item, dict) for item in value
+        ):
+            errors.append(
+                f"Validation report {field_name} must contain only JSON objects."
+            )
+
+    asset_dependency_manifest = payload.get("asset_dependency_manifest", _MISSING)
+    if not isinstance(asset_dependency_manifest, dict) or not asset_dependency_manifest:
+        errors.append(
+            "Validation report asset_dependency_manifest must be a non-empty JSON object."
+        )
+
+    feature_results = payload.get("feature_results", _MISSING)
+    if feature_results is not None and not isinstance(feature_results, dict | list):
+        errors.append(
+            "Validation report feature_results must be an object, list, or null; "
+            f"observed {_evidence_value(feature_results)}."
+        )
+    elif isinstance(feature_results, dict) and any(
+        not isinstance(item, dict) for item in feature_results.values()
+    ):
+        errors.append("Validation report feature_results values must be JSON objects.")
+    elif isinstance(feature_results, list) and any(
+        not isinstance(item, dict) for item in feature_results
+    ):
+        errors.append(
+            "Validation report feature_results must contain only JSON objects."
+        )
+
+    validator_tool = payload.get("validator_tool")
+    if isinstance(validator_tool, str) and validator_tool != "simready-validate":
+        errors.append(
+            "Validation report validator_tool mismatch: expected "
+            f"'simready-validate', observed {validator_tool!r}."
+        )
+    status = payload.get("status")
+    if isinstance(status, str) and status not in {"PASS", "FAIL"}:
+        errors.append(
+            f"Validation report status {status!r} is not authoritative profile "
+            "evidence and cannot drive conformance."
+        )
+    passed = payload.get("passed")
+    needs_rerun = payload.get("needs_rerun")
+    rerun_reasons = payload.get("rerun_reasons")
+    if passed is True and needs_rerun is True:
+        errors.append(
+            "Validation report is internally inconsistent: passed and needs_rerun "
+            "are both true."
+        )
+    if isinstance(status, str) and isinstance(passed, bool):
+        expected_status = "PASS" if passed else "FAIL"
+        if status != expected_status:
+            errors.append(
+                "Validation report status/passed mismatch: expected status "
+                f"{expected_status!r} for passed={passed}, observed {status!r}."
+            )
+    if needs_rerun is True and isinstance(rerun_reasons, list) and not rerun_reasons:
+        errors.append(
+            "Validation report needs_rerun is true but rerun_reasons is empty."
+        )
+    if isinstance(rerun_reasons, list) and any(
+        (requirement := _parse_requirement(item)) is None
+        or _skill_for_requirement(requirement) is None
+        for item in rerun_reasons
+    ):
+        errors.append(
+            "Validation report rerun_reasons contains an unsupported requirement "
+            "identifier and cannot drive conformance."
+        )
+    if passed is False and needs_rerun is not True:
+        errors.append(
+            "Validation report failed without authoritative rerun evidence and "
+            "cannot drive conformance."
+        )
+    if needs_rerun is False and isinstance(rerun_reasons, list) and rerun_reasons:
+        errors.append(
+            "Validation report needs_rerun is false but rerun_reasons is not empty."
+        )
+    if passed is True and isinstance(rerun_reasons, list) and rerun_reasons:
+        errors.append(
+            "Validation report passed is true but rerun_reasons is not empty."
+        )
+    return errors
+
+
+def _validation_report_identity_errors(
+    payload: dict[str, Any],
+    *,
+    asset_path: Path,
+    profile: str,
+    profile_version: str,
+    runtime: Any,
+) -> list[str]:
+    errors: list[str] = []
+    _compare_path_identity(
+        errors,
+        field_name="asset_path",
+        observed=payload.get("asset_path"),
+        expected=str(asset_path),
+    )
+    _compare_sha256_identity(
+        errors,
+        field_name="asset_sha256",
+        observed=payload.get("asset_sha256"),
+        expected=_regular_file_sha256(asset_path),
+    )
+    errors.extend(
+        asset_dependency_identity_errors(
+            asset_path,
+            payload.get("asset_dependency_manifest"),
+        )
+    )
+    _compare_text_identity(
+        errors,
+        field_name="profile_name",
+        observed=payload.get("profile_name"),
+        expected=profile,
+    )
+    _compare_text_identity(
+        errors,
+        field_name="profile_version",
+        observed=payload.get("profile_version"),
+        expected=profile_version,
+    )
+    _compare_text_identity(
+        errors,
+        field_name="profile_target",
+        observed=payload.get("profile_target"),
+        expected=f"{profile}@{profile_version}",
+    )
+
+    current_commit = getattr(runtime, "foundation_commit", None)
+    if not isinstance(current_commit, str) or not _GIT_COMMIT_PATTERN.fullmatch(
+        current_commit
+    ):
+        errors.append(
+            "Current SimReady runtime has no pinned Foundation commit; validation "
+            "evidence identity cannot be verified."
+        )
+    else:
+        observed_commit = payload.get("foundation_commit")
+        if (
+            not isinstance(observed_commit, str)
+            or not _GIT_COMMIT_PATTERN.fullmatch(observed_commit)
+            or observed_commit.lower() != current_commit.lower()
+        ):
+            errors.append(
+                "Validation report foundation_commit mismatch: expected "
+                f"{current_commit!r}, observed {_evidence_value(observed_commit)}."
+            )
+
+    if getattr(runtime, "foundation_checkout_verified", False) is not True:
+        errors.append(
+            "Current SimReady Foundation checkout is not verified; validation "
+            "evidence identity cannot be verified."
+        )
+    if payload.get("foundation_checkout_verified") is not True:
+        errors.append("Validation report foundation_checkout_verified must be true.")
+
+    _compare_path_identity(
+        errors,
+        field_name="foundation_root",
+        observed=payload.get("foundation_root"),
+        expected=getattr(runtime, "foundation_root", None),
+    )
+    _compare_path_identity(
+        errors,
+        field_name="foundation_spec_root",
+        observed=payload.get("foundation_spec_root"),
+        expected=getattr(runtime, "foundation_spec_root", None),
+    )
+    _compare_path_identity(
+        errors,
+        field_name="validator_executable",
+        observed=payload.get("validator_executable"),
+        expected=getattr(runtime, "validator_executable", None),
+    )
+    _compare_sha256_identity(
+        errors,
+        field_name="foundation_requirements_sha256",
+        observed=payload.get("foundation_requirements_sha256"),
+        expected=getattr(runtime, "foundation_requirements_sha256", None),
+    )
+    _compare_sha256_identity(
+        errors,
+        field_name="runtime_contract_sha256",
+        observed=payload.get("runtime_contract_sha256"),
+        expected=getattr(runtime, "runtime_contract_sha256", None),
+    )
+
+    for field_name in _OPTIONAL_VALIDATION_DIGEST_FIELDS:
+        current_value = getattr(runtime, field_name, _MISSING)
+        if current_value is _MISSING:
+            continue
+        if current_value is None:
+            continue
+        _compare_sha256_identity(
+            errors,
+            field_name=field_name,
+            observed=payload.get(field_name, _MISSING),
+            expected=current_value,
+        )
+
+    runtime_verified = getattr(runtime, "validator_runtime_verified", _MISSING)
+    if runtime_verified is not _MISSING:
+        if runtime_verified is not True:
+            errors.append(
+                "Current SimReady validator runtime is not verified; validation "
+                "evidence identity cannot be verified."
+            )
+        if payload.get("validator_runtime_verified", _MISSING) is not True:
+            errors.append(
+                "Validation report validator_runtime_verified must be true and "
+                "match the current verified runtime."
+            )
+    return errors
+
+
+def _compare_text_identity(
+    errors: list[str],
+    *,
+    field_name: str,
+    observed: Any,
+    expected: Any,
+) -> None:
+    if not isinstance(expected, str) or not expected:
+        errors.append(
+            f"Current SimReady runtime has no {field_name}; validation evidence "
+            "identity cannot be verified."
+        )
+        return
+    if observed != expected:
+        errors.append(
+            f"Validation report {field_name} mismatch: expected {expected!r}, "
+            f"observed {_evidence_value(observed)}."
+        )
+
+
+def _compare_path_identity(
+    errors: list[str],
+    *,
+    field_name: str,
+    observed: Any,
+    expected: Any,
+) -> None:
+    expected_path, expected_error = _resolved_identity_path(expected, field_name)
+    if expected_error is not None:
+        errors.append(
+            f"Current SimReady {expected_error}; validation evidence identity "
+            "cannot be verified."
+        )
+        return
+    observed_path, observed_error = _resolved_identity_path(observed, field_name)
+    if observed_error is not None:
+        errors.append(f"Validation report {observed_error}.")
+        return
+    if observed_path != expected_path:
+        errors.append(
+            f"Validation report {field_name} identity mismatch: expected "
+            f"{str(expected_path)!r}, observed {str(observed_path)!r}."
+        )
+
+
+def _resolved_identity_path(
+    value: Any, field_name: str
+) -> tuple[Path | None, str | None]:
+    if not isinstance(value, str) or not value.strip():
+        return None, f"{field_name} is missing or not a non-empty string"
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        return None, f"{field_name} is not absolute: {value!r}"
+    try:
+        return path.resolve(strict=True), None
+    except (OSError, RuntimeError, ValueError) as exc:
+        return None, f"{field_name} cannot be resolved ({value!r}): {exc}"
+
+
+def _compare_sha256_identity(
+    errors: list[str],
+    *,
+    field_name: str,
+    observed: Any,
+    expected: Any,
+) -> None:
+    if not isinstance(expected, str) or not _SHA256_PATTERN.fullmatch(expected):
+        errors.append(
+            f"Current SimReady runtime has no valid {field_name}; validation "
+            "evidence identity cannot be verified."
+        )
+        return
+    if not isinstance(observed, str) or not _SHA256_PATTERN.fullmatch(observed):
+        errors.append(
+            f"Validation report {field_name} must be a lowercase SHA-256 digest; "
+            f"observed {_evidence_value(observed)}."
+        )
+        return
+    if observed != expected:
+        errors.append(
+            f"Validation report {field_name} mismatch: expected {expected!r}, "
+            f"observed {observed!r}."
+        )
+
+
+def _evidence_value(value: Any) -> str:
+    if value is _MISSING:
+        return "<missing>"
+    rendered = repr(value)
+    return rendered if len(rendered) <= 160 else f"{rendered[:157]}..."
+
+
+def _regular_file_sha256(path: Path) -> str | None:
+    try:
+        if not path.is_file():
+            return None
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def _conformance_evidence_identity(
+    runtime: Any, validation_payload: dict[str, Any] | None
+) -> dict[str, Any]:
+    source: Any = validation_payload if validation_payload is not None else runtime
+
+    def value(field_name: str) -> Any:
+        if isinstance(source, dict):
+            return source.get(field_name)
+        return getattr(source, field_name, None)
+
+    identity = {
+        "foundation_root": value("foundation_root"),
+        "foundation_commit": value("foundation_commit"),
+        "foundation_checkout_verified": bool(value("foundation_checkout_verified")),
+        "foundation_requirements_sha256": value("foundation_requirements_sha256"),
+        "foundation_spec_root": value("foundation_spec_root"),
+        "runtime_contract_sha256": value("runtime_contract_sha256"),
+    }
+    conformance_fields = getattr(SimReadyConformanceReport, "model_fields", {})
+    for field_name in _OPTIONAL_VALIDATION_DIGEST_FIELDS:
+        if field_name in conformance_fields:
+            identity[field_name] = value(field_name)
+    if "validator_runtime_verified" in conformance_fields:
+        identity["validator_runtime_verified"] = bool(
+            value("validator_runtime_verified")
+        )
+    return identity
+
+
+def _failed_requirements(payload: dict[str, Any]) -> list[str]:
     ignored_requirements = _ignored_requirements(payload)
     rerun_reasons = payload.get("rerun_reasons")
     if isinstance(rerun_reasons, list):
@@ -4886,7 +6089,7 @@ def _failed_requirements(
             if (requirement := _parse_requirement(item)) is not None
             and requirement not in ignored_requirements
         }
-        return sorted(rerun_requirements), []
+        return sorted(rerun_requirements)
     requirements: set[str] = set()
     for issue in payload.get("issues", []):
         if not isinstance(issue, dict):
@@ -4917,7 +6120,7 @@ def _failed_requirements(
                 for requirement in _parse_requirements(failing)
                 if requirement not in ignored_requirements
             )
-    return sorted(requirements), []
+    return sorted(requirements)
 
 
 def _ignored_requirements(payload: dict[str, Any]) -> set[str]:
@@ -4967,6 +6170,7 @@ def _has_local_repair(requirement: str) -> bool:
         GATE3A_HYGIENE_REQUIREMENT,
         ISAAC_COMPOSITION_REQUIREMENT,
         "GSP.001",
+        "NP.005",
         "NP.006",
         "PMT.001",
         "RB.COL.001",
@@ -4974,6 +6178,7 @@ def _has_local_repair(requirement: str) -> bool:
         "UN.006",
         "UN.007",
         "VM.MAT.001",
+        "VM.TEX.002",
     }
 
 
@@ -5094,10 +6299,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--foundation-root", type=Path)
     parser.add_argument("--foundation-spec-root", type=Path)
+    parser.add_argument("--venv", dest="venv_path", type=Path)
     parser.add_argument(
         "--repair", dest="repair_requirements", action="append", default=[]
     )
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume only when the recorded request and source identity match.",
+    )
     parser.add_argument(
         "--strict",
         action="store_true",
@@ -5127,8 +6338,10 @@ def main(argv: list[str] | None = None) -> int:
             foundation_spec_root=str(args.foundation_spec_root)
             if args.foundation_spec_root is not None
             else None,
+            venv_path=str(args.venv_path) if args.venv_path is not None else None,
             repair_requirements=args.repair_requirements,
             force=args.force,
+            resume=args.resume,
         )
     )
     print(json.dumps(_as_json(report), indent=2, sort_keys=True))

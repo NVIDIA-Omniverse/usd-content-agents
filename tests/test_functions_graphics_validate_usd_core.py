@@ -118,6 +118,65 @@ def _install_validator_module(
     )
 
 
+def test_usd_validation_binary_coherence_rejects_split_owners(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = tmp_path / "site-packages" / "pxr"
+    (package / "Tf").mkdir(parents=True)
+    (package / "UsdValidation").mkdir()
+    (package / "Tf" / "_tf.so").write_bytes(b"tf")
+    (package / "UsdValidation" / "_usdValidation.so").write_bytes(b"validation")
+    monkeypatch.setitem(sys.modules, "pxr", SimpleNamespace(__path__=[str(package)]))
+
+    monkeypatch.setattr(
+        vu,
+        "_installed_distribution_owners",
+        lambda relative_path, _digest: (
+            {"usd-exchange"} if relative_path.startswith("pxr/Tf/") else {"usd-core"}
+        ),
+    )
+    assert vu._usd_validation_binary_set_is_coherent() is False
+
+    monkeypatch.setattr(
+        vu,
+        "_installed_distribution_owners",
+        lambda _relative_path, _digest: {"usd-core"},
+    )
+    assert vu._usd_validation_binary_set_is_coherent() is True
+
+    monkeypatch.setattr(
+        vu,
+        "_installed_distribution_owners",
+        lambda relative_path, _digest: (
+            {"usd-core"} if relative_path.startswith("pxr/Tf/") else set()
+        ),
+    )
+    assert vu._usd_validation_binary_set_is_coherent() is False
+
+
+def test_usd_validation_binary_coherence_allows_unknown_owners_and_probe_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = tmp_path / "site-packages" / "pxr"
+    (package / "Tf").mkdir(parents=True)
+    (package / "UsdValidation").mkdir()
+    (package / "Tf" / "_tf.so").write_bytes(b"tf")
+    (package / "UsdValidation" / "_usdValidation.so").write_bytes(b"validation")
+    monkeypatch.setitem(sys.modules, "pxr", SimpleNamespace(__path__=[str(package)]))
+    monkeypatch.setattr(
+        vu,
+        "_installed_distribution_owners",
+        lambda _relative_path, _digest: set(),
+    )
+
+    assert vu._usd_validation_binary_set_is_coherent() is True
+
+    monkeypatch.setitem(sys.modules, "pxr", SimpleNamespace(__path__=[]))
+    assert vu._usd_validation_binary_set_is_coherent() is True
+
+
 def test_ensure_usd_validation_compat_existing_and_stub(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -128,7 +187,7 @@ def test_ensure_usd_validation_compat_existing_and_stub(
     real_import = builtins.__import__
 
     def fake_import(name: str, globals=None, locals=None, fromlist=(), level: int = 0):
-        if name == "pxr" and "UsdValidation" in fromlist:
+        if name == "pxr" and "UsdValidation" in (fromlist or ()):
             raise TypeError("broken binding")
         return real_import(name, globals, locals, fromlist, level)
 
@@ -136,6 +195,88 @@ def test_ensure_usd_validation_compat_existing_and_stub(
     vu._ensure_usd_validation_compat()
     registry = sys.modules["pxr.UsdValidation"].ValidationRegistry()
     assert registry.GetOrLoadValidatorByName("Rule") is None
+
+
+def test_ensure_usd_validation_compat_stubs_mixed_binary_owners(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delitem(sys.modules, "pxr.UsdValidation", raising=False)
+    monkeypatch.setattr(vu, "_usd_validation_binary_set_is_coherent", lambda: False)
+
+    vu._ensure_usd_validation_compat()
+
+    registry = sys.modules["pxr.UsdValidation"].ValidationRegistry()
+    assert registry.GetOrLoadValidatorByName("Rule") is None
+
+
+def test_usd_validation_binary_coherence_allows_absent_extension(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A provider that ships no UsdValidation extension is coherent, not mixed."""
+
+    package = tmp_path / "site-packages" / "pxr"
+    (package / "Tf").mkdir(parents=True)
+    (package / "Tf" / "_tf.so").write_bytes(b"tf")
+    # pxr/UsdValidation/_usdValidation.so is deliberately absent.
+    monkeypatch.setitem(sys.modules, "pxr", SimpleNamespace(__path__=[str(package)]))
+    monkeypatch.setattr(
+        vu,
+        "_installed_distribution_owners",
+        lambda _relative_path, _digest: {"usd-core"},
+    )
+
+    assert vu._usd_validation_binary_set_is_coherent() is True
+
+
+def test_ensure_usd_validation_compat_stubs_broken_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A coherent provider whose UsdValidation import fails still gets a stub.
+
+    Whether pxr.UsdValidation imports cleanly depends on which distribution
+    owns pxr in the environment, so drive both the module state and the import
+    explicitly rather than relying on the installed provider.
+    """
+
+    monkeypatch.delitem(sys.modules, "pxr.UsdValidation", raising=False)
+    monkeypatch.setattr(vu, "_usd_validation_binary_set_is_coherent", lambda: True)
+    real_import = builtins.__import__
+
+    def fake_import(name: str, globals=None, locals=None, fromlist=(), level: int = 0):
+        if name == "pxr" and "UsdValidation" in (fromlist or ()):
+            raise ImportError("broken bindings")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    vu._ensure_usd_validation_compat()
+
+    registry = sys.modules["pxr.UsdValidation"].ValidationRegistry()
+    assert registry.GetOrLoadValidatorByName("Rule") is None
+
+
+def test_ensure_usd_validation_compat_keeps_working_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A coherent provider with importable bindings must not be stubbed."""
+
+    monkeypatch.delitem(sys.modules, "pxr.UsdValidation", raising=False)
+    monkeypatch.setattr(vu, "_usd_validation_binary_set_is_coherent", lambda: True)
+    sentinel = SimpleNamespace(marker="real-bindings")
+    real_import = builtins.__import__
+
+    def fake_import(name: str, globals=None, locals=None, fromlist=(), level: int = 0):
+        if name == "pxr" and "UsdValidation" in (fromlist or ()):
+            sys.modules["pxr.UsdValidation"] = sentinel
+            return SimpleNamespace(UsdValidation=sentinel)
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    vu._ensure_usd_validation_compat()
+
+    assert sys.modules["pxr.UsdValidation"] is sentinel
 
 
 def test_availability_and_registered_categories(

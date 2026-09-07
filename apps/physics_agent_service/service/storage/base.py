@@ -2,10 +2,45 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-from typing import BinaryIO, Protocol
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from typing import Any, BinaryIO, Protocol
 
 # Standard key for session metadata JSON
 METADATA_KEY = "session.json"
+
+
+class SessionGenerationConflictError(RuntimeError):
+    """Raised when another replica already owns the next session generation."""
+
+
+class SessionGenerationOwnershipError(RuntimeError):
+    """Raised when a stale generation attempts to mutate shared session state."""
+
+
+class SessionNotCompletedError(RuntimeError):
+    """Raised when a completed publication snapshot cannot be proven."""
+
+
+class SessionStoragePathError(RuntimeError):
+    """Raised when the configured local session-storage path is unsafe."""
+
+
+@dataclass(frozen=True)
+class SessionGeneration:
+    """Durable fencing identity for one session run or rerun."""
+
+    generation: int
+    owner_id: str
+
+
+@dataclass(frozen=True)
+class CompletedSessionSnapshot:
+    """One completed metadata/publication view hydrated from the same snapshot."""
+
+    metadata: dict[str, Any]
+    artifact_keys: tuple[str, ...]
+    downloaded_count: int
 
 
 class SessionStore(Protocol):
@@ -15,6 +50,10 @@ class SessionStore(Protocol):
     # Lifecycle
     async def init_session(self, session_id: str) -> None: ...  # pragma: no cover
     async def delete_session(self, session_id: str) -> None: ...  # pragma: no cover
+    async def delete_session_if_terminal(self, session_id: str) -> bool:
+        """Delete only if the same durable session snapshot is still terminal."""
+        ...  # pragma: no cover
+
     async def list_sessions(self, use_cache: bool = True) -> list[str]:
         """List all session IDs in the store.
 
@@ -66,6 +105,15 @@ class SessionStore(Protocol):
     async def get_json(
         self, session_id: str, key: str
     ) -> dict | None: ...  # pragma: no cover
+    async def update_json(
+        self,
+        session_id: str,
+        key: str,
+        updater: Callable[[dict], dict | None],
+    ) -> dict | None:
+        """Atomically update a JSON document when the backend supports CAS."""
+        ...  # pragma: no cover
+
     async def append_event(
         self, session_id: str, event: dict
     ) -> None: ...  # pragma: no cover
@@ -80,14 +128,17 @@ class SessionStore(Protocol):
 
     # Sync between local and remote storage
     async def sync_to_local(
-        self, session_id: str, local_session_dir: str, prefix: str = ""
+        self,
+        session_id: str,
+        local_session_dir: str,
+        prefix: str | Sequence[str] = "",
     ) -> int:
         """Sync files from remote storage to local session directory.
 
         Args:
             session_id: Session identifier
             local_session_dir: Path to local session directory
-            prefix: Optional prefix to filter keys (e.g., "input/")
+            prefix: Optional prefix or prefixes to filter keys.
 
         Returns:
             Number of files downloaded
@@ -95,14 +146,17 @@ class SessionStore(Protocol):
         ...  # pragma: no cover
 
     async def sync_from_local(
-        self, session_id: str, local_session_dir: str, prefix: str = ""
+        self,
+        session_id: str,
+        local_session_dir: str,
+        prefix: str | Sequence[str] = "",
     ) -> int:
         """Sync files from local session directory to remote storage.
 
         Args:
             session_id: Session identifier
             local_session_dir: Path to local session directory
-            prefix: Optional prefix to filter files (e.g., "output/")
+            prefix: Optional prefix or prefixes to publish as one snapshot.
 
         Returns:
             Number of files synced
@@ -118,8 +172,8 @@ class SessionStore(Protocol):
     ) -> int:
         """Clean up stale local session directories.
 
-        For remote stores (S3), syncs sessions to remote and removes local cache
-        if the session hasn't been updated for longer than max_age_hours.
+        For remote stores (S3), removes only the stale local cache. Publication
+        remains an explicit worker-owned operation.
 
         For local stores, this is a no-op since files are already in their
         final location.

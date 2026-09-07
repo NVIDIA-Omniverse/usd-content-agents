@@ -4,12 +4,16 @@
 
 from __future__ import annotations
 
+import pytest
+from world_understanding.functions.models.backends import registry as backend_registry
 from world_understanding.utils.credentials import ensure_no_inline_secrets
 
 from ...service.routers import pipeline_router
 
 
-def test_predict_model_routing_applies_service_token_limits(monkeypatch) -> None:
+def test_predict_model_routing_applies_service_token_limits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(pipeline_router.config, "vlm_temperature", 0.2)
     monkeypatch.setattr(pipeline_router.config, "vlm_max_tokens", 512)
     monkeypatch.setattr(pipeline_router.config, "llm_temperature", 0.1)
@@ -43,8 +47,132 @@ def test_predict_model_routing_applies_service_token_limits(monkeypatch) -> None
     assert predict_config["llm"]["base_url"] == "http://vlm-nim:8000/v1"
 
 
+def test_sol_reasoning_defaults_to_xhigh_and_preserves_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hosted_backend = "nvidia" + "_inference"
+    monkeypatch.setattr(pipeline_router.config, "vlm_reasoning_effort", None)
+    monkeypatch.setattr(pipeline_router.config, "llm_reasoning_effort", None)
+    routing = pipeline_router._ModelRouting(
+        vlm_backend=hosted_backend,
+        vlm_model="openai/openai/gpt-5.6-sol",
+        vlm_nim_base_url=None,
+        llm_backend=hosted_backend,
+        llm_model="openai/openai/gpt-5.6-sol",
+        llm_nim_base_url=None,
+        llm_uses_vlm_sidecar=False,
+    )
+    config = {
+        "steps": {
+            "predict": {
+                "llm": {
+                    "reasoning_effort": "high",
+                }
+            }
+        }
+    }
+
+    pipeline_router._configure_predict_model_routing(config, routing)
+
+    predict_config = config["steps"]["predict"]
+    assert predict_config["vlm"]["reasoning_effort"] == "xhigh"
+    assert predict_config["llm"]["backend"] == hosted_backend
+    assert predict_config["llm"]["model"] == "openai/openai/gpt-5.6-sol"
+    assert predict_config["llm"]["reasoning_effort"] == "xhigh"
+    assert (
+        pipeline_router._build_service_vlm_config(routing)["reasoning_effort"]
+        == "xhigh"
+    )
+    assert (
+        pipeline_router._build_service_llm_config(routing)["reasoning_effort"]
+        == "xhigh"
+    )
+
+    monkeypatch.setattr(pipeline_router.config, "vlm_reasoning_effort", "medium")
+    monkeypatch.setattr(pipeline_router.config, "llm_reasoning_effort", "medium")
+    pipeline_router._configure_predict_model_routing(config, routing)
+
+    assert config["steps"]["predict"]["vlm"]["reasoning_effort"] == "medium"
+    assert config["steps"]["predict"]["llm"]["reasoning_effort"] == "medium"
+
+    monkeypatch.setattr(pipeline_router.config, "vlm_reasoning_effort", None)
+    monkeypatch.setattr(pipeline_router.config, "llm_reasoning_effort", None)
+    non_reasoning_route = routing._replace(
+        vlm_model="custom-vlm",
+        llm_model="custom-llm",
+    )
+    pipeline_router._configure_predict_model_routing(config, non_reasoning_route)
+
+    assert "reasoning_effort" not in config["steps"]["predict"]["vlm"]
+    assert "reasoning_effort" not in config["steps"]["predict"]["llm"]
+
+
+def test_nim_routes_drop_unsupported_reasoning_effort(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipeline_router.config, "vlm_reasoning_effort", "xhigh")
+    monkeypatch.setattr(pipeline_router.config, "llm_reasoning_effort", "xhigh")
+    routing = pipeline_router._ModelRouting(
+        vlm_backend="nim",
+        vlm_model="openai/openai/gpt-5.6-sol",
+        vlm_nim_base_url="http://vlm-nim:8000/v1",
+        llm_backend="nim",
+        llm_model="openai/openai/gpt-5.6-sol",
+        llm_nim_base_url="http://llm-nim:8000/v1",
+        llm_uses_vlm_sidecar=False,
+    )
+    config = {
+        "steps": {
+            "predict": {
+                "llm": {
+                    "reasoning_effort": "stale",
+                }
+            }
+        }
+    }
+
+    pipeline_router._configure_predict_model_routing(config, routing)
+
+    assert "reasoning_effort" not in config["steps"]["predict"]["vlm"]
+    assert "reasoning_effort" not in config["steps"]["predict"]["llm"]
+    assert "reasoning_effort" not in pipeline_router._build_service_vlm_config(routing)
+    assert "reasoning_effort" not in pipeline_router._build_service_llm_config(routing)
+
+
+def test_predict_llm_uses_chat_capability_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_only_backend = "material-service-chat-only"
+    monkeypatch.setitem(
+        backend_registry._chat_backends,
+        chat_only_backend,
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setitem(
+        backend_registry._chat_backend_capabilities,
+        chat_only_backend,
+        frozenset({"reasoning_effort"}),
+    )
+    monkeypatch.setattr(pipeline_router.config, "vlm_reasoning_effort", None)
+    monkeypatch.setattr(pipeline_router.config, "llm_reasoning_effort", "medium")
+    routing = pipeline_router._ModelRouting(
+        vlm_backend="nim",
+        vlm_model="custom-vlm",
+        vlm_nim_base_url="http://vlm-nim:8000/v1",
+        llm_backend=chat_only_backend,
+        llm_model="custom-llm",
+        llm_nim_base_url=None,
+        llm_uses_vlm_sidecar=False,
+    )
+    config = {"steps": {"predict": {"llm": {}}}}
+
+    pipeline_router._configure_predict_model_routing(config, routing)
+
+    assert config["steps"]["predict"]["llm"]["reasoning_effort"] == "medium"
+
+
 def test_predict_model_routing_preserves_openai_base_url_and_key_env(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     resolved_secret = "material-routing-runtime-only-key"
     monkeypatch.delenv("MA_VLM_NIM_BASE_URL", raising=False)

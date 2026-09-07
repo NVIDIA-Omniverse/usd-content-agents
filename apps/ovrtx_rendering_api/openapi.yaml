@@ -12,6 +12,21 @@ servers:
     description: Local development
 
 paths:
+  /live:
+    get:
+      summary: Package-owned usd-cli protocol identity
+      operationId: live
+      tags: [utility]
+      description: >
+        Reports the exact usd-cli remote protocol implemented by this image.
+      responses:
+        "200":
+          description: Compatible protocol endpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveResponse"
+
   /health:
     get:
       summary: Health check
@@ -41,14 +56,159 @@ paths:
               $ref: "#/components/schemas/RenderRequest"
       responses:
         "200":
-          description: Render succeeded (or failed — check status field)
+          description: Render succeeded (or compatibility failure — check status field)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RenderResponse"
+        "503":
+          description: Retryable incomplete camera/frame output after daemon recovery
+          headers:
+            Retry-After:
+              required: true
+              schema: { type: integer, minimum: 0 }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncompleteRenderResponse"
+
+  /render/upload:
+    post:
+      summary: Render package-owned usd-cli protocol-v3 multipart input
+      operationId: renderUpload
+      tags: [render]
+      description: >
+        Accepts a bounded USDZ upload plus JSON render parameters. The service
+        advertises no optional transport features, so callers use none or gzip
+        compression. In dispatcher mode, the supervisor forwards the bounded
+        multipart request to one ready private renderer worker.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, params]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                params:
+                  type: string
+                  description: JSON-serialized ProtocolV3RenderUploadParams.
+      responses:
+        "200":
+          description: Exact camera/frame images and OVRTX execution metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtocolV3RenderResponse"
+        "400":
+          description: Invalid parameters, compression, USDZ, or camera definition
+        "413":
+          description: Compressed or expanded scene exceeds the advertised limit
+        "503":
+          description: Renderer worker is not ready or render output is incomplete
 
 components:
   schemas:
+    LiveResponse:
+      type: object
+      required: [status, protocol_version, engine, renderer, features]
+      properties:
+        status: { type: string, enum: [alive] }
+        protocol_version: { type: integer, enum: [3] }
+        engine: { type: string, enum: [ovrtx] }
+        renderer: { type: string, enum: [ovrtx] }
+        max_body_bytes: { type: integer, minimum: 1 }
+        max_scene_bytes: { type: integer, minimum: 1 }
+        features:
+          type: array
+          maxItems: 0
+          items: { type: string }
+
+    ProtocolV3RenderUploadParams:
+      type: object
+      additionalProperties: false
+      required: [cameras]
+      properties:
+        cameras:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: string }
+        image_width: { type: integer, minimum: 1, maximum: 4096, default: 1024 }
+        image_height: { type: integer, minimum: 1, maximum: 4096, default: 1024 }
+        mode:
+          type: string
+          enum: [fast, quality]
+          default: quality
+          description: >-
+            Protocol-compatible client intent. The standalone service's
+            OVRTX_RENDER_MODE instance policy is authoritative; result items
+            report the exact OVRTX mode that executed.
+        compression: { type: string, enum: [none, gzip], default: none }
+        frames:
+          type: array
+          minItems: 1
+          maxItems: 240
+          description: Ordered USD time codes; response items preserve this order.
+          items: { type: number }
+        camera_defs:
+          type: array
+          maxItems: 8
+          items: { $ref: "#/components/schemas/ProtocolV3CameraDef" }
+
+    ProtocolV3CameraDef:
+      type: object
+      additionalProperties: false
+      required: [path, matrix]
+      properties:
+        path: { type: string, minLength: 1, maxLength: 2048 }
+        matrix:
+          type: array
+          minItems: 16
+          maxItems: 16
+          items: { type: number }
+        focal_length: { type: number, exclusiveMinimum: 0, nullable: true }
+        horizontal_aperture: { type: number, exclusiveMinimum: 0, nullable: true }
+        vertical_aperture: { type: number, exclusiveMinimum: 0, nullable: true }
+        clipping_range:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { type: number }
+          nullable: true
+        projection:
+          type: string
+          enum: [perspective, orthographic]
+          nullable: true
+
+    ProtocolV3RenderResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          maxItems: 240
+          items: { $ref: "#/components/schemas/ProtocolV3RenderResultItem" }
+
+    ProtocolV3RenderResultItem:
+      type: object
+      required:
+        - camera
+        - image_base64
+        - ovrtx_render_mode
+        - ovrtx_num_sensor_updates
+        - active_aov
+      properties:
+        camera: { type: string }
+        image_base64: { type: string }
+        frame: { type: number, nullable: true }
+        ovrtx_render_mode: { type: string, enum: [rt1, rt2, pt] }
+        ovrtx_num_sensor_updates: { type: integer, minimum: 1, maximum: 5000 }
+        active_aov: { type: string, minLength: 1 }
+
     FrameRange:
       type: object
       properties:
@@ -58,8 +218,8 @@ components:
     CameraParameters:
       type: object
       properties:
-        width: { type: integer, default: 1024 }
-        height: { type: integer, default: 1024 }
+        width: { type: integer, minimum: 1, maximum: 8192, default: 1024 }
+        height: { type: integer, minimum: 1, maximum: 8192, default: 1024 }
 
     RenderSettings:
       type: object
@@ -75,6 +235,15 @@ components:
         sensors:
           type: array
           items: { type: string }
+          nullable: true
+        num_sensor_updates:
+          type: integer
+          minimum: 1
+          maximum: 5000
+          nullable: true
+        render_mode:
+          type: string
+          enum: [rt1, rt2, pt]
           nullable: true
         apply_background_mask:
           type: boolean
@@ -121,14 +290,98 @@ components:
               type: object
               additionalProperties:
                 type: string
+        error_code:
+          type: string
+          nullable: true
+          enum: [incomplete_render_output]
+        retryable:
+          type: boolean
+          default: false
+        requested_output_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        output_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        missing_output_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        missing_camera_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        ovrtx_render_mode:
+          type: string
+          enum: [rt1, rt2, pt]
+          nullable: true
+          description: OVRTX mode reported by the renderer that executed the request.
+        ovrtx_num_sensor_updates:
+          type: integer
+          minimum: 1
+          maximum: 5000
+          nullable: true
+          description: Progressive update count reported by the renderer.
+        active_aov:
+          type: string
+          nullable: true
+          description: Active color AOV reported by the renderer.
+
+    IncompleteRenderResponse:
+      type: object
+      required:
+        - status
+        - error
+        - images
+        - error_code
+        - retryable
+        - requested_output_count
+        - output_count
+        - missing_output_count
+        - missing_camera_count
+      properties:
+        status:
+          type: string
+          enum: [exception]
+        error:
+          type: string
+        images:
+          type: object
+          maxProperties: 0
+        error_code:
+          type: string
+          enum: [incomplete_render_output]
+        retryable:
+          type: boolean
+          enum: [true]
+        requested_output_count:
+          type: integer
+          minimum: 0
+        output_count:
+          type: integer
+          minimum: 0
+        missing_output_count:
+          type: integer
+          minimum: 0
+        missing_camera_count:
+          type: integer
+          minimum: 0
 
     HealthResponse:
       type: object
+      required: [status, protocol_version]
       properties:
         status: { type: string, example: healthy }
         service: { type: string, example: ovrtx-rendering-api }
         version: { type: string, example: "0.1.0" }
         renderer: { type: string, example: ovrtx }
+        protocol_version:
+          type: integer
+          enum: [3]
+          description: >
+            Package-owned protocol version in standalone and dispatcher modes.
         gpu_initialized: { type: boolean }
         renderer_initialized: { type: boolean }
         daemon_running: { type: boolean }

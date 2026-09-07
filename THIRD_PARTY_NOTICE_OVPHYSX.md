@@ -16,6 +16,8 @@ This file supplements [`THIRD_PARTY_NOTICE.md`](THIRD_PARTY_NOTICE.md) with ever
 
 The wheel digest was verified before inspection. Exact-identical payloads are rendered once with every source path retained; non-identical payloads are never coalesced.
 
+Public-distribution sanitization removed 570 internal issue-tracker metadata fields or package-index URLs. These locator redactions do not alter license or notice terms; exact wheel digests and source paths remain recorded above.
+
 The non-SPDX label **NVIDIA NVSLA + Omniverse Product-Specific Terms** denotes the NVIDIA Software License Agreement (NVSLA) and the Product Specific Terms for Omniverse named by the exact wheel's declared `LICENSE.txt`. That file and every nested third-party notice from its declared `ovphysx-LICENSES.zip` are reproduced in the tracked OvPhysX notice supplement.
 
 ## Exact-Wheel Legal Files
@@ -28,7 +30,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/LICENSE.txt`
 
-```
+```text
 ovphysx is governed by the following NVIDIA Agreements:
 
 Enterprise Software | NVIDIA Software License Agreement and NVIDIA Agreements https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/
@@ -63,7 +65,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/boost-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/boost-preprocessor-LICENSE.md`
 
-```
+```text
 Boost Software License - Version 1.0 - August 17th, 2003
 
 Permission is hereby granted, free of charge, to any person or organization
@@ -99,7 +101,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/carb_sdk+plugins.manylinux_2_35_aarch64-carbonite-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/carb_sdk+plugins.manylinux_2_35_x86_64-carbonite-LICENSES.txt`
 
-```
+```text
 opentelemetry-collector-LICENSE.txt
 valijson-LICENSE.txt
 libunwind-LICENSE.txt
@@ -201,7 +203,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/abseil-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/abseil-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         https://www.apache.org/licenses/
@@ -463,7 +465,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/boost-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/ryu-LICENSE.txt`
 
-```
+```text
 Boost Software License - Version 1.0 - August 17th, 2003
 
 Permission is hereby granted, free of charge, to any person or organization
@@ -517,7 +519,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/breakpad-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/breakpad-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2006, Google Inc.
 All rights reserved.
 
@@ -702,7 +704,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/python-bzip2-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-bzip2-LICENSE.txt`
 
-```
+```text
 --------------------------------------------------------------------------
 
 This program, "bzip2", the associated library "libbzip2", and all
@@ -768,7 +770,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/c-ares-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/c-ares-LICENSE.md`
 
-```
+```text
 # c-ares license
 
 MIT License
@@ -877,7 +879,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/carb_sdk-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/carb_sdk_plugins-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -911,7 +913,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omnimetrics-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-usd-ext-physics-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -951,7 +953,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/concurrentqueue-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/concurrentqueue-LICENSE.md`
 
-```
+```text
 This license file applies to everything in this repository except that which
 is explicitly annotated as being written by other authors, i.e. the Boost
 queue (included in the benchmarks for comparison), Intel's TBB library (ditto),
@@ -1046,7 +1048,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/cpptoml-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/cpptoml-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2014 Chase Geigle
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -1101,7 +1103,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/cxxopts-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/cxxopts-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2014 Jarryd Beck
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1161,7 +1163,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/doctest-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/doctest-LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2016-2021 Viktor Kirilov
@@ -1217,7 +1219,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/drivepdk-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/drivepdk-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -1267,7 +1269,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/fmt-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/fmt-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2012 - present, Victor Zverovich
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -1333,7 +1335,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/freetype-LICENSE.TXT.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/freetype-LICENSE.TXT.1`
 
-```
+```text
 GNU GENERAL PUBLIC LICENSE
                        Version 2, June 1991
 
@@ -1717,7 +1719,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/freetype-LICENSE.TXT`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/freetype-LICENSE.TXT`
 
-```
+```text
 The FreeType Project LICENSE
                     ----------------------------
 
@@ -1919,7 +1921,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/glfw-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/glfw-LICENSE.md`
 
-```
+```text
 Copyright (c) 2002-2006 Marcus Geelnard
 
 Copyright (c) 2006-2019 Camilla Löwy
@@ -1976,7 +1978,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/grpc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/grpc-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -2626,7 +2628,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/imgui-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/imgui-LICENSE.md`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2014-2019 Omar Cornut
@@ -2680,7 +2682,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/libbacktrace-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/libbacktrace-LICENSE.txt`
 
-```
+```text
 # Copyright (C) 2012-2016 Free Software Foundation, Inc.
 
 # Redistribution and use in source and binary forms, with or without
@@ -2726,7 +2728,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/libcurl-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libcurl-LICENSE.txt`
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2024, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -2823,7 +2825,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/python-libffi-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-libffi-LICENSE.txt`
 
-```
+```text
 libffi - Copyright (c) 1996-2021  Anthony Green, Red Hat, Inc and others.
 See source files for details.
 
@@ -2881,7 +2883,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libunwind-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/libunwind-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2002 Hewlett-Packard Co.
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -2920,7 +2922,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/carbonite-LICENSES_2.zip!/mimalloc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/mimalloc-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2018-2025 Microsoft Corporation, Daan Leijen
@@ -2972,7 +2974,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/nvtx-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/nvtx-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -3260,7 +3262,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omnitrace-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omnitrace-sdk-cpp-LICENSE.txt`
 
-```
+```text
 omnitrace components are licensed under the following terms:
 
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
@@ -3332,7 +3334,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/openssl-LICENSE.1.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/openssl-LICENSE.txt.1`
 
-```
+```text
 This software is copyright (c) 2013 by Mark Jason Dominus <mjd@cpan.org>.
 
 This is free software; you can redistribute it and/or modify it under
@@ -3772,7 +3774,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/python-openssl-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-openssl-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         https://www.apache.org/licenses/
@@ -3982,7 +3984,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/openxr-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-headers-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -4244,7 +4246,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-onetbb-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-onetbb-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -4485,7 +4487,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/protobuf-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/protobuf-LICENSE.txt`
 
-```
+```text
 Copyright 2008 Google Inc.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -4571,7 +4573,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/pybind11-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-pybind11-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -4659,7 +4661,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-cpython-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-python-LICENSE.txt`
 
-```
+```text
 A. HISTORY OF THE SOFTWARE
 ==========================
 
@@ -4971,7 +4973,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/rapidjson-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/rapidjson-LICENSE.txt`
 
-```
+```text
 Tencent is pleased to support the open source community by making RapidJSON available.
 
 Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.  All rights reserved.
@@ -5063,7 +5065,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/re2-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/re2-LICENSE.txt`
 
-```
+```text
 // Copyright (c) 2009 The RE2 Authors. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -5129,7 +5131,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/robin-hood-hashing-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/robinhoodhashing-LICENSE.md`
 
-```
+```text
 MIT License
 
 Copyright (c) 2018-2021 Martin Ankerl
@@ -5183,7 +5185,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/SDLGameControllerDB-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/SDLGameControllerDB-LICENSE.md`
 
-```
+```text
 Simple DirectMedia Layer
 Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
@@ -5252,7 +5254,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/python-sqlite-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-sqlite-LICENSE.txt`
 
-```
+```text
 **
 ** The author disclaims copyright to this source code.  In place of
 ** a legal notice, here is a blessing:
@@ -5291,7 +5293,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/Tracy-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/Tracy-LICENSE.txt`
 
-```
+```text
 Tracy Profiler (https://github.com/wolfpld/tracy) is licensed under the
 3-clause BSD license.
 
@@ -5373,7 +5375,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/tracy-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/tracy_client_source-LICENSE.txt`
 
-```
+```text
 Tracy Profiler (https://github.com/wolfpld/tracy) is licensed under the
 3-clause BSD license.
 
@@ -5433,7 +5435,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/valgrind-header-LICENSE.BSD`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/valgrind-header-LICENSE.BSD`
 
-```
+```text
 ----------------------------------------------------------------
 
    Notice that the following BSD-style license applies to this one
@@ -5520,7 +5522,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/valijson-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/valijson-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2016, Tristan Penman
 Copyright (c) 2016, Akamai Technolgies, Inc.
 All rights reserved.
@@ -5576,7 +5578,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/vulkansdk-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/vulkansdk-LICENSE.md`
 
-```
+```text
 ================================================================================
 Apache-2.0
 --------------------------------------------------------------------------------
@@ -5714,7 +5716,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/vulkansdk-root-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/vulkansdk-root-LICENSE.md`
 
-```
+```text
 << Copyright 2016-2020 LunarG Inc.
 
 The Vulkan SDK is comprised of 100% open source components. The majority of the materials are MIT or Apache 2.0 licenses. The Vulkan SDK
@@ -5774,7 +5776,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/python-xz-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-xz-LICENSE.txt`
 
-```
+```text
 XZ Utils Licensing
 ==================
 
@@ -5865,7 +5867,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/yaml-cpp-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/yaml-cpp-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2008-2015 Jesse Beder.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -5936,7 +5938,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-zlib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-zlib-LICENSE.txt`
 
-```
+```text
 zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.3.1, January 22nd, 2024
 
@@ -5997,7 +5999,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES_1.zip!/zstd-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/zstd-LICENSE.txt`
 
-```
+```text
 BSD License
 
 For Zstandard software
@@ -6035,7 +6037,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/cuda-LICENSE.txt`</summary>
 
-```
+```text
 End User License Agreement
 --------------------------
 
@@ -7680,7 +7682,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/dlpack-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/dlpack-LICENSE.txt`
 
-```
+```text
 Apache License
 Version 2.0, January 2004
 http://www.apache.org/licenses/
@@ -7851,7 +7853,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/glm-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/glm-LICENSE.md`
 
-```
+```text
 ================================================================================
 OpenGL Mathematics (GLM)
 --------------------------------------------------------------------------------
@@ -7926,7 +7928,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/gsl-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gsl-LICENSE.md`
 
-```
+```text
 Copyright (c) 2015 Microsoft Corporation. All rights reserved.
 
 This code is licensed under the MIT License (MIT).
@@ -7966,7 +7968,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/omni-core-materials-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omni-core-materials-LICENSE.md`
 
-````
+````text
 # NVIDIA Omniverse Core Materials Licenses
 
 ## Primary License
@@ -8080,7 +8082,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/rtx_plugins-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/video-xcode-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -8095,7 +8097,7 @@ license agreement from NVIDIA CORPORATION is strictly prohibited.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.txt`</summary>
 
-```
+```text
 pest_meta
 url
 tinytemplate
@@ -8546,7 +8548,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-alembic-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-alembic-LICENSE.txt`
 
-```
+```text
 TM & © 2009-2015 Lucasfilm Entertainment Company Ltd. or Lucasfilm Ltd.
 All rights reserved.
 
@@ -8653,7 +8655,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/ankerl-unordered-dense-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/ankerl-unordered-dense-LICENSE.txt`
 
-```
+```text
 ankerl::unordered_dense::{map, set} are licensed under the following terms:
 
 MIT License
@@ -8693,7 +8695,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/c-blosc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/c-blosc-LICENSE.txt`
 
-```
+```text
 Bitshuffle - Filter for improving compression of typed binary data.
 
 Copyright (c) 2014 Kiyoshi Masui (kiyo@physics.ubc.ca)
@@ -8755,7 +8757,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/c-blosc-LICENSE.txt.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/c-blosc-LICENSE.txt.1`
 
-```
+```text
 FastLZ - Byte-aligned LZ77 compression library
 Copyright (C) 2005-2020 Ariya Hidayat <ariya.hidayat@gmail.com>
 
@@ -8792,7 +8794,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/c-blosc-LICENSE.txt_1.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/c-blosc-LICENSE.txt_1.1`
 
-```
+```text
 Bitshuffle - Filter for improving compression of typed binary data.
 
 Copyright (c) 2014 Kiyoshi Masui (kiyo@physics.ubc.ca)
@@ -8838,7 +8840,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/carbonite-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/carbonite-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -8853,7 +8855,7 @@ license agreement from NVIDIA CORPORATION is strictly prohibited.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/carbonite-LICENSES.txt`</summary>
 
-```
+```text
 carbonite-LICENSE.txt
 nvtx-LICENSE.txt
 carb_sdk-LICENSE.txt
@@ -8987,7 +8989,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/libcurl-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/libcurl-LICENSE.txt`
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2024, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -9034,7 +9036,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/mimalloc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/mimalloc-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2018-2021 Microsoft Corporation, Daan Leijen
@@ -9063,7 +9065,7 @@ SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/carbonite-LICENSES.zip!/python-LICENSES.txt`</summary>
 
-```
+```text
 python-030-httpcookies-LICENSE.txt
 pip-vendor-typing_extensions-LICENSE.md
 python-090-strtod-LICENSE.txt
@@ -9148,7 +9150,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.zip!/tinytoml-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/tinytoml-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2014, MAYAH
 All rights reserved.
 
@@ -9184,7 +9186,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/cli11-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/cli11-LICENSE.txt`
 
-```
+```text
 CLI11 2.2 Copyright (c) 2017-2023 University of Cincinnati, developed by Henry
 Schreiner under NSF AWARD 1414736. All rights reserved.
 
@@ -9226,7 +9228,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/concurrentqueue-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/concurrentqueue-LICENSE.md`
 
-```
+```text
 This license applies to everything in this repository except that which
 is explicitly annotated as being written by other authors, i.e. the Boost
 queue (included in the benchmarks for comparison), Intel's TBB library (ditto),
@@ -9274,7 +9276,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/concurrentqueue-mpmc_sema-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/concurrentqueue-mpmc_sema-LICENSE.md`
 
-```
+```text
 Code in the mpmc_sema namespace below is an adaptation of Jeff Preshing's
 portable + lightweight semaphore implementations, originally from
 https://github.com/preshing/cpp11-on-multicore/blob/master/common/sema.h
@@ -9309,7 +9311,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/cuda-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/cuda-LICENSE.txt`
 
-```
+```text
 End User License Agreement
 --------------------------
 
@@ -12562,7 +12564,7 @@ Source paths:
 
 Source encoding: `windows-1252`
 
-```
+```text
 The D3DCompiler (d3dcompiler_47.dll) components are licensed under the following terms:
 
 MICROSOFT SOFTWARE LICENSE TERMS
@@ -12702,7 +12704,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/draco-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/draco-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -12916,7 +12918,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/easywsclient-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/easywsclient-LICENSE.md`
 
-```
+```text
 easywsclient components are licensed under the following terms:
 
 The MIT License (MIT)
@@ -12956,7 +12958,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/eigen-LICENSE.APACHE`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/eigen-LICENSE.APACHE`
 
-```
+```text
 /*
                                  Apache License
                            Version 2.0, January 2004
@@ -13176,7 +13178,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/eigen-LICENSE.BSD`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/eigen-LICENSE.BSD`
 
-```
+```text
 /*
  Copyright (c) 2011, Intel Corporation. All rights reserved.
 
@@ -13219,7 +13221,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/eigen-LICENSE.GPL`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/eigen-LICENSE.GPL`
 
-```
+```text
 GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
@@ -13918,7 +13920,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gst-plugins-bad-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libiconv-LICENSE.LIB`
 
-```
+```text
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
 
@@ -14446,7 +14448,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/eigen-LICENSE.MINPACK`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/eigen-LICENSE.MINPACK`
 
-```
+```text
 Minpack Copyright Notice (1999) University of Chicago.  All rights reserved
 
 Redistribution and use in source and binary forms, with or
@@ -14514,7 +14516,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/eigen-LICENSE.MPL2`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/eigen-LICENSE.MPL2`
 
-```
+```text
 Mozilla Public License Version 2.0
 ==================================
 
@@ -14904,7 +14906,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/eigen-LICENSE.README`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/eigen-LICENSE.README`
 
-```
+```text
 Eigen is primarily MPL2 licensed. See COPYING.MPL2 and these links:
   http://www.mozilla.org/MPL/2.0/
   http://www.mozilla.org/MPL/2.0/FAQ.html
@@ -14935,7 +14937,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/flac-LICENSE.Xiph`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/flac-LICENSE.Xiph`
 
-```
+```text
 Copyright (C) 2000-2009  Josh Coalson
 Copyright (C) 2011-2023  Xiph.Org Foundation
 
@@ -14979,7 +14981,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/forgeaudio-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/forgeaudio-LICENSE.md`
 
-```
+```text
 # Forge™ technology components are Copyright © 2000-2017 NVIDIA Corporation.
 
 Forge includes The Better String Library (bstring) Copyright © 2002-2006 Paul Hsieh
@@ -15088,7 +15090,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/generic_model_output-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/sensor_checker-LICENSE.md`
 
-```
+```text
 Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -15112,7 +15114,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/glew-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/glew-LICENSE.md`
 
-```
+```text
 The OpenGL Extension Wrangler Library
 Copyright (C) 2002-2007, Milan Ikits <milan ikits[]ieee org>
 Copyright (C) 2002-2007, Marcelo E. Magallon <mmagallo[]debian org>
@@ -15202,7 +15204,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/glslang-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/glslang-LICENSE.txt`
 
-```
+```text
 The Glslang components (https://github.com/KhronosGroup/glslang) are licensed under the following terms:
 
 Here, glslang proper means core GLSL parsing, HLSL parsing, and SPIR-V code
@@ -15325,7 +15327,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/hdf5-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/hdf5-LICENSE.txt`
 
-```
+```text
 Copyright Notice and License Terms for
 HDF5 (Hierarchical Data Format 5) Software Library and Utilities
 -----------------------------------------------------------------------------
@@ -15572,7 +15574,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-hwloc-COPYING.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-hwloc-COPYING.txt`
 
-```
+```text
 Copyright © 2004-2006 The Trustees of Indiana University and Indiana University Research and Technology Corporation.  All rights reserved.
 Copyright © 2004-2005 The University of Tennessee and The University of Tennessee Research Foundation.  All rights reserved.
 Copyright © 2004-2005 High Performance Computing Center Stuttgart, University of Stuttgart.  All rights reserved.
@@ -15716,7 +15718,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection.linux-x86_64-release-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse.cache-cleaner.service.bin.linux-x86_64-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -15745,7 +15747,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/idl.py-PIP-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/idl.py-PIP-LICENSES.txt`
 
-```
+```text
 Jinja2-3.1.2
 ------------
 import argparse
@@ -15871,10 +15873,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -16631,10 +16633,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -17391,10 +17393,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -18151,10 +18153,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -18911,10 +18913,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -19671,10 +19673,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -20431,10 +20433,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -21191,10 +21193,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -21951,10 +21953,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -22711,10 +22713,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -23471,10 +23473,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -24231,10 +24233,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -24991,10 +24993,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -25751,10 +25753,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -26511,10 +26513,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -27271,10 +27273,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -28031,10 +28033,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -28791,10 +28793,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -29551,10 +29553,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -30311,10 +30313,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -31071,10 +31073,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -31831,10 +31833,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -32591,10 +32593,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -33351,10 +33353,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -34111,10 +34113,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -34871,10 +34873,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -35631,10 +35633,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -36391,10 +36393,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -37151,10 +37153,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -38125,7 +38127,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-imath-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-imath-LICENSE.md`
 
-```
+```text
 Copyright Contributors to the OpenEXR Project. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -38149,7 +38151,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/imguicolortextedit-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/imguicolortextedit-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2017 BalazsJako
@@ -38187,7 +38189,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/iraysdk-license.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/iraysdk-license.txt`
 
-```
+```text
 Third Party Licenses
 
 This software may use parts or all of the following third-party software:
@@ -40029,7 +40031,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libbacktrace-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libbacktrace-LICENSE.txt`
 
-```
+```text
 # Copyright (C) 2012-2016 Free Software Foundation, Inc.
 
 # Redistribution and use in source and binary forms, with or without
@@ -40075,7 +40077,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/llvm-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/llvm-LICENSE.txt`
 
-```
+```text
 LLVM (https://github.com/llvm/llvm-project) is licensed under the following terms:
 
 
@@ -40373,7 +40375,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/lz4-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/lz4-LICENSE.txt`
 
-```
+```text
 The lz4 (hhttps://github.com/lz4/lz4) is licensed under the following terms:
 
 This repository uses 2 different licenses :
@@ -40445,7 +40447,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-materialx-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-materialx-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -40638,7 +40640,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/mdldist-license.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/mdldist-license.txt`
 
-```
+```text
 NVIDIA MDL Distiller for Omniverse
 ==================================
 
@@ -40659,7 +40661,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/mikktspace-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/mikktspace-LICENSE.md`
 
-```
+```text
 Copyright (C) 2011 by Morten S. Mikkelsen
 
 This software is provided 'as-is', without any express or implied
@@ -40691,7 +40693,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/minimp3-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/minimp3-LICENSE.txt`
 
-```
+```text
 CC0 1.0 Universal
 
 Statement of Purpose
@@ -40824,7 +40826,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/miniz-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/miniz-LICENSE.txt`
 
-```
+```text
 The miniz (https://github.com/richgel999/miniz) is licensed under the following terms:
 
 Copyright 2013-2014 RAD Game Tools and Valve Software
@@ -40865,7 +40867,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nanovdb-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nanovdb-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
 NVIDIA CORPORATION and its licensors retain all intellectual property and proprietary rights in and to this software, related documentation and any modifications thereto.  Any use, reproduction, disclosure or distribution of this software and related documentation without an express license agreement from NVIDIA CORPORATION is strictly prohibited.
 ```
@@ -40880,7 +40882,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/nvenc-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/nvenc-LICENSE.md`
 
-```
+```text
 --------------------------------------------------------------------------------
 # NVIDIA VIDEO CODEC SDK LICENSE AGREEMENT (“Agreement”)
 
@@ -41018,7 +41020,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nvflow-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nvflow-LICENSE.md`
 
-```
+```text
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
 are met:
@@ -41060,7 +41062,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nvindex-license.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nvindex-license.txt`
 
-```
+```text
 NVIDIA IndeX for Omniverse
 ==========================
 
@@ -44289,7 +44291,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nvrtc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nvrtc-LICENSE.txt`
 
-```
+```text
 NVIDIA NVRTC CUDA compiler distributable (https://docs.nvidia.com/cuda/nvrtc/index.html) is licensed under:
 
 End User License Agreement
@@ -45896,7 +45898,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/nvtx-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/nvtx-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2009-2020, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -45918,7 +45920,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libogg-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libogg-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2002, Xiph.org Foundation
 
 Redistribution and use in source and binary forms, with or without
@@ -45973,7 +45975,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omni_hub.linux-x86_64-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omni_hub.linux-x86_64-LICENSE.md`
 
-```
+```text
 Copyright (c) 2022-2024, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -45999,7 +46001,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omni_usd_resolver-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omni_usd_resolver-LICENSE.md`
 
-```
+```text
 NVIDIA Omniverse USD Resolver is governed by the following NVIDIA Agreements:
 
 Enterprise Software | NVIDIA Software License Agreement and NVIDIA Agreements https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/
@@ -46020,7 +46022,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/omnisemanticsschema-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/omnisemanticsschema-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020-2024, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -46041,7 +46043,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/omniverse client library-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_client_library.manylinux_2_35_aarch64-omniverse client library-LICENSES.txt`
 
-```
+```text
 winapi-util
 nom
 rustix
@@ -46418,7 +46420,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/c-ares-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/c-ares-LICENSE.md`
 
-```
+```text
 # c-ares license
 
 MIT License
@@ -46479,7 +46481,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.zip!/carbonite-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.txt`
 
-```
+```text
 carbonite-LICENSE.txt
 nvtx-LICENSE.txt
 carb_sdk-LICENSE.txt
@@ -46546,7 +46548,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/cpp-httplib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/cpp-httplib-LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2017 yhirose
@@ -46588,7 +46590,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/ctre-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/ctre-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -46822,7 +46824,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.zip!/hiredis-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/hiredis-LICENSE.txt`
 
-```
+```text
 hiredis components are licensed under the following terms:
 
 Copyright (c) 2009-2011, Salvatore Sanfilippo <antirez at gmail dot com>
@@ -46874,7 +46876,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/idl.js-NPM-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/idl.js-NPM-LICENSES.txt`
 
-```
+```text
 @omniverse/idl@1.0.0
 --------------------
 Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
@@ -46904,7 +46906,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/idl.js-PIP-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/idl.js-PIP-LICENSES.txt`
 
-```
+```text
 Jinja2
 ------
 Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
@@ -46928,7 +46930,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_client_library.manylinux_2_35_aarch64-omniverse client library-LICENSES.zip!/libcurl-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.zip!/libcurl-LICENSE.txt`
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2024, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -47024,7 +47026,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/libnghttp2-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/libnghttp2-LICENSE.txt`
 
-```
+```text
 The MIT License
 
 Copyright (c) 2012, 2014, 2015, 2016 Tatsuhiro Tsujikawa
@@ -47073,7 +47075,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/nlohmann-json-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/nlohmann-json-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2013-2019 Niels Lohmann
@@ -47110,7 +47112,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.zip!/omni-config-cpp-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omni-config-cpp-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -47145,7 +47147,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.zip!/omnitrace-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omnitrace-LICENSE.txt`
 
-```
+```text
 omnitrace components are licensed under the following terms:
 
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
@@ -47190,7 +47192,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/Omniverse Client Library-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/Omniverse Client Library-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 
     NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -47218,7 +47220,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/omniverse_connection-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/omniverse_connection-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -47252,2316 +47254,1978 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/packages.json`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/packages.json`
 
-```
+```text
 {
   "addr2line": {
     "0.22.0": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "adler": {
     "1.0.2": {
       "license": "0BSD OR MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ahash": {
     "0.7.8": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "aho-corasick": {
     "1.1.3": {
       "license": "Unlicense OR MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4195752"
+      "licensed_as": "MIT"
     }
   },
   "android-tzdata": {
     "0.1.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4141824"
+      "licensed_as": "Apache-2.0"
     }
   },
   "android_system_properties": {
     "0.1.5": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anes": {
     "0.1.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anstream": {
     "0.6.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anstyle": {
     "1.0.8": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anstyle-parse": {
     "0.2.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anstyle-query": {
     "1.1.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4141824"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anstyle-wincon": {
     "3.0.4": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "anyhow": {
     "1.0.86": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "assert_matches": {
     "1.5.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "async-compression": {
     "0.3.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "async-trait": {
     "0.1.81": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "async_zip": {
     "0.0.11": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "atomic-waker": {
     "1.1.2": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4780860"
+      "licensed_as": "Apache-2.0"
     }
   },
   "atty": {
     "0.2.14": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "autocfg": {
     "1.3.0": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "axum": {
     "0.7.5": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "axum-core": {
     "0.4.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "axum-macros": {
     "0.4.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "backtrace": {
     "0.3.73": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "base64": {
     "0.13.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.22.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "bincode": {
     "1.3.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "bitflags": {
     "1.3.2": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "2.6.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "block-buffer": {
     "0.10.4": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "bumpalo": {
     "3.16.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "bytemuck": {
     "1.16.3": {
       "license": "Zlib OR Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "bytemuck_derive": {
     "1.7.0": {
       "license": "Zlib OR Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "byteorder": {
     "1.5.0": {
       "license": "Unlicense OR MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "bytes": {
     "1.7.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "bytesize": {
     "1.3.0": {
       "license": "Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "cast": {
     "0.3.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "cbindgen": {
     "0.26.0": {
       "license": "MPL-2.0",
-      "licensed_as": null,
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=2885977"
+      "licensed_as": null
     }
   },
   "cc": {
     "1.1.7": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "cfg-if": {
     "1.0.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "cfg_aliases": {
     "0.2.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "MIT"
     }
   },
   "chrono": {
     "0.4.38": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ciborium": {
     "0.2.2": {
       "license": "Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ciborium-io": {
     "0.2.2": {
       "license": "Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ciborium-ll": {
     "0.2.2": {
       "license": "Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "clap": {
     "3.2.25": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "4.5.13": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "clap-num": {
     "1.1.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "clap_builder": {
     "4.5.13": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "clap_derive": {
     "4.5.13": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "clap_lex": {
     "0.2.4": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.7.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "colorchoice": {
     "1.0.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4141824"
+      "licensed_as": "Apache-2.0"
     }
   },
   "config": {
     "0.13.4": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "core-foundation-sys": {
     "0.8.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "cpufeatures": {
     "0.2.12": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "crc32fast": {
     "1.4.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "criterion": {
     "0.5.1": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "criterion-plot": {
     "0.5.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "crossbeam-channel": {
     "0.5.13": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "crossbeam-deque": {
     "0.8.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "crossbeam-epoch": {
     "0.9.18": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "crossbeam-utils": {
     "0.8.20": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "crunchy": {
     "0.2.2": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "MIT"
     }
   },
   "crypto-common": {
     "0.1.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "curl": {
     "0.4.46": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "curl-sys": {
     "0.4.74+curl-8.9.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "dashmap": {
     "6.0.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "MIT"
     }
   },
   "deranged": {
     "0.3.11": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4229996"
+      "licensed_as": "Apache-2.0"
     }
   },
   "digest": {
     "0.10.7": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "dlv-list": {
     "0.3.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "educe": {
     "0.5.11": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "MIT"
     }
   },
   "either": {
     "1.13.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "enum-ordinalize": {
     "4.3.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "MIT"
     }
   },
   "enum-ordinalize-derive": {
     "4.3.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "MIT"
     }
   },
   "env_filter": {
     "0.1.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "Apache-2.0"
     }
   },
   "env_logger": {
     "0.11.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "equivalent": {
     "1.0.1": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4229996"
+      "licensed_as": "Apache-2.0"
     }
   },
   "errno": {
     "0.3.9": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "etcetera": {
     "0.8.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4118340"
+      "licensed_as": "Apache-2.0"
     }
   },
   "fastrand": {
     "2.1.0": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "fd-lock": {
     "4.0.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     }
   },
   "file-rotate": {
     "0.7.6": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4230941"
+      "licensed_as": "MIT"
     }
   },
   "flate2": {
     "1.0.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "flume": {
     "0.11.0": {
       "license": "Apache-2.0/MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "Apache-2.0"
     }
   },
   "fnv": {
     "1.0.7": {
       "license": "Apache-2.0 / MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "Apache-2.0"
     }
   },
   "form_urlencoded": {
     "1.2.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "fs2": {
     "0.4.3": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-channel": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-core": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-executor": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-io": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-macro": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-sink": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-task": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-timer": {
     "3.0.3": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "futures-util": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "fxhash": {
     "0.2.1": {
       "license": "Apache-2.0/MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "generic-array": {
     "0.14.7": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "getrandom": {
     "0.2.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "Apache-2.0"
     }
   },
   "gimli": {
     "0.29.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "glob": {
     "0.3.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4195752"
+      "licensed_as": "Apache-2.0"
     }
   },
   "h2": {
     "0.4.5": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "half": {
     "2.4.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "hashbrown": {
     "0.12.3": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.14.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "heck": {
     "0.4.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.5.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "hermit-abi": {
     "0.1.19": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.3.9": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "home": {
     "0.5.9": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4118340"
+      "licensed_as": "Apache-2.0"
     }
   },
   "http": {
     "1.1.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "http-body": {
     "1.0.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "http-body-util": {
     "0.1.2": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4409401"
+      "licensed_as": "MIT"
     }
   },
   "http-range-header": {
     "0.4.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "httparse": {
     "1.9.4": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "httpdate": {
     "1.0.3": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "hyper": {
     "1.4.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "hyper-util": {
     "0.1.6": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4409401"
+      "licensed_as": "MIT"
     }
   },
   "iana-time-zone": {
     "0.1.60": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "iana-time-zone-haiku": {
     "0.1.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "idna": {
     "0.5.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "indexmap": {
     "1.9.3": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "2.3.0": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "instant": {
     "0.1.13": {
       "license": "BSD-3-Clause",
-      "licensed_as": "BSD-3-Clause",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "BSD-3-Clause"
     }
   },
   "ipnet": {
     "2.9.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4186387"
+      "licensed_as": "Apache-2.0"
     }
   },
   "is-terminal": {
     "0.4.12": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "is_terminal_polyfill": {
     "1.70.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4780860"
+      "licensed_as": "Apache-2.0"
     }
   },
   "itertools": {
     "0.10.5": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "itoa": {
     "1.0.11": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "jobserver": {
     "0.1.32": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "js-sys": {
     "0.3.69": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "json5": {
     "0.4.1": {
       "license": "ISC",
-      "licensed_as": "ISC",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "ISC"
     }
   },
   "lazy_static": {
     "1.5.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "libc": {
     "0.2.155": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "libz-sys": {
     "1.1.18": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "linked-hash-map": {
     "0.5.6": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "linux-raw-sys": {
     "0.4.14": {
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "lock_api": {
     "0.4.12": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "log": {
     "0.4.22": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "matchers": {
     "0.1.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "matchit": {
     "0.7.3": {
       "license": "MIT AND BSD-3-Clause",
-      "licensed_as": "MIT AND BSD-3-Clause",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4229996"
+      "licensed_as": "MIT AND BSD-3-Clause"
     }
   },
   "memchr": {
     "2.7.4": {
       "license": "Unlicense OR MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "mime": {
     "0.3.17": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "mime_guess": {
     "2.0.5": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "minimal-lexical": {
     "0.2.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "miniz_oxide": {
     "0.7.4": {
       "license": "MIT OR Zlib OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "mio": {
     "1.0.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "nanorand": {
     "0.7.0": {
       "license": "Zlib",
-      "licensed_as": null,
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117989&cmtNo="
+      "licensed_as": null
     }
   },
   "nix": {
     "0.29.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "nom": {
     "7.1.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "nu-ansi-term": {
     "0.46.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4351124"
+      "licensed_as": "MIT"
     }
   },
   "num-conv": {
     "0.1.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "Apache-2.0"
     }
   },
   "num-traits": {
     "0.2.19": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "object": {
     "0.36.2": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "once_cell": {
     "1.19.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "oorandom": {
     "11.1.4": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "openssl-probe": {
     "0.1.5": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "openssl-sys": {
     "0.9.103": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "ordered-multimap": {
     "0.4.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "os_str_bytes": {
     "6.6.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "overload": {
     "0.1.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4351124"
+      "licensed_as": "MIT"
     }
   },
   "parking_lot": {
     "0.11.2": {
       "license": "Apache-2.0/MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.12.3": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "parking_lot_core": {
     "0.8.6": {
       "license": "Apache-2.0/MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.9.10": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "paste": {
     "1.0.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "Apache-2.0"
     }
   },
   "pathdiff": {
     "0.2.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "percent-encoding": {
     "2.3.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pest": {
     "2.7.11": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pest_derive": {
     "2.7.11": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pest_generator": {
     "2.7.11": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pest_meta": {
     "2.7.11": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pin-project": {
     "1.1.5": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pin-project-internal": {
     "1.1.5": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pin-project-lite": {
     "0.2.14": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pin-utils": {
     "0.1.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "pkg-config": {
     "0.3.30": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "plotters": {
     "0.3.6": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "plotters-backend": {
     "0.3.6": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "plotters-svg": {
     "0.3.6": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "positioned-io": {
     "0.3.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "MIT"
     }
   },
   "powerfmt": {
     "0.2.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4335290"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ppv-lite86": {
     "0.2.18": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "prctl": {
     "1.0.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "proc-macro-crate": {
     "3.1.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4780860"
+      "licensed_as": "Apache-2.0"
     }
   },
   "proc-macro2": {
     "1.0.86": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "process_path": {
     "0.1.4": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     }
   },
   "quote": {
     "1.0.36": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rand": {
     "0.8.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rand_chacha": {
     "0.3.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rand_core": {
     "0.6.4": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rayon": {
     "1.10.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rayon-core": {
     "1.12.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "redox_syscall": {
     "0.2.16": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     },
     "0.4.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     },
     "0.5.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "regex": {
     "1.10.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "regex-automata": {
     "0.1.10": {
       "license": "Unlicense/MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     },
     "0.4.7": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4229996"
+      "licensed_as": "Apache-2.0"
     }
   },
   "regex-syntax": {
     "0.6.29": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.8.4": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "relative-path": {
     "1.9.3": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4195752"
+      "licensed_as": "Apache-2.0"
     }
   },
   "reqwest": {
     "0.12.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4186387"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rlimit": {
     "0.10.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "rmp": {
     "0.8.14": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "MIT"
     }
   },
   "rmp-serde": {
     "1.3.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "MIT"
     }
   },
   "ron": {
     "0.7.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rstest": {
     "0.21.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rstest_macros": {
     "0.21.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rust-ini": {
     "0.18.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "rustc-demangle": {
     "0.1.24": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rustc_version": {
     "0.4.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rustix": {
     "0.38.34": {
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "rustversion": {
     "1.0.17": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ryu": {
     "1.0.18": {
       "license": "Apache-2.0 OR BSL-1.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "same-file": {
     "1.0.6": {
       "license": "Unlicense/MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "schannel": {
     "0.1.23": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "scopeguard": {
     "1.2.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "semver": {
     "1.0.23": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde": {
     "1.0.204": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde_bytes": {
     "0.11.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde_derive": {
     "1.0.204": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde_json": {
     "1.0.121": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde_path_to_error": {
     "0.1.16": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde_spanned": {
     "0.6.7": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "serde_urlencoded": {
     "0.7.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "sha2": {
     "0.10.8": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "sharded-slab": {
     "0.1.7": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "signal-hook-registry": {
     "1.4.2": {
       "license": "Apache-2.0/MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "slab": {
     "0.4.9": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "sled": {
     "0.34.7": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "smallvec": {
     "1.13.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "socket2": {
     "0.5.7": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "spin": {
     "0.9.8": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "stdext": {
     "0.3.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "MIT"
     }
   },
   "strsim": {
     "0.10.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     },
     "0.11.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "syn": {
     "1.0.109": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "2.0.72": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "sync_wrapper": {
     "0.1.2": {
       "license": "Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "1.0.1": {
       "license": "Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "temp-env": {
     "0.3.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     }
   },
   "tempfile": {
     "3.10.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "termcolor": {
     "1.4.1": {
       "license": "Unlicense OR MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "test-log": {
     "0.2.16": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "test-log-macros": {
     "0.2.16": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4409401"
+      "licensed_as": "Apache-2.0"
     }
   },
   "textwrap": {
     "0.16.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "thiserror": {
     "1.0.63": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "thiserror-impl": {
     "1.0.63": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "thread_local": {
     "1.1.8": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "time": {
     "0.3.36": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "time-core": {
     "0.1.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "time-macros": {
     "0.2.18": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "tinytemplate": {
     "1.2.1": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "tinyvec": {
     "1.8.0": {
       "license": "Zlib OR Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "tinyvec_macros": {
     "0.1.1": {
       "license": "MIT OR Apache-2.0 OR Zlib",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4118448"
+      "licensed_as": "Apache-2.0"
     }
   },
   "tokio": {
     "1.39.2": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tokio-macros": {
     "2.4.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tokio-serde": {
     "0.9.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4117962&cmtNo="
+      "licensed_as": "Apache-2.0"
     }
   },
   "tokio-util": {
     "0.7.11": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "toml": {
     "0.5.11": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.7.8": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "toml_datetime": {
     "0.6.8": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "toml_edit": {
     "0.19.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.21.1": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "tower": {
     "0.4.13": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tower-http": {
     "0.5.2": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tower-layer": {
     "0.3.2": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tower-service": {
     "0.3.2": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tracing": {
     "0.1.40": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tracing-appender": {
     "0.2.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tracing-attributes": {
     "0.1.27": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tracing-core": {
     "0.1.32": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tracing-log": {
     "0.2.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4780860"
+      "licensed_as": "MIT"
     }
   },
   "tracing-serde": {
     "0.1.3": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "tracing-subscriber": {
     "0.3.18": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "try-lock": {
     "0.2.5": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "typenum": {
     "1.17.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "ucd-trie": {
     "0.1.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "unicase": {
     "2.7.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "unicode-bidi": {
     "0.3.15": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "unicode-ident": {
     "1.0.12": {
       "license": "(MIT OR Apache-2.0) AND Unicode-DFS-2016",
-      "licensed_as": null,
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": null
     }
   },
   "unicode-normalization": {
     "0.1.23": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "url": {
     "2.5.2": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "utf8parse": {
     "0.2.2": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "uuid": {
     "1.10.0": {
       "license": "Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "valuable": {
     "0.1.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "valuable-serde": {
     "0.1.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4351124"
+      "licensed_as": "MIT"
     }
   },
   "vcpkg": {
     "0.2.15": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "version_check": {
     "0.9.5": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "walkdir": {
     "2.5.0": {
       "license": "Unlicense/MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "want": {
     "0.3.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "wasi": {
     "0.11.0+wasi-snapshot-preview1": {
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasite": {
     "0.1.0": {
       "license": "Apache-2.0 OR BSL-1.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasm-bindgen": {
     "0.2.92": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasm-bindgen-backend": {
     "0.2.92": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasm-bindgen-futures": {
     "0.4.42": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4186387"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasm-bindgen-macro": {
     "0.2.92": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasm-bindgen-macro-support": {
     "0.2.92": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "wasm-bindgen-shared": {
     "0.2.92": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "web-sys": {
     "0.3.69": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "whoami": {
     "1.5.1": {
       "license": "Apache-2.0 OR BSL-1.0 OR MIT",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     }
   },
   "winapi": {
     "0.3.9": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "winapi-i686-pc-windows-gnu": {
     "0.4.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "winapi-util": {
     "0.1.8": {
       "license": "Unlicense OR MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "winapi-x86_64-pc-windows-gnu": {
     "0.4.0": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows": {
     "0.52.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows-core": {
     "0.52.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4325328"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows-sys": {
     "0.48.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.0": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows-targets": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_aarch64_gnullvm": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_aarch64_msvc": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_i686_gnu": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_i686_gnullvm": {
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4609305"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_i686_msvc": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_x86_64_gnu": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_x86_64_gnullvm": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "windows_x86_64_msvc": {
     "0.48.5": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     },
     "0.52.6": {
       "license": "MIT OR Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4170544"
+      "licensed_as": "Apache-2.0"
     }
   },
   "winnow": {
     "0.5.40": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "winreg": {
     "0.52.0": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/swbug.aspx?bugid=4186387"
+      "licensed_as": "MIT"
     }
   },
   "winresource": {
     "0.1.17": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "MIT"
     }
   },
   "yaml-rust": {
     "0.4.5": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "Apache-2.0",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=4060142"
+      "licensed_as": "Apache-2.0"
     }
   },
   "zerocopy": {
     "0.6.6": {
       "license": "BSD-2-Clause",
-      "licensed_as": null,
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4780860"
+      "licensed_as": null
     }
   },
   "zerocopy-derive": {
     "0.6.6": {
       "license": "BSD-2-Clause",
-      "licensed_as": null,
-      "swipat_url": "https://nvbugspro.nvidia.com/bug/4780860"
+      "licensed_as": null
     }
   },
   "zstd": {
     "0.9.2+zstd.1.5.1": {
       "license": "MIT",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=5024807"
+      "licensed_as": "MIT"
     }
   },
   "zstd-safe": {
     "4.1.3+zstd.1.5.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=5024807"
+      "licensed_as": "MIT"
     }
   },
   "zstd-sys": {
     "1.6.2+zstd.1.5.1": {
       "license": "MIT/Apache-2.0",
-      "licensed_as": "MIT",
-      "swipat_url": "https://nvbugswb.nvidia.com/NvBugs5/SWBug.aspx?bugid=5024807"
+      "licensed_as": "MIT"
     }
   }
 }
@@ -49585,7 +49249,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/pugixml-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/pugixml-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2006-2020 Arseny Kapoulkine
@@ -49630,7 +49294,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/pybind11-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/pybind11-LICENSE.md`
 
-```
+```text
 Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -49686,7 +49350,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/rapidjson-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/rapidjson-LICENSE.md`
 
-```
+```text
 Tencent is pleased to support the open source community by making RapidJSON available.
 
 Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.  All rights reserved.
@@ -49764,7 +49428,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/tinytoml-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/tinytoml-LICENSE.md`
 
-```
+```text
 Copyright (c) 2014, MAYAH
 All rights reserved.
 
@@ -49803,7 +49467,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.zip!/zlib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/zlib-LICENSE.txt`
 
-```
+```text
 zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.3.1, January 22nd, 2024
 
@@ -49922,7 +49586,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/zstd-library.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/zstd-library.txt`
 
-```
+```text
 BSD License
 
 For Zstandard software
@@ -49965,7 +49629,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/omniverse.discovery.client.py-PIP-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/omniverse.discovery.client.py-PIP-LICENSES.txt`
 
-```
+```text
 Jinja2
 ------
 Copyright (c) 2009 by the Jinja Team, see AUTHORS for more details.
@@ -51991,7 +51655,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/omniverse.tagging.client.py-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/omniverse.tagging.client.py-LICENSE.md`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -52011,7 +51675,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/open3d-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/open3d-LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Open3D: www.open3d.org
@@ -52058,7 +51722,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-opensubdiv-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-opensubdiv-LICENSE.txt`
 
-```
+```text
 Modified Apache 2.0 License
 
 
@@ -52246,7 +51910,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/opus-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/opus-LICENSE.txt`
 
-```
+```text
 Copyright 2001-2011 Xiph.Org, Skype Limited, Octasic,
                     Jean-Marc Valin, Timothy B. Terriberry,
                     CSIRO, Gregory Maxwell, Mark Borgerding,
@@ -52303,7 +51967,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/pybind11-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/pybind11-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -52378,7 +52042,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/pybind11-stubgen-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/pybind11-stubgen-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2019 Sergei Izmailov <sergei.a.izmailov@gmail.com>, All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -52423,7 +52087,7 @@ derivative works thereof, in binary and source code form.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/python-LICENSES.txt`</summary>
 
-```
+```text
 python-130-cfuhash-LICENSE.txt
 python-020-asyncsock-LICENSE.txt
 python-090-strtod-LICENSE.txt
@@ -52526,7 +52190,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/rapidxml-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/rapidxml-LICENSE.md`
 
-```
+```text
 Use of this software is granted under one of the following two licenses,
 to be chosen freely by the user.
 
@@ -52586,7 +52250,7 @@ IN THE SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.txt`</summary>
 
-```
+```text
 mdldist-license.txt
 regex-automata
 colorchoice
@@ -53051,7 +52715,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/aftermath-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/aftermath-LICENSE.md`
 
-```
+```text
 Copyright (c) 2017-2023, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property and proprietary
@@ -53666,7 +53330,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/blobkey-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/blobkey-LICENSE.txt`
 
-```
+```text
 SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 SPDX-License-Identifier: BSD-2-Clause
 
@@ -53708,7 +53372,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/expat-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/expat-LICENSE.txt`
 
-```
+```text
 Copyright (c) 1998-2000 Thai Open Source Software Center Ltd and Clark Cooper
 Copyright (c) 2001-2022 Expat maintainers
 
@@ -53744,7 +53408,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/filmgrain2-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/filmgrain2-LICENSE.txt`
 
-```
+```text
 Film Grain post-process shader v1.1
 Martins Upitis (martinsh) devlog-martinsh.blogspot.com 2013
 
@@ -53821,7 +53485,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/glfw-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/glfw-LICENSE.md`
 
-```
+```text
 Copyright (c) 2002-2006 Marcus Geelnard
 Copyright (c) 2006-2016 Camilla Löwy <elmindreda@glfw.org>
 
@@ -53857,7 +53521,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/gli-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gli-LICENSE.md`
 
-```
+```text
 ================================================================================
 OpenGL Image (GLI)
 --------------------------------------------------------------------------------
@@ -53926,7 +53590,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/glib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/glib-LICENSE.txt`
 
-```
+```text
 GNU LESSER GENERAL PUBLIC LICENSE
 
 Version 2.1, February 1999
@@ -54116,7 +53780,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/gst-orc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gst-orc-LICENSE.txt`
 
-```
+```text
 The majority of the source code and the collective work is subject
 to the following license:
 
@@ -54195,7 +53859,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gst-plugins-base-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gstreamer-LICENSE.txt`
 
-```
+```text
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
 
@@ -54721,7 +54385,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/gst-plugins-good-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/gst-plugins-good-LICENSE.txt`
 
-```
+```text
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
 
@@ -55247,7 +54911,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/hdf5-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/hdf5-LICENSE.txt`
 
-```
+```text
 Copyright Notice and License Terms for
 HDF5 (Hierarchical Data Format 5) Software Library and Utilities
 -----------------------------------------------------------------------------
@@ -55373,7 +55037,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/hsscclient-core-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/hsscclient-core-LICENSE.txt`
 
-```
+```text
 SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 SPDX-License-Identifier: LicenseRef-NvidiaProprietary
@@ -55398,7 +55062,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/imguizmo-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/imguizmo-LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2016 Cedric Guillemet
@@ -55434,7 +55098,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/lfsr-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/lfsr-LICENSE.txt`
 
-```
+```text
 // Copyright (c) 2012 Leonhard Gruenschloss (leonhard@gruenschloss.org)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -55468,7 +55132,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libdeflate-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libdeflate-LICENSE.txt`
 
-```
+```text
 Copyright 2016 Eric Biggers
 
 Permission is hereby granted, free of charge, to any person
@@ -55502,7 +55166,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libffi-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libffi-LICENSE.txt`
 
-```
+```text
 libffi - Copyright (c) 1996-2022  Anthony Green, Red Hat, Inc and others.
 See source files for details.
 
@@ -55538,7 +55202,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libsoup-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libsoup-LICENSE.txt`
 
-```
+```text
 GNU LIBRARY GENERAL PUBLIC LICENSE
                        Version 2, June 1991
 
@@ -56043,7 +55707,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libtiff-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libtiff-LICENSE.md`
 
-```
+```text
 # LibTIFF license
 
 Copyright © 1988-1997 Sam Leffler\
@@ -56079,7 +55743,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libva-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libva-LICENSE.txt`
 
-```
+```text
 Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the
     "Software"), to deal in the Software without restriction, including
@@ -56113,7 +55777,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libwebp-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libwebp-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2010, Google Inc. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -56157,7 +55821,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libxml2-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libxml2-LICENSE.txt`
 
-```
+```text
 Except where otherwise noted in the source code (e.g. the files dict.c and
 list.c, which are covered by a similar licence but with different Copyright
 notices) all the files are:
@@ -56195,7 +55859,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/ltc-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/ltc-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2017, Eric Heitz, Jonathan Dupuy, Stephen Hill and David Neubelt.
 All rights reserved.
 
@@ -56241,7 +55905,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/lua-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/lua-LICENSE.txt`
 
-```
+```text
 /******************************************************************************
 * Copyright (C) 1994-2024 Lua.org, PUC-Rio.
 *
@@ -56278,7 +55942,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nanosvg-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nanosvg-LICENSE.md`
 
-```
+```text
 Copyright (c) 2013-14 Mikko Mononen memon@inside.org
 
 This software is provided 'as-is', without any express or implied
@@ -56310,7 +55974,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nanovg-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nanovg-LICENSE.md`
 
-```
+```text
 Copyright (c) 2013 Mikko Mononen memon@inside.org
 
 This software is provided 'as-is', without any express or implied
@@ -56342,7 +56006,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/netImgui-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/netImgui-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2021 Sammy Fatnassi (Github: @Sammyfreg)
@@ -56378,7 +56042,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/ngx_snippets-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/ngx_snippets-LICENSE.md`
 
-```
+```text
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -56411,7 +56075,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nlohmann_json-LICENSE.MIT`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nlohmann_json-LICENSE.MIT`
 
-```
+```text
 MIT License
 
 Copyright (c) 2013-2025 Niels Lohmann
@@ -56447,7 +56111,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt`
 
-```
+```text
 Apache License
 Version 2.0, January 2004
 http://www.apache.org/licenses/
@@ -56535,7 +56199,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt.1`
 
-```
+```text
 MIT License
 
 Copyright (c) <year> <copyright holders>
@@ -56559,7 +56223,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt.2`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt.2`
 
-```
+```text
 GNU GENERAL PUBLIC LICENSE
 Version 3, 29 June 2007
 
@@ -56806,7 +56470,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt.3`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nlohmann_json-LICENSE.txt.3`
 
-```
+```text
 Copyright (c) <year> <owner>.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -56832,7 +56496,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/nrend-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/nrend-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2024-2025, NVIDIA CORPORATION. All rights reserved.
 NVIDIA CORPORATION and its licensors retain all intellectual property
 and proprietary rights in and to this software, related documentation
@@ -56853,7 +56517,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/opencolorio-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/opencolorio-LICENSE.txt`
 
-```
+```text
 Copyright Contributors to the OpenColorIO Project.
 
 Redistribution and use in source and binary forms, with or without
@@ -56894,7 +56558,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/openexr-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/openexr-LICENSE.md`
 
-```
+```text
 Copyright (c) Contributors to the OpenEXR Project. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -56920,7 +56584,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/optix-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/optix-LICENSE.md`
 
-```
+```text
 Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 
 NVIDIA Corporation and its licensors retain all intellectual property and proprietary
@@ -56952,7 +56616,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/optix_iray-license.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/optix_iray-license.txt`
 
-```
+```text
 Third Party Licenses as used in OptiX
 =====================================
 
@@ -57265,7 +56929,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/rendering-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/rendering-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
@@ -57288,7 +56952,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/reshade-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/reshade-LICENSE.md`
 
-```
+```text
 Copyright 2014 Patrick Mours. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -57312,7 +56976,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/SamplingSphericalCaps-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/SamplingSphericalCaps-LICENSE.txt`
 
-```
+```text
 // Copyright (c) 2019, Christoph Peters
 // All rights reserved.
 //
@@ -57353,7 +57017,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/slang-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/slang-LICENSE.txt`
 
-```
+```text
 SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -57425,7 +57089,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/sol2-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/sol2-LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2013-2022 Rapptz, ThePhD, and contributors
@@ -57462,7 +57126,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/spirv-headers-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/spirv-headers-LICENSE.txt`
 
-```
+```text
 The SPIRV headers (https://github.com/KhronosGroup/SPIRV-Headers) are licensed under the following terms:
 
 Copyright (c) 2015-2018 The Khronos Group Inc.
@@ -57506,7 +57170,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/spirv-tools-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/spirv-tools-LICENSE.txt`
 
-```
+```text
 The SPIRV tools (https://github.com/KhronosGroup/SPIRV-Tools) are licensed under the following terms:
 
                                  Apache License
@@ -57724,7 +57388,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/stb-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/stb-LICENSE.md`
 
-```
+```text
 ------------------------------------------------------------------------------
 This software is available under 2 licenses -- choose whichever you prefer.
 
@@ -57788,7 +57452,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/stb-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/stb-LICENSE.txt`
 
-```
+```text
 This software is available under 2 licenses -- choose whichever you prefer.
 ------------------------------------------------------------------------------
 ALTERNATIVE A - MIT License
@@ -57848,7 +57512,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd.nopy.manylinux_2_35_x86_64.ov-full-monolithic.release-usd-license.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-usd-license.txt`
 
-```
+```text
 ============================================================
 OpenUSD
 ============================================================
@@ -58742,7 +58406,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/v4l-utils-LICENSE.libv4l`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/v4l-utils-LICENSE.libv4l`
 
-```
+```text
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
 
@@ -59265,7 +58929,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkan-headers-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-headers-LICENSE.md`
 
-````
+````text
 Copyright 2015-2023 The Khronos Group Inc.
 
 Files in this repository fall under one of these licenses:
@@ -59296,7 +58960,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkan-headers-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-headers-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -59525,7 +59189,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkan-headers-LICENSE.txt.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-headers-LICENSE.txt.1`
 
-```
+```text
 MIT License
 
 Copyright (c) 2015-2023 The Khronos Group Inc.
@@ -59551,7 +59215,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/vulkan-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-LICENSE.txt`
 
-```
+```text
 The Vulkan components are licensed under the following terms:
 
                                  Apache License
@@ -59769,7 +59433,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkan-loader-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-loader-LICENSE.txt`
 
-```
+```text
 The majority of files in this project use the Apache 2.0 License.
 There are a few exceptions and their license can be found in the source.
 Any license deviations from Apache 2.0 are "more permissive" licenses.
@@ -59991,7 +59655,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkan-utility-libraries-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-utility-libraries-LICENSE.md`
 
-```
+```text
 <!--
 Copyright 2023 The Khronos Group Inc.
 Copyright 2023 Valve Corporation
@@ -60017,7 +59681,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkan-validationlayers-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkan-validationlayers-LICENSE.txt`
 
-```
+```text
 The majority of files in this project use the Apache 2.0 License.
 There are a few exceptions and their license can be found in the source.
 Any license deviations from Apache 2.0 are "more permissive" licenses.
@@ -60290,7 +59954,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/vulkansdk-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/vulkansdk-LICENSE.txt`
 
-```
+```text
 The Vulkan components are licensed under the following terms:
 
                                  Apache License
@@ -60508,7 +60172,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/wayland-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/wayland-LICENSE.txt`
 
-```
+```text
 Copyright © 2008-2012 Kristian Høgsberg
 Copyright © 2010-2012 Intel Corporation
 Copyright © 2011 Benjamin Franzke
@@ -60554,7 +60218,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/xxhash-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/xxhash-LICENSE.md`
 
-```
+```text
 xxHash Library
 Copyright (c) 2012-2020 Yann Collet
 All rights reserved.
@@ -60595,7 +60259,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/vorbis-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libvorbis-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2002-2020 Xiph.org Foundation
 
 Redistribution and use in source and binary forms, with or without
@@ -60636,7 +60300,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-PIP-packages-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-PIP-packages-LICENSES.txt`
 
-````
+````text
 aiodns-3.1.1
 ------------
 Copyright (C) 2014 by Saúl Ibarra Corretgé
@@ -67402,7 +67066,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/leveldb-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/leveldb-LICENSE.md`
 
-```
+```text
 GitHub repot: https://github.com/google/leveldb
 
 Copyright (c) 2011 The LevelDB Authors. All rights reserved.
@@ -67444,7 +67108,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/leveldb-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/leveldb-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2011 The LevelDB Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -67484,7 +67148,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/lunr/LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/lunr/LICENSE.txt`
 
-```
+```text
 Copyright (C) 2013 by Oliver Nightingale
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -67516,7 +67180,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/mermaid/LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/mermaid/LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist
@@ -67550,7 +67214,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/nvidia-sphinx-theme/LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/nvidia-sphinx-theme/LICENSE.txt`
 
-```
+```text
 NVIDIA LICENSE AGREEMENT
 
 This NVIDIA License Agreement (“AGREEMENT”) is a legal agreement between you and NVIDIA Corporation ("NVIDIA") and governs your use of the  NVIDIA font, icons and other assets, and software, in each case if and when available (“Licensed Materials”).
@@ -67610,7 +67274,7 @@ You agree to use trademarks associated with the Licensed Materials in accordance
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_aarch64.release-omniverse client library-LICENSES.txt`</summary>
 
-```
+```text
 ipnet
 winapi
 wasi
@@ -67979,7 +67643,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/Omniverse-Extensions-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/Omniverse-Extensions-LICENSE.txt`
 
-```
+```text
 NVIDIA Omniverse Extensions are governed by the following NVIDIA Agreements:
 
 Enterprise Software | NVIDIA Software License Agreement and NVIDIA Agreements https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/
@@ -68000,7 +67664,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/onnx-mlir-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/onnx-mlir-LICENSE.txt`
 
-```
+```text
 Apache License
                            Version 2.0, January 2004
                         https://www.apache.org/licenses/
@@ -68214,7 +67878,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovphysx-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovphysx-LICENSE.txt`
 
-```
+```text
 BSD 3-Clause License
 
 Copyright (c) 2008-2026, NVIDIA Corporation
@@ -68253,7 +67917,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.txt`</summary>
 
-```
+```text
 mdldist-license.txt
 regex-automata
 colorchoice
@@ -68711,7 +68375,7 @@ enum-ordinalize
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.txt`</summary>
 
-```
+```text
 opentelemetry-collector-LICENSE.txt
 valijson-LICENSE.txt
 libunwind-LICENSE.txt
@@ -68775,7 +68439,7 @@ protobuf-LICENSE.txt
 
 Source encoding: `pdf-text`
 
-```
+```text
 SOFTWARE LICENSE AGREEMENT FOR NVIDIA SOFTWARE DEVELOPMENT KITS
 This Software License Agreement, including exhibits attached ("Agreement”) is a legal agreement between you and NVIDIA
 Corporation ("NVIDIA") and governs your use of a NVIDIA software development kit (“SDK”).
@@ -69005,7 +68669,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/deepstream-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/deepstream-LICENSE.txt`
 
-```
+```text
 /* Sample apps are provided under the following license:
  *
  * Copyright (c) 2019-2024, NVIDIA CORPORATION. All rights reserved.
@@ -77810,7 +77474,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/lpeparser-license.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/lpeparser-license.txt`
 
-```
+```text
 NVIDIA LPEPARSER THIRDPARTY LICENSES
 ====================================
 
@@ -77883,7 +77547,7 @@ SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.txt`</summary>
 
-```
+```text
 minimal-lexical
 iana-time-zone-haiku
 config
@@ -78248,7 +77912,7 @@ crossbeam-deque
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/libcurl-LICENSE.txt`</summary>
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2026, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -78335,7 +77999,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/physxsdk-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/physxsdk-LICENSE.md`
 
-```
+```text
 Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
@@ -78375,7 +78039,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/premake-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-premake-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2003-2022 Jess Perkins and individual contributors.
 All rights reserved.
 
@@ -78417,7 +78081,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/premake-lua-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/usd_ext_physics-lua-LICENSE.txt`
 
-```
+```text
 Copyright (C) 1994-2018 Lua.org, PUC-Rio.
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -78450,7 +78114,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/pydata-sphinx-theme/LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/pydata-sphinx-theme/LICENSE.txt`
 
-```
+```text
 BSD 3-Clause License
 
 Copyright (c) 2018, pandas
@@ -78494,7 +78158,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-ccache-GPL-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-ccache-LGPL-LICENSE.txt`
 
-```
+```text
 GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
@@ -79181,7 +78845,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-clang-LICENSE.TXT`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-clang-LICENSE.TXT`
 
-```
+```text
 ==============================================================================
 The LLVM Project is under the Apache License v2.0 with LLVM Exceptions:
 ==============================================================================
@@ -79477,7 +79141,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/hiredis-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-hiredis-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2009-2011, Salvatore Sanfilippo <antirez at gmail dot com>
 Copyright (c) 2010-2011, Pieter Noordhuis <pcnoordhuis at gmail dot com>
 
@@ -79519,7 +79183,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -79553,7 +79217,7 @@ Source paths:
 
 Source encoding: `utf-8-bom`
 
-```
+```text
 The MIT License (MIT)
 Copyright (C) Microsoft Corporation. All rights reserved.
 
@@ -79574,7 +79238,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-zstd-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_build-zstd-LICENSE.txt`
 
-```
+```text
 BSD License
 
 For Zstandard software
@@ -79617,7 +79281,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_ci-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_ci-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2022-2024, NVIDIA CORPORATION. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -79651,7 +79315,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_docs-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_docs/LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
@@ -79682,7 +79346,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_source-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_test-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2018-2024, NVIDIA CORPORATION. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -79714,7 +79378,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_licensing-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_licensing-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2019-2024, NVIDIA CORPORATION. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -79746,7 +79410,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_package-breakpad-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_package-breakpad-LICENSE.txt`
 
-```
+```text
 Copyright 2006 Google LLC
 
 Redistribution and use in source and binary forms, with or without
@@ -80825,7 +80489,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_python_package-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/repo_python_package-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2020-2025, NVIDIA CORPORATION. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -80857,7 +80521,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_aarch64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/snappy-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/snappy-LICENSE.md`
 
-```
+```text
 GitHub master repot: https://github.com/google/snappy
 
 Copyright 2011, Google Inc.
@@ -80928,7 +80592,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/cuda-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/cuda-LICENSE.txt`
 
-```
+```text
 License For Customer Use of NVIDIA Software
 
 
@@ -81075,7 +80739,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/cuda-LICENSE.txt.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/cuda-LICENSE.txt.1`
 
-```
+```text
 This Third Party Notices file provides notices and information about third
 party components included in the SOFTWARE. The following third party
 components are licensed to Licensee pursuant to the following terms and conditions:
@@ -81873,7 +81537,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.txt`</summary>
 
-```
+```text
 mdldist-license.txt
 regex-automata
 colorchoice
@@ -82326,7 +81990,7 @@ enum-ordinalize
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/amqp1_0-LICENSE.txt`</summary>
 
-```
+```text
 MIT License
 
 Copyright (c) 2023 Gabriele Santomaggio
@@ -82355,7 +82019,7 @@ SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/carbonite-LICENSES.txt`</summary>
 
-```
+```text
 libunwind-LICENSE.txt
 tracy_client_source-LICENSE.txt
 valgrind-header-LICENSE.BSD
@@ -82462,7 +82126,7 @@ protobuf-LICENSE.txt
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/carbonite-LICENSES.zip!/python-LICENSES.txt`</summary>
 
-```
+```text
 python-070-select-LICENSE.txt
 xz-LICENSE.txt
 sqlite-LICENSE.txt
@@ -82568,7 +82232,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/cuda-LICENSE.txt_1.1`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/cuda-LICENSE.txt_1.1`
 
-```
+```text
 This Third Party Notices file provides notices and information about third
 party components included in the SOFTWARE. The following third party
 components are licensed to Licensee pursuant to the following terms and conditions:
@@ -82647,7 +82311,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/idl.py-PIP-LICENSES.txt`</summary>
 
-```
+```text
 Jinja2-3.1.2
 ------------
 import argparse
@@ -82773,10 +82437,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -83533,10 +83197,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -84293,10 +83957,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -85053,10 +84717,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -85813,10 +85477,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -86573,10 +86237,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -87333,10 +86997,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -88093,10 +87757,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -88853,10 +88517,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -89613,10 +89277,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -90373,10 +90037,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -91133,10 +90797,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -91893,10 +91557,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -92653,10 +92317,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -93413,10 +93077,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -94173,10 +93837,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -94933,10 +94597,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -95693,10 +95357,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -96453,10 +96117,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -97213,10 +96877,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -97973,10 +97637,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -98733,10 +98397,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -99493,10 +99157,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -100253,10 +99917,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -101013,10 +100677,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -101773,10 +101437,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -102533,10 +102197,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -103293,10 +102957,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -104053,10 +103717,10 @@ async def get_licenses(
                 version, markers = version.split(";")
                 version = version.strip()
 
-            # https://nvidia-omniverse.atlassian.net/browse/OM-39577
+            # [internal URL removed]
             # Handle additional args on the pip package line (for --extra-index type stuff)
-            # ex1: "maglev.data==0.0.3 --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/nv-shared-pypi-local/simple --find-links https://archives.nvda.ai/pypi/nvidiaapis/index.html",
-            # ex2: "nvidiaapis==2.36.0 -f https://archives.nvda.ai/pypi/nvidiaapis/index.html",
+            # ex1: "maglev.data==0.0.3 --extra-index-url [internal URL removed] --find-links [internal URL removed]",
+            # ex2: "nvidiaapis==2.36.0 -f [internal URL removed]",
             extra_pip_args = None
             if " " in version:
                 version, extra_pip_args = [x.strip() for x in version.split(' ', 1)]
@@ -106024,7 +105688,7 @@ SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/isp_smodel_adapter-LICENSE.txt`</summary>
 
-```
+```text
 Copyright (c) 2023-2025, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
@@ -106040,7 +105704,7 @@ its affiliates is strictly prohibited.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/jemalloc-LICENSE.txt`</summary>
 
-```
+```text
 Unless otherwise specified, files in the jemalloc source distribution are
 subject to the following license:
 --------------------------------------------------------------------------------
@@ -106075,7 +105739,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/jemalloc-msvc_compat-LICENSE.md`</summary>
 
-```
+```text
 ISO C9x  compliant inttypes.h for Microsoft Visual Studio
 ISO C9x  compliant stdint.h for Microsoft Visual Studio
 Based on ISO/IEC 9899:TC2 Committee draft (May 6, 2005) WG14/N1124
@@ -106112,7 +105776,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/libtorch-LICENSE.txt`</summary>
 
-```
+```text
 From PyTorch:
 
 Copyright (c) 2016-     Facebook, Inc            (Adam Paszke)
@@ -106197,7 +105861,7 @@ POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/memcached-LICENSE.txt`</summary>
 
-```
+```text
 Copyright (c) 2003, Danga Interactive, Inc.
 All rights reserved.
 
@@ -106242,7 +105906,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_client_library.manylinux_2_35_x86_64-omniverse client library-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.txt`
 
-```
+```text
 omniverse_connection-LICENSES.txt
 omniverse.cache-cleaner.service-PIP-LICENSES.txt
 test-log
@@ -106611,7 +106275,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/carbonite-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/carbonite-LICENSES.txt`
 
-```
+```text
 abseil-LICENSE.txt
 libcurl-LICENSE.txt
 Tracy-LICENSE.txt
@@ -106675,7 +106339,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/idl.py-PIP-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/idl.py-PIP-LICENSES.txt`
 
-```
+```text
 Jinja2
 ------
 Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
@@ -107697,7 +107361,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omni-config-cpp-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omni-config-cpp-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -107723,7 +107387,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse.auth-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse.auth-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -107749,7 +107413,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse.cache-cleaner.service-PIP-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse.cache-cleaner.service-PIP-LICENSES.txt`
 
-```
+```text
 MarkupSafe-2.1.3
 ----------------
 Copyright 2010 Pallets
@@ -110396,7 +110060,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_client_library.manylinux_2_35_x86_64-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.txt`
 
-```
+```text
 tinytoml-LICENSE.md
 idl.py-PIP-LICENSES.txt
 libcurl-LICENSE.txt
@@ -110439,7 +110103,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/civetweb-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/civetweb-LICENSE.md`
 
-```
+```text
 ALL LICENSES
 =====
 
@@ -110706,7 +110370,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/cpp-httplib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/cpp-httplib-LICENSE.txt`
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) 2017 yhirose
@@ -110742,7 +110406,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_client_library.manylinux_2_35_x86_64-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/libcurl-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/libcurl-LICENSE.txt`
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2023, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -110806,7 +110470,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/nng-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/nng-LICENSE.md`
 
-```
+```text
 The MIT License
 
 Copyright 2020 Staysail Systems, Inc. <info@staysail.tech>
@@ -110844,7 +110508,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/omni-config-cpp-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/omni-config-cpp-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -110867,7 +110531,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/omnitrace-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/omnitrace-LICENSE.txt`
 
-```
+```text
 omnitrace components are licensed under the following terms:
 
 Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
@@ -110892,7 +110556,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/prometheus-cpp-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/prometheus-cpp-LICENSE.txt`
 
-```
+```text
 MIT License
 
 Copyright (c) 2016-2021 Jupp Mueller
@@ -110933,7 +110597,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/python-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/python-LICENSES.txt`
 
-```
+```text
 python-000-mersenne-twister-LICENSE.txt
 python-010-socket-LICENSE.txt
 python-020-asyncsock-LICENSE.txt
@@ -110989,7 +110653,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/zlib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/zlib-LICENSE.txt`
 
-```
+```text
 (C) 1995-2022 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
@@ -111139,7 +110803,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/packages_list.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/packages_list.txt`
 
-```
+```text
 aiohappyeyeballs-2.4.4
 aiohttp-3.10.11
 aiosignal-1.3.2
@@ -111182,7 +110846,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/omni_usd_resolver_ov-usd_25.11_py_0.manylinux_2_35_x86_64.release-omniverse client library-LICENSES.zip!/PIP-packages-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/PIP-packages-LICENSES.txt`
 
-```
+```text
 py_spy-0.3.14
 -------------
 The MIT License (MIT)
@@ -111224,7 +110888,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/pyinstaller-PIP-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/pyinstaller-PIP-LICENSE.txt`
 
-```
+```text
 
 ```
 
@@ -111233,7 +110897,7 @@ Source paths:
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/OpenVR-LICENSE.txt`</summary>
 
-```
+```text
 Copyright (c) 2015, Valve Corporation
 All rights reserved.
 
@@ -111268,7 +110932,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/python-LICENSES.txt`</summary>
 
-```
+```text
 python-070-select-LICENSE.txt
 xz-LICENSE.txt
 sqlite-LICENSE.txt
@@ -111317,7 +110981,7 @@ openssl-LICENSE.txt.1
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rabbitmq-stream-c-client-LICENSE.txt`</summary>
 
-```
+```text
 MIT License
 
 Copyright (c) 2023 Gianfranco Giugliano
@@ -111346,7 +111010,7 @@ SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.txt`</summary>
 
-```
+```text
 mdldist-license.txt
 regex-automata
 colorchoice
@@ -111828,7 +111492,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/allocmemwrapper-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/carbonite-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 
 NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -111843,7 +111507,7 @@ license agreement from NVIDIA CORPORATION is strictly prohibited.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.txt`</summary>
 
-```
+```text
 freetype-LICENSE.TXT
 tracy_client_source-LICENSE.txt
 drivepdk-LICENSE.txt
@@ -111903,7 +111567,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/breakpad-LICENSE.md`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/breakpad-LICENSE.md`
 
-```
+```text
 Copyright (c) 2006, Google Inc.
 All rights reserved.
 
@@ -111966,7 +111630,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libcurl-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libcurl-LICENSE.txt`
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2023, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -112001,7 +111665,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libflac-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/libflac-LICENSE.txt`
 
-```
+```text
 Copyright (C) 2000-2009  Josh Coalson
 Copyright (C) 2011-2016  Xiph.Org Foundation
 
@@ -112043,7 +111707,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/pybind11-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/pybind11-LICENSE.txt`
 
-```
+```text
 Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -112118,7 +111782,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/python-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/python-LICENSES.txt`
 
-```
+```text
 pip-vendor-msgpack-LICENSE.txt
 openssl-LICENSE.txt.1
 pip-vendor-pyparsing-LICENSE.txt
@@ -112216,7 +111880,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/Tracy-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/Tracy-LICENSE.txt`
 
-```
+```text
 Tracy Profiler (https://github.com/wolfpld/tracy) is licensed under the
 3-clause BSD license.
 
@@ -112256,7 +111920,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/valgrind-header-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/valgrind-header-LICENSE.txt`
 
-```
+```text
 ----------------------------------------------------------------
 
    Notice that the following BSD-style license applies to this one
@@ -112323,7 +111987,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/carbonite-LICENSES.zip!/zlib-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.zip!/zlib-LICENSE.txt`
 
-```
+```text
 zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.2.13, October 13th, 2022
 
@@ -112364,7 +112028,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/libffi-LICENSE.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/libffi-LICENSE.txt`
 
-```
+```text
 libffi - Copyright (c) 1996-2021  Anthony Green, Red Hat, Inc and others.
 See source files for details.
 
@@ -112423,7 +112087,7 @@ Source paths:
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/kit-kernel-omniversekit-LICENSES.zip!/rendering-LICENSES.zip!/PIP-packages-LICENSES.txt`
 - `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/PIP-packages-LICENSES.txt`
 
-```
+```text
 py_spy-0.3.14
 -------------
 The MIT License (MIT)
@@ -112752,7 +112416,7 @@ IN THE SOFTWARE.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.txt`</summary>
 
-```
+```text
 mdldist-license.txt
 regex-automata
 colorchoice
@@ -113225,7 +112889,7 @@ enum-ordinalize
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/carbonite-LICENSES.txt`</summary>
 
-```
+```text
 freetype-LICENSE.TXT
 tracy_client_source-LICENSE.txt
 drivepdk-LICENSE.txt
@@ -113338,7 +113002,7 @@ protobuf-LICENSE.txt
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.txt`</summary>
 
-```
+```text
 regex-automata
 colorchoice
 nom
@@ -113700,7 +113364,7 @@ enum-ordinalize
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/libcurl-LICENSE.txt`</summary>
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2026, Daniel Stenberg, <daniel@haxx.se>, and many
@@ -113730,7 +113394,7 @@ in this Software without prior written authorization of the copyright holder.
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.txt`</summary>
 
-```
+```text
 tinytoml-LICENSE.md
 idl.py-PIP-LICENSES.txt
 libcurl-LICENSE.txt
@@ -113767,7 +113431,7 @@ openssl-LICENSE.txt.1
 <details>
 <summary>License file: `ovphysx-0.4.13-py3-none-manylinux_2_35_x86_64.whl!/ovphysx-0.4.13.dist-info/licenses/ovphysx-LICENSES.zip!/ovruntime_deps.release-rendering-LICENSES.zip!/omniverse client library-LICENSES.zip!/omniverse_connection-LICENSES.zip!/libcurl-LICENSE.txt`</summary>
 
-```
+```text
 COPYRIGHT AND PERMISSION NOTICE
 
 Copyright (c) 1996 - 2023, Daniel Stenberg, <daniel@haxx.se>, and many

@@ -3,11 +3,12 @@
 """Tests for USD data preparation tasks."""
 
 import builtins
+import json
 import os
 import traceback
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import yaml
@@ -1516,6 +1517,179 @@ class TestUSDPrimTraversalZeroImages:
                 listener=Mock(),
                 context={},
             )
+
+    def test_blank_guard_records_bounded_wsl2_failure_diagnostic_and_evidence(
+        self, tmp_path
+    ):
+        """All-black WARP output must survive as safe service diagnostics."""
+
+        class WarpRenderingBackend:
+            pass
+
+        task = USDPrimTraversalAndRenderingTask()
+        secret_path_fragment = "partner-secret-path-1481"
+        blank_paths = [
+            tmp_path / f"{secret_path_fragment}-{index}_composition.png"
+            for index in range(2)
+        ]
+        nonblank_path = tmp_path / "nonblank_composition.png"
+        for blank_path in blank_paths:
+            Image.new("RGB", (64, 64), (0, 0, 0)).save(blank_path)
+        self._save_nonblank_image(nonblank_path)
+
+        context = {"rendering_backend": WarpRenderingBackend()}
+        prim_data = [
+            {
+                "prim_path": f"/Private/{secret_path_fragment}",
+                "images": [
+                    {
+                        "path": path.name,
+                        "render_mode": "composition",
+                        "view": f"view-{index}",
+                    }
+                    for index, path in enumerate([*blank_paths, nonblank_path])
+                ],
+            }
+        ]
+
+        with pytest.raises(RuntimeError, match="dataset renders are blank"):
+            task._check_blank_dataset_renders(
+                prim_data,
+                tmp_path,
+                rgb_modes=["composition"],
+                sensor_modes=[],
+                listener=Mock(),
+                context=context,
+            )
+
+        diagnostic = context["pipeline_failure_diagnostic"].to_dict()
+        assert diagnostic["code"] == "blank_dataset_renders"
+        assert diagnostic["phase"] == "rendering"
+        assert diagnostic["failed_step"] == "build_dataset_usd"
+        assert diagnostic["renderer_backend"] == "warp"
+        assert diagnostic["checked_count"] == 3
+        assert diagnostic["blank_count"] == 2
+        assert diagnostic["threshold"] == 0.5
+        assert diagnostic["render_modes"] == ["composition"]
+        assert len(diagnostic["samples"]) == 2
+
+        evidence_dir = tmp_path / "failure_evidence"
+        report = json.loads((evidence_dir / "report.json").read_text())
+        sample_names = diagnostic["evidence"]["samples"]
+        assert all((evidence_dir / name).is_file() for name in sample_names)
+        assert all(name.endswith(".png") for name in sample_names)
+        assert report["diagnostic"] == diagnostic
+        assert all(
+            {"minimum", "maximum", "mean"} <= sample["pixel_intensity"].keys()
+            for sample in report["diagnostic"]["samples"]
+        )
+        serialized = json.dumps(report)
+        assert secret_path_fragment not in serialized
+        assert str(tmp_path) not in serialized
+
+    def test_blank_guard_keeps_known_failure_when_evidence_decoder_rejects_image(
+        self, tmp_path
+    ):
+        """Diagnostic evidence errors must not replace the blank-render code."""
+
+        class WarpRenderingBackend:
+            pass
+
+        task = USDPrimTraversalAndRenderingTask()
+        blank_path = tmp_path / "blank_composition.png"
+        Image.new("RGB", (64, 64), (0, 0, 0)).save(blank_path)
+        context = {"rendering_backend": WarpRenderingBackend()}
+        prim_data = [
+            {
+                "prim_path": "/KnownBlank",
+                "images": [
+                    {
+                        "path": blank_path.name,
+                        "render_mode": "composition",
+                    }
+                ],
+            }
+        ]
+
+        with (
+            patch(
+                "world_understanding.utils.render_failure_diagnostics.PILImage.open",
+                side_effect=Image.DecompressionBombError("decoder rejected image"),
+            ),
+            pytest.raises(RuntimeError, match="dataset renders are blank"),
+        ):
+            task._check_blank_dataset_renders(
+                prim_data,
+                tmp_path,
+                rgb_modes=["composition"],
+                sensor_modes=[],
+                listener=Mock(),
+                context=context,
+            )
+
+        diagnostic = context["pipeline_failure_diagnostic"].to_dict()
+        assert diagnostic["code"] == "blank_dataset_renders"
+        assert "evidence" not in diagnostic
+
+    def test_blank_guard_does_not_decode_oversized_evidence_image(self, tmp_path):
+        """Evidence retention must reject large inputs before pixel decoding."""
+
+        class WarpRenderingBackend:
+            pass
+
+        task = USDPrimTraversalAndRenderingTask()
+        blank_path = tmp_path / "blank_composition.png"
+        Image.new("RGB", (64, 64), (0, 0, 0)).save(blank_path)
+        context = {"rendering_backend": WarpRenderingBackend()}
+        prim_data = [
+            {
+                "prim_path": "/KnownBlank",
+                "images": [
+                    {
+                        "path": blank_path.name,
+                        "render_mode": "composition",
+                    }
+                ],
+            }
+        ]
+        oversized = MagicMock()
+        oversized.__enter__.return_value = oversized
+        oversized.width = 5000
+        oversized.height = 5000
+        blank_stats = Mock(blank=True)
+        blank_stats.to_dict.return_value = {
+            "blank": True,
+            "reason": "solid_color",
+            "width": 64,
+            "height": 64,
+        }
+
+        with (
+            patch(
+                "world_understanding.agentic.usd_tasks.prim_traversal."
+                "analyze_image_blankness",
+                return_value=blank_stats,
+            ),
+            patch(
+                "world_understanding.utils.render_failure_diagnostics.PILImage.open",
+                return_value=oversized,
+            ),
+            pytest.raises(RuntimeError, match="dataset renders are blank"),
+        ):
+            task._check_blank_dataset_renders(
+                prim_data,
+                tmp_path,
+                rgb_modes=["composition"],
+                sensor_modes=[],
+                listener=Mock(),
+                context=context,
+            )
+
+        oversized.load.assert_not_called()
+        oversized.convert.assert_not_called()
+        diagnostic = context["pipeline_failure_diagnostic"].to_dict()
+        assert diagnostic["code"] == "blank_dataset_renders"
+        assert diagnostic["evidence"]["samples"] == []
 
     def test_can_warn_on_majority_blank_renders_when_configured(self, tmp_path):
         """Low-signal geometry can continue when blank dataset renders are allowed."""

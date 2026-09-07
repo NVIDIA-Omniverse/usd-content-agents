@@ -33,8 +33,10 @@ CONCURRENCY_SELECTOR_SCRIPTS = (
     PHYSICS_CONCURRENCY_SCRIPT,
 )
 PUBLIC_CLIENT_SKILLS = (
-    REPO_ROOT / ".agents/skills/joint-agent-client/SKILL.md",
-    REPO_ROOT / ".agents/skills/physics-agent-client/SKILL.md",
+    REPO_ROOT
+    / ".agents/skills/fixed-pipeline/references/joint-agent-client/reference.md",
+    REPO_ROOT
+    / ".agents/skills/fixed-pipeline/references/physics-agent-client/reference.md",
 )
 
 

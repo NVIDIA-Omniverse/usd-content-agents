@@ -1,4 +1,0 @@
-interface:
-  display_name: "Print USD"
-  short_description: "Help with Print USD tasks"
-  default_prompt: "Use $print-usd to inspect and print USD scene hierarchy using the wu CLI."

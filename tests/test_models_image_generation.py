@@ -1106,6 +1106,36 @@ def test_openai_extracts_image_from_url_and_reports_missing(
         model._extract_image(SimpleNamespace(data=[_ImageItem()]))
 
 
+@pytest.mark.parametrize(
+    "url",
+    (
+        "file:///etc/passwd",
+        "ftp://image.example/out.png",
+        "http://image.example/out.png",
+        "https://user:secret@image.example/out.png",
+        "https:///missing-host.png",
+    ),
+)
+def test_openai_rejects_unsafe_provider_returned_image_urls(
+    monkeypatch: pytest.MonkeyPatch,
+    url: str,
+) -> None:
+    opened = False
+
+    def fake_urlopen(*_args: Any, **_kwargs: Any) -> None:
+        nonlocal opened
+        opened = True
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    model, _images = _openai_model_with_response(
+        SimpleNamespace(data=[_ImageItem(url=url)])
+    )
+
+    with pytest.raises(ValueError, match="HTTPS URL without credentials"):
+        model.generate("prompt")
+    assert opened is False
+
+
 class _NIMUrlResponse:
     def __init__(self, payload: dict[str, Any]) -> None:
         self.payload = payload

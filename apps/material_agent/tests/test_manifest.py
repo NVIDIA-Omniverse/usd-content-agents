@@ -32,7 +32,7 @@ def test_generate_manifest_input_uses_public_vlm_defaults():
     params = GenerateManifestInput(usd_file=Path("scene.usd"), output_dir=Path("out"))
 
     assert params.vlm_backend == "nim"
-    assert params.vlm_model == "google/gemma-4-31b-it"
+    assert params.vlm_model == "moonshotai/kimi-k3"
 
 
 # ---------------------------------------------------------------------------

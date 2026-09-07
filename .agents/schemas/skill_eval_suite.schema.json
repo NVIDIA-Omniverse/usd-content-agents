@@ -14,7 +14,10 @@
   ],
   "properties": {
     "$schema": {
-      "const": "../../../schemas/skill_eval_suite.schema.json"
+      "enum": [
+        "../../../schemas/skill_eval_suite.schema.json",
+        "../../../../../schemas/skill_eval_suite.schema.json"
+      ]
     },
     "schema_version": {
       "const": "1.0"

@@ -1,0 +1,10 @@
+name: raw uv bootstrap
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Unretried uv sync
+        timeout-minutes: 15
+        run: uv sync --locked

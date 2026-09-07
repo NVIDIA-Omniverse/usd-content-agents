@@ -457,7 +457,9 @@ def get_public_token_pricing_defaults_2026() -> dict[str, dict[str, Any]]:
     """Get default per-1M-token pricing (USD) from public docs (2026).
 
     These are intended as editable defaults in HTML reports; users can override
-    them in the report UI.
+    them in the report UI. Models without published public pricing are
+    intentionally omitted so reports request pricing instead of guessing from a
+    similarly named model.
 
     Returns:
         Dict keyed by a canonical model name with:
@@ -630,6 +632,8 @@ def _canonicalize_pricing_key(model_name: str) -> str | None:
         return "us.anthropic.claude-sonnet-4-v1"
 
     # OpenAI GPT models
+    if "gpt-5.6-sol" in name:
+        return "gpt-5.6-sol"
     if "gpt-5.2" in name:
         return "gpt-5.2"
     if "gpt-5.1" in name:
@@ -704,6 +708,7 @@ def format_cost_estimate_section(
             "gemini-3.1-pro-preview",
             "gemini-3-pro-image-preview",
             "gemini-3-pro-preview",
+            "gpt-5.6-sol",
             "gpt-5",
             "gpt-5.1",
             "gpt-5.2",
@@ -809,6 +814,7 @@ def format_cost_estimate_section(
 
         in_price_raw = defaults.get("input_per_mtok_usd", None)
         out_price_raw = defaults.get("output_per_mtok_usd", None)
+        has_complete_pricing = in_price_raw is not None and out_price_raw is not None
         in_price = "" if in_price_raw is None else str(float(in_price_raw))
         out_price = "" if out_price_raw is None else str(float(out_price_raw))
 
@@ -906,7 +912,7 @@ def format_cost_estimate_section(
 
         table_rows.append(
             f"""
-            <tr class="cost-row" data-row-idx="{idx}" data-model-canonical="{canonical_attr}"{prompt_tier_attr}{tier_split_attr}>
+            <tr class="cost-row" data-row-idx="{idx}" data-model-canonical="{canonical_attr}" data-pricing-complete="{str(has_complete_pricing).lower()}"{prompt_tier_attr}{tier_split_attr}>
                 <td style="font-family: monospace;">{escape_html(row["model"])}</td>
                 <td class="cost-input-tokens" data-value="{row["input_tokens"]}">{row["input_tokens"]:,}</td>
                 <td class="cost-output-tokens" data-value="{row["output_tokens"]}">{row["output_tokens"]:,}</td>
@@ -916,7 +922,7 @@ def format_cost_estimate_section(
                 <td>
                     {output_price_cell_html}
                 </td>
-                <td class="cost-estimate-usd" data-value="0">$0.0000</td>
+                <td class="cost-estimate-usd" data-value="{"0" if has_complete_pricing else ""}">{"$0.0000" if has_complete_pricing else "Pricing required"}</td>
             </tr>
             """
         )
@@ -945,6 +951,7 @@ def format_cost_estimate_section(
         "gemini-3.1-pro-preview",
         "gemini-3-pro-image-preview",
         "gemini-3-pro-preview",
+        "gpt-5.6-sol",
         "gpt-5",
         "gpt-5.1",
         "gpt-5.2",
@@ -1054,6 +1061,13 @@ def format_cost_estimate_section(
             return "$" + x.toFixed(4);
         }}
 
+        function _wuHasCompletePricing(row) {{
+            var inputs = row.querySelectorAll("input.cost-price-input");
+            return Array.from(inputs).every(function(input) {{
+                return input.value.trim() !== "";
+            }});
+        }}
+
         function _wuGetInputPricePerMtok(row, inputTokens) {{
             var shortEl = row.querySelector("input.cost-price-input[data-kind='input_short']");
             var longEl = row.querySelector("input.cost-price-input[data-kind='input_long']");
@@ -1092,8 +1106,19 @@ def format_cost_estimate_section(
 
         function _wuRecomputeCostTable() {{
             var total = 0.0;
+            var pricedRows = 0;
+            var incompleteRows = 0;
             var rows = document.querySelectorAll("tr.cost-row");
             rows.forEach(function(row) {{
+                var cell = row.querySelector(".cost-estimate-usd");
+                if (!_wuHasCompletePricing(row)) {{
+                    incompleteRows += 1;
+                    cell.dataset.value = "";
+                    cell.textContent = "Pricing required";
+                    return;
+                }}
+                pricedRows += 1;
+
                 var inputTokens = _wuParseFloatOrZero(
                     row.querySelector(".cost-input-tokens").dataset.value
                 );
@@ -1134,14 +1159,18 @@ def format_cost_estimate_section(
                 var cost = inputCost + outputCost;
 
                 total += cost;
-                var cell = row.querySelector(".cost-estimate-usd");
                 cell.dataset.value = cost.toString();
                 cell.textContent = _wuFormatUsd(cost);
             }});
 
             var totalEl = document.getElementById("costTotalUsd");
             if (totalEl) {{
-                totalEl.textContent = _wuFormatUsd(total);
+                if (incompleteRows && !pricedRows) {{
+                    totalEl.textContent = "Pricing required";
+                }} else {{
+                    totalEl.textContent = _wuFormatUsd(total)
+                        + (incompleteRows ? " (partial)" : "");
+                }}
             }}
         }}
 

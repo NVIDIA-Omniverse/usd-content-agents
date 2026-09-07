@@ -34,6 +34,7 @@ from physics_agent.tasks.iterative_physics_refinement import (
     _run_with_llm_timeout,
     _scenario_bounds_from_yaml,
     _scenario_to_yaml_text,
+    _visual_evidence_failure_message,
 )
 from physics_agent.tasks.judge_tune import JudgeResult
 from physics_agent.tasks.scenario_refine import (
@@ -68,6 +69,7 @@ def _trial(
     idx: int = 0,
     score: float = 1.0,
     failed: bool = False,
+    objective_value: float | None = None,
     backend_metrics: dict[str, Any] | None = None,
 ) -> TrialRecord:
     return TrialRecord(
@@ -77,6 +79,7 @@ def _trial(
         backend_metrics=backend_metrics or {},
         duration_seconds=0.0,
         failed=failed,
+        objective_value=objective_value,
     )
 
 
@@ -168,6 +171,31 @@ def test_iterative_yaml_and_metric_edge_helpers(tmp_path: Path) -> None:
 
     assert _extract_metric_value([], "settle_distance") is None
     assert _extract_metric_value([_trial(failed=True)], "settle_distance") is None
+    assert (
+        _extract_metric_value(
+            [
+                _trial(
+                    score=-0.4,
+                    objective_value=0.4,
+                    backend_metrics={"max_bounce_height": 99.0},
+                )
+            ],
+            "max_bounce_height",
+        )
+        == 99.0
+    )
+    assert (
+        _extract_metric_value(
+            [
+                _trial(
+                    objective_value="invalid",  # type: ignore[arg-type]
+                    backend_metrics={"max_bounce_height": 1.25},
+                )
+            ],
+            "max_bounce_height",
+        )
+        == 1.25
+    )
     assert (
         _extract_metric_value(
             [_trial(backend_metrics={"max_bounce_height": "high"})],
@@ -313,14 +341,14 @@ def test_iterative_run_cancellation_checkpoints_and_force_record(
         physics_usd=tmp_path / "physics.usda",
         output_dir=out_dir,
         engine="fake",
-        force_record_video="off",
+        force_record_frames="off",
         render_winning_trial=False,
         vlm_model=object(),
         run_tune_callable=lambda params: _tune_output(Path(params.output_dir)),
     )
     assert task.run({}).termination_reason == "approved"
     persisted = yaml.safe_load((out_dir / "iter_1" / "scenario.yaml").read_text())
-    assert persisted["target"]["record_video"] == "off"
+    assert persisted["target"]["record_frames"] == "off"
 
 
 @pytest.mark.parametrize(
@@ -489,7 +517,7 @@ def test_iterative_render_best_trial_edges(
     invalid_iter_dir = tmp_path / "iter_invalid"
     invalid_scenario = replace(
         _scenario(),
-        target={"duration_s": 2.0, "video_renderer": False},
+        target={"duration_s": 2.0, "frame_renderer": False},
     )
     with pytest.raises(ValueError, match="Unknown rendering backend"):
         task._render_best_trial_into_iter_dir(
@@ -707,6 +735,24 @@ def test_compact_summary_empty_and_timeout_direct_error(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="boom"):
         _run_with_llm_timeout(raises, timeout_seconds=1, op_label="unit")
+
+
+def test_visual_evidence_renderer_guidance_respects_reference_media() -> None:
+    with_reference = _visual_evidence_failure_message(
+        error="RuntimeError",
+        iteration=2,
+        reference_media_supplied=True,
+        timeout_seconds=600,
+    )
+    without_reference = _visual_evidence_failure_message(
+        error="RuntimeError",
+        iteration=2,
+        reference_media_supplied=False,
+        timeout_seconds=600,
+    )
+
+    assert "--no-visual-evidence" not in with_reference
+    assert "--no-visual-evidence" in without_reference
 
 
 def test_discover_camera_paths_stage_edges(

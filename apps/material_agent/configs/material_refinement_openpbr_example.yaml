@@ -1,0 +1,40 @@
+goal:
+  appearance_prompt: >-
+    Satin cobalt-blue painted steel with soft broad highlights and a physically
+    plausible dielectric response.
+
+source:
+  material_id: aluminum_openpbr
+  name: Aluminum OpenPBR
+  source_usd: ../data/materials/material_libs_default/materials_libs_v2.usd
+  material_prim_path: /World/Looks/Aluminum
+  material_profile: openpbr_materialx
+
+search:
+  max_color_delta: 0.25
+  max_roughness_delta: 0.30
+  max_mixed_metallic_delta: 0.10
+
+optimization:
+  name: auto
+  max_trials: 12
+  seed: 42
+  replicas: 1
+  max_refinements: 2
+
+render:
+  backend: ovrtx
+  image_width: 768
+  image_height: 768
+  camera_corners: [+x+y+z, -x+y+z]
+
+judge:
+  vlm:
+    backend: nim
+    model: moonshotai/kimi-k3
+  score_threshold: 0.7
+  temperature: 0.1
+  max_tokens: 2048
+
+output_dir: material_refinement_openpbr_output
+overwrite: false

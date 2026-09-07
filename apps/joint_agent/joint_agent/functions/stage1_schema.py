@@ -7,10 +7,11 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from world_understanding.functions.classification.inference import extract_answer_block
 from world_understanding.utils.llm_parsing import iter_json_dicts_from_llm_response
 
@@ -57,6 +58,16 @@ ProvenanceSource = Literal[
     "geometry_inferred",
     "unknown",
 ]
+SemanticMotionCapabilityKind = Literal[
+    "passive_rotation",
+    "unsupported",
+    "unresolved",
+]
+SemanticMotionMissingEvidence = Literal[
+    "motion_kind",
+    "passivity",
+    "motion_contract",
+]
 RiggerEvidenceSource = Literal[
     "predicted",
     "consistency_corrected",
@@ -72,7 +83,24 @@ LimitEvidenceSource = Literal[
     "predicted",
     "unknown",
 ]
+SemanticMotionCapabilitySource = ProvenanceSource | LimitEvidenceSource
 LimitUnit = Literal["degrees", "radians", "meters", "unknown"]
+MembershipDisposition = Literal[
+    "co_rigid",
+    "explicit_fixed",
+    "independent_motion",
+    "unresolved",
+]
+MembershipEvidenceSource = Literal[
+    "predicted",
+    "llm_adjudicated",
+    "authored_metadata",
+    "authored_reference",
+    "source_metadata",
+    "accepted_manifest",
+    "human_reviewed",
+    "unknown",
+]
 
 
 class Stage1Provenance(BaseModel):
@@ -81,6 +109,36 @@ class Stage1Provenance(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     field_sources: dict[str, ProvenanceSource] = Field(default_factory=dict)
+
+
+class Stage1SemanticMotionCapability(BaseModel):
+    """Typed motion admission evidence kept separate from semantic role names."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: SemanticMotionCapabilityKind
+    source: SemanticMotionCapabilitySource = "predicted"
+    evidence: str = ""
+    missing_evidence: list[SemanticMotionMissingEvidence] = Field(default_factory=list)
+    missing_contract: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_disposition(self) -> Self:
+        evidence = self.evidence.strip()
+        missing_contract = (self.missing_contract or "").strip()
+        if self.kind == "passive_rotation":
+            if not evidence:
+                raise ValueError("passive_rotation requires capability evidence")
+            if self.missing_evidence or missing_contract:
+                raise ValueError(
+                    "passive_rotation cannot carry missing evidence or contract"
+                )
+        elif self.kind == "unsupported":
+            if not missing_contract:
+                raise ValueError("unsupported capability requires missing_contract")
+        elif not self.missing_evidence:
+            raise ValueError("unresolved capability requires missing_evidence")
+        return self
 
 
 class Stage1RiggerEvidenceClaim(BaseModel):
@@ -127,6 +185,24 @@ class Stage1MotionLimitEvidence(BaseModel):
     rationale: str = ""
 
 
+class Stage1MembershipEvidence(BaseModel):
+    """Explicit physical-link membership or attachment disposition.
+
+    This is a topology decision, not a fixed-joint authoring contract.  Exact
+    fixed frames remain owned by the articulation-v2 fixed capability.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    disposition: MembershipDisposition = "unresolved"
+    physical_owner_prim: str | None = None
+    attachment_parent_prim: str | None = None
+    attachment_child_prim: str | None = None
+    confidence: ConfidenceLevel = "low"
+    source: MembershipEvidenceSource = "predicted"
+    rationale: str = ""
+
+
 class Stage1RiggerEvidence(BaseModel):
     """Optional explicit evidence for downstream rigger-facing fields."""
 
@@ -149,6 +225,11 @@ class Stage1PredictionContract(BaseModel):
     component_type: str = "unknown"
     component_name: str = "unknown"
     role: PropRole = "unknown"
+    semantic_role: str | None = Field(
+        default=None,
+        pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$",
+    )
+    motion_capability: Stage1SemanticMotionCapability | None = None
     instance_id: str | None = None
     is_articulation_candidate: bool = False
     joint_type_hint: JointTypeHint = "unknown"
@@ -161,6 +242,7 @@ class Stage1PredictionContract(BaseModel):
     reasoning: str = ""
     provenance: Stage1Provenance | None = None
     rigger_evidence: Stage1RiggerEvidence | None = None
+    membership: Stage1MembershipEvidence | None = None
 
 
 STAGE1_FIELDS = (
@@ -169,6 +251,8 @@ STAGE1_FIELDS = (
     "component_type",
     "component_name",
     "role",
+    "semantic_role",
+    "motion_capability",
     "instance_id",
     "is_articulation_candidate",
     "joint_type_hint",
@@ -181,6 +265,7 @@ STAGE1_FIELDS = (
     "reasoning",
     "provenance",
     "rigger_evidence",
+    "membership",
 )
 
 # Recognized Stage 1 fields may sit beside a wrapped classification object.
@@ -231,6 +316,8 @@ _STAGE1_SIGNAL_FIELDS = {
     "component_type",
     "component_name",
     "role",
+    "semantic_role",
+    "motion_capability",
     "is_articulation_candidate",
     "joint_type_hint",
     "axis_hint",
@@ -254,6 +341,23 @@ _MATERIAL_LABELS = {
 _TRUE_VALUES = {"true", "yes", "y", "1", "candidate", "articulated"}
 _FALSE_VALUES = {"false", "no", "n", "0", "none", "fixed", "static"}
 _UNKNOWN_VALUES = {"", "unknown", "none", "null", "n/a", "na"}
+_MISSING_ALIAS_VALUE = object()
+_JOINT_RELATIONSHIP_ALIAS_PATHS = {
+    "is_articulation_candidate": (
+        ("likely_part_of_simple_joint",),
+        ("part_of_simple_joint",),
+    ),
+    "joint_type_hint": (("joint", "type"), ("joint.type",)),
+    "axis_hint": (("joint", "motion_axis"), ("joint.motion_axis",)),
+    "parent_hint": (
+        ("relationship", "parent_support"),
+        ("relationship.parent_support",),
+    ),
+    "child_hint": (
+        ("relationship", "child_moving_part"),
+        ("relationship.child_moving_part",),
+    ),
+}
 
 _MOVING_JOINT_HINTS = {"revolute", "prismatic", "spherical"}
 _STATIC_JOINT_HINTS = {"fixed", "none"}
@@ -358,6 +462,7 @@ _NON_MOVING_DOOR_LID_UNKNOWN_TOKENS = {
     "trim",
 }
 _DOOR_LID_SUPPORTED_CONTROL_ROLES = {"knob"}
+_SEMANTIC_ROLE_NON_TOKEN_RE = re.compile(r"[^a-z0-9]+")
 
 
 def normalize_stage1_prediction_payload(
@@ -430,6 +535,9 @@ def unwrap_stage1_prediction_payload(
     ``body0``, ``body1``, ``fixed_parent_prim``, ``moving_body_prim``,
     ``motion_axis``, and ``compound_edges`` are folded into canonical
     ``rigger_evidence`` when they fill missing or weaker nested evidence.
+    Joint/relationship compatibility aliases are folded into canonical Stage 1
+    fields only when the canonical field is absent and all supplied aliases
+    agree after normalization.
     Copied rigger evidence is normalized so Stage 2 sees canonical claim shapes
     such as ``prim_paths``.
     """
@@ -451,15 +559,22 @@ def stage1_prediction_json_schema() -> dict[str, Any]:
 def _unwrap_output_payload(payload: dict[str, Any], output_key: str) -> dict[str, Any]:
     nested = payload.get(output_key)
     if not isinstance(nested, dict):
-        return _with_rigger_evidence_aliases(copy.deepcopy(payload))
+        unwrapped = _with_joint_relationship_aliases(copy.deepcopy(payload))
+        return _with_rigger_evidence_aliases(unwrapped)
 
-    unwrapped = copy.deepcopy(nested)
-    if "original_response" not in unwrapped and "original_response" in payload:
-        unwrapped["original_response"] = payload["original_response"]
+    # ``output_key`` is transport structure once it selects a nested envelope.
+    # Remove that slot before every semantic wrapper merge so a configured key
+    # such as ``rigger_evidence``, ``limits``, or ``component_type`` cannot be
+    # interpreted both as the envelope and as a Stage 1 opinion.
+    wrapper = _with_joint_relationship_aliases(copy.deepcopy(payload))
+    wrapper.pop(output_key)
+    unwrapped = _with_joint_relationship_aliases(copy.deepcopy(nested))
+    if "original_response" not in unwrapped and "original_response" in wrapper:
+        unwrapped["original_response"] = wrapper["original_response"]
     unwrapped = _with_rigger_evidence_aliases(unwrapped)
     for wrapper_key in _WRAPPER_MERGE_FIELDS:
         if wrapper_key == "rigger_evidence":
-            wrapper_evidence = _normalize_rigger_evidence(payload.get(wrapper_key))
+            wrapper_evidence = _normalize_rigger_evidence(wrapper.get(wrapper_key))
             wrapper_evidence_has_prim_path = False
             if wrapper_evidence is not None:
                 wrapper_evidence_has_prim_path = _rigger_evidence_has_prim_path(
@@ -478,9 +593,9 @@ def _unwrap_output_payload(payload: dict[str, Any], output_key: str) -> dict[str
                 if merged_evidence:
                     unwrapped[wrapper_key] = merged_evidence
             continue
-        if _should_copy_wrapper_field(unwrapped, payload, wrapper_key):
-            unwrapped[wrapper_key] = copy.deepcopy(payload[wrapper_key])
-    wrapper_limits = _wrapper_motion_limit_evidence(payload)
+        if _should_copy_wrapper_field(unwrapped, wrapper, wrapper_key):
+            unwrapped[wrapper_key] = copy.deepcopy(wrapper[wrapper_key])
+    wrapper_limits = _wrapper_motion_limit_evidence(wrapper)
     if wrapper_limits is not None:
         normalized_nested_evidence = _normalize_rigger_evidence(
             unwrapped.get("rigger_evidence")
@@ -494,13 +609,73 @@ def _unwrap_output_payload(payload: dict[str, Any], output_key: str) -> dict[str
     for alias_key in _RIGGER_EVIDENCE_ALIAS_FIELDS:
         if alias_key == "limits" or alias_key in _LIMIT_EVIDENCE_ALIAS_FIELDS:
             continue
-        if alias_key in payload and _should_copy_wrapper_rigger_alias(
+        if alias_key in wrapper and _should_copy_wrapper_rigger_alias(
             unwrapped,
-            payload.get(alias_key),
+            wrapper.get(alias_key),
             alias_key,
         ):
-            unwrapped[alias_key] = copy.deepcopy(payload[alias_key])
+            unwrapped[alias_key] = copy.deepcopy(wrapper[alias_key])
     return _with_rigger_evidence_aliases(unwrapped)
+
+
+def _with_joint_relationship_aliases(payload: dict[str, Any]) -> dict[str, Any]:
+    """Fold unambiguous joint/relationship aliases into canonical Stage 1 fields."""
+
+    for canonical_field, alias_paths in _JOINT_RELATIONSHIP_ALIAS_PATHS.items():
+        if canonical_field in payload:
+            continue
+
+        normalized_values: list[Any] = []
+        for alias_path in alias_paths:
+            alias_value = _value_at_alias_path(payload, alias_path)
+            if alias_value is _MISSING_ALIAS_VALUE:
+                continue
+            normalized_value = _normalize_joint_relationship_alias(
+                canonical_field,
+                alias_value,
+            )
+            if normalized_value is _MISSING_ALIAS_VALUE:
+                continue
+            if normalized_value not in normalized_values:
+                normalized_values.append(normalized_value)
+
+        if len(normalized_values) == 1:
+            payload[canonical_field] = copy.deepcopy(normalized_values[0])
+    return payload
+
+
+def _value_at_alias_path(payload: Mapping[str, Any], path: tuple[str, ...]) -> Any:
+    value: Any = payload
+    for key in path:
+        if not isinstance(value, Mapping) or key not in value:
+            return _MISSING_ALIAS_VALUE
+        value = value[key]
+    return value
+
+
+def _normalize_joint_relationship_alias(canonical_field: str, value: Any) -> Any:
+    if canonical_field == "is_articulation_candidate":
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return bool(value)
+        if isinstance(value, float) and math.isfinite(value):
+            return bool(value)
+        if isinstance(value, str):
+            cleaned = value.strip().lower()
+            if cleaned in _TRUE_VALUES:
+                return True
+            if cleaned in _FALSE_VALUES:
+                return False
+        return _MISSING_ALIAS_VALUE
+
+    if not isinstance(value, str) or not value.strip():
+        return _MISSING_ALIAS_VALUE
+    if canonical_field == "joint_type_hint":
+        return _normalize_joint_hint(value)
+    if canonical_field == "axis_hint":
+        return _normalize_axis_hint(value)
+    return value.strip()
 
 
 def _should_copy_wrapper_field(
@@ -907,6 +1082,13 @@ def _fill_stage1_defaults(payload: dict[str, Any]) -> dict[str, Any]:
         component_type=normalized.get("component_type"),
         component_name=normalized.get("component_name"),
     )
+    semantic_role = _normalize_semantic_role(normalized.get("semantic_role"))
+    if semantic_role is None:
+        normalized.pop("semantic_role", None)
+    else:
+        normalized["semantic_role"] = semantic_role
+    if normalized.get("motion_capability") is None:
+        normalized.pop("motion_capability", None)
     if "instance_id" in normalized:
         normalized["instance_id"] = (
             _clean_string(
@@ -940,7 +1122,23 @@ def _fill_stage1_defaults(payload: dict[str, Any]) -> dict[str, Any]:
     else:
         normalized["rigger_evidence"] = rigger_evidence
 
+    membership = _normalize_membership_evidence(normalized.get("membership"))
+    if membership is None:
+        normalized.pop("membership", None)
+    else:
+        normalized["membership"] = membership
+
     return normalized
+
+
+def _normalize_semantic_role(value: Any) -> str | None:
+    """Normalize one open semantic noun without mapping it to a motion type."""
+
+    text = _clean_string(value, "").lower()
+    if not text:
+        return None
+    normalized = _SEMANTIC_ROLE_NON_TOKEN_RE.sub("_", text).strip("_")
+    return normalized or None
 
 
 def _normalize_candidate_flag(value: Any, *, joint_hint: str) -> bool:
@@ -1018,6 +1216,50 @@ def _normalize_rigger_evidence(value: Any) -> dict[str, Any] | None:
         normalized["limits"] = limits
 
     return normalized or None
+
+
+def _normalize_membership_evidence(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+
+    disposition = (
+        _clean_string(value.get("disposition"), "unresolved")
+        .lower()
+        .replace("-", "_")
+        .replace(" ", "_")
+    )
+    aliases = {
+        "corigid": "co_rigid",
+        "same_link": "co_rigid",
+        "fixed": "explicit_fixed",
+        "fixed_edge": "explicit_fixed",
+        "independent": "independent_motion",
+        "moving_link": "independent_motion",
+        "conflicting": "unresolved",
+        "unknown": "unresolved",
+    }
+    disposition = aliases.get(disposition, disposition)
+    if disposition not in {
+        "co_rigid",
+        "explicit_fixed",
+        "independent_motion",
+        "unresolved",
+    }:
+        disposition = "unresolved"
+
+    def optional_path(field: str) -> str | None:
+        path = _clean_string(value.get(field), "")
+        return path or None
+
+    return {
+        "disposition": disposition,
+        "physical_owner_prim": optional_path("physical_owner_prim"),
+        "attachment_parent_prim": optional_path("attachment_parent_prim"),
+        "attachment_child_prim": optional_path("attachment_child_prim"),
+        "confidence": _normalize_confidence(value.get("confidence")),
+        "source": _normalize_membership_evidence_source(value.get("source")),
+        "rationale": _clean_string(value.get("rationale"), ""),
+    }
 
 
 def _normalize_rigger_evidence_claim(value: Any) -> dict[str, Any] | None:
@@ -1237,6 +1479,25 @@ def _normalize_rigger_evidence_source(value: Any) -> str:
         "predicted",
         "consistency_corrected",
         "llm_adjudicated",
+        "unknown",
+    }:
+        return source
+    return "unknown"
+
+
+def _normalize_membership_evidence_source(value: Any) -> str:
+    source = _clean_string(value, "predicted").lower().replace("-", "_")
+    source = source.replace(" ", "_")
+    if source in {"llm", "vlm", "llm_vlm", "model", "stage1", "stage1_model"}:
+        return "predicted"
+    if source in {
+        "predicted",
+        "llm_adjudicated",
+        "authored_metadata",
+        "authored_reference",
+        "source_metadata",
+        "accepted_manifest",
+        "human_reviewed",
         "unknown",
     }:
         return source

@@ -613,6 +613,49 @@ def test_blocks_compressed_usdz_before_extracting(tmp_path: Path) -> None:
     assert "compressed USDZ entry" in result.reason
 
 
+@pytest.mark.parametrize(
+    ("entries", "limit_name", "limit", "expected"),
+    [
+        (
+            {"root.usda": b"12345"},
+            "_MAX_USDZ_MEMBER_BYTES",
+            4,
+            "member exceeds the uncompressed size limit",
+        ),
+        (
+            {"root.usda": b"1234", "child.usda": b"12"},
+            "_MAX_USDZ_TOTAL_BYTES",
+            5,
+            "total uncompressed size limit",
+        ),
+        (
+            {"root.usda": b"1", "child.usda": b"2"},
+            "_MAX_USDZ_MEMBER_COUNT",
+            1,
+            "member limit",
+        ),
+    ],
+)
+def test_usdz_extraction_enforces_every_resource_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    entries: dict[str, bytes],
+    limit_name: str,
+    limit: int,
+    expected: str,
+) -> None:
+    package = tmp_path / "oversized.usdz"
+    with zipfile.ZipFile(package, "w", compression=zipfile.ZIP_STORED) as archive:
+        for name, content in entries.items():
+            archive.writestr(name, content)
+    destination = tmp_path / "extracted"
+    destination.mkdir()
+    monkeypatch.setattr(topology_module, limit_name, limit)
+
+    with pytest.raises(ValueError, match=expected):
+        topology_module._extract_usdz_with_resource_limits(package, destination)
+
+
 def test_detects_source_mutation_before_atomic_publish(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

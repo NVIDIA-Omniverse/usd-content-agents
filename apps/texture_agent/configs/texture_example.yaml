@@ -9,7 +9,7 @@
 project:
   name: "texture_example"
   session_id: "texture_example"
-  description: "Example: apply rust and patina textures"
+  description: "Example: apply polished metal textures"
 
 input:
   # Path to a USD file with OpenPBR materials applied.
@@ -44,10 +44,10 @@ texture:
 # Only materials listed here will be textured; others are left as-is.
 material_textures:
   Steel_Carbon:
-    prompt: "rusted steel with patchy orange-brown rust on dark metal surface"
+    prompt: "brushed carbon steel with subtle linear grain on a dark metal surface"
     opacity: 0.85
   Copper_Polished:
-    prompt: "aged copper with green patina verdigris, oxidized surface with turquoise corrosion"
+    prompt: "polished copper with a warm reddish-orange metallic sheen"
     opacity: 0.80
 
 # Optional: generate prompts for discovered materials not listed above.

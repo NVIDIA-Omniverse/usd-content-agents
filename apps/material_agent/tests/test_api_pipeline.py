@@ -8,6 +8,9 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from world_understanding.utils.render_failure_diagnostics import (
+    PipelineFailureDiagnostic,
+)
 
 from material_agent.api.pipeline import (
     PipelineInput,
@@ -461,6 +464,48 @@ class TestRunPipeline:
         call_args = workflow.arun.call_args[0][0]
         assert call_args["config_dict"]["patched"] is True
         assert call_args["config_path"] == str(config_anchor)
+
+    @pytest.mark.asyncio
+    async def test_arun_pipeline_preserves_code_owned_blank_render_diagnostic(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        sentinel = "private-renderer-error-and-credential-1481"
+        diagnostic = PipelineFailureDiagnostic(
+            renderer_backend="warp",
+            checked_count=3,
+            blank_count=2,
+            threshold=0.5,
+            render_modes=("composition",),
+            samples=(),
+            evidence_report="report.json",
+        )
+        workflow = Mock()
+        workflow.arun = AsyncMock(
+            return_value={
+                "error": sentinel,
+                "workflow_terminated": True,
+                "failed_task": "USDPrimTraversalAndRendering",
+                "pipeline_failure_diagnostic": diagnostic,
+            }
+        )
+        monkeypatch.setattr(
+            "material_agent.workflows.create_unified_pipeline_workflow",
+            lambda: workflow,
+        )
+
+        output = await arun_pipeline(
+            PipelineInput(
+                config={"project": {"name": "blank-render-reproduction"}},
+                event_listener=Mock(),
+            )
+        )
+
+        assert output.success is False
+        assert output.error == "blank_dataset_renders"
+        assert output.error_diagnostic == diagnostic.to_dict()
+        assert output.raw_result is not None
+        assert output.raw_result["error_diagnostic"] == diagnostic.to_dict()
+        assert sentinel not in repr(output)
 
     @pytest.mark.asyncio
     async def test_arun_pipeline_preserves_dict_config_path_anchor(

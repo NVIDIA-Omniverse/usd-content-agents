@@ -405,14 +405,20 @@ def test_apply_command_resumes_cached_prompts_and_textures_without_backends(
     assert st.GetInterpolation() == UsdGeom.Tokens.faceVarying
     assert len(st.Get()) == 4
 
-    output_material = UsdShade.Material(
-        output_stage.GetPrimAtPath("/World/Looks/Plastic")
-    )
+    if with_plan:
+        output_material = UsdShade.MaterialBindingAPI(
+            output_mesh
+        ).ComputeBoundMaterial()[0]
+        assert output_material
+        assert output_material.GetPath() != Sdf.Path("/World/Looks/Plastic")
+    else:
+        output_material = UsdShade.Material(
+            output_stage.GetPrimAtPath("/World/Looks/Plastic")
+        )
     surface_source = output_material.GetSurfaceOutput().GetConnectedSource()
     assert surface_source is not None
-    assert surface_source[0].GetPrim().GetPath() == Sdf.Path(
-        "/World/Looks/Plastic/Preview"
-    )
+    preview_path = surface_source[0].GetPrim().GetPath()
+    assert preview_path == output_material.GetPath().AppendChild("Preview")
     output_preview = UsdShade.Shader(surface_source[0].GetPrim())
     diffuse_source = output_preview.GetInput("diffuseColor").GetConnectedSource()
     assert diffuse_source is not None

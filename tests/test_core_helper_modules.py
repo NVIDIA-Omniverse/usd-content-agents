@@ -9,6 +9,7 @@ import errno
 import importlib
 import json
 import logging
+import os
 import runpy
 import sys
 import traceback
@@ -234,7 +235,7 @@ def test_base_path_resolver_keeps_secret_anchor_runtime_only(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     secret = "resolver-path-secret-token-713"
-    config_dir = tmp_path / f"user:{secret}@config.example.test"
+    config_dir = tmp_path / f"user%3A{secret}@config.example.test"
     config_dir.mkdir()
     config_path = config_dir / "config.yaml"
     config_path.write_text("{}", encoding="utf-8")
@@ -265,15 +266,21 @@ def test_runtime_path_resolution_errors_do_not_expose_secret_paths(
     tmp_path: Path,
 ) -> None:
     secret = "path-resolution-secret-713"
-    secret_dir = tmp_path / f"user:{secret}@config.example.test"
+    secret_dir = tmp_path / f"user%3A{secret}@config.example.test"
     secret_dir.mkdir()
     loop = secret_dir / "loop"
-    loop.symlink_to("loop")
+    try:
+        loop.symlink_to("loop")
+    except OSError as exc:
+        if os.name == "nt" and getattr(exc, "winerror", None) == 1314:
+            pytest.skip(f"Windows symlink creation is unavailable: {exc}")
+        raise
 
+    unresolved_path = loop / "config.yaml"
     with pytest.raises(RuntimeError) as config_error:
-        BasePathResolver({}, loop / "config.yaml")
+        BasePathResolver({}, unresolved_path)
     with pytest.raises(RuntimeError) as session_error:
-        SessionManager("safe-session", loop / "session")
+        SessionManager("safe-session", loop)
 
     for error in (config_error.value, session_error.value):
         assert secret not in "".join(
@@ -286,7 +293,7 @@ def test_runtime_directory_creation_errors_do_not_expose_secret_paths(
     tmp_path: Path,
 ) -> None:
     secret = "directory-creation-secret-713"
-    blocked_parent = tmp_path / f"user:{secret}@config.example.test"
+    blocked_parent = tmp_path / f"user%3A{secret}@config.example.test"
     blocked_parent.write_text("not a directory", encoding="utf-8")
 
     resolver = BasePathResolver.__new__(BasePathResolver)
@@ -305,8 +312,12 @@ def test_runtime_directory_creation_errors_do_not_expose_secret_paths(
         assert "<redacted>" in str(error)
     assert isinstance(resolver_error.value, FileExistsError)
     assert resolver_error.value.errno == errno.EEXIST
-    assert isinstance(session_error.value, NotADirectoryError)
-    assert session_error.value.errno == errno.ENOTDIR
+    if os.name == "nt":
+        assert isinstance(session_error.value, FileExistsError)
+        assert session_error.value.errno == errno.EEXIST
+    else:
+        assert isinstance(session_error.value, NotADirectoryError)
+        assert session_error.value.errno == errno.ENOTDIR
 
 
 def test_token_usage_tracker_and_formatting() -> None:
@@ -323,7 +334,7 @@ def test_token_usage_tracker_and_formatting() -> None:
             "input_tokens": 10,
             "output_tokens": 5,
             "total_tokens": 15,
-            "input_token_details": {"cache": 2},
+            "input_token_details": {"cache_read": 2},
             "output_token_details": {"reasoning": 1},
         }
     )
@@ -331,9 +342,22 @@ def test_token_usage_tracker_and_formatting() -> None:
         response, model_name="model-a", invocation_type="vlm"
     )
     assert usage is not None
-    assert usage.to_dict()["input_token_details"] == {"cache": 2}
+    assert usage.to_dict()["input_token_details"] == {"cache_read": 2}
+    assert usage.cached_input_tokens() == 2
+    assert TokenUsage(input_token_details={"cache": 3}).cached_input_tokens() == 3
+    assert (
+        TokenUsage(
+            input_token_details={"cached_tokens": 8, "cached_input_tokens": 4}
+        ).cached_input_tokens()
+        == 4
+    )
+    assert (
+        TokenUsage(input_token_details={"unrecognized": 1}).cached_input_tokens()
+        is None
+    )
+    assert TokenUsage(input_token_details="malformed").cached_input_tokens() is None  # type: ignore[arg-type]
     assert "model=model-a" in str(usage)
-    assert "input_details={'cache': 2}" in str(usage)
+    assert "input_details={'cache_read': 2}" in str(usage)
 
     tracker = TokenTracker()
     tracker.add_usage(None)
@@ -350,10 +374,12 @@ def test_token_usage_tracker_and_formatting() -> None:
     stats = tracker.get_stats()
 
     assert stats["total_input_tokens"] == 13
+    assert stats["cached_input_tokens"] == 2
     assert stats["total_output_tokens"] == 12
     assert stats["total_tokens"] == 25
     assert stats["invocation_count"] == 2
     assert stats["by_model"]["model-a"]["count"] == 1
+    assert stats["by_model"]["model-a"]["cached_input_tokens"] == 2
     assert stats["by_model"]["unknown"]["total_tokens"] == 10
     assert stats["by_type"]["vlm"]["input_tokens"] == 10
     assert stats["by_type"]["llm"]["output_tokens"] == 7
@@ -361,12 +387,16 @@ def test_token_usage_tracker_and_formatting() -> None:
 
     formatted = format_token_stats(stats)
     assert "Token Usage Statistics:" in formatted
+    assert "Cached Input:  2" in formatted
     assert "model-a: 15 tokens" in formatted
     assert "llm: 10 tokens" in formatted
 
     compact = format_token_stats(stats, include_details=False)
     assert "By Model" not in compact
     assert "Total Tokens:  25" in compact
+
+    zero_cached = format_token_stats({**stats, "cached_input_tokens": 0})
+    assert "Cached Input:  0" in zero_cached
 
     tracker.reset()
     assert tracker.get_stats()["invocation_count"] == 0

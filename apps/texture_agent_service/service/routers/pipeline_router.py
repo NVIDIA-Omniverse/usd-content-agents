@@ -3,6 +3,7 @@
 """Pipeline API endpoints - Core workflow operations."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -21,6 +23,7 @@ from texture_agent.config.rendering_backends import (
     DEFAULT_TEXTURE_RENDERING_BACKEND,
 )
 from texture_agent.functions.cached_apply import is_valid_cached_texture_png
+from texture_agent.functions.external_authoring import ExternalAuthoringSpec
 from texture_agent.planning import (
     TEXTURE_UV_AWARE_DEFAULT_CAP,
     TextureDiscoveryMode,
@@ -29,9 +32,13 @@ from texture_agent.planning import (
     validate_texture_plan_payload,
 )
 from texture_agent.tasks.plan_textures import backend_default_texture_cap
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+)
 from world_understanding.utils.credentials import (
     InlineSecretError,
     ensure_no_inline_secrets,
+    redact_sensitive_log_text,
 )
 from world_understanding.utils.s3_utils import (
     S3BucketNotAllowedError,
@@ -145,6 +152,36 @@ def _is_simple_texture_backend(value: str | None) -> bool:
     return _normalized_backend_name(value) in _SIMPLE_TEXTURE_BACKENDS
 
 
+def _resolve_preserve_generated_resolution(
+    backend_custom_parameters: dict[str, Any] | None,
+) -> bool:
+    """Validate the opt-in that keeps backend-published map dimensions."""
+    if not backend_custom_parameters or (
+        "preserve_generated_resolution" not in backend_custom_parameters
+    ):
+        return False
+
+    preserve_generated_resolution = backend_custom_parameters[
+        "preserve_generated_resolution"
+    ]
+    if not isinstance(preserve_generated_resolution, bool):
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "type": "bool_type",
+                    "loc": [
+                        "form",
+                        "backend_custom_parameters_json",
+                        "preserve_generated_resolution",
+                    ],
+                    "msg": "Input should be a valid boolean",
+                }
+            ],
+        )
+    return preserve_generated_resolution
+
+
 def _canonical_texture_backend(value: str | None) -> str | None:
     normalized = _normalized_backend_name(value)
     if not normalized:
@@ -175,6 +212,64 @@ def _strip_or_none(value: str | None) -> str | None:
     return stripped or None
 
 
+def _normalize_texture_endpoint_url(value: str, *, source: str) -> str:
+    normalized = value.strip().rstrip("/")
+    parsed = urlparse(normalized)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{source} must be a credential-free http:// or https:// URL",
+        )
+    return normalized
+
+
+def _configured_texture_endpoint_urls() -> set[str]:
+    values = [config.texture_endpoint, config.simple_texture_endpoint]
+    values.extend(config.texture_endpoint_allowed_urls.split(","))
+    return {
+        _normalize_texture_endpoint_url(value, source="Configured texture endpoint")
+        for raw in values
+        if (value := _strip_or_none(raw)) is not None
+    }
+
+
+def _resolve_texture_endpoint_override(requested: str | None) -> str | None:
+    value = _strip_or_none(requested)
+    if value is None:
+        return None
+    normalized = _normalize_texture_endpoint_url(
+        value,
+        source="texture_endpoint",
+    )
+    if normalized not in _configured_texture_endpoint_urls():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "texture_endpoint is not operator-approved; configure it as a "
+                "service default or in TA_TEXTURE_ENDPOINT_ALLOWED_URLS"
+            ),
+        )
+    return normalized
+
+
+def _configured_texture_endpoint(value: str | None) -> str | None:
+    normalized = _strip_or_none(value)
+    if normalized is None:
+        return None
+    return _normalize_texture_endpoint_url(
+        normalized,
+        source="Configured texture endpoint",
+    )
+
+
 def _resolve_texture_route(
     *,
     texture_backend: str | None,
@@ -190,8 +285,9 @@ def _resolve_texture_route(
         _canonical_texture_backend(config.texture_backend) or "simple_image_gen"
     )
     resolved_backend = requested_backend or configured_backend
+    requested_endpoint = _resolve_texture_endpoint_override(texture_endpoint)
 
-    resolved_endpoint = _strip_or_none(texture_endpoint) or _strip_or_none(
+    resolved_endpoint = requested_endpoint or _configured_texture_endpoint(
         config.texture_endpoint
     )
     resolved_engine = _strip_or_none(backend_engine) or _strip_or_none(
@@ -210,7 +306,7 @@ def _resolve_texture_route(
     )
 
     if _is_simple_texture_backend(resolved_backend):
-        simple_endpoint = _strip_or_none(texture_endpoint) or _strip_or_none(
+        simple_endpoint = requested_endpoint or _configured_texture_endpoint(
             config.simple_texture_endpoint
         )
         if simple_endpoint:
@@ -444,6 +540,67 @@ def _normalize_uri_list(decoded: Any, *, field_name: str) -> list[str] | None:
     return normalized or None
 
 
+def _reject_client_local_conditioning_uri(uri: str, *, field_name: str) -> None:
+    """Keep client JSON from naming server-local files.
+
+    The service accepts uploaded reference images and remote backend URIs. A
+    local path in a client-controlled JSON field would otherwise be opened by
+    the worker process and also expose a file-existence oracle during submit.
+    """
+    parsed = urlparse(uri)
+    is_windows_path = (
+        len(uri) >= 3 and uri[0].isalpha() and uri[1] == ":" and uri[2] in {"/", "\\"}
+    )
+    if parsed.scheme.lower() not in {"", "file"} and not is_windows_path:
+        return
+    raise HTTPException(
+        status_code=422,
+        detail=[
+            {
+                "type": "value_error",
+                "loc": ["form", field_name],
+                "msg": (
+                    "Server-local paths and file:// URIs are not accepted in "
+                    "client conditioning fields; upload the reference file instead"
+                ),
+            }
+        ],
+    )
+
+
+def _reject_client_local_conditioning_inputs(
+    material_textures: dict[str, Any] | None,
+    *,
+    reference_image_uris: list[str] | None,
+    turntable_video_uri: str | None,
+    multiview_image_uris: list[str] | None,
+) -> None:
+    for field_name, uris in (
+        ("reference_image_uris_json", reference_image_uris or []),
+        ("multiview_image_uris_json", multiview_image_uris or []),
+        ("turntable_video_uri", [turntable_video_uri] if turntable_video_uri else []),
+    ):
+        for uri in uris:
+            _reject_client_local_conditioning_uri(uri, field_name=field_name)
+
+    for material_name, spec in (material_textures or {}).items():
+        for field_name, raw_uris in (
+            ("reference_image_uris", spec.get("reference_image_uris") or []),
+            ("multiview_image_uris", spec.get("multiview_image_uris") or []),
+            (
+                "turntable_video_uri",
+                [spec["turntable_video_uri"]]
+                if spec.get("turntable_video_uri")
+                else [],
+            ),
+        ):
+            for uri in raw_uris:
+                _reject_client_local_conditioning_uri(
+                    uri,
+                    field_name=f"material_textures_json.{material_name}.{field_name}",
+                )
+
+
 def _require_projection_endpoint(
     *,
     texture_backend: str | None,
@@ -551,6 +708,7 @@ def _active_snapshot_status(session_id: str) -> PipelineStatus | None:
 
     return PipelineStatus(
         session_id=session_id,
+        execution_id=snapshot.get("execution_id"),
         status=snapshot["status"],
         current_step=snapshot.get("current_step"),
         completed_steps=completed_steps,
@@ -667,12 +825,31 @@ def _cancel_never_started_callback(
 
 
 _RUN_SCOPED_METADATA_FIELDS = (
+    "execution_id",
+    "execution_request_digest",
     "error",
     "failed_step",
     "failed_step_stats",
     "failed_at",
     "partial_results",
 )
+_EXECUTION_REQUEST_JOURNAL_FIELD = "execution_request_digests"
+_MAX_EXECUTION_REQUEST_JOURNAL_ENTRIES = 256
+
+
+def _require_execution_request_journal_capacity(
+    execution_journal: dict[str, str],
+) -> None:
+    """Reject growth instead of evicting tokens that still guard conflicts."""
+
+    if len(execution_journal) > _MAX_EXECUTION_REQUEST_JOURNAL_ENTRIES:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Session execution history reached its safe capacity; "
+                "start a new session"
+            ),
+        )
 
 
 def _reset_session_for_new_run(
@@ -680,6 +857,8 @@ def _reset_session_for_new_run(
     session_id: str,
     *,
     fresh: bool,
+    execution_id: str | None = None,
+    execution_request_digest: str | None = None,
 ) -> dict[str, Any]:
     """Reset run-scoped state on an existing session before a new run.
 
@@ -710,6 +889,7 @@ def _reset_session_for_new_run(
         "status",
         "current_step",
         "can_cancel",
+        _EXECUTION_REQUEST_JOURNAL_FIELD,
     ) + _RUN_SCOPED_METADATA_FIELDS
     if fresh:
         snapshot_keys = snapshot_keys + (
@@ -719,9 +899,6 @@ def _reset_session_for_new_run(
         )
     snapshot = {key: metadata.get(key) for key in snapshot_keys}
 
-    manager.clear_cancellation(session_id)
-    get_event_bus().clear_session_state(session_id)
-
     metadata_reset: dict[str, Any] = {
         "status": "pending",
         "current_step": None,
@@ -729,6 +906,35 @@ def _reset_session_for_new_run(
     }
     for field in _RUN_SCOPED_METADATA_FIELDS:
         metadata_reset[field] = None
+    metadata_reset["execution_id"] = execution_id
+    metadata_reset["execution_request_digest"] = execution_request_digest
+    execution_journal = _execution_request_journal(metadata)
+    previous_execution_id = metadata.get("execution_id")
+    previous_request_digest = metadata.get("execution_request_digest")
+    if isinstance(previous_execution_id, str) and isinstance(
+        previous_request_digest,
+        str,
+    ):
+        previous_journal_digest = execution_journal.get(previous_execution_id)
+        if (
+            previous_journal_digest is not None
+            and previous_journal_digest != previous_request_digest
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Session execution history conflicts with current metadata",
+            )
+        execution_journal[previous_execution_id] = previous_request_digest
+    if execution_id is not None and execution_request_digest is not None:
+        journal_digest = execution_journal.get(execution_id)
+        if journal_digest is not None and journal_digest != execution_request_digest:
+            raise HTTPException(
+                status_code=409,
+                detail="execution_id history has a conflicting request digest",
+            )
+        execution_journal[execution_id] = execution_request_digest
+    _require_execution_request_journal_capacity(execution_journal)
+    metadata_reset[_EXECUTION_REQUEST_JOURNAL_FIELD] = execution_journal
     if fresh:
         metadata_reset["completed_steps"] = []
         metadata_reset["preview_images"] = []
@@ -738,8 +944,109 @@ def _reset_session_for_new_run(
             "percent": 0,
             "estimated_remaining_seconds": None,
         }
+    manager.clear_cancellation(session_id)
+    get_event_bus().clear_session_state(session_id)
     manager.update_session(session_id, metadata_reset)
     return snapshot
+
+
+def _regenerate_request_digest(request: RegenerateRequest) -> str:
+    """Return the canonical payload digest owned by one execution token."""
+
+    payload = request.model_dump(
+        mode="json",
+        exclude={"execution_id"},
+        exclude_none=False,
+    )
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _execution_request_journal(metadata: dict[str, Any]) -> dict[str, str]:
+    raw_journal = metadata.get(_EXECUTION_REQUEST_JOURNAL_FIELD)
+    if raw_journal is None:
+        return {}
+    if not isinstance(raw_journal, dict) or any(
+        not isinstance(execution_id, str)
+        or not isinstance(request_digest, str)
+        or len(execution_id) != 32
+        or len(request_digest) != 64
+        for execution_id, request_digest in raw_journal.items()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Session execution history is malformed",
+        )
+    execution_journal = dict(raw_journal)
+    _require_execution_request_journal_capacity(execution_journal)
+    return execution_journal
+
+
+def _matches_execution_request(
+    *,
+    request: RegenerateRequest,
+    request_digest: str | None,
+    metadata: dict[str, Any] | None,
+) -> bool:
+    """Return whether metadata owns this token, rejecting payload conflicts."""
+
+    execution_id = request.execution_id
+    if execution_id is None or not metadata:
+        return False
+    request_journal = _execution_request_journal(metadata)
+    if metadata.get("execution_id") != execution_id:
+        if execution_id in request_journal:
+            raise HTTPException(
+                status_code=409,
+                detail="execution_id belongs to a superseded regeneration request",
+            )
+        return False
+    if metadata.get("execution_request_digest") != request_digest:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "execution_id was already used for a different regeneration request"
+            ),
+        )
+    journal_digest = request_journal.get(execution_id)
+    if journal_digest is not None and journal_digest != request_digest:
+        raise HTTPException(
+            status_code=409,
+            detail="Session execution history conflicts with current metadata",
+        )
+    return True
+
+
+def _accepted_execution_replay(
+    *,
+    session_id: str,
+    request: RegenerateRequest,
+    request_digest: str | None,
+    metadata: dict[str, Any] | None,
+    allow_active: bool,
+) -> SessionCreated | None:
+    """Return an idempotent replay response when its owner is still valid."""
+
+    if not _matches_execution_request(
+        request=request,
+        request_digest=request_digest,
+        metadata=metadata,
+    ):
+        return None
+    status = str(metadata.get("status") or "pending")
+    if status in {"pending", "running", "cancelling"} and not allow_active:
+        return None
+    return SessionCreated(
+        session_id=session_id,
+        status=status,
+        message="Regeneration execution already accepted",
+        plan_url=f"/pipeline/{session_id}/plan",
+    )
 
 
 def _restore_session_after_reset_failure(
@@ -754,10 +1061,11 @@ def _restore_session_after_reset_failure(
     this, the session would be permanently stuck in `pending` with prior
     diagnostics wiped and no executor coroutine ever scheduled.
 
-    The bus snapshot and `.cancel` marker are deliberately not restored:
-    the bus snapshot rebuilds lazily from disk on next read, and the
-    `.cancel` marker reflected a pre-existing cancellation that the
-    caller already chose to abandon by accepting the retry.
+    The pending bus snapshot is cleared after restoring disk metadata so
+    `/status` rebuilds from the restored terminal run. The `.cancel` marker
+    is deliberately not restored because it reflected a pre-existing
+    cancellation that the caller already chose to abandon by accepting the
+    retry.
     """
     if not snapshot:
         return
@@ -766,6 +1074,13 @@ def _restore_session_after_reset_failure(
     except Exception:
         logger.exception(
             "Failed to restore session metadata for %s after reset rollback",
+            session_id,
+        )
+    try:
+        get_event_bus().clear_session_state(session_id)
+    except Exception:
+        logger.exception(
+            "Failed to clear pending bus state for %s after reset rollback",
             session_id,
         )
 
@@ -978,7 +1293,9 @@ def build_default_pipeline_config(
     texture_backend: str | None = None,
     texture_endpoint: str | None = None,
     backend_engine: str | None = None,
+    texture_size: int | None = None,
     backend_custom_parameters: dict[str, Any] | None = None,
+    external_authoring: dict[str, Any] | None = None,
     detail_policy: str | None = None,
     reference_image_uris: list[str] | None = None,
     turntable_video_uri: str | None = None,
@@ -1013,6 +1330,7 @@ def build_default_pipeline_config(
         auto_prompt_enabled: Whether to generate prompts for discovered
             materials missing from material_textures. Defaults to True to
             preserve legacy service behavior.
+        texture_size: Optional exact generation size for this session.
 
     Returns:
         Pipeline config dict compatible with config_to_context()
@@ -1050,11 +1368,16 @@ def build_default_pipeline_config(
         else config.texture_plan_default_cap
     )
 
+    if texture_size is not None and not 64 <= texture_size <= 16384:
+        raise ValueError("texture_size must be between 64 and 16384")
+    resolved_texture_size = (
+        texture_size if texture_size is not None else config.texture_size
+    )
     texture_section: dict[str, Any] = {
         "backend": texture_route["backend"],
         "detail_policy": detail_policy or "default",
         "image_gen": image_gen_config,
-        "size": config.texture_size,
+        "size": resolved_texture_size,
         "max_texture_units": config.max_texture_units,
         "workers": texture_route["workers"],
         "job_timeout_sec": texture_route["job_timeout_sec"],
@@ -1087,6 +1410,8 @@ def build_default_pipeline_config(
         texture_section["engine"] = resolved_backend_engine
     if backend_custom_parameters:
         texture_section["custom_parameters"] = backend_custom_parameters
+    if external_authoring:
+        texture_section["external_authoring"] = external_authoring
     if reference_image_uris:
         texture_section["reference_image_uris"] = reference_image_uris
     if turntable_video_uri:
@@ -1100,6 +1425,16 @@ def build_default_pipeline_config(
     if strict_scope is not None:
         texture_section["strict_scope"] = strict_scope
 
+    preserve_generated_resolution = _resolve_preserve_generated_resolution(
+        backend_custom_parameters
+    )
+
+    llm_reasoning_effort = resolve_reasoning_effort_for_backend(
+        config.llm_backend,
+        config.llm_model,
+        explicit=config.llm_reasoning_effort,
+        interface="chat",
+    )
     pipeline_config: dict[str, Any] = {
         "project": {
             "name": session_id,
@@ -1130,6 +1465,11 @@ def build_default_pipeline_config(
             "llm": {
                 "backend": config.llm_backend,
                 "model": config.llm_model,
+                **(
+                    {"reasoning_effort": llm_reasoning_effort}
+                    if llm_reasoning_effort
+                    else {}
+                ),
                 **({"base_url": config.llm_base_url} if config.llm_base_url else {}),
                 **(
                     {"api_key_env": config.llm_api_key_env}
@@ -1162,7 +1502,8 @@ def build_default_pipeline_config(
             "blend_textures": {
                 "enabled": True,
                 "default_opacity": config.blend_opacity,
-                "output_size": config.texture_size,
+                "output_size": resolved_texture_size,
+                "preserve_generated_resolution": preserve_generated_resolution,
             },
             "apply_textures": {"enabled": True},
             "render": {
@@ -1406,15 +1747,31 @@ async def create_pipeline(
     ),
     texture_endpoint: str | None = Form(
         default=None,
-        description="Texture variation backend endpoint for texture_backend='service'.",
+        description=(
+            "Operator-approved Texture Variation backend endpoint for "
+            "texture_backend='service'."
+        ),
     ),
     backend_engine: str | None = Form(
         default=None,
         description="Projection backend engine/model route hint.",
     ),
+    texture_size: int | None = Form(
+        default=None,
+        ge=64,
+        le=16384,
+        description="Texture generation size override for this exact session.",
+    ),
     backend_custom_parameters_json: str = Form(
         default="",
         description="Backend custom parameters JSON object.",
+    ),
+    external_authoring_json: str = Form(
+        default="",
+        description=(
+            "Versioned external headless texture-authoring contract JSON object. "
+            "Credentials are forbidden; the backend must pass capability preflight."
+        ),
     ),
     detail_policy: TextureDetailPolicy | None = Form(
         default=None,
@@ -1604,6 +1961,32 @@ async def create_pipeline(
         field_name="backend_custom_parameters_json",
         expected_type=dict,
     )
+    external_authoring = _decode_json_form_field(
+        external_authoring_json,
+        field_name="external_authoring_json",
+        expected_type=dict,
+    )
+    if (
+        external_authoring is not None
+        and external_authoring.get("enabled") is not False
+    ):
+        try:
+            ExternalAuthoringSpec.from_config(external_authoring)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=[
+                    {
+                        "type": "value_error",
+                        "loc": ["form", "external_authoring_json"],
+                        "msg": str(exc),
+                    }
+                ],
+            ) from exc
+    # Validate the generated-resolution contract before selecting, uploading,
+    # or downloading an asset. ``build_default_pipeline_config`` resolves it
+    # again so non-HTTP callers receive the same fail-closed behavior.
+    _resolve_preserve_generated_resolution(backend_custom_parameters)
     reference_image_uris = _normalize_uri_list(
         _decode_json_form_field(
             reference_image_uris_json,
@@ -1666,6 +2049,12 @@ async def create_pipeline(
     uv_projection_text = uv_projection.strip() if uv_projection else None
     turntable_video_uri_text = (
         turntable_video_uri.strip() if turntable_video_uri else None
+    )
+    _reject_client_local_conditioning_inputs(
+        material_textures,
+        reference_image_uris=reference_image_uris,
+        turntable_video_uri=turntable_video_uri_text,
+        multiview_image_uris=multiview_image_uris,
     )
     _require_projection_endpoint(
         texture_backend=texture_backend,
@@ -1873,7 +2262,9 @@ async def create_pipeline(
             texture_backend=texture_backend.strip() if texture_backend else None,
             texture_endpoint=texture_endpoint_text,
             backend_engine=backend_engine_text,
+            texture_size=texture_size,
             backend_custom_parameters=backend_custom_parameters,
+            external_authoring=external_authoring,
             detail_policy=detail_policy.value if detail_policy else None,
             reference_image_uris=reference_image_uris,
             turntable_video_uri=turntable_video_uri_text,
@@ -2006,18 +2397,18 @@ async def create_pipeline(
             ),
         )
     except Exception:
-        if worker_lock is not None:
-            await asyncio.to_thread(
-                manager.release_worker_lock,
-                worker_lock,
-                session_id,
-            )
         if reset_snapshot:
             await asyncio.to_thread(
                 _restore_session_after_reset_failure,
                 manager,
                 session_id,
                 reset_snapshot,
+            )
+        if worker_lock is not None:
+            await asyncio.to_thread(
+                manager.release_worker_lock,
+                worker_lock,
+                session_id,
             )
         if delete_created_session_on_failure:
             await asyncio.to_thread(manager.delete_session, session_id)
@@ -2090,6 +2481,7 @@ async def get_pipeline_status(session_id: str) -> PipelineStatus:
     plan = await _load_texture_plan(get_session_manager(), session_id)
     return PipelineStatus(
         session_id=session_id,
+        execution_id=view.get("execution_id"),
         status=view["status"],
         current_step=view.get("current_step"),
         completed_steps=completed_steps,
@@ -2388,7 +2780,46 @@ async def regenerate_pipeline(
     without re-discovering materials.
     """
     manager = get_session_manager()
-    worker_lock = await _reserve_worker_slot(manager, session_id)
+    request_digest = (
+        _regenerate_request_digest(request)
+        if request.execution_id is not None
+        else None
+    )
+    if request.execution_id is not None:
+        metadata = await asyncio.to_thread(
+            manager.get_session_metadata,
+            session_id,
+        )
+        registry = get_job_registry()
+        local_job_active = bool(registry.is_running(session_id))
+        replay = _accepted_execution_replay(
+            session_id=session_id,
+            request=request,
+            request_digest=request_digest,
+            metadata=metadata,
+            allow_active=local_job_active,
+        )
+        if replay is not None:
+            return replay
+
+    try:
+        worker_lock = await _reserve_worker_slot(manager, session_id)
+    except HTTPException as exc:
+        if request.execution_id is not None and exc.status_code == 409:
+            metadata = await asyncio.to_thread(
+                manager.get_session_metadata,
+                session_id,
+            )
+            replay = _accepted_execution_replay(
+                session_id=session_id,
+                request=request,
+                request_digest=request_digest,
+                metadata=metadata,
+                allow_active=True,
+            )
+            if replay is not None:
+                return replay
+        raise
     reset_snapshot: dict[str, Any] = {}
 
     try:
@@ -2396,7 +2827,34 @@ async def regenerate_pipeline(
         if not metadata:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        if metadata["status"] in ["pending", "running", "cancelling"]:
+        replay = _accepted_execution_replay(
+            session_id=session_id,
+            request=request,
+            request_digest=request_digest,
+            metadata=metadata,
+            allow_active=False,
+        )
+        if replay is not None:
+            await asyncio.to_thread(
+                manager.release_worker_lock,
+                worker_lock,
+                session_id,
+            )
+            return replay
+
+        owned_orphan = metadata["status"] in [
+            "pending",
+            "running",
+            "cancelling",
+        ] and _matches_execution_request(
+            request=request,
+            request_digest=request_digest,
+            metadata=metadata,
+        )
+        if (
+            metadata["status"] in ["pending", "running", "cancelling"]
+            and not owned_orphan
+        ):
             raise HTTPException(
                 status_code=400,
                 detail=f"Cannot regenerate while pipeline is {metadata['status']}",
@@ -2452,9 +2910,17 @@ async def regenerate_pipeline(
                     prompt_cache_path.read_text(encoding="utf-8")
                 )
                 if isinstance(cached_prompts, dict):
+                    configured_material_textures = (
+                        pipeline_config.get("material_textures") or {}
+                    )
                     pipeline_config["material_textures"] = {
                         **cached_prompts,
-                        **(pipeline_config.get("material_textures") or {}),
+                        **configured_material_textures,
+                    }
+                    pipeline_config["cached_material_textures"] = {
+                        key: value
+                        for key, value in cached_prompts.items()
+                        if key not in configured_material_textures
                     }
 
         stored_key_mode: str | None = None
@@ -2471,7 +2937,7 @@ async def regenerate_pipeline(
                 logger.warning(
                     "Cannot regenerate cached apply for %s: %s",
                     session_id[:8],
-                    err,
+                    redact_sensitive_log_text(err),
                 )
                 raise HTTPException(
                     status_code=422,
@@ -2680,6 +3146,13 @@ async def regenerate_pipeline(
                 **(pipeline_config.get("material_textures") or {}),
                 **material_textures_config,
             }
+            pipeline_config["cached_material_textures"] = {
+                key: value
+                for key, value in (
+                    pipeline_config.get("cached_material_textures") or {}
+                ).items()
+                if key not in material_textures_config
+            }
             _sync_texture_mode_for_overrides(pipeline_config, material_textures_config)
 
         # Regenerate is incremental — keep completed_steps / progress —
@@ -2692,8 +3165,13 @@ async def regenerate_pipeline(
             manager,
             session_id,
             fresh=False,
+            execution_id=request.execution_id,
+            execution_request_digest=request_digest,
         )
-        await get_event_bus().seed_pending_session(session_id)
+        await get_event_bus().seed_pending_session(
+            session_id,
+            execution_id=request.execution_id,
+        )
 
         job_registry = get_job_registry()
         await job_registry.register(
@@ -2731,7 +3209,6 @@ async def regenerate_pipeline(
             ),
         )
     except Exception:
-        await asyncio.to_thread(manager.release_worker_lock, worker_lock, session_id)
         if reset_snapshot:
             await asyncio.to_thread(
                 _restore_session_after_reset_failure,
@@ -2739,6 +3216,7 @@ async def regenerate_pipeline(
                 session_id,
                 reset_snapshot,
             )
+        await asyncio.to_thread(manager.release_worker_lock, worker_lock, session_id)
         raise
 
     logger.info(f"Pipeline regeneration registered for session {session_id}")

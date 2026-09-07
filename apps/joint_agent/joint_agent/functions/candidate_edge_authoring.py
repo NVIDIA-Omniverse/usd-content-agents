@@ -21,9 +21,9 @@ from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from world_understanding.functions.physics.joint_rigger.source_binding import (
     BoundInputDirectory,
     _validate_bound_projection_dependencies,  # noqa: F401 - compatibility alias
@@ -36,6 +36,10 @@ from world_understanding.functions.physics.joint_rigger.source_binding import (
 )
 from world_understanding.functions.physics.joint_rigger.source_binding import (
     restore_bound_projection_paths as _restore_bound_projection_paths,
+)
+from world_understanding.functions.physics.joint_rigger.validation import (
+    canonical_local_joint_anchor_positions,
+    canonical_local_joint_frame_rotation,
 )
 
 from joint_agent.functions.articulation_candidates import (
@@ -57,7 +61,8 @@ DIAGNOSTICS_SCHEMA_VERSION = "joint-agent-rigger-diagnostics-v0"
 VALIDATION_SCHEMA_VERSION = "joint-agent-rigger-validation-v0"
 AUTHORING_SCHEMA_VERSION = "joint-agent-stage2-candidate-edge-authoring-v0"
 _READY_STATUS = "ready_for_rigger_input"
-_SUPPORTED_JOINT_TYPES = frozenset({"revolute", "prismatic", "spherical"})
+OWNED_CORE_AUTHORABLE_TYPES = frozenset({"revolute", "prismatic", "spherical"})
+_SUPPORTED_JOINT_TYPES = OWNED_CORE_AUTHORABLE_TYPES
 _AXIS_VECTORS: dict[str, tuple[float, float, float]] = {
     "x": (1.0, 0.0, 0.0),
     "+x": (1.0, 0.0, 0.0),
@@ -100,6 +105,33 @@ class _Stage2Summary(BaseModel):
     review_required_candidate_count: int = Field(ge=0)
 
 
+_AuthorableParentResolutionSource = Literal[
+    "stage1_hint",
+    "stage1_rigger_evidence",
+    "accepted_manifest",
+    "structural_fallback",
+    "unresolved",
+]
+
+
+class _AuthorableStage2Candidate(Stage2ArticulationCandidate):
+    """Private authoring envelope for reviewed outer-owned candidates."""
+
+    parent_resolution_source: _AuthorableParentResolutionSource = "unresolved"
+
+    @model_validator(mode="after")
+    def _validate_accepted_parent_resolution(self) -> Self:
+        if (
+            self.parent_resolution_source == "accepted_manifest"
+            and not self.fixed_parent_prim
+        ):
+            raise ValueError(
+                "fixed_parent_prim must be set when parent_resolution_source is "
+                "accepted_manifest"
+            )
+        return self
+
+
 class _Stage2Document(BaseModel):
     """Exact top-level v0 Stage 2 document consumed by this adapter."""
 
@@ -107,7 +139,7 @@ class _Stage2Document(BaseModel):
 
     schema_version: Literal["joint-agent-stage2-v0"]
     summary: _Stage2Summary
-    candidates: list[Stage2ArticulationCandidate]
+    candidates: list[_AuthorableStage2Candidate]
 
 
 @dataclass(frozen=True)
@@ -1030,22 +1062,29 @@ def _preflight_ready_candidate(
     body1_xform = xform_cache.GetLocalToWorldTransform(body1_prim)
     _validate_invertible_transform(body0_xform, label=f"{prefix} body0")
     _validate_invertible_transform(body1_xform, label=f"{prefix} body1")
-    anchor_world_vec = body1_xform.Transform(Gf.Vec3d(0.0, 0.0, 0.0))
-    local_pos0 = body0_xform.GetInverse().Transform(anchor_world_vec)
-    local_pos1 = body1_xform.GetInverse().Transform(anchor_world_vec)
+    local_pos0, local_pos1, anchor_world = canonical_local_joint_anchor_positions(
+        body0_xform,
+        body1_xform,
+        anchor_stage=None,
+        label=prefix,
+        Gf=Gf,
+    )
 
     axis_token = _AXIS_TOKENS[candidate.axis_hint[-1]]
-    base_axis = _AXIS_VECTORS[candidate.axis_hint[-1]]
-    local_axis0 = _normalized_direction(
-        body0_xform.GetInverse().TransformDir(Gf.Vec3d(*expected_world_axis)),
-        label=f"{prefix} body0 local axis",
+    local_rot0 = canonical_local_joint_frame_rotation(
+        body0_xform,
+        axis_stage=expected_world_axis,
+        axis_token=axis_token,
+        label=f"{prefix} body0 joint frame",
+        Gf=Gf,
     )
-    local_axis1 = _normalized_direction(
-        body1_xform.GetInverse().TransformDir(Gf.Vec3d(*expected_world_axis)),
-        label=f"{prefix} body1 local axis",
+    local_rot1 = canonical_local_joint_frame_rotation(
+        body1_xform,
+        axis_stage=expected_world_axis,
+        axis_token=axis_token,
+        label=f"{prefix} body1 joint frame",
+        Gf=Gf,
     )
-    local_rot0 = _rotation_tuple(Gf.Rotation(Gf.Vec3d(*base_axis), local_axis0))
-    local_rot1 = _rotation_tuple(Gf.Rotation(Gf.Vec3d(*base_axis), local_axis1))
 
     lower_limit, upper_limit, authored_limit_unit = _preflight_limits(
         candidate,
@@ -1075,11 +1114,11 @@ def _preflight_ready_candidate(
         joint_type=candidate.motion_type,
         axis_token=axis_token,
         motion_axis_world=expected_world_axis,
-        local_pos0=_vec3_tuple(local_pos0),
-        local_pos1=_vec3_tuple(local_pos1),
+        local_pos0=local_pos0,
+        local_pos1=local_pos1,
         local_rot0=local_rot0,
         local_rot1=local_rot1,
-        anchor_world=_vec3_tuple(anchor_world_vec),
+        anchor_world=anchor_world,
         lower_limit=lower_limit,
         upper_limit=upper_limit,
         authored_limit_unit=authored_limit_unit,
@@ -1333,22 +1372,6 @@ def _validate_invertible_transform(matrix: Any, *, label: str) -> None:
     determinant = float(matrix.GetDeterminant())
     if not math.isfinite(determinant) or math.isclose(determinant, 0.0, abs_tol=1e-12):
         raise ValueError(f"{label} transform is not invertible")
-
-
-def _normalized_direction(vector: Any, *, label: str) -> Any:
-    length = float(vector.GetLength())
-    if not math.isfinite(length) or math.isclose(length, 0.0, abs_tol=1e-12):
-        raise ValueError(f"{label} cannot be normalized")
-    return vector / length
-
-
-def _rotation_tuple(rotation: Any) -> tuple[float, tuple[float, float, float]]:
-    quaternion = rotation.GetQuat()
-    imaginary = quaternion.GetImaginary()
-    return (
-        float(quaternion.GetReal()),
-        (float(imaginary[0]), float(imaginary[1]), float(imaginary[2])),
-    )
 
 
 def _vec3_tuple(value: Any) -> tuple[float, float, float]:
@@ -1643,18 +1666,11 @@ def _author_plans(stage: Any, plans: list[_JointPlan]) -> list[dict[str, Any]]:
 
         edge_record = _authored_edge_record(plan)
         prim = joint.GetPrim()
-        prim.SetCustomDataByKey("jointAgent:candidateId", plan.candidate.candidate_id)
-        prim.SetCustomDataByKey(
-            "jointAgent:sourceSchemaVersion",
-            STAGE2_SCHEMA_VERSION,
-        )
-        prim.SetCustomDataByKey(
-            "jointAgent:fieldProvenance",
-            json.dumps(edge_record["field_provenance"], sort_keys=True),
-        )
-        prim.SetCustomDataByKey(
-            "jointAgent:copiedEvidence",
-            json.dumps(edge_record["copied_evidence"], sort_keys=True),
+        prim.SetCustomData(
+            stage2_candidate_custom_data(
+                plan.candidate,
+                authored_limit_unit=plan.authored_limit_unit,
+            )
         )
         authored_edges.append(edge_record)
     return authored_edges
@@ -1671,56 +1687,10 @@ def _quatf(
 
 def _authored_edge_record(plan: _JointPlan) -> dict[str, Any]:
     candidate = plan.candidate
-    connectivity_sources = sorted(
-        {item.source for item in candidate.connectivity_evidence}
+    field_provenance, copied_evidence = _stage2_candidate_evidence(
+        candidate,
+        authored_limit_unit=plan.authored_limit_unit,
     )
-    field_provenance: dict[str, Any] = {
-        "joint_type": {
-            "candidate_field": "motion_type",
-            "source": candidate.field_sources["motion_type"],
-        },
-        "body0": {
-            "candidate_field": "fixed_parent_prim",
-            "source": candidate.field_sources["fixed_parent_prim"],
-        },
-        "body1": {
-            "candidate_field": "moving_part_prims[0]",
-            "evidence_sources": connectivity_sources,
-            "source_prediction_ids": list(candidate.source_prediction_ids),
-        },
-        "axis": {
-            "candidate_fields": ["axis_hint", "motion_axis_world"],
-            "axis_hint_source": candidate.field_sources["axis_hint"],
-            "motion_axis_world_source": candidate.field_sources["motion_axis_world"],
-        },
-        "local_frames": {
-            "source": candidate.field_sources["motion_axis_world"],
-            "derivation": "world_axis_transformed_into_each_body_local_frame",
-        },
-        "anchor": {
-            "source": "inferred_body1_world_origin",
-            "derivation": "shared_anchor_at_body1_world_origin",
-        },
-        "limits": {
-            "source": candidate.limit_source,
-            "readiness": candidate.limit_readiness,
-            "source_unit": candidate.limit_unit,
-            "authored_unit": plan.authored_limit_unit,
-        },
-    }
-    copied_evidence = {
-        "evidence": candidate.evidence,
-        "source_prediction_ids": list(candidate.source_prediction_ids),
-        "axis_evidence": [
-            item.model_dump(mode="json") for item in candidate.axis_evidence
-        ],
-        "connectivity_evidence": [
-            item.model_dump(mode="json") for item in candidate.connectivity_evidence
-        ],
-        "limit_evidence": [
-            item.model_dump(mode="json") for item in candidate.limit_evidence
-        ],
-    }
     return {
         "candidate_id": candidate.candidate_id,
         "joint_path": plan.joint_path,
@@ -1739,6 +1709,90 @@ def _authored_edge_record(plan: _JointPlan) -> dict[str, Any]:
         "field_provenance": field_provenance,
         "copied_evidence": copied_evidence,
     }
+
+
+def stage2_candidate_custom_data(
+    candidate: Any,
+    *,
+    authored_limit_unit: str | None,
+) -> dict[str, Any]:
+    """Project the exact transitional customData for one Stage 2 candidate."""
+
+    field_provenance, copied_evidence = _stage2_candidate_evidence(
+        candidate,
+        authored_limit_unit=authored_limit_unit,
+    )
+    return {
+        "jointAgent": {
+            "candidateId": candidate.candidate_id,
+            "sourceSchemaVersion": STAGE2_SCHEMA_VERSION,
+            "fieldProvenance": json.dumps(field_provenance, sort_keys=True),
+            "copiedEvidence": json.dumps(copied_evidence, sort_keys=True),
+        }
+    }
+
+
+def _stage2_candidate_evidence(
+    candidate: Any,
+    *,
+    authored_limit_unit: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    def field_source(name: str) -> str:
+        return cast(str, candidate.field_sources.get(name, "unknown"))
+
+    def evidence_payload(item: Any) -> dict[str, Any]:
+        payload = cast(dict[str, Any], item.model_dump(mode="json"))
+        if payload.get("connectivity_role") is None:
+            payload.pop("connectivity_role", None)
+        return payload
+
+    connectivity_sources = sorted(
+        {item.source for item in candidate.connectivity_evidence}
+    )
+    field_provenance: dict[str, Any] = {
+        "joint_type": {
+            "candidate_field": "motion_type",
+            "source": field_source("motion_type"),
+        },
+        "body0": {
+            "candidate_field": "fixed_parent_prim",
+            "source": field_source("fixed_parent_prim"),
+        },
+        "body1": {
+            "candidate_field": "moving_part_prims[0]",
+            "evidence_sources": connectivity_sources,
+            "source_prediction_ids": list(candidate.source_prediction_ids),
+        },
+        "axis": {
+            "candidate_fields": ["axis_hint", "motion_axis_world"],
+            "axis_hint_source": field_source("axis_hint"),
+            "motion_axis_world_source": field_source("motion_axis_world"),
+        },
+        "local_frames": {
+            "source": field_source("motion_axis_world"),
+            "derivation": "world_axis_transformed_into_each_body_local_frame",
+        },
+        "anchor": {
+            "source": "inferred_body1_world_origin",
+            "derivation": "shared_anchor_at_body1_world_origin",
+        },
+        "limits": {
+            "source": candidate.limit_source,
+            "readiness": candidate.limit_readiness,
+            "source_unit": candidate.limit_unit,
+            "authored_unit": authored_limit_unit,
+        },
+    }
+    copied_evidence = {
+        "evidence": candidate.evidence,
+        "source_prediction_ids": list(candidate.source_prediction_ids),
+        "axis_evidence": [evidence_payload(item) for item in candidate.axis_evidence],
+        "connectivity_evidence": [
+            evidence_payload(item) for item in candidate.connectivity_evidence
+        ],
+        "limit_evidence": [evidence_payload(item) for item in candidate.limit_evidence],
+    }
+    return field_provenance, copied_evidence
 
 
 def _validate_authored_output(

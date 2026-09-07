@@ -100,10 +100,12 @@ def api_client() -> PhysicsAgentClient:
 
 def test_client_auth_header_and_helpers(monkeypatch):
     monkeypatch.setenv("PHYSICS_AGENT_TOKEN", "secret")
+    monkeypatch.setenv("NVCF_INVOKE_VERSION_ID", "version-under-test")
     client = PhysicsAgentClient(base_url="http://test/")
     assert client.base_url == "http://test"
     assert client._http.headers["Authorization"] == "Bearer secret"
     assert client._http.headers["User-Agent"] == "physics-agent-client/2.0"
+    assert client._http.headers["Function-Version-Id"] == "version-under-test"
 
     assert client_module._bool_form(True) == "true"
     assert client_module._bool_form(False) == "false"
@@ -258,7 +260,7 @@ def test_start_predict_rejects_missing_source_without_http():
     assert fake_session.posts == []
 
 
-def test_start_tune_posts_source_session_defaults_and_reference_media(tmp_path):
+def test_start_tune_posts_source_session_defaults_and_reference_images(tmp_path):
     image = tmp_path / "ref.png"
     image.write_bytes(b"png")
     fake_session = _FakeSession()
@@ -285,7 +287,6 @@ def test_start_tune_posts_source_session_defaults_and_reference_media(tmp_path):
     assert post["data"]["seed"] == "42"
     assert post["data"]["enable_judge"] == "true"
     assert post["data"]["judge_max_iterations"] == "3"
-    assert post["data"]["reference_video_frames"] == "8"
     assert post["data"]["judge_reference_frames"] == "8"
     assert post["data"]["judge_generated_frames"] == "16"
     assert post["data"]["reference_descriptions"] == '["front view"]'
@@ -344,8 +345,8 @@ def test_start_refine_posts_refine_defaults():
     assert post["data"]["score_threshold"] == "0.9"
     assert post["data"]["seed"] == "42"
     assert post["data"]["visual_evidence_enabled"] == "true"
+    assert post["data"]["visual_evidence_timeout_seconds"] == "600.0"
     assert post["data"]["llm_timeout_seconds"] == "180.0"
-    assert post["data"]["reference_video_frames"] == "8"
     assert post["data"]["judge_reference_frames"] == "8"
     assert post["data"]["judge_generated_frames"] == "16"
 
@@ -378,6 +379,13 @@ def test_tune_and_refine_validate_sources_and_required_fields():
             scenario_yaml="name: drop_settle\n",
             user_prompt=" ",
         )
+    with pytest.raises(ValueError, match="recording_usd"):
+        client.start_refine(
+            source_session_id="sid",
+            scenario_yaml="name: drop_settle\n",
+            user_prompt="target",
+            engine="fake",
+        )
 
 
 @pytest.mark.parametrize(
@@ -403,7 +411,6 @@ def test_tune_and_refine_validate_sources_and_required_fields():
 @pytest.mark.parametrize(
     ("field_name", "bad_value"),
     [
-        ("reference_video_frames", 0),
         ("judge_reference_frames", 65),
         ("judge_generated_frames", cast(int, 3.0)),
     ],
@@ -489,7 +496,6 @@ def test_artifact_helpers_call_expected_paths():
         client.download_refine_artifact("rid", "final/tuned physics#1.usda")
         == b"artifact"
     )
-
     assert [call["url"] for call in fake_session.gets] == [
         "http://test/artifacts/sid/predictions",
         "http://test/artifacts/sid/report",

@@ -243,6 +243,29 @@ class GroundTruth(BaseModel):
         return self
 
 
+class UntrustedSpecReferencePage(BaseModel):
+    """Converted specification page retained as non-visual provenance."""
+
+    path: str = Field(description="Dataset-relative path to the converted PDF page")
+    description: str | None = Field(
+        default=None,
+        description="Optional provenance-only description for the converted page",
+    )
+
+
+class UntrustedSpecEvidence(BaseModel):
+    """Specification provenance excluded from visual model prompts and media."""
+
+    extracted_text: str | None = Field(
+        default=None,
+        description="Untrusted extracted specification text for post-visual checks",
+    )
+    reference_pdf_pages: list[UntrustedSpecReferencePage] = Field(
+        default_factory=list,
+        description="Converted PDF pages retained outside visual inference media",
+    )
+
+
 class DatasetEntry(BaseModel):
     """Root model for dataset.jsonl entries (v0.2).
 
@@ -263,6 +286,13 @@ class DatasetEntry(BaseModel):
     )
     usd_metadata: dict[str, Any] | None = Field(
         default=None, description="USD-specific metadata (geometry, hierarchy, etc.)"
+    )
+    untrusted_spec_evidence: UntrustedSpecEvidence | None = Field(
+        default=None,
+        description=(
+            "Specification provenance used only for deterministic post-visual "
+            "reconciliation"
+        ),
     )
 
     @model_validator(mode="after")

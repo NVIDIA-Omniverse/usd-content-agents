@@ -1,0 +1,32 @@
+# WSL2 overlay for in-process WARP rendering on one NVIDIA GPU.
+#
+# Usage from the repository root:
+#   docker compose --env-file .env \
+#     -f apps/material_agent_service/docker-compose.yml \
+#     -f apps/material_agent_service/docker-compose.warp.yml up --build
+#
+# WSL2 cannot run local OVRTX. This overlay keeps the base service contract,
+# removes its OVRTX startup dependency, and makes the OVRTX sidecar opt-in so
+# Compose does not build or start it. Compose resolves MA_WARP_GPU_DEVICE_ID
+# from the invoking shell or --env-file; it is not a service setting.
+services:
+  material-agent-service:
+    depends_on: !override {}
+    environment:
+      - MA_RENDERER_BACKEND=warp
+      - RENDER_ENDPOINT=
+      - MA_RENDERING_USE_DATA_URI=false
+      - NVIDIA_VISIBLE_DEVICES=${MA_WARP_GPU_DEVICE_ID:-0}
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ['${MA_WARP_GPU_DEVICE_ID:-0}']
+              capabilities: [gpu]
+
+  # Keep the service available for explicit profiling, but do not start it in
+  # the WSL2 WARP topology.
+  ovrtx-rendering-api:
+    profiles:
+      - ovrtx

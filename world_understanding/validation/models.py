@@ -116,7 +116,8 @@ class ValidationRenderConfig(ValidationModel):
         default=None,
         description=(
             "Validation Agent runtime rendering backend. Supported values are "
-            f"{', '.join(VALIDATION_RENDERING_BACKEND_NAMES)}; omit to use remote. "
+            f"{', '.join(VALIDATION_RENDERING_BACKEND_NAMES)}; an explicit value "
+            "is required before rendering. Omission selects no backend. "
             "The field remains an open string so runtime validation can return "
             "structured unknown-versus-unsupported backend results."
         ),

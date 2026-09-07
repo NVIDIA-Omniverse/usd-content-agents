@@ -129,6 +129,20 @@ def test_low_contrast_image_fails_without_blank_classification(tmp_path: Path) -
     assert _issue_codes(result) == [RENDER_LOW_CONTRAST]
 
 
+def test_sparse_high_contrast_foreground_is_not_rejected_as_low_contrast(
+    tmp_path: Path,
+) -> None:
+    image = PILImage.new("RGB", (100, 100), (0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([45, 10, 54, 49], fill=(220, 220, 220))
+    image_path = _save_image(tmp_path / "sparse_part.png", image)
+
+    result = validate_image_artifact(image_path)
+
+    assert result.passed
+    assert _issue_codes(result) == []
+
+
 def test_saturated_red_foreground_fails_as_suspected_error_material(
     tmp_path: Path,
 ) -> None:

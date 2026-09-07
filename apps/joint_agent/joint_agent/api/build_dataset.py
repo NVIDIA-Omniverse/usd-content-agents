@@ -113,8 +113,10 @@ async def abuild_dataset_usd(params: BuildDatasetUsdInput) -> BuildDatasetUsdOut
         if params.output_dir_override:
             context["output_dir_override"] = str(params.output_dir_override)
 
-        # Run workflow
-        result = workflow.run(context)
+        # Run the workflow through its async entrypoint. The synchronous API
+        # already owns the outer asyncio.run(), so calling workflow.run() here
+        # would try to nest a second event loop.
+        result = await workflow.arun(context)
 
         # Check for errors
         if result.get("error") or result.get("workflow_terminated"):

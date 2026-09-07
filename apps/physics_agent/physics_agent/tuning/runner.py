@@ -25,6 +25,7 @@ from typing import Any
 
 import yaml
 from world_understanding.agentic.events import EventListener
+from world_understanding.optimization import TuneWorkflow
 
 from .artifacts import (
     ARTIFACT_BEST_PARAMS,
@@ -50,16 +51,20 @@ from .backend import (
     validate_engine_supports_params,
 )
 from .errors import TuningCancelledError, TuningError
+from .frame_rendering import resolve_frame_renderer
 from .optimizers import (
-    SUPPORTED_OPTIMIZERS,
     get_runner,
+    get_supported_optimizer_names,
     resolve_optimizer,
 )
-from .scenario import load_scenario
+from .scenario import (
+    ScenarioParseError,
+    load_scenario,
+    validate_scenario_parameters,
+)
 from .scenario_resolution import get_resolved_bindings, resolve_scenario_bindings
 from .types import SCENARIO_FREEFORM, Scenario, TrialRecord, TuneInput, TuneOutput
 from .usd_patch import make_tuned_usd_path, patch_physics_usd
-from .video_rendering import resolve_video_renderer
 from .visual_evidence import (
     JudgeVisualEvidence,
     has_reference_media,
@@ -277,23 +282,24 @@ def _anchor_relative_paths_in_scenario_dict(node: Any, base_dir: Path) -> None:
 def _load_scenario_override_dict(scenario: Any) -> dict[str, Any]:
     """Load an explicit scenario override dict for the NL interpreter path."""
     if isinstance(scenario, dict):
-        return dict(scenario)
+        data = dict(scenario)
+    else:
+        scenario_path = Path(scenario).resolve()
+        text = scenario_path.read_text(encoding="utf-8")
+        data = yaml.safe_load(text)
+        if not isinstance(data, dict):
+            raise TuningError(
+                f"scenario file {scenario!s} did not parse to a "
+                f"mapping (got {type(data).__name__}); cannot use as "
+                "explicit override for the NL interpreter."
+            )
 
-    scenario_path = Path(scenario).resolve()
-    text = scenario_path.read_text(encoding="utf-8")
-    data = yaml.safe_load(text)
-    if not isinstance(data, dict):
-        raise TuningError(
-            f"scenario file {scenario!s} did not parse to a "
-            f"mapping (got {type(data).__name__}); cannot use as "
-            "explicit override for the NL interpreter."
-        )
+        # Anchor config-relative paths against the YAML file, matching the
+        # standard ``apps/<agent>/configs/*.yaml`` contract.
+        _anchor_relative_paths_in_scenario_dict(data, scenario_path.parent)
 
-    # CodeRabbit R13 thread #3: anchor any config-relative paths inside
-    # the override YAML so they resolve against the YAML file's directory
-    # (matching the standard ``apps/<agent>/configs/*.yaml`` contract)
-    # rather than silently inheriting the runner's CWD.
-    _anchor_relative_paths_in_scenario_dict(data, scenario_path.parent)
+    if "parameters" in data:
+        validate_scenario_parameters(data["parameters"])
     return data
 
 
@@ -345,7 +351,7 @@ def _resolve_scenario(
        ``scenario_override`` to the interpreter so explicit user fields win
        on every conflict (per #51 spec).
     3. ``scenario`` only → use the existing :func:`load_scenario` path
-       unchanged. No LLM call. Byte-identical to PR #43 baseline.
+       unchanged. No LLM call.
 
     Returns:
         ``(scenario, chat_model_or_none)`` — the chat model is returned so
@@ -429,10 +435,11 @@ def _validate_inputs(params: TuneInput) -> None:
         raise ValueError(
             f"Unknown engine {params.engine!r}. Supported: {sorted(SUPPORTED_ENGINES)}"
         )
-    if params.optimizer not in SUPPORTED_OPTIMIZERS:
+    supported_optimizers = get_supported_optimizer_names()
+    if params.optimizer not in supported_optimizers:
         raise ValueError(
             f"Unknown optimizer {params.optimizer!r}. "
-            f"Supported: {sorted(SUPPORTED_OPTIMIZERS)}"
+            f"Supported: {list(supported_optimizers)}"
         )
     if not isinstance(params.physics_usd, Path):
         # Be tolerant of strings — but don't accept arbitrary objects.
@@ -466,10 +473,6 @@ def _validate_inputs(params: TuneInput) -> None:
                 "judge_temperature must be finite and >= 0, "
                 f"got {params.judge_temperature}"
             )
-    params.reference_video_frames = validate_visual_frame_count(
-        "reference_video_frames",
-        params.reference_video_frames,
-    )
     params.judge_reference_frames = validate_visual_frame_count(
         "judge_reference_frames",
         params.judge_reference_frames,
@@ -577,13 +580,47 @@ def _evaluate_one(
             failed=True,
             error=f"Backend returned non-finite score {raw_score!r}",
         )
+
+    objective_value: float | None = None
+    raw_objective = result.get("objective_value")
+    if raw_objective is not None:
+        try:
+            objective_value = float(raw_objective)
+        except (TypeError, ValueError) as e:
+            return TrialRecord(
+                trial_index=trial_index,
+                params=dict(params),
+                score=float("inf"),
+                duration_seconds=elapsed,
+                failed=True,
+                error=(
+                    "Backend returned non-numeric objective_value "
+                    f"{raw_objective!r}: {e}"
+                ),
+            )
+        if not math.isfinite(objective_value):
+            return TrialRecord(
+                trial_index=trial_index,
+                params=dict(params),
+                score=float("inf"),
+                duration_seconds=elapsed,
+                failed=True,
+                error=(
+                    f"Backend returned non-finite objective_value {raw_objective!r}"
+                ),
+            )
     return TrialRecord(
         trial_index=trial_index,
         params=dict(params),
         score=score,
-        backend_metrics={k: v for k, v in result.items() if k != "score"},
+        backend_metrics={
+            key: value
+            for key, value in result.items()
+            if key not in {"score", "objective_value"}
+        },
         duration_seconds=elapsed,
         failed=False,
+        objective_value=objective_value,
     )
 
 
@@ -627,7 +664,7 @@ def _render_best_trial_for_visual_judge(
         return [], "render_time_sampled_usd unavailable"
 
     target = scenario.target or {}
-    renderer = resolve_video_renderer(target)
+    renderer = resolve_frame_renderer(target)
     render_dir = output_dir / "judge_render"
     try:
         frames = render_time_sampled_usd(
@@ -637,10 +674,10 @@ def _render_best_trial_for_visual_judge(
             cameras=_discover_camera_paths(Path(recording)),
             fps=int(target.get("sample_fps", 30)),
             max_duration_seconds=float(target.get("duration_s", 2.0)),
-            image_width=int(target.get("video_image_width", 512)),
-            image_height=int(target.get("video_image_height", 512)),
-            num_sensor_updates=int(target.get("video_sensor_updates", 32)),
-            render_mode=str(target.get("video_render_mode", "rt2")),
+            image_width=int(target.get("frame_image_width", 512)),
+            image_height=int(target.get("frame_image_height", 512)),
+            num_sensor_updates=int(target.get("frame_sensor_updates", 32)),
+            render_mode=str(target.get("frame_render_mode", "rt2")),
         )
     except Exception as exc:  # noqa: BLE001 - judge render should degrade
         logger.warning("visual judge render failed: %s", exc, exc_info=True)
@@ -661,7 +698,6 @@ def _prepare_visual_evidence_for_judge(
     """Prepare reference and/or generated image evidence for the judge."""
     reference_media_requested = has_reference_media(
         reference_images=params.reference_images,
-        reference_videos=params.reference_videos,
     )
     if not reference_media_requested and not include_generated_without_reference:
         return None
@@ -670,11 +706,8 @@ def _prepare_visual_evidence_for_judge(
         try:
             reference_evidence = prepare_reference_media(
                 reference_images=params.reference_images,
-                reference_videos=params.reference_videos,
                 reference_descriptions=params.reference_descriptions,
-                reference_video_descriptions=params.reference_video_descriptions,
                 output_dir=output_dir,
-                frames_per_video=params.reference_video_frames,
             )
         except Exception as exc:  # noqa: BLE001 - judge should persist degraded status
             return JudgeVisualEvidence(reference_error=type(exc).__name__)
@@ -739,6 +772,10 @@ def _do_run_tune(params: TuneInput) -> TuneOutput:
     if params.scenario is not None:
         try:
             explicit_param_names = _explicit_scenario_param_names(params.scenario)
+        except ScenarioParseError:
+            # Parameter-shape errors are independent of the backend install.
+            # Reject them before constructing or warming a simulator.
+            raise
         except (OSError, TuningError, yaml.YAMLError):
             if params.engine != ENGINE_OVPHYSX or has_user_prompt:
                 raise
@@ -755,8 +792,19 @@ def _do_run_tune(params: TuneInput) -> TuneOutput:
     # ``resolve_optimizer`` / ``get_backend`` would burn that cost on a
     # box that's missing the tuning extra or has a typo'd engine name.
     # Surface those install-time precondition errors first.
-    optimizer_used = resolve_optimizer(params.optimizer)
+    tune_workflow = TuneWorkflow(
+        params.optimizer_settings,
+        resolve_optimizer=resolve_optimizer,
+        get_optimizer_runner=get_runner,
+    )
     backend = get_backend(params.engine)
+    # Extra TRUSTED roots for per-trial scene export: the caller names
+    # the source directory its snapshot's references still point at
+    # (TuneInput.approved_dependency_roots) instead of relocating the
+    # trusted bytes into a child-writable directory.
+    backend.extra_approved_dependency_roots = tuple(
+        params.approved_dependency_roots or ()
+    )
 
     # Keep every backend-touching step under shutdown. OvPhysX lazy-creates
     # a daemon subprocess during warmup/evaluate; binding resolution can fail
@@ -807,7 +855,7 @@ def _do_run_tune(params: TuneInput) -> TuneOutput:
             scenario=scenario,
             cancel_check=cancel_check,
             physics_usd=physics_usd,
-            optimizer_used=optimizer_used,
+            tune_workflow=tune_workflow,
             backend=backend,
         )
     finally:
@@ -822,7 +870,7 @@ def _do_run_tune_inner(
     scenario: Scenario,
     cancel_check: Callable[[], bool],
     physics_usd: Path,
-    optimizer_used: str,
+    tune_workflow: TuneWorkflow,
     backend: TuningBackend,
 ) -> TuneOutput:
     """The trial-loop body of :func:`_do_run_tune`. Split out so the
@@ -830,20 +878,7 @@ def _do_run_tune_inner(
     indenting 350 lines of body.
     """
 
-    history: list[TrialRecord] = []
-    cancelled_flag = {"value": False}
-
-    # Wrap the user's cancel_check so the optimizer's polite-exit path also
-    # flips ``cancelled_flag`` — without this, an optimizer that polls
-    # cancel_check() at the top of its loop and returns cleanly (random,
-    # botorch) would leave the runner reporting ``cancelled=False`` even
-    # though it stopped early.
-    def cancel_check_wrapped() -> bool:
-        if cancel_check():
-            cancelled_flag["value"] = True
-            return True
-        return False
-
+    optimizer_used = tune_workflow.optimizer_used
     started_at = datetime.now(UTC).isoformat()
     history_handle = open_history_writer(output_dir)
 
@@ -860,25 +895,21 @@ def _do_run_tune_inner(
         },
     )
 
-    def evaluate_and_record(candidate: dict[str, float]) -> float:
-        # Stop accepting new trials once the cancel signal fires; the
-        # optimizer's own cancel_check exit will follow shortly.
-        if cancel_check():
-            cancelled_flag["value"] = True
-            raise TuningCancelledError("Tuning cancelled by caller")
-        if len(history) >= params.max_trials:
-            raise StopIteration  # pragma: no cover - guard against bad optimizer
-        # Clip into bounds — optimizers occasionally return tiny FP overshoots.
-        clipped = {tp.name: tp.clip(candidate[tp.name]) for tp in scenario.params}
-        trial = _evaluate_one(
+    def evaluate_trial(
+        candidate: dict[str, float],
+        trial_index: int,
+        trial_seed: int,
+    ) -> TrialRecord:
+        return _evaluate_one(
             backend,
             scenario,
-            clipped,
+            candidate,
             physics_usd,
-            seed=params.seed + len(history),
-            trial_index=len(history),
+            seed=trial_seed,
+            trial_index=trial_index,
         )
-        history.append(trial)
+
+    def record_trial(trial: TrialRecord) -> None:
         write_history_line(history_handle, trial)
         _emit(
             listener,
@@ -886,26 +917,25 @@ def _do_run_tune_inner(
             {
                 "trial_index": trial.trial_index,
                 "score": trial.score,
+                "objective_value": trial.objective_value,
                 "params": trial.params,
                 "failed": trial.failed,
             },
         )
-        return trial.score
 
-    runner = get_runner(optimizer_used)
     try:
-        runner(
-            scenario,
-            evaluate_and_record,
-            max_trials=params.max_trials,
-            seed=params.seed,
-            cancel_check=cancel_check_wrapped,
+        tune_run = tune_workflow.run(
+            search_space=scenario,
+            evaluate_trial=evaluate_trial,
+            cancel_check=cancel_check,
+            on_trial=record_trial,
+            cancellation_exceptions=(TuningCancelledError,),
         )
-    except TuningCancelledError:
-        cancelled_flag["value"] = True
     finally:
         history_handle.close()
 
+    history = tune_run.history
+    cancelled_flag = {"value": tune_run.cancelled}
     completed_at = datetime.now(UTC).isoformat()
 
     if not history:
@@ -928,6 +958,7 @@ def _do_run_tune_inner(
                 engine_used=params.engine,
                 best_params=empty_params,
                 best_score=float("inf"),
+                best_objective=None,
                 history=[],
                 cancelled=True,
                 started_at=started_at,
@@ -940,6 +971,7 @@ def _do_run_tune_inner(
                 engine_used=params.engine,
                 best_params=empty_params,
                 best_score=float("inf"),
+                best_objective=None,
                 history=[],
                 cancelled=True,
                 user_prompt=params.user_prompt,
@@ -953,6 +985,7 @@ def _do_run_tune_inner(
                 "tune.cancelled",
                 {
                     "best_score": None,
+                    "best_objective": None,
                     "best_params": {},
                     "n_trials": 0,
                     "cancelled": True,
@@ -982,11 +1015,9 @@ def _do_run_tune_inner(
     # Successful trials only when picking the winner; if every trial failed,
     # fall back to the best (lowest score) failed trial so we still emit a
     # complete artifact set, but mark the run as failed.
-    successful = [t for t in history if not t.failed]
-    if successful:
-        best = min(successful, key=lambda t: t.score)
-    else:
-        best = min(history, key=lambda t: t.score)
+    best = tune_run.best(allow_failed=True)
+    if best is None:  # pragma: no cover - guarded by the nonempty history check
+        raise TuningError("Tuning completed without a selectable trial.")
 
     # ---- Durable trial artifacts (write BEFORE judging) ------------------
     #
@@ -1008,23 +1039,19 @@ def _do_run_tune_inner(
     # ---- Judge (Part 1.1) ------------------------------------------------
     #
     # Spec (#51): the judge runs at the end of tune unless ``--no-judge``
-    # disables it. When disabled, the artifact bytes are identical to the
-    # pre-Part-1.1 baseline (no ``judge`` key in tune_results.json, no
-    # judge section in report.md, no model
-    # calls).
+    # disables it. When disabled there is no ``judge`` key in
+    # tune_results.json, no judge section in report.md, and no model call.
     #
     # Codex round 3: when ``enable_judge=True``, we ALWAYS write a ``judge``
     # block to tune_results.json — completed, failed, or cancelled. This
-    # disambiguates "judge disabled" (no key, byte-identical baseline)
-    # from "judge attempted but ${reason}". The byte-identical guarantee
-    # for ``enable_judge=False`` is preserved.
+    # disambiguates "judge disabled" (no key) from "judge attempted but
+    # ${reason}".
     judge_result_dict: dict[str, Any] | None = None
     visual_evidence: JudgeVisualEvidence | None = None
     judge_vlm_model: Any | None = None
     fail_closed_judge_error: str | None = None
     reference_media_requested = has_reference_media(
         reference_images=params.reference_images,
-        reference_videos=params.reference_videos,
     )
     generated_visual_requested = _scenario_requests_generated_visual_judge(scenario)
     visual_evidence_requested = reference_media_requested or generated_visual_requested
@@ -1200,6 +1227,7 @@ def _do_run_tune_inner(
         engine_used=params.engine,
         best_params=best.params,
         best_score=best.score,
+        best_objective=best.objective_value,
         history=history,
         cancelled=cancelled_flag["value"],
         started_at=started_at,
@@ -1213,6 +1241,7 @@ def _do_run_tune_inner(
         engine_used=params.engine,
         best_params=best.params,
         best_score=best.score,
+        best_objective=best.objective_value,
         history=history,
         cancelled=cancelled_flag["value"],
         user_prompt=params.user_prompt,
@@ -1235,6 +1264,11 @@ def _do_run_tune_inner(
             tuned_usd_path,
             best.params,
             bindings=get_resolved_bindings(scenario),
+            gravity_m_per_s2=(
+                float(scenario.target["gravity"])
+                if "gravity" in scenario.target
+                else None
+            ),
         )
         artifacts[ARTIFACT_TUNED_USD] = tuned_usd_path
     except Exception as e:
@@ -1253,6 +1287,7 @@ def _do_run_tune_inner(
     # see seconds before the worker corrects the durable session metadata.
     _terminal_data = {
         "best_score": best.score,
+        "best_objective": best.objective_value,
         "best_params": best.params,
         "n_trials": len(history),
         "cancelled": cancelled_flag["value"],
@@ -1313,6 +1348,7 @@ def _do_run_tune_inner(
         output_dir=output_dir,
         best_params=dict(best.params),
         best_score=float(best.score),
+        best_objective=best.objective_value,
         n_trials=len(history),
         optimizer_used=optimizer_used,
         engine_used=params.engine,

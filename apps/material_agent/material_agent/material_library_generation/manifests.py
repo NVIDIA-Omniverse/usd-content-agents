@@ -76,16 +76,57 @@ def write_generation_plan(
     plan: MaterialGenerationPlan,
     materials: list[GeneratedMaterial] | tuple[GeneratedMaterial, ...],
 ) -> Path:
-    """Write the non-canonical recipe/debug plan used to create the library."""
+    """Write the non-canonical recipe/debug plan used to create the library.
+
+    When authored results are supplied, every result is matched exactly to its
+    plan recipe and records ``representation``. Scalar results additionally
+    record ``generated_textures: null`` so an intentional scalar material cannot
+    be confused with an omitted or unfinished texture result. Passing no results
+    remains supported for the pre-generation debug-plan snapshot.
+    """
     plan_path = Path(plan_path)
     plan_path.parent.mkdir(parents=True, exist_ok=True)
 
+    recipes_by_id = {recipe.material_id: recipe for recipe in plan.materials}
+    generated_by_id: dict[str, GeneratedMaterial] = {}
     texture_paths: dict[str, dict[str, str]] = {}
     for material in materials:
-        texture_paths[material.recipe.material_id] = material.textures.as_relative_dict(
-            plan_path.parent
-        )
+        material_id = material.recipe.material_id
+        if material_id in generated_by_id:
+            raise ValueError(f"duplicate generated material result: {material_id}")
+        planned_recipe = recipes_by_id.get(material_id)
+        if planned_recipe is None:
+            raise ValueError(
+                f"generated material result is absent from plan: {material_id}"
+            )
+        if material.recipe != planned_recipe:
+            raise ValueError(
+                f"generated material recipe differs from plan: {material_id}"
+            )
+        generated_by_id[material_id] = material
+        if material.textures is not None:
+            texture_paths[material_id] = material.textures.as_relative_dict(
+                plan_path.parent
+            )
+
+    if generated_by_id:
+        missing_result_ids = sorted(set(recipes_by_id) - set(generated_by_id))
+        if missing_result_ids:
+            raise ValueError(
+                "generation plan is missing authored material result(s): "
+                + ", ".join(missing_result_ids)
+            )
+
+    payload = plan.to_dict(texture_paths)
+    for recipe_payload in payload["materials"]:
+        material_id = str(recipe_payload["id"])
+        material = generated_by_id.get(material_id)
+        if material is None:
+            continue
+        recipe_payload["representation"] = material.representation
+        if material.textures is None:
+            recipe_payload["generated_textures"] = None
 
     with open(plan_path, "w", encoding="utf-8") as stream:
-        yaml.safe_dump(plan.to_dict(texture_paths), stream, sort_keys=False)
+        yaml.safe_dump(payload, stream, sort_keys=False)
     return plan_path

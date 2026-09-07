@@ -1,0 +1,117 @@
+# Per-project config — machine-local (render backend choice, remote URL + API key)
+.env
+.env.*
+!.env.example
+.usd-cli/config.toml
+.ov/config.toml
+.3dsc/config.toml
+
+# Runtime daemon state — written by the server, never committed (see docs/internal/cli-design.md §6.2)
+.usd-cli/server.json
+.ov/server.json
+.3dsc/server.json
+.usd-cli/server.json.tmp
+.ov/server.json.tmp
+.3dsc/server.json.tmp
+.usd-cli/.server.json.*.tmp
+.ov/.server.json.*.tmp
+.3dsc/.server.json.*.tmp
+.usd-cli/server.json.lock
+.ov/server.json.lock
+.3dsc/server.json.lock
+.usd-cli/audit.jsonl
+.ov/audit.jsonl
+.3dsc/audit.jsonl
+.usd-cli/daemon.log
+.ov/daemon.log
+.3dsc/daemon.log
+.usd-cli/daemon.pids
+.ov/daemon.pids
+.3dsc/daemon.pids
+.usd-cli/daemon.pids.lock
+.ov/daemon.pids.lock
+.3dsc/daemon.pids.lock
+.usd-cli/.daemon.pids.*.tmp
+.ov/.daemon.pids.*.tmp
+.3dsc/.daemon.pids.*.tmp
+*.log
+
+# Local-only design/comparison docs kept out of the published tree
+archive/
+
+# Renders / scratch + named checkpoints (user data, not source)
+.usd-cli/renders/
+.ov/renders/
+.3dsc/renders/
+.usd-cli/checkpoints/
+.ov/checkpoints/
+.3dsc/checkpoints/
+*.pyc
+__pycache__/
+.DS_Store
+*.egg-info/
+dist/
+build/
+/output/
+/cache/
+/artifacts/
+.venv/
+venv/
+env/
+ENV/
+.uv/
+node_modules/
+.idea/
+.vscode/
+.coverage*
+.pytest_cache/
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+*.so
+*.pyd
+*.dylib
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+.claude/settings.local.json
+.codex/
+.auth/
+.aws/
+.netrc
+.git-credentials
+.npmrc
+.pypirc
+id_rsa
+id_ed25519
+.ipynb_checkpoints/
+# Benchmark outputs: ignore EVERYTHING under the run dirs (multi-hundred-MB render/log dirs
+# AND per-run .auth/ credential caches — never commit those). Only the latest full-suite run
+# (internal/example_tasks/runs/) keeps its small self-contained report.html. run-stats.json stays
+# local: it records per-round render-backend addresses (ephemeral internal instance IPs).
+internal/example_tasks/runs/*
+!internal/example_tasks/runs/report.html
+internal/example_tasks/runs-*/
+
+# Demo scratch: `scripts/internal/space_pallet_demo.py` makes its output dir the project dir,
+# so a per-project daemon state dir lands beside the committed frames.
+internal/media/space-demo/.usd-cli/
+
+# Render temp exports + probe scratch (written next to assets / into .usd-cli during renders)
+.usd-cli_render_*.usd[ac]
+.usd-cli_render_*.usda
+.ov_render_*.usd[ac]
+.3dsc_render_*.usd[ac]
+.usd-cli/package_probe/
+.ov/package_probe/
+.3dsc/package_probe/
+.usd-cli/*.usd
+.ov/*.usd
+.3dsc/*.usd
+horde_ovrtx_instances.json
+.gstack/

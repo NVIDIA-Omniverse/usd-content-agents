@@ -4,6 +4,9 @@
 
 import json
 import logging
+import shutil
+import stat
+from contextlib import ExitStack
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -240,8 +243,11 @@ class TestOptimizeUSDTaskLocalBackend:
         ]
 
     @pytest.mark.asyncio
-    async def test_local_backend_uses_asyncio_to_thread(self, tmp_path):
-        """backend='local' must wrap optimize_usd_local in asyncio.to_thread."""
+    async def test_local_backend_uses_to_thread_and_records_no_fallback(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A successful local run must persist unambiguous backend provenance."""
         context = _make_context(tmp_path, backend="local")
         mock_stage = _mock_usd_open()
 
@@ -251,7 +257,7 @@ class TestOptimizeUSDTaskLocalBackend:
             "operations_executed": ["split", "deduplicate"],
         }
 
-        captured_calls: list = []
+        captured_calls: list[dict[str, object]] = []
 
         async def fake_to_thread(fn: object, **kwargs: Any) -> dict[str, object]:
             captured_calls.append({"fn": fn, "kwargs": kwargs})
@@ -295,6 +301,77 @@ class TestOptimizeUSDTaskLocalBackend:
 
         # Context should reflect success
         assert result["optimization_success"] is True
+        expected_provenance = {
+            "requested_backend": "local",
+            "actual_backend": "local",
+            "fallback_used": False,
+            "fallback_reason": None,
+        }
+        persisted = json.loads(
+            (tmp_path / "output.metadata.json").read_text(encoding="utf-8")
+        )
+        assert {
+            key: result["optimization_metadata"][key] for key in expected_provenance
+        } == expected_provenance
+        assert {key: persisted[key] for key in expected_provenance} == (
+            expected_provenance
+        )
+
+    @pytest.mark.asyncio
+    async def test_local_backend_fallback_records_remote_execution(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("OPTIMIZER_ENDPOINT", "https://optimizer.example.test")
+        context = _make_context(tmp_path, backend="local")
+        mock_stage = _mock_usd_open()
+
+        async def inline_to_thread(fn: Any, **kwargs: Any) -> object:
+            return fn(**kwargs)
+
+        async def successful_remote(**kwargs: Any) -> dict[str, object]:
+            Path(kwargs["output_path"]).touch()
+            return {"status": "success"}
+
+        with (
+            patch("pxr.Usd.Stage.Open", return_value=mock_stage),
+            patch("pxr.UsdGeom.Mesh", MagicMock()),
+            patch("asyncio.to_thread", side_effect=inline_to_thread),
+            patch(
+                "world_understanding.functions.graphics.scene_optimizer_local."
+                "optimize_usd_local",
+                side_effect=RuntimeError("Scene Optimizer Core package not found"),
+            ),
+            patch(
+                "world_understanding.agentic.usd_tasks.optimize_usd."
+                "optimize_usd_from_path",
+                side_effect=successful_remote,
+            ) as mock_nvcf,
+            patch(
+                "world_understanding.agentic.usd_tasks.optimize_usd."
+                "_restore_optimized_stage_metadata",
+                return_value=({"restored": True}, mock_stage),
+            ),
+        ):
+            result = await OptimizeUSDTask().arun(context)
+
+        mock_nvcf.assert_awaited_once()
+        expected_provenance = {
+            "requested_backend": "local",
+            "actual_backend": "remote",
+            "fallback_used": True,
+            "fallback_reason": "local_backend_unavailable",
+        }
+        persisted = json.loads(
+            (tmp_path / "output.metadata.json").read_text(encoding="utf-8")
+        )
+        assert {
+            key: result["optimization_metadata"][key] for key in expected_provenance
+        } == expected_provenance
+        assert {key: persisted[key] for key in expected_provenance} == (
+            expected_provenance
+        )
 
     @pytest.mark.asyncio
     async def test_plain_config_remote_failure_uses_constant_safe_error(
@@ -991,7 +1068,9 @@ class TestOptimizeUSDTaskLocalBackend:
         async def passthrough_optimizer(*, input_path, output_path, **_kwargs):
             optimizer_input = Path(input_path)
             optimizer_inputs.append(optimizer_input)
-            Path(output_path).write_bytes(optimizer_input.read_bytes())
+            optimizer_stage = Usd.Stage.Open(str(optimizer_input))
+            assert optimizer_stage is not None
+            assert optimizer_stage.Flatten().Export(str(output_path))
             optimized_stage = Usd.Stage.Open(str(output_path))
             optimized_stage.ClearDefaultPrim()
             UsdGeom.SetStageUpAxis(optimized_stage, UsdGeom.Tokens.y)
@@ -1026,8 +1105,9 @@ class TestOptimizeUSDTaskLocalBackend:
 
         assert result["optimization_success"] is True
         assert len(optimizer_inputs) == 1
-        assert optimizer_inputs[0].parent == output_usd.parent
-        assert not optimizer_inputs[0].exists()
+        assert optimizer_inputs[0].suffix == ".usdz"
+        assert optimizer_inputs[0].parent.parent == output_usd.parent
+        assert not optimizer_inputs[0].parent.exists()
 
         optimized_stage = Usd.Stage.Open(str(output_usd))
         assert optimized_stage.GetDefaultPrim().GetPath() == Sdf.Path("/World")
@@ -1061,9 +1141,13 @@ class TestOptimizeUSDTaskLocalBackend:
         context = _make_context(tmp_path, backend="local")
         mock_stage = _mock_usd_open()
 
+        async def inline_to_thread(fn: Any, **kwargs: Any) -> object:
+            return fn(**kwargs)
+
         with (
             patch("pxr.Usd.Stage.Open", return_value=mock_stage),
             patch("pxr.UsdGeom.Mesh", MagicMock()),
+            patch("asyncio.to_thread", side_effect=inline_to_thread),
             patch(
                 "world_understanding.agentic.usd_tasks.optimize_usd.optimize_usd_from_path",
                 new_callable=AsyncMock,
@@ -1102,9 +1186,13 @@ class TestOptimizeUSDTaskLocalBackend:
         context = _make_context(tmp_path, backend="local")
         mock_stage = _mock_usd_open()
 
+        async def inline_to_thread(fn: Any, **kwargs: Any) -> object:
+            return fn(**kwargs)
+
         with (
             patch("pxr.Usd.Stage.Open", return_value=mock_stage),
             patch("pxr.UsdGeom.Mesh", MagicMock()),
+            patch("asyncio.to_thread", side_effect=inline_to_thread),
             patch(
                 "world_understanding.functions.graphics.scene_optimizer_local.optimize_usd_local",
                 side_effect=RuntimeError(
@@ -1130,7 +1218,7 @@ class TestOptimizeUSDTaskLocalBackend:
         assert remote_secret not in observable
 
     @pytest.mark.asyncio
-    async def test_flattened_input_is_written_to_output_workspace(
+    async def test_flattened_input_is_packaged_in_private_output_workspace(
         self, tmp_path: Path
     ) -> None:
         """Prototype flattening must not write temporary files beside read-only inputs."""
@@ -1154,15 +1242,30 @@ class TestOptimizeUSDTaskLocalBackend:
             },
         }
         mock_stage = _mock_usd_open()
-        exported_paths: list[Path] = []
+        portable_roots: list[Path] = []
         local_inputs: list[Path] = []
 
-        class FakeFlattenedLayer:
-            def Export(self, path: str) -> None:
-                exported_path = Path(path)
-                exported_paths.append(exported_path)
-                exported_path.parent.mkdir(parents=True, exist_ok=True)
-                exported_path.write_text("#usda 1.0\n", encoding="utf-8")
+        flattened_layer = object()
+
+        def fake_portable_export(
+            _stage: object,
+            output_path: Path,
+            **kwargs: object,
+        ) -> bool:
+            portable_roots.append(output_path)
+            assert kwargs["export_layer"] is flattened_layer
+            assert kwargs["approved_dependency_roots"] == (source_dir.resolve(),)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text("#usda 1.0\n", encoding="utf-8")
+            return True
+
+        def fake_package(
+            source_dir: Path,
+            root_member: Path,
+            output_path: Path,
+        ) -> None:
+            assert source_dir / root_member == portable_roots[0]
+            output_path.write_bytes(b"package")
 
         local_result: dict[str, object] = {
             "status": "success",
@@ -1172,6 +1275,8 @@ class TestOptimizeUSDTaskLocalBackend:
 
         async def fake_to_thread(_fn: object, **kwargs: Any) -> dict[str, object]:
             local_inputs.append(Path(str(kwargs["input_path"])))
+            assert local_inputs[-1].suffix == ".usdz"
+            assert stat.S_IMODE(local_inputs[-1].parent.stat().st_mode) == 0o700
             Path(str(kwargs["output_path"])).touch()
             return local_result
 
@@ -1184,7 +1289,17 @@ class TestOptimizeUSDTaskLocalBackend:
             ),
             patch(
                 "world_understanding.utils.usd.prim.flatten_prototype_references",
-                return_value=FakeFlattenedLayer(),
+                return_value=flattened_layer,
+            ),
+            patch.object(
+                optimize_usd_module,
+                "export_stage_portably",
+                side_effect=fake_portable_export,
+            ),
+            patch.object(
+                optimize_usd_module,
+                "write_usdz_package_from_directory",
+                side_effect=fake_package,
             ),
             patch(
                 "world_understanding.functions.graphics.scene_optimizer_local.optimize_usd_local",
@@ -1201,11 +1316,11 @@ class TestOptimizeUSDTaskLocalBackend:
             result = await task.arun(context)
 
         assert result["optimization_success"] is True
-        assert len(exported_paths) == 1
-        assert exported_paths[0].parent == output_dir
-        assert exported_paths[0].name.startswith("_flattened_input_")
-        assert exported_paths[0].suffix == ".usd"
-        assert local_inputs == exported_paths
+        assert len(portable_roots) == 1
+        assert portable_roots[0].parent.name == "package"
+        assert portable_roots[0].parent.parent.parent == output_dir
+        assert local_inputs[0].parent == portable_roots[0].parent.parent
+        assert not local_inputs[0].parent.exists()
         assert not (source_dir / "_flattened_input.usd").exists()
 
     @pytest.mark.asyncio
@@ -1215,10 +1330,19 @@ class TestOptimizeUSDTaskLocalBackend:
         context = _make_context(tmp_path, backend="local")
         context["optimization_config"]["flatten_prototypes"] = True
         mock_stage = _mock_usd_open()
+        real_temporary_directory = optimize_usd_module.tempfile.TemporaryDirectory
+        cleanup_attempted = False
 
-        class FakeFlattenedLayer:
-            def Export(self, path: str) -> None:
-                Path(path).write_text("#usda 1.0\n", encoding="utf-8")
+        class _MissingOnCleanupTemporaryDirectory:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                self._delegate = real_temporary_directory(*args, **kwargs)
+                self.name = self._delegate.name
+
+            def cleanup(self) -> None:
+                nonlocal cleanup_attempted
+                cleanup_attempted = True
+                self._delegate.cleanup()
+                raise FileNotFoundError(self.name)
 
         local_result: dict[str, object] = {
             "status": "success",
@@ -1227,8 +1351,25 @@ class TestOptimizeUSDTaskLocalBackend:
         }
 
         async def fake_to_thread(_fn: object, **kwargs: Any) -> dict[str, object]:
+            shutil.rmtree(Path(str(kwargs["input_path"])).parent)
             Path(str(kwargs["output_path"])).touch()
             return local_result
+
+        def fake_portable_export(
+            _stage: object,
+            output_path: Path,
+            **_kwargs: object,
+        ) -> bool:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text("#usda 1.0\n", encoding="utf-8")
+            return True
+
+        def fake_package(
+            _source_dir: Path,
+            _root_member: Path,
+            output_path: Path,
+        ) -> None:
+            output_path.write_bytes(b"package")
 
         with (
             patch("pxr.Usd.Stage.Open", return_value=mock_stage),
@@ -1239,7 +1380,22 @@ class TestOptimizeUSDTaskLocalBackend:
             ),
             patch(
                 "world_understanding.utils.usd.prim.flatten_prototype_references",
-                return_value=FakeFlattenedLayer(),
+                return_value=object(),
+            ),
+            patch.object(
+                optimize_usd_module,
+                "export_stage_portably",
+                side_effect=fake_portable_export,
+            ),
+            patch.object(
+                optimize_usd_module,
+                "write_usdz_package_from_directory",
+                side_effect=fake_package,
+            ),
+            patch.object(
+                optimize_usd_module.tempfile,
+                "TemporaryDirectory",
+                _MissingOnCleanupTemporaryDirectory,
             ),
             patch(
                 "world_understanding.functions.graphics.scene_optimizer_local.optimize_usd_local",
@@ -1251,9 +1407,272 @@ class TestOptimizeUSDTaskLocalBackend:
                 return_value=({"restored": True}, mock_stage),
             ),
             patch("asyncio.to_thread", side_effect=fake_to_thread),
-            patch.object(Path, "unlink", side_effect=FileNotFoundError),
         ):
             result = await OptimizeUSDTask().arun(context)
 
         assert result["optimization_success"] is True
         assert result["optimization_metadata"]["prototypes_converted_pre"] == 2
+        assert cleanup_attempted is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("backend", ["local", "remote"])
+    @pytest.mark.parametrize("nested_layer", [False, True], ids=["root", "nested"])
+    async def test_flattened_backend_package_survives_source_separation(
+        self,
+        tmp_path: Path,
+        backend: str,
+        nested_layer: bool,
+    ) -> None:
+        from pxr import Ar, Sdf, Usd, UsdGeom, UsdShade
+
+        source_dir = tmp_path / "source"
+        texture_dir = source_dir / "textures"
+        texture_dir.mkdir(parents=True)
+        texture_bytes = b"texture-proof-980"
+        (texture_dir / "a.png").write_bytes(texture_bytes)
+
+        root_path = source_dir / "root.usda"
+        if nested_layer:
+            layer_dir = source_dir / "layers"
+            layer_dir.mkdir()
+            material_path = layer_dir / "material.usda"
+            asset_path = "../textures/a.png"
+        else:
+            material_path = root_path
+            asset_path = "textures/a.png"
+
+        material_stage = Usd.Stage.CreateNew(str(material_path))
+        shader = UsdShade.Shader.Define(material_stage, "/World/Shader")
+        shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+            Sdf.AssetPath(asset_path)
+        )
+        material_stage.GetRootLayer().Save()
+        if nested_layer:
+            root_stage = Usd.Stage.CreateNew(str(root_path))
+            root_stage.GetRootLayer().subLayerPaths.append("layers/material.usda")
+            root_stage.GetRootLayer().Save()
+
+        output_path = tmp_path / "output" / "optimized.usdc"
+        context = {
+            "input_usd_path": str(root_path),
+            "output_usd_path": str(output_path),
+            "optimization_config": {
+                "backend": backend,
+                "flatten_prototypes": True,
+                "scene_optimizer_settings": {
+                    "enable_deinstance": False,
+                    "enable_split_meshes": True,
+                    "enable_deduplicate": True,
+                },
+            },
+        }
+        received_packages: list[Path] = []
+
+        def inspect_backend_input(**kwargs: Any) -> dict[str, object]:
+            package = Path(str(kwargs["input_path"]))
+            received_packages.append(package)
+            assert package.suffix == ".usdz"
+            assert stat.S_IMODE(package.parent.stat().st_mode) == 0o700
+
+            source_dir.rename(tmp_path / "source-separated")
+            packaged_stage = Usd.Stage.Open(str(package))
+            assert packaged_stage is not None
+            value = packaged_stage.GetAttributeAtPath("/World/Shader.inputs:file").Get()
+            assert value.resolvedPath
+            asset = Ar.GetResolver().OpenAsset(Ar.ResolvedPath(value.resolvedPath))
+            assert asset is not None
+            assert bytes(asset.GetBuffer()) == texture_bytes
+
+            optimized = Usd.Stage.CreateNew(str(kwargs["output_path"]))
+            UsdGeom.Xform.Define(optimized, "/World")
+            optimized.GetRootLayer().Save()
+            return {
+                "status": "success",
+                "optimization_time": 1.0,
+                "operations_executed": ["split"],
+            }
+
+        with ExitStack() as stack:
+            if backend == "local":
+
+                async def fake_to_thread(
+                    _fn: object, **kwargs: Any
+                ) -> dict[str, object]:
+                    return inspect_backend_input(**kwargs)
+
+                stack.enter_context(
+                    patch("asyncio.to_thread", side_effect=fake_to_thread)
+                )
+            else:
+
+                async def fake_remote(**kwargs: Any) -> dict[str, object]:
+                    return inspect_backend_input(**kwargs)
+
+                stack.enter_context(
+                    patch.object(
+                        optimize_usd_module,
+                        "optimize_usd_from_path",
+                        side_effect=fake_remote,
+                    )
+                )
+            result = await OptimizeUSDTask().arun(context)
+
+        assert result["optimization_success"] is True
+        assert len(received_packages) == 1
+        assert not received_packages[0].parent.exists()
+
+    @pytest.mark.asyncio
+    async def test_flattened_remote_package_preserves_source_usdz_texture(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        from pxr import Ar, Sdf, Usd, UsdGeom, UsdShade
+
+        from world_understanding.utils.usd.package import (
+            write_usdz_package_from_directory,
+        )
+
+        authored_dir = tmp_path / "authored"
+        texture_dir = authored_dir / "textures"
+        texture_dir.mkdir(parents=True)
+        texture_bytes = b"source-usdz-texture-proof-980"
+        (texture_dir / "a.png").write_bytes(texture_bytes)
+        authored_root = authored_dir / "root.usda"
+        authored_stage = Usd.Stage.CreateNew(str(authored_root))
+        shader = UsdShade.Shader.Define(authored_stage, "/World/Shader")
+        shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+            Sdf.AssetPath("textures/a.png")
+        )
+        authored_stage.GetRootLayer().Save()
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        input_package = source_dir / "input.usdz"
+        write_usdz_package_from_directory(
+            authored_dir,
+            Path("root.usda"),
+            input_package,
+        )
+        shutil.rmtree(authored_dir)
+
+        output_path = tmp_path / "output" / "optimized.usdc"
+        context = {
+            "input_usd_path": str(input_package),
+            "output_usd_path": str(output_path),
+            "optimization_config": {
+                "backend": "remote",
+                "flatten_prototypes": True,
+                "scene_optimizer_settings": {
+                    "enable_deinstance": False,
+                    "enable_split_meshes": True,
+                    "enable_deduplicate": True,
+                },
+            },
+        }
+        received_package: Path | None = None
+
+        async def fake_remote(**kwargs: Any) -> dict[str, object]:
+            nonlocal received_package
+            received_package = Path(str(kwargs["input_path"]))
+            source_dir.rename(tmp_path / "source-separated")
+
+            packaged_stage = Usd.Stage.Open(str(received_package))
+            assert packaged_stage is not None
+            value = packaged_stage.GetAttributeAtPath("/World/Shader.inputs:file").Get()
+            asset = Ar.GetResolver().OpenAsset(Ar.ResolvedPath(value.resolvedPath))
+            assert asset is not None
+            assert bytes(asset.GetBuffer()) == texture_bytes
+
+            optimized = Usd.Stage.CreateNew(str(kwargs["output_path"]))
+            UsdGeom.Xform.Define(optimized, "/World")
+            optimized.GetRootLayer().Save()
+            return {
+                "status": "success",
+                "optimization_time": 1.0,
+                "operations_executed": ["split"],
+            }
+
+        with patch.object(
+            optimize_usd_module,
+            "optimize_usd_from_path",
+            side_effect=fake_remote,
+        ):
+            result = await OptimizeUSDTask().arun(context)
+
+        assert result["optimization_success"] is True
+        assert received_package is not None
+        assert not received_package.parent.exists()
+
+    @pytest.mark.asyncio
+    async def test_flattened_remote_package_preserves_nested_udim_texture(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        from pxr import Ar, Sdf, Usd, UsdGeom, UsdShade, UsdUtils
+
+        source_dir = tmp_path / "source"
+        layer_dir = source_dir / "layers"
+        texture_dir = source_dir / "textures"
+        layer_dir.mkdir(parents=True)
+        texture_dir.mkdir()
+        texture_bytes = b"nested-udim-texture-proof-980"
+        (texture_dir / "a.1001.png").write_bytes(texture_bytes)
+
+        child_path = layer_dir / "child.usda"
+        child_stage = Usd.Stage.CreateNew(str(child_path))
+        shader = UsdShade.Shader.Define(child_stage, "/World/Shader")
+        shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+            Sdf.AssetPath("../textures/a.<UDIM>.png")
+        )
+        child_stage.GetRootLayer().Save()
+        root_path = source_dir / "root.usda"
+        root_stage = Usd.Stage.CreateNew(str(root_path))
+        root_stage.GetRootLayer().subLayerPaths.append("layers/child.usda")
+        root_stage.GetRootLayer().Save()
+
+        output_path = tmp_path / "output" / "optimized.usdc"
+        context = {
+            "input_usd_path": str(root_path),
+            "output_usd_path": str(output_path),
+            "optimization_config": {
+                "backend": "remote",
+                "flatten_prototypes": True,
+                "scene_optimizer_settings": {
+                    "enable_deinstance": False,
+                    "enable_split_meshes": True,
+                    "enable_deduplicate": True,
+                },
+            },
+        }
+
+        async def fake_remote(**kwargs: Any) -> dict[str, object]:
+            package = Path(str(kwargs["input_path"]))
+            source_dir.rename(tmp_path / "source-separated")
+            _layers, assets, unresolved = UsdUtils.ComputeAllDependencies(
+                Sdf.AssetPath(str(package))
+            )
+            assert unresolved == []
+            udim_assets = [asset for asset in assets if "a.1001.png" in str(asset)]
+            assert len(udim_assets) == 1
+            resolved = Ar.GetResolver().Resolve(str(udim_assets[0]))
+            asset = Ar.GetResolver().OpenAsset(resolved)
+            assert asset is not None
+            assert bytes(asset.GetBuffer()) == texture_bytes
+
+            optimized = Usd.Stage.CreateNew(str(kwargs["output_path"]))
+            UsdGeom.Xform.Define(optimized, "/World")
+            optimized.GetRootLayer().Save()
+            return {
+                "status": "success",
+                "optimization_time": 1.0,
+                "operations_executed": ["split"],
+            }
+
+        with patch.object(
+            optimize_usd_module,
+            "optimize_usd_from_path",
+            side_effect=fake_remote,
+        ):
+            result = await OptimizeUSDTask().arun(context)
+
+        assert result["optimization_success"] is True

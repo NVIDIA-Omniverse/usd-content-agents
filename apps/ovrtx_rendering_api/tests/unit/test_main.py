@@ -1,15 +1,20 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+import gzip
 import importlib
+import io
+import json
 import logging
 import sys
 import threading
 import types
+import zlib
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
+from fastapi import HTTPException, UploadFile
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 app_root = str(APP_ROOT)
@@ -25,6 +30,80 @@ for module_name in list(sys.modules):
             sys.modules.pop(module_name, None)
 
 service_main = importlib.import_module("service.main")
+
+
+def test_openapi_reports_serving_nvcf_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_schema = service_main.app.openapi_schema
+    monkeypatch.setenv("NVCF_FUNCTION_VERSION_ID", "ovrtx-version-under-test")
+    service_main.app.openapi_schema = None
+
+    try:
+        schema = service_main.app.openapi()
+        assert (
+            schema["info"]["x-nvcf-function-version-id"] == "ovrtx-version-under-test"
+        )
+    finally:
+        service_main.app.openapi_schema = original_schema
+
+
+def _protocol_upload_scope(*, content_length: bytes | None = None) -> dict:
+    headers = [] if content_length is None else [(b"content-length", content_length)]
+    return {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/render/upload",
+        "raw_path": b"/render/upload",
+        "query_string": b"",
+        "headers": headers,
+        "client": ("127.0.0.1", 1234),
+        "server": ("testserver", 80),
+        "root_path": "",
+    }
+
+
+async def _run_body_limit(
+    *,
+    chunks: list[bytes],
+    max_request_bytes: int,
+    content_length: bytes | None = None,
+) -> tuple[list[dict], list[bytes]]:
+    pending = list(chunks)
+    sent: list[dict] = []
+    downstream_bodies: list[bytes] = []
+
+    async def receive() -> dict:
+        body = pending.pop(0)
+        return {
+            "type": "http.request",
+            "body": body,
+            "more_body": bool(pending),
+        }
+
+    async def send(message: dict) -> None:
+        sent.append(message)
+
+    async def downstream(_scope: dict, receive_request, send_response) -> None:
+        while True:
+            message = await receive_request()
+            downstream_bodies.append(message.get("body", b""))
+            if not message.get("more_body", False):
+                break
+        await send_response({"type": "http.response.start", "status": 204})
+        await send_response({"type": "http.response.body", "body": b""})
+
+    middleware = service_main._ProtocolUploadBodyLimitMiddleware(
+        downstream,
+        max_request_bytes=max_request_bytes,
+    )
+    await middleware(
+        _protocol_upload_scope(content_length=content_length),
+        receive,
+        send,
+    )
+    return sent, downstream_bodies
 
 
 class _DummyRootLogger:
@@ -52,6 +131,7 @@ class _FakeRenderer:
         self._recover_lock = threading.RLock()
         self.recover_calls = 0
         self.render_calls = 0
+        self.protocol_render_calls = 0
         self.last_render_kwargs = {}
         self.daemon_lifecycle = {
             "daemon_pid": 42,
@@ -82,6 +162,20 @@ class _FakeRenderer:
         self.last_render_kwargs = kwargs
         return {"status": "success", "error": None, "images": {}}
 
+    def render_protocol_v3_upload(self, **kwargs):
+        self.protocol_render_calls += 1
+        self.last_render_kwargs = kwargs
+        return [
+            {
+                "camera": kwargs["camera_paths"][0],
+                "frame": 0.0,
+                "image_base64": "aW1hZ2U=",
+                "ovrtx_render_mode": "pt",
+                "ovrtx_num_sensor_updates": 8,
+                "active_aov": "LdrColor",
+            }
+        ]
+
 
 class _FakeTask:
     def __init__(self, done_result: bool) -> None:
@@ -94,6 +188,8 @@ class _FakeTask:
 class _FakeDispatcher:
     def __init__(self, response: dict | None = None) -> None:
         self.render_calls = 0
+        self.protocol_render_calls = 0
+        self.last_protocol_render_kwargs = {}
         self.response = response
 
     def health(self):
@@ -114,6 +210,26 @@ class _FakeDispatcher:
             "images": {},
             "url": payload["url"],
         }
+
+    def render_protocol_v3_upload(self, **kwargs):
+        self.protocol_render_calls += 1
+        self.last_protocol_render_kwargs = kwargs
+        return types.SimpleNamespace(
+            status_code=200,
+            retry_after=None,
+            payload={
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "frame": 0.0,
+                        "image_base64": "aW1hZ2U=",
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            },
+        )
 
 
 class _FakeAsyncDispatcher(_FakeDispatcher):
@@ -152,6 +268,242 @@ def test_dispatcher_gpu_ids_parse_parent_configuration(monkeypatch):
     monkeypatch.setenv("OVRTX_GPU_WORKERS", "2")
 
     assert service_main._dispatcher_gpu_ids() == ["0", "1"]
+
+
+@pytest.mark.asyncio
+async def test_live_reports_exact_package_owned_protocol_v3(monkeypatch):
+    monkeypatch.delenv("OVRTX_GPU_WORKERS", raising=False)
+    monkeypatch.setattr(service_main, "_dispatcher", None)
+
+    response = await service_main.live()
+
+    assert response == {
+        "status": "alive",
+        "protocol_version": 3,
+        "engine": "ovrtx",
+        "renderer": "ovrtx",
+        "max_body_bytes": service_main._MAX_BODY_BYTES,
+        "max_scene_bytes": service_main._MAX_SCENE_BYTES,
+        "features": [],
+    }
+
+
+@pytest.mark.asyncio
+async def test_live_advertises_v3_in_dispatcher_mode(monkeypatch):
+    monkeypatch.delenv("OVRTX_WORKER_MODE", raising=False)
+    monkeypatch.setenv("OVRTX_GPU_WORKERS", "0,1")
+    monkeypatch.setattr(service_main, "_dispatcher", _FakeDispatcher())
+
+    response = await service_main.live()
+
+    assert response["protocol_version"] == 3
+    assert response["engine"] == "ovrtx"
+
+
+@pytest.mark.asyncio
+async def test_protocol_upload_body_limit_rejects_declared_oversize_before_reading():
+    sent, downstream_bodies = await _run_body_limit(
+        chunks=[b"unused"],
+        max_request_bytes=5,
+        content_length=b"6",
+    )
+
+    assert sent[0]["status"] == 413
+    assert downstream_bodies == []
+
+
+@pytest.mark.asyncio
+async def test_protocol_upload_body_limit_rejects_chunked_oversize_during_receive():
+    sent, downstream_bodies = await _run_body_limit(
+        chunks=[b"123", b"456"],
+        max_request_bytes=5,
+    )
+
+    assert sent[0]["status"] == 413
+    assert downstream_bodies == [b"123"]
+
+
+@pytest.mark.asyncio
+async def test_protocol_upload_body_limit_allows_bounded_request():
+    sent, downstream_bodies = await _run_body_limit(
+        chunks=[b"12", b"345"],
+        max_request_bytes=5,
+        content_length=b"5",
+    )
+
+    assert sent[0]["status"] == 204
+    assert downstream_bodies == [b"12", b"345"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content_length", [b"-1", b"not-a-number"])
+async def test_protocol_upload_body_limit_rejects_invalid_content_length(
+    content_length: bytes,
+):
+    sent, downstream_bodies = await _run_body_limit(
+        chunks=[b"unused"],
+        max_request_bytes=5,
+        content_length=content_length,
+    )
+
+    assert sent[0]["status"] == 400
+    assert downstream_bodies == []
+
+
+@pytest.mark.asyncio
+async def test_render_upload_accepts_gzip_and_invokes_protocol_adapter(monkeypatch):
+    monkeypatch.delenv("OVRTX_GPU_WORKERS", raising=False)
+    monkeypatch.setattr(service_main, "_dispatcher", None)
+    renderer = _FakeRenderer(initialized=True, daemon_running=True)
+    monkeypatch.setattr(service_main, "_renderer", renderer)
+    scene = b"exact-usdz-bytes"
+    upload = UploadFile(filename="scene.usdz.gz", file=io.BytesIO(gzip.compress(scene)))
+    params = json.dumps(
+        {
+            "cameras": ["/World/Camera"],
+            "image_width": 64,
+            "image_height": 64,
+            "mode": "quality",
+            "compression": "gzip",
+            "frames": [0.0],
+        }
+    )
+
+    response = await service_main.render_upload(upload, params)
+
+    assert renderer.protocol_render_calls == 1
+    assert renderer.last_render_kwargs["usdz_bytes"] == scene
+    assert renderer.last_render_kwargs["camera_paths"] == ["/World/Camera"]
+    assert response.results[0].active_aov == "LdrColor"
+    assert response.results[0].ovrtx_render_mode == "pt"
+
+
+@pytest.mark.asyncio
+async def test_render_upload_rejects_bad_params_before_renderer(monkeypatch):
+    monkeypatch.delenv("OVRTX_GPU_WORKERS", raising=False)
+    monkeypatch.setattr(service_main, "_dispatcher", None)
+    renderer = _FakeRenderer(initialized=True, daemon_running=True)
+    monkeypatch.setattr(service_main, "_renderer", renderer)
+    upload = UploadFile(filename="scene.usdz", file=io.BytesIO(b"bytes"))
+
+    with pytest.raises(HTTPException, match="invalid params") as exc_info:
+        await service_main.render_upload(
+            upload,
+            json.dumps({"cameras": ["/World/Camera"], "compression": "zstd"}),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert renderer.protocol_render_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_render_upload_dispatches_multipart_to_supervised_worker(monkeypatch):
+    monkeypatch.delenv("OVRTX_WORKER_MODE", raising=False)
+    monkeypatch.setenv("OVRTX_GPU_WORKERS", "0,1")
+    dispatcher = _FakeDispatcher()
+    monkeypatch.setattr(service_main, "_dispatcher", dispatcher)
+    scene = gzip.compress(b"exact-usdz-bytes")
+    upload = UploadFile(filename="scene.usdz.gz", file=io.BytesIO(scene))
+
+    response = await service_main.render_upload(
+        upload,
+        json.dumps({"cameras": ["/World/Camera"], "compression": "gzip"}),
+    )
+
+    assert response.results[0].camera == "/World/Camera"
+    assert dispatcher.protocol_render_calls == 1
+    assert dispatcher.last_protocol_render_kwargs["data"] == scene
+    assert dispatcher.last_protocol_render_kwargs["filename"] == "scene.usdz.gz"
+    assert json.loads(dispatcher.last_protocol_render_kwargs["params"]) == {
+        "cameras": ["/World/Camera"],
+        "image_width": 1024,
+        "image_height": 1024,
+        "mode": "quality",
+        "compression": "gzip",
+        "frames": None,
+        "camera_defs": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_render_upload_rejects_unready_renderer_before_reading_body(monkeypatch):
+    monkeypatch.delenv("OVRTX_GPU_WORKERS", raising=False)
+    monkeypatch.setattr(service_main, "_dispatcher", None)
+    renderer = _FakeRenderer(initialized=False, daemon_running=False)
+    monkeypatch.setattr(service_main, "_renderer", renderer)
+    body = io.BytesIO(b"bytes")
+    upload = UploadFile(filename="scene.usdz", file=body)
+
+    with pytest.raises(HTTPException, match="renderer is not ready") as exc_info:
+        await service_main.render_upload(
+            upload,
+            json.dumps({"cameras": ["/World/Camera"]}),
+        )
+
+    assert exc_info.value.status_code == 503
+    assert body.tell() == 0
+    assert renderer.protocol_render_calls == 0
+
+
+def test_protocol_v3_gzip_rejects_invalid_and_expanding_bodies(monkeypatch):
+    with pytest.raises(HTTPException, match="not valid gzip") as invalid:
+        service_main._inflate_protocol_v3_upload(b"not-gzip", "gzip")
+    assert invalid.value.status_code == 400
+
+    monkeypatch.setattr(service_main, "_MAX_SCENE_BYTES", 8)
+    with pytest.raises(HTTPException, match="scene size limit") as oversized:
+        service_main._inflate_protocol_v3_upload(gzip.compress(b"123456789"), "gzip")
+    assert oversized.value.status_code == 413
+
+
+def test_protocol_v3_gzip_maps_malformed_deflate_to_bad_request(monkeypatch):
+    class _MalformedArchive:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _size):
+            raise zlib.error("invalid distance too far back")
+
+    monkeypatch.setattr(
+        service_main.gzip,
+        "GzipFile",
+        lambda **_kwargs: _MalformedArchive(),
+    )
+
+    with pytest.raises(HTTPException, match="not valid gzip") as invalid:
+        service_main._inflate_protocol_v3_upload(b"malformed", "gzip")
+
+    assert invalid.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_render_upload_marks_incomplete_coverage_retryable(monkeypatch):
+    monkeypatch.delenv("OVRTX_GPU_WORKERS", raising=False)
+    monkeypatch.setattr(service_main, "_dispatcher", None)
+    renderer = _FakeRenderer(initialized=True, daemon_running=True)
+
+    def incomplete(**_kwargs):
+        raise service_main.IncompleteRenderOutputError(
+            requested_output_count=1,
+            output_count=0,
+            missing_camera_count=1,
+        )
+
+    renderer.render_protocol_v3_upload = incomplete
+    monkeypatch.setattr(service_main, "_renderer", renderer)
+    upload = UploadFile(filename="scene.usdz", file=io.BytesIO(b"bytes"))
+
+    with pytest.raises(HTTPException, match="incomplete color output") as exc_info:
+        await service_main.render_upload(
+            upload,
+            json.dumps({"cameras": ["/World/Camera"]}),
+        )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.headers == {"Retry-After": "1"}
 
 
 def test_configure_logging_uses_basic_config_without_existing_handlers(monkeypatch):
@@ -298,6 +650,7 @@ async def test_health_reports_initializing_before_renderer_exists(monkeypatch):
     assert response.gpu_initialized is False
     assert response.renderer_initialized is False
     assert response.daemon_running is False
+    assert response.protocol_version == 3
 
 
 @pytest.mark.asyncio
@@ -309,6 +662,7 @@ async def test_health_uses_dispatcher_when_configured(monkeypatch):
 
     assert response.status == "healthy"
     assert response.ready_workers == 2
+    assert response.protocol_version == 3
 
 
 @pytest.mark.asyncio
@@ -346,6 +700,7 @@ async def test_health_reports_ready_when_initialized_and_daemon_running(monkeypa
     assert response.daemon_recycle_count == 2
     assert response.daemon_last_recycle_reason == "rss_limit"
     assert response.daemon_pending_recycle_reason is None
+    assert response.protocol_version == 3
 
 
 @pytest.mark.asyncio
@@ -571,6 +926,37 @@ def test_render_preserves_blank_render_payload(monkeypatch):
     assert response["status"] == "blank_render"
     assert response["images"] == {"0": {"Camera": {"images": "large-payload"}}}
     assert response["blank_render_frames"] == [{"frame": 0, "camera": "/World/Camera"}]
+
+
+def test_render_returns_retryable_503_for_incomplete_output(monkeypatch):
+    monkeypatch.setattr(service_main, "_dispatcher", None)
+    renderer = _FakeRenderer(initialized=True, daemon_running=True)
+
+    def incomplete_render(**_kwargs):
+        renderer.render_calls += 1
+        return {
+            "status": "exception",
+            "error": "OVRTX returned incomplete color output coverage: 0/1",
+            "error_code": "incomplete_render_output",
+            "retryable": True,
+            "requested_output_count": 1,
+            "output_count": 0,
+            "missing_output_count": 1,
+            "missing_camera_count": 1,
+            "images": {},
+        }
+
+    renderer.render = incomplete_render
+    monkeypatch.setattr(service_main, "_renderer", renderer)
+    monkeypatch.setattr(service_main, "_warmup_task", _FakeTask(done_result=True))
+
+    response = service_main.render(_render_request())
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "1"
+    payload = json.loads(response.body)
+    assert payload["error_code"] == "incomplete_render_output"
+    assert payload["retryable"] is True
     assert renderer.render_calls == 1
 
 

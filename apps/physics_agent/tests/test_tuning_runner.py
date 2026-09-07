@@ -108,6 +108,7 @@ def test_run_tune_random_emits_all_artifacts(tmp_path: Path) -> None:
     assert result.optimizer_used == "random"
     assert result.engine_used == "fake"
     assert set(result.best_params.keys()) == {"mass_scale", "static_friction"}
+    assert result.best_objective == result.best_score
 
     # Five canonical artifacts on disk.
     for name in (
@@ -129,7 +130,10 @@ def test_run_tune_random_emits_all_artifacts(tmp_path: Path) -> None:
     assert len(history_lines) == 5
     for line in history_lines:
         rec = json.loads(line)
-        assert {"trial_index", "params", "score"}.issubset(rec.keys())
+        assert {"trial_index", "params", "score", "objective_value"}.issubset(
+            rec.keys()
+        )
+        assert rec["objective_value"] == rec["score"]
 
     # tune_results.json has reproducibility-relevant fields.
     tr = json.loads((out / ARTIFACT_RESULTS).read_text())
@@ -138,6 +142,13 @@ def test_run_tune_random_emits_all_artifacts(tmp_path: Path) -> None:
     assert tr["config"]["optimizer"] == "random"
     assert tr["config"]["engine"] == "fake"
     assert tr["n_trials"] == 5
+    assert tr["objective"] == {
+        "name": "synthetic_parameter_error",
+        "unit": "unitless",
+        "direction": "minimize",
+        "best_value": result.best_objective,
+    }
+    assert tr["best"]["objective_value"] == result.best_objective
 
 
 def test_run_tune_random_minimises_fake_score(tmp_path: Path) -> None:
@@ -220,6 +231,74 @@ def test_run_tune_patches_tuned_usd_with_best_params(tmp_path: Path) -> None:
     mass = UsdPhysics.MassAPI(body).GetMassAttr().Get()
     expected = 2.0 * result.best_params["mass_scale"]
     assert mass == pytest.approx(expected, rel=1e-6)
+
+
+def test_run_tune_persists_explicit_scenario_gravity_in_customer_units(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    physics = _physics_usd(tmp_path)
+    stage = Usd.Stage.Open(str(physics))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 0.01)
+    scene = UsdPhysics.Scene.Define(stage, "/Body/PhysicsScene")
+    scene.CreateGravityMagnitudeAttr(9.81)
+    stage.GetRootLayer().Save()
+    scenario = _scenario_dict()
+    scenario["target"] = {"gravity": -1.62}
+    output = tmp_path / "out"
+
+    result = run_tune(
+        TuneInput(
+            scenario=scenario,
+            physics_usd=physics,
+            output_dir=output,
+            engine="fake",
+            optimizer="random",
+            max_trials=2,
+            seed=0,
+        )
+    )
+
+    assert result.success
+    tuned = Usd.Stage.Open(str(output / ARTIFACT_TUNED_USD))
+    tuned_scene = UsdPhysics.Scene(tuned.GetPrimAtPath("/Body/PhysicsScene"))
+    assert UsdGeom.GetStageMetersPerUnit(tuned) == pytest.approx(0.01)
+    assert tuned_scene.GetGravityMagnitudeAttr().Get() == pytest.approx(162.0)
+    assert tuple(tuned_scene.GetGravityDirectionAttr().Get()) == (0.0, 0.0, -1.0)
+
+
+def test_run_tune_keeps_artifact_when_gravity_scene_is_ambiguous(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from pxr import Usd, UsdPhysics
+
+    physics = _physics_usd(tmp_path)
+    stage = Usd.Stage.Open(str(physics))
+    UsdPhysics.Scene.Define(stage, "/PhysicsSceneA")
+    UsdPhysics.Scene.Define(stage, "/PhysicsSceneB")
+    stage.GetRootLayer().Save()
+    scenario = _scenario_dict()
+    scenario["target"] = {"gravity": -9.81}
+    output = tmp_path / "out"
+
+    result = run_tune(
+        TuneInput(
+            scenario=scenario,
+            physics_usd=physics,
+            output_dir=output,
+            engine="fake",
+            optimizer="random",
+            max_trials=2,
+            seed=0,
+        )
+    )
+
+    assert result.success
+    assert (output / ARTIFACT_TUNED_USD).is_file()
+    assert "multiple active PhysicsScene prims" in caplog.text
 
 
 # ---------- async API mirror -----------------------------------------------
@@ -361,6 +440,60 @@ def test_run_tune_newton_setup_failure_is_not_per_trial(
                 seed=0,
             )
         )
+    assert evaluate_calls == 1
+    assert (tmp_path / "out" / ARTIFACT_HISTORY).read_text() == ""
+
+
+def test_run_tune_reraises_typed_ovphysx_daemon_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Typed daemon failures cannot become a string-only failed TuneOutput."""
+    from world_understanding.functions.physics.ovphysx_daemon import (
+        OvPhysXDaemonUnavailableError,
+    )
+
+    import physics_agent.tuning.runner as runner_mod
+
+    daemon_error = OvPhysXDaemonUnavailableError(
+        "runtime-controlled daemon detail that must not become TuneOutput.error"
+    )
+    evaluate_calls = 0
+
+    class _DaemonFailingBackend:
+        name = "fake"
+
+        def evaluate(
+            self,
+            params: dict[str, float],
+            scenario: Scenario,
+            physics_usd: Path,
+            *,
+            seed: int,
+        ) -> dict[str, Any]:
+            nonlocal evaluate_calls
+            evaluate_calls += 1
+            raise daemon_error
+
+    monkeypatch.setattr(
+        runner_mod,
+        "get_backend",
+        lambda _engine: _DaemonFailingBackend(),
+    )
+
+    with pytest.raises(OvPhysXDaemonUnavailableError) as exc_info:
+        run_tune(
+            TuneInput(
+                scenario=_scenario_dict(),
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=tmp_path / "out",
+                engine="fake",
+                optimizer="random",
+                max_trials=3,
+                seed=0,
+            )
+        )
+
+    assert exc_info.value is daemon_error
     assert evaluate_calls == 1
     assert (tmp_path / "out" / ARTIFACT_HISTORY).read_text() == ""
 
@@ -763,7 +896,12 @@ def test_supported_param_keys_match_backend_contracts() -> None:
 
 def test_scenario_dataclass_validates_param_name() -> None:
     with pytest.raises(ValueError, match="Unsupported tunable parameter"):
-        TunableParam(name="elasticity", min_value=0.0, max_value=1.0)
+        Scenario(
+            name="drop_settle",
+            params=(TunableParam(name="elasticity", min_value=0.0, max_value=1.0),),
+            target={},
+            metric="x",
+        )
 
 
 def test_scenario_dataclass_clip_clamps_to_bounds() -> None:
@@ -924,6 +1062,9 @@ def test_run_tune_results_artifact_full_schema(tmp_path: Path) -> None:
     assert len(tr["history_summary"]) == 2
     assert "best" in tr
     assert "score" in tr["best"]
+    assert tr["best"]["objective_value"] is not None
+    assert tr["objective"]["best_value"] == tr["best"]["objective_value"]
+    assert all(item["objective_value"] is not None for item in tr["history_summary"])
 
 
 def test_run_tune_history_jsonl_is_strict_json(tmp_path: Path) -> None:

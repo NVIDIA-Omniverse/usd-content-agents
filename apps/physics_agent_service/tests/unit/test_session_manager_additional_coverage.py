@@ -14,7 +14,11 @@ import pytest
 from ...service.session import manager as manager_mod
 from ...service.session.manager import SessionManager
 from ...service.storage import local_store as local_store_mod
-from ...service.storage.base import METADATA_KEY
+from ...service.storage.base import (
+    METADATA_KEY,
+    CompletedSessionSnapshot,
+    SessionGeneration,
+)
 from ...service.storage.local_store import LocalSessionStore
 
 
@@ -22,14 +26,431 @@ class _FailingDeleteStore(LocalSessionStore):
     async def delete_session(self, session_id: str) -> None:
         raise RuntimeError("store delete failed")
 
+    async def delete_session_if_terminal(self, session_id: str) -> bool:
+        raise RuntimeError("store terminal delete failed")
+
 
 class _StreamStore(LocalSessionStore):
     async def open_read(self, session_id: str, key: str) -> io.BytesIO:
         return io.BytesIO((self._session_dir(session_id) / key).read_bytes())
 
 
+class _GenerationAdoptionStore:
+    def __init__(self) -> None:
+        self.generation = SessionGeneration(2, "owner-2")
+        self.adopted: tuple[str, str, SessionGeneration] | None = None
+
+    async def begin_generation(self, _session_id: str) -> SessionGeneration:
+        return self.generation
+
+    async def adopt_local_generation(
+        self,
+        session_id: str,
+        local_session_dir: str,
+        generation: SessionGeneration,
+    ) -> None:
+        self.adopted = (session_id, local_session_dir, generation)
+
+
+class _FailingGenerationAdoptionStore(_GenerationAdoptionStore):
+    async def adopt_local_generation(
+        self,
+        session_id: str,
+        local_session_dir: str,
+        generation: SessionGeneration,
+    ) -> None:
+        raise RuntimeError("local marker unavailable")
+
+
+class _CancelledGenerationAdoptionStore(_GenerationAdoptionStore):
+    async def adopt_local_generation(
+        self,
+        session_id: str,
+        local_session_dir: str,
+        generation: SessionGeneration,
+    ) -> None:
+        raise asyncio.CancelledError
+
+
 def _sid() -> str:
     return str(uuid4())
+
+
+@pytest.mark.asyncio
+async def test_begin_generation_adopts_proven_local_cache(tmp_path: Path) -> None:
+    store = _GenerationAdoptionStore()
+    manager = SessionManager(tmp_path, store=store)  # type: ignore[arg-type]
+    session_id = _sid()
+
+    generation = await manager.begin_generation(session_id)
+
+    assert generation == store.generation
+    assert store.adopted == (
+        session_id,
+        str(manager.get_session_dir(session_id)),
+        generation,
+    )
+
+
+@pytest.mark.asyncio
+async def test_begin_generation_defers_adoption_error_for_caller_rollback(
+    tmp_path: Path,
+) -> None:
+    store = _FailingGenerationAdoptionStore()
+    manager = SessionManager(tmp_path, store=store)  # type: ignore[arg-type]
+    claim_observed = asyncio.Event()
+
+    async def begin_then_suspend() -> None:
+        assert await manager.begin_generation(_sid()) == store.generation
+        claim_observed.set()
+        await asyncio.sleep(0)
+
+    task = asyncio.create_task(begin_then_suspend())
+    await claim_observed.wait()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_begin_generation_defers_adoption_cancellation_for_caller_rollback(
+    tmp_path: Path,
+) -> None:
+    store = _CancelledGenerationAdoptionStore()
+    manager = SessionManager(tmp_path, store=store)  # type: ignore[arg-type]
+    claim_observed = asyncio.Event()
+
+    async def begin_then_suspend() -> None:
+        assert await manager.begin_generation(_sid()) == store.generation
+        claim_observed.set()
+        await asyncio.sleep(0)
+
+    task = asyncio.create_task(begin_then_suspend())
+    await claim_observed.wait()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("store_type", "error_type"),
+    [
+        (_FailingGenerationAdoptionStore, RuntimeError),
+        (_CancelledGenerationAdoptionStore, asyncio.CancelledError),
+    ],
+)
+async def test_begin_generation_reraises_when_not_running_in_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    store_type,
+    error_type: type[BaseException],
+) -> None:
+    manager = SessionManager(
+        tmp_path,
+        store=store_type(),  # type: ignore[arg-type]
+    )
+    monkeypatch.setattr(manager_mod.asyncio, "current_task", lambda: None)
+
+    with pytest.raises(error_type):
+        await manager.begin_generation(_sid())
+
+
+@pytest.mark.asyncio
+async def test_generation_lease_compatibility_and_cancellation_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class LegacyStore:
+        pass
+
+    class ImmediateEvent:
+        async def wait(self) -> None:
+            return None
+
+    legacy_manager = SessionManager(tmp_path / "legacy", store=LegacyStore())  # type: ignore[arg-type]
+    monkeypatch.setattr(manager_mod.asyncio, "Event", ImmediateEvent)
+    assert await legacy_manager.maintain_generation_lease(_sid()) is True
+
+    class GenerationStore:
+        async def owns_active_generation(self, _session_id: str) -> bool:
+            return True
+
+    generation_manager = SessionManager(
+        tmp_path / "generation",
+        store=GenerationStore(),  # type: ignore[arg-type]
+    )
+    task = asyncio.create_task(
+        generation_manager.maintain_generation_lease(_sid(), interval_seconds=60)
+    )
+    await asyncio.sleep(0)
+    task.cancel()
+    assert await task is False
+
+
+@pytest.mark.asyncio
+async def test_generation_lease_retries_transient_renewal_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class GenerationStore:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def owns_active_generation(self, _session_id: str) -> bool:
+            self.calls += 1
+            if self.calls < 3:
+                raise OSError("transient renewal failure")
+            return False
+
+    store = GenerationStore()
+    manager = SessionManager(
+        tmp_path / "transient-generation",
+        store=store,  # type: ignore[arg-type]
+    )
+    monkeypatch.setattr(manager_mod, "_LEASE_HEARTBEAT_RETRY_SECONDS", 0)
+
+    await manager.maintain_generation_lease(_sid(), interval_seconds=60)
+    assert store.calls == 3
+
+
+@pytest.mark.asyncio
+async def test_generation_lease_keeps_retrying_through_persistent_outage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class GenerationStore:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def owns_active_generation(self, _session_id: str) -> bool:
+            self.calls += 1
+            if self.calls <= 5:
+                raise OSError("persistent renewal failure")
+            return False
+
+    store = GenerationStore()
+    manager = SessionManager(
+        tmp_path / "failed-generation",
+        store=store,  # type: ignore[arg-type]
+    )
+    monkeypatch.setattr(manager_mod, "_LEASE_HEARTBEAT_RETRY_SECONDS", 0)
+
+    await manager.maintain_generation_lease(_sid(), interval_seconds=60)
+    assert store.calls == 6
+
+
+@pytest.mark.asyncio
+async def test_generation_lease_rechecks_ownership_at_capacity_handoff(
+    tmp_path: Path,
+) -> None:
+    class GenerationStore:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def owns_active_generation(self, _session_id: str) -> bool:
+            self.calls += 1
+            return self.calls == 1
+
+    store = GenerationStore()
+    manager = SessionManager(
+        tmp_path / "handoff-generation",
+        store=store,  # type: ignore[arg-type]
+    )
+    capacity_ready = asyncio.Event()
+    heartbeat = asyncio.create_task(
+        manager.maintain_generation_lease(
+            _sid(),
+            interval_seconds=60,
+            capacity_ready=capacity_ready,
+        )
+    )
+    while store.calls == 0:
+        await asyncio.sleep(0)
+    capacity_ready.set()
+    assert await heartbeat is False
+    assert store.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_generation_lease_capacity_handoff_ready_and_timeout_paths(
+    tmp_path: Path,
+) -> None:
+    class GenerationStore:
+        def __init__(self, results: list[bool]) -> None:
+            self.results = results
+
+        async def owns_active_generation(self, _session_id: str) -> bool:
+            return self.results.pop(0)
+
+    ready = asyncio.Event()
+    ready.set()
+    ready_manager = SessionManager(
+        tmp_path / "ready-handoff",
+        store=GenerationStore([True]),  # type: ignore[arg-type]
+    )
+    assert (
+        await ready_manager.maintain_generation_lease(
+            _sid(),
+            capacity_ready=ready,
+        )
+        is True
+    )
+
+    timeout_manager = SessionManager(
+        tmp_path / "timeout-handoff",
+        store=GenerationStore([True, False]),  # type: ignore[arg-type]
+    )
+    assert (
+        await timeout_manager.maintain_generation_lease(
+            _sid(),
+            interval_seconds=0,
+            capacity_ready=asyncio.Event(),
+        )
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_manager_delegates_completed_publication_snapshot(tmp_path: Path) -> None:
+    session_id = _sid()
+    expected = CompletedSessionSnapshot(
+        metadata={"status": "completed"},
+        artifact_keys=("cache/physics/scene_physics.usda",),
+        downloaded_count=1,
+    )
+
+    class Store:
+        async def sync_completed_publication_to_local(
+            self,
+            session_id: str,
+            destination_dir: str,
+            *,
+            prefix: str,
+        ) -> CompletedSessionSnapshot:
+            assert session_id == expected_session_id
+            assert destination_dir == str(tmp_path / "snapshot")
+            assert prefix == "cache/physics/"
+            return expected
+
+    expected_session_id = session_id
+    manager = SessionManager(tmp_path / "manager", store=Store())  # type: ignore[arg-type]
+    assert (
+        await manager.snapshot_completed_publication(
+            session_id,
+            tmp_path / "snapshot",
+            prefix="cache/physics/",
+        )
+        == expected
+    )
+
+
+@pytest.mark.asyncio
+async def test_metadata_update_legacy_store_fallbacks(tmp_path: Path) -> None:
+    class LegacyStore:
+        def __init__(self) -> None:
+            self.metadata: dict | None = {"value": 1}
+            self.writes: list[dict] = []
+
+        async def get_json(self, _session_id: str, _key: str):
+            return self.metadata
+
+        async def put_json(self, _session_id: str, _key: str, value: dict) -> None:
+            self.writes.append(value)
+            self.metadata = value
+
+    store = LegacyStore()
+    manager = SessionManager(tmp_path, store=store)  # type: ignore[arg-type]
+    sid = _sid()
+
+    updated = await manager._update_metadata_document(
+        sid,
+        lambda current: {**current, "value": 2},
+    )
+    assert updated == {"value": 2}
+    assert store.writes == [{"value": 2}]
+    assert await manager._update_metadata_document(sid, lambda _current: None) == {
+        "value": 2
+    }
+    store.metadata = None
+    assert await manager._update_metadata_document(sid, lambda value: value) is None
+
+
+@pytest.mark.asyncio
+async def test_conditional_session_updates_and_generation_cancellation_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(tmp_path)
+    sid = _sid()
+    await manager.create_session(sid)
+    metadata = await manager.get_session_metadata(sid)
+    metadata["created_at"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    await manager.store.put_json(sid, METADATA_KEY, metadata)
+
+    async def conditional_update(
+        session_id: str,
+        key: str,
+        updater,
+    ):
+        current = await manager.store.get_json(session_id, key)
+        assert current is not None
+        return updater(current)
+
+    monkeypatch.setattr(
+        manager.store,
+        "update_json_if_not_cancelled",
+        conditional_update,
+        raising=False,
+    )
+    assert await manager.update_session_if_not_cancelled(sid, {"status": "completed"})
+
+    async def reject_update(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        manager.store,
+        "update_json_if_not_cancelled",
+        reject_update,
+        raising=False,
+    )
+    assert not await manager.update_session_if_not_cancelled(sid, {"status": "failed"})
+
+    async def reject_cancellation(*_args, **_kwargs) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        manager.store,
+        "request_generation_cancellation",
+        reject_cancellation,
+        raising=False,
+    )
+    assert not await manager.request_pipeline_cancellation(sid)
+    await manager.request_cancellation(sid)
+
+    async def lost_generation(_session_id: str) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        manager.store,
+        "owns_active_generation",
+        lost_generation,
+        raising=False,
+    )
+    assert await manager.is_cancelled(sid)
+
+
+@pytest.mark.asyncio
+async def test_noop_step_completion_and_nonterminal_delete(tmp_path: Path) -> None:
+    manager = SessionManager(tmp_path)
+    sid = _sid()
+    await manager.create_session(sid)
+
+    await manager.mark_step_completed(sid, "not-current")
+    await manager.store.put_bytes(sid, ".cancel", b"")
+    assert not await manager.update_session_if_not_cancelled(
+        sid,
+        {"status": "completed"},
+    )
+    assert not await manager.delete_terminal_session(sid)
 
 
 def test_session_manager_suffix_helpers_cover_config_shapes() -> None:
@@ -211,6 +632,8 @@ async def test_session_manager_delete_failures_and_retry(
     sid = _sid()
     await failing.create_session(sid)
     assert await failing.delete_session(sid) is False
+    with pytest.raises(manager_mod.SessionStoreDeletionError):
+        await failing.delete_terminal_session(sid)
 
     manager = SessionManager(tmp_path / "retry")
     sid = _sid()

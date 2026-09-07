@@ -1,0 +1,9 @@
+name: valid short workflow
+on: push
+jobs:
+  short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Short work
+        run: echo ok

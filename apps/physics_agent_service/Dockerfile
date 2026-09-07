@@ -1,10 +1,11 @@
+# syntax=docker/dockerfile:1.19
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Physics Agent Service Dockerfile
 # The main service is CPU-only. Rendering is delegated to the sidecar
 # ovrtx-rendering-api container via RENDER_ENDPOINT.
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
 
 ARG APP_VERSION=unknown
 ARG GIT_COMMIT=unknown
@@ -23,6 +24,7 @@ RUN apt-get update && apt-get upgrade -y \
     python3.12-venv \
     python3.12-dev \
     build-essential \
+    cmake \
     git \
     curl \
     ca-certificates \
@@ -36,9 +38,16 @@ RUN apt-get update && apt-get upgrade -y \
     libgpgme11t64 \
     libgl1 \
     libgomp1 \
+    libjpeg-dev \
+    libjpeg-turbo8 \
     libopengl0 \
+    libpng-dev \
+    libpng16-16t64 \
     libx11-6 \
     libxt6 \
+    ninja-build \
+    pkg-config \
+    zlib1g-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -95,8 +104,12 @@ ENV WU_SO_PACKAGE_DIR=/app/.build-resources/scene_optimizer_core
 # --no-config + --no-sources keep the install self-contained inside the repo.
 # Keep every editable package on the repository release version so local
 # dependency floors resolve against the installed world-understanding package.
-RUN cd /app && SETUPTOOLS_SCM_PRETEND_VERSION="$(cat /app/VERSION.md)" UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \
-    uv pip install -e ".[telemetry]" --no-config --no-sources
+RUN cd /app \
+    && SETUPTOOLS_SCM_PRETEND_VERSION="$(cat /app/VERSION.md)" \
+       UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \
+       uv pip install -e ".[telemetry]" \
+         --no-config \
+         --no-sources
 
 # Install the optional backend wheel when release automation stages it in the
 # Docker build context. Public builds do not provide this wheel and continue
@@ -143,9 +156,15 @@ RUN case "${TARGETARCH:-amd64}" in \
       -r "/app/apps/physics_agent/runtime/${ovphysx_lock}" \
       --require-hashes --no-deps --no-config --no-sources && \
     chmod -R a+rX "${WU_OVPHYSX_VENV_DIR}"
-RUN env -u PYTHONPATH "${WU_OVPHYSX_VENV_DIR}/bin/python" -c \
-    "from ovphysx import PhysX; physics = PhysX(device='cpu'); physics.release()" && \
-    touch "${WU_OVPHYSX_VENV_DIR}/.wu-ovphysx-runtime-ready"
+RUN case "${TARGETARCH:-amd64}" in \
+      amd64) ovphysx_lock=pylock.ovphysx-runtime.toml ;; \
+      arm64) ovphysx_lock=pylock.ovphysx-runtime.aarch64.toml ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    env -u PYTHONPATH "${WU_OVPHYSX_VENV_DIR}/bin/python" -c \
+      "from ovphysx import PhysX; physics = PhysX(device='cpu'); physics.release()" && \
+    OVPHYSX_LOCK="/app/apps/physics_agent/runtime/${ovphysx_lock}" \
+      "${WU_OVPHYSX_VENV_DIR}/bin/python" -c 'import hashlib,json,os; v=os.environ["WU_OVPHYSX_VENV_DIR"]; p=f"{v}/bin/python"; lock=os.environ["OVPHYSX_LOCK"]; open(f"{v}/.usd-cli-ovphysx-ready", "w").write(json.dumps({"schema_version":"usd-cli.ovphysx-runtime-ready.v2","runtime_lock_sha256":hashlib.sha256(open(lock,"rb").read()).hexdigest(),"python_path":p}, sort_keys=True))'
 
 # Install physics_agent_service package
 RUN cd /app/apps/physics_agent_service && UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \

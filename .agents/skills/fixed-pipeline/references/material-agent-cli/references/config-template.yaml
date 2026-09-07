@@ -1,0 +1,244 @@
+# Unified Pipeline Configuration
+# Adapt this template to your asset. Key fields to change:
+#   - project.name / session_id
+#   - input.usd_path and input.reference_images
+#   - materials.path (or inline materials.entries)
+#   - steps.predict.vlm.model
+#
+# All relative paths are resolved relative to THIS config file's directory.
+# Working directory is auto-derived as .{session_id}/ next to the config file.
+
+# ============================================================================
+# PROJECT CONFIGURATION
+# ============================================================================
+project:
+  name: "example_pipeline"
+
+  # Session ID for tracking runs (auto-generated UUID if not specified)
+  # Uncomment to resume a previous session or use a custom session ID
+  session_id: "example_pipeline"
+
+  # Working directory auto-derived as .{session_id}
+  # All intermediate files and outputs managed automatically
+  # Uncomment to override with explicit directory:
+  # working_dir: ".my_working_dir"
+
+  description: "Example pipeline with inline configuration"
+
+# ============================================================================
+# INPUT/OUTPUT
+# ============================================================================
+input:
+  usd_path: "path/to/input.usd"
+  reference_images:
+    - path/to/reference_1.jpeg
+    - path/to/reference_2.jpeg
+  # reference_pdfs:
+  #   - path/to/specs.pdf
+
+output:
+  # usd_path is auto-derived as {working_dir}/output/output.usd
+  # Renders auto-saved to {working_dir}/output/output_*.png
+  # Only specify output OPTIONS here:
+  layer_only: false
+  flatten_output: false
+
+# ============================================================================
+# MATERIALS DEFINITION
+# ============================================================================
+# Option 1: External file (recommended for reuse across configs)
+materials:
+  path: "path/to/materials.yaml"
+
+# Option 2: Inline materials (uncomment and remove the path above)
+# materials:
+#   library_path: "path/to/material_libs.usd"
+#   entries:
+#     - name: "Aluminum Polished"
+#       description: "A polished aluminum for structural parts"
+#       binding: "/World/metal_library/Looks/Aluminum_Polished"
+#     - name: "Polycarbonate Blue"
+#       description: "A blue polycarbonate for decorative components"
+#       binding: "/World/plastic_library/Looks/Polycarbonate_Blue"
+
+# ============================================================================
+# STEPS CONFIGURATION
+# ============================================================================
+steps:
+  optimize_usd:
+    enabled: true
+
+  # Optional: render scene preview + generate reference image from text prompt.
+  # Enable these two steps INSTEAD of providing input.reference_images when
+  # you don't have reference photos but can describe the desired look in text.
+  # render_preview:
+  #   enabled: true
+  #   cameras: ["+x+y+z"]
+  #   should_reset_materials: true
+  #   use_lights: false
+  #   image_width: 512
+  #   image_height: 512
+  #   background_color: [1.0, 1.0, 1.0]
+  #
+  # generate_reference_image:
+  #   enabled: true
+  #   image_gen:
+  #     backend: gemini                       # Public; needs GOOGLE_API_KEY
+  #     model: gemini-3-pro-image-preview
+  #   prompt: "Describe desired materials, e.g. aluminium frame with blue plastic tray"
+  #   num_images: 1
+
+  build_dataset_usd:
+    renderer:
+      backend: remote
+      image_width: 512
+      image_height: 512
+      cull_style: back
+      should_highlight_prim: false
+      should_assign_random_colors: true
+      highlight_color: [0.7, 0.0, 0.0]
+      other_color_range: [0.1, 0.2]
+
+      # Per-mode camera configuration
+      rendering_modes:
+        # prim_only: Detail views of individual parts
+        prim_only:
+          margin: 1.2
+          cameras: ["+x+y+z", "-x-y-z"]
+          camera_focus_mode: prim
+
+        # composition: Top-down orthographic views
+        composition:
+          margin: 6.0
+          cameras: ["+x", "+y", "+z"]
+          camera_focus_mode: stage
+          skip_occluded_images: false
+    prim_filters:
+      types:
+        - "UsdGeom.Mesh"
+        - "UsdGeom.Cube"
+        - "UsdGeom.Cylinder"
+        - "UsdGeom.Capsule"
+        - "UsdGeom.Sphere"
+        - "UsdGeom.Cone"
+      skip_instances: true
+    extract_material_bindings: true
+    extract_hierarchy: true
+    extract_metadata: true
+    build_usd_model: true
+    export_usd_model: true
+    skip_existing: true
+    batch_size: 16
+    # Conservative for local OVRTX sidecars; raise only when the render
+    # endpoint fronts multiple independent rendering service instances.
+    num_workers: 1
+    max_concurrent_requests: 1
+
+  build_dataset_pdf_vectorstore:
+    enabled: false  # Enable to retrieve specification evidence from PDFs
+
+  build_dataset_prepare_dataset:
+    enabled: true
+    include_ground_truth: false
+    include_prim_path_context: true
+
+    # PDF conversion parameters (optional, only if reference_pdfs are used)
+    pdf_conversion:
+      dpi: 150
+      format: "png"
+      first_page: 1
+      last_page: 2
+
+    prompts:
+      vlm_system: |
+        You are an expert at identifying object parts and their materials.
+        Provided images are 3D renderings of a part of an object from different angles.
+
+        The material property in the render are irrelevant to the task, you will only consider
+        the shape and position of the part.
+
+        The part of interest are highlighted in orange contour outline.
+
+        When the part is occluded, it may not contain orange contour outline, but just the part itself.
+
+        Other parts are rendered in muted colors again their color is irrelevant to the task
+        just consider the shape and position of the parts.
+
+        When asked to identify the material of the part, you should only focus on the part
+        that is highlighted in orange contour outline.
+
+        In summary:
+        - DO NOT judge the material by the material of the rendered image. Only consider
+          the shape and position of the part from the rendered images.
+        - DO judge the color and material by the reference images.
+
+        Additional context of the part and materials will be provided with the question.
+
+        Available materials:
+        {materials_list}
+
+        Please answer the question with a structured JSON output using the following format:
+        {{
+        "material": "material name"
+        }}
+
+        Answer the task requirements in the following format:
+        <reasoning>your reasoning</reasoning>
+        <answer>your answer</answer>
+      vlm_user: |
+        Please identify the highlighted part and select the appropriate material from the predefined list of materials.
+
+        you will match the look of the asset exactly to the reference images.
+
+        you will think about the best material for it
+
+        but if you can't find it in the list of materials, you will select the closest match.
+
+        Below is the additional context of the part and materials:
+        {context}
+      vlm_image_prompts:
+        reference_images:
+          - "This is a reference image of the asset. You will match this look exactly"
+        prim_only: "This is a rendered part of interest only without highlighting."
+        composition: "This is an orthographic view of the object with the part of interest highlighted with an orange outline."
+
+  predict:
+    vlm:
+      backend: nim
+      model: moonshotai/kimi-k3
+      temperature: 1.0
+      max_completion_tokens: 24576
+    max_workers: 16
+    llm:  # For structured output parsing
+      backend: nim
+      model: moonshotai/kimi-k3
+      temperature: 0.1
+      max_tokens: 512
+    report:
+      image_max_size: 256
+      image_format: jpeg
+      image_quality: 75
+
+  apply:
+    layer_only: false
+    flatten_output: false
+
+  restore_usd:
+    enabled: false
+
+  # Rendering after apply (generates final images of the result)
+  render:
+    enabled: true
+    backend: "remote"
+    image_width: 1024
+    image_height: 1024
+    camera_corners: ["+x+y+z", "-x-y-z"]
+    camera_margin: 1.0
+    background_color: [1.0, 1.0, 1.0]  # RGB 0.0-1.0 (white)
+
+# ============================================================================
+# ADVANCED OPTIONS
+# ============================================================================
+advanced:
+  keep_temp_files: true
+  log_level: INFO

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
     from pxr import Sdf, Usd
@@ -18,6 +18,32 @@ if TYPE_CHECKING:  # pragma: no cover
 from .manifest import SceneManifest
 
 logger = logging.getLogger(__name__)
+
+_NON_FLATTENED_EXTRACTION_ERROR = (
+    "scene.extract.flatten=false is unsupported: USD population masks are "
+    "runtime-only, so exporting a masked stage's root layer would ignore the "
+    "requested sub-asset scope, and relocating that layer would break relative "
+    "composition arcs. Use scene.extract.flatten: true."
+)
+
+
+def _require_flattened_extraction(flatten: object) -> None:
+    """Reject the former root-layer export path before it can write an artifact."""
+    if flatten is not True:
+        raise ValueError(_NON_FLATTENED_EXTRACTION_ERROR)
+
+
+def validate_scene_extraction_config(scene_config: dict[str, Any]) -> None:
+    """Validate the scene extraction section's standalone-output contract."""
+    scene_section = scene_config.get("scene", {})
+    if not isinstance(scene_section, dict):
+        return
+
+    extract_section = scene_section.get("extract", {})
+    if not isinstance(extract_section, dict):
+        return
+
+    _require_flattened_extraction(extract_section.get("flatten", True))
 
 
 def extract_sub_asset(
@@ -36,7 +62,9 @@ def extract_sub_asset(
         scene_usd_path: Path to the source USD scene.
         prim_path: Prim path of the sub-asset root.
         output_path: Where to write the extracted USD.
-        flatten: Whether to flatten the extracted stage.
+        flatten: Must be ``True``. The compatibility parameter remains so old
+            callers receive an explicit error instead of a silently corrupt
+            non-flattened artifact.
         skip_instance_subtrees: If True, remove children of instance root
             prims from the flattened layer. Instance root prims are kept as
             empty Xforms so they still exist, but their children (which will
@@ -46,6 +74,8 @@ def extract_sub_asset(
     Returns:
         Path to the extracted USD file.
     """
+    _require_flattened_extraction(flatten)
+
     from pxr import Usd
 
     logger.info(f"Extracting sub-asset: {prim_path} -> {output_path}")
@@ -77,7 +107,7 @@ def extract_sub_asset(
             f"Failed to open masked stage for {prim_path} in {scene_usd_path}"
         )
 
-    if flatten:
+    try:
         # Clear instanceable on all instance prims so Flatten() inlines
         # their prototype geometry.  Modify the session layer directly via
         # Sdf to avoid USD stage-level cache conflicts that cause clipCache
@@ -96,21 +126,29 @@ def extract_sub_asset(
         if skip_instance_subtrees:
             _strip_instance_children(flat_layer, stage, prim_path)
 
-        # Export the flattened layer
-        flat_layer.Export(str(output_path))
-    else:
-        # Export the root layer directly (keeps composition references)
-        stage.GetRootLayer().Export(str(output_path))
+        # Export the flattened layer. A falsy return is a hard failure; callers
+        # must never receive a path to an artifact that was not actually written.
+        if not flat_layer.Export(str(output_path)):
+            raise RuntimeError(f"Failed to export extracted USD to {output_path}")
+    finally:
+        # Explicitly release the stage AND evict the session layer from the Sdf
+        # layer cache.  SetInstanceable(False) modifies the session layer; if it
+        # stays cached, the next OpenMasked call against the same scene file can
+        # trigger a USD clipCache assertion failure.
+        session_layer = stage.GetSessionLayer()
+        del stage
+        if session_layer:
+            session_layer.Clear()
+        gc.collect()
 
-    # Explicitly release the stage AND evict the session layer from the Sdf
-    # layer cache.  SetInstanceable(False) modifies the session layer; if it
-    # stays cached, the next OpenMasked call against the same scene file can
-    # trigger a USD clipCache assertion failure.
-    session_layer = stage.GetSessionLayer()
-    del stage
-    if session_layer:
-        session_layer.Clear()
-    gc.collect()
+    # Validate the composed result rather than trusting Sdf.Layer.Export(). USD
+    # reports missing composition arcs as warnings, so a successful write alone
+    # cannot prove that the requested sub-asset survived extraction.
+    exported_stage = Usd.Stage.Open(str(output_path))
+    if not exported_stage or not exported_stage.GetPrimAtPath(prim_path):
+        raise RuntimeError(
+            f"Extracted USD is missing target prim {prim_path}: {output_path}"
+        )
 
     logger.info(f"Extracted sub-asset to: {output_path}")
     return output_path
@@ -253,12 +291,15 @@ def extract_all(
         manifest: Scene manifest with detected sub-assets.
         output_dir: Base directory for extracted USDs.
         names_filter: Optional name/path filter for assets.
-        flatten: Whether to flatten extracted stages.
+        flatten: Must be ``True``. Non-flattened extraction is rejected because
+            it cannot satisfy the standalone, population-scoped output contract.
         max_workers: Number of parallel extraction workers (default 1 = serial).
 
     Returns:
         Updated SceneManifest.
     """
+    _require_flattened_extraction(flatten)
+
     import concurrent.futures
     import threading
 

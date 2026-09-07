@@ -15,6 +15,7 @@ from langchain_core.messages.utils import count_tokens_approximately
 from world_understanding.functions.knowledge.multimodal_vector_store import (
     collect_documents_from_vector_store,
 )
+from world_understanding.utils.response_content import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +219,7 @@ def _summarize_doc_string(doc_string: str, llm: BaseChatModel, max_tokens: int) 
         ),
     ]
     response = llm.invoke(messages, config={"max_tokens": max_tokens})
-    return response.content if isinstance(response.content, str) else str(response)
+    return extract_text_content(response.content)
 
 
 def _truncate_text(text: str, max_tokens: int) -> str:
@@ -338,7 +339,7 @@ def extract_spec_text_by_model_number(
     ]
 
     response = llm.invoke(messages)
-    content = response.content if isinstance(response.content, str) else str(response)
+    content = extract_text_content(response.content)
     content = content.strip()
     if not content:
         logger.warning("Empty LLM response; returning concatenated snippets")

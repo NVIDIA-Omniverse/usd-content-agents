@@ -21,6 +21,8 @@ from content_agent_workflows.common.artifacts import (
 
 from .gates import validate_handoff
 from .models import (
+    LARGE_SCENE_RUN_SCHEMA_VERSION,
+    LEGACY_LARGE_SCENE_RUN_SCHEMA_VERSION,
     PHASE_ORDER,
     HandoffValidationReport,
     LargeSceneRun,
@@ -84,6 +86,9 @@ def _source_input_digest(
     request_artifact_paths: list[str | Path],
     requested_tasks: list[str],
     additional_instructions: str | None = None,
+    *,
+    scene_backend: str = "usd-cli",
+    schema_version: str = LARGE_SCENE_RUN_SCHEMA_VERSION,
 ) -> str:
     metadata: dict[str, object] = {
         "schema": "content-agent-workflows.large-scene-input.v1",
@@ -91,6 +96,8 @@ def _source_input_digest(
     }
     if additional_instructions:
         metadata["additional_instructions"] = additional_instructions
+    if schema_version != LEGACY_LARGE_SCENE_RUN_SCHEMA_VERSION:
+        metadata["scene_backend"] = scene_backend
     return artifact_set_digest(
         [*_source_scene_dependency_paths(source_scene), *request_artifact_paths],
         metadata=metadata,
@@ -151,6 +158,7 @@ def create_run(
     requested_tasks: list[str],
     request_artifact_paths: list[str | Path] | None = None,
     additional_instructions: str | None = None,
+    scene_backend: str = "usd-cli",
     actor: str = "agent",
 ) -> LargeSceneRun:
     """Create a new run with Workflow 1 ready to begin."""
@@ -172,6 +180,7 @@ def create_run(
             request_paths,
             tasks,
             normalized_instructions,
+            scene_backend=scene_backend,
         )
     except (OSError, ValueError) as exc:
         raise LargeSceneStateError(f"Cannot digest large-scene inputs: {exc}") from exc
@@ -187,6 +196,7 @@ def create_run(
         run = LargeSceneRun(
             run_id=run_id,
             source_scene=str(source),
+            scene_backend=scene_backend,
             additional_instructions=normalized_instructions,
             request_artifact_paths=[str(item) for item in request_paths],
             requested_tasks=tasks,
@@ -219,6 +229,8 @@ def _verify_source_inputs(run: LargeSceneRun) -> str:
             run.request_artifact_paths,
             run.requested_tasks,
             run.additional_instructions,
+            scene_backend=run.scene_backend,
+            schema_version=run.schema_version,
         )
     except (OSError, ValueError) as exc:
         raise LargeSceneStateError(f"Cannot verify source inputs: {exc}") from exc
@@ -227,6 +239,17 @@ def _verify_source_inputs(run: LargeSceneRun) -> str:
             "Source scene or request artifacts changed; invalidate from decomposition"
         )
     return current_digest
+
+
+def verify_run_source_inputs(run: LargeSceneRun) -> str:
+    """Recompute and verify the frozen source/request input digest for ``run``.
+
+    Launchers use this read-only gate when adopting a historical state file.
+    Keeping the calculation here ensures legacy-v1 adoption uses the same
+    schema-aware digest contract as normal phase transitions.
+    """
+
+    return _verify_source_inputs(run)
 
 
 def _verify_prerequisites(run: LargeSceneRun, phase: PhaseName) -> None:
@@ -440,6 +463,8 @@ def invalidate_from(
                     run.request_artifact_paths,
                     run.requested_tasks,
                     run.additional_instructions,
+                    scene_backend=run.scene_backend,
+                    schema_version=run.schema_version,
                 )
             except (OSError, ValueError) as exc:
                 raise LargeSceneStateError(
@@ -509,6 +534,8 @@ def revise_additional_instructions(
                 run.request_artifact_paths,
                 run.requested_tasks,
                 run.additional_instructions,
+                scene_backend=run.scene_backend,
+                schema_version=run.schema_version,
             )
         except (OSError, ValueError) as exc:
             raise LargeSceneStateError(

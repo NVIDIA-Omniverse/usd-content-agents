@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "scrubbrush_02"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "scrubbrush_02" (
+    prepend apiSchemas = ["GeomModelAPI"]
+    assetInfo = {
+        string name = "scrubbrush_02"
+    }
+    kind = "component"
+    prepend payload = @./Payload/Contents.usda@
+)
+{
+    float3[] extentsHint = [(-0.029127, -0.044291, 0.000872), (0.029352, 0.181552, 0.10153)]
+}

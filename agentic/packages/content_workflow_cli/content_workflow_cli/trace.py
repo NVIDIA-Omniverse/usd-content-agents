@@ -4,30 +4,193 @@
 
 from __future__ import annotations
 
+import errno
 import json
+import logging
 import os
 import stat
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from content_agent_workflows.common.artifacts import (
+    atomic_write_text,
+    contained_regular_file,
+    read_contained_artifact,
+)
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    append_bytes_to_confined,
+    open_confined_directory,
+)
+
 TRACE_SCHEMA_VERSION = "content-agents.trace.v1"
+MEMORY_EVENT_SCHEMA_VERSION = "content-agent-memory.event.v1"
 REPLAY_SCHEMA_VERSION = "content-agents.replay.v1"
 RETROSPECTIVE_SCHEMA_VERSION = "content-agents.retrospective.v1"
+_MAX_JSON_ARTIFACT_BYTES = 8 * 1024 * 1024
+_MAX_JSONL_ARTIFACT_BYTES = 16 * 1024 * 1024
+_MAX_TEXT_ARTIFACT_BYTES = 4 * 1024 * 1024
+_MAX_TOTAL_TRACE_INPUT_BYTES = 32 * 1024 * 1024
+_MAX_JSONL_RECORDS = 50_000
+_MAX_CHILD_ITEM_FILES = 128
+
+
+@dataclass(slots=True)
+class _TraceInputBudget:
+    """Per-build cap for all child-writable inputs consumed by the trace."""
+
+    max_bytes: int
+    consumed_bytes: int = 0
+
+    @property
+    def remaining_bytes(self) -> int:
+        return max(0, self.max_bytes - self.consumed_bytes)
+
+    def consume(self, size: int) -> None:
+        if size < 0 or size > self.remaining_bytes:
+            raise ValueError("Trace input aggregate byte limit exceeded.")
+        self.consumed_bytes += size
+
+
+_ACTIVE_TRACE_INPUT_BUDGET: ContextVar[_TraceInputBudget | None] = ContextVar(
+    "content_workflow_cli_trace_input_budget",
+    default=None,
+)
+
+logger = logging.getLogger(__name__)
+
+_UNSAFE_DIRECTORY_OPEN_ERRNOS = frozenset({errno.ELOOP, errno.ENOTDIR})
+_UNSAFE_FILE_OPEN_ERRNOS = frozenset(
+    {errno.EEXIST, errno.EISDIR, errno.ELOOP, errno.ENOTDIR, errno.ENXIO}
+)
 
 
 class UnsafeRunArtifactError(RuntimeError):
     """Raised when an untrusted run artifact could redirect a parent write."""
 
 
+class _RunArtifactWriteError(OSError):
+    """Operational write error that may have left a partial append."""
+
+
+def _open_run_artifact(
+    path: str | os.PathLike[str],
+    flags: int,
+    mode: int = 0o777,
+    *,
+    dir_fd: int | None = None,
+    unsafe_errnos: frozenset[int],
+    unsafe_message: str,
+) -> int:
+    """Open a validated artifact component and preserve operational I/O errors."""
+
+    try:
+        return os.open(path, flags, mode, dir_fd=dir_fd)
+    except OSError as exc:
+        if exc.errno in unsafe_errnos:
+            raise UnsafeRunArtifactError(unsafe_message) from exc
+        raise
+
+
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def append_jsonl(path: Path, event: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(event, sort_keys=True) + "\n")
+def _contained_relative_path(root: Path, candidate: Path) -> Path:
+    value = candidate.expanduser()
+    absolute = Path(os.path.abspath(value if value.is_absolute() else root / value))
+    try:
+        relative = absolute.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Trace path is outside the workflow run: {absolute}") from exc
+    if not relative.parts or relative.name in {"", ".", ".."}:
+        raise ValueError(f"Unsafe trace path: {absolute}")
+    return relative
+
+
+def _open_contained_trace_directory(
+    root: Path,
+    relative: Path,
+    *,
+    create: bool,
+) -> int:
+    """Open a trace directory from a trusted root without following symlinks."""
+
+    directory_flags = (
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    )
+    directory_fd = os.open(root, directory_flags)
+    try:
+        for component in relative.parts:
+            if component in {"", ".", ".."}:
+                raise ValueError(f"Unsafe trace directory component: {component!r}")
+            try:
+                next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
+            except FileNotFoundError:
+                if not create:
+                    raise
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=directory_fd)
+                except FileExistsError:
+                    pass
+                next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
+            os.close(directory_fd)
+            directory_fd = next_fd
+        return directory_fd
+    except Exception:
+        os.close(directory_fd)
+        raise
+
+
+def append_jsonl(
+    path: Path,
+    event: dict[str, Any],
+    *,
+    within: Path | None = None,
+) -> None:
+    value = path.expanduser()
+    if within is None:
+        absolute = Path(os.path.abspath(value))
+        absolute.parent.mkdir(parents=True, exist_ok=True)
+        root = absolute.parent.resolve(strict=True)
+        relative = Path(absolute.name)
+    else:
+        root = within.expanduser().resolve(strict=True)
+        relative = _contained_relative_path(root, value)
+
+    serialized_event = (json.dumps(event, sort_keys=True) + "\n").encode("utf-8")
+    if os.name != "posix":
+        with open_confined_directory(root) as root_descriptor:
+            append_bytes_to_confined(
+                root_descriptor,
+                relative.as_posix(),
+                serialized_event,
+                file_mode=0o600,
+            )
+        return
+
+    directory_fd = _open_contained_trace_directory(
+        root,
+        relative.parent,
+        create=True,
+    )
+    file_flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        file_fd = os.open(relative.name, file_flags, 0o600, dir_fd=directory_fd)
+    finally:
+        os.close(directory_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(file_fd).st_mode):
+            raise OSError(f"Refusing to append trace event to non-file: {path}")
+        with os.fdopen(file_fd, "a", encoding="utf-8") as stream:
+            file_fd = -1
+            stream.write(serialized_event.decode("utf-8"))
+    finally:
+        if file_fd >= 0:
+            os.close(file_fd)
 
 
 def append_run_text(run_dir: Path, path: Path, text: str) -> None:
@@ -44,6 +207,23 @@ def append_run_text(run_dir: Path, path: Path, text: str) -> None:
     if not relative_path.parts:
         raise UnsafeRunArtifactError(f"Run artifact path is not a file: {path}")
 
+    if os.name != "posix":
+        try:
+            with open_confined_directory(lexical_run_dir) as root_descriptor:
+                append_bytes_to_confined(
+                    root_descriptor,
+                    relative_path.as_posix(),
+                    text.encode("utf-8"),
+                    file_mode=0o600,
+                )
+        except ArtifactPathError as exc:
+            raise UnsafeRunArtifactError(
+                f"Run artifact changed to an unsafe path: {lexical_path}"
+            ) from exc
+        except OSError as exc:
+            raise _RunArtifactWriteError(exc.errno, exc.strerror) from exc
+        return
+
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
     file_flags = (
         os.O_WRONLY
@@ -56,11 +236,30 @@ def append_run_text(run_dir: Path, path: Path, text: str) -> None:
     directory_fds: list[int] = []
     file_fd: int | None = None
     try:
-        directory_fds.append(os.open(lexical_run_dir, directory_flags))
+        directory_fds.append(
+            _open_run_artifact(
+                lexical_run_dir,
+                directory_flags,
+                unsafe_errnos=_UNSAFE_DIRECTORY_OPEN_ERRNOS,
+                unsafe_message=(
+                    "Run directory must not be a symlink or non-directory: "
+                    f"{lexical_run_dir}"
+                ),
+            )
+        )
         current_fd = directory_fds[-1]
         for component in relative_path.parts[:-1]:
             try:
-                next_fd = os.open(component, directory_flags, dir_fd=current_fd)
+                next_fd = _open_run_artifact(
+                    component,
+                    directory_flags,
+                    dir_fd=current_fd,
+                    unsafe_errnos=_UNSAFE_DIRECTORY_OPEN_ERRNOS,
+                    unsafe_message=(
+                        "Run artifact directory must not be a symlink or "
+                        f"non-directory: {lexical_path.parent}"
+                    ),
+                )
             except FileNotFoundError:
                 try:
                     os.mkdir(component, mode=0o700, dir_fd=current_fd)
@@ -69,7 +268,16 @@ def append_run_text(run_dir: Path, path: Path, text: str) -> None:
                         "Run artifact directory changed while being created: "
                         f"{lexical_path.parent}"
                     ) from exc
-                next_fd = os.open(component, directory_flags, dir_fd=current_fd)
+                next_fd = _open_run_artifact(
+                    component,
+                    directory_flags,
+                    dir_fd=current_fd,
+                    unsafe_errnos=_UNSAFE_DIRECTORY_OPEN_ERRNOS,
+                    unsafe_message=(
+                        "Run artifact directory changed to a symlink or "
+                        f"non-directory: {lexical_path.parent}"
+                    ),
+                )
             directory_fds.append(next_fd)
             current_fd = next_fd
 
@@ -93,11 +301,13 @@ def append_run_text(run_dir: Path, path: Path, text: str) -> None:
         open_flags = file_flags
         if existing_metadata is None:
             open_flags |= os.O_EXCL
-        file_fd = os.open(
+        file_fd = _open_run_artifact(
             relative_path.name,
             open_flags,
             0o600,
             dir_fd=current_fd,
+            unsafe_errnos=_UNSAFE_FILE_OPEN_ERRNOS,
+            unsafe_message=f"Run artifact changed to an unsafe file: {lexical_path}",
         )
         metadata = os.fstat(file_fd)
         replaced_existing_file = existing_metadata is not None and (
@@ -112,15 +322,20 @@ def append_run_text(run_dir: Path, path: Path, text: str) -> None:
             raise UnsafeRunArtifactError(
                 f"Run artifact must be a singly linked regular file: {lexical_path}"
             )
-        with os.fdopen(file_fd, "a", encoding="utf-8") as stream:
-            file_fd = None
-            stream.write(text)
+        stream = os.fdopen(file_fd, "a", encoding="utf-8")
+        file_fd = None
+        try:
+            with stream:
+                written = stream.write(text)
+                if written != len(text):
+                    raise OSError(
+                        errno.EIO,
+                        f"Short run artifact write: {written}/{len(text)} characters",
+                    )
+        except OSError as exc:
+            raise _RunArtifactWriteError(exc.errno, exc.strerror) from exc
     except UnsafeRunArtifactError:
         raise
-    except OSError as exc:
-        raise UnsafeRunArtifactError(
-            f"Refusing unsafe run artifact path: {lexical_path}"
-        ) from exc
     finally:
         if file_fd is not None:
             os.close(file_fd)
@@ -129,11 +344,18 @@ def append_run_text(run_dir: Path, path: Path, text: str) -> None:
 
 
 class TraceWriter:
-    """Append-only writer for observable run events."""
+    """Append-only writer for observable run events.
+
+    Operational append failures are logged and ignored so the run can continue;
+    unsafe artifact-path errors still propagate and remain fatal.
+    """
 
     def __init__(self, run_dir: Path) -> None:
-        self.run_dir = run_dir
-        self.path = run_dir / "trace" / "events.jsonl"
+        self.run_dir = run_dir.expanduser().resolve(strict=True)
+        if not self.run_dir.is_dir():
+            raise ValueError(f"Workflow run root is not a directory: {self.run_dir}")
+        self.path = self.run_dir / "trace" / "events.jsonl"
+        self._needs_line_boundary = False
 
     def write(
         self,
@@ -143,42 +365,91 @@ class TraceWriter:
         summary: str,
         artifacts: list[str] | None = None,
         data: dict[str, Any] | None = None,
+        time: str | None = None,
     ) -> None:
+        """Write an event best-effort while preserving fatal path-safety errors."""
+
         event = {
             "schema_version": TRACE_SCHEMA_VERSION,
-            "time": utc_now(),
+            "time": time or utc_now(),
             "event_type": event_type,
             "phase": phase,
             "summary": summary,
             "artifacts": artifacts or [],
             "data": data or {},
         }
-        append_run_text(
-            self.run_dir,
-            self.path,
-            json.dumps(event, sort_keys=True) + "\n",
-        )
+        serialized_event = json.dumps(event, sort_keys=True) + "\n"
+        if self._needs_line_boundary:
+            serialized_event = "\n" + serialized_event
+        try:
+            append_run_text(
+                self.run_dir,
+                self.path,
+                serialized_event,
+            )
+        except OSError as exc:
+            # A failed append may have written a JSON prefix. Ensure the next
+            # successful event starts on a fresh line so it remains readable.
+            self._needs_line_boundary = isinstance(exc, _RunArtifactWriteError)
+            logger.warning(
+                "Unable to append trace event %s to %s; continuing without this "
+                "observability event: %s",
+                event_type,
+                self.path,
+                exc,
+            )
+        else:
+            self._needs_line_boundary = False
 
 
 def build_trace(run_dir: Path) -> dict[str, Any]:
     """Build operation trace and replay manifest files for a run directory."""
 
+    budget = _TraceInputBudget(max_bytes=_MAX_TOTAL_TRACE_INPUT_BYTES)
+    token = _ACTIVE_TRACE_INPUT_BUDGET.set(budget)
+    try:
+        return _build_trace(run_dir)
+    finally:
+        _ACTIVE_TRACE_INPUT_BUDGET.reset(token)
+
+
+def _build_trace(run_dir: Path) -> dict[str, Any]:
+    """Build trace outputs with one aggregate child-input read budget."""
+
     run_dir = run_dir.resolve()
     if not run_dir.exists():
         raise FileNotFoundError(f"Run directory does not exist: {run_dir}")
     trace_dir = run_dir / "trace"
-    trace_dir.mkdir(parents=True, exist_ok=True)
 
-    request = _load_json(run_dir / "request.json", default={})
-    assignments = _load_json(run_dir / "assignments.json", default={})
-    counts = _load_json(run_dir / "api_operation_counts.json", default={})
-    agent_events = _load_jsonl(trace_dir / "events.jsonl")
-    child_commands = _load_child_command_records(run_dir)
-    timeline = _build_timeline(run_dir, request, assignments, counts)
-    timeline.extend(_timeline_from_agent_events(run_dir, agent_events, len(timeline)))
-    timeline.extend(
-        _timeline_from_child_commands(run_dir, child_commands, len(timeline))
+    request = _load_json_object(run_dir / "request.json", run_dir=run_dir)
+    assignments = _load_json_object(run_dir / "assignments.json", run_dir=run_dir)
+    counts = _load_json_object(
+        run_dir / "api_operation_counts.json",
+        run_dir=run_dir,
     )
+    agent_events = _current_run_agent_events(
+        request,
+        _load_jsonl(trace_dir / "events.jsonl", run_dir=run_dir),
+    )
+    child_commands = _load_child_command_records(run_dir)
+    timeline = _build_timeline(
+        run_dir,
+        request,
+        assignments,
+        counts,
+        agent_events,
+    )
+    event_timeline = _timeline_from_agent_events(run_dir, agent_events, 0)
+    child_timeline = _timeline_from_child_commands(run_dir, child_commands, 0)
+    if request.get("scene_backend") == "usd-cli":
+        timeline = _merge_usd_cli_timeline(
+            timeline,
+            event_timeline,
+            child_timeline,
+        )
+    else:
+        timeline.extend(event_timeline)
+        timeline.extend(child_timeline)
     _renumber_timeline(timeline)
     replay_manifest = _build_replay_manifest(run_dir, timeline)
     run_retrospective = _build_run_retrospective(
@@ -211,13 +482,25 @@ def build_trace(run_dir: Path) -> dict[str, Any]:
     run_retrospective_json = trace_dir / "run_retrospective.json"
     replay_manifest_json = trace_dir / "replay_manifest.json"
 
-    operation_trace_json.write_text(json.dumps(trace, indent=2), encoding="utf-8")
-    operation_trace_md.write_text(_render_trace_markdown(trace), encoding="utf-8")
-    run_retrospective_json.write_text(
-        json.dumps(run_retrospective, indent=2), encoding="utf-8"
+    atomic_write_text(
+        operation_trace_json,
+        json.dumps(trace, indent=2),
+        within=run_dir,
     )
-    replay_manifest_json.write_text(
-        json.dumps(replay_manifest, indent=2), encoding="utf-8"
+    atomic_write_text(
+        operation_trace_md,
+        _render_trace_markdown(trace),
+        within=run_dir,
+    )
+    atomic_write_text(
+        run_retrospective_json,
+        json.dumps(run_retrospective, indent=2),
+        within=run_dir,
+    )
+    atomic_write_text(
+        replay_manifest_json,
+        json.dumps(replay_manifest, indent=2),
+        within=run_dir,
     )
 
     return {
@@ -235,7 +518,17 @@ def _build_timeline(
     request: dict[str, Any],
     assignments: dict[str, Any],
     counts: dict[str, Any],
+    agent_events: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    if request.get("scene_backend") == "usd-cli":
+        return _build_usd_cli_timeline(
+            run_dir,
+            request,
+            assignments,
+            counts,
+            agent_events,
+        )
+
     raw_dir = run_dir / "raw"
     timeline: list[dict[str, Any]] = []
 
@@ -275,9 +568,11 @@ def _build_timeline(
         reference_files = [reference_files]
 
     if request:
-        start_summary = "The wrapper launched a child agent against Content Workbench with formal asset, reference, and material-library inputs."
+        start_summary = "The wrapper launched a child agent against usd-cli with formal asset, reference, and material-library inputs."
     else:
-        start_summary = "This trace was reconstructed from an existing Content Workbench run directory."
+        start_summary = (
+            "This trace was reconstructed from an existing usd-cli run directory."
+        )
 
     add(
         "start",
@@ -285,12 +580,12 @@ def _build_timeline(
         start_summary,
         artifacts=[_rel(run_dir, source_usd)] if source_usd else [],
         decisions=[
-            "Use Content Workbench as the scene interaction surface.",
+            "Use usd-cli as the scene interaction surface.",
             "Use non-destructive material overrides for the assignment.",
         ],
         data={
             "source_usd": source_usd,
-            "workbench_url": request.get("workbench_url"),
+            "usd_cli_session_id": request.get("usd_cli_session_id"),
             "runner": request.get("runner"),
         },
     )
@@ -303,7 +598,7 @@ def _build_timeline(
             artifacts=[_rel(run_dir, str(path)) for path in reference_images],
             decisions=[
                 "Use reference images as external visual evidence, not as geometry.",
-                "Compare them against Workbench renders from multiple camera views.",
+                "Compare them against usd-cli renders from multiple camera views.",
             ],
         )
 
@@ -315,14 +610,14 @@ def _build_timeline(
             artifacts=[_rel(run_dir, str(path)) for path in reference_files],
             decisions=[
                 "Use non-image reference files as external evidence, not as geometry.",
-                "Compare their material guidance against Workbench renders from multiple camera views.",
+                "Compare their material guidance against usd-cli renders from multiple camera views.",
             ],
         )
 
     add(
         "api_discovery",
-        "Workbench API discovered",
-        "The agent fetched the canonical Workbench API docs before operating on the scene.",
+        "usd-cli API discovered",
+        "The agent fetched the canonical usd-cli API docs before operating on the scene.",
         artifacts=[
             _rel(run_dir, raw_dir / "agent-api.md"),
             _rel(run_dir, raw_dir / "agent-api.json"),
@@ -331,7 +626,11 @@ def _build_timeline(
         api_calls=["GET /agent-api", "GET /agent-api.json", "GET /openapi.json"],
     )
 
-    tree_summary = _load_json(raw_dir / "tree_summary.json", default={})
+    tree_summary = _load_json(
+        raw_dir / "tree_summary.json",
+        default={},
+        run_dir=run_dir,
+    )
     add(
         "scene_query",
         "Scene hierarchy and bindings queried",
@@ -349,7 +648,11 @@ def _build_timeline(
         data=tree_summary,
     )
 
-    for record in _load_json(raw_dir / "initial_render_records.json", default=[]):
+    for record in _load_json(
+        raw_dir / "initial_render_records.json",
+        default=[],
+        run_dir=run_dir,
+    ):
         image = _record_image(record)
         add(
             "render",
@@ -365,7 +668,11 @@ def _build_timeline(
         )
 
     current_pick_image: str | None = None
-    for record in _load_json(raw_dir / "pick_records.json", default=[]):
+    for record in _load_json(
+        raw_dir / "pick_records.json",
+        default=[],
+        run_dir=run_dir,
+    ):
         kind = record.get("kind")
         if kind == "command":
             command = record.get("command", "command")
@@ -373,7 +680,7 @@ def _build_timeline(
             add(
                 "camera_command",
                 f"Camera command: {command}",
-                "The agent moved the Workbench camera to inspect a target region before picking.",
+                "The agent moved the usd-cli camera to inspect a target region before picking.",
                 api_calls=["POST /sessions/{session_id}/commands"],
                 data={"command": command, "payload": payload},
                 duration_seconds_hint=0.75,
@@ -384,7 +691,7 @@ def _build_timeline(
             add(
                 "render",
                 f"Pick camera render: {record.get('name', 'view')}",
-                "Rendered the current Workbench camera state before pixel picking.",
+                "Rendered the current usd-cli camera state before pixel picking.",
                 artifacts=[_rel(run_dir, image)] if image else [],
                 api_calls=["POST /sessions/{session_id}/render"],
             )
@@ -415,7 +722,11 @@ def _build_timeline(
                 duration_seconds_hint=0.9,
             )
 
-    for record in _load_json(raw_dir / "isolation_render_records.json", default=[]):
+    for record in _load_json(
+        raw_dir / "isolation_render_records.json",
+        default=[],
+        run_dir=run_dir,
+    ):
         image = _record_image(record)
         name = record.get("name", "isolation")
         add(
@@ -433,12 +744,17 @@ def _build_timeline(
             data={"prim_count": len(record.get("paths") or [])},
         )
 
-    test_record = _load_json(raw_dir / "test_orange_lift_frame_record.json", default={})
+    test_record = _load_json(
+        raw_dir / "test_orange_lift_frame_record.json",
+        default={},
+        run_dir=run_dir,
+    )
     test_image = _record_image(test_record)
-    if (
-        test_record
-        or (run_dir / "evidence_renders" / "test_orange_lift_frame.png").exists()
-    ):
+    test_orange_render = _contained_run_artifact_reference(
+        run_dir,
+        run_dir / "evidence_renders" / "test_orange_lift_frame.png",
+    )
+    if test_record or test_orange_render is not None:
         add(
             "material_test",
             "Material-library binding smoke test",
@@ -446,8 +762,7 @@ def _build_timeline(
             artifacts=[
                 _rel(
                     run_dir,
-                    test_image
-                    or run_dir / "evidence_renders" / "test_orange_lift_frame.png",
+                    test_image or test_orange_render,
                 )
             ],
             api_calls=["POST /sessions/{session_id}/commands material_override"],
@@ -481,7 +796,11 @@ def _build_timeline(
             duration_seconds_hint=2.0,
         )
 
-    for record in _load_json(raw_dir / "final_render_records.json", default=[]):
+    for record in _load_json(
+        raw_dir / "final_render_records.json",
+        default=[],
+        run_dir=run_dir,
+    ):
         image = _record_image(record)
         add(
             "final_render",
@@ -498,7 +817,7 @@ def _build_timeline(
     add(
         "finish",
         "Run completed",
-        "The observable trace was compiled from Workbench artifacts, child-agent outputs, and wrapper metadata.",
+        "The observable trace was compiled from usd-cli artifacts, child-agent outputs, and wrapper metadata.",
         artifacts=[
             _rel(run_dir, run_dir / "final_summary.md"),
             _rel(run_dir, run_dir / "api_operation_counts.json"),
@@ -512,6 +831,291 @@ def _build_timeline(
     return timeline
 
 
+def _build_usd_cli_timeline(
+    run_dir: Path,
+    request: dict[str, Any],
+    assignments: dict[str, Any],
+    counts: dict[str, Any],
+    agent_events: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build only backend-neutral and usd-cli-backed timeline entries."""
+
+    timeline: list[dict[str, Any]] = []
+
+    def add(
+        kind: str,
+        title: str,
+        summary: str,
+        *,
+        artifacts: list[str] | None = None,
+        decisions: list[str] | None = None,
+        data: dict[str, Any] | None = None,
+        duration_seconds_hint: float = 1.0,
+    ) -> None:
+        timeline.append(
+            {
+                "index": len(timeline) + 1,
+                "kind": kind,
+                "title": title,
+                "summary": summary,
+                "artifacts": artifacts or [],
+                "api_calls": [],
+                "decisions": decisions or [],
+                "data": data or {},
+                "markers": [],
+                "duration_seconds_hint": duration_seconds_hint,
+            }
+        )
+
+    source_usd = _request_input(request, "usd") or assignments.get("source_usd")
+    route_enabled = _usd_cli_route_enabled(request)
+    telemetry_evidence = _has_usd_cli_telemetry_evidence(agent_events)
+    if request.get("dry_run"):
+        start_summary = (
+            "The wrapper prepared a dry-run child prompt with usd-cli as the "
+            "scene interaction surface."
+        )
+    elif route_enabled:
+        start_summary = (
+            "The wrapper launched a child agent with usd-cli as the scene "
+            "interaction surface and an active run-local telemetry route."
+        )
+    else:
+        start_summary = (
+            "The wrapper launched a child agent with usd-cli as the scene "
+            "interaction surface; telemetry routing was unavailable or "
+            "unconfirmed, so execution continued fail-open."
+        )
+    add(
+        "start",
+        "Material assignment run started",
+        start_summary,
+        artifacts=[_rel(run_dir, source_usd)] if source_usd else [],
+        decisions=[
+            "Use usd-cli for scene inspection, authoring, rendering, and verification.",
+            "Keep source USD immutable and save the materialized deliverable under the run directory.",
+        ],
+        data={
+            "source_usd": source_usd,
+            "runner": request.get("runner"),
+            "telemetry": request.get("telemetry"),
+        },
+    )
+
+    references = [
+        *_as_string_list(_request_input(request, "reference_images")),
+        *_as_string_list(_request_input(request, "reference_files")),
+    ]
+    if references:
+        add(
+            "reference",
+            "Reference evidence loaded",
+            "Reference inputs provided the visual and material target.",
+            artifacts=[_rel(run_dir, path) for path in references],
+            decisions=["Use references as external evidence, not as scene geometry."],
+        )
+
+    assignment_summary = _assignments_summary(assignments)
+    if assignment_summary:
+        add(
+            "assignment",
+            "Material coverage decisions recorded",
+            "The child recorded material decisions and the wrapper verified the canonical artifact contract.",
+            artifacts=[_rel(run_dir, run_dir / "assignments.json")],
+            decisions=[
+                f"{item['family']}: {item['coverage_status']} -> "
+                f"{item['material_name']} ({item['count']} prims)"
+                for item in assignment_summary[:12]
+            ],
+            data={
+                "assignment_count": len(assignments.get("assignments") or []),
+                "coverage": _material_coverage_summary(assignments, counts),
+            },
+            duration_seconds_hint=2.0,
+        )
+
+    final_render_dir = run_dir / "final_renders"
+    try:
+        final_render_dir_metadata = final_render_dir.lstat()
+    except FileNotFoundError:
+        final_renders: list[Path] = []
+    else:
+        final_renders = (
+            sorted(final_render_dir.glob("*"))
+            if stat.S_ISDIR(final_render_dir_metadata.st_mode)
+            and not stat.S_ISLNK(final_render_dir_metadata.st_mode)
+            else []
+        )
+    final_render_artifacts = [
+        reference
+        for path in final_renders
+        if path.suffix.lower() in {".gif", ".jpeg", ".jpg", ".png"}
+        and (
+            reference := _contained_run_artifact_reference(
+                run_dir,
+                path,
+            )
+        )
+        is not None
+    ]
+    if final_render_artifacts:
+        add(
+            "final_render",
+            "Final verification renders recorded",
+            "The usd-cli run produced final visual evidence for material verification.",
+            artifacts=final_render_artifacts,
+            decisions=["Use final renders to verify coverage and visual consistency."],
+            duration_seconds_hint=1.5,
+        )
+
+    output_usd = run_dir / "output" / "materialized.usda"
+    output_reference = _contained_run_artifact_reference(run_dir, output_usd)
+    if output_reference is not None:
+        add(
+            "persistence",
+            "Materialized USD saved",
+            "usd-cli saved the verified materialized stage under the run directory.",
+            artifacts=[output_reference],
+        )
+
+    finish_evidence = (
+        "usd-cli telemetry, child-agent artifacts, and wrapper verification metadata"
+        if telemetry_evidence
+        else "child-agent artifacts and wrapper verification metadata"
+    )
+    add(
+        "finish",
+        "Run completed",
+        f"The observable trace was compiled from {finish_evidence}.",
+        artifacts=[
+            reference
+            for path in (
+                run_dir / "final_summary.md",
+                run_dir / "api_operation_counts.json",
+                run_dir / "run_cost_metrics.json",
+            )
+            if (
+                reference := _contained_run_artifact_reference(
+                    run_dir,
+                    path,
+                )
+            )
+            is not None
+        ],
+        data={
+            "usd_cli_calls": counts.get(
+                "usd_cli_calls_total",
+                counts.get("api_operation_count_total"),
+            ),
+            "render_count": counts.get(
+                "render_calls_total",
+                counts.get("render_count_total"),
+            ),
+        },
+    )
+    return timeline
+
+
+def _usd_cli_route_enabled(request: dict[str, Any]) -> bool:
+    telemetry = request.get("telemetry")
+    if not isinstance(telemetry, dict):
+        return False
+    routing = telemetry.get("routing")
+    return isinstance(routing, dict) and routing.get("enabled") is True
+
+
+def _has_usd_cli_telemetry_evidence(agent_events: list[dict[str, Any]]) -> bool:
+    for event in agent_events:
+        if (
+            not isinstance(event, dict)
+            or event.get("event_type") != "usd_cli_invocation"
+        ):
+            continue
+        data = event.get("data")
+        if (
+            isinstance(data, dict)
+            and data.get("schema_version")
+            == "content-agents.usd-cli-telemetry-import.v1"
+            and data.get("trace_matches_run") is True
+            and data.get("parent_matches_run_root") is True
+        ):
+            return True
+    return False
+
+
+def _current_run_agent_events(
+    request: dict[str, Any],
+    agent_events: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Exclude only imported telemetry events from earlier reused-dir runs."""
+
+    if request.get("scene_backend") != "usd-cli":
+        return agent_events
+    telemetry = request.get("telemetry")
+    if not isinstance(telemetry, dict):
+        return agent_events
+    expected_trace_id = telemetry.get("trace_id")
+    if not (
+        isinstance(expected_trace_id, str)
+        and len(expected_trace_id) == 32
+        and expected_trace_id != "0" * 32
+        and all(character in "0123456789abcdef" for character in expected_trace_id)
+    ):
+        return agent_events
+    current: list[dict[str, Any]] = []
+    for event in agent_events:
+        data = event.get("data")
+        if not (
+            isinstance(data, dict)
+            and data.get("schema_version")
+            == "content-agents.usd-cli-telemetry-import.v1"
+        ):
+            current.append(event)
+            continue
+        event_trace_id = data.get("trace_id") or data.get("expected_trace_id")
+        if event_trace_id == expected_trace_id:
+            current.append(event)
+    return current
+
+
+def _merge_usd_cli_timeline(
+    synthetic: list[dict[str, Any]],
+    agent_events: list[dict[str, Any]],
+    child_commands: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Place source-timed invocations before derived artifacts and completion."""
+
+    finish = [event for event in synthetic if event.get("kind") == "finish"]
+    body = [event for event in synthetic if event.get("kind") != "finish"]
+    split_at = next(
+        (
+            index
+            for index, event in enumerate(body)
+            if event.get("kind") in {"assignment", "final_render", "persistence"}
+        ),
+        len(body),
+    )
+    early_agent_events: list[dict[str, Any]] = []
+    ingestion_events: list[dict[str, Any]] = []
+    for event in agent_events:
+        data = event.get("data")
+        is_ingestion_summary = (
+            isinstance(data, dict)
+            and data.get("schema_version")
+            == "content-agents.usd-cli-telemetry-import.v1"
+            and event.get("kind") != "agent_usd_cli_invocation"
+        )
+        (ingestion_events if is_ingestion_summary else early_agent_events).append(event)
+    return [
+        *body[:split_at],
+        *early_agent_events,
+        *body[split_at:],
+        *child_commands,
+        *ingestion_events,
+        *finish,
+    ]
+
+
 def _timeline_from_agent_events(
     run_dir: Path,
     agent_events: list[dict[str, Any]],
@@ -520,22 +1124,86 @@ def _timeline_from_agent_events(
     wrapper_event_types = {
         "run_created",
         "prompt_written",
-        "workbench_started",
-        "workbench_reachable",
+        "usd_cli_started",
+        "usd_cli_ready",
         "child_agent_finished",
         "child_agent_failed",
-        "workbench_stopped",
+        "usd_cli_stopped",
     }
     timeline = []
     index = start_index
-    for event in agent_events:
+    ordered_events = sorted(
+        enumerate(agent_events),
+        key=lambda item: (
+            str(item[1].get("time") or "9999-12-31T23:59:59+00:00"),
+            item[0],
+        ),
+    )
+    for _, event in ordered_events:
+        if event.get("schema_version") == MEMORY_EVENT_SCHEMA_VERSION:
+            observation = (
+                event.get("observation")
+                if isinstance(event.get("observation"), dict)
+                else {}
+            )
+            memory_kind = str(event.get("kind") or "event")
+            event_type = f"memory_{memory_kind}"
+            if memory_kind == "observation":
+                outcome = (
+                    observation.get("outcome")
+                    if isinstance(observation.get("outcome"), dict)
+                    else {}
+                )
+                summary = str(outcome.get("summary") or "Observation recorded.")
+                data = {
+                    "observation_id": observation.get("observation_id"),
+                    "operation": (
+                        observation.get("interaction", {}).get("operation")
+                        if isinstance(observation.get("interaction"), dict)
+                        else None
+                    ),
+                    "outcome": outcome.get("classification"),
+                    "artifact_roles": [
+                        artifact.get("role")
+                        for artifact in observation.get("artifacts") or []
+                        if isinstance(artifact, dict) and artifact.get("role")
+                    ],
+                }
+            else:
+                observation_id = observation.get("observation_id")
+                summary = (
+                    f"Memory {memory_kind} event for observation {observation_id}."
+                    if observation_id
+                    else f"Memory {memory_kind} event recorded."
+                )
+                data = {"observation_id": observation_id}
+            index += 1
+            timeline.append(
+                {
+                    "index": index,
+                    "kind": f"agent_{event_type}",
+                    "title": _title_from_event(
+                        event_type, str(event.get("phase") or "memory")
+                    ),
+                    "summary": summary,
+                    "artifacts": [],
+                    "api_calls": [],
+                    "decisions": [],
+                    "data": data,
+                    "markers": [],
+                    "duration_seconds_hint": 0.1,
+                }
+            )
+            continue
         event_type = str(event.get("event_type") or "event")
         if event_type in wrapper_event_types:
             continue
         artifacts = [
-            _rel(run_dir, artifact)
+            reference
             for artifact in event.get("artifacts") or []
             if artifact
+            and (reference := _contained_run_artifact_reference(run_dir, artifact))
+            is not None
         ]
         data = event.get("data") if isinstance(event.get("data"), dict) else {}
         api_calls = data.get("api_calls") if isinstance(data, dict) else []
@@ -560,6 +1228,7 @@ def _timeline_from_agent_events(
                 "api_calls": api_calls if isinstance(api_calls, list) else [],
                 "decisions": decisions,
                 "data": data,
+                "time": event.get("time"),
                 "markers": [],
                 "duration_seconds_hint": _duration_hint_for_event(
                     event_type, artifacts
@@ -623,7 +1292,12 @@ def _timeline_from_child_commands(
                 f"{len(glue)} glue-code indicator(s), and {len(patches)} "
                 "patch indicator(s)."
             ),
-            "artifacts": [_rel(run_dir, artifact) for artifact in source_artifacts],
+            "artifacts": [
+                reference
+                for artifact in source_artifacts
+                if (reference := _contained_run_artifact_reference(run_dir, artifact))
+                is not None
+            ],
             "api_calls": [],
             "decisions": [
                 _clip(str(command.get("command") or ""))
@@ -686,7 +1360,9 @@ def _build_run_retrospective(
             "No request.json was found; this trace was reconstructed from partial artifacts."
         )
 
-    render_count = _int_or_none(counts.get("render_count_total"))
+    render_count = _int_or_none(
+        counts.get("render_calls_total", counts.get("render_count_total"))
+    )
     if render_count:
         went_well.append(f"The run produced {render_count} render operation(s).")
 
@@ -879,14 +1555,12 @@ def _build_run_retrospective(
                 "No child-agent completion event was recorded for this non-dry run."
             )
 
-    if any(event.get("event_type") == "workbench_started" for event in agent_events):
-        if any(
-            event.get("event_type") == "workbench_stopped" for event in agent_events
-        ):
-            went_well.append("The wrapper-started Workbench sidecar was stopped.")
+    if any(event.get("event_type") == "usd_cli_started" for event in agent_events):
+        if any(event.get("event_type") == "usd_cli_stopped" for event in agent_events):
+            went_well.append("The wrapper-started usd-cli sidecar was stopped.")
         else:
             did_not_go_well.append(
-                "The wrapper started Workbench but no workbench_stopped event was recorded."
+                "The wrapper started usd-cli but no usd_cli_stopped event was recorded."
             )
 
     material_cap_warning = counts.get("material_assignment_cap_warning")
@@ -902,7 +1576,10 @@ def _build_run_retrospective(
                 summary = f"{summary}: {data['error']}"
             did_not_go_well.append(summary)
 
-    child_output = _load_text(run_dir / "child-output.log")
+    child_output = _load_text(
+        run_dir / "child-output.log",
+        run_dir=run_dir,
+    )
     activity_text = _child_activity_text(child_output, child_commands)
     patches = _build_detected_activity_report(
         activity_text,
@@ -953,9 +1630,18 @@ def _build_run_retrospective(
             "Review code patches made during the run and decide whether they should become product changes or stay as experiment notes."
         )
     if glue["detected"]:
-        followups.append(
-            "Convert useful one-off glue code into Workbench or content-workflow-cli APIs so future runs do not need to improvise it."
-        )
+        if request.get("scene_backend") == "usd-cli":
+            followups.append(
+                "Convert useful one-off glue code into usd-cli or "
+                "content-workflow-cli commands so future runs do not need to "
+                "improvise it."
+            )
+        else:
+            followups.append(
+                "Convert useful one-off glue code into usd-cli or "
+                "content-workflow-cli APIs so future runs do not need to "
+                "improvise it."
+            )
     if not went_well:
         went_well.append("Trace files were generated for reviewer inspection.")
     if not did_not_go_well:
@@ -997,18 +1683,39 @@ def _build_detected_activity_report(
 
 
 def _load_child_command_records(run_dir: Path) -> list[dict[str, Any]]:
-    raw_dir = run_dir / "raw"
     records: list[dict[str, Any]] = []
-    records.extend(_load_codex_child_command_records(raw_dir))
-    records.extend(_load_claude_child_command_records(raw_dir))
+    records.extend(_load_codex_child_command_records(run_dir))
+    records.extend(_load_claude_child_command_records(run_dir))
     return records
 
 
-def _load_codex_child_command_records(raw_dir: Path) -> list[dict[str, Any]]:
+def _safe_child_item_paths(run_dir: Path) -> list[Path]:
+    """List direct child item logs without traversing a replaced ``raw`` dir."""
+
+    raw_dir = run_dir / "raw"
+    try:
+        metadata = raw_dir.lstat()
+    except OSError:
+        return []
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        return []
+    paths: list[Path] = []
+    try:
+        for path in raw_dir.iterdir():
+            if not path.name.endswith("_items.json"):
+                continue
+            paths.append(path)
+            if len(paths) > _MAX_CHILD_ITEM_FILES:
+                return []
+    except OSError:
+        return []
+    return sorted(paths)
+
+
+def _load_codex_child_command_records(run_dir: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    paths = sorted(raw_dir.glob("*_items.json"))
-    for path in paths:
-        items = _load_json(path, default=[])
+    for path in _safe_child_item_paths(run_dir):
+        items = _load_json(path, default=[], run_dir=run_dir)
         if isinstance(items, dict):
             items = items.get("items") or []
         if not isinstance(items, list):
@@ -1040,12 +1747,11 @@ def _load_codex_child_command_records(raw_dir: Path) -> list[dict[str, Any]]:
     return records
 
 
-def _load_claude_child_command_records(raw_dir: Path) -> list[dict[str, Any]]:
+def _load_claude_child_command_records(run_dir: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     by_tool_use_id: dict[str, dict[str, Any]] = {}
-    paths = sorted(raw_dir.glob("*_items.json"))
-    for path in paths:
-        items = _load_json(path, default=[])
+    for path in _safe_child_item_paths(run_dir):
+        items = _load_json(path, default=[], run_dir=run_dir)
         if isinstance(items, dict):
             items = items.get("items") or []
         if not isinstance(items, list):
@@ -1240,7 +1946,7 @@ def _build_replay_manifest(
 ) -> dict[str, Any]:
     frames = []
     for event in timeline:
-        image_artifact = _first_image(event.get("artifacts") or [])
+        image_artifact = _first_safe_image(run_dir, event.get("artifacts") or [])
         if image_artifact is None and event["kind"] not in {
             "start",
             "reference",
@@ -1269,24 +1975,57 @@ def _build_replay_manifest(
 
 
 def _render_trace_markdown(trace: dict[str, Any]) -> str:
+    request = trace.get("request") or {}
+    usd_cli_backend = request.get("scene_backend") == "usd-cli"
+    telemetry_evidence = _has_usd_cli_telemetry_evidence(
+        trace.get("agent_events") or []
+    )
+    if usd_cli_backend:
+        evidence_source = (
+            "usd-cli telemetry, child-agent artifacts, and wrapper verification metadata"
+            if telemetry_evidence
+            else "child-agent artifacts and wrapper verification metadata"
+        )
+    else:
+        evidence_source = "usd-cli artifacts"
     lines = [
         "# Content Agent Operation Trace",
         "",
-        "This trace contains observable evidence and decision summaries reconstructed from Content Workbench artifacts. It does not include private model chain-of-thought.",
+        (
+            "This trace contains observable evidence and decision summaries "
+            f"reconstructed from {evidence_source}. It does not include private "
+            "model chain-of-thought."
+        ),
         "",
         f"- Workflow: `{trace.get('workflow')}`",
         f"- Run directory: `{trace.get('run_dir')}`",
     ]
     stats = trace.get("stats") or {}
     if stats:
+        operation_count = stats.get(
+            "usd_cli_calls_total",
+            stats.get("api_operation_count_total", "unknown"),
+        )
+        render_count = stats.get(
+            "render_calls_total",
+            stats.get("render_count_total", "unknown"),
+        )
         lines.extend(
             [
-                f"- API operations tracked: `{stats.get('api_operation_count_total', 'unknown')}`",
-                f"- Render operations: `{stats.get('render_count_total', 'unknown')}`",
-                f"- Pixel picks: `{stats.get('pick_calls', 'unknown')}`",
-                f"- Material override commands: `{stats.get('material_override_commands', 'unknown')}`",
+                (
+                    f"- {'usd-cli invocations' if usd_cli_backend else 'API operations tracked'}: "
+                    f"`{operation_count}`"
+                ),
+                f"- Render operations: `{render_count}`",
             ]
         )
+        if not usd_cli_backend:
+            lines.extend(
+                [
+                    f"- Pixel picks: `{stats.get('pick_calls', 'unknown')}`",
+                    f"- Material override commands: `{stats.get('material_override_commands', 'unknown')}`",
+                ]
+            )
     retrospective = trace.get("run_retrospective") or {}
     if retrospective:
         lines.extend(["", "## Run Retrospective"])
@@ -1430,22 +2169,101 @@ def _request_input(request: dict[str, Any], key: str) -> Any:
     return None
 
 
-def _load_json(path: Path, *, default: Any) -> Any:
-    if not path.exists():
-        return default
+def _read_bounded_trace_artifact(
+    path: Path,
+    *,
+    run_dir: Path,
+    max_bytes: int,
+) -> bytes:
+    """Read one run-local regular file through a no-follow descriptor chain."""
+
+    if max_bytes < 0:
+        raise ValueError("Trace input byte limit must be non-negative.")
+    root = run_dir.expanduser().resolve(strict=True)
+    relative = _contained_relative_path(root, path)
+    budget = _ACTIVE_TRACE_INPUT_BUDGET.get()
+    effective_limit = max_bytes
+    if budget is not None:
+        effective_limit = min(effective_limit, budget.remaining_bytes)
+    if os.name != "posix":
+        opened = read_contained_artifact(
+            root,
+            root / relative,
+            max_bytes=effective_limit,
+            capture_bytes=True,
+        )
+        assert opened.data is not None
+        if budget is not None:
+            budget.consume(len(opened.data))
+        return opened.data
+
+    parent_fd = _open_contained_trace_directory(
+        root,
+        relative.parent,
+        create=False,
+    )
+    file_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+        file_fd = os.open(relative.name, file_flags, dir_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
+    try:
+        metadata = os.fstat(file_fd)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"Trace input is not a regular file: {path}")
+        if metadata.st_size > effective_limit:
+            raise ValueError(
+                f"Trace input exceeds its byte limit: {path} "
+                f"({metadata.st_size} > {effective_limit})"
+            )
+        with os.fdopen(file_fd, "rb") as stream:
+            file_fd = -1
+            payload = stream.read(effective_limit + 1)
+        if len(payload) > effective_limit:
+            raise ValueError(f"Trace input grew beyond its byte limit: {path}")
+        if budget is not None:
+            budget.consume(len(payload))
+        return payload
+    finally:
+        if file_fd >= 0:
+            os.close(file_fd)
+
+
+def _load_json(path: Path, *, default: Any, run_dir: Path) -> Any:
+    try:
+        payload = _read_bounded_trace_artifact(
+            path,
+            run_dir=run_dir,
+            max_bytes=_MAX_JSON_ARTIFACT_BYTES,
+        )
+        return json.loads(payload)
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
         return default
 
 
-def _load_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
+def _load_json_object(path: Path, *, run_dir: Path) -> dict[str, Any]:
+    loaded = _load_json(path, default={}, run_dir=run_dir)
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _load_jsonl(path: Path, *, run_dir: Path) -> list[dict[str, Any]]:
+    try:
+        payload = _read_bounded_trace_artifact(
+            path,
+            run_dir=run_dir,
+            max_bytes=_MAX_JSONL_ARTIFACT_BYTES,
+        )
+        text = payload.decode("utf-8")
+    except (OSError, UnicodeError, ValueError):
         return []
     events = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    records_seen = 0
+    for line in text.splitlines():
         if not line.strip():
             continue
+        records_seen += 1
+        if records_seen > _MAX_JSONL_RECORDS:
+            return []
         try:
             loaded = json.loads(line)
         except json.JSONDecodeError:
@@ -1455,10 +2273,16 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return events
 
 
-def _load_text(path: Path) -> str:
-    if not path.exists():
+def _load_text(path: Path, *, run_dir: Path) -> str:
+    try:
+        payload = _read_bounded_trace_artifact(
+            path,
+            run_dir=run_dir,
+            max_bytes=_MAX_TEXT_ARTIFACT_BYTES,
+        )
+        return payload.decode("utf-8", errors="replace")
+    except (OSError, ValueError):
         return ""
-    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def _record_image(record: dict[str, Any]) -> str | None:
@@ -1472,11 +2296,65 @@ def _record_image(record: dict[str, Any]) -> str | None:
     return str(image) if image else None
 
 
+def _as_string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [str(item) for item in value if item]
+    return []
+
+
 def _first_image(artifacts: list[str]) -> str | None:
     for artifact in artifacts:
         suffix = Path(artifact).suffix.lower()
         if suffix in {".png", ".jpg", ".jpeg", ".webp"}:
             return artifact
+    return None
+
+
+def _contained_run_artifact_reference(
+    run_dir: Path,
+    path: str | Path,
+    *,
+    image: bool = False,
+) -> str | None:
+    """Return one verified run-relative artifact reference, or reject it."""
+
+    try:
+        resolved = contained_regular_file(
+            run_dir,
+            path,
+            max_bytes=128 * 1024 * 1024 if image else None,
+            image=image,
+        )
+    except (OSError, ValueError):
+        return None
+    return resolved.relative_to(run_dir.resolve()).as_posix()
+
+
+def _first_safe_image(run_dir: Path, artifacts: list[str]) -> str | None:
+    """Select a replay image without following a child-authored run symlink."""
+
+    root = run_dir.resolve()
+    for artifact in artifacts:
+        path = Path(artifact)
+        if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            continue
+        candidate = path if path.is_absolute() else root / path
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            # External reference inputs are allowed in reference frames, but they
+            # must themselves be regular non-symlink files.
+            try:
+                if candidate.is_symlink() or not candidate.is_file():
+                    continue
+            except OSError:
+                continue
+            return str(candidate)
+        reference = _contained_run_artifact_reference(root, candidate)
+        if reference is not None:
+            return reference
     return None
 
 

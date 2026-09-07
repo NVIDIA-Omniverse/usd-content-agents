@@ -12,7 +12,9 @@ intermittently.
 
 from __future__ import annotations
 
+import base64
 import logging
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -25,8 +27,13 @@ from pxr import (  # type: ignore[import-untyped]  # noqa: E402
     UsdGeom,
     UsdPhysics,
     UsdShade,
+    UsdUtils,
+)
+from world_understanding.functions.graphics.so_export import (  # noqa: E402
+    portable_sidecar_name,
 )
 
+from physics_agent.tuning.scenarios import _scene_builder  # noqa: E402
 from physics_agent.tuning.scenarios._scene_builder import (  # noqa: E402
     build_drop_settle_scene,
     build_freeform_scene,
@@ -209,6 +216,104 @@ def test_freeform_scene_uses_first_rigid_body_by_traversal_order(
     assert rec.GetPrimAtPath(Sdf.Path("/SceneRoot/GroundPlane")).IsValid()
 
 
+@pytest.mark.parametrize(
+    ("drop_height_m", "expected_root_z", "expected_min_z"),
+    [(0.0, 0.6, 0.0), (0.4, 1.0, 0.4)],
+)
+def test_drop_settle_asset_placement_preserves_multibody_relative_poses(
+    tmp_path: Path,
+    drop_height_m: float,
+    expected_root_z: float,
+    expected_min_z: float,
+) -> None:
+    """A multibody placement hint moves the common root, not one body."""
+
+    from pxr import Gf
+
+    source = tmp_path / "multibody.usda"
+    stage = Usd.Stage.CreateNew(str(source))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    asset = UsdGeom.Xform.Define(stage, "/Asset")
+    stage.SetDefaultPrim(asset.GetPrim())
+
+    for name, z_value in (("BodyA", 1.0), ("BodyB", -0.5)):
+        body = UsdGeom.Xform.Define(stage, f"/Asset/SimBodies/{name}")
+        body.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, z_value))
+        UsdPhysics.RigidBodyAPI.Apply(body.GetPrim())
+        UsdPhysics.MassAPI.Apply(body.GetPrim()).CreateMassAttr(1.0)
+        collider = UsdGeom.Cube.Define(stage, f"/Asset/SimBodies/{name}/Collider")
+        collider.CreateSizeAttr(0.2)
+        UsdPhysics.CollisionAPI.Apply(collider.GetPrim()).CreateCollisionEnabledAttr(
+            True
+        )
+    stage.GetRootLayer().Save()
+
+    output = tmp_path / "multibody_scene.usda"
+    info = build_drop_settle_scene(
+        source,
+        output,
+        drop_height_m=drop_height_m,
+        body_prim_path_hint="/Asset/SimBodies/BodyA",
+        body_pattern_hint="/Asset/SimBodies/BodyA",
+        placement_prim_path_hint="/Asset",
+    )
+
+    result = Usd.Stage.Open(str(output))
+    body_a = result.GetPrimAtPath("/Asset/SimBodies/BodyA")
+    body_b = result.GetPrimAtPath("/Asset/SimBodies/BodyB")
+    asset_prim = result.GetPrimAtPath("/Asset")
+
+    def translation(prim: Any) -> Any:
+        return next(
+            op.Get()
+            for op in UsdGeom.Xformable(prim).GetOrderedXformOps()
+            if op.GetOpType() == UsdGeom.XformOp.TypeTranslate
+        )
+
+    assert info["body_prim_path"] == "/Asset/SimBodies/BodyA"
+    assert info["placement_prim_path"] == "/Asset"
+    assert translation(body_a)[2] == pytest.approx(1.0)
+    assert translation(body_b)[2] == pytest.approx(-0.5)
+    assert translation(asset_prim)[2] == pytest.approx(expected_root_z)
+    bbox = UsdGeom.BBoxCache(
+        Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]
+    ).ComputeWorldBound(asset_prim)
+    assert bbox.ComputeAlignedRange().GetMin()[2] == pytest.approx(
+        expected_min_z, abs=1e-6
+    )
+    assert info["rest_position"] == pytest.approx([0.0, 0.0, 1.6])
+
+
+def test_drop_settle_scene_resets_inherited_rigid_body_velocities(
+    tmp_path: Path,
+) -> None:
+    """The gravity-only trial must not inherit motion authored by the asset."""
+
+    from pxr import Gf
+
+    patched = _patched_physics_usd(tmp_path)
+    source_stage = Usd.Stage.Open(str(patched))
+    source_body = UsdPhysics.RigidBodyAPI(source_stage.GetPrimAtPath("/World/Body"))
+    source_body.CreateVelocityAttr().Set(Gf.Vec3f(4.0, 5.0, 6.0))
+    source_body.CreateAngularVelocityAttr().Set(Gf.Vec3f(7.0, 8.0, 9.0))
+    source_body.GetVelocityAttr().Set(Gf.Vec3f(10.0, 11.0, 12.0), Usd.TimeCode(0.0))
+    source_body.GetAngularVelocityAttr().Set(
+        Gf.Vec3f(13.0, 14.0, 15.0), Usd.TimeCode(0.0)
+    )
+    source_stage.GetRootLayer().Save()
+
+    output = tmp_path / "zero-velocity-scene.usda"
+    build_drop_settle_scene(patched, output, drop_height_m=0.25)
+
+    result_stage = Usd.Stage.Open(str(output))
+    result_body = UsdPhysics.RigidBodyAPI(result_stage.GetPrimAtPath("/World/Body"))
+    assert result_body.GetVelocityAttr().Get() == Gf.Vec3f(0.0)
+    assert result_body.GetAngularVelocityAttr().Get() == Gf.Vec3f(0.0)
+    assert result_body.GetVelocityAttr().GetTimeSamples() == []
+    assert result_body.GetAngularVelocityAttr().GetTimeSamples() == []
+
+
 def test_freeform_scene_records_bbox_after_selected_body_transform(
     tmp_path: Path,
 ) -> None:
@@ -253,6 +358,51 @@ def test_drop_settle_scene_uses_collider_bounds_for_pose_local_acceptance(
 
     assert info["bbox_min_local_stage"] == pytest.approx([-0.5, -0.5, -0.5])
     assert info["bbox_max_local_stage"] == pytest.approx([0.5, 0.5, 0.5])
+
+
+def test_drop_settle_scene_reports_exact_mesh_points_for_ground_clearance(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "mesh_body.usda"
+    stage = Usd.Stage.CreateNew(str(source))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    asset = UsdGeom.Xform.Define(stage, "/Asset")
+    stage.SetDefaultPrim(asset.GetPrim())
+    body = UsdGeom.Xform.Define(stage, "/Asset/Body")
+    UsdPhysics.RigidBodyAPI.Apply(body.GetPrim())
+    UsdPhysics.MassAPI.Apply(body.GetPrim()).CreateMassAttr(1.0)
+    mesh = UsdGeom.Mesh.Define(stage, "/Asset/Body/Collider")
+    mesh.CreatePointsAttr(
+        [
+            (-1.0, 0.0, -1.0),
+            (1.0, 0.0, 1.0),
+            (0.0, 0.1, 0.0),
+            (0.0, -0.1, 0.0),
+        ]
+    )
+    mesh.CreateFaceVertexCountsAttr([3, 3, 3, 3])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2])
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim()).CreateCollisionEnabledAttr(True)
+    stage.GetRootLayer().Save()
+
+    info = build_drop_settle_scene(
+        source,
+        tmp_path / "mesh_body_scene.usda",
+        drop_height_m=0.0,
+    )
+
+    assert info["ground_clearance_geometry"] == "collider_mesh_vertices"
+    expected_points = [
+        [-1.0, 0.0, -1.0],
+        [0.0, -0.1, 0.0],
+        [0.0, 0.1, 0.0],
+        [1.0, 0.0, 1.0],
+    ]
+    for actual, expected in zip(
+        info["geometry_points_local_stage"], expected_points, strict=True
+    ):
+        assert actual == pytest.approx(expected)
 
 
 def test_drop_settle_scene_reports_composed_scale_for_pose_local_bounds(
@@ -1444,3 +1594,932 @@ def test_digit_leading_camera_direction_authors_valid_prim_path(
     assert cam_prim and cam_prim.IsValid(), (
         f"digit-leading camera path {cam_path!r} did not resolve to a real prim"
     )
+
+
+# ---------------------------------------------------------------------------
+# Regression: issue #963 — portable composed scene export without flattening
+# ---------------------------------------------------------------------------
+
+
+def _author_portable_body_layer(
+    path: Path,
+    body_path: str,
+    *,
+    runtime_mdl: bool = False,
+    file_asset: str | None = None,
+    meters_per_unit: float = 1.0,
+    geometry_scale: float = 1.0,
+) -> None:
+    """Author a real rigid body + mesh layer for composition regressions."""
+    from pxr import Gf, Vt
+
+    stage = Usd.Stage.CreateNew(str(path))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, meters_per_unit)
+
+    top_path = f"/{body_path.strip('/').split('/', 1)[0]}"
+    top = UsdGeom.Xform.Define(stage, top_path)
+    stage.SetDefaultPrim(top.GetPrim())
+    body = UsdGeom.Xform.Define(stage, body_path)
+    UsdPhysics.RigidBodyAPI.Apply(body.GetPrim())
+    UsdPhysics.MassAPI.Apply(body.GetPrim()).CreateMassAttr().Set(1.0)
+
+    mesh = UsdGeom.Mesh.Define(stage, f"{body_path}/Geom")
+    mesh.CreatePointsAttr(
+        Vt.Vec3fArray(
+            [
+                Gf.Vec3f(-0.5, -0.5, 0.0) * geometry_scale,
+                Gf.Vec3f(0.5, -0.5, 0.0) * geometry_scale,
+                Gf.Vec3f(0.5, 0.5, 0.0) * geometry_scale,
+                Gf.Vec3f(-0.5, 0.5, 0.0) * geometry_scale,
+                Gf.Vec3f(-0.5, -0.5, 1.0) * geometry_scale,
+                Gf.Vec3f(0.5, -0.5, 1.0) * geometry_scale,
+                Gf.Vec3f(0.5, 0.5, 1.0) * geometry_scale,
+                Gf.Vec3f(-0.5, 0.5, 1.0) * geometry_scale,
+            ]
+        )
+    )
+    mesh.CreateFaceVertexCountsAttr([4] * 6)
+    mesh.CreateFaceVertexIndicesAttr(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            0,
+            1,
+            5,
+            4,
+            2,
+            3,
+            7,
+            6,
+            0,
+            3,
+            7,
+            4,
+            1,
+            2,
+            6,
+            5,
+        ]
+    )
+    mesh.CreateExtentAttr(
+        [
+            Gf.Vec3f(-0.5, -0.5, 0.0) * geometry_scale,
+            Gf.Vec3f(0.5, 0.5, 1.0) * geometry_scale,
+        ]
+    )
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
+
+    if runtime_mdl or file_asset is not None:
+        shader = UsdShade.Shader.Define(stage, f"{body_path}/Shader")
+        if runtime_mdl:
+            shader.CreateInput("mdl", Sdf.ValueTypeNames.Asset).Set(
+                Sdf.AssetPath("OmniPBR.mdl")
+            )
+        if file_asset is not None:
+            shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+                Sdf.AssetPath(file_asset)
+            )
+
+    stage.GetRootLayer().Save()
+
+
+def _make_portable_scene_fixture(
+    tmp_path: Path,
+    composition: str,
+) -> tuple[Path, Path]:
+    """Return ``(source_asset, approved_root)`` for one real composition kind."""
+    source = tmp_path / "source"
+    layers = source / "layers"
+    layers.mkdir(parents=True)
+
+    if composition == "reference":
+        body_layer = layers / "body.usda"
+        _author_portable_body_layer(
+            body_layer,
+            "/Body",
+            runtime_mdl=True,
+            file_asset="omniverse://example.invalid/materials/albedo.png",
+        )
+
+        root = source / "scene.usda"
+        stage = Usd.Stage.CreateNew(str(root))
+        UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+        UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+        world = UsdGeom.Xform.Define(stage, "/World")
+        stage.SetDefaultPrim(world.GetPrim())
+        instance = UsdGeom.Xform.Define(stage, "/World/Body")
+        instance.GetPrim().GetReferences().AddReference("layers/body.usda")
+        instance.GetPrim().SetInstanceable(True)
+        stage.GetRootLayer().Save()
+        return root, source
+
+    body_layer = layers / "body.usda"
+    _author_portable_body_layer(body_layer, "/World/Body")
+    root = source / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(root))
+    stage.GetRootLayer().subLayerPaths.append("layers/body.usda")
+    stage.GetRootLayer().Save()
+    stage.Reload()
+    world = stage.GetPrimAtPath("/World")
+    assert world.IsValid(), "layered fixture must compose before the regression runs"
+    stage.SetDefaultPrim(world)
+    stage.GetRootLayer().Save()
+
+    if composition == "sublayer":
+        return root, source
+    if composition == "usdz":
+        package = source / "vehicle.usdz"
+        assert UsdUtils.CreateNewUsdzPackage(str(root), str(package))
+        return package, source
+    raise AssertionError(f"unknown composition fixture: {composition}")
+
+
+def _make_cm_instance_reference_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    """Author a centimeter-scale instance whose geometry lives in a reference."""
+    source = tmp_path / "cm-source"
+    layers = source / "layers"
+    layers.mkdir(parents=True)
+    _author_portable_body_layer(
+        layers / "body.usda",
+        "/Body",
+        meters_per_unit=0.01,
+        geometry_scale=100.0,
+    )
+
+    root = source / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(root))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 0.01)
+    world = UsdGeom.Xform.Define(stage, "/World")
+    stage.SetDefaultPrim(world.GetPrim())
+    instance = UsdGeom.Xform.Define(stage, "/World/Body")
+    instance.GetPrim().GetReferences().AddReference("layers/body.usda")
+    instance.GetPrim().SetInstanceable(True)
+    stage.GetRootLayer().Save()
+    return root, source
+
+
+def _build_portable_scene(
+    builder: str,
+    source: Path,
+    output: Path,
+    approved_root: Path,
+) -> dict[str, Any]:
+    if builder == "drop_settle":
+        return build_drop_settle_scene(
+            source,
+            output,
+            drop_height_m=0.25,
+            approved_dependency_roots=(approved_root,),
+        )
+    return build_freeform_scene(
+        source,
+        output,
+        target={"duration_s": 0.1},
+        approved_dependency_roots=(approved_root,),
+    )
+
+
+@pytest.mark.parametrize("builder", ["drop_settle", "freeform"])
+@pytest.mark.parametrize("invalid_root_kind", ["missing", "filesystem"])
+def test_scene_builders_reject_invalid_dependency_roots_before_side_effects(
+    tmp_path: Path,
+    builder: str,
+    invalid_root_kind: str,
+) -> None:
+    source = _patched_physics_usd(tmp_path)
+    source_bytes = source.read_bytes()
+    output = tmp_path / "work" / "runtime_scene.usda"
+    invalid_root = tmp_path / "missing-root"
+    if invalid_root_kind == "filesystem":
+        invalid_root = Path(invalid_root.anchor)
+
+    with pytest.raises(ValueError, match="approved_dependency_roots"):
+        _build_portable_scene(builder, source, output, invalid_root)
+
+    assert source.read_bytes() == source_bytes
+    assert not output.parent.exists()
+
+
+@pytest.mark.parametrize("builder", ["drop_settle", "freeform"])
+@pytest.mark.parametrize("composition", ["sublayer", "reference", "usdz"])
+def test_composed_scene_export_survives_source_deletion_and_relocation(
+    tmp_path: Path,
+    builder: str,
+    composition: str,
+) -> None:
+    """Runtime scenes retain composition, bodies, and package dependencies.
+
+    This is the original #963 failure shape: input and output live in different
+    directories. The final reopen happens only after deleting the complete
+    source tree and moving the root + sidecar together, so a surviving prim
+    cannot be explained by the source layer registry or an absolute path.
+    """
+    source, approved_root = _make_portable_scene_fixture(tmp_path, composition)
+    original = Usd.Stage.Open(str(source))
+    assert original is not None
+    assert (
+        len(
+            [
+                layer
+                for layer in original.GetUsedLayers()
+                if layer != original.GetSessionLayer()
+            ]
+        )
+        > 1
+    )
+
+    work = tmp_path / "work"
+    output = work / "runtime_scene.usda"
+    info = _build_portable_scene(builder, source, output, approved_root)
+    sidecar = work / portable_sidecar_name(output)
+    assert output.is_file()
+    assert sidecar.is_dir()
+
+    del original
+    shutil.rmtree(approved_root)
+    delivery = tmp_path / "delivery"
+    shutil.move(str(work), str(delivery))
+    delivered_output = delivery / output.name
+    delivered_sidecar = delivery / sidecar.name
+
+    stage = Usd.Stage.Open(str(delivered_output))
+    assert stage is not None
+    body = stage.GetPrimAtPath(info["body_prim_path"])
+    assert body.IsValid()
+    assert body.HasAPI(UsdPhysics.RigidBodyAPI)
+
+    prims = list(
+        Usd.PrimRange.Stage(
+            stage,
+            Usd.TraverseInstanceProxies(Usd.PrimAllPrimsPredicate),
+        )
+    )
+    body_path = Sdf.Path(info["body_prim_path"])
+    meshes = [
+        prim
+        for prim in prims
+        if prim.IsA(UsdGeom.Mesh) and prim.GetPath().HasPrefix(body_path)
+    ]
+    assert [str(prim.GetPath()) for prim in meshes] == [
+        f"{info['body_prim_path']}/Geom"
+    ]
+
+    used_layers = [
+        layer for layer in stage.GetUsedLayers() if layer != stage.GetSessionLayer()
+    ]
+    assert len(used_layers) > 1, "the deliverable was flattened"
+    if composition == "reference":
+        assert body.IsInstance()
+        assert meshes[0].IsInstanceProxy()
+        mdl = stage.GetPrimAtPath(f"{info['body_prim_path']}/Shader").GetAttribute(
+            "inputs:mdl"
+        )
+        assert mdl.Get().path == "OmniPBR.mdl"
+        runtime_asset = stage.GetPrimAtPath(
+            f"{info['body_prim_path']}/Shader"
+        ).GetAttribute("inputs:file")
+        assert (
+            runtime_asset.Get().path
+            == "omniverse://example.invalid/materials/albedo.png"
+        )
+    else:
+        assert stage.GetRootLayer().subLayerPaths
+
+    def ignore_runtime_assets(_layer: Any, dependency_info: Any) -> Any:
+        if str(dependency_info.assetPath) in {
+            "OmniPBR.mdl",
+            "omniverse://example.invalid/materials/albedo.png",
+        }:
+            return UsdUtils.DependencyInfo()
+        return dependency_info
+
+    layers, assets, unresolved = UsdUtils.ComputeAllDependencies(
+        Sdf.AssetPath(str(delivered_output)),
+        ignore_runtime_assets,
+    )
+    assert unresolved == []
+    assert all(
+        Path(str(layer.realPath or layer.resolvedPath or layer.identifier)).resolve()
+        in {delivered_output.resolve()}
+        or Path(str(layer.realPath or layer.resolvedPath or layer.identifier))
+        .resolve()
+        .is_relative_to(delivered_sidecar.resolve())
+        for layer in layers
+    )
+    assert all(
+        Path(str(asset)).resolve().is_relative_to(delivered_sidecar.resolve())
+        for asset in assets
+    )
+    assert str(approved_root) not in stage.GetRootLayer().ExportToString()
+
+
+@pytest.mark.parametrize("builder", ["drop_settle", "freeform"])
+def test_cm_instance_reference_metric_bake_preserves_composition(
+    tmp_path: Path,
+    builder: str,
+) -> None:
+    """Metric conversion scales instance geometry without editing its source."""
+    source, approved_root = _make_cm_instance_reference_fixture(tmp_path)
+    source_bytes = {
+        path.relative_to(approved_root): path.read_bytes()
+        for path in approved_root.rglob("*")
+        if path.is_file()
+    }
+    work = tmp_path / "work"
+    output = work / "runtime_scene.usda"
+
+    info = _build_portable_scene(builder, source, output, approved_root)
+
+    assert source_bytes == {
+        path.relative_to(approved_root): path.read_bytes()
+        for path in approved_root.rglob("*")
+        if path.is_file()
+    }
+    sidecar = work / portable_sidecar_name(output)
+    assert output.is_file() and sidecar.is_dir()
+
+    shutil.rmtree(approved_root)
+    delivery = tmp_path / "delivery"
+    shutil.move(str(work), str(delivery))
+    delivered_output = delivery / output.name
+    stage = Usd.Stage.Open(str(delivered_output))
+    assert stage is not None
+    assert UsdGeom.GetStageMetersPerUnit(stage) == pytest.approx(1.0)
+
+    body = stage.GetPrimAtPath(info["body_prim_path"])
+    mesh = stage.GetPrimAtPath(f"{info['body_prim_path']}/Geom")
+    assert body.IsInstance()
+    assert mesh.IsInstanceProxy()
+    body_spec = stage.GetRootLayer().GetPrimAtPath(body.GetPath())
+    assert body_spec is not None
+    references = list(body_spec.referenceList.prependedItems)
+    assert len(references) == 1
+    assert portable_sidecar_name(output) in references[0].assetPath
+    assert (
+        len(
+            [
+                layer
+                for layer in stage.GetUsedLayers()
+                if layer != stage.GetSessionLayer()
+            ]
+        )
+        > 1
+    )
+
+    ordered_ops = UsdGeom.Xformable(body).GetOrderedXformOps()
+    op_names = [str(op.GetOpName()) for op in ordered_ops]
+    ops = {str(op.GetOpName()): op for op in ordered_ops}
+    assert [name for name in op_names if "wuMetricBake" in name] == [
+        "xformOp:scale:wuMetricBake"
+    ]
+    metric_scale = ops["xformOp:scale:wuMetricBake"].Get()
+    assert tuple(metric_scale) == pytest.approx((0.01, 0.01, 0.01), abs=1e-6)
+    assert op_names.index("xformOp:translate") < op_names.index(
+        "xformOp:scale:wuMetricBake"
+    )
+
+    expected_bottom = 0.25 if builder == "drop_settle" else 1.0
+    translation = ops["xformOp:translate"].Get()
+    assert tuple(translation) == pytest.approx((0.0, 0.0, expected_bottom))
+
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+    world_range = cache.ComputeWorldBound(body).ComputeAlignedRange()
+    size = world_range.GetSize()
+    assert tuple(size) == pytest.approx((1.0, 1.0, 1.0), abs=1e-5)
+    assert world_range.GetMin()[2] == pytest.approx(expected_bottom, abs=1e-5)
+    assert world_range.GetMax()[2] == pytest.approx(expected_bottom + 1.0, abs=1e-5)
+    assert info["bbox_size_m"] == pytest.approx([1.0, 1.0, 1.0], abs=1e-5)
+    assert info["bbox_local_stage_scale"] == pytest.approx([0.01, 0.01, 0.01], abs=1e-6)
+
+    points = UsdGeom.Mesh(mesh).GetPointsAttr().Get()
+    extent = UsdGeom.Mesh(mesh).GetExtentAttr().Get()
+    assert min(point[0] for point in points) == pytest.approx(-50.0)
+    assert max(point[2] for point in points) == pytest.approx(100.0)
+    assert tuple(extent[0]) == pytest.approx((-50.0, -50.0, 0.0))
+    assert tuple(extent[1]) == pytest.approx((50.0, 50.0, 100.0))
+
+
+def test_scene_export_rejects_dependency_symlink_outside_approved_root(
+    tmp_path: Path,
+) -> None:
+    """An uploaded layer cannot copy an arbitrary host file into evidence."""
+    host = tmp_path / "host"
+    host.mkdir()
+    secret = host / "secret.bin"
+    secret.write_bytes(b"host-secret-must-not-be-published")
+
+    approved = tmp_path / "session-input"
+    layers = approved / "layers"
+    layers.mkdir(parents=True)
+    (layers / "leak.bin").symlink_to(secret)
+    body_layer = layers / "body.usda"
+    _author_portable_body_layer(body_layer, "/World/Body", file_asset="leak.bin")
+
+    source = approved / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(source))
+    stage.GetRootLayer().subLayerPaths.append("layers/body.usda")
+    stage.GetRootLayer().Save()
+    output = tmp_path / "work" / "runtime_scene.usda"
+
+    with pytest.raises(RuntimeError, match="outside approved roots"):
+        build_drop_settle_scene(
+            source,
+            output,
+            approved_dependency_roots=(approved,),
+        )
+
+    assert not output.exists()
+    assert not (output.parent / portable_sidecar_name(output)).exists()
+    assert not any(
+        path.is_file() and path.read_bytes() == secret.read_bytes()
+        for path in output.parent.rglob("*")
+    )
+
+
+def test_scene_export_rejects_source_layer_outside_approved_root(
+    tmp_path: Path,
+) -> None:
+    """A symlinked input cannot widen the session's explicit trust boundary."""
+    host = tmp_path / "host"
+    host.mkdir()
+    host_source = host / "scene.usda"
+    _author_portable_body_layer(host_source, "/World/Body")
+
+    approved = tmp_path / "session-input"
+    approved.mkdir()
+    linked_source = approved / "scene.usda"
+    linked_source.symlink_to(host_source)
+    output = tmp_path / "work" / "runtime_scene.usda"
+
+    with pytest.raises(RuntimeError, match="outside approved roots"):
+        build_freeform_scene(
+            linked_source,
+            output,
+            target={"duration_s": 0.1},
+            approved_dependency_roots=(approved,),
+        )
+
+    assert not output.exists()
+    assert not (output.parent / portable_sidecar_name(output)).exists()
+
+
+def _make_textured_evaluator_fixture(tmp_path: Path) -> tuple[Path, Path, bytes]:
+    """Create a layered rigid body whose texture stays in the input root."""
+    source = tmp_path / "source"
+    layers = source / "layers"
+    textures = source / "textures"
+    layers.mkdir(parents=True)
+    textures.mkdir()
+    texture_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+        "/x8AAusB9Y9ZfWQAAAAASUVORK5CYII="
+    )
+    (textures / "albedo.png").write_bytes(texture_bytes)
+    _author_portable_body_layer(
+        layers / "body.usda",
+        "/World/Body",
+        file_asset="../textures/albedo.png",
+    )
+
+    root = source / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(root))
+    stage.GetRootLayer().subLayerPaths.append("layers/body.usda")
+    stage.GetRootLayer().Save()
+    stage.Reload()
+    stage.SetDefaultPrim(stage.GetPrimAtPath("/World"))
+    stage.GetRootLayer().Save()
+    return root, source, texture_bytes
+
+
+class _PortableSceneSimulator:
+    """Open the exact scene passed to either evaluator before returning data."""
+
+    def __init__(self) -> None:
+        self.scene_usd: Path | None = None
+
+    def evaluate(self, **kwargs: Any) -> dict[str, Any]:
+        self.scene_usd = Path(kwargs["scene_usd"])
+        stage = Usd.Stage.Open(str(self.scene_usd))
+        assert stage is not None
+        body = stage.GetPrimAtPath("/World/Body")
+        assert body.HasAPI(UsdPhysics.RigidBodyAPI)
+        texture = stage.GetPrimAtPath("/World/Body/Shader").GetAttribute("inputs:file")
+        assert texture.Get().path
+        trajectory = [
+            (0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0] * 6),
+            (0.1, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0] * 6),
+        ]
+        return {
+            "trajectory": trajectory,
+            "final_pose": trajectory[-1][1],
+            "n_bodies": 1,
+        }
+
+
+@pytest.mark.parametrize("flow", ["drop_settle", "freeform"])
+def test_tuning_evaluator_localizes_texture_from_original_input_root(
+    tmp_path: Path,
+    flow: str,
+) -> None:
+    """Both evaluators authorize source textures as well as trial artifacts."""
+    from physics_agent.tuning.types import Scenario, TunableParam
+
+    source, source_root, texture_bytes = _make_textured_evaluator_fixture(tmp_path)
+    simulator = _PortableSceneSimulator()
+    target: dict[str, Any] = {
+        "duration_s": 0.1,
+        "sample_fps": 10,
+        "record_frames": "off",
+    }
+    if flow == "drop_settle":
+        from physics_agent.tuning.scenarios.drop_settle import evaluate
+
+        target.update({"drop_height_m": 0.1, "vlm_check": "off"})
+        metric = "settle_distance"
+        callback_kwargs: dict[str, Any] = {"final_state_judge": None}
+    else:
+        from physics_agent.tuning.scenarios.freeform import evaluate
+
+        target["observations"] = ["remain finite"]
+        metric = "combined"
+        callback_kwargs = {"judge_callback": None}
+
+    scenario = Scenario(
+        name=flow,
+        params=(TunableParam(name="mass_scale", min_value=0.5, max_value=2.0),),
+        target=target,
+        metric=metric,
+    )
+    result = evaluate(
+        params={"mass_scale": 1.0},
+        scenario=scenario,
+        physics_usd=source,
+        seed=7,
+        simulator=simulator,  # type: ignore[arg-type]
+        work_dir=tmp_path / "work",
+        **callback_kwargs,
+    )
+
+    scene = Path(result["scene_usd"])
+    sidecar = scene.parent / portable_sidecar_name(scene)
+    assert simulator.scene_usd == scene
+    assert scene.is_file() and sidecar.is_dir()
+
+    shutil.rmtree(source_root)
+    Path(result["patched_usd"]).unlink()
+    delivery = tmp_path / "delivery"
+    delivery.mkdir()
+    delivered_scene = Path(shutil.move(str(scene), delivery / scene.name))
+    delivered_sidecar = Path(shutil.move(str(sidecar), delivery / sidecar.name))
+
+    reopened = Usd.Stage.Open(str(delivered_scene))
+    assert reopened is not None
+    assert reopened.GetPrimAtPath("/World/Body").HasAPI(UsdPhysics.RigidBodyAPI)
+    _layers, assets, unresolved = UsdUtils.ComputeAllDependencies(
+        Sdf.AssetPath(str(delivered_scene))
+    )
+    texture_assets = [
+        Path(str(asset)) for asset in assets if str(asset).endswith(".png")
+    ]
+    assert unresolved == []
+    assert len(texture_assets) == 1
+    assert texture_assets[0].resolve().is_relative_to(delivered_sidecar.resolve())
+    assert texture_assets[0].read_bytes() == texture_bytes
+
+
+# --- Convex-hull reduction of oversized collider vertex clouds ---
+
+
+def test_convex_hull_vertices_preserves_directional_extremes() -> None:
+    """Interior points are discarded; every extreme vertex survives, so the
+    reduction is lossless for ground-clearance scoring."""
+
+    numpy = pytest.importorskip("numpy")
+    pytest.importorskip("scipy.spatial")
+    rng_free_interior = [
+        (0.25, 0.25, 0.25),
+        (0.5, 0.5, 0.5),
+        (0.75, 0.25, 0.5),
+    ]
+    corners = {
+        (float(x), float(y), float(z))
+        for x in (0.0, 1.0)
+        for y in (0.0, 1.0)
+        for z in (0.0, 1.0)
+    }
+    reduced = _scene_builder._convex_hull_vertices(
+        corners | set(rng_free_interior), max_points=50_000
+    )
+
+    assert reduced is not None
+    reduced_tuples = {tuple(point) for point in reduced}
+    assert corners <= reduced_tuples
+    assert not any(tuple(interior) in reduced_tuples for interior in rng_free_interior)
+    lowest = numpy.asarray(reduced, dtype=float)[:, 2].min()
+    assert lowest == pytest.approx(0.0)
+
+
+def test_convex_hull_vertices_over_serialization_cap_returns_none() -> None:
+    """A hull larger than max_points cannot be serialized; the caller falls
+    back to conservative bbox corners instead of failing the run."""
+
+    pytest.importorskip("scipy.spatial")
+    corners = {
+        (float(x), float(y), float(z))
+        for x in (0.0, 1.0)
+        for y in (0.0, 1.0)
+        for z in (0.0, 1.0)
+    }
+    assert _scene_builder._convex_hull_vertices(corners, max_points=4) is None
+
+
+def test_acceptance_mesh_points_bounds_hull_input_memory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The vertex-cloud accumulation is bounded: past _MAX_HULL_INPUT_POINTS
+    the builder stops materializing points and returns None (conservative
+    bbox fallback) instead of holding an arbitrarily large set in memory."""
+
+    stage = Usd.Stage.CreateNew(str(tmp_path / "body.usda"))
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Body/Geom")
+    mesh.GetPointsAttr().Set([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 1.0)])
+
+    monkeypatch.setattr(_scene_builder, "_MAX_HULL_INPUT_POINTS", 2)
+    points, decision = _scene_builder._select_ground_clearance_support(
+        body.GetPrim(), [mesh.GetPrim()]
+    )
+    assert points is None
+    assert decision["selected_support_type"] == "conservative_bbox_corners"
+    assert decision["reason_code"] == "raw_point_estimate_exceeded"
+    assert decision["raw_point_count_estimate"] == 3
+    assert decision["hull_input_point_count_estimate"] == 3
+    assert decision["processing_bound"] == 2
+    assert decision["cache_status"] == "primary"
+    assert decision["selection_duration_seconds"] >= 0.0
+
+    # Equality stays on the exact path; the policy rejects only counts above
+    # the configured bound.
+    monkeypatch.setattr(_scene_builder, "_MAX_HULL_INPUT_POINTS", 3)
+    equal_points, equal_decision = _scene_builder._select_ground_clearance_support(
+        body.GetPrim(), [mesh.GetPrim()]
+    )
+    assert equal_points is not None and len(equal_points) == 3
+    assert equal_decision["reason_code"] == "exact_support_points"
+
+    monkeypatch.setattr(_scene_builder, "_MAX_HULL_INPUT_POINTS", 1_000_000)
+    points = _scene_builder._acceptance_mesh_points_pose_local_stage_units(
+        body.GetPrim(), [mesh.GetPrim()]
+    )
+    assert points is not None and len(points) == 3
+
+
+def test_ground_clearance_support_reuses_parent_owned_decision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stage = Usd.Stage.CreateNew(str(tmp_path / "cached.usda"))
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Body/Geom")
+    mesh.GetPointsAttr().Set([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 1.0)])
+    monkeypatch.setattr(_scene_builder, "_MAX_HULL_INPUT_POINTS", 2)
+    cache: dict[str, dict[str, object]] = {}
+
+    with caplog.at_level("WARNING"):
+        first_points, first = _scene_builder._select_ground_clearance_support(
+            body.GetPrim(),
+            [mesh.GetPrim()],
+            support_cache=cache,
+            support_cache_base_key="immutable-source-digest",
+        )
+        second_points, second = _scene_builder._select_ground_clearance_support(
+            body.GetPrim(),
+            [mesh.GetPrim()],
+            support_cache=cache,
+            support_cache_base_key="immutable-source-digest",
+        )
+
+    assert first_points is None and second_points is None
+    assert first["cache_status"] == "primary"
+    assert second["cache_status"] == "reused"
+    assert second["decision_id"] == first["decision_id"]
+    assert second["reuse_count"] == 1
+    assert sum("processing bound" in record.message for record in caplog.records) == 1
+
+
+def test_ground_clearance_support_times_same_work_on_cache_miss_and_hit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage = Usd.Stage.CreateNew(str(tmp_path / "timed_cache.usda"))
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Body/Geom")
+    mesh.GetPointsAttr().Set([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 1.0)])
+    cache: dict[str, dict[str, object]] = {}
+    elapsed_samples = iter([10.0, 11.0, 13.0, 15.0, 20.0, 22.0])
+    monkeypatch.setattr(
+        _scene_builder.time,
+        "perf_counter",
+        lambda: next(elapsed_samples),
+    )
+
+    _, primary = _scene_builder._select_ground_clearance_support(
+        body.GetPrim(),
+        [mesh.GetPrim()],
+        support_cache=cache,
+        support_cache_base_key="immutable-source-digest",
+    )
+    _, reused = _scene_builder._select_ground_clearance_support(
+        body.GetPrim(),
+        [mesh.GetPrim()],
+        support_cache=cache,
+        support_cache_base_key="immutable-source-digest",
+    )
+
+    assert primary["primary_selection_duration_seconds"] == pytest.approx(2.0)
+    assert primary["selection_duration_seconds"] == pytest.approx(5.0)
+    assert reused["selection_duration_seconds"] == pytest.approx(2.0)
+
+
+def test_ground_clearance_preflight_stops_at_first_bound_breach(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage = Usd.Stage.CreateNew(str(tmp_path / "early_bound.usda"))
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    first = UsdGeom.Mesh.Define(stage, "/World/Body/First")
+    first.GetPointsAttr().Set([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 1.0)])
+    second = UsdGeom.Mesh.Define(stage, "/World/Body/Second")
+    second.GetPointsAttr().Set([(0.0, 0.0, 0.0)])
+    monkeypatch.setattr(_scene_builder, "_MAX_HULL_INPUT_POINTS", 2)
+    original = _scene_builder._measurement_mesh_points
+    reads: list[str] = []
+
+    def tracked_points(prim: object, usd_geom: object) -> object:
+        path = str(prim.GetPath())  # type: ignore[attr-defined]
+        reads.append(path)
+        if path == "/World/Body/Second":
+            raise AssertionError("preflight read past the first bound breach")
+        return original(prim, usd_geom)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(_scene_builder, "_measurement_mesh_points", tracked_points)
+
+    points, decision = _scene_builder._select_ground_clearance_support(
+        body.GetPrim(), [first.GetPrim(), second.GetPrim()]
+    )
+
+    assert points is None
+    assert reads == ["/World/Body/First"]
+    assert decision["reason_code"] == "raw_point_estimate_exceeded"
+    assert decision["hull_input_point_count_estimate"] == 3
+    assert decision["point_count_estimate_complete"] is False
+    assert "lower bound" in decision["reason"]
+
+
+def test_oversized_bounding_cube_uses_exact_eight_corner_support(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage = Usd.Stage.CreateNew(str(tmp_path / "bounding_cube.usda"))
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Body/Geom")
+    mesh.GetPointsAttr().Set(
+        [(float(index), float(index % 3), float(index % 2)) for index in range(20)]
+    )
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
+    collision = UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim())
+    collision.GetApproximationAttr().Set("boundingCube")
+    monkeypatch.setattr(_scene_builder, "_MAX_HULL_INPUT_POINTS", 2)
+    coordinate_reads = 0
+
+    class CountingPoint:
+        def __init__(self, values: tuple[float, float, float]) -> None:
+            self._values = values
+
+        def __getitem__(self, index: int) -> float:
+            nonlocal coordinate_reads
+            coordinate_reads += 1
+            return self._values[index]
+
+    counted_points = [
+        CountingPoint((float(index), float(index % 3), float(index % 2)))
+        for index in range(20)
+    ]
+    monkeypatch.setattr(
+        _scene_builder,
+        "_measurement_mesh_points",
+        lambda _prim, _usd_geom: counted_points,
+    )
+
+    points, decision = _scene_builder._select_ground_clearance_support(
+        body.GetPrim(), [mesh.GetPrim()]
+    )
+
+    assert points is not None and len(points) == 8
+    assert decision["selected_support_type"] == "bounding_cube_corners"
+    assert decision["reason_code"] == "exact_support_points"
+    assert decision["raw_point_count_estimate"] == 20
+    assert decision["hull_input_point_count_estimate"] == 0
+    assert coordinate_reads == 3 * len(counted_points)
+
+
+def test_acceptance_mesh_points_require_exact_collision_approximation(
+    tmp_path: Path,
+) -> None:
+    """Mesh vertices remain support points for every mesh-derived
+    approximation (any mesh collider measured exactly on base must keep
+    doing so — convexDecomposition is an approximation the policy
+    explicitly recommends, and moving it onto rotation-sensitive bbox
+    corners with the absolute 5 mm limit would hard-fail assets that
+    previously passed). Only the bounding-primitive approximations
+    simulate a shape fitted around the mesh that extends past the
+    vertices. boundingCube's simulated shape is the mesh's local AABB —
+    its corners are exact support points — while boundingSphere has no
+    finite exact support set and falls back to the conservative bbox
+    path."""
+
+    stage = Usd.Stage.CreateNew(str(tmp_path / "approx.usda"))
+    body = UsdGeom.Xform.Define(stage, "/World/Body")
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Body/Geom")
+    mesh.GetPointsAttr().Set([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 1.0)])
+    UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
+    mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim())
+
+    for mesh_derived_approximation in (
+        "none",
+        "convexHull",
+        "convexDecomposition",
+        "meshSimplification",
+    ):
+        mesh_collision.GetApproximationAttr().Set(mesh_derived_approximation)
+        points = _scene_builder._acceptance_mesh_points_pose_local_stage_units(
+            body.GetPrim(), [mesh.GetPrim()]
+        )
+        assert points is not None and len(points) == 3, mesh_derived_approximation
+
+    # boundingCube simulates the mesh's local AABB, so its eight corners are
+    # the exact support set — measured on the exact path, not the fallback.
+    mesh_collision.GetApproximationAttr().Set("boundingCube")
+    corners = _scene_builder._acceptance_mesh_points_pose_local_stage_units(
+        body.GetPrim(), [mesh.GetPrim()]
+    )
+    assert corners is not None and len(corners) == 8
+    corner_tuples = {tuple(point) for point in corners}
+    assert (0.0, 0.0, 0.0) in corner_tuples
+    assert (1.0, 1.0, 1.0) in corner_tuples
+
+    # A bounding sphere circumscribes the mesh and dips below any finite
+    # point set between corner directions: no vertex-derived support set is
+    # exact, so it falls back to the conservative bbox path.
+    mesh_collision.GetApproximationAttr().Set("boundingSphere")
+    assert (
+        _scene_builder._acceptance_mesh_points_pose_local_stage_units(
+            body.GetPrim(), [mesh.GetPrim()]
+        )
+        is None
+    )
+
+
+def test_drop_settle_rejects_non_xformable_placement_hint(tmp_path: Path) -> None:
+    """A typeless/Scope placement root would have its xform ops silently
+    ignored by USD — the drop never happens while every downstream gate
+    assumes it did — so the builder fails closed instead."""
+
+    from pxr import Gf
+
+    source = tmp_path / "multibody.usda"
+    stage = Usd.Stage.CreateNew(str(source))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    asset = UsdGeom.Xform.Define(stage, "/Asset")
+    stage.SetDefaultPrim(asset.GetPrim())
+    # UsdGeom.Xform.Define on the body path creates /Asset/SimBodies as a
+    # TYPELESS ancestor — the shape _common_prim_ancestor would pick.
+    body = UsdGeom.Xform.Define(stage, "/Asset/SimBodies/BodyA")
+    body.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 1.0))
+    UsdPhysics.RigidBodyAPI.Apply(body.GetPrim())
+    UsdPhysics.MassAPI.Apply(body.GetPrim()).CreateMassAttr(1.0)
+    collider = UsdGeom.Cube.Define(stage, "/Asset/SimBodies/BodyA/Collider")
+    collider.CreateSizeAttr(0.2)
+    UsdPhysics.CollisionAPI.Apply(collider.GetPrim()).CreateCollisionEnabledAttr(True)
+    stage.GetRootLayer().Save()
+
+    with pytest.raises(ValueError, match="not UsdGeomXformable"):
+        build_drop_settle_scene(
+            source,
+            tmp_path / "scene.usda",
+            drop_height_m=0.1,
+            body_prim_path_hint="/Asset/SimBodies/BodyA",
+            body_pattern_hint="/Asset/SimBodies/BodyA",
+            placement_prim_path_hint="/Asset/SimBodies",
+        )

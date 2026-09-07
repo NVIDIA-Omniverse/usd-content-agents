@@ -34,6 +34,9 @@ from world_understanding.functions.graphics.rendering_backend_factory import (
     create_rendering_backend,
     validate_rendering_backend_name,
 )
+from world_understanding.rendering_backend_contract import (
+    validate_remote_render_max_workers,
+)
 from world_understanding.utils.image_utils import paste_on_background
 from world_understanding.utils.object_store import ObjectStore
 from world_understanding.utils.usd.prim import (
@@ -60,6 +63,7 @@ class RenderScenePreviewTask(Task):
               ``"mock"``
             - image_width: int (default 512)
             - image_height: int (default image_width)
+            - max_concurrent_requests: int (default 4 for remote rendering)
             - cameras: list of direction strings (default ``["+x+y+z"]``)
             - camera_margin: float (default 3.0)
             - background_color: [R, G, B] 0.0-1.0 (default ``[0.0, 0.0, 0.0]``)
@@ -277,7 +281,12 @@ class RenderScenePreviewTask(Task):
         # multiple threads causes segfaults or USD clip-cache assertions.
         # Only the remote HTTP backend is safe to parallelise.
         if backend_type == "remote":
-            max_workers = min(len(camera_paths), 4)
+            max_workers = min(
+                len(camera_paths),
+                validate_remote_render_max_workers(
+                    render_config.get("max_concurrent_requests", 4)
+                ),
+            )
         else:
             max_workers = 1
         with ThreadPoolExecutor(max_workers=max_workers) as executor:

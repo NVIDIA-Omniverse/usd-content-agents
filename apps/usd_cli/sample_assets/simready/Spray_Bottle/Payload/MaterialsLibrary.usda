@@ -1,0 +1,71 @@
+#usda 1.0
+(
+    "Material Library for spray_bottle. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "Spray_Bottle_Plastic" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_cleaning_bottle_spray_albedo.png@
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_cleaning_bottle_spray_roughness.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Spray_Bottle_Plastic/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Spray_Bottle_Plastic/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Spray_Bottle_Plastic/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/Spray_Bottle_Plastic.inputs:ior>
+            float inputs:metallic.connect = </Materials/Spray_Bottle_Plastic.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Spray_Bottle_Plastic.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Spray_Bottle_Plastic/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/Spray_Bottle_Plastic.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/Spray_Bottle_Plastic/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/Spray_Bottle_Plastic.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/Spray_Bottle_Plastic.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/Spray_Bottle_Plastic.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/Spray_Bottle_Plastic/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/Spray_Bottle_Plastic.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/Spray_Bottle_Plastic.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+}

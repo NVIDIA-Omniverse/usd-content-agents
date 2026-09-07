@@ -27,7 +27,10 @@ from PIL import Image
 from world_understanding.functions.graphics.render_remote import (
     RenderingStatus,
     _convert_v2_to_v1,
+    _decoded_color_output_coverage,
+    _incomplete_color_output_error,
     _is_v2_response,
+    _matching_response_camera_key,
 )
 from world_understanding.rendering_backend_contract import (
     RemoteRenderingSlotTimeoutError,
@@ -357,6 +360,7 @@ async def render_cameras_from_url(
         }
 
     result: dict[str, Any] | None = None
+    decoded_color_images: dict[tuple[int, str], Image.Image] = {}
     current_delay = retry_delay
     for attempt in range(max_retries + 1):
         if attempt > 0:
@@ -385,7 +389,36 @@ async def render_cameras_from_url(
 
         status = result.get("status", RenderingStatus.exception)
         if status == RenderingStatus.success:
-            break
+            decoded_color_images, requested_count = _decoded_color_output_coverage(
+                result,
+                cameras=cameras,
+                frame_start=frame_start,
+                frame_end=frame_end,
+                decode_image=base64_to_image,
+            )
+            observed_count = len(decoded_color_images)
+            if observed_count == requested_count:
+                break
+
+            error_msg = _incomplete_color_output_error(
+                observed_count,
+                requested_count,
+            )
+            if attempt < max_retries:
+                logger.warning(
+                    "Remote render returned incomplete output on attempt %d/%d: %s",
+                    attempt + 1,
+                    max_retries + 1,
+                    error_msg,
+                )
+                continue
+            render_time = time.time() - start_time
+            logger.error(error_msg)
+            return _failed_response(
+                RenderingStatus.empty_response,
+                error_msg,
+                render_time,
+            )
 
         response_error = result.get("error")
         error_msg = f"Rendering failed with status: {status}"
@@ -427,51 +460,59 @@ async def render_cameras_from_url(
 
     # Parse multi-camera response
     # Response structure: result["images"][frame_num_str][camera_key]["images"]
-    # Iterate response keys like sync version (render_remote.py:938) to avoid
-    # camera path format mismatches between what we sent and what server returns.
     camera_results: list[dict[str, Any]] = []
-    successful_cameras = 0
-    failed_cameras = 0
+    per_camera_data: dict[str, dict[str, Any]] = {
+        camera: {
+            "images": [],
+            "sensors": {sensor: {} for sensor in (sensors or [])},
+        }
+        for camera in cameras
+    }
 
-    # First pass: collect all data by iterating response keys (like sync version).
-    # Structure: per_camera_data[response_camera_key] = {images: [], sensors: {}}
-    per_camera_data: dict[str, dict[str, Any]] = {}
-
-    frame_items = sorted(result.get("images", {}).items(), key=lambda x: int(x[0]))
+    response_images = result.get("images", {})
 
     # Log response camera keys from first frame for debugging
-    if frame_items:
-        first_frame_keys = list(frame_items[0][1].keys())
+    if cameras:
+        first_frame_data = response_images.get(
+            str(frame_start),
+            response_images.get(frame_start),
+        )
+        if not isinstance(first_frame_data, dict):  # pragma: no cover - validated above
+            raise RuntimeError(
+                "Validated render response lost frame coverage while parsing"
+            )
+        first_frame_keys = list(first_frame_data)
         logger.debug(
             "Response camera keys: %s, input cameras: %s",
             first_frame_keys,
             cameras,
         )
 
-    for frame_num_str, frame_data in frame_items:
-        frame_num_int = int(frame_num_str)
+    for frame_num_int in range(frame_start, frame_end + 1):
+        frame_data = response_images.get(
+            str(frame_num_int),
+            response_images.get(frame_num_int),
+        )
+        if not isinstance(frame_data, dict):  # pragma: no cover - validated above
+            raise RuntimeError(
+                "Validated render response lost frame coverage while parsing"
+            )
+        response_camera_keys = [key for key in frame_data if isinstance(key, str)]
+        for requested_camera in cameras:
+            response_camera_key = _matching_response_camera_key(
+                requested_camera,
+                response_camera_keys,
+            )
+            if response_camera_key is None:  # pragma: no cover - validated above
+                raise RuntimeError(
+                    "Validated render response lost camera coverage while parsing"
+                )
+            camera_data = frame_data[response_camera_key]
+            cam_store = per_camera_data[requested_camera]
 
-        # Iterate ALL camera keys in this frame (like sync render_remote.py:938)
-        for response_camera_key, camera_data in frame_data.items():
-            if response_camera_key not in per_camera_data:
-                per_camera_data[response_camera_key] = {
-                    "images": [],
-                    "sensors": {s: {} for s in (sensors or [])},
-                }
-            cam_store = per_camera_data[response_camera_key]
-
-            # Process main image
-            if "images" in camera_data:
-                try:
-                    img = base64_to_image(camera_data["images"])
-                    cam_store["images"].append(img)
-                except Exception as e:
-                    logger.warning(
-                        "Failed to decode image for camera %s frame %s: %s",
-                        response_camera_key,
-                        frame_num_str,
-                        e,
-                    )
+            cam_store["images"].append(
+                decoded_color_images[(frame_num_int, requested_camera)]
+            )
 
             # Process sensor data
             for sensor_name in sensors or []:
@@ -488,84 +529,32 @@ async def render_cameras_from_url(
                         logger.warning(
                             "Failed to decode %s for camera %s frame %s: %s",
                             sensor_name,
-                            response_camera_key,
-                            frame_num_str,
+                            requested_camera,
+                            frame_num_int,
                             e,
                         )
 
-    # Second pass: map response camera keys back to our input camera list.
-    # Build mapping: input camera path -> response camera key
-    response_keys = list(per_camera_data.keys())
-    input_to_response: dict[str, str] = {}
-
-    for input_cam in cameras:
-        # Try exact match first
-        if input_cam in per_camera_data:
-            input_to_response[input_cam] = input_cam
-            continue
-        # Try stripping leading "/" from both sides
-        input_stripped = input_cam.lstrip("/")
-        matched = False
-        for rk in response_keys:
-            if rk.lstrip("/") == input_stripped:
-                input_to_response[input_cam] = rk
-                matched = True
-                break
-        if not matched:
-            # Try matching by camera name (last path component)
-            input_name = input_cam.rsplit("/", 1)[-1]
-            for rk in response_keys:
-                rk_name = rk.rsplit("/", 1)[-1]
-                if input_name == rk_name:
-                    input_to_response[input_cam] = rk
-                    break
-
-    if input_to_response:
-        logger.debug("Camera path mapping: %s", input_to_response)
-
     # Build results in input camera order
     for camera_path in cameras:
-        response_key = input_to_response.get(camera_path)
-
-        if response_key and response_key in per_camera_data:
-            cam_store = per_camera_data[response_key]
-            camera_results.append(
-                {
-                    "camera": camera_path,
-                    "images": cam_store["images"],
-                    "sensors": cam_store["sensors"],
-                    "render_time": render_time,
-                    "frame_count": len(cam_store["images"]),
-                    "status": RenderingStatus.success,
-                }
-            )
-            successful_cameras += 1
-            logger.info(
-                "Camera %s: %d frames parsed", camera_path, len(cam_store["images"])
-            )
-        else:
-            failed_cameras += 1
-            camera_results.append(
-                {
-                    "camera": camera_path,
-                    "images": [],
-                    "sensors": {},
-                    "render_time": render_time,
-                    "frame_count": 0,
-                    "status": RenderingStatus.exception,
-                    "error": f"No response data for camera (tried key mapping from {response_keys})",
-                }
-            )
-            logger.warning(
-                "No response data for camera %s. Response keys: %s",
-                camera_path,
-                response_keys,
-            )
+        cam_store = per_camera_data[camera_path]
+        camera_results.append(
+            {
+                "camera": camera_path,
+                "images": cam_store["images"],
+                "sensors": cam_store["sensors"],
+                "render_time": render_time,
+                "frame_count": len(cam_store["images"]),
+                "status": RenderingStatus.success,
+            }
+        )
+        logger.info(
+            "Camera %s: %d frames parsed", camera_path, len(cam_store["images"])
+        )
 
     return {
         "total_cameras": len(cameras),
-        "successful_cameras": successful_cameras,
-        "failed_cameras": failed_cameras,
+        "successful_cameras": len(cameras),
+        "failed_cameras": 0,
         "total_render_time": render_time,
         "results": camera_results,
     }

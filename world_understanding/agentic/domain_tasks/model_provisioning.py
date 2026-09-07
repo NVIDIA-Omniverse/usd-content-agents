@@ -16,6 +16,9 @@ from world_understanding.functions.models.backends.registry import (
     list_vlm_backends,
 )
 from world_understanding.functions.models.chat_models import create_chat_model
+from world_understanding.functions.models.token_limits import (
+    backend_supports_reasoning_effort,
+)
 from world_understanding.functions.models.vision_language_models import create_vlm
 from world_understanding.utils.credentials import (
     apply_llm_nim_env_override,
@@ -24,8 +27,8 @@ from world_understanding.utils.credentials import (
 
 logger = logging.getLogger(__name__)
 
-# Inference-time parameters that should NOT be passed to model constructors.
-# They are extracted from config and forwarded at inference time instead.
+# Inference-time parameters extracted from model configuration. VLMs receive
+# these through shared invoke kwargs; LLM tasks read them from llm_config.
 _INFERENCE_TIME_KEYS = {
     "temperature",
     "max_tokens",
@@ -183,6 +186,12 @@ class ModelProvisioningTask(Task):
             for k, v in vlm_cfg.items()
             if k in _INFERENCE_TIME_KEYS and v is not None
         }
+        if not backend_supports_reasoning_effort(
+            vlm_cfg.get("backend") or vlm_cfg.get("provider"),
+            model_name=vlm_cfg.get("model"),
+            interface="vlm",
+        ):
+            vlm_invoke_kwargs.pop("reasoning_effort", None)
 
         # Update context with models and configurations
         context["vlm"] = models.get("vlm")
@@ -307,6 +316,8 @@ class ModelProvisioningTask(Task):
             kwargs["model"] = llm_config["model"]
         if llm_config.get("base_url"):
             kwargs["base_url"] = llm_config["base_url"]
+        if llm_config.get("reasoning_effort") is not None:
+            kwargs["reasoning_effort"] = llm_config["reasoning_effort"]
 
         # Pass through any additional, backend-specific kwargs from config
         # to allow custom parameters such as include_thinking, thinking, etc.
@@ -318,11 +329,13 @@ class ModelProvisioningTask(Task):
             "endpoint",
             "api_key",
             "api_key_env",
+            "reasoning_effort",
             "vlm",  # Filter out vlm if accidentally included in llm_config
         }
-        # These are inference-time parameters that should NOT be passed to LLM constructor
-        # They will be used at inference time via llm_config context
-        _llm_inference_keys = _INFERENCE_TIME_KEYS | {
+        # Task-specific invocation settings remain available through llm_config.
+        # Reasoning effort is bound above because provisioned LLM consumers have
+        # no shared invoke-kwargs path.
+        _llm_inference_keys = (_INFERENCE_TIME_KEYS - {"reasoning_effort"}) | {
             "reference_images",  # Judge-specific parameter, not for model constructor
         }
         extra_kwargs = {

@@ -31,6 +31,7 @@ from world_understanding.functions.physics.joint_rigger.facade import (
 from world_understanding.functions.physics.joint_rigger.reference import (
     identify_usd_artifact,
 )
+from world_understanding.utils.captured_artifacts import CapturedArtifactError
 
 
 def _sha256(payload: bytes) -> str:
@@ -1562,6 +1563,56 @@ def test_failed_sealed_binding_closes_the_owned_memfd(
     with pytest.raises(OSError) as closed_descriptor:
         os.fstat(created_descriptors[0])
     assert closed_descriptor.value.errno == errno.EBADF
+
+
+def test_source_growth_preserves_legacy_error_and_closes_owned_descriptors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.usda"
+    payload = b"#usda 1.0\n"
+    source.write_bytes(payload)
+    created_descriptors: list[int] = []
+    source_descriptor: int | None = None
+    grew_source = False
+    real_memfd_create = source_binding._MEMFD_CREATE
+    if real_memfd_create is None:
+        pytest.skip("platform does not provide os.memfd_create")
+    real_pread = os.pread
+
+    def tracked_memfd_create(name: bytes, flags: int) -> int:
+        descriptor = int(real_memfd_create(name, flags))
+        created_descriptors.append(descriptor)
+        return descriptor
+
+    def grow_before_extra_probe(descriptor: int, size: int, offset: int) -> bytes:
+        nonlocal grew_source, source_descriptor
+        if source_descriptor is None:
+            source_descriptor = descriptor
+        if size == 1 and offset == len(payload) and not grew_source:
+            source.write_bytes(payload + b"#")
+            grew_source = True
+        return real_pread(descriptor, size, offset)
+
+    monkeypatch.setattr(source_binding, "_MEMFD_CREATE", tracked_memfd_create)
+    monkeypatch.setattr(source_binding.os, "pread", grow_before_extra_probe)
+
+    with pytest.raises(JointRiggerArtifactError) as caught:
+        source_binding._create_sealed_file_binding(
+            source,
+            expected_sha256=_sha256(payload),
+        )
+
+    assert str(caught.value) == "Input USD grew while its root bytes were bound"
+    assert isinstance(caught.value.__cause__, CapturedArtifactError)
+    assert caught.value.__cause__.code == "max_bytes_exceeded"
+    assert grew_source
+    assert len(created_descriptors) == 1
+    assert source_descriptor is not None
+    for descriptor in (source_descriptor, created_descriptors[0]):
+        with pytest.raises(OSError) as closed_descriptor:
+            os.fstat(descriptor)
+        assert closed_descriptor.value.errno == errno.EBADF
 
 
 def test_missing_memfd_support_uses_a_read_only_pinned_file(

@@ -5,5 +5,3 @@
 # GPU simulation/rendering remains isolated in the OvPhysX and OVRTX workers.
 botorch==0.17.2
 torch==2.12.1+cpu
-imageio==2.37.2
-imageio-ffmpeg==0.6.0

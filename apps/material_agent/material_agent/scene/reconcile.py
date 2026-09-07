@@ -12,11 +12,18 @@ from __future__ import annotations
 
 import json
 import logging
+import stat
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from world_understanding.utils.artifacts import (
+    open_confined_directory,
+    open_confined_regular_file,
+    write_bytes_to_confined,
+)
 from world_understanding.utils.llm_parsing import extract_json_from_llm_response
+from world_understanding.utils.response_content import extract_text_content
 
 from .manifest import SceneManifest
 
@@ -334,8 +341,9 @@ def _llm_reconcile(
     return _parse_remap_json(response.content)
 
 
-def _parse_remap_json(response: str) -> dict[str, str]:
+def _parse_remap_json(response: Any) -> dict[str, str]:
     """Extract JSON remapping from LLM response."""
+    response = extract_text_content(response)
     result = extract_json_from_llm_response(response, expected_keys=["remap"])
     if isinstance(result, dict):
         return _coerce_remap_dict(result)
@@ -374,26 +382,38 @@ def _remap_predictions_file(
 
     Returns number of predictions updated.
     """
-    lines = pred_file.read_text().strip().split("\n")
-    updated = 0
-    new_lines = []
+    with open_confined_directory(pred_file.parent) as parent_descriptor:
+        with open_confined_regular_file(
+            parent_descriptor,
+            pred_file.name,
+        ) as (source, source_metadata):
+            lines = source.read().decode().strip().split("\n")
 
-    for line in lines:
-        if not line.strip():
-            new_lines.append(line)
-            continue
-        try:
-            entry = json.loads(line)
-            mats = entry.get("materials", {})
-            mat = mats.get("material", "")
-            if mat in remap:
-                mats["material"] = remap[mat]
-                mats["original_material"] = mat
-                entry["materials"] = mats
-                updated += 1
-            new_lines.append(json.dumps(entry))
-        except json.JSONDecodeError:
-            new_lines.append(line)
+        updated = 0
+        new_lines = []
+        for line in lines:
+            if not line.strip():
+                new_lines.append(line)
+                continue
+            try:
+                entry = json.loads(line)
+                mats = entry.get("materials", {})
+                mat = mats.get("material", "")
+                if mat in remap:
+                    mats["material"] = remap[mat]
+                    mats["original_material"] = mat
+                    entry["materials"] = mats
+                    updated += 1
+                new_lines.append(json.dumps(entry))
+            except json.JSONDecodeError:
+                new_lines.append(line)
 
-    pred_file.write_text("\n".join(new_lines) + "\n")
+        serialized = ("\n".join(new_lines) + "\n").encode()
+        write_bytes_to_confined(
+            parent_descriptor,
+            pred_file.name,
+            serialized,
+            overwrite=True,
+            file_mode=stat.S_IMODE(source_metadata.st_mode),
+        )
     return updated

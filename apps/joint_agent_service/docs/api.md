@@ -23,9 +23,25 @@ REST API for VLM-based asset classification of USD files. The service accepts US
 
 ## Authentication
 
-No authentication is required. The service accepts all origins via permissive CORS.
+Unauthenticated by default. Set `JOINT_AGENT_TOKEN` **in the server's environment** to require
+`Authorization: Bearer <token>` on `/pipeline`, `/artifacts`, and `/sessions` endpoints; requests without a matching
+token get `401` with `WWW-Authenticate: Bearer`. When the variable is unset — the
+default — the service accepts unauthenticated requests and must run behind a trusted
+network boundary. `/health`, `/api`, `/`, `/docs`, and `/openapi.json` never require a
+token so liveness probes keep working, and `GET /health` reports `auth_enforced`.
+Set `WU_SERVICE_AUTH_REQUIRED=1` to refuse startup without a token.
 
-Optional: set `JOINT_AGENT_TOKEN` and pass it as `Authorization: Bearer <token>` from clients. The service does not currently enforce this.
+An empty or whitespace-only `JOINT_AGENT_TOKEN` counts as **unset**, so enforcement stays off.
+That is deliberate: Compose `${VAR:-}` passthrough and Helm `value: ""` defaults both
+deliver an empty string, and treating those as "enabled" would reject every request
+with a token nobody can supply.
+
+Under Docker Compose, set `JOINT_AGENT_TOKEN` in the repo-root `.env`, which every service
+loads via `env_file`. Do not add it to the compose `environment:` block: that
+section overrides `env_file`, and `${VAR:-}` interpolation would replace a
+configured token with an empty string and silently disable enforcement.
+
+CORS remains permissive (`allow_origins=["*"]`); the token is the access control.
 
 ---
 
@@ -43,7 +59,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Joint Agent Service",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -80,8 +96,9 @@ Health check.
 {
   "status": "healthy",
   "service": "Joint Agent Service",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "api_keys_configured": true,
+  "auth_enforced": false,
   "max_active_sessions": 1,
   "capabilities": {
     "joint_rigger": {
@@ -859,9 +876,12 @@ request authorization.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JA_VLM_BACKEND` | `nim` | VLM inference backend |
-| `JA_VLM_MODEL` | `google/gemma-4-31b-it` | VLM model identifier |
+| `JA_VLM_MODEL` | `moonshotai/kimi-k3` | VLM model identifier |
 | `JA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
 | `JA_VLM_MAX_WORKERS` | `64` | Maximum concurrent prediction VLM requests per pipeline. NVCF staging deployments default to `4`. |
+| `JA_LLM_BACKEND` | `nim` | Structure-analysis LLM backend |
+| `JA_LLM_MODEL` | `moonshotai/kimi-k3` | Structure-analysis LLM model |
+| `JA_LLM_REASONING_EFFORT` | model default | Optional structure-analysis reasoning override |
 | `JA_RENDER_BACKEND` | `remote` | Rendering backend: `remote`, `warp`, `ovrtx`, or `mock`. Remote rendering resolves through `RENDER_ENDPOINT`; mock is test-only. |
 
 ### API Keys

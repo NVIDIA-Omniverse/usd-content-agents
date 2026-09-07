@@ -210,6 +210,43 @@ def test_planner_consumes_typed_effective_discovery_contract() -> None:
     )
 
 
+def test_explicit_semantic_alias_prefers_effectively_bound_generated_material() -> None:
+    from texture_agent.functions.material_discovery import EffectiveMaterialDiscovery
+
+    semantic = _Material(
+        prim_path="/World/Looks/Olive_Drab_Matte",
+        name="Olive_Drab_Matte",
+    )
+    generated = _Material(
+        prim_path="/World/Looks/tu_0123456789",
+        name="tu_0123456789",
+        bound_prim_paths=["/World/Body"],
+        material_alias_paths=["/World/Looks/Olive_Drab_Matte"],
+    )
+    discovery = EffectiveMaterialDiscovery(
+        authored_materials=(semantic, generated),
+        effective_materials=(generated,),
+        renderable_prim_paths=("/World/Body",),
+        renderable_subset_paths=(),
+        skipped_materials=(),
+    )
+
+    plan = build_texture_plan(
+        TexturePlanRequest(
+            source=TexturePlanSource(source_asset="published.usdz"),
+            discovery_mode="explicit",
+            explicit_material_paths=("/World/Looks/Olive_Drab_Matte",),
+        ),
+        discovered_materials=discovery.authored_materials,
+        effective_discovery=discovery,
+        auto_prompt_enabled=True,
+    )
+
+    assert plan.counts.selected_unit_count == 1
+    assert plan.selected_units[0].material_prim_paths == ("/World/Looks/tu_0123456789",)
+    assert plan.selected_units[0].member_prim_paths == ("/World/Body",)
+
+
 def test_planner_covers_explicit_unit_modes_and_scoped_prompt_policy() -> None:
     from texture_agent.functions.material_discovery import (
         EffectiveMaterialDiscovery,
@@ -396,6 +433,52 @@ def test_generate_prompts_scopes_path_spec_and_per_prim_members(
     ]
     assert [unit.key for unit in context["prim_texture_units"]] == [
         "World_Alias_Paint__MeshB"
+    ]
+
+
+def test_generate_prompts_keeps_explicit_member_scope_in_per_material_mode(
+    tmp_path: Path,
+) -> None:
+    material = _Material(
+        prim_path="/World/Looks/Paint",
+        name="Paint",
+        bound_prim_paths=["/World/MeshA", "/World/MeshB"],
+        bound_subset_paths=[
+            "/World/MeshA/PaintSubset",
+            "/World/MeshB/PaintSubset",
+        ],
+    )
+    plan = build_texture_plan(
+        TexturePlanRequest(
+            source=TexturePlanSource(source_asset="scene.usd"),
+            discovery_mode="explicit",
+            unit_mode="per_material",
+            explicit_prim_paths=("/World/MeshB", "/World/MeshB/PaintSubset"),
+        ),
+        discovered_materials=(material,),
+        auto_prompt_enabled=False,
+        material_textures={"Paint": {"prompt": "brushed paint"}},
+    )
+
+    context = GeneratePromptsTask().run(
+        {
+            "discovered_materials": [material],
+            "material_textures": {"Paint": {"prompt": "brushed paint"}},
+            "auto_prompt_config": {"enabled": False},
+            "texture_config": {"mode": "per_material"},
+            "texture_plan": plan,
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    scoped = context["texture_plan_scoped_materials"][0]
+    assert scoped.bound_prim_paths == ["/World/MeshB"]
+    assert scoped.bound_subset_paths == ["/World/MeshB/PaintSubset"]
+    assert context["prim_texture_units"][0].material_info.bound_prim_paths == [
+        "/World/MeshB"
+    ]
+    assert context["prim_texture_units"][0].material_info.bound_subset_paths == [
+        "/World/MeshB/PaintSubset"
     ]
 
 

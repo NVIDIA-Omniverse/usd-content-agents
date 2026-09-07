@@ -29,6 +29,7 @@ from material_agent.material_library_generation import (  # noqa: E402
     MaterialGenerationPlan,
     MaterialPrototype,
     MaterialRecipe,
+    MaterialRecipeSemantics,
     PBRHints,
     TextureGenerationSettings,
     TextureMapSet,
@@ -553,6 +554,7 @@ def test_generated_material_manifest_helpers(tmp_path: Path) -> None:
         [material],
     )
     plan = yaml.safe_load(plan_path.read_text(encoding="utf-8"))
+    assert plan["materials"][0]["representation"] == "textured_pbr"
     assert plan["materials"][0]["generated_textures"]["orm"] == (
         "textures/blue/orm.png"
     )
@@ -565,6 +567,63 @@ def test_generated_material_manifest_helpers(tmp_path: Path) -> None:
         materials=(material,),
     )
     assert library.materials_data["entries"][0]["prototype_source"]["score"] == 1.2
+
+
+def test_generation_plan_records_scalar_result_explicitly(tmp_path: Path) -> None:
+    recipe = _blue_plastic_recipe()
+    material = GeneratedMaterial(recipe=recipe, textures=None)
+
+    plan_path = write_generation_plan(
+        tmp_path / "material_generation_plan.yaml",
+        MaterialGenerationPlan(materials=(recipe,)),
+        (material,),
+    )
+
+    payload = yaml.safe_load(plan_path.read_text(encoding="utf-8"))
+    result = payload["materials"][0]
+    assert result["representation"] == "scalar_pbr"
+    assert "generated_textures" in result
+    assert result["generated_textures"] is None
+
+
+def test_generation_plan_rejects_unplanned_generated_result(tmp_path: Path) -> None:
+    planned = _blue_plastic_recipe()
+    unplanned = MaterialRecipe(
+        id="unplanned",
+        name="Unplanned",
+        description="An unplanned result.",
+        appearance_prompt="neutral gray",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="generated material result is absent from plan: unplanned",
+    ):
+        write_generation_plan(
+            tmp_path / "material_generation_plan.yaml",
+            MaterialGenerationPlan(materials=(planned,)),
+            (GeneratedMaterial(recipe=unplanned, textures=None),),
+        )
+
+
+def test_generation_plan_rejects_partial_authored_results(tmp_path: Path) -> None:
+    first = _blue_plastic_recipe()
+    second = MaterialRecipe(
+        id="second",
+        name="Second",
+        description="A second planned material.",
+        appearance_prompt="neutral gray",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="generation plan is missing authored material result.*second",
+    ):
+        write_generation_plan(
+            tmp_path / "material_generation_plan.yaml",
+            MaterialGenerationPlan(materials=(first, second)),
+            (GeneratedMaterial(recipe=first, textures=None),),
+        )
 
 
 def test_usd_authoring_pure_material_helpers(tmp_path: Path) -> None:
@@ -1020,7 +1079,7 @@ def test_usd_authoring_shader_adaptation_helpers(tmp_path: Path) -> None:
     assert optical_material.GetInput("coat_weight").Get() == 0.0
 
 
-def test_usd_authoring_profile_wrappers_with_fake_usdex(
+def test_usd_authoring_profile_wrappers_with_direct_openpbr(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -1039,26 +1098,13 @@ def test_usd_authoring_profile_wrappers_with_fake_usdex(
     )
 
     fake_usdex = types.ModuleType("usdex")
-    fake_core = types.ModuleType("usdex.core")
     fake_rtx = types.ModuleType("usdex.rtx")
-    fake_usdex.core = fake_core
     fake_usdex.rtx = fake_rtx
     monkeypatch.setitem(sys.modules, "usdex", fake_usdex)
-    monkeypatch.setitem(sys.modules, "usdex.core", fake_core)
     monkeypatch.setitem(sys.modules, "usdex.rtx", fake_rtx)
 
     stage = Usd.Stage.CreateInMemory()
 
-    def fake_define_preview_material(stage, path, color, opacity, roughness, metallic):
-        material = UsdShade.Material.Define(stage, str(path))
-        shader = UsdShade.Shader.Define(stage, f"{path}/PreviewSurface")
-        shader.CreateIdAttr("UsdPreviewSurface")
-        shader_output = shader.CreateOutput("surface", Sdf.ValueTypeNames.Token)
-        material.CreateSurfaceOutput().ConnectToSource(shader_output)
-        return material
-
-    fake_core.definePreviewMaterial = fake_define_preview_material
-    assert usd_authoring_module.can_author_openpbr_materialx_with_usdex() is False
     preview_material = usd_authoring_module._define_preview_material_from_recipe(
         stage,
         library_path,
@@ -1080,18 +1126,6 @@ def test_usd_authoring_profile_wrappers_with_fake_usdex(
     assert preview_shader.GetInput("opacity").Get() == pytest.approx(1.0)
     assert preview_material.GetSurfaceOutput().HasConnectedSource()
 
-    openpbr_calls: list[tuple[str, object]] = []
-    fake_core.definePbrMaterial = fake_define_preview_material
-    fake_core.addDiffuseTextureToPbrMaterial = (
-        lambda material, path: openpbr_calls.append(("diffuse", path))
-    )
-    fake_core.addNormalTextureToPbrMaterial = (
-        lambda material, path: openpbr_calls.append(("normal", path))
-    )
-    fake_core.addOrmTextureToPbrMaterial = lambda material, path: openpbr_calls.append(
-        ("orm", path)
-    )
-    assert usd_authoring_module.can_author_openpbr_materialx_with_usdex() is True
     openpbr_material = usd_authoring_module._define_openpbr_materialx_from_recipe(
         stage,
         library_path,
@@ -1101,16 +1135,11 @@ def test_usd_authoring_profile_wrappers_with_fake_usdex(
         Sdf,
     )
     assert openpbr_material.GetPrim().GetPath() == Sdf.Path("/World/Looks/OpenPBR")
-    assert [call[0] for call in openpbr_calls] == ["diffuse", "normal", "orm"]
-
-    del fake_core.definePbrMaterial
-    with pytest.raises(
-        usd_authoring_module.MaterialAuthoringPrerequisiteError,
-        match="definePbrMaterial",
-    ):
-        usd_authoring_module.require_material_authoring_prerequisites(
-            "openpbr_materialx"
-        )
+    assert openpbr_material.GetSurfaceOutput("mtlx").HasConnectedSource()
+    openpbr_shader = UsdShade.Shader.Get(stage, "/World/Looks/OpenPBR/OpenPBR")
+    assert openpbr_shader.GetIdAttr().Get() == ("ND_open_pbr_surface_surfaceshader")
+    assert openpbr_shader.GetInput("base_color").HasConnectedSource()
+    usd_authoring_module.require_material_authoring_prerequisites("openpbr_materialx")
 
     rtx_calls: list[tuple[str, object]] = []
 
@@ -1280,22 +1309,6 @@ def test_usd_authoring_remaining_guard_branches(
         is False
     )
 
-    real_import_module = usd_authoring_module.importlib.import_module
-
-    def fake_import_module(name: str):
-        if name == "usdex.core":
-            raise ImportError("usdex is not installed")
-        return real_import_module(name)
-
-    monkeypatch.delitem(sys.modules, "usdex", raising=False)
-    monkeypatch.delitem(sys.modules, "usdex.core", raising=False)
-    monkeypatch.setattr(
-        usd_authoring_module.importlib,
-        "import_module",
-        fake_import_module,
-    )
-    assert usd_authoring_module.can_author_openpbr_materialx_with_usdex() is False
-
     class FakeChild:
         def GetName(self) -> str:
             return "AlbedoTexture"
@@ -1346,6 +1359,7 @@ def test_write_material_library_usd_with_stubbed_usdex_authoring(
         material_path,
         roughness,
         Sdf,
+        **_kwargs,
     ):
         material = UsdShade.Material.Define(stage, material_path)
         shader = UsdShade.Shader.Define(stage, f"{material_path}/PreviewSurface")
@@ -1363,6 +1377,7 @@ def test_write_material_library_usd_with_stubbed_usdex_authoring(
         material_path,
         roughness,
         Sdf,
+        **_kwargs,
     ):
         branch_calls.append((str(library_path), material_path, roughness))
         return UsdShade.Material.Define(stage, material_path)
@@ -1390,7 +1405,9 @@ def test_write_material_library_usd_with_stubbed_usdex_authoring(
     monkeypatch.setattr(
         usd_authoring_module,
         "inspect_material_library_authoring",
-        lambda library_path, materials, *, material_profile: {},
+        lambda library_path, materials, *, material_profile: {
+            "material_profile": material_profile
+        },
     )
 
     with pytest.raises(ValueError, match="at least one generated material"):
@@ -1402,11 +1419,14 @@ def test_write_material_library_usd_with_stubbed_usdex_authoring(
             material_profile="display_color",
         )
 
+    authoring_evidence = {"stale": True}
     authored = usd_authoring_module.write_material_library_usd(
         tmp_path / "preview.usda",
         [generated],
+        authoring_evidence=authoring_evidence,
     )
     assert authored.exists()
+    assert authoring_evidence == {"material_profile": "auto"}
     stage = Usd.Stage.Open(str(authored))
     assert stage.GetPrimAtPath(f"{generated.binding}/AlbedoTexture")
     assert stage.GetPrimAtPath(f"{generated.binding}/NormalTexture")
@@ -1435,6 +1455,33 @@ def test_write_material_library_usd_with_stubbed_usdex_authoring(
         [generated],
     )
     assert prototype_only.exists()
+
+
+@pytest.mark.parametrize(
+    "material_profile",
+    ("preview_surface", "openpbr_materialx", "omnipbr_mdl"),
+)
+def test_write_material_library_usd_preserves_literal_pbr_values(
+    tmp_path: Path,
+    material_profile: str,
+) -> None:
+    from material_agent.material_refinement.source_graph import inspect_material_graph
+
+    generated = GeneratedMaterial(recipe=_blue_plastic_recipe(), textures=None)
+    library_path = tmp_path / f"{material_profile}.usda"
+
+    usd_authoring_module.write_material_library_usd(
+        library_path,
+        (generated,),
+        material_profile=material_profile,
+        recipe_semantics=MaterialRecipeSemantics.LITERAL_SHADER_VALUES,
+    )
+
+    graph = inspect_material_graph(library_path, generated.binding)
+    assert graph.material_profile == material_profile
+    assert graph.base_color == pytest.approx(generated.recipe.base_color_hint)
+    assert graph.roughness == pytest.approx(generated.recipe.pbr_hints.roughness)
+    assert graph.metallic == pytest.approx(generated.recipe.pbr_hints.metallic)
 
 
 def test_generated_material_prototype_helpers(tmp_path: Path) -> None:
@@ -1826,6 +1873,48 @@ def test_generated_material_texture_generation_edges(
     )
     assert maps.albedo.exists()
 
+    recorded_albedo = tmp_path / "recorded-albedo.png"
+    Image.new("RGB", (2, 3), (11, 22, 33)).save(recorded_albedo)
+    maps = generate_texture_maps(
+        recipe,
+        tmp_path / "recorded",
+        settings=TextureGenerationSettings(
+            texture_size=4,
+            color_correct_albedo=False,
+        ),
+        source_albedo_path=recorded_albedo,
+    )
+    assert Image.open(maps.albedo).size == (4, 4)
+    assert Image.open(maps.albedo).getpixel((0, 0)) == (11, 22, 33)
+
+    preserved = generate_texture_maps(
+        recipe,
+        tmp_path / "recorded-color-preserved",
+        settings=TextureGenerationSettings(
+            texture_size=4,
+            color_correct_albedo=True,
+            albedo_color_correction_strength=1.0,
+        ),
+        source_albedo_path=recorded_albedo,
+    )
+    assert Image.open(preserved.albedo).getpixel((0, 0)) == (11, 22, 33)
+
+    with pytest.raises(ValueError, match="cannot be combined"):
+        generate_texture_maps(
+            recipe,
+            tmp_path / "ambiguous-source",
+            settings=TextureGenerationSettings(texture_size=4),
+            image_model=object(),
+            source_albedo_path=recorded_albedo,
+        )
+    with pytest.raises(FileNotFoundError, match="Source albedo"):
+        generate_texture_maps(
+            recipe,
+            tmp_path / "missing-source",
+            settings=TextureGenerationSettings(texture_size=4),
+            source_albedo_path=tmp_path / "missing.png",
+        )
+
     monkeypatch.setenv("IMAGE_BACKEND_KEY", "secret")
     observed: dict[str, object] = {}
 
@@ -1874,6 +1963,7 @@ def test_build_generated_material_library_orchestrates_package_without_native_au
         *,
         settings: TextureGenerationSettings | None,
         image_model: object | None,
+        source_albedo_path: str | Path | None,
     ) -> TextureMapSet:
         output_dir.mkdir(parents=True)
         maps = TextureMapSet(
@@ -1883,6 +1973,7 @@ def test_build_generated_material_library_orchestrates_package_without_native_au
         )
         for path in (maps.albedo, maps.normal, maps.orm):
             Image.new("RGB", (2, 2), (10, 20, 30)).save(path)
+        assert source_albedo_path is None
         calls.append((recipe.material_id, settings, image_model))
         return maps
 
@@ -1951,6 +2042,91 @@ def test_build_generated_material_library_orchestrates_package_without_native_au
     assert package.materials[0].prototype_source["name"] == "Blue Glossy Plastic"
 
 
+def test_build_generated_material_library_rejects_unknown_source_albedo_id(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.png"
+    Image.new("RGB", (2, 2), (10, 20, 30)).save(source)
+
+    with pytest.raises(ValueError, match="unknown material ids: not_the_recipe"):
+        build_generated_material_library(
+            MaterialGenerationPlan(materials=(_blue_plastic_recipe(),)),
+            tmp_path / "package",
+            source_albedo_paths={"not_the_recipe": source},
+        )
+
+
+def test_build_generated_material_library_rejects_source_backend_conflict_early(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.png"
+    Image.new("RGB", (2, 2), (10, 20, 30)).save(source)
+    package_dir = tmp_path / "package"
+    recipe = _blue_plastic_recipe()
+
+    with pytest.raises(ValueError, match="cannot be combined"):
+        build_generated_material_library(
+            MaterialGenerationPlan(materials=(recipe,)),
+            package_dir,
+            image_model=object(),
+            source_albedo_paths={recipe.material_id: source},
+        )
+
+    assert not package_dir.exists()
+
+
+def test_build_generated_material_library_forwards_recorded_albedo(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.png"
+    Image.new("RGB", (2, 2), (10, 20, 30)).save(source)
+    seen: list[Path | None] = []
+
+    def fake_generate_texture_maps(
+        recipe: MaterialRecipe,
+        output_dir: Path,
+        *,
+        settings: TextureGenerationSettings | None,
+        image_model: object | None,
+        source_albedo_path: str | Path | None,
+    ) -> TextureMapSet:
+        assert settings is None
+        assert image_model is None
+        seen.append(Path(source_albedo_path) if source_albedo_path else None)
+        output_dir.mkdir(parents=True)
+        maps = TextureMapSet(
+            albedo=output_dir / "albedo.png",
+            normal=output_dir / "normal.png",
+            orm=output_dir / "orm.png",
+        )
+        for path in (maps.albedo, maps.normal, maps.orm):
+            Image.new("RGB", (2, 2), (10, 20, 30)).save(path)
+        return maps
+
+    monkeypatch.setattr(
+        generated_library_builder,
+        "generate_texture_maps",
+        fake_generate_texture_maps,
+    )
+    monkeypatch.setattr(
+        generated_library_builder,
+        "write_material_library_usd",
+        lambda path, materials, *, material_profile: path.write_text(
+            "#usda 1.0\n", encoding="utf-8"
+        ),
+    )
+
+    recipe = _blue_plastic_recipe()
+    build_generated_material_library(
+        MaterialGenerationPlan(materials=(recipe,)),
+        tmp_path / "package",
+        source_albedo_paths={recipe.material_id: source},
+    )
+
+    assert seen == [source]
+
+
 def test_build_generated_material_library_can_skip_debug_plan_and_load_manifest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1960,7 +2136,9 @@ def test_build_generated_material_library_can_skip_debug_plan_and_load_manifest(
         *,
         settings: TextureGenerationSettings | None,
         image_model: object | None,
+        source_albedo_path: str | Path | None,
     ) -> TextureMapSet:
+        assert source_albedo_path is None
         output_dir.mkdir(parents=True)
         maps = TextureMapSet(
             albedo=output_dir / "albedo.png",
@@ -2140,20 +2318,25 @@ def test_generated_material_library_can_author_omnipbr_mdl_profile(
     )
 
 
-@pytest.mark.skipif(
-    os.getenv("RUN_USDEX_TESTS") != "1",
-    reason="usdex.core aborts the Python process in this test environment",
-)
-def test_generated_material_library_openpbr_synthesis_requires_usdex_helper(
+def test_generated_material_library_authors_openpbr_with_usdshade(
     tmp_path: Path,
 ) -> None:
-    with pytest.raises(ValueError, match="usdex.core.definePbrMaterial"):
-        build_generated_material_library(
-            MaterialGenerationPlan(materials=(_blue_plastic_recipe(),)),
-            tmp_path / "generated_material_library",
-            texture_settings=TextureGenerationSettings(texture_size=8, seed=29),
-            material_profile="openpbr_materialx",
-        )
+    library = build_generated_material_library(
+        MaterialGenerationPlan(materials=(_blue_plastic_recipe(),)),
+        tmp_path / "generated_material_library",
+        texture_settings=TextureGenerationSettings(texture_size=8, seed=29),
+        material_profile="openpbr_materialx",
+    )
+
+    stage = Usd.Stage.Open(str(library.material_library_path))
+    assert stage is not None
+    material_path = "/World/Looks/Generated_Blue_Glossy_Plastic"
+    material = UsdShade.Material(stage.GetPrimAtPath(material_path))
+    assert material.GetSurfaceOutput("mtlx").HasConnectedSource()
+    shader = UsdShade.Shader(stage.GetPrimAtPath(f"{material_path}/OpenPBR"))
+    assert shader.GetIdAttr().Get() == "ND_open_pbr_surface_surfaceshader"
+    assert shader.GetInput("base_color").HasConnectedSource()
+    assert shader.GetInput("geometry_normal").HasConnectedSource()
 
 
 @pytest.mark.skipif(

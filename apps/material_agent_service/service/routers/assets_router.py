@@ -3,6 +3,7 @@
 """Assets API endpoints - Images and previews."""
 
 import logging
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -10,7 +11,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from world_understanding.utils.held_file_response import HeldFileResponse
 
 from ..artifact_lineage import artifact_is_valid
-from ..models.responses import PreviewImage, PreviewList
+from ..models.responses import FailureEvidence, PreviewImage, PreviewList
 from ..runtime.bus import get_event_bus
 from ..session.manager import SessionManager
 
@@ -25,7 +26,9 @@ CONTENT_TYPES = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".pdf": "application/pdf",
+    ".json": "application/json",
 }
+_FAILURE_SAMPLE_NAME = re.compile(r"^[0-9a-f]{16}\.png$")
 
 # Global session manager (initialized by main app)
 session_manager: SessionManager | None = None
@@ -98,8 +101,14 @@ async def _serve_file_with_fallback(
     metadata = metadata_snapshot.value
     if metadata is None or metadata_snapshot.version is None:
         return None
-    run_scoped = key.startswith(("cache/preview/", "preview/"))
-    if run_scoped and not artifact_is_valid(metadata, "previews"):
+    preview_scoped = key.startswith(("cache/preview/", "preview/"))
+    failure_scoped = key.startswith("failure_evidence/")
+    run_scoped = preview_scoped or failure_scoped
+    if preview_scoped and not artifact_is_valid(metadata, "previews"):
+        return None
+    if failure_scoped and key.removeprefix("failure_evidence/") not in (
+        _failure_evidence_names(metadata)
+    ):
         return None
 
     def resolve_store_key(current_metadata: dict) -> str | None:
@@ -123,8 +132,14 @@ async def _serve_file_with_fallback(
         current = await manager.get_session_metadata_versioned(session_id)
         if current.value is None or current.version is None:
             return False
-        return artifact_is_valid(current.value, "previews") and (
-            resolve_store_key(current.value) == store_key
+        if preview_scoped:
+            return artifact_is_valid(current.value, "previews") and (
+                resolve_store_key(current.value) == store_key
+            )
+        return (
+            key.removeprefix("failure_evidence/")
+            in _failure_evidence_names(current.value)
+            and resolve_store_key(current.value) == store_key
         )
 
     # 1. Try presigned URL (redirect)
@@ -165,6 +180,65 @@ async def _serve_file_with_fallback(
         media_type=media_type,
         filename=filename,
     )
+
+
+def _failure_evidence_names(metadata: dict | None) -> set[str]:
+    """Return the exact code-owned evidence filenames published for a failure."""
+    if not metadata or metadata.get("status") != "failed":
+        return set()
+    evidence = metadata.get("failure_evidence")
+    if not isinstance(evidence, dict):
+        return set()
+    names: set[str] = set()
+    report = evidence.get("report")
+    if isinstance(report, dict) and report.get("name") == "report.json":
+        names.add("report.json")
+    samples = evidence.get("samples")
+    if isinstance(samples, list):
+        for sample in samples[:4]:
+            name = sample.get("name") if isinstance(sample, dict) else None
+            if isinstance(name, str) and _FAILURE_SAMPLE_NAME.fullmatch(name):
+                names.add(name)
+    return names
+
+
+@router.get("/{session_id}/failure-evidence", response_model=FailureEvidence)
+async def list_failure_evidence(session_id: str) -> FailureEvidence:
+    """List bounded diagnostic evidence retained for a failed pipeline."""
+    manager = get_session_manager()
+    metadata = await manager.get_session_metadata(session_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="Session not found")
+    evidence = metadata.get("failure_evidence")
+    if not _failure_evidence_names(metadata) or not isinstance(evidence, dict):
+        raise HTTPException(status_code=404, detail="Failure evidence not available")
+    return FailureEvidence.model_validate(evidence)
+
+
+@router.api_route(
+    "/{session_id}/failure-evidence/{file_name}",
+    methods=["GET", "HEAD"],
+)
+async def get_failure_evidence_file(session_id: str, file_name: str):
+    """Download one allowlisted report or failed-render sample."""
+    manager = get_session_manager()
+    metadata = await manager.get_session_metadata(session_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if file_name not in _failure_evidence_names(metadata):
+        raise HTTPException(status_code=404, detail="Failure evidence not available")
+
+    key = f"failure_evidence/{file_name}"
+    response = await _serve_file_with_fallback(
+        manager,
+        session_id,
+        key,
+        manager.get_session_dir(session_id) / key,
+        filename=file_name,
+    )
+    if response is None:
+        raise HTTPException(status_code=404, detail="Failure evidence not available")
+    return response
 
 
 @router.api_route("/{session_id}/input-render", methods=["GET", "HEAD"])

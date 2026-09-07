@@ -58,6 +58,7 @@ from typing import Any
 
 import yaml
 
+from .errors import TuningConfigError
 from .types import (
     DEFAULT_PARAM_BOUNDS,
     SUPPORTED_PARAM_KEYS,
@@ -67,7 +68,7 @@ from .types import (
 )
 
 
-class ScenarioParseError(ValueError):
+class ScenarioParseError(TuningConfigError):
     """Raised when a scenario YAML fails validation.
 
     Subclasses ValueError so callers can ``except ValueError`` if they want to
@@ -100,7 +101,9 @@ def _coerce_float(value: Any, *, field: str) -> float:
     )
 
 
-def _parse_params(raw: Any) -> tuple[TunableParam, ...]:
+def _parse_params(
+    raw: Any,
+) -> tuple[tuple[TunableParam, ...], dict[str, frozenset[str]]]:
     if not isinstance(raw, list):
         raise ScenarioParseError(
             f"'parameters' must be a list, got {type(raw).__name__}"
@@ -110,6 +113,7 @@ def _parse_params(raw: Any) -> tuple[TunableParam, ...]:
             "'parameters' must contain at least one tunable parameter"
         )
     params: list[TunableParam] = []
+    auto_bound_fields: dict[str, frozenset[str]] = {}
     seen_names: dict[str, int] = {}
     for i, entry in enumerate(raw):
         if not isinstance(entry, dict):
@@ -134,7 +138,17 @@ def _parse_params(raw: Any) -> tuple[TunableParam, ...]:
                 f"parameters[{seen_names[name]}]"
             )
         seen_names[name] = i
+        has_min = "min" in entry
+        has_max = "max" in entry
+        if has_min != has_max:
+            raise ScenarioParseError(
+                f"parameters[{i}] ({name}) must specify both 'min' and 'max', "
+                "or omit both for automatic bounds"
+            )
         default_lo, default_hi = DEFAULT_PARAM_BOUNDS[name]
+        omitted = frozenset() if has_min else frozenset({"min", "max"})
+        if omitted:
+            auto_bound_fields[name] = omitted
         lo = _coerce_float(entry.get("min", default_lo), field=f"parameters[{i}].min")
         hi = _coerce_float(entry.get("max", default_hi), field=f"parameters[{i}].max")
         if lo > hi:
@@ -145,15 +159,25 @@ def _parse_params(raw: Any) -> tuple[TunableParam, ...]:
     params_by_name = {param.name: param for param in params}
     static_param = params_by_name.get("static_friction")
     dynamic_param = params_by_name.get("dynamic_friction")
-    if (
-        static_param is not None
-        and dynamic_param is not None
-        and dynamic_param.min_value > static_param.max_value
-    ):
-        raise ScenarioParseError(
-            "dynamic_friction minimum must not exceed static_friction maximum"
-        )
-    return tuple(params)
+    if static_param is not None and dynamic_param is not None:
+        static_is_auto = "static_friction" in auto_bound_fields
+        dynamic_is_auto = "dynamic_friction" in auto_bound_fields
+        if static_is_auto != dynamic_is_auto:
+            raise ScenarioParseError(
+                "static_friction and dynamic_friction must both use automatic "
+                "bounds or both specify explicit min and max"
+            )
+        if not static_is_auto and dynamic_param.min_value > static_param.max_value:
+            raise ScenarioParseError(
+                "dynamic_friction minimum must not exceed static_friction maximum"
+            )
+    return tuple(params), auto_bound_fields
+
+
+def validate_scenario_parameters(raw: Any) -> None:
+    """Validate a parameter list without requiring a complete scenario."""
+
+    _parse_params(raw)
 
 
 def parse_scenario(raw: dict[str, Any]) -> Scenario:
@@ -233,24 +257,25 @@ def parse_scenario(raw: dict[str, Any]) -> Scenario:
         raise ScenarioParseError(
             f"'target' must be a mapping, got {type(target).__name__}"
         )
-    # For drop_settle the recognised target keys are numeric simulation
-    # knobs. Validate the known ones at parse time so a malformed value
-    # (e.g. ``drop_height_m: [1, 2]``) surfaces here with a helpful
-    # ``target.<key>`` path instead of failing inside the backend.
+    # Gravity is consumed by both built-in scenarios and by final tuned-USD
+    # authoring. Validate it for every scenario so malformed values fail at
+    # parse time rather than silently dropping the tuned artifact. The other
+    # recognized numeric knobs are specific to drop_settle.
+    target_numeric_keys = ("gravity",)
     if name == "drop_settle":
-        _DROP_SETTLE_TARGET_NUMERIC_KEYS = (
+        target_numeric_keys = (
             "drop_height_m",
             "duration_s",
             "gravity",
         )
-        for key in _DROP_SETTLE_TARGET_NUMERIC_KEYS:
-            if key in target:
-                _coerce_float(target[key], field=f"target.{key}")
+    for key in target_numeric_keys:
+        if key in target:
+            _coerce_float(target[key], field=f"target.{key}")
 
     params_raw = raw.get("parameters")
     if params_raw is None:
         raise ScenarioParseError("Scenario must define 'parameters'")
-    params = _parse_params(params_raw)
+    params, auto_bound_fields = _parse_params(params_raw)
 
     # Anything outside the canonical keys is preserved as extra so backends can
     # pick up scenario-specific knobs without forking this parser.
@@ -263,6 +288,7 @@ def parse_scenario(raw: dict[str, Any]) -> Scenario:
         target=target,
         metric=metric,
         extra=extra,
+        auto_bound_fields=auto_bound_fields,
     )
 
 

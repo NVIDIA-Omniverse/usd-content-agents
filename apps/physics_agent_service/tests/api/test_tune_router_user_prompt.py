@@ -148,11 +148,11 @@ async def test_post_tune_with_both_user_prompt_and_scenario_returns_202(
 
 
 @pytest.mark.api
-async def test_post_tune_reference_media_persisted(
+async def test_post_tune_reference_images_persisted(
     client,
     _stub_tune_executor,
 ) -> None:
-    """Reference media uploads are copied and passed to the tune executor."""
+    """Reference image uploads are copied and passed to the tune executor."""
     from ...service.routers import tune_router
 
     files = _multipart_files()
@@ -173,7 +173,6 @@ async def test_post_tune_reference_media_persisted(
     assert meta is not None
     config = meta["config"]
     assert len(config["reference_images"]) == 1
-    assert config["reference_videos"] == []
     assert config["reference_descriptions"] == ["target visual"]
     assert config["judge_max_tokens"] == 1234
     assert config["judge_temperature"] == 0.25
@@ -191,7 +190,7 @@ async def test_post_tune_reference_media_persisted(
 
 
 @pytest.mark.api
-async def test_post_tune_rejects_too_many_reference_media(client) -> None:
+async def test_post_tune_rejects_too_many_reference_images(client) -> None:
     files = _multipart_files()
     for idx in range(17):
         files.append(
@@ -208,7 +207,7 @@ async def test_post_tune_rejects_too_many_reference_media(client) -> None:
     )
 
     assert r.status_code == 400, r.text
-    assert "Too many reference media files" in r.json()["detail"]
+    assert "Too many reference images" in r.json()["detail"]
 
 
 @pytest.mark.api
@@ -226,21 +225,28 @@ async def test_post_tune_reference_description_size_limit(client) -> None:
     assert "reference_descriptions[1]" in r.json()["detail"]
 
 
-def test_parse_reference_video_descriptions_size_limit() -> None:
-    from fastapi import HTTPException
+@pytest.mark.api
+async def test_post_tune_rejects_removed_video_inputs(client) -> None:
+    legacy_field = await _post_tune(
+        client,
+        data={
+            "scenario_yaml": _scenario_yaml(),
+            "reference_video_frames": "8",
+        },
+    )
+    assert legacy_field.status_code == 400, legacy_field.text
+    assert "Video inputs are unsupported" in legacy_field.json()["detail"]
+    assert "reference_video_frames" in legacy_field.json()["detail"]
 
-    from ...service.routers import tune_router
-
-    raw = json.dumps(["x" * 128] * 128)
-
-    with pytest.raises(HTTPException) as exc_info:
-        tune_router._parse_reference_descriptions(
-            raw,
-            "reference_video_descriptions",
-        )
-
-    assert exc_info.value.status_code == 413
-    assert "reference_video_descriptions" in exc_info.value.detail
+    files = _multipart_files()
+    files.append(("reference_images", ("motion.mp4", b"video", "video/mp4")))
+    video_upload = await _post_tune(
+        client,
+        files=files,
+        data={"scenario_yaml": _scenario_yaml()},
+    )
+    assert video_upload.status_code == 400, video_upload.text
+    assert "video uploads: motion.mp4" in video_upload.json()["detail"]
 
 
 @pytest.mark.api
@@ -298,6 +304,35 @@ async def test_post_tune_with_partial_scenario_yaml_and_user_prompt_returns_202(
         },
     )
     assert r.status_code == 202, r.text
+
+
+@pytest.mark.api
+async def test_post_tune_rejects_mixed_friction_override_before_session(
+    client,
+) -> None:
+    from ...service.routers import tune_router
+
+    manager = tune_router.get_session_manager()
+    before = set(await manager.list_sessions())
+    partial_yaml = (
+        "parameters:\n"
+        "  - name: static_friction\n"
+        "    min: 0.01\n"
+        "    max: 0.02\n"
+        "  - name: dynamic_friction\n"
+    )
+
+    r = await _post_tune(
+        client,
+        data={
+            "scenario_yaml": partial_yaml,
+            "user_prompt": "make it realistic",
+        },
+    )
+
+    assert r.status_code == 400, r.text
+    assert "must both use automatic bounds" in r.json()["detail"]
+    assert set(await manager.list_sessions()) == before
 
 
 @pytest.mark.api

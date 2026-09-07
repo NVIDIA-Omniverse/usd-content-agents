@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
-import re
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -32,14 +33,12 @@ from content_agent_workflows.convert_to_usd import workflow as convert_workflow
 MINIMAL_USDA = '#usda 1.0\n\ndef Xform "World" {\n}\n'
 
 
-def test_usd_convert_cad_install_uses_immutable_public_revision() -> None:
-    revision = convert_workflow.USD_CONVERT_CAD_REVISION
+def test_usd_convert_cad_install_uses_pinned_pypi_release() -> None:
+    version = convert_workflow.USD_CONVERT_CAD_VERSION
     install_spec = convert_workflow.USD_CONVERT_CAD_INSTALL_SPEC
 
-    assert re.fullmatch(r"[0-9a-f]{40}", revision)
-    assert install_spec == (
-        "git+https://github.com/NVIDIA-Omniverse/usd-convert-cad.git@" + revision
-    )
+    assert version == "0.2.0"
+    assert install_spec == f"usd-convert-cad=={version}"
     assert (
         convert_workflow.CONVERTER_INSTALL_SPECS["usd-convert-cad"][0] == install_spec
     )
@@ -138,6 +137,448 @@ def test_existing_usd_passthrough_writes_artifacts(tmp_path: Path) -> None:
     assert report["converter_reference"] == "existing-usd-passthrough"
     assert report["generated_files"] == ["asset.usda"]
     assert report["errors"] == []
+
+    run_manifest = json.loads(
+        Path(result.workflow_run_manifest_path).read_text(encoding="utf-8")
+    )
+    assert run_manifest["workflow"] == "convert_to_usd"
+    assert run_manifest["status"] == "pass"
+    assert run_manifest["source_path"] == str(source.resolve())
+    assert run_manifest["source_sha256"]
+    recorded_request = json.loads(
+        (Path(result.output_dir) / run_manifest["request_path"]).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert recorded_request["source_asset_path"] == str(source)
+    assert recorded_request["converter_timeout_s"] == 120.0
+    assert "resume" not in recorded_request
+    assert run_manifest["backend"] == {
+        "kind": "converter_router",
+        "reference_order": [
+            "urdf-usd-converter",
+            "mujoco-usd-converter",
+            "usd-convert-cad",
+        ],
+    }
+    assert run_manifest["policy"]["install_missing"] is True
+    assert run_manifest["policy"]["converter_timeout_s"] == 120.0
+    assert run_manifest["checkpoints"][-1]["phase"] == "validated"
+    assert set(run_manifest["required_artifacts"]) == {
+        "converter_probe",
+        "conversion_report",
+        "markdown_report",
+        "validation_report",
+        "conversion_manifest",
+    }
+
+
+@pytest.mark.parametrize("value", [0.0, -1.0, float("nan"), float("inf")])
+def test_convert_workflow_input_rejects_invalid_converter_timeout(
+    tmp_path: Path,
+    value: float,
+) -> None:
+    with pytest.raises(ValueError):
+        ConvertToUsdWorkflowInput(
+            source_asset_path=tmp_path / "asset.glb",
+            output_dir=tmp_path / "run",
+            converter_timeout_s=value,
+        )
+
+
+def test_supported_converter_timeout_override_and_resume_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "large.glb"
+    source.write_bytes(b"synthetic glb")
+    timeout_calls: list[float] = []
+
+    monkeypatch.setattr(convert_workflow, "_dependency_available", lambda _ref: True)
+
+    def fake_run_converter_command(
+        command: list[str],
+        *,
+        timeout_s: float,
+    ) -> subprocess.CompletedProcess[str]:
+        timeout_calls.append(timeout_s)
+        if timeout_s == 120.0:
+            raise subprocess.TimeoutExpired(command, timeout=timeout_s)
+        output = Path(command[command.index("--output") + 1])
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(MINIMAL_USDA, encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(
+        convert_workflow,
+        "_run_converter_command",
+        fake_run_converter_command,
+    )
+
+    failed_dir = tmp_path / "failed"
+    failed = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source,
+            output_dir=failed_dir,
+            install_missing=False,
+        )
+    )
+
+    assert not failed.success
+    failed_report = json.loads(
+        Path(failed.conversion_report_path).read_text(encoding="utf-8")
+    )
+    assert failed_report["converter_timeout_s"] == 120.0
+    assert failed_report["errors"] == [
+        "converter timed out after 120.0s: usd-convert-cad"
+    ]
+    retained = {
+        name: (failed_dir / name).read_bytes()
+        for name in (
+            "request.json",
+            "conversion_report.json",
+            "workflow_run_manifest.json",
+        )
+    }
+
+    with pytest.raises(ValueError, match="recorded inputs changed: request, policy"):
+        run_convert_to_usd_workflow(
+            ConvertToUsdWorkflowInput(
+                source_asset_path=source,
+                output_dir=failed_dir,
+                install_missing=False,
+                converter_timeout_s=300.0,
+                resume=True,
+            )
+        )
+
+    assert timeout_calls == [120.0]
+    assert {name: (failed_dir / name).read_bytes() for name in retained} == retained
+
+    passed = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source,
+            output_dir=tmp_path / "passed",
+            install_missing=False,
+            converter_timeout_s=300.0,
+        )
+    )
+
+    assert passed.success
+    assert timeout_calls == [120.0, 300.0]
+    assert Path(passed.output_usd_path or "").is_file()
+    passed_request = json.loads(
+        (Path(passed.output_dir) / "request.json").read_text(encoding="utf-8")
+    )
+    passed_manifest = json.loads(
+        Path(passed.workflow_run_manifest_path).read_text(encoding="utf-8")
+    )
+    assert passed_request["converter_timeout_s"] == 300.0
+    assert passed_manifest["policy"]["converter_timeout_s"] == 300.0
+
+
+def test_convert_workflow_resume_preserves_checkpoint_history(tmp_path: Path) -> None:
+    source = tmp_path / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+    initial = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(source_asset_path=source, output_dir=run_dir)
+    )
+
+    resumed = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source,
+            output_dir=run_dir,
+            resume=True,
+        )
+    )
+
+    assert initial.success
+    assert resumed.success
+    manifest = json.loads(
+        Path(resumed.workflow_run_manifest_path).read_text(encoding="utf-8")
+    )
+    assert [item["phase"] for item in manifest["checkpoints"]] == [
+        "validated",
+        "validated",
+    ]
+
+
+def test_convert_workflow_resume_accepts_legacy_default_timeout_policy(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+    initial = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(source_asset_path=source, output_dir=run_dir)
+    )
+    assert initial.success
+
+    manifest_path = run_dir / "workflow_run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["policy"]["converter_timeout_s"]
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    resumed = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source,
+            output_dir=run_dir,
+            resume=True,
+        )
+    )
+
+    assert resumed.success
+    resumed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert "converter_timeout_s" not in resumed_manifest["policy"]
+    recorded_request = json.loads(
+        (run_dir / "request.json").read_text(encoding="utf-8")
+    )
+    assert recorded_request["converter_timeout_s"] == 120.0
+
+
+@pytest.mark.parametrize(
+    ("timeout_s", "policy_update"),
+    [
+        (300.0, {}),
+        (120.0, {"install_missing": False}),
+    ],
+    ids=["non-default-timeout", "other-policy-drift"],
+)
+def test_convert_workflow_resume_rejects_nonexact_legacy_timeout_policy(
+    tmp_path: Path,
+    timeout_s: float,
+    policy_update: dict[str, object],
+) -> None:
+    source = tmp_path / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+    initial = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source,
+            output_dir=run_dir,
+            converter_timeout_s=timeout_s,
+        )
+    )
+    assert initial.success
+
+    manifest_path = run_dir / "workflow_run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["policy"]["converter_timeout_s"]
+    manifest["policy"].update(policy_update)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="recorded inputs changed: policy"):
+        run_convert_to_usd_workflow(
+            ConvertToUsdWorkflowInput(
+                source_asset_path=source,
+                output_dir=run_dir,
+                converter_timeout_s=timeout_s,
+                resume=True,
+            )
+        )
+
+
+def test_convert_workflow_resume_rejects_changed_directory_source(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source = source_dir / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+
+    initial = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source_dir,
+            output_dir=run_dir,
+        )
+    )
+    assert initial.success
+
+    source.write_text(
+        '#usda 1.0\n(\n    customLayerData = { string revision = "changed" }\n)\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="recorded inputs changed: request",
+    ):
+        run_convert_to_usd_workflow(
+            ConvertToUsdWorkflowInput(
+                source_asset_path=source_dir,
+                output_dir=run_dir,
+                resume=True,
+            )
+        )
+
+
+def test_convert_workflow_directory_source_resume_is_stable_when_unchanged(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source = source_dir / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+
+    initial = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source_dir,
+            output_dir=run_dir,
+        )
+    )
+    resumed = run_convert_to_usd_workflow(
+        ConvertToUsdWorkflowInput(
+            source_asset_path=source_dir,
+            output_dir=run_dir,
+            resume=True,
+        )
+    )
+
+    assert initial.success
+    assert resumed.success
+    request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
+    assert request["source_identity"] == {
+        "kind": "directory",
+        "path": str(source_dir.resolve()),
+        "total_bytes": source.stat().st_size,
+        "entries": [
+            {
+                "path": "asset.usda",
+                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "size_bytes": source.stat().st_size,
+            }
+        ],
+    }
+
+
+def test_convert_workflow_rejects_run_directory_inside_directory_source(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    (source_dir / "asset.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    nested_run = source_dir / "run"
+
+    with pytest.raises(ValueError, match="output directory must be outside"):
+        run_convert_to_usd_workflow(
+            ConvertToUsdWorkflowInput(
+                source_asset_path=source_dir,
+                output_dir=nested_run,
+            )
+        )
+
+    assert not nested_run.exists()
+
+
+def test_convert_workflow_rejects_output_usd_inside_directory_source(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    (source_dir / "asset.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+
+    with pytest.raises(ValueError, match="output USD must be outside"):
+        run_convert_to_usd_workflow(
+            ConvertToUsdWorkflowInput(
+                source_asset_path=source_dir,
+                output_dir=run_dir,
+                output_usd_path=source_dir / "generated.usda",
+            )
+        )
+
+    assert not run_dir.exists()
+
+
+def test_directory_source_identity_rejects_symlinked_file(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    external = tmp_path / "external.usda"
+    external.write_text("#usda 1.0\n", encoding="utf-8")
+    linked = source_dir / "asset.usda"
+    try:
+        linked.symlink_to(external)
+    except OSError as exc:  # pragma: no cover - platform policy dependent
+        pytest.skip(f"symlinks are unavailable: {exc}")
+
+    with pytest.raises(ValueError, match="non-symlinked regular files"):
+        convert_workflow._directory_source_identity(source_dir)
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="mkfifo is unavailable")
+def test_directory_source_identity_rejects_fifo_without_blocking(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    fifo = source_dir / "asset.usda"
+    os.mkfifo(fifo)
+
+    with pytest.raises(ValueError, match="regular files"):
+        convert_workflow._directory_source_identity(source_dir)
+
+
+def test_directory_source_identity_rejects_oversized_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source = source_dir / "asset.usda"
+    source.write_bytes(b"12345")
+    monkeypatch.setattr(
+        convert_workflow,
+        "DIRECTORY_SOURCE_IDENTITY_MAX_FILE_BYTES",
+        4,
+    )
+
+    with pytest.raises(ValueError, match="exceeds 4 bytes"):
+        convert_workflow._directory_source_identity(source_dir)
+
+
+def test_convert_workflow_records_unexpected_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+
+    def fail_conversion(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("unexpected conversion failure")
+
+    monkeypatch.setattr(
+        convert_workflow,
+        "convert_source_to_usd_file",
+        fail_conversion,
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected conversion failure"):
+        run_convert_to_usd_workflow(
+            ConvertToUsdWorkflowInput(
+                source_asset_path=source,
+                output_dir=run_dir,
+            )
+        )
+
+    manifest = json.loads(
+        (run_dir / "workflow_run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["status"] == "fail"
+    assert manifest["failure"] == {
+        "code": "unexpected_workflow_error",
+        "error_type": "RuntimeError",
+        "message": "unexpected conversion failure",
+    }
 
 
 def test_existing_usd_failed_write_does_not_report_stale_output(
@@ -274,7 +715,13 @@ def test_cad_route_invokes_usd_convert_cad(
     source = tmp_path / "mesh.stl"
     source.write_text("solid mesh\nendsolid mesh\n", encoding="utf-8")
     _write_fake_cad_converter(tmp_path)
+    monkeypatch.setattr(convert_workflow.sys, "executable", str(tmp_path / "python3"))
     monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(
+        convert_workflow,
+        "_installed_distribution_version",
+        lambda _package: convert_workflow.USD_CONVERT_CAD_VERSION,
+    )
 
     result = run_convert_to_usd_workflow(
         ConvertToUsdWorkflowInput(source_asset_path=source, output_dir=tmp_path / "run")
@@ -286,6 +733,8 @@ def test_cad_route_invokes_usd_convert_cad(
     assert result.output_usd_path is not None
     assert Path(result.output_usd_path).exists()
     assert Path(result.output_usd_path).name == "mesh.usda"
+    report = json.loads(Path(result.conversion_report_path).read_text())
+    assert report["converter_command"][-1] == "--accurate-tessellation"
 
 
 def test_converter_tool_resolves_from_active_python_scripts_dir(
@@ -303,6 +752,11 @@ def test_converter_tool_resolves_from_active_python_scripts_dir(
     )
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
     _write_fake_cad_converter(scripts_dir)
+    monkeypatch.setattr(
+        convert_workflow,
+        "_installed_distribution_version",
+        lambda _package: convert_workflow.USD_CONVERT_CAD_VERSION,
+    )
 
     result = run_convert_to_usd_workflow(
         ConvertToUsdWorkflowInput(source_asset_path=source, output_dir=tmp_path / "run")
@@ -312,6 +766,38 @@ def test_converter_tool_resolves_from_active_python_scripts_dir(
     assert result.selected_converter == "usd-convert-cad"
     report = json.loads(Path(result.conversion_report_path).read_text())
     assert report["converter_command"][0] == str(scripts_dir / "usd-convert-cad")
+
+
+def test_cad_route_rejects_path_converter_from_another_python_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "mesh.stl"
+    source.write_text("solid mesh\nendsolid mesh\n", encoding="utf-8")
+    active_scripts = tmp_path / "active/bin"
+    foreign_scripts = tmp_path / "foreign/bin"
+    active_scripts.mkdir(parents=True)
+    foreign_scripts.mkdir(parents=True)
+    foreign_converter = _write_fake_cad_converter(foreign_scripts)
+    monkeypatch.setattr(
+        convert_workflow.sys,
+        "executable",
+        str(active_scripts / "python3"),
+    )
+    monkeypatch.setenv("PATH", str(foreign_scripts))
+    monkeypatch.setattr(
+        convert_workflow,
+        "_installed_distribution_version",
+        lambda _package: convert_workflow.USD_CONVERT_CAD_VERSION,
+    )
+
+    report, _probe = convert_to_usd(source, tmp_path / "run")
+
+    assert report.passed is False
+    assert report.errors == [
+        "usd-convert-cad must be installed in the active Python environment; "
+        f"PATH resolves a different executable: {foreign_converter}"
+    ]
 
 
 def test_file_oriented_converter_writes_requested_output(
@@ -378,6 +864,40 @@ def test_file_oriented_converter_exports_requested_binary_output_format(
     assert len(exports) == 1
     assert exports[0][0].name == "robot.usda"
     assert exports[0][1] == output.resolve()
+
+
+def test_export_usd_layer_registers_formats_in_fresh_process(tmp_path: Path) -> None:
+    pytest.importorskip("pxr")
+    source = tmp_path / "fresh-process-input.usda"
+    output = tmp_path / "fresh-process-output.usdc"
+    source.write_text(MINIMAL_USDA, encoding="utf-8")
+    package_root = Path(convert_workflow.__file__).resolve().parents[2]
+    repository_root = Path(convert_workflow.__file__).resolve().parents[5]
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = os.pathsep.join(
+        (str(package_root), str(repository_root))
+    )
+    script = "\n".join(
+        (
+            "from pathlib import Path",
+            "import sys",
+            "from content_agent_workflows.convert_to_usd.workflow import "
+            "_export_usd_layer",
+            "_export_usd_layer(Path(sys.argv[1]), Path(sys.argv[2]))",
+        )
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(source), str(output)],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert output.read_bytes().startswith(b"PXR-USDC")
 
 
 def test_file_oriented_converter_reports_usd_import_error(
@@ -516,6 +1036,27 @@ def test_cad_route_blocks_when_converter_missing(
     assert "https://pypi.nvidia.com" in report.install_hint
 
 
+def test_cad_route_rejects_stale_installed_release(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "mesh.stl"
+    source.write_text("solid mesh\nendsolid mesh\n", encoding="utf-8")
+    _write_fake_cad_converter(tmp_path)
+    monkeypatch.setattr(convert_workflow.sys, "executable", str(tmp_path / "python3"))
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(
+        convert_workflow,
+        "_installed_distribution_version",
+        lambda _package: "0.1.0",
+    )
+
+    report, _probe = convert_to_usd(source, tmp_path / "run")
+
+    assert not report.passed
+    assert report.errors == ["usd-convert-cad 0.2.0 is required; found 0.1.0"]
+
+
 def test_preflight_installs_inferred_cad_converter(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -619,6 +1160,7 @@ def test_convert_file_installs_dependency_after_directory_selection(
     source.write_text("solid mesh\nendsolid mesh\n", encoding="utf-8")
     output = tmp_path / "converted.usda"
     _write_fake_cad_converter(tmp_path)
+    monkeypatch.setattr(convert_workflow.sys, "executable", str(tmp_path / "python3"))
     monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
     calls: list[list[str]] = []
     available = {"value": False}
@@ -654,7 +1196,14 @@ def test_preflight_check_only_blocks_without_install(
 ) -> None:
     source = tmp_path / "mesh.stl"
     source.write_text("solid mesh\nendsolid mesh\n", encoding="utf-8")
-    monkeypatch.setattr(convert_workflow, "_dependency_available", lambda _ref: False)
+    _write_fake_cad_converter(tmp_path)
+    monkeypatch.setattr(convert_workflow.sys, "executable", str(tmp_path / "python3"))
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(
+        convert_workflow,
+        "_installed_distribution_version",
+        lambda _package: "0.1.0",
+    )
 
     report = preflight_convert_to_usd_dependencies(source, install_missing=False)
 
@@ -663,7 +1212,7 @@ def test_preflight_check_only_blocks_without_install(
     assert report.converter_reference == "usd-convert-cad"
     assert report.install_requested is False
     assert report.install_attempted is False
-    assert any("usd-convert-cad CLI is required" in error for error in report.errors)
+    assert report.errors == ["usd-convert-cad 0.2.0 is required; found 0.1.0"]
 
 
 def test_unsupported_source_writes_blocked_report(tmp_path: Path) -> None:

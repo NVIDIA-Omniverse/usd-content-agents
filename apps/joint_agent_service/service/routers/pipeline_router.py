@@ -2555,6 +2555,7 @@ async def create_pipeline(
             vlm_model=config.vlm_model,
             llm_backend=config.llm_backend,
             llm_model=config.llm_model,
+            llm_reasoning_effort=config.llm_reasoning_effort,
             joint_rigger_output_suffix=(
                 ".usdz"
                 if joint_rigger_step_options

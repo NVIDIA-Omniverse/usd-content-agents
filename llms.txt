@@ -1,73 +1,91 @@
 # NVIDIA Content Agents
 
-AI-powered agents for OpenUSD/USD content workflows: material assignment,
-physics property classification, joint and articulation authoring, texture
-generation, and validation.
+Reference implementation of agentic OpenUSD/USD content workflows for
+conversion, material and texture authoring, physics, articulation,
+segmentation, validation, and scene processing. Read, fork, and adapt this
+release; do not treat it as a stable SDK or deploy-as-is product.
 
-## Canonical Entry Points
+Expanded index: `llms-full.txt`. Full repo-local agent contract: `AGENTS.md`.
 
-- User README: `README.md`
-- Agent guide: `AGENTS.md`
-- Claude Code guide: `CLAUDE.md`
-- Material Agent CLI docs: `apps/material_agent/README.md`
-- Physics Agent CLI docs: `apps/physics_agent/README.md`
-- Joint Agent CLI docs (0.5 Research Preview): `apps/joint_agent/README.md`
-- Joint Agent REST docs (0.5 Research Preview):
-  `apps/joint_agent_service/README.md`
-- Texture Agent CLI docs: `apps/texture_agent/README.md`
-- Validation Agent CLI docs (Research Preview):
-  `apps/validation_agent/README.md`
-- Validation Agent examples (Research Preview):
-  `apps/validation_agent/examples/README.md`
-- Agentic Workflow preview:
-  `agentic/README.md`
-- Material Agent API docs: `apps/material_agent/docs/api.md`
-- Physics Agent API docs: `apps/physics_agent/docs/api.md`
-- Texture Agent REST API docs: `apps/texture_agent_service/docs/api.md`
+## Default v0.6 Entry
 
-## Bundled Agent Skills
+- Start from the repository root.
+- Read `README.md`, this compact index, `AGENTS.md`, and the selected root skill
+  in that order. Use `llms-full.txt` for the expanded command and skill index
+  and `agentic/README.md` for implementation details.
+- On native Linux or WSL2, set up with `./scripts/setup_content_agent.sh`.
+- Native Windows execution is unsupported in the 0.6 release. On a Windows
+  host, run the supported workflow inside WSL2.
+- Require Python 3.12 and `uv`; require Node.js 20+ and `npm` only for workflows
+  that launch Codex or Claude Code.
+- Use `content-workflow-cli` and root `content-workflow-*` skills by default.
+- Write outputs under root `runs/`.
+- Use a fixed pipeline app CLI, YAML, benchmark, Python, or REST interface only when
+  explicitly requested.
+- The established application workflows under `apps/` are the fixed pipeline.
+- Invoke the root `$fixed-pipeline` umbrella only when one of those interfaces
+  is explicitly requested.
+- Never silently fall back to fixed pipeline.
 
-- Canonical repo-root skill tree: `.agents/skills/`
-- Codex skill mirror: `.codex/skills/`
-- Claude Code skill mirror: `.claude/skills/`
-- Agentic Workflow batch launcher skill:
-  `agentic/.agents/skills/content-workflow-cli/SKILL.md`,
-  `agentic/.codex/skills/content-workflow-cli/SKILL.md`,
-  `agentic/.claude/skills/content-workflow-cli/SKILL.md`
-- Material first-run skills: `.agents/skills/material-agent-cli/SKILL.md`,
-  `.codex/skills/material-agent-cli/SKILL.md`,
-  `.claude/skills/material-agent-cli/SKILL.md`
-- Physics first-run skills: `.agents/skills/physics-agent-cli/SKILL.md`,
-  `.codex/skills/physics-agent-cli/SKILL.md`,
-  `.claude/skills/physics-agent-cli/SKILL.md`
-- Joint first-run skills (0.5 Research Preview):
-  `.agents/skills/joint-agent-cli/SKILL.md`,
-  `.codex/skills/joint-agent-cli/SKILL.md`,
-  `.claude/skills/joint-agent-cli/SKILL.md`
-- Joint REST client skills: `.agents/skills/joint-agent-client/SKILL.md`,
-  `.codex/skills/joint-agent-client/SKILL.md`,
-  `.claude/skills/joint-agent-client/SKILL.md`
-- Joint Gate 3A/B skills:
-  `.agents/skills/joint-agent-validation/SKILL.md`,
-  `.codex/skills/joint-agent-validation/SKILL.md`,
-  `.claude/skills/joint-agent-validation/SKILL.md`
-- Texture first-run skills: `.agents/skills/texture-agent-cli/SKILL.md`,
-  `.codex/skills/texture-agent-cli/SKILL.md`,
-  `.claude/skills/texture-agent-cli/SKILL.md`
-- Validation first-run skills (Research Preview):
-  `.agents/skills/validation-agent-cli/SKILL.md`,
-  `.codex/skills/validation-agent-cli/SKILL.md`,
-  `.claude/skills/validation-agent-cli/SKILL.md`
+## Windows Hosts
 
-## First Commands
+Run the supported 0.6 workflow inside WSL2 and clone into the WSL2 Linux
+filesystem so the repository's skill symlinks materialize correctly. If
+`.agents/skills/content-workflow-material` is not a directory, stop and clone
+again inside WSL2. Do not continue with a partial skill inventory.
+
+## Agentic Commands
 
 ```bash
-material-agent run apps/material_agent/configs/unified_example.yaml --dry-run
-material-agent run apps/material_agent/configs/unified_example.yaml
-physics-agent run apps/physics_agent/configs/lightbulb.yaml
-joint-agent run apps/joint_agent/configs/byoa_joint_rigger.yaml --dry-run
-texture-agent run apps/texture_agent/configs/texture_example.yaml
-validation-agent run apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml
+content-workflow-cli --help
+content-workflow-cli convert-to-usd --help
+content-workflow-cli materials assign --help
+content-workflow-cli texture run --help
+content-workflow-cli physics apply --help
+content-workflow-cli mesh-segmentation run --help
+content-workflow-cli validate run --help
+content-workflow-cli simready --help
+content-workflow-cli scene run --help
+content-workflow-cli articulation run --help
+content-workflow-cli asset run --help
 ```
 
-Keep API keys in `.env` and do not print or commit secrets.
+## Canonical Skills
+
+- Canonical tree: `.agents/skills/`
+- Codex mirror: `.codex/skills/`
+- Claude Code mirror: `.claude/skills/`
+- General launcher: `.agents/skills/content-workflow-cli/SKILL.md`
+- usd-cli: `.agents/skills/usd-cli/SKILL.md`
+- Composed asset: `.agents/skills/content-workflow-asset/SKILL.md`
+- Conversion: `.agents/skills/content-workflow-convert-to-usd/SKILL.md`
+- Material: `.agents/skills/content-workflow-material/SKILL.md`
+- Mesh segmentation: `.agents/skills/content-workflow-mesh-segmentation/SKILL.md`
+- Physics: `.agents/skills/content-workflow-physics/SKILL.md`
+- SimReady: `.agents/skills/content-workflow-simready/SKILL.md`
+- Validation: `.agents/skills/content-workflow-validation/SKILL.md`
+- Large scene: `.agents/skills/content-workflow-large-scene/SKILL.md`
+
+## Explicit Fixed Pipeline Interfaces
+
+- Material: `apps/material_agent/README.md`, `material-agent`
+- Material API: `apps/material_agent/docs/api.md`
+- Physics: `apps/physics_agent/README.md`, `physics-agent`
+- Physics API: `apps/physics_agent/docs/api.md`
+- Joint: `apps/joint_agent/README.md`, `joint-agent`
+- Joint service: `apps/joint_agent_service/README.md`
+- Texture: `apps/texture_agent/README.md`, `texture-agent`
+- Texture service API: `apps/texture_agent_service/docs/api.md`
+- Validation: `apps/validation_agent/README.md`, `validation-agent`
+- Validation examples: `apps/validation_agent/examples/README.md`
+- REST services: `apps/*_agent_service/`
+
+The sole discoverable fixed-pipeline skill is
+`.agents/skills/fixed-pipeline/SKILL.md`, mirrored at
+`.codex/skills/fixed-pipeline/SKILL.md` and
+`.claude/skills/fixed-pipeline/SKILL.md`. It loads only the required retained
+reference from `.agents/skills/fixed-pipeline/references/`; those references
+are not independently invocable skills.
+
+Keep API keys in `.env` or environment variables and never print or commit
+secrets.

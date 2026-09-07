@@ -2,6 +2,11 @@
 
 FastAPI service for VLM-based physics property classification of 3D USD assets. Wraps the [Physics Agent](../physics_agent/) pipeline behind a REST API with session management, async progress streaming, and Docker-ready deployment.
 
+> **Content Agents 0.6 routing:** this service is an explicit fixed-pipeline
+> REST interface. For an unqualified physics task, start at the repository root
+> with `content-workflow-cli`. Use this service when its stable HTTP, session,
+> or deployment contract is specifically required.
+
 ## Quick Start (Docker)
 
 Requires **Docker Compose v2.24+** (for `env_file: required: false` support).
@@ -125,11 +130,13 @@ Service configuration is loaded from environment variables at startup. Key setti
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` | Required if using `gemini` backend |
 | `PA_VLM_BACKEND` | Default: `nim` |
-| `PA_VLM_MODEL` | Default: `google/gemma-4-31b-it` |
+| `PA_VLM_MODEL` | Default: `moonshotai/kimi-k3` |
 | `PA_TUNE_BACKEND` | Optional `/tune` prompt interpreter backend override; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` |
 | `PA_TUNE_MODEL` | Optional `/tune` prompt interpreter model override; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` |
+| `PA_TUNE_REASONING_EFFORT` | Optional `/tune` reasoning override; falls back to refine/VLM settings and model defaults |
 | `PA_REFINE_BACKEND` | Optional `/refine` judge/refiner backend override; falls back to `PA_VLM_BACKEND` |
 | `PA_REFINE_MODEL` | Optional `/refine` judge/refiner model override; falls back to `PA_VLM_MODEL` or the deployment default |
+| `PA_REFINE_REASONING_EFFORT` | Optional `/refine` reasoning override; falls back to the selected model default, then the built-in VLM reasoning default |
 | `PA_VLM_NIM_BASE_URL` | Optional local/custom NIM endpoint for physics VLM calls |
 | `PA_LLM_NIM_BASE_URL` | Optional local/custom NIM endpoint for physics LLM calls |
 | `PA_NIM_API_KEY` | Endpoint-scoped NIM key, or `not-used` for a no-auth local sidecar |

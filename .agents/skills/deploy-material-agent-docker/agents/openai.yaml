@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Material Agent Docker"
-  short_description: "Help with Deploy Material Agent Docker tasks"
-  default_prompt: "Use $deploy-material-agent-docker to deploy the material-agent-service locally using Docker Compose with OVRTX rendering."

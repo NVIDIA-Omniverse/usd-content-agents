@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Texture Agent Client"
+  short_description: "Fixed pipeline: Call the Texture Agent service"
+  default_prompt: "Use $fixed-pipeline to make requests to the Texture Agent REST API service for AI-driven texture generation on materialized USD assets."

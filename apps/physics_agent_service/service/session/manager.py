@@ -9,6 +9,8 @@ All public methods are async.
 import asyncio
 import logging
 import re
+from collections.abc import Callable
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any
@@ -39,8 +41,8 @@ from ..runtime.progress import (
     STEP_WEIGHTS,
     TOTAL_VISIBLE_STEPS,
 )
-from ..storage import LocalSessionStore, SessionStore
-from ..storage.base import METADATA_KEY
+from ..storage import LocalSessionStore, SessionGeneration, SessionStore
+from ..storage.base import METADATA_KEY, CompletedSessionSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,8 @@ _SESSION_ID_PATTERN = re.compile(
 )
 _TERMINAL_SESSION_STATUSES = {"completed", "failed", "cancelled"}
 _PIPELINE_TERMINAL_CLAIM_KEY = ".pipeline-terminal-claim"
+_LEASE_HEARTBEAT_RETRY_SECONDS = 1.0
+_LEASE_HEARTBEAT_MAX_RETRY_SECONDS = 30.0
 
 
 class InvalidSessionIdError(ValueError):
@@ -64,6 +68,10 @@ class InvalidSessionIdError(ValueError):
     keeps working, but lets FastAPI's exception handler target just this class
     instead of swallowing every ValueError in the app.
     """
+
+
+class SessionStoreDeletionError(RuntimeError):
+    """Raised when a terminal-only session delete fails in the store."""
 
 
 def _validate_session_id(session_id: str) -> str:
@@ -126,6 +134,123 @@ class SessionManager:
         """Get or create a per-session lock for safe read-modify-write."""
         return self._locks.setdefault(session_id, asyncio.Lock())
 
+    async def begin_generation(self, session_id: str) -> SessionGeneration | None:
+        """Atomically assign a new durable run generation when supported."""
+        session_id = _validate_session_id(session_id)
+        begin = getattr(self.store, "begin_generation", None)
+        if begin is None:
+            return None
+        generation = await begin(session_id)
+        adopt_local = getattr(self.store, "adopt_local_generation", None)
+        if adopt_local is not None:
+            try:
+                await adopt_local(
+                    session_id,
+                    str(self.get_session_dir(session_id)),
+                    generation,
+                )
+            except asyncio.CancelledError:
+                # Let the caller observe the committed claim and enter its
+                # generation rollback path before cancellation is delivered at
+                # the next suspension point.
+                task = asyncio.current_task()
+                if task is None:
+                    raise
+                asyncio.get_running_loop().call_soon(task.cancel)
+            except Exception:
+                # The durable claim already succeeded, but a caller may have
+                # selected replica-local input before reaching this method.
+                # Fail closed by cancelling at its next suspension point, after
+                # it has observed the claim and enabled generation rollback.
+                log_durable_failure(
+                    logger,
+                    "physics_local_generation_adoption_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
+                )
+                task = asyncio.current_task()
+                if task is None:
+                    raise
+                asyncio.get_running_loop().call_soon(task.cancel)
+        return generation
+
+    async def maintain_generation_lease(
+        self,
+        session_id: str,
+        interval_seconds: float = 30.0,
+        *,
+        capacity_ready: asyncio.Event | None = None,
+    ) -> bool:
+        """Renew a queued generation and prove ownership at capacity handoff."""
+        session_id = _validate_session_id(session_id)
+        owns_generation = getattr(self.store, "owns_active_generation", None)
+        if owns_generation is None:
+            await (capacity_ready or asyncio.Event()).wait()
+            return True
+        consecutive_failures = 0
+        try:
+            while True:
+                try:
+                    owns = await owns_generation(session_id)
+                except Exception:  # noqa: BLE001 - persistence may recover
+                    consecutive_failures += 1
+                    retry_seconds = min(
+                        _LEASE_HEARTBEAT_RETRY_SECONDS
+                        * (2 ** min(consecutive_failures - 1, 5)),
+                        _LEASE_HEARTBEAT_MAX_RETRY_SECONDS,
+                    )
+                    logger.warning(
+                        "Generation lease renewal failed for %s; retrying in %.1fs "
+                        "(attempt %d)",
+                        session_id,
+                        retry_seconds,
+                        consecutive_failures,
+                        exc_info=True,
+                    )
+                    # Never drop an accepted queued request merely because the
+                    # persistence check is temporarily unavailable. Once the
+                    # store recovers, either ownership is still ours and the
+                    # lease is renewed, or a successor is observed and this
+                    # heartbeat returns so the stale worker is discarded.
+                    await asyncio.sleep(retry_seconds)
+                    continue
+                if not owns:
+                    return False
+                consecutive_failures = 0
+                if capacity_ready is not None:
+                    if capacity_ready.is_set():
+                        return True
+                    try:
+                        await asyncio.wait_for(
+                            capacity_ready.wait(),
+                            timeout=interval_seconds,
+                        )
+                    except TimeoutError:
+                        continue
+                    # Capacity becoming available is only a wake-up signal.
+                    # Loop once more for an ownership read at handoff time.
+                    continue
+                await asyncio.sleep(interval_seconds)
+        except asyncio.CancelledError:
+            return False
+
+    async def _update_metadata_document(
+        self,
+        session_id: str,
+        updater: Callable[[dict[str, Any]], dict[str, Any] | None],
+    ) -> dict[str, Any] | None:
+        update_json = getattr(self.store, "update_json", None)
+        if update_json is not None:
+            return await update_json(session_id, METADATA_KEY, updater)
+        metadata = await self.store.get_json(session_id, METADATA_KEY)
+        if metadata is None:
+            return None
+        updated = updater(metadata)
+        if updated is not None:
+            await self.store.put_json(session_id, METADATA_KEY, updated)
+            return updated
+        return metadata
+
     async def create_session(
         self, session_id: str, config: dict[str, Any] | None = None
     ) -> Path:
@@ -187,26 +312,67 @@ class SessionManager:
         return await self.store.get_json(session_id, METADATA_KEY)
 
     async def update_session(self, session_id: str, updates: dict[str, Any]) -> None:
-        """Update session metadata (read-modify-write with lock)."""
+        """Update session metadata with backend CAS and generation fencing."""
         session_id = _validate_session_id(session_id)
         lock = self._get_lock(session_id)
         async with lock:
-            metadata = await self.store.get_json(session_id, METADATA_KEY)
-            if not metadata:
+
+            def apply_updates(metadata: dict[str, Any]) -> dict[str, Any]:
+                metadata.update(updates)
+                metadata["updated_at"] = datetime.now(UTC).isoformat()
+
+                created_at = datetime.fromisoformat(metadata["created_at"])
+                now = datetime.now(UTC)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=UTC)
+                metadata["elapsed_seconds"] = int((now - created_at).total_seconds())
+                return metadata
+
+            metadata = await self._update_metadata_document(session_id, apply_updates)
+            if metadata is None:
                 logger.warning(f"Cannot update non-existent session: {session_id}")
-                return
 
-            metadata.update(updates)
-            metadata["updated_at"] = datetime.now(UTC).isoformat()
+    async def update_session_if_not_cancelled(
+        self,
+        session_id: str,
+        updates: dict[str, Any],
+    ) -> bool:
+        """Atomically persist a terminal outcome unless cancellation won."""
+        session_id = _validate_session_id(session_id)
+        lock = self._get_lock(session_id)
+        async with lock:
 
-            created_at = datetime.fromisoformat(metadata["created_at"])
-            now = datetime.now(UTC)
-            # Handle naive datetimes from older sessions
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=UTC)
-            metadata["elapsed_seconds"] = int((now - created_at).total_seconds())
+            def apply_updates(metadata: dict[str, Any]) -> dict[str, Any]:
+                metadata.update(updates)
+                metadata["updated_at"] = datetime.now(UTC).isoformat()
 
-            await self.store.put_json(session_id, METADATA_KEY, metadata)
+                created_at = datetime.fromisoformat(metadata["created_at"])
+                now = datetime.now(UTC)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=UTC)
+                metadata["elapsed_seconds"] = int((now - created_at).total_seconds())
+                return metadata
+
+            conditional_update = getattr(
+                self.store,
+                "update_json_if_not_cancelled",
+                None,
+            )
+            if conditional_update is not None:
+                metadata = await conditional_update(
+                    session_id,
+                    METADATA_KEY,
+                    apply_updates,
+                )
+                return metadata is not None
+
+            if await self.store.exists(session_id, ".cancel"):
+                return False
+            metadata = await self._update_metadata_document(
+                session_id,
+                apply_updates,
+            )
+            return metadata is not None
 
     async def restore_session_metadata(
         self,
@@ -215,9 +381,17 @@ class SessionManager:
     ) -> None:
         """Restore an exact startup snapshot without rewriting its timestamps."""
         session_id = _validate_session_id(session_id)
+        required = {"session_id", "created_at", "status"}
+        if not required.issubset(metadata) or metadata.get("session_id") != session_id:
+            raise ValueError("Cannot restore an incomplete session metadata snapshot")
         lock = self._get_lock(session_id)
         async with lock:
-            await self.store.put_json(session_id, METADATA_KEY, metadata)
+            restored = await self._update_metadata_document(
+                session_id,
+                lambda _current: deepcopy(metadata),
+            )
+            if restored is None:
+                raise FileNotFoundError(session_id)
 
     async def update_step_progress(
         self,
@@ -229,56 +403,47 @@ class SessionManager:
         session_id = _validate_session_id(session_id)
         lock = self._get_lock(session_id)
         async with lock:
-            metadata = await self.store.get_json(session_id, METADATA_KEY)
-            if not metadata:
-                return
 
-            step_info = {
-                "display": STEP_DISPLAY_NAMES.get(step_name, step_name),
-                "step_num": STEP_NUMBER.get(step_name, 0),
-            }
-
-            current_step_info = metadata.get("current_step")
-            if current_step_info and current_step_info.get("name") == step_name:
-                started_at = datetime.fromisoformat(current_step_info["started_at"])
-                if started_at.tzinfo is None:
-                    started_at = started_at.replace(tzinfo=UTC)
-                elapsed = int((datetime.now(UTC) - started_at).total_seconds())
-                current_step_info["progress"] = progress
-                current_step_info["elapsed_seconds"] = elapsed
-            else:
-                current_step_info = {
-                    "name": step_name,
-                    "display_name": step_info["display"],
-                    "started_at": datetime.now(UTC).isoformat(),
-                    "progress": progress,
-                    "elapsed_seconds": 0,
+            def apply_progress(metadata: dict[str, Any]) -> dict[str, Any]:
+                step_info = {
+                    "display": STEP_DISPLAY_NAMES.get(step_name, step_name),
+                    "step_num": STEP_NUMBER.get(step_name, 0),
                 }
-
-            metadata["current_step"] = current_step_info
-
-            step_num = step_info["step_num"]
-            if step_num > 0:
-                step_progress_percent = progress.get("percent", 0)
-
-                # Map the in-flight step percent through the shared weighted
-                # range so the store-backed /status fallback matches the
-                # EventBus (predict at 100% step-progress → 90% overall, not
-                # 100% as the old raw passthrough produced).
-                weights = STEP_WEIGHTS.get(step_name)
-                if weights is not None:
-                    start, end = weights
-                    overall_percent = start + int(
-                        (end - start) * step_progress_percent / 100
-                    )
+                current_step_info = metadata.get("current_step")
+                if current_step_info and current_step_info.get("name") == step_name:
+                    started_at = datetime.fromisoformat(current_step_info["started_at"])
+                    if started_at.tzinfo is None:
+                        started_at = started_at.replace(tzinfo=UTC)
+                    elapsed = int((datetime.now(UTC) - started_at).total_seconds())
+                    current_step_info["progress"] = progress
+                    current_step_info["elapsed_seconds"] = elapsed
                 else:
-                    overall_percent = step_progress_percent
+                    current_step_info = {
+                        "name": step_name,
+                        "display_name": step_info["display"],
+                        "started_at": datetime.now(UTC).isoformat(),
+                        "progress": progress,
+                        "elapsed_seconds": 0,
+                    }
+                metadata["current_step"] = current_step_info
 
-                metadata["overall_progress"]["current_step"] = step_num
-                metadata["overall_progress"]["percent"] = min(100, overall_percent)
+                step_num = step_info["step_num"]
+                if step_num > 0:
+                    step_progress_percent = progress.get("percent", 0)
+                    weights = STEP_WEIGHTS.get(step_name)
+                    if weights is not None:
+                        start, end = weights
+                        overall_percent = start + int(
+                            (end - start) * step_progress_percent / 100
+                        )
+                    else:
+                        overall_percent = step_progress_percent
+                    metadata["overall_progress"]["current_step"] = step_num
+                    metadata["overall_progress"]["percent"] = min(100, overall_percent)
+                metadata["updated_at"] = datetime.now(UTC).isoformat()
+                return metadata
 
-            metadata["updated_at"] = datetime.now(UTC).isoformat()
-            await self.store.put_json(session_id, METADATA_KEY, metadata)
+            await self._update_metadata_document(session_id, apply_progress)
 
     async def mark_step_completed(
         self,
@@ -290,18 +455,16 @@ class SessionManager:
         session_id = _validate_session_id(session_id)
         lock = self._get_lock(session_id)
         async with lock:
-            metadata = await self.store.get_json(session_id, METADATA_KEY)
-            if not metadata:
-                return
 
-            current_step_info = metadata.get("current_step")
-            if current_step_info and current_step_info["name"] == step_name:
+            def apply_completion(metadata: dict[str, Any]) -> dict[str, Any] | None:
+                current_step_info = metadata.get("current_step")
+                if not current_step_info or current_step_info["name"] != step_name:
+                    return None
                 started_at = datetime.fromisoformat(current_step_info["started_at"])
                 if started_at.tzinfo is None:
                     started_at = started_at.replace(tzinfo=UTC)
                 completed_at = datetime.now(UTC)
                 duration = int((completed_at - started_at).total_seconds())
-
                 completed_step = {
                     "name": step_name,
                     "display_name": current_step_info["display_name"],
@@ -310,53 +473,38 @@ class SessionManager:
                     "duration_seconds": duration,
                     "stats": stats or {},
                 }
-
-                if "completed_steps" not in metadata:
-                    metadata["completed_steps"] = []
-                metadata["completed_steps"].append(completed_step)
-
-                if "timings" not in metadata:
-                    metadata["timings"] = {}
-                metadata["timings"][step_name] = duration
-
+                metadata.setdefault("completed_steps", []).append(completed_step)
+                metadata.setdefault("timings", {})[step_name] = duration
                 metadata["current_step"] = None
-
-                # Keep current_step monotonic and clamp via STEP_NUMBER so the
-                # optional optimize_usd step doesn't push the counter past
-                # total_steps (optimize_usd collapses onto slot 1 alongside
-                # identify_asset).
                 metadata["overall_progress"]["current_step"] = max(
                     metadata["overall_progress"].get("current_step", 0),
                     STEP_NUMBER.get(step_name, len(metadata["completed_steps"])),
                 )
-
-                # Name-based percent lookup keeps this path in sync with the
-                # EventBus regardless of which subset of steps actually ran.
                 current_percent = metadata["overall_progress"].get("percent", 0)
                 snapped = STEP_COMPLETION_PERCENT.get(step_name)
                 if snapped is not None:
                     metadata["overall_progress"]["percent"] = max(
                         current_percent, snapped
                     )
-
                 metadata["updated_at"] = datetime.now(UTC).isoformat()
-                await self.store.put_json(session_id, METADATA_KEY, metadata)
+                return metadata
+
+            await self._update_metadata_document(session_id, apply_completion)
 
     async def add_preview_image(self, session_id: str, image_name: str) -> None:
         """Add a preview image to the session."""
         session_id = _validate_session_id(session_id)
         lock = self._get_lock(session_id)
         async with lock:
-            metadata = await self.store.get_json(session_id, METADATA_KEY)
-            if not metadata:
-                return
 
-            if "preview_images" not in metadata:
-                metadata["preview_images"] = []
+            def add_image(metadata: dict[str, Any]) -> dict[str, Any] | None:
+                images = metadata.setdefault("preview_images", [])
+                if image_name in images:
+                    return None
+                images.append(image_name)
+                return metadata
 
-            if image_name not in metadata["preview_images"]:
-                metadata["preview_images"].append(image_name)
-                await self.store.put_json(session_id, METADATA_KEY, metadata)
+            await self._update_metadata_document(session_id, add_image)
 
     async def update_preview_images(
         self, session_id: str, image_names: list[str]
@@ -365,16 +513,19 @@ class SessionManager:
         session_id = _validate_session_id(session_id)
         lock = self._get_lock(session_id)
         async with lock:
-            metadata = await self.store.get_json(session_id, METADATA_KEY)
-            if not metadata:
-                return
 
-            metadata["preview_images"] = image_names
-            await self.store.put_json(session_id, METADATA_KEY, metadata)
+            def replace_images(metadata: dict[str, Any]) -> dict[str, Any]:
+                metadata["preview_images"] = image_names
+                return metadata
+
+            await self._update_metadata_document(session_id, replace_images)
 
     async def is_cancelled(self, session_id: str) -> bool:
         """Check if session has been cancelled (works cross-instance via store)."""
         session_id = _validate_session_id(session_id)
+        owns_generation = getattr(self.store, "owns_active_generation", None)
+        if owns_generation is not None and not await owns_generation(session_id):
+            return True
         return await self.store.exists(session_id, ".cancel")
 
     async def clear_cancellation(self, session_id: str) -> None:
@@ -424,9 +575,17 @@ class SessionManager:
             logger.warning(f"Cannot cancel non-existent session: {session_id}")
             return False
 
+        generation_cancel = getattr(self.store, "request_generation_cancellation", None)
+        if generation_cancel is not None and not await generation_cancel(
+            session_id,
+            update_status=False,
+        ):
+            return False
+
         # Publish the worker signal first. If another terminal writer already
         # won, remove the losing signal so it cannot affect a later reuse.
-        await self.store.put_bytes(session_id, ".cancel", b"")
+        if generation_cancel is None:
+            await self.store.put_bytes(session_id, ".cancel", b"")
         winner = await self.claim_pipeline_terminal_state(session_id, "cancelled")
         if winner != "cancelled":
             await self.store.delete_key(session_id, ".cancel")
@@ -442,8 +601,13 @@ class SessionManager:
             logger.warning(f"Cannot cancel non-existent session: {session_id}")
             return
 
-        await self.store.put_bytes(session_id, ".cancel", b"")
-        await self.update_session(session_id, {"status": "cancelling"})
+        generation_cancel = getattr(self.store, "request_generation_cancellation", None)
+        if generation_cancel is not None:
+            if not await generation_cancel(session_id, update_status=True):
+                return
+        else:
+            await self.store.put_bytes(session_id, ".cancel", b"")
+            await self.update_session(session_id, {"status": "cancelling"})
         logger.info(f"Cancellation requested for session: {session_id}")
 
     async def get_artifact_path(
@@ -625,18 +789,52 @@ class SessionManager:
 
         return None
 
-    async def delete_session(self, session_id: str) -> bool:
+    async def delete_session(
+        self,
+        session_id: str,
+        *,
+        require_terminal: bool = False,
+    ) -> bool:
         """Delete a session from store and local disk."""
+        return await self._delete_session(
+            session_id,
+            require_terminal=require_terminal,
+            raise_store_errors=False,
+        )
+
+    async def delete_terminal_session(self, session_id: str) -> bool:
+        """Delete a terminal session, surfacing store errors to the API."""
+        return await self._delete_session(
+            session_id,
+            require_terminal=True,
+            raise_store_errors=True,
+        )
+
+    async def _delete_session(
+        self,
+        session_id: str,
+        *,
+        require_terminal: bool,
+        raise_store_errors: bool,
+    ) -> bool:
         session_id = _validate_session_id(session_id)
         try:
-            await self.store.delete_session(session_id)
-        except Exception:
+            if require_terminal:
+                if not await self.store.delete_session_if_terminal(session_id):
+                    return False
+            else:
+                await self.store.delete_session(session_id)
+        except Exception as error:
             log_durable_failure(
                 logger,
                 "session_store_delete_failed",
                 phase=FailurePhase.ROLLBACK,
                 retryable=True,
             )
+            if raise_store_errors:
+                raise SessionStoreDeletionError(
+                    f"Failed to delete session from store: {session_id}"
+                ) from error
             return False
 
         # Also clean up local directory (with retry for transient failures)
@@ -670,23 +868,57 @@ class SessionManager:
         """List all session IDs from the store."""
         return safe_listed_session_ids(await self.store.list_sessions())
 
-    async def sync_to_store(self, session_id: str, prefix: str = "") -> int:
-        """Sync local session files to the store (uploads to S3 if configured)."""
+    async def sync_to_store(
+        self,
+        session_id: str,
+        prefix: str | tuple[str, ...] = "",
+    ) -> int:
+        """Publish one local artifact snapshot to the configured store."""
         session_id = _validate_session_id(session_id)
         session_dir = self.get_session_dir(session_id)
         if not session_dir.exists():
+            if self.store.kind == "s3":
+                raise FileNotFoundError(session_dir)
             return 0
         return await self.store.sync_from_local(
             session_id, str(session_dir), prefix=prefix
         )
 
-    async def sync_from_store(self, session_id: str, prefix: str = "") -> int:
+    async def sync_from_store(
+        self,
+        session_id: str,
+        prefix: str | tuple[str, ...] = "",
+    ) -> int:
         """Pull files from the store to local session directory (downloads from S3 if configured)."""
         session_id = _validate_session_id(session_id)
         session_dir = self.get_session_dir(session_id)
         session_dir.mkdir(parents=True, exist_ok=True)
         return await self.store.sync_to_local(
             session_id, str(session_dir), prefix=prefix
+        )
+
+    async def snapshot_completed_publication(
+        self,
+        session_id: str,
+        destination_dir: Path,
+        *,
+        prefix: str | tuple[str, ...] = "",
+    ) -> CompletedSessionSnapshot:
+        """Hydrate metadata and artifacts proven to share one completed view."""
+        session_id = _validate_session_id(session_id)
+        snapshot_completed = getattr(
+            self.store,
+            "sync_completed_publication_to_local",
+            None,
+        )
+        if snapshot_completed is None:
+            raise RuntimeError(
+                "The configured session store cannot snapshot a completed publication"
+            )
+        return await snapshot_completed(
+            session_id,
+            str(destination_dir),
+            prefix=prefix,
         )
 
     async def cleanup_expired_sessions(self) -> int:
@@ -715,7 +947,7 @@ class SessionManager:
                         )
                         continue
                     logger.info(f"Cleaning up expired session: {session_id}")
-                    if await self.delete_session(session_id):
+                    if await self.delete_session(session_id, require_terminal=True):
                         cleaned += 1
 
         if cleaned > 0:

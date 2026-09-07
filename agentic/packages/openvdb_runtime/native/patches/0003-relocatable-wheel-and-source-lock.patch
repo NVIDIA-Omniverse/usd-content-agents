@@ -1,0 +1,44 @@
+diff --git a/cmake/config/OpenVDBCXX.cmake b/cmake/config/OpenVDBCXX.cmake
+index bcdb0f3..50e6f8c 100644
+--- a/cmake/config/OpenVDBCXX.cmake
++++ b/cmake/config/OpenVDBCXX.cmake
+@@ -66,9 +66,17 @@ if(OPENVDB_ENABLE_RPATH)
+   # https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
+-  set(CMAKE_SKIP_BUILD_RPATH FALSE)
+-  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+-  # @todo make relocatable?
+-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
++  if(SKBUILD)
++    # Link with the final relative RPATH so build-root length cannot alter
++    # install-time ELF padding or the repaired wheel bytes.
++    set(CMAKE_SKIP_BUILD_RPATH FALSE)
++    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
++    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
++    set(CMAKE_INSTALL_RPATH "$ORIGIN")
++  else()
++    set(CMAKE_SKIP_BUILD_RPATH FALSE)
++    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
++    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
++    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
++  endif()
+ endif()
+
+ # For CMake's find Threads module which brings in pthread - This flag
+diff --git a/openvdb/openvdb/python/CMakeLists.txt b/openvdb/openvdb/python/CMakeLists.txt
+index bac31ae..e052709 100644
+--- a/openvdb/openvdb/python/CMakeLists.txt
++++ b/openvdb/openvdb/python/CMakeLists.txt
+@@ -90,6 +90,12 @@ if(SKBUILD)
+   set_target_properties(openvdb_python PROPERTIES INSTALL_RPATH "$ORIGIN")
+   install(TARGETS openvdb_python DESTINATION ${OPENVDB_INSTALL_LIBDIR})
+   install(FILES __init__.py DESTINATION openvdb)
++  set(WU_SOURCE_LOCK "${CMAKE_SOURCE_DIR}/WORLD_UNDERSTANDING_SOURCE_LOCK.json")
++  if(NOT EXISTS "${WU_SOURCE_LOCK}")
++    message(FATAL_ERROR "World Understanding source lock is required for wheel builds")
++  endif()
++  install(FILES "${WU_SOURCE_LOCK}" DESTINATION openvdb RENAME _source_lock.json)
++  unset(WU_SOURCE_LOCK)
+ else()
+   install(TARGETS openvdb_python DESTINATION ${VDB_PYTHON_INSTALL_DIRECTORY})
+ endif()

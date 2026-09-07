@@ -11,7 +11,7 @@ metrics in :mod:`world_understanding.functions.physics.trajectory`
 read these values back on demand.
 
 This module is intentionally **data-only**. Rendering the recording
-into PNGs / mp4s for the VLM judge or visual debugging is a downstream
+into PNGs for the VLM judge or visual debugging is a downstream
 concern owned by
 :mod:`world_understanding.functions.graphics.render_time_sampled_usd`
 (issue #50 follow-up); the scenario evaluators import that helper

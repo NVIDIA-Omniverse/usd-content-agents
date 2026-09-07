@@ -1,4 +1,0 @@
-interface:
-  display_name: "Render USD"
-  short_description: "Help with Render USD tasks"
-  default_prompt: "Use $render-usd to render USD files using the wu CLI with a configured remote rendering service."

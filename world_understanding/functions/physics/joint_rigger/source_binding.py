@@ -14,8 +14,8 @@ product byte limit.
 from __future__ import annotations
 
 import ctypes
-import fcntl
 import hashlib
+import importlib
 import os
 import secrets
 import stat
@@ -40,14 +40,33 @@ from world_understanding.functions.physics.joint_rigger.facade import (
     _MAX_OPAQUE_DOCUMENT_BYTES,
     JointRiggerArtifactError,
     JointRiggerBackendIncompatibleError,
+    _require_joint_rigger_authoring_platform,
 )
 from world_understanding.functions.physics.joint_rigger.models import (
     ArtifactIdentityV1,
 )
+from world_understanding.utils.captured_artifacts import (
+    CapturedArtifactError,
+    _capture_open_file_snapshot,
+)
 
-_MFD_CLOEXEC = 1
-_MFD_ALLOW_SEALING = 2
-_F_ADD_SEALS = 1033
+
+def _load_fcntl() -> Any:
+    """Return the POSIX descriptor module without breaking Windows imports."""
+
+    if os.name != "posix":  # pragma: no cover - selected on native Windows
+        return None
+    try:
+        return importlib.import_module("fcntl")
+    except ImportError:  # pragma: no cover - supported Linux provides fcntl
+        return None
+
+
+fcntl: Any = _load_fcntl()
+
+# Deliberately use the private descriptor-transfer adapter only here. Joint
+# Rigger must preserve the 0.5 SealedDependencyBinding descriptor contract;
+# general opaque-artifact consumers use the public context-managed resolver API.
 _F_GET_SEALS = 1034
 _SOURCE_MEMFD_SEALS = 1 | 2 | 4 | 8
 _MAX_BOUND_DEPENDENCY_FILES = _MAX_OPAQUE_DEPENDENCY_FILES
@@ -58,7 +77,22 @@ _MEMORY_BACKED_FILESYSTEM_TYPES = frozenset({"hugetlbfs", "ramfs", "tmpfs"})
 # copied into immutable memfds. Larger files stay pinned by a read-only source
 # descriptor and are rehashed while materializing the private authoring tree.
 _MAX_MEMFD_SNAPSHOT_BYTES = _MAX_OPAQUE_DOCUMENT_BYTES
-_LIBC = ctypes.CDLL(None, use_errno=True)
+
+
+# Preserve Joint Rigger's 0.5 memfd availability and error behavior by injecting
+# its existing libc binding into the private compatibility adapter.
+def _load_process_libc() -> Any:
+    """Return the POSIX process handle without breaking non-POSIX imports."""
+
+    if os.name != "posix":  # pragma: no cover - selected on native Windows
+        return None
+    try:
+        return ctypes.CDLL(None, use_errno=True)
+    except (OSError, TypeError):  # pragma: no cover - supported Linux has libc
+        return None
+
+
+_LIBC = _load_process_libc()
 _MEMFD_CREATE: Any
 try:
     _MEMFD_CREATE = _LIBC.memfd_create
@@ -138,6 +172,8 @@ def create_sealed_source_binding(
     does not grow with package size and live namespace mutations cannot change
     the bytes copied into the private authoring tree.
     """
+
+    _require_joint_rigger_authoring_platform()
 
     from world_understanding.functions.physics.joint_rigger.reference import (
         _artifact_identity_from_captured_records,
@@ -1386,7 +1422,6 @@ def _create_sealed_file_binding(
     flags |= getattr(os, "O_NONBLOCK", 0)
     source_descriptor = os.open(resolved, flags)
     binding_descriptor = -1
-    snapshot_file: Any | None = None
     try:
         source_before = os.fstat(source_descriptor)
         observed = os.stat(resolved, follow_symlinks=False)
@@ -1402,93 +1437,35 @@ def _create_sealed_file_binding(
             and _MEMFD_CREATE is not None
             and source_before.st_size <= _MAX_MEMFD_SNAPSHOT_BYTES
         )
-        if use_memfd:
-            binding_descriptor = _MEMFD_CREATE(
-                b"joint-rigger-source",
-                _MFD_CLOEXEC | _MFD_ALLOW_SEALING,
-            )
-            if binding_descriptor < 0:  # pragma: no cover - syscall failure
-                error_number = ctypes.get_errno()
-                raise OSError(error_number, os.strerror(error_number))
-            write_descriptor = binding_descriptor
-        elif prefer_disk_snapshot:
-            snapshot_file = _create_disk_backed_snapshot_file(resolved)
-            write_descriptor = snapshot_file.fileno()
-        else:
-            write_descriptor = -1
-        digest = hashlib.sha256()
-        offset = 0
-        while offset < source_before.st_size:
-            chunk = os.pread(
-                source_descriptor,
-                min(1024 * 1024, source_before.st_size - offset),
-                offset,
-            )
-            if not chunk:
+        if not use_memfd and not prefer_disk_snapshot:
+            digest = hashlib.sha256()
+            offset = 0
+            while offset < source_before.st_size:
+                chunk = os.pread(
+                    source_descriptor,
+                    min(1024 * 1024, source_before.st_size - offset),
+                    offset,
+                )
+                if not chunk:
+                    raise JointRiggerArtifactError(
+                        "Input USD changed while its root bytes were bound"
+                    )
+                digest.update(chunk)
+                offset += len(chunk)
+            if os.pread(source_descriptor, 1, offset):
+                raise JointRiggerArtifactError(
+                    "Input USD grew while its root bytes were bound"
+                )
+            source_after = os.fstat(source_descriptor)
+            if _descriptor_state(source_before) != _descriptor_state(source_after):
                 raise JointRiggerArtifactError(
                     "Input USD changed while its root bytes were bound"
                 )
-            digest.update(chunk)
-            if use_memfd or snapshot_file is not None:
-                view = memoryview(chunk)
-                while view:
-                    written = os.write(write_descriptor, view)
-                    if written <= 0:  # pragma: no cover - descriptor invariant
-                        raise OSError("Could not write bound input snapshot")
-                    view = view[written:]
-            offset += len(chunk)
-        if os.pread(source_descriptor, 1, offset):
-            raise JointRiggerArtifactError(
-                "Input USD grew while its root bytes were bound"
-            )
-        source_after = os.fstat(source_descriptor)
-        if _descriptor_state(source_before) != _descriptor_state(source_after):
-            raise JointRiggerArtifactError(
-                "Input USD changed while its root bytes were bound"
-            )
-        actual_sha256 = digest.hexdigest()
-        if expected_sha256 is not None and actual_sha256 != expected_sha256:
-            raise JointRiggerArtifactError(
-                f"Input bytes do not match the expected identity: {path}"
-            )
-        if use_memfd:
-            os.fsync(write_descriptor)
-            fcntl.fcntl(binding_descriptor, _F_ADD_SEALS, _SOURCE_MEMFD_SEALS)
-            binding = SealedDependencyBinding(
-                path=resolved,
-                descriptor=binding_descriptor,
-                sha256=actual_sha256,
-            )
-        elif snapshot_file is not None:
-            os.fsync(write_descriptor)
-            snapshot_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
-            snapshot_flags |= getattr(os, "O_NONBLOCK", 0)
-            binding_descriptor = os.open(
-                f"/proc/self/fd/{write_descriptor}",
-                snapshot_flags,
-            )
-            os.fchmod(write_descriptor, 0)
-            if (
-                _stable_descriptor_sha256(
-                    binding_descriptor,
-                    label=f"anonymous bound input snapshot {path}",
-                )
-                != actual_sha256
-            ):
+            actual_sha256 = digest.hexdigest()
+            if expected_sha256 is not None and actual_sha256 != expected_sha256:
                 raise JointRiggerArtifactError(
-                    f"Anonymous input snapshot changed while it was bound: {path}"
+                    f"Input bytes do not match the expected identity: {path}"
                 )
-            snapshot_state = os.fstat(binding_descriptor)
-            snapshot_file.close()
-            snapshot_file = None
-            binding = SealedDependencyBinding(
-                path=resolved,
-                descriptor=binding_descriptor,
-                sha256=actual_sha256,
-                storage_kind="anonymous_snapshot",
-                descriptor_state=_descriptor_state(snapshot_state),
-            )
-        else:
             binding_descriptor = source_descriptor
             source_descriptor = -1
             binding = SealedDependencyBinding(
@@ -1497,6 +1474,71 @@ def _create_sealed_file_binding(
                 sha256=actual_sha256,
                 storage_kind="pinned_file",
                 descriptor_state=_descriptor_state(source_after),
+            )
+        else:
+            try:
+                captured = _capture_open_file_snapshot(
+                    source_descriptor,
+                    uri=str(resolved),
+                    expected_sha256=expected_sha256,
+                    size_bytes=source_before.st_size,
+                    max_bytes=source_before.st_size,
+                    source_state=source_before,
+                    prefer_disk_snapshot=prefer_disk_snapshot,
+                    memfd_max_bytes=_MAX_MEMFD_SNAPSHOT_BYTES,
+                    snapshot_factory=lambda: _create_disk_backed_snapshot_file(
+                        resolved
+                    ),
+                    memfd_create=_MEMFD_CREATE,
+                )
+                actual_sha256 = captured.sha256
+                storage_kind = captured.storage_kind
+                binding_descriptor = captured._take_descriptor()
+            except CapturedArtifactError as exc:
+                if exc.code == "digest_mismatch":
+                    raise JointRiggerArtifactError(
+                        f"Input bytes do not match the expected identity: {path}"
+                    ) from exc
+                if exc.code == "max_bytes_exceeded":
+                    raise JointRiggerArtifactError(
+                        "Input USD grew while its root bytes were bound"
+                    ) from exc
+                if exc.code in {
+                    "size_mismatch",
+                    "source_changed",
+                    "stream_protocol_invalid",
+                }:
+                    raise JointRiggerArtifactError(
+                        "Input USD changed while its root bytes were bound"
+                    ) from exc
+                if exc.code == "snapshot_changed":
+                    if not prefer_disk_snapshot:
+                        raise JointRiggerArtifactError(
+                            "Bound input snapshot changed"
+                        ) from exc
+                    raise JointRiggerArtifactError(
+                        f"Anonymous input snapshot changed while it was bound: {path}"
+                    ) from exc
+                if exc.code == "snapshot_unsealed":
+                    raise JointRiggerArtifactError(
+                        "Bound input snapshot lost required seals"
+                    ) from exc
+                if exc.code == "snapshot_mutable":
+                    raise JointRiggerArtifactError(
+                        "Bound input descriptor is not read-only"
+                    ) from exc
+                raise JointRiggerArtifactError(str(exc)) from exc
+            snapshot_state = (
+                None
+                if storage_kind == "sealed_memfd"
+                else _descriptor_state(os.fstat(binding_descriptor))
+            )
+            binding = SealedDependencyBinding(
+                path=resolved,
+                descriptor=binding_descriptor,
+                sha256=actual_sha256,
+                storage_kind=storage_kind,
+                descriptor_state=snapshot_state,
             )
         _require_sealed_file_binding(binding)
         binding_descriptor = -1
@@ -1508,12 +1550,8 @@ def _create_sealed_file_binding(
                 binding_descriptor = -1
                 os.close(owned_binding_descriptor)
         finally:
-            try:
-                if snapshot_file is not None:
-                    snapshot_file.close()
-            finally:
-                if source_descriptor >= 0:
-                    os.close(source_descriptor)
+            if source_descriptor >= 0:
+                os.close(source_descriptor)
 
 
 def _disk_snapshot_candidate_directories(source_path: Path) -> tuple[Path, ...]:

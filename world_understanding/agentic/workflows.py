@@ -12,6 +12,11 @@ from world_understanding.agentic.tasks import Task
 from world_understanding.telemetry import get_tracer
 from world_understanding.utils.credentials import redact_sensitive_path
 from world_understanding.utils.model_auth import public_model_failure_message
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    NonRetryableVLMTimeoutError,
+    make_terminal_vlm_timeout_marker,
+)
 from world_understanding.utils.object_store import (
     InMemoryObjectStore,
     ObjectStore,
@@ -141,6 +146,10 @@ class Workflow:
                         logger.error("Task %s failed: %s", safe_task_name, safe_error)
                         context["error"] = safe_error
                         context["failed_task"] = task_name
+                        if isinstance(error, NonRetryableVLMTimeoutError):
+                            context[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] = (
+                                make_terminal_vlm_timeout_marker(task_name)
+                            )
                         context["workflow_terminated"] = True
                         break
 

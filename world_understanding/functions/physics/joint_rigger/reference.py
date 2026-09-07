@@ -52,6 +52,12 @@ from world_understanding.functions.physics.joint_rigger.opaque_dependencies impo
     opaque_local_references,
     resolve_local_reference,
 )
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    open_confined_directory,
+    open_confined_lock_file,
+    open_regular_file_no_follow,
+)
 
 _SUPPORTED_JOINT_TYPES = frozenset({"revolute", "prismatic", "spherical"})
 _AXIS_FRAME_BASES = {
@@ -80,6 +86,7 @@ _PRECOMPOSITION_LAYER_SUFFIXES = frozenset(
 )
 _PrecompositionFileState = tuple[int, int, int, int, int, int, int]
 _PrecompositionSymlinkHop = tuple[Path, _PrecompositionFileState, str]
+_RetainedProjectionState = tuple[int, int, int, int, int, int, int, int, int]
 _UNREPRESENTED_JOINT_PROPERTY_PREFIXES = (
     "state:",
     "physxMimicJoint:",
@@ -198,6 +205,120 @@ class _ResolvedUsdDependency:
     package_relative: bool
     read_identifier: str | None = None
     captured_sha256: str | None = None
+
+
+@dataclass(frozen=True)
+class UsdDependencyOpinion:
+    """One complete resolved dependency opinion for admission decisions.
+
+    Unlike :func:`local_usd_dependency_paths`, this typed inventory never
+    projects away resolver-backed or otherwise non-local opinions. The raw
+    identifier is retained alongside its Sdf asset identifier and recursively
+    parsed package chain so consumers can make structural containment
+    decisions without reparsing or substring matching.
+
+    This API intentionally lives in the concrete ``reference`` module rather
+    than the released Joint Rigger facade. Joint Agent 0.6 implementations may
+    opt into it without changing the official 0.5 facade surface.
+    """
+
+    kind: Literal["layer", "asset", "opaque_asset"]
+    identifier: str
+    asset_identifier: str
+    lexical_path: Path | None
+    local_path: Path | None
+    package_relative: bool
+    package_outer_identifier: str | None
+    package_members: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RetainedUsdArtifactInspection:
+    """One identity and complete inventory backed by a retained projection.
+
+    ``source_path`` is the caller-owned immutable input whose bytes were
+    projected. ``stage_path`` is the private projected root that callers may
+    pass to OpenUSD while this inspection's context remains active. Dependency
+    opinions are expressed against ``source_path``, never the private mirror.
+
+    This concrete-module API is intended for post-0.5 callers that already own
+    an immutable private source snapshot. It deliberately is not exported by
+    the released Joint Rigger facade.
+    """
+
+    source_path: Path
+    _stage_path: Path
+    _projected_files: tuple[
+        tuple[Path, _RetainedProjectionState, str],
+        ...,
+    ]
+    identity: ArtifactIdentityV1
+    dependencies: tuple[UsdDependencyOpinion, ...]
+
+    @property
+    def stage_path(self) -> Path:
+        """Return the projection only after a descriptor-bound state check."""
+
+        self.require_stage_unchanged()
+        return self._stage_path
+
+    def require_stage_unchanged(self) -> None:
+        """Fail if any file in the retained projection closure changed."""
+
+        for path, state, sha256 in self._projected_files:
+            _require_retained_projected_file_unchanged(
+                path,
+                expected_state=state,
+                expected_sha256=sha256,
+            )
+
+
+def _require_retained_projected_file_unchanged(
+    path: Path,
+    *,
+    expected_state: _RetainedProjectionState,
+    expected_sha256: str,
+) -> None:
+    """Bind one private projected file to its retained inode and exact bytes."""
+
+    try:
+        with open_regular_file_no_follow(path) as (stream, metadata):
+            descriptor = stream.fileno()
+            descriptor_state = _retained_projection_state(metadata)
+            if descriptor_state != expected_state:
+                _fail(
+                    "artifact_projection_mutated",
+                    f"retained USD projection changed: {path}",
+                )
+            digest = _precomposition_descriptor_sha256(
+                descriptor,
+                size=expected_state[6],
+                label=str(path),
+            )
+            descriptor_final_state = _retained_projection_state(os.fstat(descriptor))
+            path_state = _retained_projection_state(
+                os.stat(path, follow_symlinks=False)
+            )
+    except (JointRiggerContractError, OSError, ArtifactPathError) as exc:
+        if (
+            isinstance(exc, JointRiggerContractError)
+            and exc.code == "artifact_projection_mutated"
+        ):
+            raise
+        raise JointRiggerContractError(
+            "artifact_projection_mutated",
+            f"retained USD projection changed: {path}: {exc}",
+        ) from exc
+    if (
+        descriptor_state != expected_state
+        or descriptor_final_state != expected_state
+        or path_state != expected_state
+        or digest != expected_sha256
+    ):
+        _fail(
+            "artifact_projection_mutated",
+            f"retained USD projection changed: {path}",
+        )
 
 
 @dataclass(frozen=True)
@@ -712,7 +833,6 @@ def _copy_precomposition_file(
         _open_precomposition_regular_file(lexical_path)
     )
     projected_path = projection.projected_path(lexical_path)
-    target_descriptor = -1
     created = False
     try:
         _require_opaque_projection_file_constraints(
@@ -722,39 +842,48 @@ def _copy_precomposition_file(
             allowed_root=opaque_allowed_root,
         )
         projected_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
-        flags |= getattr(os, "O_CLOEXEC", 0)
-        target_descriptor = os.open(projected_path, flags, 0o600)
-        created = True
         digest = hashlib.sha256()
-        offset = 0
-        while offset < expected_state[4]:
-            chunk = os.pread(
-                descriptor,
-                min(_AR_ASSET_READ_CHUNK_SIZE, expected_state[4] - offset),
-                offset,
-            )
-            if not chunk:
-                _fail(
-                    "dependency_artifact_invalid",
-                    f"local USD dependency changed while projected: {lexical_path}",
-                )
-            digest.update(chunk)
-            remaining = memoryview(chunk)
-            while remaining:
-                written = os.write(target_descriptor, remaining)
-                if written <= 0:  # pragma: no cover - regular-file OS invariant
-                    raise OSError(
-                        f"short write while projecting local dependency {lexical_path}"
+        with open_confined_directory(projected_path.parent) as target_root:
+            with open_confined_lock_file(
+                target_root,
+                projected_path.name,
+                file_mode=0o600,
+                exclusive_create=True,
+            ) as target_descriptor:
+                created = True
+                offset = 0
+                while offset < expected_state[4]:
+                    chunk = _read_descriptor_at(
+                        descriptor,
+                        min(
+                            _AR_ASSET_READ_CHUNK_SIZE,
+                            expected_state[4] - offset,
+                        ),
+                        offset,
                     )
-                remaining = remaining[written:]
-            offset += len(chunk)
-        if os.pread(descriptor, 1, offset):
-            _fail(
-                "dependency_artifact_invalid",
-                f"local USD dependency grew while projected: {lexical_path}",
-            )
-        os.fsync(target_descriptor)
+                    if not chunk:
+                        _fail(
+                            "dependency_artifact_invalid",
+                            "local USD dependency changed while projected: "
+                            f"{lexical_path}",
+                        )
+                    digest.update(chunk)
+                    remaining = memoryview(chunk)
+                    while remaining:
+                        written = os.write(target_descriptor, remaining)
+                        if written <= 0:  # pragma: no cover - regular-file OS invariant
+                            raise OSError(
+                                "short write while projecting local dependency "
+                                f"{lexical_path}"
+                            )
+                        remaining = remaining[written:]
+                    offset += len(chunk)
+                if _read_descriptor_at(descriptor, 1, offset):
+                    _fail(
+                        "dependency_artifact_invalid",
+                        f"local USD dependency grew while projected: {lexical_path}",
+                    )
+                os.fsync(target_descriptor)
         _require_precomposition_file_unchanged(
             backing_path,
             descriptor=descriptor,
@@ -776,8 +905,6 @@ def _copy_precomposition_file(
             projected_path.unlink(missing_ok=True)
         raise
     finally:
-        if target_descriptor >= 0:
-            os.close(target_descriptor)
         os.close(descriptor)
 
 
@@ -1160,7 +1287,7 @@ def _precomposition_descriptor_sha256(
     digest = hashlib.sha256()
     offset = 0
     while offset < size:
-        chunk = os.pread(
+        chunk = _read_descriptor_at(
             descriptor,
             min(_AR_ASSET_READ_CHUNK_SIZE, size - offset),
             offset,
@@ -1172,7 +1299,7 @@ def _precomposition_descriptor_sha256(
             )
         digest.update(chunk)
         offset += len(chunk)
-    if os.pread(descriptor, 1, offset):
+    if _read_descriptor_at(descriptor, 1, offset):
         _fail(
             "dependency_artifact_invalid",
             f"local USD dependency grew while hashing: {label}",
@@ -1243,33 +1370,24 @@ def _open_precomposition_regular_file(
             f"{detail}",
         )
     expected_state = _precomposition_file_state(expected)
-    flags = os.O_RDONLY | os.O_NOFOLLOW
-    flags |= getattr(os, "O_CLOEXEC", 0)
-    flags |= getattr(os, "O_NONBLOCK", 0)
     try:
-        descriptor = os.open(backing_path, flags)
-    except OSError as exc:
+        with open_regular_file_no_follow(backing_path) as (stream, opened):
+            if (
+                not stat.S_ISREG(opened.st_mode)
+                or _precomposition_file_state(opened) != expected_state
+            ):
+                _fail(
+                    "dependency_artifact_invalid",
+                    f"authored local USD dependency changed before inspection: {detail}",
+                )
+            descriptor = os.dup(stream.fileno())
+    except JointRiggerContractError:
+        raise
+    except (OSError, ArtifactPathError) as exc:
         raise JointRiggerContractError(
             "dependency_artifact_invalid",
             f"could not open authored local USD dependency {detail}: {exc}",
         ) from exc
-    try:
-        opened = os.fstat(descriptor)
-    except OSError as exc:
-        os.close(descriptor)
-        raise JointRiggerContractError(
-            "dependency_artifact_invalid",
-            f"could not inspect opened local USD dependency {detail}: {exc}",
-        ) from exc
-    if (
-        not stat.S_ISREG(opened.st_mode)
-        or _precomposition_file_state(opened) != expected_state
-    ):
-        os.close(descriptor)
-        _fail(
-            "dependency_artifact_invalid",
-            f"authored local USD dependency changed before inspection: {detail}",
-        )
     return descriptor, expected_state, backing_path, symlink_hops
 
 
@@ -1396,8 +1514,136 @@ def _precomposition_file_state(
         value.st_nlink,
         value.st_size,
         value.st_mtime_ns,
-        value.st_ctime_ns,
+        value.st_ctime_ns if os.name != "nt" else 0,
     )
+
+
+def _read_descriptor_at(descriptor: int, size: int, offset: int) -> bytes:
+    """Read descriptor bytes at one offset without consuming its position."""
+
+    pread = getattr(os, "pread", None)
+    if pread is not None:
+        return cast(bytes, pread(descriptor, size, offset))
+    current_offset = os.lseek(descriptor, 0, os.SEEK_CUR)
+    try:
+        os.lseek(descriptor, offset, os.SEEK_SET)
+        return os.read(descriptor, size)
+    finally:
+        os.lseek(descriptor, current_offset, os.SEEK_SET)
+
+
+def _retained_projection_state(
+    value: os.stat_result,
+) -> _RetainedProjectionState:
+    """Include ownership in the immutable private projection state."""
+
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_mode,
+        value.st_nlink,
+        value.st_uid,
+        value.st_gid,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns if os.name != "nt" else 0,
+    )
+
+
+def _retained_projected_closure(
+    projection: _UsdCompositionProjection,
+    root: Path,
+) -> tuple[tuple[Path, _RetainedProjectionState, str], ...]:
+    """Capture every private file that may affect one composed stage."""
+
+    absolute_root = Path(os.path.abspath(root.expanduser()))
+    lexical_paths = sorted(
+        projection.closures.get(absolute_root, set()),
+        key=lambda item: item.as_posix(),
+    )
+    if not lexical_paths or absolute_root not in lexical_paths:
+        _fail(
+            "artifact_projection_invalid",
+            f"retained USD projection closure is unavailable: {absolute_root}",
+        )
+    retained: list[tuple[Path, _RetainedProjectionState, str]] = []
+    for lexical_path in lexical_paths:
+        if lexical_path not in projection.files:
+            _fail(
+                "artifact_projection_invalid",
+                f"retained USD projection file is unavailable: {lexical_path}",
+            )
+        record = projection.files[lexical_path]
+        projected_path = record.projected_path
+        try:
+            projected_metadata = os.stat(projected_path, follow_symlinks=False)
+        except OSError as exc:
+            raise JointRiggerContractError(
+                "artifact_projection_invalid",
+                f"retained USD projection is unavailable: {projected_path}: {exc}",
+            ) from exc
+        if (
+            not stat.S_ISREG(projected_metadata.st_mode)
+            or (os.name == "nt" and stat.S_IMODE(projected_metadata.st_mode) & 0o222)
+            or (
+                os.name != "nt"
+                and (
+                    stat.S_IMODE(projected_metadata.st_mode) != 0o400
+                    or projected_metadata.st_uid != os.geteuid()
+                    or projected_metadata.st_gid != os.getegid()
+                )
+            )
+        ):
+            _fail(
+                "artifact_projection_invalid",
+                "retained USD projection is not a caller-owned mode-0400 "
+                f"regular file: {projected_path}",
+            )
+        projected_state = _retained_projection_state(projected_metadata)
+        try:
+            with open_regular_file_no_follow(projected_path) as (stream, metadata):
+                descriptor = stream.fileno()
+                descriptor_state = _retained_projection_state(metadata)
+                projected_sha256 = _precomposition_descriptor_sha256(
+                    descriptor,
+                    size=projected_state[6],
+                    label=str(projected_path),
+                )
+                descriptor_final_state = _retained_projection_state(
+                    os.fstat(descriptor)
+                )
+                path_final_state = _retained_projection_state(
+                    os.stat(projected_path, follow_symlinks=False)
+                )
+        except (JointRiggerContractError, OSError, ArtifactPathError) as exc:
+            raise JointRiggerContractError(
+                "artifact_projection_invalid",
+                f"retained USD projection is unstable: {projected_path}: {exc}",
+            ) from exc
+        if (
+            descriptor_state != projected_state
+            or descriptor_final_state != projected_state
+            or path_final_state != projected_state
+        ):
+            _fail(
+                "artifact_projection_invalid",
+                f"retained USD projection changed during capture: {projected_path}",
+            )
+        retained.append(
+            (
+                projected_path,
+                projected_state,
+                projected_sha256,
+            )
+        )
+    result = tuple(retained)
+    for path, state, sha256 in result:
+        _require_retained_projected_file_unchanged(
+            path,
+            expected_state=state,
+            expected_sha256=sha256,
+        )
+    return result
 
 
 def _capture_dependency_structure(
@@ -1479,22 +1725,142 @@ def _artifact_identity_from_captured_records(
     )
 
 
-def local_usd_dependency_paths(
+def usd_dependency_inventory(
     path: str | Path,
-    *,
-    include_lexical_aliases: bool = False,
-) -> tuple[Path, ...]:
-    """Return every resolved local file in a USD and opaque-material closure.
+) -> tuple[UsdDependencyOpinion, ...]:
+    """Return every resolved USD dependency opinion without path filtering.
 
-    Paths are absolute, symlink-resolved, deduplicated, and sorted by default.
-    With ``include_lexical_aliases=True``, the absolute authored locator is also
-    returned when it differs from its resolved filesystem referent.  This lets
-    destructive publication preflight protect both names. Package entries map
-    to their outermost local package file. Any unresolved authored dependency
-    fails closed instead of returning a partial inventory.
+    Local, package-relative, opaque, and resolver-backed records are all
+    represented, including records whose ``local_path`` is ``None``. Package
+    identifiers are decomposed recursively into one outer identifier and an
+    ordered member chain. This is an inventory API, not a self-containment
+    policy: callers must explicitly admit or reject every returned record.
+
+    Enumeration uses the same descriptor-retained projection and mutation
+    checks as artifact identity. A partial or unresolved dependency closure
+    fails closed before any records are returned.
     """
 
-    artifact_path = Path(path)
+    with _retained_usd_dependency_inventory(Path(path)) as dependencies:
+        return dependencies
+
+
+@contextmanager
+def retain_usd_artifact_inspection(
+    path: str | Path,
+    *,
+    uri: str,
+    expected_root_sha256: str,
+    recheck_source_content_on_exit: bool = False,
+) -> Iterator[RetainedUsdArtifactInspection]:
+    """Retain one projected identity and dependency inventory.
+
+    The caller must supply the digest established while creating its immutable
+    private source snapshot. Projection binds the copied bytes to that digest,
+    and dependency enumeration performs the one content recheck of the source
+    snapshot. Identity and containment consumers then share those exact
+    resolver records instead of independently reopening and rehashing the
+    source.
+
+    The complete projected closure stays available until the context exits. Each
+    stage handoff and the final release gate bind every projected file to its
+    retained inode metadata and digest. On exit, a metadata-only source check
+    catches root replacement or ordinary mutation without adding another full
+    source read. Set ``recheck_source_content_on_exit`` only when this context
+    also owns the final content-integrity gate for the caller-owned source;
+    retained USDZ package snapshots instead rely on their enclosing package-tree
+    context's final source check.
+    """
+
+    artifact_path = Path(path).expanduser().resolve(strict=True)
+    with _usd_composition_projection((artifact_path,)) as projection:
+        _require_projected_root_matches_hash(
+            artifact_path,
+            projection=projection,
+            expected_sha256=expected_root_sha256,
+            code="artifact_mutated",
+        )
+        dependencies = _enumerate_usd_dependencies(
+            artifact_path,
+            projection=projection,
+            root_mutated_code="artifact_mutated",
+            dependency_mutated_code="artifact_dependency_mutated",
+        )
+        identity = _artifact_identity(
+            artifact_path,
+            uri,
+            None,
+            root_sha256=expected_root_sha256,
+            dependency_records=_dependency_identity_records(
+                artifact_path,
+                dependencies,
+            ),
+        )
+        root_record = projection.files[artifact_path]
+        projected_path = projection.projected_path(artifact_path)
+        projected_files = _retained_projected_closure(
+            projection,
+            artifact_path,
+        )
+        inspection = RetainedUsdArtifactInspection(
+            source_path=artifact_path,
+            _stage_path=projected_path,
+            _projected_files=projected_files,
+            identity=identity,
+            dependencies=tuple(
+                _dependency_opinion(dependency) for dependency in dependencies
+            ),
+        )
+        primary_error: BaseException | None = None
+        try:
+            yield inspection
+        except BaseException as exc:
+            primary_error = exc
+            raise
+        finally:
+            try:
+                try:
+                    observed_state = _precomposition_file_state(
+                        os.stat(root_record.backing_path, follow_symlinks=False)
+                    )
+                except OSError as exc:
+                    raise JointRiggerContractError(
+                        "artifact_mutated",
+                        "retained USD source changed before inspection release: "
+                        f"{artifact_path}: {exc}",
+                    ) from exc
+                if observed_state != root_record.expected_state:
+                    _fail(
+                        "artifact_mutated",
+                        "retained USD source changed before inspection release: "
+                        f"{artifact_path}",
+                    )
+                _require_precomposition_symlinks_unchanged(
+                    root_record.symlink_hops,
+                    locator=str(artifact_path),
+                )
+                if recheck_source_content_on_exit:
+                    projection.require_unchanged(
+                        artifact_path,
+                        code="artifact_dependency_mutated",
+                        root_code="artifact_mutated",
+                    )
+                inspection.require_stage_unchanged()
+            except BaseException as recheck_error:
+                if primary_error is None:
+                    raise
+                primary_error.add_note(
+                    "Final retained USD inspection recheck also failed: "
+                    f"{type(recheck_error).__name__}: {recheck_error}"
+                )
+
+
+@contextmanager
+def _retained_usd_dependency_inventory(
+    artifact_path: Path,
+) -> Iterator[tuple[UsdDependencyOpinion, ...]]:
+    """Hold the private projection while a consumer projects its inventory."""
+
     root_sha256 = _file_sha256(artifact_path, code="artifact_missing")
     with _usd_composition_projection((artifact_path,)) as projection:
         _require_projected_root_matches_hash(
@@ -1514,6 +1880,63 @@ def local_usd_dependency_paths(
             code="artifact_dependency_mutated",
             root_code="artifact_mutated",
         )
+        yield tuple(_dependency_opinion(item) for item in dependencies)
+
+
+def _dependency_opinion(
+    dependency: _ResolvedUsdDependency,
+) -> UsdDependencyOpinion:
+    """Project one internal resolver record without discarding any opinion."""
+
+    from pxr import Ar, Sdf
+
+    try:
+        asset_identifier, _ = Sdf.Layer.SplitIdentifier(dependency.identifier)
+    except Exception:
+        asset_identifier = dependency.identifier
+    outer_identifier: str | None = None
+    package_members: tuple[str, ...] = ()
+    if dependency.package_relative and Ar.IsPackageRelativePath(asset_identifier):
+        outer_identifier, inner_identifier = Ar.SplitPackageRelativePathOuter(
+            asset_identifier
+        )
+        members = []
+        while Ar.IsPackageRelativePath(inner_identifier):
+            package_member, inner_identifier = Ar.SplitPackageRelativePathOuter(
+                inner_identifier
+            )
+            members.append(package_member)
+        members.append(inner_identifier)
+        package_members = tuple(members)
+    return UsdDependencyOpinion(
+        kind=dependency.kind,
+        identifier=dependency.identifier,
+        asset_identifier=asset_identifier,
+        lexical_path=dependency.lexical_path,
+        local_path=dependency.local_path,
+        package_relative=dependency.package_relative,
+        package_outer_identifier=outer_identifier,
+        package_members=package_members,
+    )
+
+
+def local_usd_dependency_paths(
+    path: str | Path,
+    *,
+    include_lexical_aliases: bool = False,
+) -> tuple[Path, ...]:
+    """Return every resolved local file in a USD and opaque-material closure.
+
+    Paths are absolute, symlink-resolved, deduplicated, and sorted by default.
+    With ``include_lexical_aliases=True``, the absolute authored locator is also
+    returned when it differs from its resolved filesystem referent.  This lets
+    destructive publication preflight protect both names. Package entries map
+    to their outermost local package file. Any unresolved authored dependency
+    fails closed instead of returning a partial inventory.
+    """
+
+    artifact_path = Path(path)
+    with _retained_usd_dependency_inventory(artifact_path) as dependencies:
         paths = {
             item.local_path for item in dependencies if item.local_path is not None
         }
@@ -6453,7 +6876,7 @@ def _open_stage(
 
 
 def _file_sha256(path: Path, *, code: str) -> str:
-    """Hash one stable regular inode without following or blocking on races."""
+    """Hash one stable regular inode while retaining supported ancestor aliases."""
 
     try:
         expected = os.stat(path, follow_symlinks=False)
@@ -6461,76 +6884,63 @@ def _file_sha256(path: Path, *, code: str) -> str:
         raise JointRiggerContractError(code, f"file not found: {path}: {exc}") from exc
     if not stat.S_ISREG(expected.st_mode):
         _fail(code, f"file is not a non-symlink regular file: {path}")
-    flags = os.O_RDONLY | os.O_NOFOLLOW
-    flags |= getattr(os, "O_CLOEXEC", 0)
-    flags |= getattr(os, "O_NONBLOCK", 0)
+    descriptor = -1
     try:
-        descriptor = os.open(path, flags)
-    except OSError as exc:
-        raise JointRiggerContractError(code, f"could not open {path}: {exc}") from exc
-    try:
-        opened = os.fstat(descriptor)
-        expected_state = (
-            expected.st_dev,
-            expected.st_ino,
-            expected.st_mode,
-            expected.st_nlink,
-            expected.st_size,
-            expected.st_mtime_ns,
-            expected.st_ctime_ns,
-        )
-        opened_state = (
-            opened.st_dev,
-            opened.st_ino,
-            opened.st_mode,
-            opened.st_nlink,
-            opened.st_size,
-            opened.st_mtime_ns,
-            opened.st_ctime_ns,
-        )
-        if not stat.S_ISREG(opened.st_mode) or opened_state != expected_state:
+        try:
+            descriptor, opened_state, backing_path, symlink_hops = (
+                _open_precomposition_regular_file(path)
+            )
+        except JointRiggerContractError as exc:
+            raise JointRiggerContractError(
+                code,
+                f"could not open {path}: {exc.detail}",
+            ) from exc
+        expected_state = _precomposition_file_state(expected)
+        if opened_state != expected_state:
             _fail(code, f"file changed before it was opened: {path}")
         digest = hashlib.sha256()
         offset = 0
-        while offset < opened.st_size:
-            chunk = os.pread(
+        while offset < expected.st_size:
+            chunk = _read_descriptor_at(
                 descriptor,
-                min(1024 * 1024, opened.st_size - offset),
+                min(1024 * 1024, expected.st_size - offset),
                 offset,
             )
             if not chunk:
                 _fail(code, f"file changed while it was hashed: {path}")
             digest.update(chunk)
             offset += len(chunk)
-        if os.pread(descriptor, 1, offset):
+        if _read_descriptor_at(descriptor, 1, offset):
             _fail(code, f"file grew while it was hashed: {path}")
-        after = os.fstat(descriptor)
-        observed_path = os.stat(path, follow_symlinks=False)
-        after_state = (
-            after.st_dev,
-            after.st_ino,
-            after.st_mode,
-            after.st_nlink,
-            after.st_size,
-            after.st_mtime_ns,
-            after.st_ctime_ns,
+        after_state = _precomposition_file_state(os.fstat(descriptor))
+        backing_state = _precomposition_file_state(
+            os.stat(backing_path, follow_symlinks=False)
         )
-        path_state = (
-            observed_path.st_dev,
-            observed_path.st_ino,
-            observed_path.st_mode,
-            observed_path.st_nlink,
-            observed_path.st_size,
-            observed_path.st_mtime_ns,
-            observed_path.st_ctime_ns,
-        )
-        if after_state != expected_state or path_state != expected_state:
+        path_state = _precomposition_file_state(os.stat(path, follow_symlinks=False))
+        try:
+            _require_precomposition_symlinks_unchanged(
+                symlink_hops,
+                locator=str(path),
+            )
+        except JointRiggerContractError as exc:
+            raise JointRiggerContractError(
+                code,
+                f"file changed while it was hashed: {path}: {exc.detail}",
+            ) from exc
+        if (
+            after_state != expected_state
+            or backing_state != expected_state
+            or path_state != expected_state
+        ):
             _fail(code, f"file changed while it was hashed: {path}")
         return digest.hexdigest()
+    except JointRiggerContractError:
+        raise
+    except (OSError, ArtifactPathError) as exc:
+        raise JointRiggerContractError(code, f"could not open {path}: {exc}") from exc
     finally:
-        owned_descriptor = descriptor
-        descriptor = -1
-        os.close(owned_descriptor)
+        if descriptor >= 0:
+            os.close(descriptor)
 
 
 def _provenance(
@@ -6701,8 +7111,12 @@ def _fail(code: str, detail: str) -> None:
 
 
 __all__ = [
+    "RetainedUsdArtifactInspection",
+    "UsdDependencyOpinion",
     "extract_reference_input",
     "identify_usd_artifact",
     "local_usd_dependency_paths",
+    "retain_usd_artifact_inspection",
+    "usd_dependency_inventory",
     "write_reference_input",
 ]

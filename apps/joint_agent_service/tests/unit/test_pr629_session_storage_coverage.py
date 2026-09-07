@@ -9,6 +9,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+import world_understanding.utils.artifacts as artifacts_module
 from world_understanding.utils.artifacts import OpenArtifactFile
 
 from ...service.session import manager as manager_module
@@ -25,7 +26,6 @@ from ...service.session.manager import (
     SessionManager,
 )
 from ...service.storage import base as storage_base_module
-from ...service.storage import local_store as local_store_module
 from ...service.storage import s3_store as s3_store_module
 from ...service.storage.base import METADATA_KEY
 from ...service.storage.local_store import LocalSessionStore
@@ -482,28 +482,50 @@ async def test_local_compare_and_swap_cleans_temp_after_replace_failure(
     store = LocalSessionStore(str(tmp_path))
     await store.init_session("s1")
     await store.put_bytes("s1", "claim", b"old")
-    real_replace = local_store_module.os.replace
     replace_calls = 0
 
-    def fail_first_replace(
-        source: str,
-        destination: str,
-        *,
-        src_dir_fd: int | None = None,
-        dst_dir_fd: int | None = None,
-    ) -> None:
-        nonlocal replace_calls
-        replace_calls += 1
-        if replace_calls == 1:
-            raise OSError("injected replace failure")
-        real_replace(
-            source,
-            destination,
-            src_dir_fd=src_dir_fd,
-            dst_dir_fd=dst_dir_fd,
-        )
+    if artifacts_module.os.name == "nt":
+        real_windows_replace = artifacts_module._windows_set_file_name
 
-    monkeypatch.setattr(local_store_module.os, "replace", fail_first_replace)
+        def fail_first_windows_replace(
+            descriptor: int,
+            destination: Path,
+            *,
+            overwrite: bool,
+        ) -> None:
+            nonlocal replace_calls
+            replace_calls += 1
+            if replace_calls == 1:
+                raise OSError("injected replace failure")
+            real_windows_replace(descriptor, destination, overwrite=overwrite)
+
+        monkeypatch.setattr(
+            artifacts_module,
+            "_windows_set_file_name",
+            fail_first_windows_replace,
+        )
+    else:
+        real_replace = artifacts_module.os.replace
+
+        def fail_first_replace(
+            source: str,
+            destination: str,
+            *,
+            src_dir_fd: int | None = None,
+            dst_dir_fd: int | None = None,
+        ) -> None:
+            nonlocal replace_calls
+            replace_calls += 1
+            if replace_calls == 1:
+                raise OSError("injected replace failure")
+            real_replace(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+            )
+
+        monkeypatch.setattr(artifacts_module.os, "replace", fail_first_replace)
 
     with pytest.raises(OSError, match="injected replace failure"):
         await store.compare_and_swap_bytes("s1", "claim", b"old", b"new")

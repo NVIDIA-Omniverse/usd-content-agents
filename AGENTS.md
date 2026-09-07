@@ -3,109 +3,147 @@
 This file provides public, repo-local guidance for coding agents working in
 `NVIDIA-Omniverse/usd-content-agents`.
 
+USD Content Agents is a reference implementation intended to be read, forked,
+and adapted, not a stable SDK or deploy-as-is product. Treat its interfaces,
+skills, and artifact contracts as release-specific.
+
 ## Start Here
 
-Use `README.md` for the canonical user quick start. Prefer the smallest
-supported path for the user's goal:
+Stay at the repository root. The agentic Content Workflow is the default
+for supported asset tasks.
 
-1. Inspect `README.md`, `.env_example`, and the relevant app README under
-   `apps/`.
-2. Check prerequisites before installing: Python 3.12+, `uv`, Docker Compose
-   v2.24+ for service mode, and an NVIDIA GPU/runtime when using the bundled
-   rendering sidecars.
-3. Keep API keys in `.env`. Do not print, commit, or paste secrets.
-4. For local CLI mode from the repo root:
+```bash
+./scripts/setup_content_agent.sh
+source .venv/bin/activate
+content-workflow-cli auth status
+content-workflow-cli --help
+```
 
-   ```bash
-   uv venv --python=3.12
-   source .venv/bin/activate
-   uv pip install -e . -e apps/material_agent -e apps/physics_agent \
-     -e apps/joint_agent -e apps/texture_agent -e apps/validation_agent
-   ./scripts/fetch_build_resources.sh
-   ```
+Native Windows execution is unsupported in the 0.6 release. On a Windows host,
+run the supported workflow inside WSL2 and use the Linux setup commands above.
 
-5. Use a dry run before expensive VLM or rendering calls when the CLI supports
-   it:
+Python 3.12 and `uv` are required. Node.js 20+ and `npm` are also required for
+workflows that launch Codex or Claude Code; direct-only workflows may use
+`--without-child-runners` on Linux/WSL2.
 
-   ```bash
-   material-agent run apps/material_agent/configs/unified_example.yaml --dry-run
-   material-agent run apps/material_agent/configs/unified_example.yaml
-   ```
+Clone inside the WSL2 Linux filesystem so the checked-in workflow skill
+symlinks materialize correctly. If a path such as
+`.agents/skills/content-workflow-material` is a plain text file instead of a
+directory, stop and clone again inside WSL2. Do not continue with a partial
+skill inventory.
+
+Keep API keys in `.env` or environment variables. Never print, commit, or paste
+secrets.
+
+## Default Routing Rule
+
+- Route supported, unqualified conversion, material, texture, physics,
+  segmentation, validation, articulation, composed-asset, and large-scene
+  requests through `content-workflow-cli` and the root `content-workflow-*`
+  skills.
+- Never silently fall back to fixed pipeline when an agentic prerequisite is
+  missing. Report the blocker and remediation.
+- Write user-facing run artifacts under root `runs/` unless the user specifies
+  another output directory.
+
+| User goal | Default root skill or command |
+|---|---|
+| General setup and routing | `.codex/skills/quickstart` or `.claude/skills/quickstart` |
+| Prepared agentic workflow | `content-workflow-cli` |
+| Material authoring | `content-workflow-material` |
+| Texture authoring | `content-workflow-texture` and its focused `texture prepare` through `texture publish` operations |
+| Physics authoring | `content-workflow-physics` |
+| usd-cli operations | `usd-cli` |
+| Conversion | `content-workflow-convert-to-usd` |
+| Mesh segmentation | `content-workflow-mesh-segmentation` |
+| SimReady profile work | `content-workflow-simready` |
+| Large scenes | `content-workflow-large-scene` and its phase skills |
+| Prompt validation | `content-workflow-cli validate run` |
+| Reviewed articulation | `content-workflow-cli articulation run` |
+| Composed asset | `content-workflow-asset` |
+
+## Explicit Fixed Pipeline
+
+The established application workflows under `apps/` are the fixed pipeline.
+Use them only when the user explicitly asks for fixed pipeline or names an app
+CLI, YAML configuration, Python API, benchmark, REST service, or deployment.
+
+Invoke the single root `$fixed-pipeline` skill and let it load the one relevant
+reference from `.agents/skills/fixed-pipeline/references/`. Do not present those
+nested references as independent skills and do not route an unqualified task
+to `material-agent`, `physics-agent`, `joint-agent`, `texture-agent`, or
+`validation-agent`.
+
+## Skill Organization
+
+- `.agents/skills/` is the canonical root discovery tree.
+- `.codex/skills/` and `.claude/skills/` are compatibility mirrors of that
+  tree.
+- Use Agentic skills through the root `.agents/skills/` discovery tree; their
+  implementation location is not a separate user entrypoint.
+- `fixed-pipeline` is the only discoverable fixed-pipeline skill; detailed
+  procedures live beneath its `references/` directory.
+- Use the owning workflow's render method, or `usd-cli` for an explicit
+  low-level local or remote OVRTX render.
+- `agentic/` is an implementation workspace, not a second user entrypoint.
+
+## First Workflow
+
+Before running this smoke test, complete the applicable local or remote OVRTX
+setup and successful readiness probe in the root
+[Quick Start](README.md#2-quick-start).
+
+```bash
+content-workflow-cli materials assign \
+  --usd apps/material_agent/data/examples/ladder/sources/usd/ladder.usd \
+  --reference-image apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg \
+  --reference-image apps/material_agent/data/examples/ladder/sources/images/ladder_reference_2.jpeg \
+  --materials-yaml apps/material_agent/data/materials/material_libs_default/materials.yaml \
+  --output-dir runs/ladder-agentic
+```
+
+This ladder run is the first smoke test, not the boundary of the product. Use
+`content-workflow-cli --help` for the complete supported command surface and
+`MIGRATING_TO_0_6.md` for the agentic/fixed pipeline capability matrix.
+
+## Platform
+
+Agentic Content Workflows support native Linux and WSL2. Native Windows
+execution is unsupported in the 0.6 release. On a Windows host, run the
+supported workflow inside WSL2.
+
+Agentic rendering under WSL2 uses remote OVRTX. Fixed pipelines run under WSL2
+with the `warp` rendering backend. Native Windows fixed-pipeline execution and
+local OVRTX rendering under WSL2 are not supported.
+
+WSL2 cannot run local OVRTX because it does not expose the required Vulkan
+driver. Remote OVRTX packages the composed scene as USDZ so the renderer does
+not need the workflow host's asset paths.
 
 ## Repository Map
 
-- `world_understanding/` - shared library code, tool registry, model wrappers,
-  utility functions, and minimal agent framework.
-- `apps/material_agent/` - Material Agent CLI and configs.
-- `apps/material_agent_service/` - Material Agent REST service and client.
-- `apps/physics_agent/` - Physics Agent CLI and configs.
-- `apps/physics_agent_service/` - Physics Agent REST service and client.
-- `apps/joint_agent/` - Joint Agent Research Preview CLI and configs.
-- `apps/joint_agent_service/` - Joint Agent Research Preview REST service and client.
-- `apps/texture_agent/` - Texture Agent CLI and configs.
-- `apps/texture_agent_service/` - Texture Agent REST service and client.
-- `apps/validation_agent/` - Validation Agent Research Preview CLI and configs.
-- `apps/ovrtx_rendering_api/` - shared OVRTX rendering API sidecar.
-- `agentic/` - Agentic Workflow preview workspace for Content Workbench and
-  `content-workflow-cli`.
-- `.agents/skills/` - canonical checked-in agent skills.
-- `.claude/skills/` and `.codex/skills/` - compatibility mirrors of the
-  canonical skill tree.
-
-## Agent Skills
-
-Start repo-level workflows from the repo root. For Agentic Workflow preview
-sessions, start the agent from `agentic/` so it discovers the isolated preview
-skills.
-
-| Workflow | Codex skill | Claude skill | First command |
-|---|---|---|---|
-| Agentic Workflow preview | `agentic/.codex/skills/content-workflow-material` | `agentic/.claude/skills/content-workflow-material` | `content-workflow-cli materials assign --usd ../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd --reference-image ../apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg --reference-image ../apps/material_agent/data/examples/ladder/sources/images/ladder_reference_2.jpeg --materials-yaml ../apps/material_agent/data/materials/material_libs_default/materials.yaml --output-dir runs/content-workflow-cli/ladder-codex` |
-| Agentic batch launcher | `agentic/.codex/skills/content-workflow-cli` | `agentic/.claude/skills/content-workflow-cli` | `content-workflow-cli materials assign --usd path/to/asset.usd --materials-yaml path/to/materials.yaml` |
-| Material CLI | `.codex/skills/material-agent-cli` | `.claude/skills/material-agent-cli` | `material-agent run apps/material_agent/configs/unified_example.yaml` |
-| Physics CLI | `.codex/skills/physics-agent-cli` | `.claude/skills/physics-agent-cli` | `physics-agent run apps/physics_agent/configs/lightbulb.yaml` |
-| Joint CLI (Research Preview) | `.codex/skills/joint-agent-cli` | `.claude/skills/joint-agent-cli` | `joint-agent run apps/joint_agent/configs/byoa_joint_rigger.yaml --dry-run` |
-| Joint Gate 3 validation | `.codex/skills/joint-agent-validation` | `.claude/skills/joint-agent-validation` | Validate a published Joint Agent USD/USDZ with Gate 3A and Gate 3B. |
-| Texture CLI | `.codex/skills/texture-agent-cli` | `.claude/skills/texture-agent-cli` | `texture-agent run apps/texture_agent/configs/texture_example.yaml` |
-| Validation CLI (Research Preview) | `.codex/skills/validation-agent-cli` | `.claude/skills/validation-agent-cli` | `validation-agent run apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml` |
-| Material service | `.codex/skills/deploy-material-agent-docker` | `.claude/skills/deploy-material-agent-docker` | `docker compose --env-file .env -f apps/material_agent_service/docker-compose.yml up --build` |
-| Physics service | `.codex/skills/deploy-physics-agent-docker` | `.claude/skills/deploy-physics-agent-docker` | `docker compose --env-file .env -f apps/physics_agent_service/docker-compose.yml up --build` |
-| Joint service/client | `.codex/skills/joint-agent-client` | `.claude/skills/joint-agent-client` | `docker compose --env-file .env -f apps/joint_agent_service/docker-compose.yml up --build` |
-| Texture service | `.codex/skills/deploy-texture-agent-docker` | `.claude/skills/deploy-texture-agent-docker` | `docker compose --env-file .env -f apps/texture_agent_service/docker-compose.yml up --build` |
-| Full collection | `.codex/skills/deploy-collection` | `.claude/skills/deploy-collection` | `./deploy/collection/deploy.py plan && ./deploy/collection/deploy.py up` |
-| USD utilities | `.codex/skills/flatten-usd`, `.codex/skills/print-usd`, `.codex/skills/render-usd` | `.claude/skills/flatten-usd`, `.claude/skills/print-usd`, `.claude/skills/render-usd` | Inspect, flatten, or render USD assets. |
-
-## Public Backends
-
-Public docs, configs, and examples should use only public model providers:
-
-- `nim` with `NVIDIA_API_KEY`
-- `openai` with `OPENAI_API_KEY`
-- `anthropic` with `ANTHROPIC_API_KEY`
-- `gemini` with `GOOGLE_API_KEY`
-
-Do not hardcode credentials. Use placeholders in examples.
+- `.agents/skills/` — canonical root discovery tree.
+- `agentic/packages/` — Content Workflow implementations.
+- `apps/usd_cli/` — the low-level USD CLI and sidecar implementation.
+- `.agents/skills/fixed-pipeline/references/` — non-discoverable fixed-pipeline procedures.
+- `apps/*_agent/` — explicit fixed-pipeline config-driven applications.
+- `apps/*_agent_service/` — explicit fixed-pipeline REST services.
+- `scripts/setup_content_agent.sh` — Linux/WSL2 Agentic setup.
+- `scripts/setup_content_agent.ps1` — development helper; not a supported 0.6
+  native-Windows release path.
+- `runs/` — ignored root output location.
 
 ## Validation
 
-Use lightweight checks before claiming a change is ready:
-
 ```bash
-python3 -m pytest tests/test_public_quickstart_regression.py -q
-python3 -m pytest tests/test_packaging_requests_declared.py tests/test_pyproject_fallback_version.py -q
-```
-
-If `pytest` is missing, install the development extras in the active
-environment first:
-
-```bash
-uv pip install -e ".[dev]"
+python3 -m pytest tests/test_public_quickstart_regression.py tests/test_packaging_requests_declared.py tests/test_pyproject_fallback_version.py -q
+./scripts/sync_agent_skills.sh --check
 ```
 
 ## Safety
 
-- Do not commit `.env`, downloaded assets, generated textures, rendered images,
-  session directories, service logs, or credentials.
-- Use `--dry-run` before VLM or render calls when supported.
-- Treat clean flags and commands that delete working directories as destructive.
-- Keep changes scoped to the requested workflow and follow existing repo style.
+- Do not mutate source USD files unless the user explicitly requests it.
+- Preserve run evidence and partial outputs on failure or cancellation.
+- Use the workflow's reported resume command; otherwise provide a safe restart
+  with a new run directory.
+- Treat commands that delete run directories as destructive.

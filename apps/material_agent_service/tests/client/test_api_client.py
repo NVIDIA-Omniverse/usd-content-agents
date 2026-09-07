@@ -90,9 +90,11 @@ def api_client() -> MaterialAgentClient:
 
 def test_client_validation_helpers_and_auth_header(monkeypatch):
     monkeypatch.setenv("MATERIAL_AGENT_TOKEN", "secret")
+    monkeypatch.setenv("NVCF_INVOKE_VERSION_ID", "version-under-test")
     client = MaterialAgentClient(base_url="http://service/")
     assert client.base_url == "http://service"
     assert client._http.headers["Authorization"] == "Bearer secret"
+    assert client._http.headers["Function-Version-Id"] == "version-under-test"
 
     assert client_module._max_from_env("MISSING_MAX", 7) == 7
     monkeypatch.setenv("BAD_MAX", "abc")
@@ -363,6 +365,19 @@ def test_start_pipeline_posts_worker_overrides(tmp_path):
     assert fake_session.posts[0]["url"] == "http://service/pipeline"
     assert fake_session.posts[0]["data"]["vlm_max_workers"] == "2"
     assert fake_session.posts[0]["data"]["render_num_workers"] == "1"
+
+
+def test_start_pipeline_posts_s3_uri_without_local_file() -> None:
+    client = MaterialAgentClient(base_url="http://service")
+    fake_session = _FakeSession()
+    client._http = fake_session  # type: ignore[assignment]
+
+    session_id = client.start_pipeline(s3_uri="s3://material-intake/scenes/chair.usda")
+
+    assert session_id == "session-1"
+    post = fake_session.posts[0]
+    assert post["data"]["s3_uri"] == "s3://material-intake/scenes/chair.usda"
+    assert post["files"] is None
 
 
 def test_start_pipeline_rejects_large_scene_with_material_generation():
@@ -929,6 +944,57 @@ def test_run_and_monitor_streams_progress_and_done(monkeypatch, capsys):
     assert "Started session: session-1" in captured.out
     assert "[predict] running overall=70% working" in captured.out
     assert "[None] None overall=None%" in captured.out
+
+
+def test_run_and_monitor_forwards_s3_uri(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = MaterialAgentClient(base_url="http://service")
+    captured: dict[str, object] = {}
+
+    def start_pipeline(**kwargs: object) -> str:
+        captured.update(kwargs)
+        return "session-1"
+
+    monkeypatch.setattr(client, "start_pipeline", start_pipeline)
+    monkeypatch.setattr(
+        client,
+        "stream_events",
+        lambda _session_id: iter([client_module.SSEMessage(event="done", data="{}")]),
+    )
+    monkeypatch.setattr(
+        client, "get_status", lambda _session_id: {"status": "completed"}
+    )
+
+    session_id, status = client.run_and_monitor(
+        s3_uri="s3://material-intake/scenes/chair.usda",
+        print_stream=False,
+    )
+
+    assert session_id == "session-1"
+    assert status == {"status": "completed"}
+    assert captured["s3_uri"] == "s3://material-intake/scenes/chair.usda"
+    assert captured["usd_path"] is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"upload_first": True},
+        {"generated_reference_prompt": "matte blue plastic"},
+    ],
+)
+def test_run_and_monitor_rejects_s3_preview_upload_modes(
+    kwargs: dict[str, bool | str],
+) -> None:
+    client = MaterialAgentClient(base_url="http://service")
+
+    with pytest.raises(ValueError, match="s3_uri is not compatible"):
+        client.run_and_monitor(
+            s3_uri="s3://material-intake/scenes/chair.usda",
+            print_stream=False,
+            **kwargs,
+        )
 
 
 def test_run_and_monitor_confirms_sse_done_before_returning(monkeypatch):

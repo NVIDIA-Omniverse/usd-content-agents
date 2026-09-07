@@ -25,6 +25,7 @@ from ..events.listener import FastAPIEventListener
 from ..runtime import get_event_bus
 from ..runtime.events import ProgressEvent, StepState
 from ..session.manager import SessionManager
+from ..storage import SessionGenerationOwnershipError
 from ..utils import derive_completed_step_names
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,28 @@ logger = logging.getLogger(__name__)
 _TERMINAL_PERSIST_ATTEMPTS = 3
 _TERMINAL_PERSIST_RETRY_DELAY_SECONDS = 0.05
 _CANCELLATION_POLL_INTERVAL_SECONDS = 1.0
+_MAX_LOG_COUNT = 2_147_483_647
+
+
+def _bounded_log_count(value: Any) -> int:
+    """Return a non-negative integer suitable for a fixed-schema log field."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return min(_MAX_LOG_COUNT, max(0, value))
+    if isinstance(value, float) and value.is_integer():
+        return min(_MAX_LOG_COUNT, max(0, int(value)))
+    return 0
+
+
+def _log_pipeline_stats(stats: dict[str, Any]) -> None:
+    """Log only bounded aggregate fields from the physics pipeline result."""
+    logger.info(
+        "Pipeline stats: prims_processed=%d images_generated=%d predictions_made=%d",
+        _bounded_log_count(stats.get("prims_processed")),
+        _bounded_log_count(stats.get("images_generated")),
+        _bounded_log_count(stats.get("predictions_made")),
+    )
 
 
 async def execute_pipeline_async(
@@ -201,7 +224,7 @@ async def _execute_pipeline_with_cancel_signal(
         logger.info("Pipeline reported %d step result(s)", len(result.step_results))
 
     stats = _extract_stats_from_result(result, session_dir)
-    logger.info(f"Pipeline stats for {session_id[:8]}: {stats}")
+    _log_pipeline_stats(stats)
 
     metadata = await session_manager.get_session_metadata(session_id)
     duration_seconds = 0
@@ -210,6 +233,59 @@ async def _execute_pipeline_with_cancel_signal(
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=UTC)
         duration_seconds = int((datetime.now(UTC) - created_at).total_seconds())
+
+    if await _cancellation_requested(session_manager, session_id, cancel_event):
+        await _mark_cancelled(
+            session_manager,
+            session_id,
+            listener.canonical_current_step or "pipeline",
+            completed_steps=list(result.completed_steps or []),
+            partial_results=dict(result.step_results or {}),
+        )
+        return
+
+    # Publish one complete generation before terminal metadata becomes visible.
+    # S3 moves its manifest pointer only after every selected object is durable;
+    # local storage keeps its existing copy semantics.
+    try:
+        synced = await session_manager.sync_to_store(
+            session_id,
+            prefix=(
+                "input/",
+                "cache/predictions/",
+                "cache/dataset/dataset.jsonl",
+                "cache/physics/",
+            ),
+        )
+    except Exception:
+        diagnostic = durable_diagnostic(
+            "physics_pipeline_artifact_publication_failed",
+            phase=FailurePhase.SYNC_UPLOAD,
+            retryable=True,
+        )
+        log_durable_failure(
+            logger,
+            diagnostic.code,
+            phase=FailurePhase.SYNC_UPLOAD,
+            retryable=True,
+        )
+        terminal_status = await _mark_failed(
+            session_manager,
+            session_id,
+            diagnostic,
+            listener.canonical_current_step or "pipeline",
+            completed_steps=list(result.completed_steps or []),
+            partial_results=dict(result.step_results or {}),
+        )
+        if terminal_status == "failed":
+            raise RuntimeError(diagnostic.code)
+        return
+    if synced > 0:
+        logger.info(
+            "Published %d artifact file(s) for generation %s",
+            synced,
+            session_id[:8],
+        )
 
     if await _cancellation_requested(session_manager, session_id, cancel_event):
         await _mark_cancelled(
@@ -249,25 +325,6 @@ async def _execute_pipeline_with_cancel_signal(
         },
         failure_code="physics_pipeline_completion_metadata_failed",
     )
-
-    # Sync key artifacts to store (uploads to S3 if configured).
-    # Only sync the result files — skip rendered images (can be thousands of PNGs)
-    # which are too large to upload reliably and not needed cross-instance.
-    synced = 0
-    for prefix in (
-        "cache/predictions/",
-        "cache/dataset/dataset.jsonl",
-        "cache/physics/",
-    ):
-        try:
-            n = await session_manager.sync_to_store(session_id, prefix=prefix)
-            synced += n
-        except Exception as e:
-            logger.warning(
-                f"Failed to sync {prefix} to store for {session_id[:8]}: {e}"
-            )
-    if synced > 0:
-        logger.info(f"Synced {synced} artifact file(s) to store for {session_id[:8]}")
 
     # Signal SSE clients that artifacts are now in the store and the pipeline is fully done.
     # This fires AFTER update_session + sync_to_store so clients get "done" only when
@@ -552,6 +609,14 @@ async def _persist_terminal_metadata(
         try:
             await session_manager.update_session(session_id, updates)
             return
+        except SessionGenerationOwnershipError:
+            log_durable_failure(
+                logger,
+                failure_code,
+                phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                retryable=False,
+            )
+            raise
         except Exception:  # noqa: BLE001
             log_durable_failure(
                 logger,

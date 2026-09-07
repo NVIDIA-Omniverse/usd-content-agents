@@ -1,0 +1,1041 @@
+openapi: 3.1.0
+info:
+  title: Geometry Agent Service
+  description: Public geometry source intake, provider orchestration, validation,
+    repair, and evidence handoff over content-addressed artifacts.
+  # Generated from the installed service version; tests enforce VERSION.md lockstep.
+  version: 0.6.0
+paths:
+  /api/health:
+    get:
+      tags:
+      - service
+      summary: Health
+      operationId: health_api_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/info:
+    get:
+      tags:
+      - service
+      summary: Info
+      operationId: info_api_info_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfoResponse'
+  /api/geometry/sources:
+    post:
+      tags:
+      - geometry
+      summary: Create Source
+      operationId: create_source_api_geometry_sources_post
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+      parameters:
+      - name: X-Content-SHA256
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Content-Sha256
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_create_source_api_geometry_sources_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/geometry/generations:
+    post:
+      tags:
+      - geometry
+      summary: Create Generation
+      operationId: create_generation_api_geometry_generations_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeometryGenerationRequest'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+  /api/geometry/revisions:
+    post:
+      tags:
+      - geometry
+      summary: Create Revision
+      operationId: create_revision_api_geometry_revisions_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeometryRevisionRequest'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+  /api/geometry/families:
+    post:
+      tags:
+      - geometry
+      summary: Create Family
+      description: Materialize independent semantic variants from one immutable base.
+      operationId: create_family_api_geometry_families_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeometryFamilyRequest'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+  /api/geometry/provider-exports:
+    post:
+      tags:
+      - geometry
+      summary: Create Provider Export
+      description: Export a provider-owned immutable revision into a registered source.
+      operationId: create_provider_export_api_geometry_provider_exports_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeometryImmutableExportRequest'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+  /api/geometry/exports:
+    post:
+      tags:
+      - geometry
+      summary: Create Export
+      operationId: create_export_api_geometry_exports_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeometryExportRequest'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+  /api/geometry/runs:
+    post:
+      tags:
+      - geometry
+      summary: Create Run
+      operationId: create_run_api_geometry_runs_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeometryRunRequest'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+  /api/geometry/jobs/{job_id}:
+    get:
+      tags:
+      - geometry
+      summary: Get Job
+      operationId: get_job_api_geometry_jobs__job_id__get
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/geometry/artifacts/{artifact_id}:
+    get:
+      tags:
+      - geometry
+      summary: Get Artifact
+      operationId: get_artifact_api_geometry_artifacts__artifact_id__get
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Artifact Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/geometry/providers:
+    get:
+      tags:
+      - geometry
+      summary: List Providers
+      operationId: list_providers_api_geometry_providers_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderListResponse'
+      security:
+      - APIKeyHeader: []
+      - HTTPBearer: []
+components:
+  schemas:
+    ArtifactRecord:
+      properties:
+        artifact_id:
+          type: string
+          title: Artifact Id
+        sha256:
+          type: string
+          title: Sha256
+        filename:
+          type: string
+          title: Filename
+        bundle_member:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Member
+        media_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Media Type
+        size_bytes:
+          type: integer
+          minimum: 0.0
+          title: Size Bytes
+      additionalProperties: false
+      type: object
+      required:
+      - artifact_id
+      - sha256
+      - filename
+      - size_bytes
+      title: ArtifactRecord
+    Body_create_source_api_geometry_sources_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+          description: Geometry source or reference image
+        role:
+          type: string
+          enum:
+          - geometry_source
+          - reference_image
+          title: Role
+          default: geometry_source
+        archive_entrypoint:
+          anyOf:
+          - type: string
+            maxLength: 1024
+          - type: 'null'
+          title: Archive Entrypoint
+          description: Optional geometry member in a ZIP-based source container.
+      type: object
+      required:
+      - file
+      title: Body_create_source_api_geometry_sources_post
+    GeometryCoordinateSystem:
+      properties:
+        meters_per_unit:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Meters Per Unit
+        up_axis:
+          type: string
+          enum:
+          - X
+          - Y
+          - Z
+          title: Up Axis
+          default: Z
+        forward_axis:
+          type: string
+          enum:
+          - +X
+          - -X
+          - +Y
+          - -Y
+          - +Z
+          - -Z
+          title: Forward Axis
+          default: +Y
+        handedness:
+          type: string
+          enum:
+          - left
+          - right
+          title: Handedness
+          default: right
+      additionalProperties: false
+      type: object
+      required:
+      - meters_per_unit
+      title: GeometryCoordinateSystem
+      description: Units and axes needed to interpret every representation in a bundle.
+    GeometryExportRequest:
+      properties:
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          title: Provider Id
+        source_id:
+          type: string
+          pattern: ^src_[0-9a-f]{64}$
+          title: Source Id
+        requested_formats:
+          items:
+            type: string
+            enum:
+            - step
+            - stl
+            - obj
+            - ply
+            - glb
+            - gltf
+            - 3mf
+            - usd
+            - usda
+            - usdc
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Requested Formats
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      - source_id
+      - requested_formats
+      title: GeometryExportRequest
+    GeometryFamilyRequest:
+      properties:
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          title: Provider Id
+        source_id:
+          type: string
+          pattern: ^src_[0-9a-f]{64}$
+          title: Source Id
+        variants:
+          items:
+            $ref: '#/components/schemas/GeometryFamilyVariant'
+          type: array
+          maxItems: 64
+          minItems: 1
+          title: Variants
+        requested_formats:
+          items:
+            type: string
+            enum:
+            - step
+            - stl
+            - obj
+            - ply
+            - glb
+            - gltf
+            - 3mf
+            - usd
+            - usda
+            - usdc
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Requested Formats
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      - source_id
+      - variants
+      title: GeometryFamilyRequest
+    GeometryFamilyVariant:
+      properties:
+        variant_id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          title: Variant Id
+        parameter_overrides:
+          additionalProperties:
+            anyOf:
+            - type: boolean
+            - type: integer
+            - type: number
+            - type: string
+            - $ref: '#/components/schemas/GeometryParameterInput'
+          type: object
+          maxProperties: 256
+          minProperties: 1
+          title: Parameter Overrides
+        instructions:
+          anyOf:
+          - type: string
+            maxLength: 32768
+            minLength: 1
+          - type: 'null'
+          title: Instructions
+      additionalProperties: false
+      type: object
+      required:
+      - variant_id
+      - parameter_overrides
+      title: GeometryFamilyVariant
+    GeometryGenerationRequest:
+      properties:
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          title: Provider Id
+        prompt:
+          anyOf:
+          - type: string
+            maxLength: 32768
+            minLength: 1
+          - type: 'null'
+          title: Prompt
+        image_source_ids:
+          items:
+            type: string
+            pattern: ^src_[0-9a-f]{64}$
+          type: array
+          maxItems: 8
+          title: Image Source Ids
+        parameters:
+          additionalProperties:
+            anyOf:
+            - type: boolean
+            - type: integer
+            - type: number
+            - type: string
+            - $ref: '#/components/schemas/GeometryParameterInput'
+          type: object
+          maxProperties: 256
+          title: Parameters
+        requested_formats:
+          items:
+            type: string
+            enum:
+            - step
+            - stl
+            - obj
+            - ply
+            - glb
+            - gltf
+            - 3mf
+            - usd
+            - usda
+            - usdc
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Requested Formats
+        target_profile:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Target Profile
+          default: geometry-agent.insertion-or-fixture-asset.v1
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      title: GeometryGenerationRequest
+    GeometryImmutableExportRequest:
+      properties:
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          title: Provider Id
+        source_revision:
+          type: string
+          maxLength: 1024
+          minLength: 1
+          title: Source Revision
+        coordinate_system:
+          $ref: '#/components/schemas/GeometryCoordinateSystem'
+        rights_assertion:
+          type: string
+          maxLength: 4096
+          minLength: 1
+          title: Rights Assertion
+        license_identifier:
+          anyOf:
+          - type: string
+            maxLength: 256
+            minLength: 1
+          - type: 'null'
+          title: License Identifier
+        upstream_edit_uri:
+          anyOf:
+          - type: string
+            maxLength: 4096
+            minLength: 1
+          - type: 'null'
+          title: Upstream Edit Uri
+        requested_formats:
+          items:
+            type: string
+            enum:
+            - step
+            - stl
+            - obj
+            - ply
+            - glb
+            - gltf
+            - 3mf
+            - usd
+            - usda
+            - usdc
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Requested Formats
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      - source_revision
+      - coordinate_system
+      - rights_assertion
+      - requested_formats
+      title: GeometryImmutableExportRequest
+      description: Export a provider-owned immutable revision not yet registered locally.
+    GeometryParameterInput:
+      properties:
+        value:
+          anyOf:
+          - type: boolean
+          - type: integer
+          - type: number
+          - type: string
+          title: Value
+        unit:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 1
+          - type: 'null'
+          title: Unit
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: GeometryParameterInput
+    GeometryRevisionRequest:
+      properties:
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          title: Provider Id
+        source_id:
+          type: string
+          pattern: ^src_[0-9a-f]{64}$
+          title: Source Id
+        instructions:
+          anyOf:
+          - type: string
+            maxLength: 32768
+            minLength: 1
+          - type: 'null'
+          title: Instructions
+        image_source_ids:
+          items:
+            type: string
+            pattern: ^src_[0-9a-f]{64}$
+          type: array
+          maxItems: 8
+          title: Image Source Ids
+        parameter_overrides:
+          additionalProperties:
+            anyOf:
+            - type: boolean
+            - type: integer
+            - type: number
+            - type: string
+            - $ref: '#/components/schemas/GeometryParameterInput'
+          type: object
+          maxProperties: 256
+          title: Parameter Overrides
+        requested_formats:
+          items:
+            type: string
+            enum:
+            - step
+            - stl
+            - obj
+            - ply
+            - glb
+            - gltf
+            - 3mf
+            - usd
+            - usda
+            - usdc
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Requested Formats
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      - source_id
+      title: GeometryRevisionRequest
+    GeometryRunRequest:
+      properties:
+        source_id:
+          type: string
+          pattern: ^src_[0-9a-f]{64}$
+          title: Source Id
+        target_profile:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Target Profile
+          default: geometry-agent.insertion-or-fixture-asset.v1
+        target_runtime:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Target Runtime
+          default: isaac-lab
+        run_runtime_validation:
+          type: boolean
+          title: Run Runtime Validation
+          default: false
+        runtime_engine:
+          anyOf:
+          - type: string
+            enum:
+            - ovphysx
+            - fake
+            - none
+          - type: 'null'
+          title: Runtime Engine
+        render_evidence:
+          type: boolean
+          title: Render Evidence
+          default: false
+        render_preset:
+          type: string
+          enum:
+          - hero
+          - 4view
+          - six_view
+          - vertical4
+          - turntable
+          title: Render Preset
+          default: six_view
+        fail_on_validation_error:
+          type: boolean
+          title: Fail On Validation Error
+          default: false
+        allow_lossy_recovery:
+          type: boolean
+          title: Allow Lossy Recovery
+          default: false
+        param_overrides:
+          additionalProperties: true
+          type: object
+          title: Param Overrides
+          description: Must be empty. To apply parameter changes, create a new immutable
+            provider revision with POST /api/geometry/revisions and run the returned source_id.
+        usd_tessellation_tolerance:
+          type: number
+          maximum: 100.0
+          exclusiveMinimum: 0.0
+          title: Usd Tessellation Tolerance
+          default: 0.5
+      additionalProperties: false
+      type: object
+      required:
+      - source_id
+      title: GeometryRunRequest
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HealthResponse:
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+        service:
+          type: string
+          const: geometry-agent-service
+          title: Service
+          default: geometry-agent-service
+      additionalProperties: false
+      type: object
+      required:
+      - ok
+      title: HealthResponse
+    InfoResponse:
+      properties:
+        service:
+          type: string
+          const: geometry-agent-service
+          title: Service
+          default: geometry-agent-service
+        schema_version:
+          type: string
+          const: geometry-agent-service.v1
+          title: Schema Version
+          default: geometry-agent-service.v1
+        source_schema_version:
+          type: string
+          const: geometry.source-record.v1
+          title: Source Schema Version
+          default: geometry.source-record.v1
+        authoring_bundle_schema_version:
+          type: string
+          const: geometry.source.v1
+          title: Authoring Bundle Schema Version
+          default: geometry.source.v1
+        routes:
+          items:
+            type: string
+          type: array
+          title: Routes
+      additionalProperties: false
+      type: object
+      required:
+      - routes
+      title: InfoResponse
+    JobRecord:
+      properties:
+        schema_version:
+          type: string
+          const: geometry-agent-service.v1
+          title: Schema Version
+          default: geometry-agent-service.v1
+        job_id:
+          type: string
+          title: Job Id
+        kind:
+          type: string
+          enum:
+          - generation
+          - revision
+          - family
+          - export
+          - run
+          title: Kind
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        provider_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Id
+        source_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Id
+        result:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Result
+        error:
+          anyOf:
+          - $ref: '#/components/schemas/ServiceError'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - job_id
+      - kind
+      - status
+      - created_at
+      - updated_at
+      title: JobRecord
+    ProviderInfo:
+      properties:
+        provider_id:
+          type: string
+          title: Provider Id
+        capabilities:
+          additionalProperties: true
+          type: object
+          title: Capabilities
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      title: ProviderInfo
+    ProviderListResponse:
+      properties:
+        providers:
+          items:
+            $ref: '#/components/schemas/ProviderInfo'
+          type: array
+          title: Providers
+      additionalProperties: false
+      type: object
+      required:
+      - providers
+      title: ProviderListResponse
+    ServiceError:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        retryable:
+          type: boolean
+          title: Retryable
+          default: false
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+      additionalProperties: false
+      type: object
+      required:
+      - code
+      - message
+      title: ServiceError
+    SourceRecord:
+      properties:
+        schema_version:
+          type: string
+          const: geometry.source-record.v1
+          title: Schema Version
+          default: geometry.source-record.v1
+        source_id:
+          type: string
+          title: Source Id
+        role:
+          type: string
+          enum:
+          - geometry_source
+          - reference_image
+          title: Role
+        artifact:
+          $ref: '#/components/schemas/ArtifactRecord'
+        archive_entrypoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Archive Entrypoint
+        source_bundle_manifest:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactRecord'
+          - type: 'null'
+        source_bundle_artifacts:
+          items:
+            $ref: '#/components/schemas/ArtifactRecord'
+          type: array
+          title: Source Bundle Artifacts
+        source_representation_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Representation Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      additionalProperties: false
+      type: object
+      required:
+      - source_id
+      - role
+      - artifact
+      - created_at
+      title: SourceRecord
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    APIKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Geometry-Agent-Service-Key
+    HTTPBearer:
+      type: http
+      scheme: bearer

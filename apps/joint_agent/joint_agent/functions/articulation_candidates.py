@@ -13,24 +13,38 @@ import tempfile
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, Self, cast, get_args
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Self, cast, get_args
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     SerializerFunctionWrapHandler,
+    ValidationError,
     model_serializer,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
+from joint_agent.functions.articulation_endpoint_identity import (
+    build_articulation_endpoint_identity_index,
+)
 from joint_agent.functions.articulation_types import ArticulationReviewStatus
 from joint_agent.functions.axis_hints import normalize_axis_hint_token
 from joint_agent.functions.consistency import (
     canonical_link_instance_id,
     is_model_supplied_link_instance_id,
 )
-from joint_agent.functions.stage1_schema import unwrap_stage1_prediction_payload
+from joint_agent.functions.joint_0_6_capabilities import (
+    SOURCE_BACKED_STAGE2_SOURCES,
+)
+from joint_agent.functions.stage1_schema import (
+    Stage1SemanticMotionCapability,
+    unwrap_stage1_prediction_payload,
+)
+
+if TYPE_CHECKING:  # pragma: no cover - imports only for static type checking
+    from joint_agent.functions.stage1_breadth_projection import Stage1BreadthProjection
 
 STAGE2_SCHEMA_VERSION: Literal["joint-agent-stage2-v0"] = "joint-agent-stage2-v0"
 DEFAULT_CANDIDATE_JOINT_TYPES = ("revolute", "prismatic", "spherical")
@@ -97,6 +111,17 @@ Stage2UnresolvedReasonCode = Literal[
     "link_membership_conflict",
     "role_deferred_0_5",
 ]
+Stage2BreadthUnresolvedReasonCode = (
+    Stage2UnresolvedReasonCode
+    | Literal[
+        "spherical_axis_not_applicable",
+        "spherical_scalar_limit_unsupported",
+        "spherical_source_evidence_required",
+        "source_backed_proof_required",
+        "source_joint_type_requires_source_adapter",
+        "stage1_projection_rejected",
+    ]
+)
 
 _UNKNOWN_VALUES = {"", "unknown", "none", "null", "n/a", "na"}
 _TRUE_VALUES = {"true", "yes", "y", "1", "candidate", "articulated"}
@@ -114,9 +139,18 @@ _AXIS_HINT_TO_WORLD: dict[str, tuple[float, float, float]] = {
     "-z": (0.0, 0.0, -1.0),
 }
 _ALLOWED_AXIS_SET = frozenset(_AXIS_HINT_TO_WORLD)
+_CARDINAL_AXIS_TO_SIGNED_HINT = {
+    (1.0, 0.0, 0.0): "+x",
+    (-1.0, 0.0, 0.0): "-x",
+    (0.0, 1.0, 0.0): "+y",
+    (0.0, -1.0, 0.0): "-y",
+    (0.0, 0.0, 1.0): "+z",
+    (0.0, 0.0, -1.0): "-z",
+}
 _EXPLICIT_INSTANCE_INTERNAL_FIELDS = frozenset(
     {
         "_explicit_instance_link_conflict",
+        "_explicit_instance_link_body1",
         "_explicit_instance_link_id",
         "_explicit_instance_link_members",
     }
@@ -176,6 +210,11 @@ class Stage2ArticulationCandidate(BaseModel):
     component_name: str = "unknown"
     component_type: str = "unknown"
     role: str = "unknown"
+    # These typed additive extensions intentionally stay out of the byte-frozen
+    # joint-agent-stage2-v0 JSON Schema. That schema permits extra properties,
+    # while current producers and agentic consumers validate these fields here.
+    semantic_role: SkipJsonSchema[str | None] = None
+    motion_capability: SkipJsonSchema[Stage1SemanticMotionCapability | None] = None
     source_prediction_ids: list[str] = Field(default_factory=list)
     evidence: str = ""
     source_annotation_conflicts: dict[str, list[str]] = Field(default_factory=dict)
@@ -195,7 +234,7 @@ class Stage2ArticulationCandidate(BaseModel):
     unresolved_questions: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _validate_cross_field_invariants(self) -> Self:
+    def _validate_axis_invariants(self) -> Self:
         if (
             self.motion_axis_world is not None
             and self.axis_hint not in _ALLOWED_AXIS_SET
@@ -204,6 +243,10 @@ class Stage2ArticulationCandidate(BaseModel):
                 "motion_axis_world requires axis_hint to be an explicit "
                 "axis-aligned token"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_parent_resolution_invariants(self) -> Self:
         # ``structural_fallback`` is accepted here only so legacy v0 artifacts
         # still validate; current inference does not emit it.
         if (
@@ -220,6 +263,20 @@ class Stage2ArticulationCandidate(BaseModel):
                 "stage1_hint, stage1_rigger_evidence, or structural_fallback"
             )
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_semantic_motion_fields(  # type: ignore[no-untyped-def]
+        self,
+        handler: SerializerFunctionWrapHandler,
+    ):
+        """Keep legacy Stage 2 JSON unchanged when no semantic decision exists."""
+
+        serialized = cast(dict[str, Any], handler(self))
+        if self.semantic_role is None:
+            serialized.pop("semantic_role", None)
+        if self.motion_capability is None:
+            serialized.pop("motion_capability", None)
+        return serialized
 
 
 def load_predictions_jsonl(path: str | Path) -> list[dict[str, Any]]:
@@ -290,6 +347,8 @@ def write_articulation_candidate_report_html(
             "<tr>"
             f"<td>{_e(candidate.get('candidate_id'))}</td>"
             f"<td>{_e(candidate.get('review_status', 'review_required'))}</td>"
+            f"<td>{_e(candidate.get('semantic_role') or 'none')}</td>"
+            f"<td>{_e(_format_motion_capability(candidate))}</td>"
             f"<td>{_e(candidate.get('joint_type_hint'))}</td>"
             f"<td>{_e(candidate.get('axis_hint'))}</td>"
             f"<td>{_e(candidate.get('confidence'))}</td>"
@@ -310,7 +369,7 @@ def write_articulation_candidate_report_html(
         )
 
     body = "\n".join(rows) or (
-        '<tr><td colspan="18">No articulation candidates found.</td></tr>'
+        '<tr><td colspan="20">No articulation candidates found.</td></tr>'
     )
     joint_counts = summary.get("joint_type_counts", {})
     review_status_counts = summary.get("review_status_counts", {})
@@ -370,6 +429,8 @@ def write_articulation_candidate_report_html(
       <tr>
         <th>Candidate</th>
         <th>Status</th>
+        <th>Semantic Role</th>
+        <th>Motion Capability</th>
         <th>Joint Type</th>
         <th>Axis</th>
         <th>Confidence</th>
@@ -403,6 +464,7 @@ def infer_articulation_candidates(
     *,
     output_key: str = "classification",
     candidate_joint_types: Sequence[str] | None = None,
+    enable_source_backed_v1_breadth: bool = False,
     prim_metadata: Iterable[dict[str, Any]]
     | Mapping[str, dict[str, Any]]
     | None = None,
@@ -415,6 +477,9 @@ def infer_articulation_candidates(
     LLM/VLM fields; bbox, extent, center, names, and path structure never supply
     joint truth.
     """
+    if type(enable_source_backed_v1_breadth) is not bool:
+        raise TypeError("enable_source_backed_v1_breadth must be a bool")
+
     prediction_rows = list(predictions)
     candidate_joint_type_values = (
         DEFAULT_CANDIDATE_JOINT_TYPES
@@ -424,17 +489,48 @@ def infer_articulation_candidates(
     candidate_joint_type_set = {
         _clean_token(value) for value in candidate_joint_type_values
     }
-    source_structure_index = _source_structure_index(prim_metadata)
-    raw_payloads = [
-        _PredictionPayload(
-            prim_path=str(row.get("id", "")),
-            payload=_classification_payload(row, output_key) or {},
+    normalized_prim_metadata = (
+        prim_metadata
+        if prim_metadata is None or isinstance(prim_metadata, Mapping)
+        else tuple(prim_metadata)
+    )
+    source_structure_index = _source_structure_index(normalized_prim_metadata)
+    breadth_projections: dict[str, list[Stage1BreadthProjection]] = {}
+    if enable_source_backed_v1_breadth:
+        from joint_agent.functions.stage1_breadth_projection import (
+            Stage1BreadthProjection,
+            project_stage1_for_v1_breadth,
         )
-        for row in prediction_rows
-    ]
+    raw_payloads: list[_PredictionPayload] = []
+    for row in prediction_rows:
+        prim_path = str(row.get("id", ""))
+        raw_payload = row.get(output_key)
+        if enable_source_backed_v1_breadth and isinstance(raw_payload, Mapping):
+            projection = project_stage1_for_v1_breadth(
+                raw_payload,
+                output_key=output_key,
+            )
+            breadth_projections.setdefault(prim_path, []).append(projection)
+            payload = projection.payload
+        elif enable_source_backed_v1_breadth:
+            projection = Stage1BreadthProjection(
+                payload={},
+                rejected_paths=(output_key,),
+            )
+            breadth_projections.setdefault(prim_path, []).append(projection)
+            payload = projection.payload
+        else:
+            payload = _classification_payload(row, output_key) or {}
+        raw_payloads.append(
+            _PredictionPayload(
+                prim_path=prim_path,
+                payload=payload,
+            )
+        )
     source_structure_index = _with_observable_hierarchy_leaf_aliases(
         source_structure_index,
         raw_payloads,
+        prim_metadata=normalized_prim_metadata,
     )
     canonical_payloads = _canonicalize_transparent_hierarchy_endpoint_claims(
         raw_payloads,
@@ -443,6 +539,7 @@ def infer_articulation_candidates(
     canonical_payloads = _collapse_explicit_instance_link_members(
         canonical_payloads,
         candidate_joint_type_set=candidate_joint_type_set,
+        source_structure_index=source_structure_index,
     )
     explicit_moving_link_representatives = _explicit_instance_link_representatives(
         canonical_payloads,
@@ -469,6 +566,11 @@ def infer_articulation_candidates(
         else known_prim_paths
     )
     payload_by_prim = {row.prim_path: row.payload for row in payloads if row.prim_path}
+    motion_source_prediction_ids_by_prim = {
+        row.prim_path: tuple(row.source_prediction_ids)
+        for row in payloads
+        if row.prim_path
+    }
     compound_edge_collection = _collect_compound_edge_evidence(
         payloads=payloads,
         known_prim_paths=valid_endpoint_paths,
@@ -487,12 +589,19 @@ def infer_articulation_candidates(
         compound_edge_collection.conflict_candidate_body1_paths
     )
     candidates: list[dict[str, Any]] = []
+    motion_source_prediction_ids_by_candidate_id: dict[str, tuple[str, ...]] = {}
+    base_confidence_by_candidate_id: dict[str, Any] = {}
     unresolved_axis_count = 0
     unresolved_parent_count = 0
 
     for payload_row in payloads:
         payload = payload_row.payload
-        joint_type = _clean_token(payload.get("joint_type_hint"), "unknown")
+        source_joint_type = _clean_token(payload.get("joint_type_hint"), "unknown")
+        semantic_role, motion_capability = _semantic_motion_admission(payload)
+        joint_type, motion_capability_conflict = _motion_type_for_semantic_admission(
+            source_joint_type,
+            motion_capability=motion_capability,
+        )
         candidate_flag = _articulation_candidate_flag_state(
             payload.get("is_articulation_candidate")
         )
@@ -504,6 +613,7 @@ def infer_articulation_candidates(
             candidate_flag is not True
             and not joint_type_promotes
             and not source_support_joint_type_conflict
+            and motion_capability is None
         ):
             continue
 
@@ -725,7 +835,47 @@ def infer_articulation_candidates(
             body1_resolved=body1_resolution.resolved,
             candidate_joint_type_set=candidate_joint_type_set,
             compound_edge_conflict=bool(compound_edge_conflict_evidence),
+            passive_spherical=enable_source_backed_v1_breadth,
         )
+        if motion_capability is not None:
+            if motion_capability.kind == "unsupported":
+                unresolved_reason_codes = [
+                    code
+                    for code in unresolved_reason_codes
+                    if code
+                    not in {
+                        "axis_missing",
+                        "axis_non_axis_aligned",
+                        "parent_unresolved",
+                        "parent_self_reference",
+                    }
+                ]
+                if "role_deferred_0_5" not in unresolved_reason_codes:
+                    unresolved_reason_codes.insert(0, "role_deferred_0_5")
+            elif motion_capability.kind == "unresolved":
+                unresolved_reason_codes = [
+                    code
+                    for code in unresolved_reason_codes
+                    if code
+                    not in {
+                        "axis_missing",
+                        "axis_non_axis_aligned",
+                        "parent_unresolved",
+                        "parent_self_reference",
+                    }
+                ]
+                if "role_deferred_0_5" not in unresolved_reason_codes:
+                    unresolved_reason_codes.insert(0, "role_deferred_0_5")
+            elif motion_capability_conflict:
+                if "joint_type_conflict" not in unresolved_reason_codes:
+                    unresolved_reason_codes.insert(0, "joint_type_conflict")
+        breadth_reason_codes: list[Stage2BreadthUnresolvedReasonCode] = []
+        if (
+            enable_source_backed_v1_breadth
+            and joint_type == "spherical"
+            and (motion_axis_world is not None or axis_hint not in _UNKNOWN_VALUES)
+        ):
+            breadth_reason_codes.append("spherical_axis_not_applicable")
         if support_axis_conflict_evidence is not None:
             unresolved_reason_codes.insert(0, "axis_evidence_conflict")
         if (
@@ -742,9 +892,22 @@ def infer_articulation_candidates(
             unresolved_reason_codes.insert(0, "link_membership_conflict")
         unresolved_questions: list[str] = []
 
+        if motion_capability is not None:
+            capability_question = _semantic_motion_capability_question(
+                motion_capability,
+                conflict=motion_capability_conflict,
+                source_joint_type=source_joint_type,
+            )
+            if capability_question is not None:
+                unresolved_questions.append(capability_question)
+
         if "axis_evidence_conflict" in unresolved_reason_codes:
             unresolved_questions.append(
                 "Resolve the conflicting motion-axis evidence for this body edge."
+            )
+        if "spherical_axis_not_applicable" in breadth_reason_codes:
+            unresolved_questions.append(
+                "Remove axis evidence from the passive spherical candidate."
             )
         if "compound_edge_conflict" in unresolved_reason_codes:
             unresolved_questions.append("Resolve the compound-edge evidence conflict.")
@@ -769,7 +932,14 @@ def infer_articulation_candidates(
             )
         if "body1_unresolved" in unresolved_reason_codes:
             unresolved_questions.append("Resolve the moving body/body1 evidence.")
-        if motion_axis_world is None:
+        requires_joint_evidence = motion_capability is None or (
+            motion_capability.kind == "passive_rotation"
+        )
+        if (
+            requires_joint_evidence
+            and motion_axis_world is None
+            and not (enable_source_backed_v1_breadth and joint_type == "spherical")
+        ):
             unresolved_axis_count += 1
             if "axis_non_axis_aligned" in unresolved_reason_codes:
                 unresolved_questions.append(
@@ -777,7 +947,7 @@ def infer_articulation_candidates(
                 )
             else:
                 unresolved_questions.append("Determine the joint axis.")
-        if fixed_parent_prim is None:
+        if requires_joint_evidence and fixed_parent_prim is None:
             unresolved_parent_count += 1
             if "parent_self_reference" in unresolved_reason_codes:
                 unresolved_questions.append(
@@ -807,6 +977,14 @@ def infer_articulation_candidates(
             ),
             payload=payload,
             axis_source=axis_source,
+            motion_type_source=(
+                _stage1_field_source(payload, "joint_type_hint")
+                or cast(Stage2FieldSource, motion_capability.source)
+                if motion_capability is not None
+                and motion_capability.kind == "passive_rotation"
+                and not motion_capability_conflict
+                else None
+            ),
         )
         axis_evidence = _axis_evidence_for_candidate(
             axis_hint=axis_hint,
@@ -821,7 +999,18 @@ def infer_articulation_candidates(
             payload=payload,
             moving_prim_path=moving_body_prim,
             joint_type_hint=joint_type,
+            passive_spherical=enable_source_backed_v1_breadth,
         )
+        if (
+            enable_source_backed_v1_breadth
+            and joint_type == "spherical"
+            and limit_resolution.readiness != "not_provided"
+        ):
+            breadth_reason_codes.append("spherical_scalar_limit_unsupported")
+            unresolved_questions.append(
+                "Remove scalar spherical limit evidence; v1 supports passive "
+                "spherical topology only."
+            )
         connectivity_evidence = _connectivity_evidence_for_candidate(
             moving_prim_path=moving_body_prim,
             fixed_parent_prim=fixed_parent_prim,
@@ -839,71 +1028,77 @@ def infer_articulation_candidates(
             connectivity_evidence.extend(compound_edge_conflict_evidence)
         review_status: Stage2ReviewStatus = (
             REVIEW_REQUIRED_STATUS
-            if unresolved_reason_codes
+            if unresolved_reason_codes or breadth_reason_codes
             else READY_FOR_RIGGER_INPUT_STATUS
         )
 
-        candidates.append(
-            Stage2ArticulationCandidate(
-                candidate_id=candidate_id,
-                motion_type=_motion_type_from_joint_hint(joint_type),
-                joint_type_hint=joint_type,
-                axis_hint=axis_hint,
-                motion_axis_world=motion_axis_world,
-                confidence=confidence,
-                moving_part_prims=_explicit_instance_moving_members(
-                    payload,
-                    moving_body_prim=moving_body_prim,
-                ),
-                fixed_parent_prim=fixed_parent_prim,
-                parent_resolution_source=parent_resolution_source,
-                parent_hint=parent_hint,
-                child_hint=_clean_text(payload.get("child_hint"), "unknown"),
-                component_name=_clean_text(payload.get("component_name"), "unknown"),
-                component_type=_clean_text(payload.get("component_type"), "unknown"),
-                role=_clean_token(payload.get("role"), "unknown"),
-                source_prediction_ids=_dedupe_preserving_order(
-                    [
-                        value
-                        for value in (
-                            *payload_row.source_prediction_ids,
-                            *(
-                                compound_edge.source_prediction_ids
-                                if compound_edge is not None
-                                else ()
-                            ),
-                            *compound_edge_conflict_source_ids,
-                        )
-                        if value
-                    ]
-                ),
-                evidence=evidence,
-                source_annotation_conflicts={
-                    str(field): [str(value) for value in values]
-                    for field, values in (
-                        payload.get("_source_support_annotation_conflicts", {})
-                    ).items()
-                    if isinstance(field, str) and isinstance(values, list)
-                }
-                if isinstance(
-                    payload.get("_source_support_annotation_conflicts"),
-                    Mapping,
-                )
-                else {},
-                field_sources=field_sources,
-                axis_evidence=axis_evidence,
-                connectivity_evidence=connectivity_evidence,
-                lower_limit=limit_resolution.lower_limit,
-                upper_limit=limit_resolution.upper_limit,
-                limit_unit=limit_resolution.unit,
-                limit_source=limit_resolution.source,
-                limit_readiness=limit_resolution.readiness,
-                limit_evidence=limit_resolution.evidence,
-                unresolved_reason_codes=unresolved_reason_codes,
-                review_status=review_status,
-                unresolved_questions=unresolved_questions,
-            ).model_dump(mode="json")
+        candidate_document = Stage2ArticulationCandidate(
+            candidate_id=candidate_id,
+            motion_type=_motion_type_from_joint_hint(joint_type),
+            joint_type_hint=joint_type,
+            axis_hint=axis_hint,
+            motion_axis_world=motion_axis_world,
+            confidence=confidence,
+            moving_part_prims=_explicit_instance_moving_members(
+                payload,
+                moving_body_prim=moving_body_prim,
+            ),
+            fixed_parent_prim=fixed_parent_prim,
+            parent_resolution_source=parent_resolution_source,
+            parent_hint=parent_hint,
+            child_hint=_clean_text(payload.get("child_hint"), "unknown"),
+            component_name=_clean_text(payload.get("component_name"), "unknown"),
+            component_type=_clean_text(payload.get("component_type"), "unknown"),
+            role=_clean_token(payload.get("role"), "unknown"),
+            semantic_role=semantic_role,
+            motion_capability=motion_capability,
+            source_prediction_ids=_dedupe_preserving_order(
+                [
+                    value
+                    for value in (
+                        *payload_row.source_prediction_ids,
+                        *(
+                            compound_edge.source_prediction_ids
+                            if compound_edge is not None
+                            else ()
+                        ),
+                        *compound_edge_conflict_source_ids,
+                    )
+                    if value
+                ]
+            ),
+            evidence=evidence,
+            source_annotation_conflicts={
+                str(field): [str(value) for value in values]
+                for field, values in (
+                    payload.get("_source_support_annotation_conflicts", {})
+                ).items()
+                if isinstance(field, str) and isinstance(values, list)
+            }
+            if isinstance(
+                payload.get("_source_support_annotation_conflicts"),
+                Mapping,
+            )
+            else {},
+            field_sources=field_sources,
+            axis_evidence=axis_evidence,
+            connectivity_evidence=connectivity_evidence,
+            lower_limit=limit_resolution.lower_limit,
+            upper_limit=limit_resolution.upper_limit,
+            limit_unit=limit_resolution.unit,
+            limit_source=limit_resolution.source,
+            limit_readiness=limit_resolution.readiness,
+            limit_evidence=limit_resolution.evidence,
+            unresolved_reason_codes=unresolved_reason_codes,
+            review_status=review_status,
+            unresolved_questions=unresolved_questions,
+        ).model_dump(mode="json")
+        candidate_document["unresolved_reason_codes"].extend(breadth_reason_codes)
+        candidates.append(candidate_document)
+        motion_source_prediction_ids_by_candidate_id[candidate_id] = tuple(
+            payload_row.source_prediction_ids
         )
+        base_confidence_by_candidate_id[candidate_id] = payload.get("confidence")
 
     existing_candidate_body1_paths = _candidate_moving_prim_paths(candidates)
     body1_paths_with_compound_evidence = _dedupe_preserving_order(
@@ -936,6 +1131,12 @@ def infer_articulation_candidates(
                 payload_by_prim=payload_by_prim,
             )
             candidates.append(candidate)
+            motion_source_prediction_ids_by_candidate_id[candidate["candidate_id"]] = (
+                motion_source_prediction_ids_by_prim.get(body1, ())
+            )
+            base_confidence_by_candidate_id[candidate["candidate_id"]] = (
+                payload_by_prim.get(body1, {}).get("confidence")
+            )
             existing_candidate_body1_paths.add(body1)
             if candidate["motion_axis_world"] is None:
                 unresolved_axis_count += 1
@@ -949,8 +1150,38 @@ def infer_articulation_candidates(
                 candidate_joint_type_set=candidate_joint_type_set,
             )
             candidates.append(candidate)
+            motion_source_prediction_ids_by_candidate_id[candidate["candidate_id"]] = (
+                motion_source_prediction_ids_by_prim.get(body1, ())
+            )
+            base_confidence_by_candidate_id[candidate["candidate_id"]] = (
+                compound_edge.confidence
+            )
             if candidate["motion_axis_world"] is None:
                 unresolved_axis_count += 1
+
+    if enable_source_backed_v1_breadth:
+        _apply_stage1_breadth_projections(
+            candidates,
+            projections_by_prediction_id=breadth_projections,
+            motion_source_prediction_ids_by_candidate_id=(
+                motion_source_prediction_ids_by_candidate_id
+            ),
+        )
+        _recompute_candidate_confidences(
+            candidates,
+            base_confidence_by_candidate_id=base_confidence_by_candidate_id,
+        )
+        unresolved_axis_count = sum(
+            candidate["motion_axis_world"] is None
+            and candidate["motion_type"] != "spherical"
+            and _candidate_requires_joint_evidence(candidate)
+            for candidate in candidates
+        )
+        unresolved_parent_count = sum(
+            candidate["fixed_parent_prim"] is None
+            and _candidate_requires_joint_evidence(candidate)
+            for candidate in candidates
+        )
 
     joint_counts = Counter(candidate["joint_type_hint"] for candidate in candidates)
     review_status_counts = Counter(
@@ -985,6 +1216,365 @@ def infer_articulation_candidates(
         },
         "candidates": candidates,
     }
+
+
+def _apply_stage1_breadth_projections(
+    candidates: list[dict[str, Any]],
+    *,
+    projections_by_prediction_id: Mapping[
+        str,
+        Sequence[Stage1BreadthProjection],
+    ],
+    motion_source_prediction_ids_by_candidate_id: Mapping[
+        str,
+        Sequence[str],
+    ],
+) -> None:
+    """Apply breadth facts owned by each admitted moving candidate.
+
+    ``source_prediction_ids`` is the candidate's full provenance union. It may
+    include fixed/support rows that supplied compound-edge connectivity, so it
+    cannot define authority for motion facts. The transient ownership mapping
+    keeps motion projections scoped to the moving payload row and its collapsed
+    moving aliases without changing the serialized Stage 2 contract.
+    """
+
+    from joint_agent.functions.joint_0_6_breadth import (
+        requires_source_backed_proof,
+        validate_source_backed_breadth_proof,
+    )
+
+    artifact_rejected_paths = sorted(
+        {
+            f"{source_id or '<missing-id>'}:{path}"
+            for source_id, projections in projections_by_prediction_id.items()
+            for projection in projections
+            for path in projection.rejected_paths
+        }
+    )
+
+    for candidate in candidates:
+        candidate_id = cast(str, candidate["candidate_id"])
+        motion_source_prediction_ids = motion_source_prediction_ids_by_candidate_id.get(
+            candidate_id,
+            (),
+        )
+        projections = [
+            projection
+            for source_id in motion_source_prediction_ids
+            for projection in projections_by_prediction_id.get(str(source_id), ())
+        ]
+        if artifact_rejected_paths:
+            _mark_breadth_review_required(
+                candidate,
+                code="stage1_projection_rejected",
+                question=(
+                    "Remove or explicitly adapt unconsumed Stage 1 fields in "
+                    "the source artifact: " + ", ".join(artifact_rejected_paths)
+                ),
+            )
+
+        _apply_projected_motion_axis(candidate, projections)
+
+        source_joint_types = {
+            projection.source_joint_type
+            for projection in projections
+            if projection.source_joint_type is not None
+        }
+        if not source_joint_types:
+            pass
+        elif source_joint_types == {"continuous"}:
+            candidate["source_joint_type"] = "continuous"
+            sources = {
+                projection.source_joint_type_source
+                for projection in projections
+                if projection.source_joint_type is not None
+            }
+            field_sources = candidate.get("field_sources")
+            if isinstance(field_sources, dict) and sources == {"source_metadata"}:
+                field_sources["source_joint_type"] = "source_metadata"
+            else:
+                _mark_breadth_review_required(
+                    candidate,
+                    code="source_joint_type_requires_source_adapter",
+                    question=(
+                        "Bind continuous source joint type to source_metadata "
+                        "provenance."
+                    ),
+                )
+        else:  # pragma: no cover - the closed projector admits one literal.
+            _mark_breadth_review_required(
+                candidate,
+                code="source_joint_type_requires_source_adapter",
+                question="Resolve conflicting source joint types.",
+            )
+
+        # Proof admission and direct construction are deliberately distinct.
+        # Every row that asserts trusted source authority must prove it here;
+        # only the consumer's direct selector decides whether legacy 0.5
+        # construction can still represent the admitted topology.
+        if not requires_source_backed_proof(candidate):
+            continue
+
+        _bind_source_backed_axis_evidence(candidate)
+        _bind_source_backed_limit_evidence(candidate)
+
+        if candidate.get("review_status") != READY_FOR_RIGGER_INPUT_STATUS:
+            continue
+        proof_result = validate_source_backed_breadth_proof(candidate)
+        if not proof_result.requested or proof_result.accepted:
+            continue
+        failure = proof_result.failures[0]
+        if candidate.get("source_joint_type") == "continuous":
+            code: Stage2BreadthUnresolvedReasonCode = (
+                "source_joint_type_requires_source_adapter"
+            )
+        elif candidate.get("motion_type") == "spherical":
+            if failure.code == "stage2_spherical_axis_not_applicable":
+                code = "spherical_axis_not_applicable"
+            elif failure.code == "stage2_spherical_scalar_limit_unsupported":
+                code = "spherical_scalar_limit_unsupported"
+            else:
+                code = "spherical_source_evidence_required"
+        else:
+            code = "source_backed_proof_required"
+        _mark_breadth_review_required(
+            candidate,
+            code=code,
+            question=(
+                f"Resolve Joint 0.6 source proof {failure.code}: {failure.detail}"
+            ),
+        )
+
+
+def _apply_projected_motion_axis(
+    candidate: dict[str, Any],
+    projections: Sequence[Stage1BreadthProjection],
+) -> None:
+    """Apply one exact private Stage 1 vector after candidate aggregation."""
+
+    facts = [
+        projection.motion_axis
+        for projection in projections
+        if projection.motion_axis is not None
+    ]
+    if not facts:
+        return
+    axes = {fact.axis for fact in facts}
+    sources = {fact.source for fact in facts}
+    nonempty_paths = {fact.prim_paths for fact in facts if fact.prim_paths}
+    if len(axes) != 1 or len(sources) != 1 or len(nonempty_paths) > 1:
+        _mark_projected_axis_conflict(
+            candidate,
+            "Resolve conflicting typed Stage 1 motion-axis vectors.",
+        )
+        return
+
+    fact = facts[0]
+    axis = fact.axis
+    moving_part_prims = candidate.get("moving_part_prims")
+    body0 = candidate.get("fixed_parent_prim")
+    if (
+        not isinstance(body0, str)
+        or not isinstance(moving_part_prims, list)
+        or not moving_part_prims
+        or not isinstance(moving_part_prims[0], str)
+    ):
+        return
+    body1 = moving_part_prims[0]
+    represented_paths = next(iter(nonempty_paths), ())
+    if represented_paths and represented_paths != (body0, body1):
+        _mark_projected_axis_conflict(
+            candidate,
+            "Bind the typed Stage 1 axis to the exact directed body0/body1 edge.",
+        )
+        return
+
+    existing_axis = candidate.get("motion_axis_world")
+    if isinstance(existing_axis, list) and tuple(existing_axis) != axis:
+        _mark_projected_axis_conflict(
+            candidate,
+            "Resolve the conflict between the axis hint and typed Stage 1 vector.",
+        )
+        return
+
+    axis_hint = _clean_token(candidate.get("axis_hint"))
+    cardinal_axis = _AXIS_HINT_TO_WORLD.get(axis_hint)
+    if cardinal_axis is not None and cardinal_axis != axis:
+        _mark_projected_axis_conflict(
+            candidate,
+            "Resolve the conflict between the cardinal axis hint and typed vector.",
+        )
+        return
+    if "axis_evidence_conflict" in candidate.get(
+        "unresolved_reason_codes", ()
+    ) or candidate.get("source_annotation_conflicts", {}).get("axis_hint"):
+        return
+
+    field_sources = candidate.get("field_sources")
+    if not isinstance(field_sources, dict):
+        field_sources = {}
+        candidate["field_sources"] = field_sources
+    candidate["motion_axis_world"] = list(axis)
+    field_sources["motion_axis_world"] = fact.source
+    canonical_cardinal_hint = _CARDINAL_AXIS_TO_SIGNED_HINT.get(axis)
+    if cardinal_axis is None and canonical_cardinal_hint is None:
+        candidate["axis_hint"] = "unknown"
+        field_sources["axis_hint"] = "unknown"
+    else:
+        if cardinal_axis is None:
+            candidate["axis_hint"] = canonical_cardinal_hint
+        field_sources["axis_hint"] = fact.source
+
+    reason_codes = candidate.get("unresolved_reason_codes")
+    if isinstance(reason_codes, list):
+        candidate["unresolved_reason_codes"] = [
+            code
+            for code in reason_codes
+            if code not in {"axis_missing", "axis_non_axis_aligned"}
+        ]
+    questions = candidate.get("unresolved_questions")
+    if isinstance(questions, list):
+        candidate["unresolved_questions"] = [
+            question
+            for question in questions
+            if question
+            not in {
+                "Determine the joint axis.",
+                "Resolve the joint axis because the hint is not axis-aligned.",
+            }
+        ]
+    if not candidate.get("unresolved_reason_codes"):
+        candidate["review_status"] = READY_FOR_RIGGER_INPUT_STATUS
+
+
+def _mark_projected_axis_conflict(
+    candidate: dict[str, Any],
+    question: str,
+) -> None:
+    _mark_breadth_review_required(
+        candidate,
+        code="axis_evidence_conflict",
+        question=question,
+    )
+
+
+def _mark_breadth_review_required(
+    candidate: dict[str, Any],
+    *,
+    code: Stage2BreadthUnresolvedReasonCode,
+    question: str,
+) -> None:
+    reason_codes = candidate.setdefault("unresolved_reason_codes", [])
+    if code not in reason_codes:
+        reason_codes.append(code)
+    questions = candidate.setdefault("unresolved_questions", [])
+    if question not in questions:
+        questions.append(question)
+    candidate["review_status"] = REVIEW_REQUIRED_STATUS
+    if candidate.get("confidence") == "high":
+        candidate["confidence"] = "medium"
+
+
+def _bind_source_backed_axis_evidence(candidate: dict[str, Any]) -> None:
+    """Bind trusted Stage 2 axis evidence to the resolved directed body edge."""
+
+    field_sources = candidate.get("field_sources")
+    moving_part_prims = candidate.get("moving_part_prims")
+    body0 = candidate.get("fixed_parent_prim")
+    if (
+        not isinstance(field_sources, Mapping)
+        or not isinstance(moving_part_prims, list)
+        or not moving_part_prims
+        or not isinstance(body0, str)
+    ):
+        return
+    body1 = moving_part_prims[0]
+    axis_hint = candidate.get("axis_hint")
+    axis = candidate.get("motion_axis_world")
+    axis_source = field_sources.get("motion_axis_world")
+    normalized_axis_hint = (
+        axis_hint.strip().lower() if isinstance(axis_hint, str) else ""
+    )
+    cardinal_axis = _AXIS_HINT_TO_WORLD.get(normalized_axis_hint)
+    if (
+        not isinstance(body1, str)
+        or not isinstance(axis, list)
+        or axis_source not in SOURCE_BACKED_STAGE2_SOURCES
+        or (
+            cardinal_axis is not None
+            and (
+                field_sources.get("axis_hint") != axis_source
+                or list(cardinal_axis) != axis
+            )
+        )
+        or (
+            cardinal_axis is None
+            and (
+                normalized_axis_hint not in _UNKNOWN_VALUES
+                or field_sources.get("axis_hint") not in {None, "unknown"}
+            )
+        )
+        or any(
+            code in candidate.get("unresolved_reason_codes", ())
+            for code in ("axis_evidence_conflict", "axis_non_axis_aligned")
+        )
+    ):
+        return
+    represented_axis = (
+        normalized_axis_hint
+        if cardinal_axis is not None
+        else json.dumps(axis, separators=(",", ":"), allow_nan=False)
+    )
+    candidate["axis_evidence"] = [
+        Stage2EvidenceItem(
+            source=cast(Stage2FieldSource, axis_source),
+            description=(
+                "Source-backed motion axis bound to the resolved directed "
+                "body0/body1 edge."
+            ),
+            value=represented_axis,
+            prim_paths=[body0, body1],
+        ).model_dump(mode="json")
+    ]
+
+
+def _bind_source_backed_limit_evidence(candidate: dict[str, Any]) -> None:
+    """Serialize opt-in source-backed bounds with exact round-trip precision."""
+
+    moving_part_prims = candidate.get("moving_part_prims")
+    source = candidate.get("limit_source")
+    lower = candidate.get("lower_limit")
+    upper = candidate.get("upper_limit")
+    unit = candidate.get("limit_unit")
+    if (
+        candidate.get("limit_readiness") != "source_backed"
+        or source not in SOURCE_BACKED_STAGE2_SOURCES
+        or not isinstance(moving_part_prims, list)
+        or not moving_part_prims
+        or not isinstance(moving_part_prims[0], str)
+        or not isinstance(unit, str)
+        or (lower is None and upper is None)
+    ):
+        return
+
+    def represented(value: Any) -> str:
+        return "unknown" if value is None else repr(float(value))
+
+    candidate["limit_evidence"] = [
+        Stage2EvidenceItem(
+            source=cast(Stage2FieldSource, source),
+            description=(
+                "Source-backed motion limits bound to the exact moving body1 endpoint."
+            ),
+            value=(
+                f"lower_limit={represented(lower)}, "
+                f"upper_limit={represented(upper)}, "
+                f"unit={unit}, source={source}"
+            ),
+            prim_paths=[moving_part_prims[0]],
+        ).model_dump(mode="json")
+    ]
 
 
 class _PredictionPayload:
@@ -1445,30 +2035,42 @@ _HIERARCHY_ENDPOINT_CANONICALIZATIONS = "_source_hierarchy_endpoint_canonicaliza
 def _with_observable_hierarchy_leaf_aliases(
     source_structure_index: _SourceStructureIndex,
     payloads: Sequence[_PredictionPayload],
+    *,
+    prim_metadata: Iterable[dict[str, Any]]
+    | Mapping[str, dict[str, Any]]
+    | None = None,
 ) -> _SourceStructureIndex:
     if source_structure_index.structure_mode != "hierarchy":
         return source_structure_index
 
-    observable_paths = {row.prim_path for row in payloads if row.prim_path}
-    descendant_leaves_by_wrapper: dict[str, set[str]] = {}
-    ancestor_index = source_structure_index.hierarchy_ancestor_paths_by_prim_path or {}
-    nearest_ancestor_index = (
-        source_structure_index.hierarchy_nearest_ancestor_by_prim_path or {}
+    observable_paths = sorted({row.prim_path for row in payloads if row.prim_path})
+    if prim_metadata is None:
+        endpoint_paths_by_prim = (
+            source_structure_index.hierarchy_endpoint_paths_by_prim_path or {}
+        )
+        ancestor_paths_by_prim = (
+            source_structure_index.hierarchy_ancestor_paths_by_prim_path or {}
+        )
+        prim_metadata = {
+            prim_path: {
+                "structure_provenance": "source_hierarchy",
+                "hierarchy_xform_paths": sorted(
+                    endpoint_paths_by_prim.get(prim_path, ())
+                ),
+                "hierarchy_ancestor_xform_paths": sorted(
+                    ancestor_paths_by_prim.get(prim_path, ())
+                ),
+            }
+            for prim_path in observable_paths
+        }
+    endpoint_identities = build_articulation_endpoint_identity_index(
+        observable_paths,
+        _normalize_prim_metadata_index(prim_metadata),
     )
-    for observable_path in observable_paths:
-        for wrapper_path in ancestor_index.get(observable_path, ()):
-            descendant_leaves_by_wrapper.setdefault(wrapper_path, set()).add(
-                observable_path
-            )
-    transparent_leaf_by_wrapper = {
-        wrapper_path: next(iter(leaves))
-        for wrapper_path, leaves in descendant_leaves_by_wrapper.items()
-        if len(leaves) == 1
-        and wrapper_path not in leaves
-        and nearest_ancestor_index.get(next(iter(leaves))) == wrapper_path
-    }
     return source_structure_index._replace(
-        hierarchy_transparent_leaf_by_wrapper=transparent_leaf_by_wrapper
+        hierarchy_transparent_leaf_by_wrapper=(
+            endpoint_identities.unambiguous_aliases()
+        )
     )
 
 
@@ -1616,7 +2218,13 @@ def _rigger_evidence_references_transparent_hierarchy_wrapper(
             continue
         claim_value = _clean_text(claim.get("value"), "unknown")
         exact_paths = _rigger_claim_exact_paths(claim, claim_value=claim_value)
-        if len(exact_paths) == 1 and exact_paths[0] in transparent_leaf_by_wrapper:
+        if (
+            _canonical_transparent_endpoint(
+                exact_paths,
+                transparent_leaf_by_wrapper=transparent_leaf_by_wrapper,
+            )
+            is not None
+        ):
             return True
 
     raw_edges = evidence.get("compound_edges")
@@ -1637,8 +2245,11 @@ def _rigger_evidence_references_transparent_hierarchy_wrapper(
                 ).startswith("/")
             }
             if (
-                len(endpoint_values) == 1
-                and next(iter(endpoint_values)) in transparent_leaf_by_wrapper
+                _canonical_transparent_endpoint(
+                    endpoint_values,
+                    transparent_leaf_by_wrapper=transparent_leaf_by_wrapper,
+                )
+                is not None
             ):
                 return True
     return False
@@ -1651,12 +2262,14 @@ def _canonicalize_transparent_hierarchy_rigger_claim(
 ) -> bool:
     claim_value = _clean_text(claim.get("value"), "unknown")
     exact_paths = _rigger_claim_exact_paths(claim, claim_value=claim_value)
-    if len(exact_paths) != 1:
+    canonicalization = _canonical_transparent_endpoint(
+        exact_paths,
+        transparent_leaf_by_wrapper=transparent_leaf_by_wrapper,
+    )
+    if canonicalization is None:
         return False
-    wrapper_path = exact_paths[0]
-    leaf_path = transparent_leaf_by_wrapper.get(wrapper_path)
-    if leaf_path is None:
-        return False
+    leaf_path, alias_paths = canonicalization
+    wrapper_path = alias_paths[0]
 
     claim["value"] = leaf_path
     claim["prim_paths"] = [leaf_path]
@@ -1686,13 +2299,14 @@ def _canonicalize_transparent_hierarchy_compound_edge(
             for key in (field, alias)
             if (value := _compound_edge_endpoint_value(edge.get(key))).startswith("/")
         }
-        # Conflicting primary/alias endpoint claims are not safe to rewrite.
-        if len(endpoint_values) != 1:
+        canonicalization = _canonical_transparent_endpoint(
+            endpoint_values,
+            transparent_leaf_by_wrapper=transparent_leaf_by_wrapper,
+        )
+        if canonicalization is None:
             continue
-        wrapper_path = next(iter(endpoint_values))
-        leaf_path = transparent_leaf_by_wrapper.get(wrapper_path)
-        if leaf_path is None:
-            continue
+        leaf_path, alias_paths = canonicalization
+        wrapper_path = alias_paths[0]
         for key in (field, alias):
             if key not in edge:
                 continue
@@ -1733,6 +2347,24 @@ def _canonicalize_transparent_hierarchy_compound_edge(
         )
     edge["rationale"] = rationale
     return True
+
+
+def _canonical_transparent_endpoint(
+    endpoint_paths: Iterable[str],
+    *,
+    transparent_leaf_by_wrapper: Mapping[str, str],
+) -> tuple[str, tuple[str, ...]] | None:
+    """Return one source-proven identity for an exact Xform/Mesh alias family."""
+    exact_paths = tuple(sorted(set(endpoint_paths)))
+    canonical_paths = {
+        transparent_leaf_by_wrapper.get(path, path) for path in exact_paths
+    }
+    alias_paths = tuple(
+        path for path in exact_paths if path in transparent_leaf_by_wrapper
+    )
+    if len(canonical_paths) != 1 or not alias_paths:
+        return None
+    return next(iter(canonical_paths)), alias_paths
 
 
 def _append_hierarchy_canonicalization_rationale(
@@ -1881,6 +2513,7 @@ def _collapse_explicit_instance_link_members(
     payloads: Sequence[_PredictionPayload],
     *,
     candidate_joint_type_set: set[str],
+    source_structure_index: _SourceStructureIndex | None = None,
 ) -> list[_PredictionPayload]:
     """Collapse only a complete, internally coherent explicit link declaration.
 
@@ -1921,9 +2554,17 @@ def _collapse_explicit_instance_link_members(
     for instance_id, indexed_rows in groups.items():
         if len(indexed_rows) < 2:
             continue
+        reconciled_link = _reconciled_owner_instance_link(
+            indexed_rows,
+            source_structure_index=source_structure_index,
+            source_prim_paths={row.prim_path for row in sanitized_payloads},
+        )
         reasons = _explicit_instance_link_conflicts(
             indexed_rows,
             candidate_joint_type_set=candidate_joint_type_set,
+            source_structure_index=source_structure_index,
+            reconciled_link=reconciled_link,
+            reconciled_link_checked=True,
         )
         anchors = [
             (index, row)
@@ -1950,6 +2591,8 @@ def _collapse_explicit_instance_link_members(
         payload = copy.deepcopy(anchor.payload)
         payload["_explicit_instance_link_members"] = member_paths
         payload["_explicit_instance_link_id"] = instance_id
+        if reconciled_link is not None:
+            payload["_explicit_instance_link_body1"] = reconciled_link["body1"]
         source_prediction_ids = _dedupe_preserving_order(
             list(anchor.source_prediction_ids)
             + [
@@ -2019,7 +2662,11 @@ def _explicit_instance_link_representatives(
             and isinstance(raw_members, list)
             and row.prim_path in raw_members
         ):
-            representatives[row.prim_path] = tuple(row.source_prediction_ids)
+            representative = (
+                _clean_text(row.payload.get("_explicit_instance_link_body1"))
+                or row.prim_path
+            )
+            representatives[representative] = tuple(row.source_prediction_ids)
 
     if source_structure_index.structure_mode != "hierarchy":
         return representatives
@@ -2047,6 +2694,7 @@ def _explicit_instance_link_representatives(
             or _explicit_instance_link_conflicts(
                 [(0, row)],
                 candidate_joint_type_set=candidate_joint_type_set,
+                source_structure_index=source_structure_index,
             )
         ):
             continue
@@ -2101,6 +2749,9 @@ def _explicit_instance_link_conflicts(
     indexed_rows: Sequence[tuple[int, _PredictionPayload]],
     *,
     candidate_joint_type_set: set[str],
+    source_structure_index: _SourceStructureIndex | None = None,
+    reconciled_link: Mapping[str, Any] | None = None,
+    reconciled_link_checked: bool = False,
 ) -> list[str]:
     rows = [row for _, row in indexed_rows]
     reasons: list[str] = []
@@ -2147,10 +2798,24 @@ def _explicit_instance_link_conflicts(
     anchor = anchors[0]
     body0 = _single_rigger_claim_endpoint(anchor.payload, "body0")
     body1 = _single_rigger_claim_endpoint(anchor.payload, "body1")
+    if not reconciled_link_checked:
+        reconciled_link = _reconciled_owner_instance_link(
+            indexed_rows,
+            source_structure_index=source_structure_index,
+        )
+    expected_body1 = (
+        str(reconciled_link["body1"])
+        if reconciled_link is not None
+        else anchor.prim_path
+    )
     if body0 is None:
         reasons.append("candidate_anchor_body0_not_exact")
-    if body1 != anchor.prim_path:
-        reasons.append("candidate_anchor_body1_not_exact_self")
+    if body1 != expected_body1:
+        reasons.append(
+            "candidate_anchor_body1_not_exact_owner_endpoint"
+            if reconciled_link is not None
+            else "candidate_anchor_body1_not_exact_self"
+        )
     expected_axis = next(iter(axes)) if len(axes) == 1 else None
     for row in rows:
         rigger_evidence = row.payload.get("rigger_evidence")
@@ -2208,6 +2873,111 @@ def _explicit_instance_link_conflicts(
         ):
             reasons.append("member_source_annotation_conflict")
     return sorted(set(reasons))
+
+
+def _reconciled_owner_instance_link(
+    indexed_rows: Sequence[tuple[int, _PredictionPayload]],
+    *,
+    source_structure_index: _SourceStructureIndex | None,
+    source_prim_paths: set[str] | None = None,
+) -> dict[str, Any] | None:
+    """Return one exact owner-level reconciliation link shared by every member."""
+    if (
+        source_structure_index is None
+        or source_structure_index.structure_mode != "rigid_body"
+    ):
+        return None
+    reconciled_links: list[tuple[str, dict[str, Any], Mapping[str, Any]]] = []
+    latest_receipts: list[Mapping[str, Any]] = []
+    for _, row in indexed_rows:
+        provenance = row.payload.get("provenance")
+        history = (
+            provenance.get("topology_reconciliation_history")
+            if isinstance(provenance, Mapping)
+            else None
+        )
+        if not isinstance(history, list) or not history:
+            return None
+        latest = history[-1]
+        if not isinstance(latest, Mapping) or latest.get("source") != "llm_adjudicated":
+            return None
+        latest_receipts.append(latest)
+        reconciled_link = latest.get("reconciled_link")
+        if reconciled_link is not None:
+            if not isinstance(reconciled_link, Mapping):
+                return None
+            reconciled_links.append((row.prim_path, dict(reconciled_link), latest))
+    if not reconciled_links:
+        return None
+    first = reconciled_links[0][1]
+    if any(link != first for _, link, _ in reconciled_links[1:]):
+        return None
+    if len(reconciled_links) != len(indexed_rows):
+        if len(reconciled_links) != 1:
+            return None
+        manifest_prim, _, manifest = reconciled_links[0]
+        evidence_group = manifest.get("topology_evidence_group")
+        evidence_members = (
+            evidence_group.get("member_prims")
+            if isinstance(evidence_group, Mapping)
+            else None
+        )
+        document_digests = [
+            receipt.get("topology_document_sha256") for receipt in latest_receipts
+        ]
+        link_ids = [receipt.get("link_id") for receipt in latest_receipts]
+        if (
+            not isinstance(evidence_group, Mapping)
+            or evidence_group.get("representative_prim") != manifest_prim
+            or not isinstance(evidence_members, list)
+            or not all(isinstance(member, str) for member in evidence_members)
+            or set(evidence_members) != {row.prim_path for _, row in indexed_rows}
+            or not all(isinstance(digest, str) for digest in document_digests)
+            or len(set(document_digests)) != 1
+            or not all(isinstance(link_id, str) for link_id in link_ids)
+            or set(link_ids) != {first.get("link_id")}
+        ):
+            return None
+    member_prims = first.get("member_prims")
+    if not isinstance(member_prims, list) or not all(
+        isinstance(member, str) for member in member_prims
+    ):
+        return None
+    prim_paths = [row.prim_path for _, row in indexed_rows]
+    anchors = [
+        row.prim_path
+        for _, row in indexed_rows
+        if _articulation_candidate_flag_state(
+            row.payload.get("is_articulation_candidate")
+        )
+        is True
+    ]
+    body1 = first.get("body1")
+    authoritative_owners = {
+        source_structure_index.owner_by_prim_path.get(prim_path)
+        for prim_path in prim_paths
+    }
+    current_source_prims = source_prim_paths or set(prim_paths)
+    complete_owner_members = {
+        prim_path
+        for prim_path, owner_path in source_structure_index.owner_by_prim_path.items()
+        if owner_path == body1 and prim_path in current_source_prims
+    }
+    if (
+        first.get("kind") != "moving"
+        or len(member_prims) != len(set(member_prims))
+        or set(member_prims) != set(prim_paths)
+        or len(anchors) != 1
+        or first.get("anchor_prim") != anchors[0]
+        or not isinstance(body1, str)
+        or not body1.startswith("/")
+        or body1 in member_prims
+        or authoritative_owners != {body1}
+        or body1 not in source_structure_index.endpoint_paths
+        or set(prim_paths) != complete_owner_members
+    ):
+        return None
+    return first
 
 
 def _explicit_instance_moving_members(
@@ -2740,6 +3510,7 @@ def _candidate_unresolved_reason_codes(
     body1_resolved: bool,
     candidate_joint_type_set: set[str],
     compound_edge_conflict: bool = False,
+    passive_spherical: bool = False,
 ) -> list[Stage2UnresolvedReasonCode]:
     reason_codes: list[Stage2UnresolvedReasonCode] = []
     if compound_edge_conflict:
@@ -2750,7 +3521,9 @@ def _candidate_unresolved_reason_codes(
         reason_codes.append("candidate_flag_conflict")
     if body1_evidence_present and not body1_resolved:
         reason_codes.append("body1_unresolved")
-    if motion_axis_world is None:
+    if passive_spherical and joint_type == "spherical":
+        pass
+    elif motion_axis_world is None:
         if axis_hint in _UNKNOWN_VALUES:
             reason_codes.append("axis_missing")
         else:
@@ -2760,6 +3533,77 @@ def _candidate_unresolved_reason_codes(
             "parent_self_reference" if parent_resolved_to_self else "parent_unresolved"
         )
     return reason_codes
+
+
+def _semantic_motion_admission(
+    payload: Mapping[str, Any],
+) -> tuple[str | None, Stage1SemanticMotionCapability | None]:
+    """Return typed semantic motion evidence without interpreting the role noun."""
+
+    semantic_role_value = _clean_token(payload.get("semantic_role"), "")
+    semantic_role = (
+        semantic_role_value
+        if semantic_role_value and semantic_role_value not in _UNKNOWN_VALUES
+        else None
+    )
+    raw_capability = payload.get("motion_capability")
+    if raw_capability is None:
+        # ``semantic_role`` is descriptive vocabulary, not motion evidence.  In
+        # particular, older provider responses may duplicate a closed role here
+        # (for example ``role=wheel, semantic_role=wheel``).  Preserve the noun
+        # for diagnostics without synthesizing a capability that can promote a
+        # candidate or erase otherwise valid typed Joint facts.
+        return semantic_role, None
+    try:
+        capability = Stage1SemanticMotionCapability.model_validate(raw_capability)
+    except ValidationError:
+        capability = Stage1SemanticMotionCapability(
+            kind="unresolved",
+            source="unknown",
+            evidence="",
+            missing_evidence=["motion_kind", "passivity", "motion_contract"],
+        )
+    return semantic_role, capability
+
+
+def _motion_type_for_semantic_admission(
+    source_joint_type: str,
+    *,
+    motion_capability: Stage1SemanticMotionCapability | None,
+) -> tuple[str, bool]:
+    """Map the one supported semantic capability without a role-name allowlist."""
+
+    if motion_capability is None:
+        return source_joint_type, False
+    if motion_capability.kind != "passive_rotation":
+        return "unknown", False
+    if source_joint_type in {"unknown", "revolute"}:
+        return "revolute", False
+    return "unknown", True
+
+
+def _semantic_motion_capability_question(
+    motion_capability: Stage1SemanticMotionCapability,
+    *,
+    conflict: bool,
+    source_joint_type: str,
+) -> str | None:
+    """Build one stable actionable review question for semantic admission."""
+
+    if conflict:
+        return (
+            "Resolve the conflict between passive rotation and the explicit "
+            f"joint type {source_joint_type!r}; no fallback joint type was selected."
+        )
+    if motion_capability.kind == "unsupported":
+        return (
+            "Provide the missing motion contract "
+            f"{motion_capability.missing_contract!r}; this capability is unsupported."
+        )
+    if motion_capability.kind == "unresolved":
+        missing = ", ".join(motion_capability.missing_evidence)
+        return f"Provide explicit semantic motion evidence for: {missing}."
+    return None
 
 
 def _axis_evidence_for_candidate(
@@ -2857,6 +3701,7 @@ def _candidate_limit_resolution(
     payload: Mapping[str, Any],
     moving_prim_path: str,
     joint_type_hint: str,
+    passive_spherical: bool = False,
 ) -> _LimitResolution:
     if payload.get("_source_support_limit_conflict"):
         raw_conflict_values = payload.get("_source_support_limit_conflict_values")
@@ -2884,6 +3729,31 @@ def _candidate_limit_resolution(
     upper_limit = _optional_float(_first_present(raw_limits, *_LIMIT_UPPER_ALIASES))
     if lower_limit is None and upper_limit is None:
         return _empty_limit_resolution()
+
+    if passive_spherical and joint_type_hint == "spherical":
+        return _rejected_limit_resolution(
+            readiness="rejected_unsupported_joint_type",
+            evidence_source=_stage2_source_from_value(
+                _normalize_limit_source(
+                    _first_present(raw_limits, *_LIMIT_SOURCE_ALIASES)
+                )
+            ),
+            description=(
+                "Scalar spherical limits are outside the passive spherical v1 "
+                "topology contract."
+            ),
+            limit_value=_format_limit_value(
+                lower_limit=lower_limit,
+                upper_limit=upper_limit,
+                unit=_normalize_limit_unit(
+                    _first_present(raw_limits, *_LIMIT_UNIT_ALIASES)
+                ),
+                source=_normalize_limit_source(
+                    _first_present(raw_limits, *_LIMIT_SOURCE_ALIASES)
+                ),
+            ),
+            moving_prim_path=moving_prim_path,
+        )
 
     limit_source = _normalize_limit_source(
         _first_present(raw_limits, *_LIMIT_SOURCE_ALIASES)
@@ -3764,6 +4634,14 @@ def _candidate_moving_prim_paths(candidates: Sequence[Mapping[str, Any]]) -> set
     return moving_prim_paths
 
 
+def _candidate_requires_joint_evidence(candidate: Mapping[str, Any]) -> bool:
+    capability = candidate.get("motion_capability")
+    return not (
+        isinstance(capability, Mapping)
+        and capability.get("kind") in {"unsupported", "unresolved"}
+    )
+
+
 def _compound_edge_candidate(
     *,
     candidate_id: str,
@@ -4461,6 +5339,7 @@ def _candidate_field_sources(
     parent_field_source: Stage2FieldSource | None,
     payload: dict[str, Any],
     axis_source: Stage2FieldSource,
+    motion_type_source: Stage2FieldSource | None = None,
 ) -> dict[str, Stage2FieldSource]:
     parent_source: Stage2FieldSource = "unknown"
     if fixed_parent_prim is not None:
@@ -4473,18 +5352,20 @@ def _candidate_field_sources(
         axis_source = "unknown"
 
     joint_type_stage1_source = _stage1_field_source(payload, "joint_type_hint")
-    motion_type_source: Stage2FieldSource = "predicted"
-    if _motion_type_from_joint_hint(joint_type) == "unknown":
-        motion_type_source = "unknown"
+    selected_motion_type_source: Stage2FieldSource = "predicted"
+    if motion_type_source is not None:
+        selected_motion_type_source = motion_type_source
+    elif _motion_type_from_joint_hint(joint_type) == "unknown":
+        selected_motion_type_source = "unknown"
     elif joint_type_stage1_source is not None:
-        motion_type_source = joint_type_stage1_source
+        selected_motion_type_source = joint_type_stage1_source
 
     motion_axis_source = axis_source
     if motion_axis_world is None:
         motion_axis_source = "unknown"
 
     return {
-        "motion_type": motion_type_source,
+        "motion_type": selected_motion_type_source,
         "axis_hint": axis_source,
         "motion_axis_world": motion_axis_source,
         "fixed_parent_prim": parent_source,
@@ -4626,6 +5507,25 @@ def _candidate_confidence(
     return "low"
 
 
+def _recompute_candidate_confidences(
+    candidates: Sequence[dict[str, Any]],
+    *,
+    base_confidence_by_candidate_id: Mapping[str, Any],
+) -> None:
+    """Derive confidence from the source value and final unresolved questions."""
+
+    for candidate in candidates:
+        candidate_id = cast(str, candidate["candidate_id"])
+        unresolved_questions = cast(
+            list[str],
+            candidate["unresolved_questions"],
+        )
+        candidate["confidence"] = _candidate_confidence(
+            base_confidence_by_candidate_id.get(candidate_id),
+            unresolved_questions=unresolved_questions,
+        )
+
+
 def _articulation_candidate_flag_state(value: Any) -> bool | None:
     if isinstance(value, bool):
         return value
@@ -4706,6 +5606,29 @@ def _format_limits(candidate: Mapping[str, Any]) -> str:
         f"upper={_format_optional_float(cast(float | None, upper_limit))}; "
         f"unit={unit}; source={source}"
     )
+
+
+def _format_motion_capability(candidate: Mapping[str, Any]) -> str:
+    capability = candidate.get("motion_capability")
+    if not isinstance(capability, Mapping):
+        return "none"
+    parts = [
+        f"kind={_clean_text(capability.get('kind'), 'unknown')}",
+        f"source={_clean_text(capability.get('source'), 'unknown')}",
+    ]
+    missing_evidence = capability.get("missing_evidence")
+    if isinstance(missing_evidence, list) and missing_evidence:
+        parts.append(
+            "missing_evidence="
+            + ",".join(_clean_text(value, "unknown") for value in missing_evidence)
+        )
+    missing_contract = _clean_text(capability.get("missing_contract"))
+    if missing_contract:
+        parts.append(f"missing_contract={missing_contract}")
+    evidence = _clean_text(capability.get("evidence"))
+    if evidence:
+        parts.append(f"evidence={evidence}")
+    return "; ".join(parts)
 
 
 def _format_evidence(items: Any) -> str:

@@ -85,7 +85,10 @@ def inspect_usd_for_tuning(usd_path: Path | str) -> UsdTuningReport:
 
     from pxr import Usd, UsdPhysics
 
-    stage = Usd.Stage.Open(str(path))
+    try:
+        stage = Usd.Stage.Open(str(path))
+    except RuntimeError as exc:
+        raise RuntimeError(f"Failed to open USD stage: {path}") from exc
     if not stage:
         raise RuntimeError(f"Failed to open USD stage: {path}")
 

@@ -16,6 +16,11 @@ from world_understanding.functions.graphics.scene_optimizer_nvcf import (
     optimize_usd_from_path,
     optimize_usd_from_url,
 )
+from world_understanding.functions.graphics.so_export import (
+    PORTABLE_SIDECAR_MARKER_BYTES,
+    PORTABLE_SIDECAR_MARKER_NAME,
+    portable_sidecar_name,
+)
 from world_understanding.utils.nvcf_utils import parse_zip_response, poll_nvcf_status
 
 
@@ -248,6 +253,138 @@ class TestOptimizeUsdFromUrl:
             assert output_path.exists()
 
     @pytest.mark.asyncio
+    async def test_remote_writer_clears_owned_stale_portable_sidecar(
+        self,
+        tmp_path,
+    ) -> None:
+        output_path = tmp_path / "optimized.usdc"
+        output_path.write_bytes(b"prior-root")
+        sidecar = tmp_path / portable_sidecar_name(output_path)
+        sidecar.mkdir()
+        (sidecar / PORTABLE_SIDECAR_MARKER_NAME).write_bytes(
+            PORTABLE_SIDECAR_MARKER_BYTES
+        )
+        (sidecar / "stale.png").write_bytes(b"stale")
+
+        async def fake_execute(**_kwargs):
+            return {
+                "success": True,
+                "optimized_stage_base64": "bmV3LXJvb3Q=",  # new-root
+            }
+
+        with (
+            patch.object(optimizer_nvcf, "get_nvcf_api_key", return_value="key"),
+            patch.object(
+                optimizer_nvcf,
+                "get_base_url",
+                return_value="https://optimizer.example",
+            ),
+            patch.object(optimizer_nvcf, "create_nvcf_headers", return_value={}),
+            patch.object(
+                optimizer_nvcf,
+                "execute_nvcf_request_async",
+                side_effect=fake_execute,
+            ),
+        ):
+            result = await optimize_usd_from_url(
+                "https://input.example/scene.usd",
+                output_path,
+            )
+
+        assert result["status"] == "success"
+        assert output_path.read_bytes() == b"new-root"
+        assert not sidecar.exists()
+
+    @pytest.mark.asyncio
+    async def test_remote_writer_rejects_foreign_sidecar_without_mutation(
+        self,
+        tmp_path,
+    ) -> None:
+        output_path = tmp_path / "optimized.usdc"
+        output_path.write_bytes(b"prior-root")
+        sidecar = tmp_path / portable_sidecar_name(output_path)
+        sidecar.mkdir()
+        (sidecar / "must-survive.png").write_bytes(b"foreign")
+
+        async def fake_execute(**_kwargs):
+            return {
+                "success": True,
+                "optimized_stage_base64": "bmV3LXJvb3Q=",  # new-root
+            }
+
+        with (
+            patch.object(optimizer_nvcf, "get_nvcf_api_key", return_value="key"),
+            patch.object(
+                optimizer_nvcf,
+                "get_base_url",
+                return_value="https://optimizer.example",
+            ),
+            patch.object(optimizer_nvcf, "create_nvcf_headers", return_value={}),
+            patch.object(
+                optimizer_nvcf,
+                "execute_nvcf_request_async",
+                side_effect=fake_execute,
+            ),
+        ):
+            result = await optimize_usd_from_url(
+                "https://input.example/scene.usd",
+                output_path,
+            )
+
+        assert result["status"] == "error"
+        assert "non-exporter-owned USD sidecar" in result["error"]
+        assert output_path.read_bytes() == b"prior-root"
+        assert (sidecar / "must-survive.png").read_bytes() == b"foreign"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("symlink_kind", ["leaf", "parent"])
+    async def test_optimize_usd_remote_writer_rejects_symlink_escape(
+        self,
+        tmp_path,
+        symlink_kind,
+    ):
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        if symlink_kind == "leaf":
+            requested = tmp_path / "requested"
+            requested.mkdir()
+            outside_output = outside / "sentinel.usdc"
+            outside_output.write_bytes(b"outside-must-survive")
+            output_path = requested / "optimized.usdc"
+            output_path.symlink_to(outside_output)
+            message = "symlink USD output"
+        else:
+            outside_output = outside / "optimized.usdc"
+            outside_output.write_bytes(b"outside-must-survive")
+            requested = tmp_path / "requested"
+            requested.symlink_to(outside, target_is_directory=True)
+            output_path = requested / "optimized.usdc"
+            message = "symlink or non-directory ancestor"
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.json.return_value = {
+                "success": True,
+                "optimized_stage_base64": "dGVzdCBjb250ZW50",
+            }
+            mock_client.post.return_value = mock_response
+
+            result = await optimize_usd_from_url(
+                input_url="https://example.com/input.usd",
+                output_path=output_path,
+                api_key="test-key",
+                base_url="https://test-function.invocation.api.nvcf.nvidia.com",
+            )
+
+        assert result["status"] == "error"
+        assert message in result["error"]
+        assert outside_output.read_bytes() == b"outside-must-survive"
+
+    @pytest.mark.asyncio
     async def test_optimize_usd_from_url_202_polling(self, tmp_path):
         """Test 202 response with polling."""
         output_path = tmp_path / "optimized.usdc"
@@ -462,7 +599,7 @@ class TestOptimizeUsdFromPath:
     @pytest.mark.asyncio
     async def test_optimize_usd_from_path_uses_data_uri(self, tmp_path):
         """Data URI mode skips S3 and delegates directly to optimize_usd_from_url."""
-        input_path = tmp_path / "input.usd"
+        input_path = tmp_path / "input.usdz"
         output_path = tmp_path / "optimized.usdc"
         input_path.write_text("test usd content")
         captured: dict[str, object] = {}
@@ -475,8 +612,8 @@ class TestOptimizeUsdFromPath:
             patch.object(optimizer_nvcf, "should_use_data_uri", return_value=True),
             patch(
                 "world_understanding.utils.usd.stage.create_data_uri_from_file",
-                return_value="data:application/octet-stream;base64,dGVzdA==",
-            ),
+                return_value="data:model/vnd.usdz+zip;base64,dGVzdA==",
+            ) as mock_data_uri,
             patch.object(
                 optimizer_nvcf,
                 "optimize_usd_from_url",
@@ -492,15 +629,23 @@ class TestOptimizeUsdFromPath:
             )
 
         assert result["status"] == "success"
-        assert captured["input_url"] == "data:application/octet-stream;base64,dGVzdA=="
+        assert captured["input_url"] == "data:model/vnd.usdz+zip;base64,dGVzdA=="
         assert captured["output_path"] == output_path
+        mock_data_uri.assert_called_once_with(
+            input_path,
+            mime_type="model/vnd.usdz+zip",
+        )
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("input_name", "expected_suffix"),
+        [("input.txt", ".usd"), ("input.usdz", ".usdz")],
+    )
     async def test_optimize_usd_from_path_normalizes_unknown_suffix_for_s3(
-        self, tmp_path
+        self, tmp_path, input_name, expected_suffix
     ):
-        """S3 upload path uses .usd when input suffix is not a USD extension."""
-        input_path = tmp_path / "input.txt"
+        """S3 upload preserves USDZ and normalizes unknown input suffixes."""
+        input_path = tmp_path / input_name
         output_path = tmp_path / "optimized.usdc"
         input_path.write_text("test usd content")
 
@@ -536,4 +681,6 @@ class TestOptimizeUsdFromPath:
             )
 
         assert result["status"] == "success"
-        assert mock_upload.call_args.kwargs["s3_path"].endswith("/input.usd")
+        assert mock_upload.call_args.kwargs["s3_path"].endswith(
+            f"/input{expected_suffix}"
+        )

@@ -1,56 +1,83 @@
 # Physics Agent Auto-Tuning
 
-This guide covers the Physics Agent auto-tuning and refine surfaces: architecture,
-extension points, config-driven CLI usage, prompt-driven CLI usage, examples, and
-REST integration status.
+This guide covers the Physics Agent auto-tuning and refine workflows, extension
+points, config-driven CLI usage, prompt-driven CLI usage, examples, and REST
+integration status.
 
 ## What Tune And Refine Do
 
 `tune` starts from a simulation-ready USD that already has physics schemas from
 `apply_physics`. It patches tunable physics parameters, evaluates each candidate
-in a simulation backend, records trial history, writes the best parameter set,
-and can ask a VLM judge to review the result.
+in a simulation backend, records the result and score of every trial, and writes
+the best parameter set.
 
-`refine` wraps `tune` in an iterative loop. Each iteration runs a full tune pass,
-asks the judge whether the result is good enough, and, when the answer is not
-good enough, asks an LLM to rewrite the scenario YAML for the next iteration.
+The trial loop records every score. Adaptive optimizers use completed scores to
+choose the next parameter values, while random search samples each candidate
+independently. After the search finishes, an optional result judge can review
+the best trial as a complete behavior.
 
-## Architecture
+## How Tune Chooses Parameters
 
-The tuning stack has five layers:
-
-| Layer | Main code | Responsibility |
-|-------|-----------|----------------|
-| Interface | `physics_agent.cli`, `physics_agent.api`, `physics_agent_service.service.routers.tune_router` | CLI, Python API, and REST request surfaces |
-| Orchestration | `physics_agent.tuning.runner`, `physics_agent.tasks.iterative_physics_refinement` | Load scenario or prompt, run optimizer trials, manage artifacts, drive refine loop |
-| Scenario | `physics_agent.tuning.scenario`, `physics_agent.tuning.scenarios.*` | Parse scenario YAML, build simulation scenes, compute scenario metrics |
-| Optimization | `physics_agent.tuning.optimizers` | Dispatch `auto`, `botorch`, `random`, or `cma-es` over scenario bounds |
-| Simulation backend | `physics_agent.tuning.backend`, `physics_agent.tuning.ovphysx_backend`, `physics_agent.tuning.newton_backend` | Evaluate one candidate parameter set and return a scalar score |
-
-The single-shot tune flow is:
-
-```text
-scenario YAML or user prompt
-  -> TuneInput / POST /tune
-  -> scenario loader or prompt interpreter
-  -> optimizer trial loop
-  -> patch physics USD
-  -> simulation backend evaluates scenario
-  -> best_params.json, history.jsonl, tuned_physics.usd, tune_results.json, report.md
-  -> optional VLM judge and optional comparison.png
+```mermaid
+flowchart LR
+    A["Physics USD and goal"] --> B["Optimizer chooses parameter values"]
+    B --> C["Apply values to a trial USD"]
+    C --> D["Run simulation"]
+    D --> E["Measure and score the result"]
+    E --> F["Save trial and score"]
+    F -->|"More trials remain"| B
+    F -->|"Trial budget complete"| G["Select best parameter values"]
+    G --> H["Create best USD"]
 ```
 
-The iterative refine flow is:
+The optimizer does not simulate or judge the motion itself. It proposes parameter
+values and receives the score returned by each simulation trial. BoTorch and
+CMA-ES use previous parameter values and scores to favor later candidates.
+Random search samples uniformly and does not adapt to earlier scores.
 
-```text
-initial scenario + physics USD + user prompt
-  -> RefineInput / physics-agent refine
-  -> tune iteration
-  -> VLM judge
-  -> scenario_refine LLM rewrite when judge returns continue
-  -> next tune iteration
-  -> final/ snapshot and refine_summary.json
+## What Refine Adds
+
+`refine` wraps `tune` in an outer loop. Each iteration runs a complete tune pass,
+asks the result judge whether the best behavior satisfies the request, and, when
+it does not, asks an LLM to rewrite the scenario YAML before starting another
+complete tune pass.
+
+```mermaid
+flowchart LR
+    A["Scenario, physics USD, and user request"] --> B["Run a complete tune pass"]
+    B --> C["Select best trial"]
+    C --> D["Render evidence when requested"]
+    D --> E["Judge the complete result"]
+    E -->|"Approved"| F["Publish final result"]
+    E -->|"Needs improvement"| G["Rewrite scenario from judge feedback"]
+    G --> B
 ```
+
+## Trial Score Versus Result Judge
+
+These are separate decisions and their values are not interchangeable:
+
+| Decision | When it runs | What it does |
+|----------|--------------|--------------|
+| Trial score | Per candidate | Ranks winners and guides adaptive optimizers |
+| Result judge | After a tune pass | Reviews the best complete behavior and returns `approve` or `continue` |
+
+For `drop_settle`, the trial score comes from the selected simulation metric.
+For `freeform`, it can combine trajectory measurements with a per-trial VLM
+review. That per-trial VLM signal is still part of the optimizer score; it is
+separate from the result judge that decides whether refinement should continue.
+
+## Built-In Versus External Runtime
+
+This guide covers the built-in path, where Physics Agent owns the simulation
+scenario and backend. For a trusted customer-owned runtime such as an IsaacLab
+repository, use the local-only `tune-external` or `refine-external` API/CLI.
+That path delegates simulator setup, parameter application, and one scalar
+objective to a customer adapter while Physics Agent retains qualification,
+optimization, judging, and artifacts. See
+[External Runtime Tuning and Local Refinement](external_runtime_tuning.md) for
+the adapter protocol, trust boundary, evidence requirements, and status model.
+External-runtime commands are not exposed by Physics Agent Service.
 
 ## Config-Driven CLI Usage
 
@@ -64,8 +91,8 @@ uv pip install -e "apps/physics_agent[tuning]"
 
 For `--engine newton` runs, install the Newton extra in the parent environment.
 It includes `physics-agent[tuning]` and the PyPI
-`newton[sim,importers]>=1.2.0,<2.0` dependency. Newton runs in-process, so no
-daemon venv is required:
+`newton[sim,importers]==1.4.0` and `newton-usd-schemas==0.4.1` dependencies.
+Newton runs in-process, so no daemon venv is required:
 
 ```bash
 uv pip install -e "apps/physics_agent[newton]"
@@ -88,13 +115,42 @@ uv pip install --python "$WU_OVPHYSX_VENV_DIR/bin/python" \
   -r "$ovphysx_lock" \
   --no-config --no-sources
 env -u PYTHONPATH "$WU_OVPHYSX_VENV_DIR/bin/python" -c \
-  "from ovphysx import PhysX; physics = PhysX(device='cpu'); physics.release()" && \
-  touch "$WU_OVPHYSX_VENV_DIR/.wu-ovphysx-runtime-ready"
+  "from ovphysx import PhysX; physics = PhysX(device='cpu'); physics.release()"
+# Bind readiness to the exact reviewed lock and isolated interpreter before
+# disabling auto-provisioning. This uses only the Python installed with
+# physics-agent[tuning].
+python - "$ovphysx_lock" <<'PY'
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+lock = Path(sys.argv[1]).resolve()
+venv = Path(os.environ["WU_OVPHYSX_VENV_DIR"]).resolve()
+python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+(venv / ".usd-cli-ovphysx-ready").write_text(
+    json.dumps(
+        {
+            "python_path": str(python),
+            "runtime_lock_sha256": hashlib.sha256(lock.read_bytes()).hexdigest(),
+            "schema_version": "usd-cli.ovphysx-runtime-ready.v2",
+        },
+        indent=2,
+        sort_keys=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
 ```
 
 Run these commands from the repository root. The checked-in PEP 751 locks
-select reviewed Python 3.12/Linux x86_64 or aarch64 wheels and enforce their
-hashes. Service Docker builds select the corresponding tuning and daemon locks
+select reviewed Python 3.12/Linux x86_64, Linux aarch64, or Windows x86_64
+wheels and enforce their hashes. Native Windows uses
+`apps/physics_agent/runtime/pylock.ovphysx-runtime-windows.toml`, but native
+Windows fixed-pipeline execution is outside the supported packaged-wheel scope.
+Service Docker builds select the corresponding Linux tuning and daemon locks
 from BuildKit's `TARGETARCH` value. The readiness marker is written only after
 the isolated runtime imports and initializes successfully; service health and
 OvPhysX request preflight both require it.
@@ -144,23 +200,27 @@ physics-agent refine apps/physics_agent/configs/tuning/drop_settle.yaml \
   --max-trials 30 \
   --seed 42 \
   --max-iterations 3 \
-  --score-threshold 0.9
+  --score-threshold 0.9 \
+  --no-visual-evidence
 ```
 
+This text-only example disables generated visual evidence so it does not require
+a USD renderer. Without `--no-visual-evidence`, refine renders the winning
+recording to PNG and fails closed if the configured renderer is unavailable.
+
 For the bundled Tire_B01 bounce example, generate the physics USD first and then
-run the reference-video refine loop:
+run the behavior-guided refine loop. Generated PNG evidence frames are rendered
+for every winning trial:
 
 ```bash
 physics-agent run apps/physics_agent/configs/tire_bounce.yaml
 
 physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml \
   --physics-usd apps/physics_agent/configs/.tire_bounce/physics/tire_physics.usdc \
-  --user-prompt "Match the bounce behavior shown in the reference video." \
-  --reference-video apps/physics_agent/data/examples/Tire_B01/reference_media/tire_bounce_reference.mov \
-  --reference-video-frames 32 \
+  --user-prompt "Show a visible airborne first rebound, natural tipping motion, and final settling." \
   --judge-reference-frames 32 \
   --judge-generated-frames 32 \
-  --output-dir /tmp/tire_bouncy_refvideo \
+  --output-dir /tmp/tire_bouncy_frames \
   --engine ovphysx \
   --optimizer botorch \
   --max-trials 30 \
@@ -169,9 +229,11 @@ physics-agent refine apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml
   --seed 42
 ```
 
-Do not pass `--reference-video-description` for this example unless you
-intentionally want to override the sampled-frame interpretation. Configure the
-judge backend and credentials for your environment before running the example.
+To compare against an observation, export representative moments as PNG, JPEG,
+WebP, or BMP images and repeat `--reference-image` in chronological order.
+Configure the judge backend and credentials for your environment before running
+the example. Video files and legacy video options are rejected by public 0.6
+surfaces.
 
 The same `tune` and `refine` surfaces accept `--engine newton` when the scenario
 uses Newton-supported parameters. Newton supports `mass_scale`,
@@ -199,13 +261,13 @@ You can also provide both a scenario YAML and `--user-prompt`. In that mode,
 explicit YAML fields win on conflicts and the prompt interpreter fills missing
 fields.
 
-Reference media can be attached to tune or refine judge calls:
+Reference images can be attached to tune or refine judge calls:
 
 ```bash
 physics-agent tune apps/physics_agent/configs/tuning/drop_settle.yaml \
   --physics-usd path/to/asset_physics.usda \
-  --reference-image reference.png \
-  --reference-video observed_motion.mp4 \
+  --reference-image observed_contact.png \
+  --reference-image observed_rebound.png \
   --judge-max-tokens 2048 \
   --judge-temperature 0
 ```
@@ -226,8 +288,8 @@ target:
   sample_fps: 30
   cameras: ["+x+y+z"]
   vlm_check: "off"
-  record_video: "off"
-  video_renderer: "ovrtx"
+  record_frames: "off"
+  frame_renderer: "ovrtx"
 
 judge:
   temperature: 0.0
@@ -235,21 +297,58 @@ judge:
 
 parameters:
   - name: mass_scale
-    min: 0.5
-    max: 2.0
   - name: static_friction
-    min: 0.05
-    max: 1.5
   - name: dynamic_friction
-    min: 0.05
-    max: 1.5
   - name: restitution
-    min: 0.0
-    max: 1.0
 ```
 
-`target.video_renderer` selects the shared rendering contract for inspection
-videos: `remote`, `ovrtx` (the default), `warp`, or `mock`. Unknown names fail
+When `min` and `max` are omitted, Physics Agent centers the initial search on
+the value already authored in the input physics USD. One shared multiplier,
+`1.1`, produces `[authored / 1.1, authored * 1.1]`. `mass_scale` is relative,
+so its automatic range is `[1 / 1.1, 1.1]`. Explicit YAML bounds remain
+unchanged and take precedence. Unauthored sibling attributes are ignored when
+another matching attribute has an authored value. A zero-width multiplicative
+range uses the selected backend capability's fallback range. Prompt-only Newton
+`contact_ke` and `contact_kd` may also use their capability ranges when their USD
+attributes are not authored. Simulator-only parameters have no USD value to
+inspect and require explicit bounds. `mass_scale` requires at least one authored
+mass because it scales existing values.
+Auto-derived restitution bounds are clamped to its physical `[0, 1]` domain. If
+independently centered static- and dynamic-friction ranges have no feasible
+overlap, automatic friction ranges use their capability fallbacks; explicitly
+authored YAML ranges remain unchanged. A parameter must specify both `min` and
+`max`, or omit both for automatic bounds; one-sided ranges are rejected. When
+both friction coefficients are present, they must both use automatic ranges or
+both use explicit ranges. Mixed modes are rejected during request validation.
+
+Prompt-generated initial scenarios always use automatic bounds, so their first
+sweep is intentionally limited to roughly 10% around a nonzero authored value.
+Single-shot `tune` performs only that sweep; provide explicit YAML bounds when a
+larger change must be reachable immediately. During `refine`, the scenario
+refiner may widen later searches with a new explicit `min`/`max` pair or omit
+both to return to automatic bounds. The concrete bounds used for every
+successful iteration are persisted in that iteration's `scenario.yaml`. A
+failed resolution persists the unresolved scenario and terminates with an error
+record in `refine_summary.json`.
+
+For built-in Physics Agent scenarios, when both friction coefficients are
+tunable, their effective ranges remain independent: a normalized optimizer
+coordinate always maps to the same physical value. BoTorch receives the explicit
+linear constraint
+`static_friction - dynamic_friction >= 0`. Random search and BoTorch initial or
+fallback candidates are sampled directly from the feasible region. CMA-ES gives
+infeasible proposals a finite penalty without simulating them and fills any
+unspent trial budget with direct feasible samples. Candidate decoding never
+rewrites one coefficient based on the other. BoTorch candidates that miss the
+boundary only by scaled solver precision are projected just inside it before
+evaluation; larger violations are discarded. Disjoint friction ranges fail
+during scenario parsing, while ranges that touch at one feasible pair are
+supported by pinning both friction coordinates instead of constructing a
+measure-zero optimizer region. External-runtime parameter names are opaque and
+do not inherit this built-in friction rule.
+
+`target.frame_renderer` selects the shared rendering contract for inspection
+frames: `remote`, `ovrtx` (the default), `warp`, or `mock`. Unknown names fail
 the render attempt with a configuration error. `mock` produces deterministic
 CPU-only test evidence and must not be used as production visual evidence.
 
@@ -258,7 +357,7 @@ Reference configs:
 | Config | Purpose |
 |--------|---------|
 | `apps/physics_agent/configs/tuning/drop_settle.yaml` | Generic drop-settle scenario and schema comments |
-| `apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml` | Tire_B01 drop-settle scenario with camera ground bias and video recording |
+| `apps/physics_agent/configs/tuning/tire_b01_drop_settle.yaml` | Tire_B01 drop-settle scenario with camera ground bias and PNG frame recording |
 | `apps/physics_agent/configs/tuning/tire_b01_drop_settle_newton.yaml` | Tire_B01 Newton drop-settle scenario using contact stiffness/damping for bounce tuning |
 | `apps/physics_agent/configs/tuning/container_c04_slide.yaml` | Text-guided freeform slide scenario for the public Container_Gray_C04 asset |
 | `apps/physics_agent/configs/tire_bounce.yaml` | Public classification/apply config used to create a physics USD for tire bounce tuning |
@@ -298,10 +397,10 @@ the same metric units.
 ### Add A Tunable Parameter
 
 The supported tunable parameter keys live in
-`physics_agent.tuning.types.SUPPORTED_PARAM_KEYS`, with fallback bounds in
-`DEFAULT_PARAM_BOUNDS`. Add tests before expanding this set because existing
-scenarios, prompt interpretation, USD patching, and report artifacts assume
-these names.
+`physics_agent.tuning.types.SUPPORTED_PARAM_KEYS`. Backend capability declarations
+map each name to the authored USD attribute used for automatic bounds and trial
+patching. Add tests before expanding this set because existing scenarios, prompt
+interpretation, USD patching, and report artifacts assume these names.
 
 ### Add An Optimizer
 
@@ -325,11 +424,17 @@ fail before an expensive simulation job is queued.
 
 ### Extend Judge Evidence
 
-Reference images and videos are normalized in
-`physics_agent.tuning.visual_evidence`. Judge outputs are persisted under
+Reference images are normalized in `physics_agent.tuning.visual_evidence`.
+Judge outputs are persisted under
 `judge.extra.visual_evidence` in `tune_results.json`, `judge_result.json`, and
-`report.md`. Media-backed tune/refine paths fail closed when the judge cannot
-produce a real verdict.
+`report.md`. Refine renders the selected trial to PNG evidence even when the
+request has only a text prompt, so the VLM judges the simulated motion for both
+built-in scenario kinds. These judge renders do not encode or publish MP4.
+Visual-evidence paths fail closed when required generated evidence or a real
+judge verdict is unavailable. The winning trial must persist `recording_usd`;
+`fake` refine runs must set `--no-visual-evidence`. Reference preparation and
+generated rendering use `--visual-evidence-timeout-seconds`, independently of
+the judge/refiner LLM timeout.
 
 ## REST Integration
 

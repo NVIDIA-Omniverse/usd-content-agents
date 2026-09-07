@@ -3,19 +3,27 @@
 """Texture Agent FastAPI Service - Main Application."""
 
 import asyncio
-import io
 import logging
 import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from world_understanding.utils.logging import setup_logging
+from world_understanding.utils.logging import (
+    configure_service_standard_streams,
+    setup_logging,
+)
 from world_understanding.utils.public_response import (
     PublicJsonResponseSanitizationMiddleware,
+)
+from world_understanding.utils.service_auth import (
+    auth_is_enforced,
+    build_token_dependency,
+    log_auth_posture,
 )
 
 from .utils import AccessLogFilter
@@ -32,7 +40,7 @@ for path in [str(apps_dir), str(repo_root)]:
 # Load .env file BEFORE importing config
 load_dotenv()
 
-from .config import config  # noqa: E402
+from .config import build_provenance, config  # noqa: E402
 from .routers import (  # noqa: E402
     artifacts_router,
     pipeline_router,
@@ -43,10 +51,6 @@ from .session.manager import SessionManager  # noqa: E402
 
 # Setup logging from config
 setup_logging()
-
-if sys.platform == "win32":  # pragma: no cover - Windows-only import-time setup
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # Configure logging
 logging.basicConfig(
@@ -68,6 +72,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
     # Startup
     logger.info("Starting Texture Agent Service...")
+    log_auth_posture(logger, _TOKEN_ENV_NAMES, service_label="Texture Agent Service")
     uvicorn_access_logger = logging.getLogger("uvicorn.access")
     uvicorn_access_logger.addFilter(AccessLogFilter())
 
@@ -143,6 +148,13 @@ async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_cleanup_loop())
 
     logger.info("Service started: %s v%s", config.service_name, config.service_version)
+    _build = build_provenance()
+    logger.info(
+        "Build: commit=%s image_tag=%s built=%s",
+        _build["commit_sha"] or "(unknown)",
+        _build["image_tag"] or "(unknown)",
+        _build["timestamp"] or "(unknown)",
+    )
     logger.info(
         "Texture backend: %s (image_gen: %s)",
         config.texture_backend,
@@ -173,6 +185,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+TEXTURE_TOKEN_ENV = "TEXTURE_AGENT_TOKEN"
+_TOKEN_ENV_NAMES = (TEXTURE_TOKEN_ENV,)
+require_service_token = build_token_dependency(
+    _TOKEN_ENV_NAMES, service_label="Texture Agent Service"
+)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -187,9 +205,28 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(pipeline_router.router)
-app.include_router(artifacts_router.router)
-app.include_router(sessions_router.router)
+app.include_router(
+    pipeline_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(
+    artifacts_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(
+    sessions_router.router, dependencies=[Depends(require_service_token)]
+)
+
+_default_openapi = app.openapi
+
+
+def _openapi_with_nvcf_version() -> dict[str, Any]:
+    """Build OpenAPI metadata that identifies the serving NVCF version."""
+    schema: dict[str, Any] = _default_openapi()
+    if version_id := os.getenv("NVCF_FUNCTION_VERSION_ID"):
+        schema["info"]["x-nvcf-function-version-id"] = version_id
+    return schema
+
+
+app.openapi = _openapi_with_nvcf_version
 
 
 # Health check endpoint
@@ -210,8 +247,10 @@ async def health_check():
     )
     return {
         "status": "healthy",
+        "auth_enforced": auth_is_enforced(_TOKEN_ENV_NAMES),
         "service": config.service_name,
         "version": config.service_version,
+        "build": build_provenance(),
         "image_gen_backend": config.image_gen_backend,
         "active_backend_key_configured": active_backend_key_configured,
         "llm_backend": config.llm_backend,
@@ -269,6 +308,7 @@ def main():
     """Entry point for running the service."""
     import uvicorn
 
+    configure_service_standard_streams()
     uvicorn.run(
         "service.main:app",
         host="0.0.0.0",

@@ -5,25 +5,35 @@
 import asyncio
 import json
 import logging
+import shutil
 import tempfile
 import zipfile
 from itertools import chain
 from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
+from world_understanding.functions.graphics.so_export import (
+    legacy_portable_sidecar_name,
+    portable_sidecar_name,
+)
 from world_understanding.utils.artifacts import (
     ArtifactPathError,
     OpenArtifactFile,
     iter_open_regular_files,
     open_confined_directory,
+    open_regular_file_no_follow,
 )
 from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     log_durable_failure,
 )
-from world_understanding.utils.held_file_response import HeldFileResponse
+from world_understanding.utils.held_file_response import (
+    HeldFileResponse,
+    open_held_artifact_file,
+)
 
 from ..session.manager import SessionManager
 
@@ -39,6 +49,8 @@ _USD_MEDIA_TYPES = {
     ".usdz": "model/vnd.usdz+zip",
 }
 _ZIP_MEDIA_TYPE = "application/zip"
+_ZIP_COPY_CHUNK_SIZE = 1024 * 1024
+_INSPECTABLE_USD_SUFFIXES = frozenset({".usd", ".usda", ".usdc"})
 
 # Global session manager (initialized by main app)
 session_manager: SessionManager | None = None
@@ -97,6 +109,74 @@ async def _generate_report_on_demand(
     await asyncio.to_thread(task.run, report_context, None)
 
 
+async def _serve_s3_prediction_report(
+    manager: SessionManager,
+    session_id: str,
+) -> HeldFileResponse:
+    """Render from one immutable publication without touching live worker state."""
+    snapshot_dir = Path(tempfile.mkdtemp(prefix="physics-report-snapshot-"))
+    report_artifact: OpenArtifactFile | None = None
+    try:
+        await manager.store.sync_to_local(
+            session_id,
+            str(snapshot_dir),
+            prefix=(
+                "cache/predictions/",
+                "cache/dataset/dataset.jsonl",
+            ),
+        )
+        report_key = "cache/predictions/report.html"
+        report_path = snapshot_dir / report_key
+        predictions_path = snapshot_dir / "cache" / "predictions" / "predictions.jsonl"
+        dataset_path = snapshot_dir / "cache" / "dataset" / "dataset.jsonl"
+        if not report_path.exists():
+            if not predictions_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail="Predictions not available yet",
+                )
+            if not dataset_path.exists():
+                raise HTTPException(status_code=404, detail="Dataset not available")
+
+            await _generate_report_on_demand(
+                snapshot_dir,
+                predictions_path,
+                dataset_path,
+            )
+        report_artifact = open_held_artifact_file(snapshot_dir, report_key)
+        response = HeldFileResponse(
+            report_artifact,
+            media_type="text/html",
+            background=BackgroundTask(_cleanup_temp_tree, snapshot_dir),
+        )
+        report_artifact = None
+        return response
+    except HTTPException:
+        if report_artifact is not None:
+            report_artifact.stream.close()
+        _cleanup_temp_tree(snapshot_dir)
+        raise
+    except Exception:
+        if report_artifact is not None:
+            report_artifact.stream.close()
+        _cleanup_temp_tree(snapshot_dir)
+        log_durable_failure(
+            logger,
+            "physics_prediction_report_publication_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Report generation failed",
+        ) from None
+    except BaseException:
+        if report_artifact is not None:
+            report_artifact.stream.close()
+        _cleanup_temp_tree(snapshot_dir)
+        raise
+
+
 async def _serve_artifact(
     manager: SessionManager,
     session_id: str,
@@ -105,18 +185,20 @@ async def _serve_artifact(
     filename: str,
 ) -> FileResponse | StreamingResponse:
     """Serve an artifact from local disk or store (S3)."""
-    # Try local path first (fast path for the executing instance)
-    local_artifact = await manager.get_local_artifact_stream(
-        session_id,
-        artifact_type,
-    )
-    if local_artifact is not None:
-        artifact, _ = local_artifact
-        return HeldFileResponse(
-            artifact,
-            media_type=media_type,
-            filename=filename,
+    # S3 sessions must resolve through one committed immutable manifest. A
+    # replica-local path may belong to an older generation after failover.
+    if getattr(manager.store, "kind", "local") != "s3":
+        local_artifact = await manager.get_local_artifact_stream(
+            session_id,
+            artifact_type,
         )
+        if local_artifact is not None:
+            artifact, _ = local_artifact
+            return HeldFileResponse(
+                artifact,
+                media_type=media_type,
+                filename=filename,
+            )
 
     # Fall back to store (S3 — works cross-instance)
     stream = await manager.get_artifact_stream(session_id, artifact_type)
@@ -155,6 +237,13 @@ def _cleanup_temp_file(path: Path) -> None:
         logger.warning("Failed to remove temporary artifact bundle %s", path)
 
 
+def _cleanup_temp_tree(path: Path) -> None:
+    try:
+        shutil.rmtree(path)
+    except OSError:
+        logger.warning("Failed to remove temporary artifact snapshot %s", path)
+
+
 def _zip_file_response(zip_path: Path, filename: str) -> FileResponse:
     return FileResponse(
         zip_path,
@@ -168,8 +257,35 @@ def _output_usd_bundle_filename(output_name: str) -> str:
     return f"{Path(output_name).stem}_bundle.zip"
 
 
-def _local_output_sidecar_dir(output_path: Path) -> Path:
-    return output_path.parent / f"{output_path.stem}_assets"
+def _local_output_sidecar_dir(output_path: Path) -> Path | None:
+    """Return the first existing sidecar actually authored by ``output_path``."""
+    current = output_path.parent / portable_sidecar_name(output_path)
+    legacy = output_path.parent / legacy_portable_sidecar_name(output_path)
+    candidates = [
+        candidate
+        for candidate in dict.fromkeys((current, legacy))
+        if candidate.exists() or candidate.is_symlink()
+    ]
+    if not candidates:
+        return None
+    try:
+        with open_regular_file_no_follow(output_path) as (stream, _metadata):
+            for candidate in candidates:
+                if not _stream_authors_sidecar_directory(
+                    stream,
+                    output_path.name,
+                    candidate.name,
+                ):
+                    continue
+                if candidate.is_symlink() or not candidate.is_dir():
+                    raise ArtifactPathError(
+                        "Output USD authors an unsafe sidecar directory"
+                    )
+                return candidate
+    except (ArtifactPathError, OSError, RuntimeError, ValueError):
+        logger.warning("Could not safely inspect output USD for sidecars")
+        raise
+    return None
 
 
 def _validate_archive_relpath(path: PurePosixPath) -> PurePosixPath:
@@ -193,9 +309,105 @@ def _archive_name_for_sidecar(sidecar_dir_name: str, sidecar_rel: PurePosixPath)
     return _validate_archive_relpath(archive_path).as_posix()
 
 
+def _copy_stream_to_archive(
+    archive: zipfile.ZipFile,
+    archive_name: str,
+    stream: BinaryIO,
+) -> None:
+    """Copy one stream into a ZIP entry without an unbounded read."""
+
+    with archive.open(archive_name, "w", force_zip64=True) as destination:
+        shutil.copyfileobj(stream, destination, length=_ZIP_COPY_CHUNK_SIZE)
+
+
+def _authored_asset_uses_sidecar_directory(
+    authored_path: str,
+    sidecar_name: str,
+) -> bool:
+    """Return whether one canonical relative asset path enters ``sidecar_name``."""
+
+    try:
+        path = _validate_archive_relpath(PurePosixPath(authored_path))
+    except ValueError:
+        return False
+    return len(path.parts) > 1 and path.parts[0] == sidecar_name
+
+
+def _stream_authors_sidecar_directory(
+    stream: BinaryIO,
+    output_name: str,
+    sidecar_name: str,
+) -> bool:
+    """Inspect one held USD layer for authored paths into a legacy sidecar.
+
+    The layer is staged with bounded memory and opened only as an anonymous Sdf
+    layer. ``ModifyAssetPaths`` visits asset attributes and composition arcs
+    without opening or resolving any referenced dependency layers. The caller
+    retains stream ownership and its original position.
+    """
+
+    safe_output_name = PurePosixPath(output_name).name
+    if Path(safe_output_name).suffix.lower() not in _INSPECTABLE_USD_SUFFIXES:
+        raise ArtifactPathError(
+            "Output format cannot be inspected for legacy-sidecar references"
+        )
+
+    try:
+        original_position = stream.tell()
+        stream.seek(0)
+    except (OSError, ValueError) as exc:
+        raise ArtifactPathError(
+            "Output USD stream cannot be inspected for legacy-sidecar references"
+        ) from exc
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="physics-usd-inspect-") as temp_dir:
+            staged_path = Path(temp_dir) / safe_output_name
+            with staged_path.open("wb") as staged:
+                shutil.copyfileobj(
+                    stream,
+                    staged,
+                    length=_ZIP_COPY_CHUNK_SIZE,
+                )
+
+            from pxr import Sdf, Usd, UsdUtils
+
+            # Importing Usd registers the USD/USDA/USDC Sdf file formats.
+            _ = Usd.GetVersion()
+            layer = Sdf.Layer.OpenAsAnonymous(str(staged_path))
+            if layer is None:
+                raise ArtifactPathError(
+                    "Output USD layer could not be inspected for legacy sidecars"
+                )
+
+            found = False
+
+            def inspect_path(authored_path: str) -> str:
+                nonlocal found
+                if _authored_asset_uses_sidecar_directory(
+                    authored_path,
+                    sidecar_name,
+                ):
+                    found = True
+                return authored_path
+
+            UsdUtils.ModifyAssetPaths(
+                layer,
+                inspect_path,
+                keepEmptyPathsInArrays=True,
+            )
+            return found
+    except Exception as exc:
+        raise ArtifactPathError(
+            "Output USD layer could not be inspected for legacy sidecars"
+        ) from exc
+    finally:
+        stream.seek(original_position)
+
+
 def _write_local_output_usd_bundle(output_path: Path) -> Path | None:
     sidecar_dir = _local_output_sidecar_dir(output_path)
-    if not sidecar_dir.is_dir():
+    if sidecar_dir is None:
         return None
 
     sidecar_files = sorted(path for path in sidecar_dir.rglob("*") if path.is_file())
@@ -230,49 +442,84 @@ def _write_open_output_usd_bundle(
     """Bundle one held output and safely traversed sidecars, if any exist."""
 
     output_name = PurePosixPath(relative_key).name
-    sidecar_name = f"{PurePosixPath(relative_key).stem}_assets"
-    sidecar_prefix = (
-        f"{session_id}/{PurePosixPath(relative_key).parent.as_posix()}/{sidecar_name}/"
+    sidecar_names = (
+        portable_sidecar_name(relative_key),
+        legacy_portable_sidecar_name(relative_key),
     )
     with open_confined_directory(storage_root) as root_descriptor:
-        sidecars = iter_open_regular_files(
-            root_descriptor,
-            prefix=sidecar_prefix,
-        )
+        sidecars = None
         try:
-            first_sidecar = next(sidecars, None)
+            first_sidecar = None
+            sidecar_name = sidecar_names[0]
+            sidecar_prefix = ""
+            for candidate_name in dict.fromkeys(sidecar_names):
+                if not _stream_authors_sidecar_directory(
+                    output_artifact.stream,
+                    output_name,
+                    candidate_name,
+                ):
+                    continue
+                candidate_prefix = (
+                    f"{session_id}/{PurePosixPath(relative_key).parent.as_posix()}/"
+                    f"{candidate_name}/"
+                )
+                candidate_sidecars = iter_open_regular_files(
+                    root_descriptor,
+                    prefix=candidate_prefix,
+                )
+                try:
+                    first_sidecar = next(candidate_sidecars, None)
+                except BaseException:
+                    candidate_sidecars.close()
+                    raise
+                if first_sidecar is not None:
+                    sidecar_name = candidate_name
+                    sidecar_prefix = candidate_prefix
+                    sidecars = candidate_sidecars
+                    break
+                candidate_sidecars.close()
             if first_sidecar is None:
                 return None
+            assert sidecars is not None
 
             zip_path = _new_temp_zip_path()
             try:
                 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
-                    archive.writestr(
+                    _copy_stream_to_archive(
+                        archive,
                         _archive_name_for_output_file(output_name),
-                        output_artifact.stream.read(),
+                        output_artifact.stream,
                     )
                     for sidecar in chain((first_sidecar,), sidecars):
                         sidecar_relative = PurePosixPath(
                             sidecar.relative_key.removeprefix(sidecar_prefix)
                         )
-                        archive.writestr(
+                        _copy_stream_to_archive(
+                            archive,
                             _archive_name_for_sidecar(
                                 sidecar_name,
                                 sidecar_relative,
                             ),
-                            sidecar.stream.read(),
+                            sidecar.stream,
                         )
             except Exception:
                 _cleanup_temp_file(zip_path)
                 raise
             return zip_path
         finally:
-            sidecars.close()
+            if sidecars is not None:
+                sidecars.close()
 
 
 def _store_output_sidecar_prefix(output_key: str) -> str:
     key_path = PurePosixPath(output_key)
-    sidecar_dir = key_path.parent / f"{key_path.stem}_assets"
+    sidecar_dir = key_path.parent / portable_sidecar_name(output_key)
+    return f"{sidecar_dir.as_posix().rstrip('/')}/"
+
+
+def _legacy_store_output_sidecar_prefix(output_key: str) -> str:
+    key_path = PurePosixPath(output_key)
+    sidecar_dir = key_path.parent / legacy_portable_sidecar_name(output_key)
     return f"{sidecar_dir.as_posix().rstrip('/')}/"
 
 
@@ -281,15 +528,50 @@ async def _list_store_output_sidecar_keys(
     session_id: str,
     output_key: str,
 ) -> list[str]:
-    prefix = _store_output_sidecar_prefix(output_key)
-    return sorted(await manager.store.list_keys(session_id, prefix=prefix))
+    prefixes = tuple(
+        dict.fromkeys(
+            (
+                _store_output_sidecar_prefix(output_key),
+                _legacy_store_output_sidecar_prefix(output_key),
+            )
+        )
+    )
+    stream: BinaryIO | None = None
+    try:
+        for prefix in prefixes:
+            keys = sorted(await manager.store.list_keys(session_id, prefix=prefix))
+            if not keys:
+                continue
+            if stream is None:
+                stream = await manager.store.open_read(session_id, output_key)
+            if _stream_authors_sidecar_directory(
+                stream,
+                PurePosixPath(output_key).name,
+                PurePosixPath(prefix.rstrip("/")).name,
+            ):
+                return keys
+    finally:
+        if stream is not None:
+            stream.close()
+    return []
 
 
 def _archive_name_for_store_sidecar(output_key: str, sidecar_key: str) -> str:
     output_path = PurePosixPath(output_key)
-    sidecar_dir = output_path.parent / f"{output_path.stem}_assets"
-    sidecar_rel = PurePosixPath(sidecar_key).relative_to(sidecar_dir)
-    return _archive_name_for_sidecar(sidecar_dir.name, sidecar_rel)
+    sidecar_path = PurePosixPath(sidecar_key)
+    for sidecar_name in dict.fromkeys(
+        (
+            portable_sidecar_name(output_key),
+            legacy_portable_sidecar_name(output_key),
+        )
+    ):
+        sidecar_dir = output_path.parent / sidecar_name
+        try:
+            sidecar_rel = sidecar_path.relative_to(sidecar_dir)
+        except ValueError:
+            continue
+        return _archive_name_for_sidecar(sidecar_dir.name, sidecar_rel)
+    raise ValueError(f"Sidecar key does not match output USD: {sidecar_key}")
 
 
 async def _write_store_output_usd_bundle(
@@ -303,9 +585,10 @@ async def _write_store_output_usd_bundle(
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
             stream = await manager.store.open_read(session_id, output_key)
             try:
-                archive.writestr(
+                _copy_stream_to_archive(
+                    archive,
                     _archive_name_for_output_file(PurePosixPath(output_key).name),
-                    stream.read(),
+                    stream,
                 )
             finally:
                 stream.close()
@@ -325,10 +608,10 @@ async def _write_store_output_usd_bundle(
 
                 stream = await manager.store.open_read(session_id, sidecar_key)
                 try:
-                    archive.writestr(archive_name, stream.read())
+                    _copy_stream_to_archive(archive, archive_name, stream)
                 finally:
                     stream.close()
-    except Exception:
+    except BaseException:
         _cleanup_temp_file(zip_path)
         raise
 
@@ -362,6 +645,9 @@ async def view_prediction_report(session_id: str):
 
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
+
+    if getattr(manager.store, "kind", "local") == "s3":
+        return await _serve_s3_prediction_report(manager, session_id)
 
     session_dir = manager.get_session_dir(session_id)
     report_path = session_dir / "cache" / "predictions" / "report.html"
@@ -429,6 +715,82 @@ async def download_dataset(session_id: str):
     )
 
 
+async def _serve_s3_output_usd_snapshot(
+    manager: SessionManager,
+    session_id: str,
+) -> Response:
+    """Serve root USD and sidecars from one pinned publication manifest."""
+    snapshot_dir = Path(tempfile.mkdtemp(prefix="physics-output-snapshot-"))
+    output_artifact: OpenArtifactFile | None = None
+    try:
+        expected_suffix = await manager._expected_output_usd_suffix(
+            session_id,
+            snapshot_dir,
+        )
+        await manager.store.sync_to_local(
+            session_id,
+            str(snapshot_dir),
+            prefix="cache/physics/",
+        )
+        candidates: list[tuple[OpenArtifactFile, str]] = []
+        for suffix in _USD_MEDIA_TYPES:
+            relative_key = f"cache/physics/scene_physics{suffix}"
+            try:
+                artifact = open_held_artifact_file(snapshot_dir, relative_key)
+            except (OSError, RuntimeError, ValueError):
+                continue
+            candidates.append((artifact, relative_key))
+        if not candidates:
+            raise HTTPException(status_code=404, detail="Output USD not available")
+
+        # Download mtimes reflect transfer order, not authoring order. Match
+        # the manager's deterministic USD suffix preference instead.
+        output_artifact, relative_key = min(
+            candidates,
+            key=lambda item: (
+                PurePosixPath(item[1]).suffix.lower() != expected_suffix,
+                tuple(_USD_MEDIA_TYPES).index(PurePosixPath(item[1]).suffix.lower()),
+            ),
+        )
+        for candidate, _candidate_key in candidates:
+            if candidate is not output_artifact:
+                candidate.stream.close()
+
+        filename = PurePosixPath(relative_key).name
+        bundle_path = _write_open_output_usd_bundle(
+            snapshot_dir.parent,
+            snapshot_dir.name,
+            output_artifact,
+            relative_key,
+        )
+        if bundle_path is not None:
+            output_artifact.stream.close()
+            output_artifact = None
+            _cleanup_temp_tree(snapshot_dir)
+            return _zip_file_response(
+                bundle_path,
+                _output_usd_bundle_filename(filename),
+            )
+        response = HeldFileResponse(
+            output_artifact,
+            media_type=_usd_media_type(filename),
+            filename=filename,
+            background=BackgroundTask(_cleanup_temp_tree, snapshot_dir),
+        )
+        output_artifact = None
+        return response
+    except HTTPException:
+        if output_artifact is not None:
+            output_artifact.stream.close()
+        _cleanup_temp_tree(snapshot_dir)
+        raise
+    except BaseException:
+        if output_artifact is not None:
+            output_artifact.stream.close()
+        _cleanup_temp_tree(snapshot_dir)
+        raise
+
+
 @router.get("/{session_id}/output-usd")
 async def download_output_usd(session_id: str) -> Response:
     # Annotated as the starlette Response base class rather than the
@@ -442,8 +804,8 @@ async def download_output_usd(session_id: str) -> Response:
     Returned only when the pipeline has completed with apply_physics enabled
     (the service default). USD, USDA, and USDC inputs keep their suffix; USDZ
     inputs default to USDA so runtime-resolved MDL shader references remain
-    asset paths. When package-local dependencies are copied beside that USDA,
-    this endpoint returns a ZIP bundle containing the root USDA and sidecar
+    asset paths. When flattened outputs localize dependencies beside the root,
+    this endpoint returns a ZIP bundle containing the root layer and sidecar
     asset directory; otherwise it returns the single USD artifact. The output
     is augmented with UsdPhysics schemas (RigidBodyAPI, CollisionAPI, MassAPI,
     MaterialAPI) on each predicted prim, plus a PhysicsScene. Consumable by
@@ -454,7 +816,14 @@ async def download_output_usd(session_id: str) -> Response:
     if not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 
-    local_output = await manager.get_local_artifact_stream(session_id, "output_usd")
+    if getattr(manager.store, "kind", "local") == "s3":
+        return await _serve_s3_output_usd_snapshot(manager, session_id)
+
+    local_output = (
+        await manager.get_local_artifact_stream(session_id, "output_usd")
+        if getattr(manager.store, "kind", "local") != "s3"
+        else None
+    )
     if local_output is not None:
         output_artifact, relative_key = local_output
         filename = PurePosixPath(relative_key).name
@@ -467,8 +836,8 @@ async def download_output_usd(session_id: str) -> Response:
                     relative_key,
                 )
             except ArtifactPathError:
-                logger.warning("Ignoring unsafe local output USD sidecar tree")
-                bundle_path = None
+                logger.warning("Refusing unsafe local output USD sidecar tree")
+                raise
             if bundle_path:
                 output_artifact.stream.close()
                 return _zip_file_response(

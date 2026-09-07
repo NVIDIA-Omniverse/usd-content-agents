@@ -13,14 +13,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from content_workbench_agent_client.client import (
-    apply_command,
-    close_session,
-    create_session,
-    download_render_artifacts,
-    render,
-    wait_until_healthy,
-)
 from PIL import Image, ImageStat, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -30,6 +22,7 @@ from content_agent_workflows.common.artifacts import (
     load_json,
     resolve_artifact_path,
 )
+from content_agent_workflows.common.usd_cli_session import WorkflowUsdCliSession
 
 MATERIAL_APPEARANCE_INDEX_SCHEMA_VERSION = (
     "content-agent-workflows.material-appearance-index.v1"
@@ -244,43 +237,56 @@ def representative_srgb(
 
 def _render_override(
     *,
-    workbench_url: str,
-    session_id: str,
+    session: WorkflowUsdCliSession,
     material: dict[str, object],
     output_dir: Path,
     name: str,
 ) -> RenderedAppearance:
-    apply_command(
-        workbench_url,
-        session_id,
-        "material_override",
-        {
-            "prim_path": "/Root/Sphere",
-            "space": "source",
-            "unbind_existing": True,
-            "material": material,
-        },
-    )
-    response = render(
-        workbench_url,
-        session_id,
-        {
-            "width": int(_SWATCH_RENDER_CONFIG["width"]),
-            "height": int(_SWATCH_RENDER_CONFIG["height"]),
-            "use_session_camera": True,
-            "render_quality": str(_SWATCH_RENDER_CONFIG["render_quality"]),
-            "save_camera_json": True,
-        },
-    )
     output_dir.mkdir(parents=True, exist_ok=True)
-    record = download_render_artifacts(
-        workbench_url=workbench_url,
-        response=response,
-        image_path=output_dir / f"{name}.png",
-        response_path=output_dir / f"{name}_response.json",
-        camera_path=output_dir / f"{name}_camera.json",
+    material_arguments = ["material", "/Root/Sphere"]
+    if material.get("source") == "material_library":
+        material_arguments.extend(
+            [
+                "--library",
+                str(material["library_path"]),
+                "--name",
+                str(material["material_name"]),
+            ]
+        )
+    else:
+        color = material.get("color")
+        if not isinstance(color, list | tuple):
+            raise MaterialAppearanceError("display-color swatch lacks an RGB value")
+        material_arguments.extend(
+            [
+                "--color",
+                ",".join(str(float(component)) for component in color),
+                "--roughness",
+                str(float(material.get("roughness", 0.45))),
+                "--metallic",
+                str(float(material.get("metallic", 0.0))),
+            ]
+        )
+    session.run_json(material_arguments)
+    image_path = (output_dir / f"{name}.png").resolve()
+    response = session.run_json(
+        [
+            "render",
+            "--res",
+            f"{_SWATCH_RENDER_CONFIG['width']}x{_SWATCH_RENDER_CONFIG['height']}",
+            "--output",
+            str(image_path),
+        ]
     )
-    image_path = Path(str(record["image_path"])).expanduser().resolve()
+    atomic_write_json(output_dir / f"{name}_response.json", response)
+    summary = response.get("summary")
+    if not isinstance(summary, dict) or summary.get("backend") not in {
+        "ovrtx",
+        "remote",
+    }:
+        raise MaterialAppearanceError("usd-cli swatch render did not confirm OVRTX")
+    if not image_path.is_file():
+        raise MaterialAppearanceError(f"usd-cli did not produce swatch: {image_path}")
     measured = representative_srgb(
         image_path,
         crop_fraction=float(_SWATCH_RENDER_CONFIG["representative_crop_fraction"]),
@@ -333,7 +339,6 @@ def build_material_appearance_index(
     material_library_path: str | Path,
     swatch_template_path: str | Path,
     cache_dir: str | Path,
-    workbench_url: str,
 ) -> tuple[MaterialAppearanceIndex, Path]:
     """Render and cache neutral swatches for every library material."""
 
@@ -376,32 +381,19 @@ def build_material_appearance_index(
 
     swatches_dir = index_dir / "swatches"
     swatches_dir.mkdir(parents=True, exist_ok=True)
-    wait_until_healthy(workbench_url, timeout_seconds=30.0)
-    session = create_session(
-        workbench_url,
-        {
-            "scene_path": str(template_path),
-            "optimize": False,
-            "clear_materials": True,
-            "width": int(_SWATCH_RENDER_CONFIG["width"]),
-            "height": int(_SWATCH_RENDER_CONFIG["height"]),
-        },
+    session = WorkflowUsdCliSession.create(
+        owner_root=index_dir,
+        project_dir=index_dir,
+        identity=cache_key,
+        workflow="material-appearance-index",
+        input_roots=(template_path, library_path),
     )
-    session_id = session.get("session_id")
-    if not isinstance(session_id, str) or not session_id:
-        raise RuntimeError("Workbench did not return a swatch session_id")
     materials: list[MaterialAppearanceEntry] = []
     try:
-        apply_command(
-            workbench_url,
-            session_id,
-            "frame",
-            {
-                "prim_path": "/Root/Sphere",
-                "direction": _SWATCH_RENDER_CONFIG["direction"],
-                "margin": 1.25,
-            },
-        )
+        session.require_ovrtx(index_dir / "ovrtx_probe")
+        session.open(template_path)
+        session.run_json(["appearance", "clear"])
+        session.run_json(["camera", "fit", "/Root/Sphere"])
         for index, entry in enumerate(manifest_entries):
             stem = f"{index:03d}_{_safe_name(entry['name'])}"
             image_path = swatches_dir / f"{stem}.png"
@@ -419,8 +411,7 @@ def build_material_appearance_index(
                 )
             else:
                 appearance = _render_override(
-                    workbench_url=workbench_url,
-                    session_id=session_id,
+                    session=session,
                     material={
                         "source": "material_library",
                         "library_path": str(library_path),
@@ -439,7 +430,7 @@ def build_material_appearance_index(
                 )
             )
     finally:
-        close_session(workbench_url, session_id)
+        session.close()
 
     appearance_index = MaterialAppearanceIndex(
         cache_key=cache_key,
@@ -461,7 +452,6 @@ def render_display_color_targets(
     colors: list[list[float]],
     swatch_template_path: str | Path,
     output_dir: str | Path,
-    workbench_url: str,
 ) -> dict[str, RenderedAppearance]:
     """Render each unique source display color through the swatch pipeline."""
 
@@ -500,36 +490,22 @@ def render_display_color_targets(
     if not missing:
         return appearances
 
-    wait_until_healthy(workbench_url, timeout_seconds=30.0)
-    session = create_session(
-        workbench_url,
-        {
-            "scene_path": str(template_path),
-            "optimize": False,
-            "clear_materials": True,
-            "width": int(_SWATCH_RENDER_CONFIG["width"]),
-            "height": int(_SWATCH_RENDER_CONFIG["height"]),
-        },
+    session = WorkflowUsdCliSession.create(
+        owner_root=target_dir,
+        project_dir=target_dir,
+        identity=render_key,
+        workflow="material-display-color-swatches",
+        input_roots=(template_path,),
     )
-    session_id = session.get("session_id")
-    if not isinstance(session_id, str) or not session_id:
-        raise RuntimeError("Workbench did not return a target swatch session_id")
     try:
-        apply_command(
-            workbench_url,
-            session_id,
-            "frame",
-            {
-                "prim_path": "/Root/Sphere",
-                "direction": _SWATCH_RENDER_CONFIG["direction"],
-                "margin": 1.25,
-            },
-        )
+        session.require_ovrtx(target_dir / "ovrtx_probe")
+        session.open(template_path)
+        session.run_json(["appearance", "clear"])
+        session.run_json(["camera", "fit", "/Root/Sphere"])
         for key, color in missing.items():
             stem = _target_swatch_stem(color_key=key, render_key=render_key)
             appearances[key] = _render_override(
-                workbench_url=workbench_url,
-                session_id=session_id,
+                session=session,
                 material={
                     "display_name": "Authored Display Color",
                     "color": color,
@@ -540,7 +516,7 @@ def render_display_color_targets(
                 name=stem,
             )
     finally:
-        close_session(workbench_url, session_id)
+        session.close()
     return appearances
 
 

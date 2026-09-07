@@ -18,8 +18,11 @@ pxr-using contexts.
 from world_understanding.functions.physics.ovphysx_daemon import (
     OvPhysXDaemonError,
     OvPhysXDaemonUnavailableError,
+    OvPhysXRuntimeSpec,
     _OvPhysXDaemon,
     ovphysx_runtime_available,
+    ovphysx_runtime_install_commands,
+    resolve_ovphysx_runtime_spec,
 )
 from world_understanding.functions.physics.physics_sanity import (
     PhysicsSanityFinding,
@@ -31,10 +34,13 @@ from world_understanding.functions.physics.physics_sanity import (
 __all__ = [
     "OvPhysXDaemonError",
     "OvPhysXDaemonUnavailableError",
+    "OvPhysXRuntimeSpec",
     "PhysicsSanityFinding",
     "PhysicsSanityResult",
     "_OvPhysXDaemon",
     "infer_physics_expected",
     "inspect_usd_physics",
+    "ovphysx_runtime_install_commands",
     "ovphysx_runtime_available",
+    "resolve_ovphysx_runtime_spec",
 ]

@@ -4,9 +4,11 @@
 
 import asyncio
 import copy
+import ipaddress
 import json
 import logging
 import os
+import secrets
 import shutil
 import stat
 import tempfile
@@ -14,10 +16,19 @@ import uuid
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, BinaryIO, NamedTuple
+from typing import Any, BinaryIO, Literal, NamedTuple
 
 import yaml
-from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    Body,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
 
 # Import API defaults (replaces service config defaults)
@@ -31,6 +42,9 @@ from material_agent.api.defaults import (
 from material_agent.config.schema import STEP_ORDER
 from material_agent.simready import is_simready_library_id
 from sse_starlette import EventSourceResponse
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+)
 from world_understanding.utils.archive import (
     ArchiveSizeLimitExceeded,
     copy_stream_limited,
@@ -50,6 +64,7 @@ from world_understanding.utils.credentials import (
     is_local_base_url,
     is_nvidia_provider_base_url,
     is_placeholder_api_key,
+    redact_sensitive_log_text,
     resolve_endpoint_api_key,
 )
 from world_understanding.utils.durable_diagnostics import (
@@ -57,6 +72,12 @@ from world_understanding.utils.durable_diagnostics import (
     log_durable_failure,
 )
 from world_understanding.utils.held_file_response import HeldFileResponse
+from world_understanding.utils.s3_utils import (
+    S3BucketNotAllowedError,
+    S3DownloadSizeExceededError,
+    authorize_s3_uri_for_extensions,
+    download_file_from_s3,
+)
 from world_understanding.utils.usd.stage import get_stage_info_from_path
 
 from ..artifact_lineage import (
@@ -75,6 +96,7 @@ from ..coverage import (
 )
 from ..models.requests import RegenerateRequest
 from ..models.responses import (
+    S3_INPUT_ERROR_RESPONSES,
     PipelineError,
     PipelineResults,
     PipelineStatus,
@@ -89,6 +111,7 @@ from ..session.manager import (
     SessionManager,
 )
 from ..storage.base import METADATA_KEY, JsonPreconditionError
+from ..storage.config import StorageConfig
 from ..workers.executor import execute_pipeline_async, execute_scene_pipeline_async
 
 logger = logging.getLogger(__name__)
@@ -103,12 +126,25 @@ _MAX_HISTORICAL_DESCRIPTIONS_BYTES = 1024 * 1024
 _HISTORICAL_DESCRIPTIONS_INVALID_DETAIL = (
     "Stored reference descriptions failed validation"
 )
+
+
+def _log_prim_count_warning(prim_count: int, threshold: int) -> None:
+    """Log the large-stage warning as bounded numeric fields only."""
+    logger.warning(
+        "Input USD prim threshold exceeded: prim_count=%d threshold=%d",
+        prim_count,
+        threshold,
+    )
+
+
 _REGENERATION_TERMINAL_FIELDS = (
     "cancelled_at",
     "completed_at",
     "coverage",
     "duration_seconds",
     "error",
+    "error_diagnostic",
+    "failure_evidence",
     "failed_at",
     "failed_step",
     "partial_results",
@@ -240,6 +276,13 @@ def _configure_predict_model_routing(
         "max_tokens": config.vlm_max_tokens,
         **config.vlm_backend_options,
     }
+    vlm_reasoning_effort = _resolve_reasoning_effort(
+        config.vlm_reasoning_effort,
+        routing.vlm_model,
+        routing.vlm_backend,
+    )
+    if vlm_reasoning_effort:
+        vlm_config["reasoning_effort"] = vlm_reasoning_effort
     # VLM routing starts from a fresh dict on each call, unlike the LLM config
     # below which merges into a possibly pre-existing step config.
 
@@ -283,10 +326,22 @@ def _configure_predict_model_routing(
     existing_llm = dict(predict_config.get("llm") or {})
     existing_llm.update(
         {
+            "backend": routing.llm_backend,
+            "model": routing.llm_model,
             "temperature": config.llm_temperature,
             "max_tokens": config.llm_max_tokens,
         }
     )
+    llm_reasoning_effort = _resolve_reasoning_effort(
+        config.llm_reasoning_effort,
+        routing.llm_model,
+        routing.llm_backend,
+        interface="chat",
+    )
+    if llm_reasoning_effort:
+        existing_llm["reasoning_effort"] = llm_reasoning_effort
+    else:
+        existing_llm.pop("reasoning_effort", None)
     if routing.llm_nim_base_url:
         # Switching the LLM section onto a NIM endpoint voids any prior
         # provider key/url left over from the unified config defaults.
@@ -296,7 +351,6 @@ def _configure_predict_model_routing(
         existing_llm.update(
             {
                 "backend": "nim",
-                "model": routing.llm_model,
                 "base_url": routing.llm_nim_base_url,
             }
         )
@@ -307,12 +361,6 @@ def _configure_predict_model_routing(
         )
     elif routing.llm_base_url or routing.llm_api_key_env or routing.llm_api_key:
         drop_stale_endpoint_credentials(existing_llm)
-        existing_llm.update(
-            {
-                "backend": routing.llm_backend,
-                "model": routing.llm_model,
-            }
-        )
         if routing.llm_base_url:
             existing_llm["base_url"] = routing.llm_base_url
         if routing.llm_api_key_env:
@@ -328,6 +376,21 @@ def _configure_predict_model_routing(
     }
 
 
+def _resolve_reasoning_effort(
+    explicit: str | None,
+    model: str | None,
+    backend: str,
+    *,
+    interface: Literal["chat", "vlm"] = "vlm",
+) -> str | None:
+    return resolve_reasoning_effort_for_backend(
+        backend,
+        model,
+        explicit=explicit,
+        interface=interface,
+    )
+
+
 def _build_service_vlm_config(routing: _ModelRouting) -> dict[str, Any]:
     """Build VLM config for service-owned pipeline-internal calls."""
     vlm_config: dict[str, Any] = {
@@ -337,6 +400,13 @@ def _build_service_vlm_config(routing: _ModelRouting) -> dict[str, Any]:
         "max_tokens": config.vlm_max_tokens,
         **config.vlm_backend_options,
     }
+    reasoning_effort = _resolve_reasoning_effort(
+        config.vlm_reasoning_effort,
+        routing.vlm_model,
+        routing.vlm_backend,
+    )
+    if reasoning_effort:
+        vlm_config["reasoning_effort"] = reasoning_effort
     if routing.vlm_backend == "nim" and routing.vlm_nim_base_url:
         vlm_config["base_url"] = routing.vlm_nim_base_url
     return vlm_config
@@ -389,6 +459,14 @@ def _build_service_llm_config(
         "max_tokens": config.llm_max_tokens if max_tokens is None else max_tokens,
         **config.vlm_backend_options,
     }
+    reasoning_effort = _resolve_reasoning_effort(
+        config.llm_reasoning_effort,
+        routing.llm_model,
+        routing.llm_backend,
+        interface="chat",
+    )
+    if reasoning_effort:
+        llm_config["reasoning_effort"] = reasoning_effort
     if routing.llm_nim_base_url:
         llm_config.update(
             {
@@ -1285,7 +1363,7 @@ def _normalize_user_email(user_email: str | None) -> str:
         return normalized
 
     fallback = config.default_user_email.strip()
-    return fallback or "anonymous@nvidia.com"
+    return fallback or "anonymous@example.com"
 
 
 def _parse_csv_form(value: str | None) -> list[str]:
@@ -1577,7 +1655,7 @@ async def _restore_existing_session_files(
         logger.info(
             "Pulled %s %s file(s) from store for session %s",
             pulled,
-            relative_dir,
+            redact_sensitive_log_text(relative_dir),
             session_id[:8],
         )
 
@@ -2513,7 +2591,7 @@ def _validate_materials_yaml_content(
     # or under the service-style "materials" key.
     if not isinstance(materials_data, dict):
         error_msg = f"materials.yaml must be a YAML dictionary, got {type(materials_data).__name__}"
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
     materials_section = materials_data.get("materials", materials_data)
@@ -2524,15 +2602,16 @@ def _validate_materials_yaml_content(
             f"Found top-level keys: {list(materials_data.keys())}, "
             f"materials type: {type(materials_section).__name__ if materials_section else 'None'}"
         )
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
     library_path_relative = materials_section.get("library_path")
     entries = materials_section.get("entries", [])
 
     logger.info(
-        f"Parsed materials.yaml: library_path={library_path_relative}, "
-        f"entries_count={len(entries) if entries else 0}"
+        "Parsed materials.yaml: library_path=%s, entries_count=%d",
+        redact_sensitive_log_text(library_path_relative),
+        len(entries) if entries else 0,
     )
 
     # Validate library_path is a non-empty string
@@ -2544,7 +2623,7 @@ def _validate_materials_yaml_content(
             f"materials section keys: {list(materials_section.keys())}, "
             f"library_path type: {type(library_path_relative).__name__}"
         )
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
     if not isinstance(entries, list) or not entries:
@@ -2554,7 +2633,7 @@ def _validate_materials_yaml_content(
             f"Found type={type(entries).__name__}, "
             f"len={len(entries) if hasattr(entries, '__len__') else 'n/a'}"
         )
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
     # Ensure each entry is a mapping (dict-like)
@@ -2564,7 +2643,7 @@ def _validate_materials_yaml_content(
             "entries must be a list of objects (YAML mappings). "
             f"Got element types: {sorted(types)}"
         )
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
     # Resolve and validate USD library file exists (relative to base_dir)
@@ -2580,10 +2659,13 @@ def _validate_materials_yaml_content(
             f"library_path escapes base directory: '{library_path_relative}' "
             f"(resolved to: {library_path}, base: {base_dir_resolved})"
         )
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
-    logger.info(f"Looking for USD library at: {library_path}")
+    logger.info(
+        "Looking for USD library at: %s",
+        redact_sensitive_log_text(library_path),
+    )
 
     if not library_path.exists():
         # List available USD files for helpful error message
@@ -2601,11 +2683,13 @@ def _validate_materials_yaml_content(
             f"Base directory: {base_dir}. "
             f"Ensure library_path in materials.yaml matches the actual file name."
         )
-        logger.error(error_msg)
+        logger.error("%s", redact_sensitive_log_text(error_msg))
         raise HTTPException(status_code=400, detail=error_msg)
 
     logger.info(
-        f"Validated materials.yaml: {len(entries)} materials, library: {library_path.name}"
+        "Validated materials.yaml: %d materials, library: %s",
+        len(entries),
+        redact_sensitive_log_text(library_path.name),
     )
 
     return str(library_path), entries
@@ -2636,6 +2720,118 @@ async def _stream_copy(
             total_bytes += len(data)
 
     return total_bytes
+
+
+_VALID_USD_EXTENSIONS = frozenset({".usd", ".usda", ".usdc", ".usdz"})
+
+
+def _validate_and_authorize_s3_usd_uri(s3_uri: str) -> str:
+    """Validate and authorize a client S3 USD URI without performing I/O."""
+    try:
+        return authorize_s3_uri_for_extensions(
+            s3_uri,
+            config.s3_allowed_buckets,
+            allowed_extensions=_VALID_USD_EXTENSIONS,
+        )
+    except S3BucketNotAllowedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
+    """Reauthorize and atomically download a client S3 USD into session input."""
+    ext = _validate_and_authorize_s3_usd_uri(s3_uri)
+    local_path = session_dir / "input" / f"scene{ext}"
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot = local_path.with_name(f".{local_path.name}.{uuid.uuid4().hex}.download")
+    storage_config = StorageConfig()
+    use_service_s3_settings = storage_config.kind == "s3" or any(
+        (
+            storage_config.s3_region,
+            storage_config.s3_endpoint_url,
+            storage_config.s3_access_key_id,
+            storage_config.s3_secret_access_key,
+            storage_config.s3_session_token,
+        )
+    )
+
+    try:
+        download_file_from_s3(
+            s3_uri,
+            snapshot,
+            region_name=storage_config.s3_region,
+            endpoint_url=storage_config.s3_endpoint_url,
+            aws_access_key_id=storage_config.s3_access_key_id,
+            aws_secret_access_key=storage_config.s3_secret_access_key,
+            aws_session_token=storage_config.s3_session_token,
+            use_path_style=(
+                storage_config.s3_use_path_style if use_service_s3_settings else None
+            ),
+            max_bytes=config.max_upload_size_mb * 1024 * 1024,
+        )
+    except S3DownloadSizeExceededError:
+        snapshot.unlink(missing_ok=True)
+        log_durable_failure(
+            logger,
+            "pipeline_s3_size_limit_exceeded",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
+        )
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                "S3 file exceeds the configured upload limit of "
+                f"{config.max_upload_size_mb} MiB"
+            ),
+        ) from None
+    except FileNotFoundError:
+        snapshot.unlink(missing_ok=True)
+        log_durable_failure(
+            logger,
+            "pipeline_s3_object_not_found",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
+        )
+        raise HTTPException(status_code=404, detail="S3 object not found") from None
+    except PermissionError:
+        snapshot.unlink(missing_ok=True)
+        log_durable_failure(
+            logger,
+            "pipeline_s3_access_denied",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=False,
+        )
+        raise HTTPException(
+            status_code=403, detail="Access denied to S3 object"
+        ) from None
+    except Exception:
+        snapshot.unlink(missing_ok=True)
+        log_durable_failure(
+            logger,
+            "pipeline_s3_download_failed",
+            phase=FailurePhase.LOCAL_PUBLICATION,
+            retryable=True,
+        )
+        raise HTTPException(
+            status_code=502, detail="Failed to download from S3"
+        ) from None
+
+    try:
+        size_mb = snapshot.stat().st_size / (1024 * 1024)
+        if size_mb > config.max_upload_size_mb:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"S3 file too large: {size_mb:.1f}MB. "
+                    f"Max: {config.max_upload_size_mb}MB"
+                ),
+            )
+        snapshot.replace(local_path)
+    finally:
+        snapshot.unlink(missing_ok=True)
+
+    return local_path
 
 
 def _find_input_usd(session_dir: Path) -> Path | None:
@@ -2855,7 +3051,10 @@ def _extract_and_validate_materials_zip(
                 materials_yaml_path = candidate
                 base_dir = subdir
                 found = True
-                logger.info(f"Found materials.yaml in subdirectory: {subdir.name}/")
+                logger.info(
+                    "Found materials.yaml in subdirectory: %s/",
+                    redact_sensitive_log_text(subdir.name),
+                )
                 break
 
         if not found:
@@ -2863,7 +3062,7 @@ def _extract_and_validate_materials_zip(
                 f"materials.zip must contain materials.yaml (at root or in a subdirectory). "
                 f"Searched in: {extract_dir} and subdirectories: {[d.name for d in subdirs]}"
             )
-            logger.error(error_msg)
+            logger.error("%s", redact_sensitive_log_text(error_msg))
             raise HTTPException(
                 status_code=400,
                 detail=error_msg,
@@ -2907,8 +3106,9 @@ def _extract_and_validate_materials_zip(
     library_path, entries = _validate_materials_yaml_content(materials_data, base_dir)
 
     logger.info(
-        f"Validated materials zip: {len(entries)} materials, "
-        f"library: {Path(library_path).name}"
+        "Validated materials zip: %d materials, library: %s",
+        len(entries),
+        redact_sensitive_log_text(Path(library_path).name),
     )
 
     return library_path, entries
@@ -3059,8 +3259,9 @@ async def _render_input_preview(
 
     try:
         logger.info(
-            f"Rendering input preview for {session_id[:8]}... "
-            f"(original_usd_path={original_usd_path})"
+            "Rendering input preview for %s... (original_usd_path=%s)",
+            session_id[:8],
+            redact_sensitive_log_text(original_usd_path),
         )
 
         # Find input USD file (supports .usd, .usda, .usdc, .usdz)
@@ -3080,14 +3281,20 @@ async def _render_input_preview(
         # resolve against the original directory on disk.
         if original_usd_path and original_usd_path.is_file():
             input_usd = original_usd_path
-            logger.info(f"Using original USD path for render: {original_usd_path}")
-        logger.info(f"Resolved input_usd for render: {input_usd}")
+            logger.info(
+                "Using original USD path for render: %s",
+                redact_sensitive_log_text(original_usd_path),
+            )
+        logger.info(
+            "Resolved input_usd for render: %s",
+            redact_sensitive_log_text(input_usd),
+        )
 
         # Create config for the render_preview workflow
         preview_config = {
             "usd_path": str(input_usd),
             "output_dir": str(session_dir / "input"),
-            "backend": "remote",
+            "backend": config.renderer_backend,
             "image_width": 512,
             "image_height": 512,
             "cameras": ["+x+y+z"],
@@ -3227,7 +3434,9 @@ async def generate_reference_image(
 
     try:
         logger.info(
-            f"Generating reference image for {session_id[:8]}: {prompt[:80]}..."
+            "Generating reference image for %s: %s...",
+            session_id[:8],
+            redact_sensitive_log_text(prompt[:80]),
         )
 
         image_gen_config: dict[str, str] = {"backend": config.image_gen_backend}
@@ -3523,8 +3732,14 @@ async def upload_usd_immediate(
 
 @router.post("/open-usd", response_model=SessionCreated, status_code=201)
 async def open_usd_local(
+    request: Request,
     file_path: str = Body(
         ..., embed=True, description="Absolute path to a local USD file"
+    ),
+    desktop_token: str | None = Header(
+        default=None,
+        alias="X-Material-Agent-Desktop-Token",
+        description="Per-process desktop capability generated by desktop.py",
     ),
 ) -> SessionCreated:
     """Open a local USD file by path (desktop mode).
@@ -3539,6 +3754,30 @@ async def open_usd_local(
     Returns:
         Session creation response with session_id.
     """
+    if not config.local_file_open_enabled:
+        raise HTTPException(status_code=404, detail="Local file opening is disabled")
+    expected_token = config.local_file_open_token
+    if not expected_token:
+        raise HTTPException(
+            status_code=503,
+            detail="Local file opening is enabled without a desktop capability",
+        )
+    if desktop_token is None or not secrets.compare_digest(
+        desktop_token,
+        expected_token,
+    ):
+        raise HTTPException(status_code=403, detail="Invalid desktop capability")
+    client_host = request.client.host if request.client is not None else ""
+    try:
+        client_is_loopback = ipaddress.ip_address(client_host).is_loopback
+    except ValueError:
+        client_is_loopback = False
+    if not client_is_loopback:
+        raise HTTPException(
+            status_code=403,
+            detail="Local file opening is restricted to loopback desktop clients",
+        )
+
     manager = get_session_manager()
 
     src = Path(file_path)
@@ -3581,7 +3820,13 @@ async def open_usd_local(
     # references (e.g. @./Payload/Contents.usda@) are available for the
     # full pipeline (optimize_usd, build_dataset, etc.).
     max_dir_bytes = config.max_upload_size_mb * 1024 * 1024 * 5
-    total_dir_size = sum(f.stat().st_size for f in src.parent.rglob("*") if f.is_file())
+    source_entries = list(src.parent.rglob("*"))
+    if any(entry.is_symlink() for entry in source_entries):
+        raise HTTPException(
+            status_code=400,
+            detail="Source directory must not contain symbolic links",
+        )
+    total_dir_size = sum(f.stat().st_size for f in source_entries if f.is_file())
     if total_dir_size > max_dir_bytes:
         raise HTTPException(
             status_code=413,
@@ -3647,20 +3892,40 @@ async def open_usd_local(
     )
 
 
-@router.post("", response_model=SessionCreated, status_code=202)
+@router.post(
+    "",
+    response_model=SessionCreated,
+    status_code=202,
+    responses=S3_INPUT_ERROR_RESPONSES,
+)
 async def create_pipeline(
     usd_file: UploadFile = File(
-        None, description="USD file to process (optional if ``session_id`` provided)"
+        None,
+        description=(
+            "USD file to process. Lowest-priority input after session_id and s3_uri."
+        ),
     ),
     session_id: str = Form(
-        None, description="Existing session ID (from ``/upload-usd`` endpoint)"
+        None,
+        description=(
+            "Existing session ID (from /upload-usd). Takes priority over s3_uri "
+            "and usd_file."
+        ),
+    ),
+    s3_uri: str | None = Form(
+        None,
+        description=(
+            "S3 URI to a USD file. Its exact bucket name must be listed in "
+            "MA_S3_ALLOWED_BUCKETS; an empty allowlist rejects all client S3 "
+            "inputs. Used when session_id is absent and takes priority over usd_file."
+        ),
     ),
     user_email: str | None = Form(
         default=None,
         description=(
             "Optional user email address for usage tracking and telemetry. "
             "Omitted or blank values use MA_DEFAULT_USER_EMAIL, then "
-            "anonymous@nvidia.com when that fallback is blank."
+            "anonymous@example.com when that fallback is blank."
         ),
     ),
     reference_images: list[UploadFile] = File(
@@ -3924,10 +4189,18 @@ async def create_pipeline(
 ) -> SessionCreated:
     """Create and execute a material assignment pipeline.
 
-    Two modes:
-    1. New session: Provide usd_file, creates new session and uploads USD
-    2. Existing session: Provide session_id (from /upload-usd), skips USD upload
+    Input precedence is ``session_id``, then ``s3_uri``, then ``usd_file``.
+    New sessions can ingest an inline upload or an allowlisted S3 USD URI.
     """
+    selected_s3_uri = s3_uri if s3_uri and not session_id else None
+    selected_usd_file = (
+        usd_file
+        if usd_file is not None and not session_id and not selected_s3_uri
+        else None
+    )
+    if selected_s3_uri:
+        _validate_and_authorize_s3_usd_uri(selected_s3_uri)
+
     manager = get_session_manager()
     user_email = _normalize_user_email(user_email)
 
@@ -3938,6 +4211,7 @@ async def create_pipeline(
         {
             "form_values": (
                 session_id,
+                selected_s3_uri,
                 user_email,
                 reference_descriptions,
                 generated_reference_id,
@@ -3975,7 +4249,7 @@ async def create_pipeline(
                 scene_filters,
             ),
             "upload_filenames": (
-                usd_file.filename if usd_file is not None else None,
+                selected_usd_file.filename if selected_usd_file is not None else None,
                 *(upload.filename for upload in reference_images),
                 *(upload.filename for upload in reference_pdfs),
                 materials_zip.filename if materials_zip is not None else None,
@@ -4108,6 +4382,8 @@ async def create_pipeline(
             step_config=cluster_prims_step_config,
         ),
     }
+    if selected_s3_uri:
+        pipeline_session_config["s3_uri"] = selected_s3_uri
 
     # Re-scan the exact normalized/parsed values that can enter session
     # metadata, description artifacts, or worker-derived durable output. This
@@ -4125,7 +4401,7 @@ async def create_pipeline(
         }
     )
 
-    # Two execution paths:
+    # Three input paths, in descending precedence order.
     if session_id:
         # Path 1: Use existing session (USD already uploaded via /upload-usd)
         logger.info(f"Using existing session {session_id[:8]}...")
@@ -4175,58 +4451,71 @@ async def create_pipeline(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     else:
-        # Path 2: New session (legacy flow - upload USD now)
-        if not usd_file:
+        if not selected_s3_uri and not selected_usd_file:
             raise HTTPException(
-                status_code=400, detail="Either usd_file or session_id must be provided"
+                status_code=400,
+                detail="One of session_id, s3_uri, or usd_file must be provided",
             )
 
-        # Generate unique session ID
         session_id = str(uuid.uuid4())
 
-        # Validate file extension
-        if usd_file.filename:
-            ext = Path(usd_file.filename).suffix.lower()
+        if selected_usd_file and selected_usd_file.filename:
+            ext = Path(selected_usd_file.filename).suffix.lower()
             if ext not in config.allowed_extensions:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid file type: {ext}. Allowed: {config.allowed_extensions}",
                 )
 
-        # Create session directory structure
         session_dir = await manager.create_session(
             session_id,
             config=pipeline_session_config,
         )
         created_new_session = True
-
-        # Save uploaded USD file using streaming, preserving original extension
-        original_ext = (
-            Path(usd_file.filename).suffix.lower() if usd_file.filename else ".usd"
-        )
-        usd_path = session_dir / "input" / f"scene{original_ext}"
         failure_phase = FailurePhase.LOCAL_PUBLICATION
         try:
-            # Stream file to disk in chunks (2MB at a time)
-            total_bytes = await _stream_copy(usd_file, usd_path)
-
-            # Check file size after streaming
-            size_mb = total_bytes / (1024 * 1024)
-            if size_mb > config.max_upload_size_mb:
-                # Remove the file if it exceeds limit
-                usd_path.unlink(missing_ok=True)
-                await manager.delete_session(session_id)
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"File too large: {size_mb:.1f}MB. Max: {config.max_upload_size_mb}MB",
+            if selected_s3_uri:
+                usd_path = await asyncio.to_thread(
+                    _download_s3_to_session,
+                    selected_s3_uri,
+                    session_dir,
+                )
+                total_bytes = usd_path.stat().st_size
+                original_ext = usd_path.suffix.lower()
+                original_filename = selected_s3_uri.rsplit("/", 1)[-1]
+                logger.info(
+                    "Downloaded S3 USD for session %s: %.2fMB (%s)",
+                    session_id,
+                    total_bytes / (1024 * 1024),
+                    original_ext,
+                )
+            else:
+                assert selected_usd_file is not None
+                original_ext = (
+                    Path(selected_usd_file.filename).suffix.lower()
+                    if selected_usd_file.filename
+                    else ".usd"
+                )
+                usd_path = session_dir / "input" / f"scene{original_ext}"
+                total_bytes = await _stream_copy(selected_usd_file, usd_path)
+                size_mb = total_bytes / (1024 * 1024)
+                if size_mb > config.max_upload_size_mb:
+                    usd_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=(
+                            f"File too large: {size_mb:.1f}MB. "
+                            f"Max: {config.max_upload_size_mb}MB"
+                        ),
+                    )
+                original_filename = selected_usd_file.filename or f"scene{original_ext}"
+                logger.info(
+                    "Saved USD file for session %s: %.2fMB (%s)",
+                    session_id,
+                    size_mb,
+                    original_ext,
                 )
 
-            logger.info(
-                f"Saved USD file for session {session_id}: {size_mb:.2f}MB ({original_ext})"
-            )
-
-            # Store asset metadata in session for telemetry
-            original_filename = usd_file.filename or f"scene{original_ext}"
             failure_phase = FailurePhase.PERSISTENCE_VERIFICATION
             await manager.update_session(
                 session_id,
@@ -4239,7 +4528,7 @@ async def create_pipeline(
                 },
             )
 
-            # Mirror uploaded USD to external store if configured
+            # Mirror the ingested USD to the external store if configured.
             try:
                 await manager.put_file_to_store(
                     session_id,
@@ -4263,7 +4552,8 @@ async def create_pipeline(
                 logger.info(f"Triggered input preview render for {session_id[:8]}...")
 
         except HTTPException:
-            raise  # Re-raise HTTP exceptions as-is
+            await manager.delete_session(session_id)
+            raise
         except Exception:
             log_durable_failure(
                 logger,
@@ -4315,7 +4605,7 @@ async def create_pipeline(
         logger.info(
             "Validated large-scene input %s with default root prim %s",
             session_id[:8],
-            default_prim_path,
+            redact_sensitive_log_text(default_prim_path),
         )
 
     # Save reference images if provided using streaming
@@ -4471,7 +4761,10 @@ async def create_pipeline(
     session_materials_entries = config.materials
 
     if materials_zip and materials_zip.filename:
-        logger.info(f"Processing custom materials zip: {materials_zip.filename}")
+        logger.info(
+            "Processing custom materials zip: %s",
+            redact_sensitive_log_text(materials_zip.filename),
+        )
 
         # Create materials directory in session
         materials_dir = session_dir / "materials"
@@ -4523,8 +4816,9 @@ async def create_pipeline(
             )
 
             logger.info(
-                f"Using custom materials: {len(session_materials_entries)} entries, "
-                f"library: {session_materials_library}"
+                "Using custom materials: %d entries, library: %s",
+                len(session_materials_entries),
+                redact_sensitive_log_text(session_materials_library),
             )
 
         except HTTPException:
@@ -4574,7 +4868,7 @@ async def create_pipeline(
                 "Reusing custom materials from session %s: %s entries, library: %s",
                 session_id[:8],
                 len(session_materials_entries),
-                session_materials_library,
+                redact_sensitive_log_text(session_materials_library),
             )
 
     if not has_custom_materials:
@@ -4648,7 +4942,7 @@ async def create_pipeline(
             f"WARNING: Input USD contains {prim_count} prims (>{threshold}). "
             "Processing may be slow."
         )
-        logger.warning("[%s] %s", session_id[:8], warn_msg)
+        _log_prim_count_warning(prim_count, threshold)
         await get_event_bus().emit_for_owner(
             ProgressEvent(
                 session_id=session_id,
@@ -4675,6 +4969,7 @@ async def create_pipeline(
         vlm_model=routing.vlm_model,
         llm_backend=routing.llm_backend,
         llm_model=routing.llm_model,
+        renderer_backend=config.renderer_backend,
         user_prompt=user_prompt_text,
         enabled_steps=pipeline_steps,
         working_dir=str(session_dir / "cache"),
@@ -4818,7 +5113,7 @@ async def create_pipeline(
         ]
         logger.info(
             "Injected selected generated reference image into pipeline config: %s",
-            generated_reference_id,
+            redact_sensitive_log_text(generated_reference_id),
         )
 
     if material_generation_enabled:
@@ -5160,6 +5455,10 @@ async def get_pipeline_status(session_id: str) -> PipelineStatus:
         created_at=metadata["created_at"],
         updated_at=metadata["updated_at"],
         coverage=metadata.get("coverage"),
+        error=metadata.get("error"),
+        failed_step=metadata.get("failed_step"),
+        error_diagnostic=metadata.get("error_diagnostic"),
+        failure_evidence=metadata.get("failure_evidence"),
     )
 
 
@@ -5388,6 +5687,8 @@ async def get_pipeline_results(session_id: str) -> PipelineResults | PipelineErr
             partial_results=metadata.get("partial_results"),
             download_urls=download_urls,
             coverage=metadata.get("coverage"),
+            error_diagnostic=metadata.get("error_diagnostic"),
+            failure_evidence=metadata.get("failure_evidence"),
         )
 
     else:
@@ -5884,6 +6185,7 @@ async def regenerate_pipeline(
         vlm_model=routing.vlm_model,
         llm_backend=routing.llm_backend,
         llm_model=routing.llm_model,
+        renderer_backend=config.renderer_backend,
         user_prompt=original_config.get("user_prompt"),
         enabled_steps=steps_to_run,
         working_dir=str(session_dir / "cache"),

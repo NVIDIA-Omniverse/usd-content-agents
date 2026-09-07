@@ -812,7 +812,7 @@ def test_validation_agent_public_example_configs_load() -> None:
     assert visual.requested_templates == ("render_valid", "look_right")
     assert visual.policy["look_right_vlm"] == {
         "backend": "nim",
-        "model": "google/gemma-4-31b-it",
+        "model": "moonshotai/kimi-k3",
     }
     known_negative = requests["steel_scaffold_known_negative_physics"]
     assert known_negative.policy["expected_issue_codes"] == [

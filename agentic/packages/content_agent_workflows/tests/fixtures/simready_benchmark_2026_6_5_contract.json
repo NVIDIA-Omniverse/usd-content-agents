@@ -1,0 +1,121 @@
+{
+  "contract_schema": "content-agent-workflows.simready-benchmark-contract.v1",
+  "distribution": {
+    "name": "simready-benchmark",
+    "version": "2026.6.5",
+    "captured_at": "2026-08-14",
+    "version_banner": "SimReady Benchmark (v2026.6.5)",
+    "public_releases": {
+      "simready-benchmark": {
+        "url": "https://pypi.org/project/simready-benchmark/2026.6.5/",
+        "wheel_sha256": "bd9571ef19a457ebba79d6c444b9cf9b29612e3698191f3e2b683d580dd92da7"
+      },
+      "simready-benchmark-engine-kit": {
+        "url": "https://pypi.org/project/simready-benchmark-engine-kit/2026.6.5/",
+        "wheel_sha256": "1ef4b20cb7a9060bbadb4aafc71e371ed871888c913f4eecc8cec978f1bc2c8b"
+      }
+    },
+    "capture_sources_sha256": {
+      "simready_benchmark/cli/main.py": "af592d6887f182b0634488a1341952bdfd06d914621b81bdcc61ffdb79d088bd",
+      "simready_benchmark/cli/modes.py": "62c090364c00dc260cfe715abe6b1e87cc098cc43c807e5d08873640949d40f2",
+      "simready_benchmark/reporter/reporter.py": "8e687a51991296fb98ad36fc14bfa41dfe217ac7f368b54def3d7169784bfcfa",
+      "simready_benchmark/runner/runner.py": "6949561fe6bb86aba59c339f1c9ed80946334000ac20b04f3d47398a2d983f63",
+      "simready_benchmark/runner/test_context.py": "84041cc3c0bbf44c5217677af8f47e31816458552c248ec33ac579bc37829fd1",
+      "simready_benchmark_engine_kit/execution.py": "ae6ca6618873a442b4dc346e32ce21eda1adac8b123cfcb74104b8f4c6b4d892",
+      "simready_benchmark_engine_kit/kit_runner.py": "5ac803a160b48babd60f2db94fa018180cf30b5e63e9160a0213b76256aed350",
+      "simready_benchmark/skills/run-tests/references/cli-flags.md": "66d10f87ff3d909ab34d2d15e160e083b1f2e47cbeeb39b0caa66b0903372f3e",
+      "simready_benchmark/skills/diagnose-failures/references/report-structure.md": "9b67085c7735eefe2cba22e7b9e51f6223b89dd9f0e8867abfbfe025bc893b1f",
+      "simready_benchmark/skills/stamp-results/references/stamp-command.md": "4eb219faec3e01cf88ac8928838755ecd652dcb0b4249ea0ce72a8980e0b7644"
+    }
+  },
+  "cli": {
+    "multi_value_flags": [
+      "--assets",
+      "--tests-path",
+      "--features",
+      "--tests",
+      "--runtime"
+    ],
+    "single_value_flags": [
+      "--output",
+      "--output-dir",
+      "--sr-specs",
+      "--engines-toml",
+      "--project-config",
+      "--max-concurrent",
+      "--format"
+    ],
+    "disable_stamping_flag": "--no-stamp"
+  },
+  "runtime_exit_codes": {
+    "success": 0,
+    "test_failure": 1,
+    "not_ready": 4
+  },
+  "native_report": {
+    "schema_version": "5.0",
+    "plan_path": "plan.json",
+    "required_plan_identity_fields": [
+      "assets[0].path",
+      "content_root"
+    ],
+    "report_path": "report/test_results_index.json",
+    "run_summary_path": "run_summary.json",
+    "events_path": "state/events.jsonl",
+    "session_log_file_path": "logs/<engine-config>_<spawn-number>.log",
+    "per_test_result_path": "results/<asset-dir>/.simready/runtime/<test-name>/result.json",
+    "per_test_media_path": "results/<asset-dir>/.simready/runtime/<test-name>/<media-filename>",
+    "per_test_result_statuses": [
+      "pass",
+      "fail",
+      "skipped",
+      "incomplete",
+      "blocked"
+    ],
+    "test_statuses": [
+      "pass",
+      "fail",
+      "skipped",
+      "incomplete",
+      "blocked"
+    ],
+    "test_status_normalization": {
+      "error": "fail"
+    },
+    "plan_only_feature_statuses": [
+      "neutral",
+      "validation_failed"
+    ],
+    "rollup_examples": [
+      {
+        "statuses": ["pass", "skipped"],
+        "derived": "pass"
+      },
+      {
+        "statuses": ["pass", "blocked"],
+        "derived": "blocked"
+      },
+      {
+        "statuses": ["pass", "incomplete"],
+        "derived": "incomplete"
+      },
+      {
+        "statuses": ["pass", "fail"],
+        "derived": "fail"
+      },
+      {
+        "statuses": ["skipped", "skipped"],
+        "derived": "skipped"
+      },
+      {
+        "statuses": ["neutral", "validation_failed"],
+        "derived": "skipped"
+      }
+    ]
+  },
+  "stamping": {
+    "default_enabled": true,
+    "source_directory_written": false,
+    "target": "results/<asset-mirror>"
+  }
+}

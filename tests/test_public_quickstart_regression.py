@@ -26,17 +26,17 @@ foot-guns were responsible:
    because they're legitimate compose-level defaults; the public READMEs
    document ``--env-file .env`` so substitution finds the repo-root file.
 
-These tests pin the fix in place: the public configs use the local OVRTX
-backend by default, the compose files do not list provider API keys
-under ``environment:`` (they flow through ``env_file:`` instead), and
-the public READMEs document ``--env-file .env`` for the documented
-``docker compose`` invocation.
+These tests pin the fix in place: the Physics public config uses local OVRTX
+by default, while Joint 0.5 intentionally uses public NIM and remote rendering.
+The compose files do not list provider API keys under ``environment:`` (they
+flow through ``env_file:`` instead), and the public READMEs document
+``--env-file .env`` for the documented ``docker compose`` invocation.
 """
 
 from __future__ import annotations
 
 import importlib.util
-import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -70,11 +70,18 @@ _PUBLIC_CONFIG_LOCAL_RENDER_STEPS: dict[str, tuple[str, ...]] = {
 }
 
 _JOINT_PUBLIC_CONFIG = Path("apps/joint_agent/configs/byoa_joint_rigger.yaml")
+# `apps/joint_agent/CLAUDE.md` is deliberately absent from this list: it is a
+# one-line `@AGENTS.md` bridge holding no prose of its own (enforced by
+# tests/internal/test_agent_doc_bridge_internal.py). The file that ships to the
+# public mirror under that name is `CLAUDE_PUBLIC.md`, which copy_to_staging.sh
+# renames into place, so that is what gets checked here. Same for
+# `AGENTS_PUBLIC.md` -> `AGENTS.md`.
 _JOINT_PUBLIC_GUIDES = (
     Path("apps/joint_agent/README.md"),
     Path("apps/joint_agent/AGENTS.md"),
-    Path("apps/joint_agent/CLAUDE.md"),
-    Path(".agents/skills/joint-agent-cli/SKILL.md"),
+    Path("apps/joint_agent/AGENTS_PUBLIC.md"),
+    Path("apps/joint_agent/CLAUDE_PUBLIC.md"),
+    Path(".agents/skills/fixed-pipeline/references/joint-agent-cli/reference.md"),
 )
 
 # Compose files that load the repo-root .env via long-form `env_file`. The
@@ -147,6 +154,39 @@ def _skill_mirror_files(root: Path) -> list[Path]:
     )
 
 
+def test_geometry_quickstart_uses_a_public_project_manifest() -> None:
+    quickstart = (REPO_ROOT / "agentic/docs/geometry_quickstart.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "uv sync --project apps/geometry_agent_service --extra dev" in quickstart
+    assert "uv sync --project agentic`" not in quickstart
+
+
+def test_geometry_quickstart_checked_in_fixture_paths_exist() -> None:
+    """Every checked-in fixture named by the staged quickstart must ship."""
+
+    quickstart = (REPO_ROOT / "agentic/docs/geometry_quickstart.md").read_text(
+        encoding="utf-8"
+    )
+    fixture_paths = {
+        Path(match)
+        for match in re.findall(
+            r"(?m)^\s+(agentic/examples/[^\s`]+)",
+            quickstart,
+        )
+    }
+
+    assert fixture_paths, "Geometry quickstart must name a checked-in fixture"
+    missing = sorted(
+        path.as_posix() for path in fixture_paths if not (REPO_ROOT / path).is_file()
+    )
+    assert not missing, (
+        "Geometry quickstart references fixtures absent from the staged public tree: "
+        + ", ".join(missing)
+    )
+
+
 @pytest.mark.parametrize(
     "config_relpath, steps",
     list(_PUBLIC_CONFIG_LOCAL_RENDER_STEPS.items()),
@@ -202,14 +242,17 @@ def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
 
     steps = config["steps"]
     assert steps["identify_asset"]["renderer"]["backend"] == "remote"
+    assert steps["identify_asset"]["renderer"]["max_concurrent_requests"] == 1
     assert steps["build_dataset_usd"]["renderer"]["backend"] == "remote"
+    assert steps["build_dataset_usd"]["max_concurrent_requests"] == 1
+    assert "max_concurrent_requests" not in steps["build_dataset_usd"]["renderer"]
     assert steps["analyze_structure"]["llm"] == {
         "backend": "nim",
-        "model": "google/gemma-4-31b-it",
+        "model": "moonshotai/kimi-k3",
     }
     assert steps["predict"]["vlm"] == {
         "backend": "nim",
-        "model": "google/gemma-4-31b-it",
+        "model": "moonshotai/kimi-k3",
     }
     assert steps["predict"]["completion_retries"] == 3
     assert steps["build_dataset_prepare_dataset"]["prompt_profile"] == (
@@ -230,7 +273,7 @@ def test_joint_public_config_surface_is_one_byoa_rigger_template() -> None:
         },
         "vlm": {
             "backend": "nim",
-            "model": "google/gemma-4-31b-it",
+            "model": "moonshotai/kimi-k3",
         },
     }
     apply_step = steps["apply_joint_rigger"]
@@ -366,7 +409,6 @@ def test_compose_does_not_clobber_env_file_api_keys(compose_relpath: str) -> Non
 # silently get clobbered by the compose default, even though the API key
 # alongside them does flow through via the `env_file:` directive.
 _PUBLIC_DOCKER_COMPOSE_READMES = (
-    "README_PUBLIC.md",
     "apps/physics_agent_service/README.md",
     "apps/material_agent_service/README_PUBLIC.md",
     "apps/joint_agent_service/README.md",
@@ -440,11 +482,8 @@ def test_public_readme_compose_invocation_uses_env_file(readme_relpath: str) -> 
     )
 
 
-def test_material_large_scene_quickstart_uses_shipped_service_example() -> None:
-    """Public large-scene docs must not point at root /examples, which do not ship."""
-    readme_text = public_doc_path(REPO_ROOT, "README_PUBLIC.md").read_text(
-        encoding="utf-8"
-    )
+def test_material_large_scene_service_docs_use_shipped_example() -> None:
+    """Public service docs must not point at root /examples, which do not ship."""
     service_docs_text = (
         REPO_ROOT / "apps/material_agent_service/docs/api.md"
     ).read_text(encoding="utf-8")
@@ -453,11 +492,9 @@ def test_material_large_scene_quickstart_uses_shipped_service_example() -> None:
     )
 
     assert quickstart_path.exists()
-    assert "apps/material_agent_service/examples/large_scene/README.md" in readme_text
     assert "apps/material_agent_service/examples/large_scene/README.md" in (
         service_docs_text
     )
-    assert "examples/material_agent_large_scene/README.md" not in readme_text
     assert "examples/material_agent_large_scene/README.md" not in service_docs_text
 
 
@@ -511,43 +548,61 @@ def test_agent_skill_compatibility_mirrors() -> None:
 
 def test_sync_agent_skills_refuses_dirty_legacy_mirror(tmp_path: Path) -> None:
     """Legacy mirror-only files must be moved to .agents before replacement."""
-    mirror = REPO_ROOT / ".claude/skills"
-    original_target = Path(os.readlink(mirror))
+    sandbox = tmp_path / "repo"
+    script = sandbox / "scripts/sync_agent_skills.sh"
+    script.parent.mkdir(parents=True)
+    shutil.copy2(REPO_ROOT / "scripts/sync_agent_skills.sh", script)
+    canonical = sandbox / ".agents/skills"
+    canonical.mkdir(parents=True)
+    (canonical / "SKILL.md").write_text("# Canonical skill\n", encoding="utf-8")
+    for parent in (sandbox / ".claude", sandbox / ".codex"):
+        parent.mkdir()
+        (parent / "skills").symlink_to("../.agents/skills")
+    subprocess.run(["git", "init", "-q"], cwd=sandbox, check=True)
+
+    mirror = sandbox / ".claude/skills"
     dirty_file = mirror / f"dirty-{tmp_path.name}.tmp"
 
     mirror.unlink()
     mirror.mkdir()
     dirty_file.write_text("mirror-only skill draft\n", encoding="utf-8")
 
-    try:
-        result = subprocess.run(
-            ["bash", str(REPO_ROOT / "scripts/sync_agent_skills.sh")],
-            cwd=REPO_ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-    finally:
-        shutil.rmtree(mirror, ignore_errors=True)
-        mirror.symlink_to(original_target)
+    result = subprocess.run(
+        ["bash", str(script)],
+        cwd=sandbox,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
 
     assert result.returncode != 0
     assert "refusing to replace dirty skill mirror" in result.stderr
+    shutil.rmtree(mirror)
+    mirror.symlink_to("../.agents/skills")
     subprocess.run(
-        ["bash", str(REPO_ROOT / "scripts/sync_agent_skills.sh"), "--check"],
-        cwd=REPO_ROOT,
+        ["bash", str(script), "--check"],
+        cwd=sandbox,
         check=True,
     )
 
 
 def test_deploy_collection_skill_metadata_exists() -> None:
     """The canonical skill tree should include Codex UI metadata."""
-    canonical_skill = REPO_ROOT / ".agents/skills/deploy-collection/SKILL.md"
-    metadata = REPO_ROOT / ".agents/skills/deploy-collection/agents/openai.yaml"
+    canonical_skill = (
+        REPO_ROOT
+        / ".agents/skills/fixed-pipeline/references/deploy-collection/reference.md"
+    )
+    metadata = (
+        REPO_ROOT
+        / ".agents/skills/fixed-pipeline/references/deploy-collection/agents/openai.yaml"
+    )
 
     assert canonical_skill.exists()
     assert metadata.exists()
-    codex_metadata = REPO_ROOT / ".codex/skills/deploy-collection/agents/openai.yaml"
+    codex_metadata = (
+        REPO_ROOT
+        / ".codex/skills/fixed-pipeline/references/deploy-collection/agents/openai.yaml"
+    )
     assert codex_metadata.exists()
     assert codex_metadata.read_text(encoding="utf-8") == metadata.read_text(
         encoding="utf-8"

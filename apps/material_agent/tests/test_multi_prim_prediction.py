@@ -15,11 +15,15 @@ Tests cover:
 import json
 import logging
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from PIL import Image
+from world_understanding.functions.models.vision_language_models import (
+    NonRetryableVLMTimeoutError,
+)
 
 from material_agent.functions.inference import assign_materials_multi_prim
 from material_agent.tasks.inference import VLMInferenceTask
@@ -986,6 +990,56 @@ class TestRunMultiPrimInference:
             assert len(retry_entries) == 2
 
         assert len(results) == 2
+
+    def test_multi_prim_terminal_timeout_does_not_queue_individual_retries(
+        self,
+        inference_task,
+        sample_entries_for_grouping,
+        mock_vlm_multi_prim,
+        mock_llm_multi_prim,
+        tmp_path,
+    ):
+        entries = sample_entries_for_grouping[:4]
+        context = self._make_context(tmp_path, batch_size=2)
+        context["max_workers"] = 2
+        listener = self._make_listener()
+        workers_started = Barrier(2)
+
+        def raise_terminal_timeout(*_args, **_kwargs):
+            workers_started.wait(timeout=2)
+            raise NonRetryableVLMTimeoutError("remote completion unverified")
+
+        mock_vlm_multi_prim.generate.side_effect = raise_terminal_timeout
+        mock_vlm_multi_prim.generate_with_image_caption_pairs.side_effect = (
+            raise_terminal_timeout
+        )
+
+        with patch(
+            "material_agent.tasks.inference.batch_assign_materials"
+        ) as mock_batch:
+            with pytest.raises(NonRetryableVLMTimeoutError):
+                inference_task._run_multi_prim_inference(
+                    dataset=entries,
+                    context=context,
+                    prediction_batch_size=2,
+                    vlm=mock_vlm_multi_prim,
+                    llm=mock_llm_multi_prim,
+                    system_prompt=context["config"]["system_prompt"],
+                    vlm_invoke_kwargs={},
+                    max_retries=3,
+                    predictions_path=tmp_path / "predictions.jsonl",
+                    stream_predictions=False,
+                    listener=listener,
+                    token_tracker=None,
+                )
+
+            mock_batch.assert_not_called()
+
+        total_provider_calls = (
+            mock_vlm_multi_prim.generate.call_count
+            + mock_vlm_multi_prim.generate_with_image_caption_pairs.call_count
+        )
+        assert total_provider_calls == 2
 
     def test_multi_prim_inference_multiple_groups(
         self,

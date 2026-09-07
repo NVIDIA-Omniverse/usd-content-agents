@@ -39,6 +39,7 @@ async def test_failed_tune_with_artifacts_persists_partial_results(
             output_dir=out,
             best_params={"mass_scale": 1.2},
             best_score=0.25,
+            best_objective=0.4,
             n_trials=3,
             optimizer_used="random",
             engine_used="fake",
@@ -71,6 +72,7 @@ async def test_failed_tune_with_artifacts_persists_partial_results(
     assert metadata["results"] == {
         "best_params": {"mass_scale": 1.2},
         "best_score": 0.25,
+        "best_objective": 0.4,
         "n_trials": 3,
         "optimizer_used": "random",
         "engine_used": "fake",

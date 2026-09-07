@@ -26,6 +26,7 @@ from material_agent.api.defaults import (
     DEFAULT_LLM_MAX_TOKENS,
     DEFAULT_LLM_MODEL,
     DEFAULT_LLM_TEMPERATURE,
+    DEFAULT_RENDER_BACKEND,
     DEFAULT_VLM_BACKEND,
     DEFAULT_VLM_MAX_TOKENS,
     DEFAULT_VLM_MODEL,
@@ -38,8 +39,11 @@ from material_agent.simready import (
     is_simready_library_id,
     load_manifest,
 )
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
+from world_understanding.rendering_backend_contract import (
+    validate_rendering_backend_name,
+)
 from world_understanding.utils.credentials import (
     get_env_api_key_for_backend,
     get_nim_api_key_for_base_url,
@@ -58,6 +62,7 @@ _LOCAL_RENDER_HOSTS = {
     "::1",
     "ovrtx-rendering-api",
 }
+_LEGACY_RENDERER_BACKEND_ALIASES = {"nvcf": DEFAULT_RENDER_BACKEND}
 
 
 def _has_real_api_key(value: str | None) -> bool:
@@ -212,6 +217,24 @@ class ServiceConfig(BaseSettings):
     # File upload settings (FastAPI-specific)
     max_upload_size_mb: int = 500
     allowed_extensions: set[str] = {".usd", ".usda", ".usdc", ".usdz"}
+    local_file_open_enabled: bool = Field(
+        default=False,
+        description=(
+            "Allow the authenticated loopback-only desktop /pipeline/open-usd "
+            "route. Remote service deployments must leave this disabled."
+        ),
+    )
+    local_file_open_token: str = Field(
+        default="",
+        repr=False,
+        description=(
+            "Per-process desktop capability required by /pipeline/open-usd when "
+            "local file opening is enabled."
+        ),
+    )
+    # Exact bucket names authorized for client-supplied S3 inputs. Empty is
+    # intentionally fail-closed; configure MA_S3_ALLOWED_BUCKETS to opt in.
+    s3_allowed_buckets: str = ""
     max_render_num_workers: int = Field(
         default=32,
         ge=1,
@@ -231,7 +254,7 @@ class ServiceConfig(BaseSettings):
         ),
     )
     default_user_email: str = Field(
-        default="anonymous@nvidia.com",
+        default="anonymous@example.com",
         description=(
             "Telemetry user email to use when a pipeline request omits "
             "user_email or sends it blank"
@@ -245,6 +268,10 @@ class ServiceConfig(BaseSettings):
             "pipelines. Smaller batches avoid long NVCF render requests for "
             "complex scenes."
         ),
+    )
+    renderer_backend: str = Field(
+        default=DEFAULT_RENDER_BACKEND,
+        description="Canonical backend used by every service-owned USD render",
     )
 
     # API Keys (from environment)
@@ -276,6 +303,10 @@ class ServiceConfig(BaseSettings):
         ge=1,
         description="Maximum VLM completion tokens to request",
     )
+    vlm_reasoning_effort: str | None = Field(
+        default=None,
+        description="Optional VLM reasoning effort override",
+    )
     llm_backend: str = Field(
         default=DEFAULT_LLM_BACKEND, description="LLM backend to use"
     )
@@ -299,6 +330,10 @@ class ServiceConfig(BaseSettings):
         default=DEFAULT_LLM_MAX_TOKENS,
         ge=1,
         description="Maximum LLM completion tokens to request",
+    )
+    llm_reasoning_effort: str | None = Field(
+        default=None,
+        description="Optional LLM reasoning effort override",
     )
     vlm_backend_options: dict[str, Any] = Field(
         default_factory=dict,
@@ -381,6 +416,13 @@ class ServiceConfig(BaseSettings):
     class Config:
         env_prefix = "MA_"  # Environment variables prefix: MA_*
         case_sensitive = False
+
+    @field_validator("renderer_backend")
+    @classmethod
+    def _validate_renderer_backend(cls, value: str) -> str:
+        """Migrate the legacy NVCF selector and reject unknown backend names."""
+        canonical_value = _LEGACY_RENDERER_BACKEND_ALIASES.get(value, value)
+        return validate_rendering_backend_name(canonical_value)
 
     def __init__(self, **kwargs: Any) -> None:
         """Initialize config and load materials/API keys."""

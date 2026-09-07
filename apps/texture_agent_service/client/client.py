@@ -67,6 +67,8 @@ class TextureAgentClient:
         self._http.headers.update({"User-Agent": "texture-agent-client/1.0"})
         if self._token:
             self._http.headers.update({"Authorization": f"Bearer {self._token}"})
+        if version_id := os.getenv("NVCF_INVOKE_VERSION_ID"):
+            self._http.headers.update({"Function-Version-Id": version_id})
 
     # -------- Core operations
     def upload_usd(
@@ -112,6 +114,7 @@ class TextureAgentClient:
         texture_endpoint: str | None = None,
         backend_engine: str | None = None,
         backend_custom_parameters: dict[str, Any] | None = None,
+        external_authoring: dict[str, Any] | None = None,
         detail_policy: str | None = None,
         reference_image_uris: list[str] | None = None,
         reference_image_path: str | None = None,
@@ -143,6 +146,7 @@ class TextureAgentClient:
             texture_endpoint: Optional texture variation backend endpoint.
             backend_engine: Optional backend engine/model route hint.
             backend_custom_parameters: Optional backend custom parameter object.
+            external_authoring: Optional versioned headless DCC authoring contract.
             detail_policy: Optional texture detail policy, e.g. "surface_only".
             reference_image_uris: Optional global reference image URI list.
             reference_image_path: Optional global reference image upload path.
@@ -186,6 +190,8 @@ class TextureAgentClient:
             data["backend_custom_parameters_json"] = json.dumps(
                 backend_custom_parameters
             )
+        if external_authoring:
+            data["external_authoring_json"] = json.dumps(external_authoring)
         if detail_policy:
             data["detail_policy"] = detail_policy
         if reference_image_uris:
@@ -546,6 +552,7 @@ class TextureAgentClient:
         texture_endpoint: str | None = None,
         backend_engine: str | None = None,
         backend_custom_parameters: dict[str, Any] | None = None,
+        external_authoring: dict[str, Any] | None = None,
         detail_policy: str | None = None,
         reference_image_uris: list[str] | None = None,
         reference_image_path: str | None = None,
@@ -582,6 +589,7 @@ class TextureAgentClient:
             texture_endpoint: Optional texture variation backend endpoint.
             backend_engine: Optional backend engine/model route hint.
             backend_custom_parameters: Optional backend custom parameter object.
+            external_authoring: Optional versioned headless DCC authoring contract.
             detail_policy: Optional texture detail policy, e.g. "surface_only".
             reference_image_uris: Optional global reference image URI list.
             reference_image_path: Optional global reference image upload path.
@@ -621,6 +629,7 @@ class TextureAgentClient:
             "texture_endpoint": texture_endpoint,
             "backend_engine": backend_engine,
             "backend_custom_parameters": backend_custom_parameters,
+            "external_authoring": external_authoring,
             "detail_policy": detail_policy,
             "reference_image_uris": reference_image_uris,
             "reference_image_path": reference_image_path,

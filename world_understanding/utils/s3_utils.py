@@ -6,16 +6,19 @@ import logging
 import mimetypes
 import os
 import re
+import threading
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 import boto3
+from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from world_understanding.telemetry.attributes import MAAttributes
+from world_understanding.utils.credentials import redact_sensitive_log_text
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +30,27 @@ _S3_LOCATION_NOT_ALLOWED_MESSAGE = (
 )
 
 
-def _create_s3_client(profile_name: str | None = None) -> Any:
+def _create_s3_client(
+    profile_name: str | None = None,
+    *,
+    region_name: str | None = None,
+    endpoint_url: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
+    use_path_style: bool | None = None,
+) -> Any:
     """Create an S3 client, falling back to default credentials if profile not found.
 
     Args:
-        profile_name: AWS profile name. If the profile is not found,
-            falls back to default credentials (env vars, instance role, etc.).
+        profile_name: AWS profile name. If the profile is not found, falls back
+            to the explicit client settings or default credential chain.
+        region_name: Optional AWS region.
+        endpoint_url: Optional S3-compatible endpoint URL.
+        aws_access_key_id: Optional explicit access key ID.
+        aws_secret_access_key: Optional explicit secret access key.
+        aws_session_token: Optional explicit session token.
+        use_path_style: Optional path-style addressing override.
 
     Returns:
         A boto3 S3 client.
@@ -40,10 +58,26 @@ def _create_s3_client(profile_name: str | None = None) -> Any:
     Raises:
         ValueError: If no AWS credentials are available at all.
     """
+    client_kwargs: dict[str, Any] = {}
+    if region_name:
+        client_kwargs["region_name"] = region_name
+    if endpoint_url:
+        client_kwargs["endpoint_url"] = endpoint_url
+    if aws_access_key_id:
+        client_kwargs["aws_access_key_id"] = aws_access_key_id
+    if aws_secret_access_key:
+        client_kwargs["aws_secret_access_key"] = aws_secret_access_key
+    if aws_session_token:
+        client_kwargs["aws_session_token"] = aws_session_token
+    if use_path_style is not None:
+        client_kwargs["config"] = BotoConfig(
+            s3={"addressing_style": "path" if use_path_style else "virtual"}
+        )
+
     try:
         if profile_name:
             session = boto3.Session(profile_name=profile_name)
-            s3_client = session.client("s3")
+            s3_client = session.client("s3", **client_kwargs)
             logger.info("Using AWS profile: %s", profile_name)
             return s3_client
     except ProfileNotFound:
@@ -53,7 +87,7 @@ def _create_s3_client(profile_name: str | None = None) -> Any:
         )
 
     try:
-        s3_client = boto3.client("s3")
+        s3_client = boto3.client("s3", **client_kwargs)
         logger.info("Using default AWS credentials")
         return s3_client
     except NoCredentialsError as e:
@@ -62,6 +96,30 @@ def _create_s3_client(profile_name: str | None = None) -> Any:
 
 class S3BucketNotAllowedError(Exception):
     """Raised when a client-supplied S3 URI is outside an explicit allowlist."""
+
+
+class S3DownloadSizeExceededError(Exception):
+    """Raised before or during an S3 download that exceeds its byte limit."""
+
+
+class _BoundedDownloadCallback:
+    """Enforce a transfer byte limit while preserving an optional callback."""
+
+    def __init__(self, max_bytes: int, callback: Any | None) -> None:
+        self._max_bytes = max_bytes
+        self._callback = callback
+        self._bytes_transferred = 0
+        self._lock = threading.Lock()
+
+    def __call__(self, bytes_transferred: int) -> None:
+        with self._lock:
+            self._bytes_transferred += bytes_transferred
+            if self._bytes_transferred > self._max_bytes:
+                raise S3DownloadSizeExceededError(
+                    f"S3 download exceeds the configured limit of {self._max_bytes} bytes"
+                )
+        if self._callback is not None:
+            self._callback(bytes_transferred)
 
 
 def _normalize_bucket_names(
@@ -550,6 +608,14 @@ def download_file_from_s3(
     profile_name: str | None = None,
     bucket_name: str | None = None,
     callback: Any | None = None,
+    *,
+    region_name: str | None = None,
+    endpoint_url: str | None = None,
+    aws_access_key_id: str | None = None,
+    aws_secret_access_key: str | None = None,
+    aws_session_token: str | None = None,
+    use_path_style: bool | None = None,
+    max_bytes: int | None = None,
 ) -> str:
     """
     Download a file from S3 to a local path.
@@ -564,6 +630,14 @@ def download_file_from_s3(
             If None, uses default credentials
         bucket_name: Optional bucket name if not included in s3_path
         callback: Optional callback for download progress
+        region_name: Optional AWS region.
+        endpoint_url: Optional S3-compatible endpoint URL.
+        aws_access_key_id: Optional explicit access key ID.
+        aws_secret_access_key: Optional explicit secret access key.
+        aws_session_token: Optional explicit session token.
+        use_path_style: Optional path-style addressing override.
+        max_bytes: Optional hard byte limit. Object metadata is checked before
+            transfer and a progress callback aborts if the transfer crosses it.
 
     Returns:
         The local file path as a string
@@ -573,6 +647,7 @@ def download_file_from_s3(
         ProfileNotFound: If the specified AWS profile doesn't exist
         NoCredentialsError: If no AWS credentials are available
         ClientError: If S3 download fails
+        S3DownloadSizeExceededError: If the object exceeds ``max_bytes``.
 
     Examples:
         # Download with full S3 URI
@@ -591,6 +666,8 @@ def download_file_from_s3(
 
     # Parse S3 path
     bucket, key = _parse_s3_path(s3_path, bucket_name)
+    if max_bytes is not None and max_bytes < 0:
+        raise ValueError("max_bytes must be non-negative")
 
     with _tracer.start_as_current_span("s3.download") as span:
         span.set_attribute(MAAttributes.S3_BUCKET, bucket)
@@ -599,7 +676,30 @@ def download_file_from_s3(
 
         # Create S3 client with specified profile
         try:
-            s3_client = _create_s3_client(profile_name)
+            has_explicit_client_settings = (
+                any(
+                    (
+                        region_name,
+                        endpoint_url,
+                        aws_access_key_id,
+                        aws_secret_access_key,
+                        aws_session_token,
+                    )
+                )
+                or use_path_style is not None
+            )
+            if has_explicit_client_settings:
+                s3_client = _create_s3_client(
+                    profile_name,
+                    region_name=region_name,
+                    endpoint_url=endpoint_url,
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    aws_session_token=aws_session_token,
+                    use_path_style=use_path_style,
+                )
+            else:
+                s3_client = _create_s3_client(profile_name)
         except ValueError as e:
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))
@@ -607,16 +707,38 @@ def download_file_from_s3(
 
         # Download the file
         try:
-            logger.info("Downloading s3://%s/%s to %s", bucket, key, local_path)
+            transfer_callback = callback
+            if max_bytes is not None:
+                metadata = s3_client.head_object(Bucket=bucket, Key=key)
+                content_length = metadata.get("ContentLength")
+                if isinstance(content_length, int) and content_length > max_bytes:
+                    raise S3DownloadSizeExceededError(
+                        f"S3 object is {content_length} bytes; limit is {max_bytes} bytes"
+                    )
+                transfer_callback = _BoundedDownloadCallback(max_bytes, callback)
+
+            logger.info(
+                "Downloading s3://%s/%s to %s",
+                redact_sensitive_log_text(bucket),
+                redact_sensitive_log_text(key),
+                redact_sensitive_log_text(local_path),
+            )
             s3_client.download_file(
                 bucket,
                 key,
                 str(local_path),
-                Callback=callback,
+                Callback=transfer_callback,
             )
-            logger.info("Successfully downloaded to %s", local_path)
+            logger.info(
+                "Successfully downloaded to %s",
+                redact_sensitive_log_text(local_path),
+            )
             return str(local_path)
 
+        except S3DownloadSizeExceededError as e:
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            raise
         except ClientError as e:
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))
@@ -627,7 +749,7 @@ def download_file_from_s3(
                 raise FileNotFoundError(
                     f"S3 object 's3://{bucket}/{key}' does not exist"
                 ) from e
-            elif error_code == "AccessDenied":
+            elif error_code in {"403", "AccessDenied", "Forbidden"}:
                 raise PermissionError(f"Access denied to bucket '{bucket}'") from e
             else:
                 raise RuntimeError(f"Failed to download file: {e}") from e

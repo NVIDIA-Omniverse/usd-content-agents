@@ -2,9 +2,15 @@
 
 FastAPI service for VLM-based material assignment to 3D USD files. Wraps the [Material Agent](../material_agent/) pipeline behind a REST API with session management, async progress streaming, and Docker-ready deployment.
 
+> **Content Agents 0.6 routing:** this service is an explicit fixed-pipeline
+> REST interface. For an unqualified material task, start at the repository
+> root with `content-workflow-cli`. Use this service when its stable HTTP,
+> session, or deployment contract is specifically required.
+
 ## Quick Start (Docker)
 
-Requires **Docker Compose v2.24+** (for `env_file: required: false` support).
+Requires **Docker Compose v2.24.4+** (for `!override` and
+`env_file: required: false` support).
 
 ```bash
 # From the repo root -- set your VLM provider key
@@ -27,6 +33,19 @@ docker compose --env-file .env \
 The bundled `ovrtx-rendering-api` sidecar has a cold-start GPU warm-up phase.
 Expect `material-agent-service` to stay blocked for roughly 5 minutes until the
 sidecar health check flips to `gpu_initialized=true`.
+
+For WSL2, use the in-process WARP overlay instead. Local OVRTX is not supported
+inside WSL2. The overlay assigns one NVIDIA GPU to the service, selects WARP,
+and does not build or start the OVRTX sidecar:
+
+```bash
+docker compose --env-file .env \
+  -f apps/material_agent_service/docker-compose.yml \
+  -f apps/material_agent_service/docker-compose.warp.yml up --build
+```
+
+This works either with Docker Engine and Compose installed directly inside WSL2
+(without Docker Desktop), or with Docker Desktop's WSL2 backend.
 
 See [`docs/docker.md`](docs/docker.md) for full Docker / Docker Compose details, including multi-GPU and VLM-NIM sidecar profiles.
 
@@ -57,6 +76,23 @@ uvicorn service.main:app --reload --port 8000
 
 The pipeline endpoints (`POST /pipeline/upload-usd`, `POST /pipeline`, `GET /pipeline/{id}/status`, etc.) accept a USD file plus optional materials manifest and reference images, then run the multi-step material assignment pipeline. Stream real-time progress over SSE at `GET /pipeline/{id}/events`.
 
+Failed status responses expose a stable `error` code and redacted structured
+diagnostic. When bounded renderer evidence is available, list it at
+`GET /assets/{id}/failure-evidence` and collect it before deleting the session.
+Evidence remains available until session TTL expiry or explicit session deletion
+and is never advertised as a successful preview artifact.
+
+To start directly from S3, authorize the exact bucket through
+`MA_S3_ALLOWED_BUCKETS` and submit the URI as multipart form data. The service
+reuses its `MA_STORAGE_S3_*` client settings when configured, otherwise it uses
+the standard AWS credential chain.
+
+```bash
+curl -X POST http://localhost:8000/pipeline \
+  -F "s3_uri=s3://material-intake/scenes/chair.usda" \
+  -F "coverage_policy=strict"
+```
+
 Set `enable_material_generation=true` on `POST /pipeline` to generate an
 asset-specific material library from uploaded reference images or a
 `generated_reference_id`. The service uses deployment-time `MA_IMAGE_GEN_*`
@@ -67,22 +103,30 @@ textures; users do not provide image-generation endpoint credentials per run.
 
 Service configuration is loaded from environment variables at startup. See [`.env_example`](.env_example) for the full list. Key settings:
 
+`MA_WARP_GPU_DEVICE_ID` is a Docker Compose invocation setting, not service
+configuration. For the WSL2 WARP overlay, set it in the invoking shell or the
+file passed to `docker compose --env-file`; Compose resolves it before creating
+the container and defaults to GPU `0`.
+
 | Variable | Description |
 |----------|-------------|
-| `NVIDIA_API_KEY` | Required if using `nim` VLM backend |
+| `NVIDIA_API_KEY` | Required if using a hosted `nim` model backend |
 | `OPENAI_API_KEY` | Required if using `openai` backend |
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Required if using `gemini` backend |
 | `MA_VLM_BACKEND` | Default: `nim` |
-| `MA_VLM_MODEL` | Default: `google/gemma-4-31b-it` |
+| `MA_VLM_MODEL` | Default: `moonshotai/kimi-k3` |
+| `MA_LLM_BACKEND` | Default: `nim` |
+| `MA_LLM_MODEL` | Default: `moonshotai/kimi-k3` |
 | `MA_IMAGE_GEN_BACKEND` | Shared image-generation backend for generated reference images and generated material-library textures (default: `gemini`) |
 | `MA_IMAGE_GEN_MODEL` | Optional shared image-generation model override |
 | `MA_IMAGE_GEN_BASE_URL` | Optional shared image-generation API base URL |
 | `MA_IMAGE_GEN_API_KEY` | Optional shared image-generation API key; use `not-used` only for explicit no-auth local endpoints |
-| `MA_RENDERER_BACKEND` | Default: `remote` (resolves via `RENDER_ENDPOINT`) |
+| `MA_RENDERER_BACKEND` | `remote` (default), `warp`, `ovrtx`, or `mock` (tests only); the service image includes WARP dependencies |
 | `RENDER_ENDPOINT` | URL of OVRTX rendering API or compatible service |
 | `MA_SESSION_STORAGE_PATH` | Where session directories are written |
 | `MA_MAX_UPLOAD_SIZE_MB` | Max USD upload size (default: 500) |
+| `MA_S3_ALLOWED_BUCKETS` | Exact bucket names authorized for client `s3_uri` pipeline inputs; empty rejects all |
 | `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines. Source fallback: `3`; service image override: `8`; local Docker Compose override: `1`. Invalid or negative values fall back to `3`; `0` permits no active executions. |
 | `MA_MAX_RENDER_NUM_WORKERS` | Max accepted render worker override. Service default: `32`; local Docker Compose default: `1` |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap. Service default: unset/disabled; local Docker Compose default: `1` |

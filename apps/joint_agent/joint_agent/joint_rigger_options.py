@@ -46,6 +46,15 @@ CANDIDATE_REQUIRED_JOINT_RIGGER_ADAPTERS = frozenset(
     {"owned_core", "stage2_candidate_edges"}
 )
 
+# Exact source intake selected for the disabled-by-default 0.5 limited preview.
+# The adapter records these declared pins in every handoff diagnostic. Runtime
+# package version discovery supplements this identity; it does not turn the
+# declaration into release evidence or a source-tree verification claim.
+USD_JOINT_RIGGER_SOURCE_VERSION = "0.1.0"
+USD_JOINT_RIGGER_SOURCE_COMMIT = "a56a5c54342b933c6d671bcd2e264b46a6076219"
+USD_JOINT_RIGGER_SOURCE_TREE = "8454dd908e53579ae6553549ffe37ee3d5efc9ad"
+USD_JOINT_RIGGER_HANDOFF_VERSION = "joint-agent-wp-m2-limited-preview-v0"
+
 
 def format_allowed_values(values: tuple[str, ...]) -> str:
     return ", ".join(values)

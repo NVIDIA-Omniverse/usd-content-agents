@@ -20,7 +20,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
-from requests import HTTPError
+
+from service.protocol import PROTOCOL_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,15 @@ class WorkerSpec:
     @property
     def base_url(self) -> str:
         return f"http://127.0.0.1:{self.port}"
+
+
+@dataclass(frozen=True)
+class ProtocolV3DispatchResponse:
+    """HTTP response returned by a private protocol-v3 worker."""
+
+    status_code: int
+    payload: dict[str, Any]
+    retry_after: str | None = None
 
 
 @dataclass
@@ -214,7 +224,15 @@ class OVRTXDispatcher:
                 timeout=self._request_timeout_seconds,
             )
             if response.status_code >= 500:
-                response.raise_for_status()
+                payload = _worker_http_error_response(response)
+                error = str(payload.get("error") or f"HTTP {response.status_code}")
+                restart_worker = payload.get("retryable") is True
+                self._mark_worker_unhealthy(
+                    worker,
+                    error,
+                    restart_immediately=restart_worker,
+                )
+                return payload
             if response.status_code >= 400:
                 return _worker_http_error_response(response)
             payload = response.json()
@@ -231,7 +249,7 @@ class OVRTXDispatcher:
                 )
                 restart_worker = True
             return payload
-        except (requests.ConnectionError, requests.Timeout, HTTPError) as exc:
+        except requests.RequestException as exc:
             if worker is not None:
                 self._mark_worker_unhealthy(worker, str(exc))
                 logger.exception(
@@ -244,6 +262,90 @@ class OVRTXDispatcher:
         except Exception as exc:
             logger.exception("OVRTX render dispatch failed")
             return {"status": "exception", "error": str(exc), "images": {}}
+        finally:
+            if worker is not None:
+                with self._condition:
+                    worker.in_flight = max(0, worker.in_flight - 1)
+                    self._condition.notify_all()
+                if restart_worker:
+                    self._restart_unhealthy_worker_if_due(worker)
+
+    def render_protocol_v3_upload(
+        self,
+        *,
+        data: bytes,
+        filename: str,
+        content_type: str,
+        params: str,
+    ) -> ProtocolV3DispatchResponse:
+        """Dispatch one protocol-v3 multipart upload to a private worker."""
+        worker: WorkerState | None = None
+        restart_worker = False
+        try:
+            worker = self._acquire_worker()
+            logger.info(
+                "Dispatching protocol-v3 render to OVRTX worker gpu=%s port=%d",
+                worker.spec.gpu_id,
+                worker.spec.port,
+            )
+            response = requests.post(
+                f"{worker.spec.base_url}/render/upload",
+                files={"file": (filename, data, content_type)},
+                data={"params": params},
+                timeout=self._request_timeout_seconds,
+            )
+            payload = _protocol_v3_worker_payload(response)
+            retry_after = response.headers.get("Retry-After")
+            if response.status_code >= 500:
+                detail = payload.get("detail")
+                error = (
+                    detail
+                    if isinstance(detail, str)
+                    else f"OVRTX worker returned HTTP {response.status_code}"
+                )
+                restart_worker = detail == "renderer is not ready"
+                self._mark_worker_unhealthy(
+                    worker,
+                    error,
+                    restart_immediately=restart_worker,
+                )
+                # usd-cli treats every HTTP 5xx as retryable. Preserve a worker's
+                # explicit hint, but always give direct callers the same bounded
+                # retry guidance when the worker omitted one.
+                retry_after = retry_after or "1"
+            return ProtocolV3DispatchResponse(
+                status_code=response.status_code,
+                payload=payload,
+                retry_after=retry_after,
+            )
+        except TimeoutError as exc:
+            return ProtocolV3DispatchResponse(
+                status_code=503,
+                payload={"detail": str(exc)},
+                retry_after="1",
+            )
+        except requests.RequestException as exc:
+            if worker is not None:
+                self._mark_worker_unhealthy(worker, str(exc))
+                logger.exception(
+                    "OVRTX worker gpu=%s protocol-v3 render failed",
+                    worker.spec.gpu_id,
+                )
+            else:
+                logger.warning(
+                    "OVRTX protocol-v3 dispatch failed before worker selection"
+                )
+            return ProtocolV3DispatchResponse(
+                status_code=503,
+                payload={"detail": str(exc)},
+                retry_after="1",
+            )
+        except Exception:
+            logger.exception("OVRTX protocol-v3 render dispatch failed")
+            return ProtocolV3DispatchResponse(
+                status_code=500,
+                payload={"detail": "protocol-v3 render dispatch failed"},
+            )
         finally:
             if worker is not None:
                 with self._condition:
@@ -274,6 +376,7 @@ class OVRTXDispatcher:
             "service": "ovrtx-rendering-api",
             "version": "0.1.0",
             "renderer": "ovrtx",
+            "protocol_version": PROTOCOL_VERSION,
             "gpu_initialized": ready_workers > 0,
             "renderer_initialized": ready_workers > 0,
             "daemon_running": ready_workers > 0,
@@ -523,15 +626,19 @@ class OVRTXDispatcher:
 
 
 def _worker_http_error_response(response: requests.Response) -> dict[str, Any]:
-    """Convert worker 4xx responses into the renderer's JSON error envelope."""
+    """Convert worker HTTP failures into the renderer's JSON error envelope."""
     try:
         payload = response.json()
     except ValueError:
         payload = None
     if isinstance(payload, dict):
         detail = payload.get("detail")
-        if isinstance(detail, dict) and detail.get("status") == "blank_render":
-            return {**detail, "images": detail.get("images", {})}
+        renderer_payload = detail if isinstance(detail, dict) else payload
+        if renderer_payload.get("status") in {"blank_render", "exception"}:
+            return {
+                **renderer_payload,
+                "images": renderer_payload.get("images", {}),
+            }
 
     message = response.text[:500]
     return {
@@ -539,6 +646,18 @@ def _worker_http_error_response(response: requests.Response) -> dict[str, Any]:
         "error": f"OVRTX worker returned HTTP {response.status_code}: {message}",
         "images": {},
     }
+
+
+def _protocol_v3_worker_payload(response: requests.Response) -> dict[str, Any]:
+    """Return a bounded JSON object for a worker protocol-v3 response."""
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        return payload
+    message = response.text[:500]
+    return {"detail": f"OVRTX worker returned HTTP {response.status_code}: {message}"}
 
 
 def _is_renderer_not_initialized_response(payload: Any) -> bool:

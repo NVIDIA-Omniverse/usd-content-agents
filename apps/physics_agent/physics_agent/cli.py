@@ -3,6 +3,7 @@
 """Physics Agent CLI interface using Typer and Rich."""
 
 import logging
+import sys
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -19,6 +20,7 @@ from world_understanding.agentic.cli import (
     normalize_cli_step_filters,
     sever_cli_exception_graph,
 )
+from world_understanding.agentic.cli.console import EncodingSafeTextIO
 from world_understanding.agentic.config import validate_selected_model_credentials
 from world_understanding.agentic.events import get_listener
 from world_understanding.utils.credentials import (
@@ -32,10 +34,20 @@ from world_understanding.utils.model_auth import (
     public_model_failure_message,
 )
 
+from physics_agent.integrations.vomp_defaults import (
+    DEFAULT_VOMP_ARTIFACT_SHA256,
+    DEFAULT_VOMP_IMAGE_WIDTH,
+    DEFAULT_VOMP_MATERIAL_TARGET,
+    DEFAULT_VOMP_NUM_SENSOR_UPDATES,
+    DEFAULT_VOMP_NUM_VIEWS,
+    DEFAULT_VOMP_RENDER_MODE,
+    DEFAULT_VOMP_REVISION,
+    DEFAULT_VOMP_SEED,
+)
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
     DEFAULT_JUDGE_REFERENCE_FRAMES,
-    DEFAULT_REFERENCE_VIDEO_FRAMES,
+    DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
     MAX_VISUAL_JUDGE_FRAMES,
 )
 
@@ -55,23 +67,56 @@ app = typer.Typer(
     rich_markup_mode="rich",
     pretty_exceptions_show_locals=False,
 )
-console = Console()
+console = Console(file=EncodingSafeTextIO(lambda: sys.stdout))
+
+
+def _console_symbol(
+    symbol: str,
+    ascii_fallback: str,
+    *,
+    encoding: str | None = None,
+) -> str:
+    """Return ``symbol`` only when the active console can encode it."""
+
+    output_encoding = encoding or getattr(console, "encoding", None) or "utf-8"
+    try:
+        symbol.encode(output_encoding)
+    except (LookupError, UnicodeEncodeError):
+        return ascii_fallback
+    return symbol
+
 
 _VALID_REFERENCE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
-_VALID_REFERENCE_VIDEO_EXTENSIONS = {
-    ".mp4",
-    ".mov",
-    ".m4v",
-    ".webm",
-    ".avi",
-    ".mkv",
-}
 
 _PREDICT_FAILURE_MESSAGE = "Prediction failed"
 _PREPARE_DATASET_FAILURE_MESSAGE = "Dataset preparation failed"
 _USD_BUILD_FAILURE_MESSAGE = "USD dataset building failed"
 _TUNE_FAILURE_MESSAGE = "Physics tuning failed"
 _REFINE_FAILURE_MESSAGE = "Physics refinement failed"
+_VOMP_FAILURE_MESSAGE = "VoMP mass-property authoring failed"
+_VOMP_DEFORMABLE_FAILURE_MESSAGE = "VoMP volume-deformable authoring failed"
+_LOWERCASE_HEX = frozenset("0123456789abcdef")
+
+
+def _parse_vomp_artifact_sha256_overrides(
+    overrides: list[str] | None,
+) -> dict[str, str]:
+    expected = dict(DEFAULT_VOMP_ARTIFACT_SHA256)
+    for override in overrides or []:
+        name, separator, digest = override.partition("=")
+        if separator != "=" or name not in expected:
+            valid = ", ".join(sorted(expected))
+            raise ValueError(
+                f"--expected-artifact-sha256 must use KEY=SHA256; valid keys: {valid}"
+            )
+        if len(digest) != 64 or any(
+            character not in _LOWERCASE_HEX for character in digest
+        ):
+            raise ValueError(
+                "--expected-artifact-sha256 requires a lowercase SHA-256 digest"
+            )
+        expected[name] = digest
+    return expected
 
 
 def _validate_run_config_model_credentials(
@@ -120,6 +165,80 @@ def _validate_reference_media_paths(
                 f"{safe_suffix!r}: {safe_path}. Allowed extensions: {allowed}"
             )
             raise typer.Exit(1)
+
+
+def _build_external_refine_models(
+    *,
+    backend: str,
+    model: str,
+) -> tuple[Any, Any]:
+    """Build the chat and VLM pair used by external-runtime refinement."""
+
+    from world_understanding.agentic.config import get_api_key_for_model_config
+    from world_understanding.functions.models.backends.registry import (
+        list_chat_backends,
+        list_vlm_backends,
+    )
+    from world_understanding.functions.models.chat_models import create_chat_model
+    from world_understanding.functions.models.vision_language_models import create_vlm
+    from world_understanding.utils.credentials import (
+        apply_llm_nim_env_override,
+        apply_vlm_nim_env_override,
+    )
+
+    from physics_agent.api.defaults import DEFAULT_VLM_REASONING_EFFORT
+    from physics_agent.tuning.visual_evidence import backend_supports_reasoning_effort
+
+    if backend not in list_chat_backends():
+        raise ValueError(
+            f"chat backend {backend!r} is not registered; available: "
+            f"{', '.join(list_chat_backends())}"
+        )
+    if backend not in list_vlm_backends():
+        raise ValueError(
+            f"backend {backend!r} is not registered as a VLM; available: "
+            f"{', '.join(list_vlm_backends())}"
+        )
+    chat_config = apply_llm_nim_env_override(
+        {
+            "backend": backend,
+            "model": model,
+            "temperature": 0.0,
+        }
+    )
+    chat_backend = str(chat_config.get("backend") or "")
+    if chat_backend != backend:
+        raise ValueError(
+            "LLM environment override selects a different backend; unset the "
+            "override or select matching --chat-backend/--chat-model values"
+        )
+    chat_key = get_api_key_for_model_config(chat_backend, chat_config, "llm")
+    if chat_key:
+        chat_config["api_key"] = chat_key
+    chat_model = create_chat_model(**chat_config)
+
+    vlm_config = apply_vlm_nim_env_override(
+        {
+            "backend": backend,
+            "model": model,
+            "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+        }
+    )
+    vlm_backend = str(vlm_config.get("backend") or "")
+    if vlm_backend != backend:
+        raise ValueError(
+            "VLM environment override selects a different backend; unset the "
+            "override or select matching --chat-backend/--chat-model values"
+        )
+    resolved_key = get_api_key_for_model_config(vlm_backend, vlm_config, "vlm")
+    if resolved_key:
+        vlm_config["api_key"] = resolved_key
+    if not backend_supports_reasoning_effort(
+        vlm_backend,
+        str(vlm_config.get("model") or ""),
+    ):
+        vlm_config.pop("reasoning_effort", None)
+    return chat_model, create_vlm(**vlm_config)
 
 
 def setup_logging(
@@ -195,10 +314,9 @@ def main(
     logger = setup_logging(verbose=verbose, log_file=log_file, log_level=log_level)
 
     # Store logger in app context for use in commands
-    if not hasattr(app, "state"):
-        app.state = {}
-    app.state["logger"] = logger
-    app.state["verbose"] = verbose
+    state: dict[str, Any] = app.__dict__.setdefault("state", {})
+    state["logger"] = logger
+    state["verbose"] = verbose
 
     if verbose:
         logger.debug("Verbose mode enabled")
@@ -462,7 +580,8 @@ def prepare_dataset(
             dataset_jsonl_path = result.dataset_jsonl_path
 
             console.print(
-                "\n[bold green]✨ Dataset preparation completed![/bold green]"
+                f"\n[bold green]{_console_symbol('✨', '*')} "
+                "Dataset preparation completed![/bold green]"
             )
             console.print(f"  • Dataset entries: {len(dataset_entries)}")
             console.print(f"  • Failed entries: {len(failed_models)}")
@@ -683,7 +802,11 @@ def usd(
         table.add_column("Output Directory", style="dim")
 
         for usd_name, result in results.items():
-            status = "✓ Success" if result["status"] == "success" else "✗ Failed"
+            status = (
+                f"{_console_symbol('✓', 'OK')} Success"
+                if result["status"] == "success"
+                else f"{_console_symbol('✗', 'X')} Failed"
+            )
             status_style = "green" if result["status"] == "success" else "red"
 
             prims = str(result.get("num_prims", "N/A"))
@@ -705,21 +828,24 @@ def usd(
         if failed_builds == 0:
             console.print(
                 Panel.fit(
-                    "[bold green]✓[/bold green] All datasets built successfully!",
+                    f"[bold green]{_console_symbol('✓', 'OK')}[/bold green] "
+                    "All datasets built successfully!",
                     border_style="green",
                 )
             )
         elif successful_builds > 0:
             console.print(
                 Panel.fit(
-                    f"[bold yellow]⚠[/bold yellow] Completed with {failed_builds} failures",
+                    f"[bold yellow]{_console_symbol('⚠', '!')}[/bold yellow] "
+                    f"Completed with {failed_builds} failures",
                     border_style="yellow",
                 )
             )
         else:
             console.print(
                 Panel.fit(
-                    "[bold red]✗[/bold red] All builds failed",
+                    f"[bold red]{_console_symbol('✗', 'X')}[/bold red] "
+                    "All builds failed",
                     border_style="red",
                 )
             )
@@ -765,7 +891,8 @@ def usd(
 
             console.print(
                 Panel.fit(
-                    "[bold green]✓[/bold green] Dataset build completed successfully!",
+                    f"[bold green]{_console_symbol('✓', 'OK')}[/bold green] "
+                    "Dataset build completed successfully!",
                     border_style="green",
                 )
             )
@@ -774,6 +901,664 @@ def usd(
             logger.error(_USD_BUILD_FAILURE_MESSAGE)
             console.print(f"[red]Error:[/red] {_USD_BUILD_FAILURE_MESSAGE}")
             raise typer.Exit(code=1) from None
+
+
+@app.command(name="apply-vomp")
+@sever_cli_exception_graph
+def apply_vomp(
+    usd_path: Annotated[
+        Path,
+        typer.Argument(help="Input USD layer (.usd, .usda, or .usdc)"),
+    ],
+    vomp_npz: Annotated[
+        Path,
+        typer.Argument(help="Precomputed VoMP voxel-center NPZ"),
+    ],
+    output_usd: Annotated[
+        Path,
+        typer.Argument(help="Output Physics Agent USD layer"),
+    ],
+    target_prim: Annotated[
+        str,
+        typer.Option(
+            "--target-prim",
+            help="Absolute prim path that owns the rigid-body mass properties",
+        ),
+    ],
+    voxel_size_m: Annotated[
+        float,
+        typer.Option(
+            "--voxel-size-m",
+            help="Exact upstream physical side length in meters of each VoMP voxel",
+        ),
+    ],
+    coordinate_unit_meters: Annotated[
+        float,
+        typer.Option(
+            "--coordinate-unit-meters",
+            help="Meters represented by one voxel_coords_world coordinate unit",
+        ),
+    ],
+    complete_voxel_field: Annotated[
+        bool,
+        typer.Option(
+            "--complete-voxel-field",
+            help="Confirm the NPZ contains every voxel and was not capped/subsampled",
+        ),
+    ] = False,
+    offset_x_m: Annotated[
+        float,
+        typer.Option("--offset-x-m", help="World-space X offset in meters"),
+    ] = 0.0,
+    offset_y_m: Annotated[
+        float,
+        typer.Option("--offset-y-m", help="World-space Y offset in meters"),
+    ] = 0.0,
+    offset_z_m: Annotated[
+        float,
+        typer.Option("--offset-z-m", help="World-space Z offset in meters"),
+    ] = 0.0,
+    provenance: Annotated[
+        Path | None,
+        typer.Option(
+            "--provenance",
+            help="Optional JSON provenance output path",
+        ),
+    ] = None,
+) -> None:
+    """Derive strict rigid-body mass properties from VoMP density evidence."""
+
+    from physics_agent.integrations.vomp import apply_vomp_mass_properties
+
+    try:
+        result = apply_vomp_mass_properties(
+            usd_path,
+            vomp_npz,
+            output_usd,
+            target_prim_path=target_prim,
+            voxel_size_m=voxel_size_m,
+            coordinate_unit_meters=coordinate_unit_meters,
+            complete_voxel_field=complete_voxel_field,
+            coordinate_offset_m=(offset_x_m, offset_y_m, offset_z_m),
+            provenance_path=provenance,
+        )
+    except Exception as exc:
+        safe_error = redact_sensitive_path(str(exc))
+        logging.getLogger(__name__).error(
+            "%s: %s",
+            _VOMP_FAILURE_MESSAGE,
+            safe_error,
+        )
+        console.print(f"Error: {_VOMP_FAILURE_MESSAGE}: {safe_error}", markup=False)
+        raise typer.Exit(code=1) from None
+
+    properties = result.mass_properties
+    table = Table(title="VoMP Rigid-Body Mass Properties", show_header=True)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Voxel samples", str(result.sample_count))
+    table.add_row("Mass", f"{properties.mass_kg:.9g} kg")
+    table.add_row(
+        "Center of mass (body local)",
+        ", ".join(f"{value:.9g}" for value in properties.center_of_mass_local_m) + " m",
+    )
+    table.add_row(
+        "Principal inertia",
+        ", ".join(f"{value:.9g}" for value in properties.diagonal_inertia_kg_m2)
+        + " kg m^2",
+    )
+    table.add_row("Output USD", redact_sensitive_path(result.output_usd_path))
+    table.add_row("Provenance", redact_sensitive_path(result.provenance_path))
+    console.print(table)
+
+
+@app.command(name="apply-vomp-deformable")
+@sever_cli_exception_graph
+def apply_vomp_deformable(
+    usd_path: Annotated[
+        Path,
+        typer.Argument(help="Input USD layer (.usd, .usda, or .usdc)"),
+    ],
+    vomp_npz: Annotated[
+        Path,
+        typer.Argument(help="Precomputed complete VoMP voxel-center NPZ"),
+    ],
+    output_usd: Annotated[
+        Path,
+        typer.Argument(help="Output USD with generated volume-deformable topology"),
+    ],
+    target_prim: Annotated[
+        str,
+        typer.Option(
+            "--target-prim",
+            help="Absolute Xform path that will own the deformable body",
+        ),
+    ],
+    voxel_size_m: Annotated[
+        float,
+        typer.Option(
+            "--voxel-size-m",
+            help="Exact upstream physical side length in meters of each VoMP voxel",
+        ),
+    ],
+    coordinate_unit_meters: Annotated[
+        float,
+        typer.Option(
+            "--coordinate-unit-meters",
+            help="Meters represented by one voxel_coords_world coordinate unit",
+        ),
+    ],
+    complete_voxel_field: Annotated[
+        bool,
+        typer.Option(
+            "--complete-voxel-field",
+            help="Confirm the NPZ contains every voxel and was not capped/subsampled",
+        ),
+    ] = False,
+    material_reduction: Annotated[
+        str,
+        typer.Option(
+            "--material-reduction",
+            help=(
+                "Elastic-field policy: reject heterogeneous fields, or explicitly "
+                "publish a conditional homogeneous-volume-average"
+            ),
+            click_type=click.Choice(["reject", "homogeneous-volume-average"]),
+        ),
+    ] = "reject",
+    max_deformable_voxels: Annotated[
+        int,
+        typer.Option(
+            "--max-deformable-voxels",
+            help="Fail above this topology size instead of subsampling or coarsening",
+        ),
+    ] = 65_536,
+    offset_x_m: Annotated[
+        float,
+        typer.Option("--offset-x-m", help="World-space X offset in meters"),
+    ] = 0.0,
+    offset_y_m: Annotated[
+        float,
+        typer.Option("--offset-y-m", help="World-space Y offset in meters"),
+    ] = 0.0,
+    offset_z_m: Annotated[
+        float,
+        typer.Option("--offset-z-m", help="World-space Z offset in meters"),
+    ] = 0.0,
+    provenance: Annotated[
+        Path | None,
+        typer.Option(
+            "--provenance",
+            help="Optional JSON provenance output path",
+        ),
+    ] = None,
+) -> None:
+    """Map complete VoMP material output to one Newton volume deformable."""
+
+    from physics_agent.integrations.vomp_deformable import (
+        apply_vomp_volume_deformable,
+    )
+
+    try:
+        result = apply_vomp_volume_deformable(
+            usd_path,
+            vomp_npz,
+            output_usd,
+            target_prim_path=target_prim,
+            voxel_size_m=voxel_size_m,
+            coordinate_unit_meters=coordinate_unit_meters,
+            complete_voxel_field=complete_voxel_field,
+            coordinate_offset_m=(offset_x_m, offset_y_m, offset_z_m),
+            material_reduction=material_reduction,  # type: ignore[arg-type]
+            max_deformable_voxels=max_deformable_voxels,
+            provenance_path=provenance,
+        )
+    except Exception as exc:
+        safe_error = redact_sensitive_path(str(exc))
+        logging.getLogger(__name__).error(
+            "%s: %s",
+            _VOMP_DEFORMABLE_FAILURE_MESSAGE,
+            safe_error,
+        )
+        console.print(
+            f"Error: {_VOMP_DEFORMABLE_FAILURE_MESSAGE}: {safe_error}",
+            markup=False,
+        )
+        raise typer.Exit(code=1) from None
+
+    table = Table(title="VoMP Volume Deformable", show_header=True)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Voxel samples", str(result.sample_count))
+    table.add_row("Simulation points", str(result.point_count))
+    table.add_row("Tetrahedra", str(result.tet_count))
+    table.add_row("Mass", f"{result.mass_kg:.9g} kg")
+    table.add_row(
+        "Elastic contract",
+        result.material_reduction.validation_status,
+    )
+    table.add_row("Output USD", redact_sensitive_path(result.output_usd_path))
+    table.add_row("Provenance", redact_sensitive_path(result.provenance_path))
+    console.print(table)
+
+
+@app.command(name="run-vomp")
+@sever_cli_exception_graph
+def run_vomp(
+    usd_path: Annotated[
+        Path,
+        typer.Argument(help="Simulation-ready input USD layer"),
+    ],
+    output_usd: Annotated[
+        Path,
+        typer.Argument(help="Output USD with VoMP-authored mass properties"),
+    ],
+    target_prim: Annotated[
+        str,
+        typer.Option(
+            "--target-prim",
+            help="Absolute prim path that owns the rigid body",
+        ),
+    ],
+    vomp_root: Annotated[
+        Path,
+        typer.Option(
+            "--vomp-root",
+            help="Pinned official VoMP checkout",
+        ),
+    ],
+    vomp_python: Annotated[
+        Path | None,
+        typer.Option(
+            "--vomp-python",
+            help="VoMP environment Python (default: ROOT/.venv/bin/python)",
+        ),
+    ] = None,
+    vomp_config: Annotated[
+        Path,
+        typer.Option(
+            "--vomp-config",
+            help="VoMP inference JSON, relative to --vomp-root by default",
+        ),
+    ] = Path("weights/inference.json"),
+    expected_revision: Annotated[
+        str,
+        typer.Option(
+            "--expected-revision",
+            help="Full attested VoMP commit SHA",
+        ),
+    ] = DEFAULT_VOMP_REVISION,
+    expected_artifact_sha256: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--expected-artifact-sha256",
+            help="Override an artifact pin as KEY=SHA256; repeat for multiple keys",
+        ),
+    ] = None,
+    work_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--work-dir",
+            help="Artifact parent; its evidence/ subtree is replaced on each run",
+        ),
+    ] = None,
+    provenance: Annotated[
+        Path | None,
+        typer.Option("--provenance", help="Optional final provenance JSON path"),
+    ] = None,
+    num_views: Annotated[
+        int,
+        typer.Option("--num-views", help="Number of calibrated OVRTX views"),
+    ] = DEFAULT_VOMP_NUM_VIEWS,
+    image_size: Annotated[
+        int,
+        typer.Option("--image-size", help="Square OVRTX render resolution"),
+    ] = DEFAULT_VOMP_IMAGE_WIDTH,
+    seed: Annotated[
+        int,
+        typer.Option("--seed", help="Deterministic VoMP camera/inference seed"),
+    ] = DEFAULT_VOMP_SEED,
+    render_mode: Annotated[
+        str,
+        typer.Option(
+            "--render-mode",
+            help="OVRTX mode: rt1, rt2, or pt",
+            click_type=click.Choice(["rt1", "rt2", "pt"]),
+        ),
+    ] = DEFAULT_VOMP_RENDER_MODE,
+    num_sensor_updates: Annotated[
+        int,
+        typer.Option(
+            "--num-sensor-updates",
+            help="OVRTX progressive render iterations",
+        ),
+    ] = DEFAULT_VOMP_NUM_SENSOR_UPDATES,
+    material_target: Annotated[
+        str,
+        typer.Option(
+            "--material-target",
+            help="OVRTX material target: auto, preview_surface, or openpbr_materialx",
+            click_type=click.Choice(["auto", "preview_surface", "openpbr_materialx"]),
+        ),
+    ] = DEFAULT_VOMP_MATERIAL_TARGET,
+    timeout_seconds: Annotated[
+        float,
+        typer.Option("--timeout-seconds", help="VoMP worker timeout"),
+    ] = 3600.0,
+    max_complete_voxels: Annotated[
+        int,
+        typer.Option(
+            "--max-complete-voxels",
+            help="Fail above this count instead of subsampling",
+        ),
+    ] = 262_144,
+    attention_backend: Annotated[
+        str,
+        typer.Option(
+            "--attention-backend",
+            help="VoMP attention implementation: xformers, sdpa, or naive",
+            click_type=click.Choice(["xformers", "sdpa", "naive"]),
+        ),
+    ] = "xformers",
+) -> None:
+    """Render with OVRTX, run official VoMP, and author MassAPI."""
+
+    from physics_agent.integrations.vomp_pipeline import (
+        VompRenderConfig,
+        run_vomp_mass_pipeline,
+    )
+    from physics_agent.integrations.vomp_runtime import VompRuntimeConfig
+
+    root = vomp_root.expanduser().resolve()
+    python_path = (
+        vomp_python.expanduser()
+        if vomp_python is not None
+        else Path(".venv/bin/python")
+    )
+    if not python_path.is_absolute():
+        python_path = root / python_path
+    config_path = vomp_config.expanduser()
+    if not config_path.is_absolute():
+        config_path = root / config_path
+    artifact_root = (
+        work_dir.expanduser().resolve()
+        if work_dir is not None
+        else output_usd.expanduser().resolve().parent / "vomp_artifacts"
+    )
+    try:
+        artifact_sha256 = _parse_vomp_artifact_sha256_overrides(
+            expected_artifact_sha256
+        )
+        result = run_vomp_mass_pipeline(
+            usd_path,
+            output_usd,
+            target_prim_path=target_prim,
+            work_dir=artifact_root,
+            runtime_config=VompRuntimeConfig(
+                runtime_root=root,
+                python_executable=python_path,
+                config_path=config_path,
+                expected_revision=expected_revision,
+                expected_artifact_sha256=artifact_sha256,
+                timeout_seconds=timeout_seconds,
+                max_complete_voxels=max_complete_voxels,
+                attention_backend=attention_backend,
+            ),
+            render_config=VompRenderConfig(
+                num_views=num_views,
+                image_width=image_size,
+                image_height=image_size,
+                seed=seed,
+                render_mode=render_mode,
+                num_sensor_updates=num_sensor_updates,
+                material_target=material_target,
+            ),
+            provenance_path=provenance,
+        )
+    except Exception as exc:
+        safe_error = redact_sensitive_path(str(exc))
+        logging.getLogger(__name__).error("%s: %s", _VOMP_FAILURE_MESSAGE, safe_error)
+        console.print(f"Error: {_VOMP_FAILURE_MESSAGE}: {safe_error}", markup=False)
+        raise typer.Exit(code=1) from None
+
+    properties = result.apply_result.mass_properties
+    table = Table(title="OVRTX + VoMP Rigid-Body Mass Properties", show_header=True)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Voxel samples", str(result.apply_result.sample_count))
+    table.add_row("Mass", f"{properties.mass_kg:.9g} kg")
+    table.add_row(
+        "Output USD", redact_sensitive_path(result.apply_result.output_usd_path)
+    )
+    table.add_row(
+        "Provenance", redact_sensitive_path(result.apply_result.provenance_path)
+    )
+    table.add_row("Evidence", redact_sensitive_path(result.evidence.artifact_dir))
+    console.print(table)
+
+
+@app.command(name="run-vomp-deformable")
+@sever_cli_exception_graph
+def run_vomp_deformable(
+    usd_path: Annotated[
+        Path,
+        typer.Argument(help="Deinstanced SI input USD layer"),
+    ],
+    output_usd: Annotated[
+        Path,
+        typer.Argument(help="Output USD with a generated volume deformable"),
+    ],
+    target_prim: Annotated[
+        str,
+        typer.Option(
+            "--target-prim",
+            help="Absolute Xform path that will own the deformable body",
+        ),
+    ],
+    vomp_root: Annotated[
+        Path,
+        typer.Option(
+            "--vomp-root",
+            help="Pinned official VoMP checkout",
+        ),
+    ],
+    vomp_python: Annotated[
+        Path | None,
+        typer.Option(
+            "--vomp-python",
+            help="VoMP environment Python (default: ROOT/.venv/bin/python)",
+        ),
+    ] = None,
+    vomp_config: Annotated[
+        Path,
+        typer.Option(
+            "--vomp-config",
+            help="VoMP inference JSON, relative to --vomp-root by default",
+        ),
+    ] = Path("weights/inference.json"),
+    expected_revision: Annotated[
+        str,
+        typer.Option(
+            "--expected-revision",
+            help="Full attested VoMP commit SHA",
+        ),
+    ] = DEFAULT_VOMP_REVISION,
+    expected_artifact_sha256: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--expected-artifact-sha256",
+            help="Override an artifact pin as KEY=SHA256; repeat for multiple keys",
+        ),
+    ] = None,
+    work_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--work-dir",
+            help="Artifact parent; its evidence/ subtree is replaced on each run",
+        ),
+    ] = None,
+    provenance: Annotated[
+        Path | None,
+        typer.Option("--provenance", help="Optional final provenance JSON path"),
+    ] = None,
+    material_reduction: Annotated[
+        str,
+        typer.Option(
+            "--material-reduction",
+            help=(
+                "Elastic-field policy: reject heterogeneous fields, or explicitly "
+                "publish a conditional homogeneous-volume-average"
+            ),
+            click_type=click.Choice(["reject", "homogeneous-volume-average"]),
+        ),
+    ] = "reject",
+    max_deformable_voxels: Annotated[
+        int,
+        typer.Option(
+            "--max-deformable-voxels",
+            help="Fail above this topology size instead of subsampling or coarsening",
+        ),
+    ] = 65_536,
+    num_views: Annotated[
+        int,
+        typer.Option("--num-views", help="Number of calibrated OVRTX views"),
+    ] = DEFAULT_VOMP_NUM_VIEWS,
+    image_size: Annotated[
+        int,
+        typer.Option("--image-size", help="Square OVRTX render resolution"),
+    ] = DEFAULT_VOMP_IMAGE_WIDTH,
+    seed: Annotated[
+        int,
+        typer.Option("--seed", help="Deterministic VoMP camera/inference seed"),
+    ] = DEFAULT_VOMP_SEED,
+    render_mode: Annotated[
+        str,
+        typer.Option(
+            "--render-mode",
+            help="OVRTX mode: rt1, rt2, or pt",
+            click_type=click.Choice(["rt1", "rt2", "pt"]),
+        ),
+    ] = DEFAULT_VOMP_RENDER_MODE,
+    num_sensor_updates: Annotated[
+        int,
+        typer.Option(
+            "--num-sensor-updates",
+            help="OVRTX progressive render iterations",
+        ),
+    ] = DEFAULT_VOMP_NUM_SENSOR_UPDATES,
+    material_target: Annotated[
+        str,
+        typer.Option(
+            "--material-target",
+            help="OVRTX material target: auto, preview_surface, or openpbr_materialx",
+            click_type=click.Choice(["auto", "preview_surface", "openpbr_materialx"]),
+        ),
+    ] = DEFAULT_VOMP_MATERIAL_TARGET,
+    timeout_seconds: Annotated[
+        float,
+        typer.Option("--timeout-seconds", help="VoMP worker timeout"),
+    ] = 3600.0,
+    max_complete_voxels: Annotated[
+        int,
+        typer.Option(
+            "--max-complete-voxels",
+            help=(
+                "Fail inference above this count instead of subsampling; bounded "
+                "by --max-deformable-voxels"
+            ),
+        ),
+    ] = 262_144,
+    attention_backend: Annotated[
+        str,
+        typer.Option(
+            "--attention-backend",
+            help="VoMP attention implementation: xformers, sdpa, or naive",
+            click_type=click.Choice(["xformers", "sdpa", "naive"]),
+        ),
+    ] = "xformers",
+) -> None:
+    """Render, run official VoMP, and author a Newton volume deformable."""
+
+    from physics_agent.integrations.vomp_pipeline import (
+        VompRenderConfig,
+        run_vomp_volume_deformable_pipeline,
+    )
+    from physics_agent.integrations.vomp_runtime import VompRuntimeConfig
+
+    root = vomp_root.expanduser().resolve()
+    python_path = (
+        vomp_python.expanduser()
+        if vomp_python is not None
+        else Path(".venv/bin/python")
+    )
+    if not python_path.is_absolute():
+        python_path = root / python_path
+    config_path = vomp_config.expanduser()
+    if not config_path.is_absolute():
+        config_path = root / config_path
+    artifact_root = (
+        work_dir.expanduser().resolve()
+        if work_dir is not None
+        else output_usd.expanduser().resolve().parent / "vomp_deformable_artifacts"
+    )
+    try:
+        artifact_sha256 = _parse_vomp_artifact_sha256_overrides(
+            expected_artifact_sha256
+        )
+        result = run_vomp_volume_deformable_pipeline(
+            usd_path,
+            output_usd,
+            target_prim_path=target_prim,
+            work_dir=artifact_root,
+            runtime_config=VompRuntimeConfig(
+                runtime_root=root,
+                python_executable=python_path,
+                config_path=config_path,
+                expected_revision=expected_revision,
+                expected_artifact_sha256=artifact_sha256,
+                timeout_seconds=timeout_seconds,
+                max_complete_voxels=max_complete_voxels,
+                attention_backend=attention_backend,
+            ),
+            render_config=VompRenderConfig(
+                num_views=num_views,
+                image_width=image_size,
+                image_height=image_size,
+                seed=seed,
+                render_mode=render_mode,
+                num_sensor_updates=num_sensor_updates,
+                material_target=material_target,
+            ),
+            material_reduction=material_reduction,  # type: ignore[arg-type]
+            max_deformable_voxels=max_deformable_voxels,
+            provenance_path=provenance,
+        )
+    except Exception as exc:
+        safe_error = redact_sensitive_path(str(exc))
+        logging.getLogger(__name__).error(
+            "%s: %s",
+            _VOMP_DEFORMABLE_FAILURE_MESSAGE,
+            safe_error,
+        )
+        console.print(
+            f"Error: {_VOMP_DEFORMABLE_FAILURE_MESSAGE}: {safe_error}",
+            markup=False,
+        )
+        raise typer.Exit(code=1) from None
+
+    authored = result.apply_result
+    table = Table(title="OVRTX + VoMP Volume Deformable", show_header=True)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Voxel samples", str(authored.sample_count))
+    table.add_row("Simulation points", str(authored.point_count))
+    table.add_row("Tetrahedra", str(authored.tet_count))
+    table.add_row("Mass", f"{authored.mass_kg:.9g} kg")
+    table.add_row("Elastic contract", authored.material_reduction.validation_status)
+    table.add_row("Output USD", redact_sensitive_path(authored.output_usd_path))
+    table.add_row("Provenance", redact_sensitive_path(authored.provenance_path))
+    table.add_row("Evidence", redact_sensitive_path(result.evidence.artifact_dir))
+    console.print(table)
 
 
 @app.command()
@@ -957,10 +1742,10 @@ def run(
                 # Old config format
                 steps_section = pipeline_config
 
-            # Use centralized step names
-            from physics_agent.api.defaults import PIPELINE_STEP_NAMES
+            # Use the same execution-order registry as the real pipeline.
+            from physics_agent.config.schema import STEP_ORDER
 
-            step_names = PIPELINE_STEP_NAMES
+            step_names = STEP_ORDER
 
             table = Table(title="Steps", show_header=True)
             table.add_column("Step", style="cyan")
@@ -984,13 +1769,13 @@ def run(
                         continue
 
                 if skip_steps and step in skip_steps:
-                    status = "⊘ Skipped"
+                    status = f"{_console_symbol('⊘', '-')} Skipped"
                     style_name = "dim"
                 elif only_steps and step not in only_steps:
-                    status = "⊘ Excluded"
+                    status = f"{_console_symbol('⊘', '-')} Excluded"
                     style_name = "dim"
                 else:
-                    status = "→ Will Run"
+                    status = f"{_console_symbol('→', '>')} Will Run"
                     style_name = "green"
 
                 enabled = "Yes" if step_config.get("enabled", True) else "No"
@@ -1002,7 +1787,10 @@ def run(
                 )
 
             console.print(table)
-            console.print("\n[bold green]✓ Dry run complete[/bold green]")
+            console.print(
+                f"\n[bold green]{_console_symbol('✓', 'OK')} "
+                "Dry run complete[/bold green]"
+            )
             logger.info("Dry run completed successfully")
             return
 
@@ -1071,7 +1859,9 @@ def run(
                     projected_results if isinstance(projected_results, dict) else {}
                 )
                 for step_name, step_output in safe_results.items():
-                    console.print(f"[green]✓[/green] {step_name}")
+                    console.print(
+                        f"[green]{_console_symbol('✓', 'OK')}[/green] {step_name}"
+                    )
                     if isinstance(step_output, dict):
                         for key, value in step_output.items():
                             if value is not None:
@@ -1141,15 +1931,6 @@ def tune(
             ),
         ),
     ] = None,
-    reference_videos: Annotated[
-        list[Path] | None,
-        typer.Option(
-            "--reference-video",
-            help=(
-                "Reference video for the VLM judge. Can be specified multiple times."
-            ),
-        ),
-    ] = None,
     reference_descriptions: Annotated[
         list[str] | None,
         typer.Option(
@@ -1160,30 +1941,11 @@ def tune(
             ),
         ),
     ] = None,
-    reference_video_descriptions: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--reference-video-description",
-            help=(
-                "Description parallel to --reference-video. Can be specified "
-                "multiple times."
-            ),
-        ),
-    ] = None,
-    reference_video_frames: Annotated[
-        int,
-        typer.Option(
-            "--reference-video-frames",
-            help="Frames to extract from each reference video for visual judging.",
-            min=1,
-            max=MAX_VISUAL_JUDGE_FRAMES,
-        ),
-    ] = DEFAULT_REFERENCE_VIDEO_FRAMES,
     judge_reference_frames: Annotated[
         int,
         typer.Option(
             "--judge-reference-frames",
-            help="Max reference images/video frames to send to the VLM judge.",
+            help="Max reference images to send to the VLM judge.",
             min=1,
             max=MAX_VISUAL_JUDGE_FRAMES,
         ),
@@ -1214,8 +1976,8 @@ def tune(
         typer.Option(
             "--optimizer",
             help="Optimizer: 'auto' (BoTorch when installed, else hard error), "
-            "'botorch' (production BO), 'random' (baseline), 'cma-es' (baseline).",
-            click_type=click.Choice(["auto", "botorch", "random", "cma-es"]),
+            "'botorch' (production BO), 'random' (baseline), 'cma-es' "
+            "(baseline), or the name of an installed optimizer extension.",
         ),
     ] = "auto",
     output_dir: Annotated[
@@ -1312,6 +2074,12 @@ def tune(
     each candidate. Best-found parameters and a derivative `tuned_physics.usd`
     are written to `--output-dir`.
 
+    Prompt-only tune performs one search centered around authored USD values;
+    relative mass_scale is the exception and is centered on 1.0. Pass explicit
+    scenario bounds for a larger initial search. A scenario parameter must set
+    both min and max or omit both. Use refine when later judge-driven iterations
+    should be allowed to widen the bounds.
+
     Example usage:
     ```bash
     physics-agent tune scenario.yaml --engine ovphysx --optimizer auto
@@ -1327,6 +2095,7 @@ def tune(
         BoTorchUnavailableError,
         OvPhysXUnavailableError,
         TuneInput,
+        TuningError,
         run_tune,
     )
 
@@ -1413,18 +2182,11 @@ def tune(
         )
         raise typer.Exit(1)
     reference_images = reference_images or []
-    reference_videos = reference_videos or []
     reference_descriptions = reference_descriptions or None
-    reference_video_descriptions = reference_video_descriptions or None
     _validate_reference_media_paths(
         label="--reference-image",
         paths=reference_images,
         valid_extensions=_VALID_REFERENCE_IMAGE_EXTENSIONS,
-    )
-    _validate_reference_media_paths(
-        label="--reference-video",
-        paths=reference_videos,
-        valid_extensions=_VALID_REFERENCE_VIDEO_EXTENSIONS,
     )
     if reference_descriptions is not None and len(reference_descriptions) != len(
         reference_images
@@ -1432,14 +2194,6 @@ def tune(
         console.print(
             "[red]Error:[/red] --reference-description must be supplied once "
             "per --reference-image."
-        )
-        raise typer.Exit(1)
-    if reference_video_descriptions is not None and len(
-        reference_video_descriptions
-    ) != len(reference_videos):
-        console.print(
-            "[red]Error:[/red] --reference-video-description must be supplied "
-            "once per --reference-video."
         )
         raise typer.Exit(1)
 
@@ -1468,8 +2222,6 @@ def tune(
             f"Max trials: {max_trials}",
             f"Seed: {seed}",
             f"Reference images: {len(reference_images)}",
-            f"Reference videos: {len(reference_videos)}",
-            f"Reference video frames: {reference_video_frames}",
             f"Judge reference frames: {judge_reference_frames}",
             f"Judge generated frames: {judge_generated_frames}",
             f"Judge: {'on' if enable_judge else 'off'}"
@@ -1491,10 +2243,7 @@ def tune(
                 physics_usd=physics_usd,
                 output_dir=output_dir,
                 reference_images=reference_images,
-                reference_videos=reference_videos,
                 reference_descriptions=reference_descriptions,
-                reference_video_descriptions=reference_video_descriptions,
-                reference_video_frames=reference_video_frames,
                 judge_reference_frames=judge_reference_frames,
                 judge_generated_frames=judge_generated_frames,
                 engine=engine,
@@ -1516,6 +2265,10 @@ def tune(
     except OvPhysXUnavailableError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
+    except (ValueError, TuningError) as error:
+        logger.error("Physics tuning failed: %s", error)
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(1) from error
     except Exception:
         logger.error(_TUNE_FAILURE_MESSAGE)
         console.print(f"[red]Error:[/red] {_TUNE_FAILURE_MESSAGE}")
@@ -1535,6 +2288,8 @@ def tune(
     table.add_row("Optimizer", result.optimizer_used)
     table.add_row("Trials", str(result.n_trials))
     table.add_row("Best score", f"{result.best_score:.6g}")
+    if result.best_objective is not None:
+        table.add_row("Best objective", f"{result.best_objective:.6g}")
     for k in sorted(result.best_params):
         table.add_row(f"best.{k}", f"{result.best_params[k]:.6g}")
     table.add_row("Output dir", redact_sensitive_path(result.output_dir))
@@ -1547,6 +2302,331 @@ def tune(
             border_style="green",
         )
     )
+
+
+@app.command(name="tune-external")
+@sever_cli_exception_graph
+def tune_external(
+    config: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to a trusted local external-runtime YAML/JSON config.",
+            exists=False,
+        ),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            "--output-dir",
+            "-o",
+            help="Directory for qualification, history, and final results.",
+        ),
+    ] = Path("output/tune-external"),
+    approval_digest: Annotated[
+        str | None,
+        typer.Option(
+            "--approve-qualification",
+            help="Exact digest printed after reviewing the qualification report.",
+        ),
+    ] = None,
+    render_winning_trial: Annotated[
+        bool,
+        typer.Option(
+            "--render-winning-trial",
+            help="Render the selected recording to PNG frames after optimization.",
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose logging."),
+    ] = False,
+) -> None:
+    """Tune parameters in a pre-provisioned trusted local simulation runtime.
+
+    The first invocation performs only the mandatory nominal qualification and
+    prints its digest. Review ``qualification.json``, then rerun with
+    ``--approve-qualification DIGEST`` to start optimization.
+    """
+
+    logger = setup_logging(verbose=verbose)
+    if not config.is_file():
+        console.print(
+            "[red]Error:[/red] Configuration file not found: "
+            f"{redact_sensitive_path(config)}"
+        )
+        raise typer.Exit(1)
+    if output_dir.exists() and output_dir.is_file():
+        console.print(
+            "[red]Error:[/red] --output-dir must be a directory: "
+            f"{redact_sensitive_path(output_dir)}"
+        )
+        raise typer.Exit(1)
+    try:
+        from physics_agent.api import ExternalTuneInput, run_external_tune
+
+        result = run_external_tune(
+            ExternalTuneInput(
+                config=config,
+                output_dir=output_dir,
+                approval_digest=approval_digest,
+                render_winning_trial=render_winning_trial,
+                verbose=verbose,
+            )
+        )
+    except Exception:
+        logger.error("External tuning failed")
+        console.print("[red]Error:[/red] External tuning failed")
+        raise typer.Exit(1) from None
+
+    if result.status == "awaiting_approval":
+        safe_config = redact_sensitive_path(config)
+        safe_output_dir = redact_sensitive_path(output_dir)
+        console.print(
+            Panel.fit(
+                "[bold yellow]Qualification passed; review required[/bold yellow]\n"
+                f"Report: {redact_sensitive_path(result.qualification_path)}\n"
+                "Frames: "
+                f"{redact_sensitive_path(result.artifacts.get('qualification_frames', '<not configured>'))}\n"
+                f"Digest: {result.qualification_digest}\n\n"
+                "Rerun with:\n"
+                f"physics-agent tune-external {safe_config} "
+                f"--output-dir {safe_output_dir} "
+                f"--approve-qualification {result.qualification_digest}",
+                border_style="yellow",
+            )
+        )
+        return
+    if not result.success:
+        safe_error = redact_sensitive_config(result.error, _path_context=True)
+        console.print(
+            f"[red]External tuning failed ({result.status}):[/red] {safe_error}"
+        )
+        raise typer.Exit(1)
+
+    table = Table(title="External Tune Results", show_header=True)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Status", result.status)
+    table.add_row("Optimizer", result.optimizer_used)
+    table.add_row("Candidates", str(len(result.history)))
+    table.add_row("Best objective", f"{result.best_objective:.6g}")
+    for name in sorted(result.best_params):
+        table.add_row(f"best.{name}", f"{result.best_params[name]:.6g}")
+    table.add_row("Output dir", redact_sensitive_path(result.output_dir))
+    if "qualification_frames" in result.artifacts:
+        table.add_row(
+            "Qualification frames",
+            redact_sensitive_path(result.artifacts["qualification_frames"]),
+        )
+    if result.rendered_frames:
+        table.add_row(
+            "Best-trial render",
+            redact_sensitive_path(result.rendered_frames[0].parent),
+        )
+    if result.render_error:
+        table.add_row("Render warning", result.render_error)
+    console.print(table)
+
+
+@app.command(name="refine-external")
+@sever_cli_exception_graph
+def refine_external(
+    config: Annotated[
+        Path,
+        typer.Argument(help="Path to a trusted local external-runtime config."),
+    ],
+    user_prompt: Annotated[
+        str,
+        typer.Option(
+            "--user-prompt",
+            help="Natural-language behavior for the VLM judge and refiner.",
+        ),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option("--output-dir", "-o", help="Refine artifact directory."),
+    ] = Path("output/refine-external"),
+    approval_digest: Annotated[
+        str | None,
+        typer.Option(
+            "--approve-qualification",
+            help="Exact digest printed after reviewing qualification evidence.",
+        ),
+    ] = None,
+    reference_images: Annotated[
+        list[Path] | None,
+        typer.Option("--reference-image", help="Optional VLM reference image."),
+    ] = None,
+    reference_descriptions: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--reference-description",
+            help="Description parallel to each --reference-image.",
+        ),
+    ] = None,
+    judge_reference_frames: Annotated[
+        int,
+        typer.Option(
+            "--judge-reference-frames",
+            min=1,
+            max=MAX_VISUAL_JUDGE_FRAMES,
+        ),
+    ] = DEFAULT_JUDGE_REFERENCE_FRAMES,
+    judge_generated_frames: Annotated[
+        int,
+        typer.Option(
+            "--judge-generated-frames",
+            min=1,
+            max=MAX_VISUAL_JUDGE_FRAMES,
+        ),
+    ] = DEFAULT_JUDGE_GENERATED_FRAMES,
+    max_iterations: Annotated[
+        int,
+        typer.Option("--max-iterations", min=1, max=12),
+    ] = 5,
+    score_threshold: Annotated[
+        float,
+        typer.Option("--score-threshold", min=0.0, max=1.0),
+    ] = 0.7,
+    judge_max_tokens: Annotated[
+        int | None,
+        typer.Option("--judge-max-tokens", min=1),
+    ] = None,
+    judge_temperature: Annotated[
+        float | None,
+        typer.Option("--judge-temperature", min=0.0),
+    ] = None,
+    chat_backend: Annotated[
+        str,
+        typer.Option("--chat-backend", help="Backend for judging and refinement."),
+    ] = "gemini",
+    chat_model: Annotated[
+        str,
+        typer.Option("--chat-model", help="Model for judging and refinement."),
+    ] = "gemini-3-pro-preview",
+    llm_timeout_seconds: Annotated[
+        float,
+        typer.Option("--llm-timeout-seconds", min=0.0),
+    ] = 180.0,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose logging."),
+    ] = False,
+) -> None:
+    """Refine search and scoring inside a trusted local simulation runtime."""
+
+    logger = setup_logging(verbose=verbose)
+    if not config.is_file():
+        console.print(
+            "[red]Error:[/red] Configuration file not found: "
+            f"{redact_sensitive_path(config)}"
+        )
+        raise typer.Exit(1)
+    if output_dir.exists() and output_dir.is_file():
+        console.print(
+            "[red]Error:[/red] --output-dir must be a directory: "
+            f"{redact_sensitive_path(output_dir)}"
+        )
+        raise typer.Exit(1)
+    user_prompt = user_prompt.strip()
+    if not user_prompt:
+        console.print("[red]Error:[/red] --user-prompt must not be empty")
+        raise typer.Exit(1)
+
+    reference_images = reference_images or []
+    _validate_reference_media_paths(
+        label="--reference-image",
+        paths=reference_images,
+        valid_extensions=_VALID_REFERENCE_IMAGE_EXTENSIONS,
+    )
+    if reference_descriptions is not None and len(reference_descriptions) != len(
+        reference_images
+    ):
+        console.print(
+            "[red]Error:[/red] --reference-description must be supplied once "
+            "per --reference-image"
+        )
+        raise typer.Exit(1)
+
+    built_chat_model: Any | None = None
+    built_vlm_model: Any | None = None
+    if approval_digest is not None:
+        try:
+            built_chat_model, built_vlm_model = _build_external_refine_models(
+                backend=chat_backend,
+                model=chat_model,
+            )
+        except Exception:
+            logger.error("Failed to build external refine models")
+            console.print("[red]Error:[/red] Could not build refine models")
+            raise typer.Exit(1) from None
+
+    try:
+        from physics_agent.api import ExternalRefineInput, run_external_refine
+
+        result = run_external_refine(
+            ExternalRefineInput(
+                config=config,
+                output_dir=output_dir,
+                user_prompt=user_prompt,
+                approval_digest=approval_digest,
+                reference_images=reference_images,
+                reference_descriptions=reference_descriptions,
+                judge_reference_frames=judge_reference_frames,
+                judge_generated_frames=judge_generated_frames,
+                max_iterations=max_iterations,
+                score_threshold=score_threshold,
+                judge_max_tokens=judge_max_tokens,
+                judge_temperature=judge_temperature,
+                llm_timeout_seconds=llm_timeout_seconds,
+                chat_model=built_chat_model,
+                vlm_model=built_vlm_model,
+                verbose=verbose,
+            )
+        )
+    except Exception:
+        logger.error("External refinement failed")
+        console.print("[red]Error:[/red] External refinement failed")
+        raise typer.Exit(1) from None
+
+    if result.status == "awaiting_approval":
+        console.print(
+            Panel.fit(
+                "[bold yellow]Qualification passed; review required[/bold yellow]\n"
+                f"Report: {redact_sensitive_path(result.qualification_path)}\n"
+                "Frames: "
+                f"{redact_sensitive_path(result.artifacts.get('qualification_frames', '<missing>'))}\n"
+                f"Digest: {result.qualification_digest}\n\n"
+                "Rerun this command with --approve-qualification "
+                f"{result.qualification_digest}",
+                border_style="yellow",
+            )
+        )
+        return
+    if not result.success:
+        safe_error = redact_sensitive_config(result.error, _path_context=True)
+        console.print(
+            f"[red]External refinement failed ({result.status}):[/red] {safe_error}"
+        )
+        raise typer.Exit(1)
+
+    table = Table(title="External Refine Results", show_header=True)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Termination", result.termination_reason)
+    table.add_row("VLM validated", "yes" if result.validated else "no")
+    table.add_row("Iterations", str(len(result.iterations)))
+    if result.final_objective is not None:
+        table.add_row("Final objective", f"{result.final_objective:.6g}")
+    for name in sorted(result.final_best_params):
+        table.add_row(f"best.{name}", f"{result.final_best_params[name]:.6g}")
+    table.add_row("Output dir", redact_sensitive_path(result.output_dir))
+    if result.final_dir is not None and (result.final_dir / "render").is_dir():
+        table.add_row(
+            "Best-trial render",
+            redact_sensitive_path(result.final_dir / "render"),
+        )
+    console.print(table)
 
 
 @app.command()
@@ -1586,15 +2666,6 @@ def refine(
             ),
         ),
     ] = None,
-    reference_videos: Annotated[
-        list[Path] | None,
-        typer.Option(
-            "--reference-video",
-            help=(
-                "Reference video for the VLM judge. Can be specified multiple times."
-            ),
-        ),
-    ] = None,
     reference_descriptions: Annotated[
         list[str] | None,
         typer.Option(
@@ -1605,30 +2676,11 @@ def refine(
             ),
         ),
     ] = None,
-    reference_video_descriptions: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--reference-video-description",
-            help=(
-                "Description parallel to --reference-video. Can be specified "
-                "multiple times."
-            ),
-        ),
-    ] = None,
-    reference_video_frames: Annotated[
-        int,
-        typer.Option(
-            "--reference-video-frames",
-            help="Frames to extract from each reference video for visual judging.",
-            min=1,
-            max=MAX_VISUAL_JUDGE_FRAMES,
-        ),
-    ] = DEFAULT_REFERENCE_VIDEO_FRAMES,
     judge_reference_frames: Annotated[
         int,
         typer.Option(
             "--judge-reference-frames",
-            help="Max reference images/video frames to send to the VLM judge.",
+            help="Max reference images to send to the VLM judge.",
             min=1,
             max=MAX_VISUAL_JUDGE_FRAMES,
         ),
@@ -1648,10 +2700,21 @@ def refine(
             "--no-visual-evidence",
             help=(
                 "Run the judge without generated/reference image evidence. "
-                "Rendering artifacts are still produced when enabled."
+                "The automatic judge render is skipped unless artifact rendering "
+                "is separately enabled."
             ),
         ),
     ] = False,
+    visual_evidence_timeout_seconds: Annotated[
+        float,
+        typer.Option(
+            "--visual-evidence-timeout-seconds",
+            help=(
+                "Wall-clock deadline for reference-media preparation and the "
+                "winning-trial judge render. Set 0 to disable."
+            ),
+        ),
+    ] = DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
     output_dir: Annotated[
         Path,
         typer.Option(
@@ -1678,8 +2741,7 @@ def refine(
         str,
         typer.Option(
             "--optimizer",
-            help="Optimizer (passed through to ``physics-agent tune``).",
-            click_type=click.Choice(["auto", "botorch", "random", "cma-es"]),
+            help="Optimizer name (passed through to ``physics-agent tune``).",
         ),
     ] = "auto",
     max_trials: Annotated[
@@ -1796,7 +2858,7 @@ def refine(
     ] = "INFO",
 ) -> None:
     """
-    Iteratively refine a physics tune via (tune → judge → scenario_refine).
+    Iteratively refine a physics tune via (tune -> judge -> scenario_refine).
 
     Each iteration runs ``tune`` against the current scenario, asks the
     VLM judge whether the result is good enough, and — when it isn't —
@@ -1821,6 +2883,16 @@ def refine(
     """
     logger = setup_logging(verbose=verbose, log_file=log_file, log_level=log_level)
     logger.info("Starting Physics Agent refine workflow")
+
+    from physics_agent.tuning.optimizers import get_supported_optimizer_names
+
+    supported_optimizers = get_supported_optimizer_names()
+    if optimizer not in supported_optimizers:
+        console.print(
+            f"[red]Error:[/red] Unknown optimizer {optimizer!r}. "
+            f"Supported: {list(supported_optimizers)}"
+        )
+        raise typer.Exit(2)
 
     if not scenario.exists():
         console.print(
@@ -1862,19 +2934,18 @@ def refine(
         )
         raise typer.Exit(1)
     reference_images = reference_images or []
-    reference_videos = reference_videos or []
     visual_evidence_enabled = not no_visual_evidence
+    if engine == "fake" and visual_evidence_enabled:
+        console.print(
+            "[red]Error:[/red] --engine fake cannot produce the recording USD "
+            "required for visual evidence; pass --no-visual-evidence."
+        )
+        raise typer.Exit(2)
     reference_descriptions = reference_descriptions or None
-    reference_video_descriptions = reference_video_descriptions or None
     _validate_reference_media_paths(
         label="--reference-image",
         paths=reference_images,
         valid_extensions=_VALID_REFERENCE_IMAGE_EXTENSIONS,
-    )
-    _validate_reference_media_paths(
-        label="--reference-video",
-        paths=reference_videos,
-        valid_extensions=_VALID_REFERENCE_VIDEO_EXTENSIONS,
     )
     if reference_descriptions is not None and len(reference_descriptions) != len(
         reference_images
@@ -1882,14 +2953,6 @@ def refine(
         console.print(
             "[red]Error:[/red] --reference-description must be supplied once "
             "per --reference-image."
-        )
-        raise typer.Exit(1)
-    if reference_video_descriptions is not None and len(
-        reference_video_descriptions
-    ) != len(reference_videos):
-        console.print(
-            "[red]Error:[/red] --reference-video-description must be supplied "
-            "once per --reference-video."
         )
         raise typer.Exit(1)
     output_dir = output_dir.resolve()
@@ -1917,10 +2980,9 @@ def refine(
         f"Judge temp:      {judge_temperature_label}",
         f"Visual evidence: {'on' if visual_evidence_enabled else 'off'}",
         f"Reference images:{len(reference_images):>6}",
-        f"Reference videos:{len(reference_videos):>6}",
-        f"Reference video frames: {reference_video_frames}",
         f"Judge reference frames: {judge_reference_frames}",
         f"Judge generated frames: {judge_generated_frames}",
+        f"Visual evidence timeout: {visual_evidence_timeout_seconds:g}s",
         f"Chat backend:    {redact_sensitive_config(chat_backend)}",
         f"Chat model:      {redact_sensitive_config(chat_model, _path_context=True)}",
         f"Output:          {redact_sensitive_path(output_dir)}",
@@ -2045,7 +3107,10 @@ def refine(
         )
         if resolved_vlm_api_key:
             vlm_config["api_key"] = resolved_vlm_api_key
-        if not backend_supports_reasoning_effort(vlm_backend):
+        if not backend_supports_reasoning_effort(
+            vlm_backend,
+            str(vlm_config.get("model") or ""),
+        ):
             vlm_config.pop("reasoning_effort", None)
         built_vlm_model: Any = create_vlm(**vlm_config)
     except typer.Exit:
@@ -2062,6 +3127,7 @@ def refine(
     # surface gives programmatic callers a typed dataclass entry point
     # mirroring material-agent's ``RefineInput`` / ``RefineOutput``.
     from physics_agent.api.refine import RefineInput, run_refine
+    from physics_agent.tuning import TuningError
 
     refine_params = RefineInput(
         scenario=scenario,
@@ -2069,10 +3135,7 @@ def refine(
         user_prompt=user_prompt,
         output_dir=output_dir,
         reference_images=reference_images,
-        reference_videos=reference_videos,
         reference_descriptions=reference_descriptions,
-        reference_video_descriptions=reference_video_descriptions,
-        reference_video_frames=reference_video_frames,
         judge_reference_frames=judge_reference_frames,
         judge_generated_frames=judge_generated_frames,
         engine=engine,
@@ -2086,17 +3149,22 @@ def refine(
         judge_temperature=judge_temperature,
         chat_model=built_chat_model,
         vlm_model=built_vlm_model,
-        # Refine publishes the winning time-sampled USD instead of a video.
+        # Refine publishes the winning time-sampled USD plus PNG judge frames.
         # Visual judging still renders PNG evidence when reference media or
-        # a generated-only freeform judgment requires it.
-        force_record_video="off",
+        # a generated-only judgment requires it.
+        force_record_frames="off",
         render_winning_trial=False,
         visual_evidence_enabled=visual_evidence_enabled,
+        visual_evidence_timeout_seconds=visual_evidence_timeout_seconds,
         llm_timeout_seconds=llm_timeout_seconds,
     )
 
     try:
         result = run_refine(refine_params)
+    except (ValueError, TuningError) as error:
+        logger.error("Physics refinement failed: %s", error)
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(1) from error
     except Exception:
         logger.error(_REFINE_FAILURE_MESSAGE)
         console.print(f"[red]Error:[/red] {_REFINE_FAILURE_MESSAGE}")
@@ -2213,7 +3281,8 @@ def pipeline(
     """
     # Print deprecation warning
     console.print(
-        "[yellow]⚠ Warning:[/yellow] The 'pipeline' command is deprecated and will be removed in a future version."
+        f"[yellow]{_console_symbol('⚠', '!')} Warning:[/yellow] The 'pipeline' "
+        "command is deprecated and will be removed in a future version."
     )
     console.print(
         "[yellow]           Please use 'physics-agent run' instead.[/yellow]\n"

@@ -29,6 +29,10 @@ from material_agent.tasks.config_pdf_vectorstore import PDFVectorstoreConfigTask
 from material_agent.tasks.config_pipeline import PipelineConfigTask
 from material_agent.tasks.config_predict import PredictConfigTask
 from material_agent.tasks.config_prepare_dataset import PrepareDatasetConfigTask
+from material_agent.tasks.create_materials import (
+    AuthorMaterialsTask,
+    CreateMaterialsTask,
+)
 from material_agent.tasks.dataset import DatasetLoadingTask
 from material_agent.tasks.evaluation import EvaluationTask
 from material_agent.tasks.generate_material_library import GenerateMaterialLibraryTask
@@ -61,9 +65,11 @@ __all__ = [
     "ApplyCompletionTask",
     "ApplyConfigTask",
     "ApplyMaterialsToUSDTask",
+    "AuthorMaterialsTask",
     "BenchmarkConfigTask",
     "ClusterPrimsTask",
     "ClusterPrimsConfigTask",
+    "CreateMaterialsTask",
     "DatasetLoadingTask",
     "EvaluateConfigTask",
     "EvaluationTask",

@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import uuid
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ from ..config import config
 from ..config_persistence import (
     build_and_validate_pipeline_config,
     build_and_write_pipeline_config,
+    write_pipeline_config,
 )
 from ..models.requests import RegenerateRequest
 from ..models.responses import (
@@ -46,6 +48,7 @@ from ..models.responses import (
 )
 from ..runtime import get_event_bus, get_job_registry
 from ..session.manager import SessionManager
+from ..storage import SessionGenerationConflictError
 from ..utils import derive_completed_step_names
 from ..workers.executor import (
     execute_pipeline_async,
@@ -72,6 +75,16 @@ def set_session_manager(manager: SessionManager) -> None:
     """Set the global session manager instance."""
     global session_manager
     session_manager = manager
+
+
+def _require_pipeline_session_id(session_id: str | None) -> str:
+    """Fail closed if an accepted source branch did not allocate a session."""
+    if session_id is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Pipeline session initialization failed",
+        )
+    return session_id
 
 
 def _apply_render_request_limit(pipeline_config: dict) -> None:
@@ -564,11 +577,7 @@ async def create_pipeline(
             detail="One of usd_file, session_id, or s3_uri must be provided",
         )
 
-    if session_id is None:  # defensive guard before derived path/store mutation
-        raise HTTPException(
-            status_code=500,
-            detail="Pipeline session initialization failed",
-        )
+    session_id = _require_pipeline_session_id(session_id)
     input_usd_path = _find_input_usd(session_dir)
     if not input_usd_path:
         # May be on a different instance — pull input/ from store and retry
@@ -608,90 +617,156 @@ async def create_pipeline(
     # concurrent request for the same reusable session must lose before it can
     # clear cancellation, overwrite config.yaml, or erase the live snapshot.
     async with reservation:
-        pipeline_config = await build_and_write_pipeline_config(
-            config_factory=prepare_pipeline_config,
-            config_path=config_path,
-            session_manager=manager,
-            session_id=session_id,
-            session_created_here=session_created_here,
-        )
-
-        # Reset status to "pending" and write the pipeline config before
-        # queueing the job. Two non-obvious requirements:
-        #
-        # 1. Status reset: /pipeline/upload-usd persists status="ready" for
-        #    upload-only sessions, so without an explicit reset here a
-        #    subsequent POST /pipeline against an upload-only session would
-        #    leave the persisted state at "ready" until the executor starts.
-        #    GET /pipeline/{id}/status would lie about a queued job and
-        #    POST /pipeline/{id}/cancel would 400 (cancel only allows
-        #    pending/running).
-        #
-        # 2. Config merge: /pipeline/upload-usd writes upload-only metadata
-        #    (original_filename, size_mb, has_usd_upload) into config that
-        #    operators rely on for /sessions visibility. Replacing config
-        #    wholesale here would erase those fields the moment the user
-        #    starts the pipeline. Spread existing config first, then layer
-        #    the pipeline-specific keys on top, and OR has_usd_upload across
-        #    both writers (start-from-session-id sets selected_usd_file=None, which
-        #    would otherwise flip the flag back to False).
-        #
-        # The single update_session call is atomic so the status reset and
-        # the merged-config write land together.
-        existing = await manager.get_session_metadata(session_id) or {}
+        existing = await manager.get_session_metadata(session_id)
+        if not isinstance(existing, dict) or not {
+            "session_id",
+            "created_at",
+            "status",
+        }.issubset(existing):
+            raise HTTPException(
+                status_code=500,
+                detail="Session metadata is unavailable for pipeline startup",
+            )
+        metadata_snapshot = deepcopy(existing)
         existing_config = existing.get("config") or {}
-        if not session_created_here:
-            await manager.clear_cancellation(session_id)
-            await manager.clear_pipeline_terminal_claim(session_id)
-        await manager.update_session(
-            session_id,
-            {
-                "status": "pending",
-                "current_step": None,
-                "can_cancel": True,
-                "error": None,
-                "error_diagnostic": None,
-                "failed_step": None,
-                "completed_at": None,
-                "cancelled_at": None,
-                "completed_steps": [],
-                "completed_step_names": [],
-                "partial_results": None,
-                "results": {},
-                "duration_seconds": 0,
-                "config": {
-                    **existing_config,
-                    "project_name": pipeline_config.get("project", {}).get("name", ""),
-                    "usd_path": str(input_usd_path),
-                    "has_usd_upload": existing_config.get("has_usd_upload", False)
-                    or (
-                        selected_usd_file is not None
-                        and selected_usd_file.filename is not None
-                    ),
-                    "s3_uri": selected_s3_uri or existing_config.get("s3_uri"),
-                    "user_prompt": user_prompt_text,
-                    "optimize_usd": optimize_usd,
-                    "enable_deinstance": enable_deinstance,
-                    "enable_split": enable_split,
-                    "enable_deduplicate": enable_deduplicate,
+        generation_started = False
+        config_existed = config_path.is_file()
+        config_snapshot = (
+            yaml.safe_load(config_path.read_text(encoding="utf-8"))
+            if config_existed
+            else None
+        )
+        try:
+            # Claim the durable generation before replacing config.yaml. A
+            # losing cross-replica request must not leave rejected local input
+            # state that a later regeneration could consume.
+            if not session_created_here:
+                begin_generation = getattr(manager, "begin_generation", None)
+                if begin_generation is not None:
+                    await begin_generation(session_id)
+                generation_started = True
+
+            pipeline_config = await build_and_write_pipeline_config(
+                config_factory=prepare_pipeline_config,
+                config_path=config_path,
+                session_manager=manager,
+                session_id=session_id,
+                session_created_here=session_created_here,
+            )
+
+            # Reset status to "pending" and write the pipeline config before
+            # queueing the job. Two non-obvious requirements:
+            #
+            # 1. Status reset: /pipeline/upload-usd persists status="ready" for
+            #    upload-only sessions, so without an explicit reset here a
+            #    subsequent POST /pipeline against an upload-only session would
+            #    leave the persisted state at "ready" until the executor starts.
+            #    GET /pipeline/{id}/status would lie about a queued job and
+            #    POST /pipeline/{id}/cancel would 400 (cancel only allows
+            #    pending/running).
+            #
+            # 2. Config merge: /pipeline/upload-usd writes upload-only metadata
+            #    (original_filename, size_mb, has_usd_upload) into config that
+            #    operators rely on for /sessions visibility. Replacing config
+            #    wholesale here would erase those fields the moment the user
+            #    starts the pipeline. Spread existing config first, then layer
+            #    the pipeline-specific keys on top, and OR has_usd_upload across
+            #    both writers (start-from-session-id sets selected_usd_file=None, which
+            #    would otherwise flip the flag back to False).
+            #
+            # The single update_session call is atomic so the status reset and
+            # the merged-config write land together.
+            if not session_created_here:
+                await manager.clear_cancellation(session_id)
+                await manager.clear_pipeline_terminal_claim(session_id)
+            await manager.update_session(
+                session_id,
+                {
+                    "status": "pending",
+                    "current_step": None,
+                    "can_cancel": True,
+                    "error": None,
+                    "error_diagnostic": None,
+                    "failed_step": None,
+                    "completed_at": None,
+                    "cancelled_at": None,
+                    "completed_steps": [],
+                    "completed_step_names": [],
+                    "partial_results": None,
+                    "results": {},
+                    "duration_seconds": 0,
+                    "config": {
+                        **existing_config,
+                        "project_name": pipeline_config.get("project", {}).get(
+                            "name", ""
+                        ),
+                        "usd_path": str(input_usd_path),
+                        "has_usd_upload": existing_config.get("has_usd_upload", False)
+                        or (
+                            selected_usd_file is not None
+                            and selected_usd_file.filename is not None
+                        ),
+                        "s3_uri": selected_s3_uri or existing_config.get("s3_uri"),
+                        "user_prompt": user_prompt_text,
+                        "optimize_usd": optimize_usd,
+                        "enable_deinstance": enable_deinstance,
+                        "enable_split": enable_split,
+                        "enable_deduplicate": enable_deduplicate,
+                    },
                 },
-            },
-        )
+            )
 
-        event_bus = get_event_bus()
-        event_bus.cleanup_session(session_id)
-        await event_bus.seed_pending_session(
-            session_id,
-            created_at=existing.get("created_at"),
-        )
+            event_bus = get_event_bus()
+            event_bus.cleanup_session(session_id)
+            await event_bus.seed_pending_session(
+                session_id,
+                created_at=existing.get("created_at"),
+            )
 
-        await reservation.start(
-            execute_pipeline_async(
+            worker = execute_pipeline_async(
                 session_id=session_id,
                 config_dict=pipeline_config,
                 session_manager=manager,
             )
-        )
+            maintain_lease = getattr(manager, "maintain_generation_lease", None)
+            if maintain_lease is None:
+                await reservation.start(worker)
+            else:
+                await reservation.start(
+                    worker,
+                    wait_heartbeat=maintain_lease,
+                )
+        except BaseException as error:
+            if generation_started:
+                try:
+                    await manager.restore_session_metadata(
+                        session_id,
+                        deepcopy(metadata_snapshot),
+                    )
+                except Exception:
+                    log_durable_failure(
+                        logger,
+                        "pipeline_start_generation_restore_failed",
+                        phase=FailurePhase.ROLLBACK,
+                        retryable=True,
+                    )
+                try:
+                    if config_existed:
+                        if not isinstance(config_snapshot, dict):
+                            raise ValueError("Invalid prior pipeline config snapshot")
+                        write_pipeline_config(config_path, config_snapshot)
+                    else:
+                        config_path.unlink(missing_ok=True)
+                except Exception:
+                    log_durable_failure(
+                        logger,
+                        "pipeline_start_config_restore_failed",
+                        phase=FailurePhase.ROLLBACK,
+                        retryable=True,
+                    )
+            if isinstance(error, SessionGenerationConflictError):
+                raise HTTPException(status_code=409, detail=str(error)) from error
+            raise
 
     logger.info(f"Pipeline registered for session {session_id}")
 
@@ -714,13 +789,11 @@ async def get_pipeline_status(session_id: str) -> PipelineStatus:
     manager = get_session_manager()
 
     # Try in-memory state first (active sessions on this instance)
-    snapshot = event_bus.get_snapshot(session_id)
-    if (
-        snapshot
-        and snapshot.get("status") in {"pending", "running", "cancelling"}
-        and not get_job_registry().is_running(session_id)
-    ):
-        snapshot = None
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    )
 
     if snapshot:
         metadata = snapshot
@@ -868,7 +941,11 @@ async def stream_progress_events(session_id: str):
     event_bus = get_event_bus()
     manager = get_session_manager()
 
-    snapshot = event_bus.get_snapshot(session_id)
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    )
     if snapshot is None:
         if not await manager.session_exists(session_id):
             raise HTTPException(status_code=404, detail="Session not found")
@@ -977,6 +1054,17 @@ async def regenerate_pipeline(
     session_dir = manager.get_session_dir(session_id)
     config_path = session_dir / "input" / "config.yaml"
 
+    if getattr(manager.store, "kind", "local") == "s3":
+        # A replica-local config/cache may belong to an older publication.
+        # Hydrate both from one pinned manifest before choosing rerun steps.
+        await manager.sync_from_store(
+            session_id,
+            prefix=("input/", "cache/"),
+        )
+    else:
+        if not config_path.exists():
+            await manager.sync_from_store(session_id, prefix="input/")
+        await manager.sync_from_store(session_id, prefix="cache/")
     if not config_path.exists():
         raise HTTPException(
             status_code=400,
@@ -1021,41 +1109,71 @@ async def regenerate_pipeline(
         raise HTTPException(status_code=409, detail=str(e)) from e
 
     async with reservation:
-        await manager.clear_cancellation(session_id)
-        await manager.clear_pipeline_terminal_claim(session_id)
-        await manager.update_session(
-            session_id,
-            {
-                "status": "pending",
-                "current_step": None,
-                "can_cancel": True,
-                "error": None,
-                "error_diagnostic": None,
-                "failed_step": None,
-                "completed_at": None,
-                "completed_steps": [],
-                "completed_step_names": [],
-                "partial_results": None,
-                "results": {},
-                "duration_seconds": 0,
-                "cancelled_at": None,
-            },
-        )
-        event_bus = get_event_bus()
-        event_bus.cleanup_session(session_id)
-        await event_bus.seed_pending_session(
-            session_id,
-            created_at=metadata.get("created_at"),
-        )
+        generation_started = False
+        try:
+            begin_generation = getattr(manager, "begin_generation", None)
+            if begin_generation is not None:
+                await begin_generation(session_id)
+            generation_started = True
+        except SessionGenerationConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        try:
+            await manager.clear_cancellation(session_id)
+            await manager.clear_pipeline_terminal_claim(session_id)
+            await manager.update_session(
+                session_id,
+                {
+                    "status": "pending",
+                    "current_step": None,
+                    "can_cancel": True,
+                    "error": None,
+                    "error_diagnostic": None,
+                    "failed_step": None,
+                    "completed_at": None,
+                    "completed_steps": [],
+                    "completed_step_names": [],
+                    "partial_results": None,
+                    "results": {},
+                    "duration_seconds": 0,
+                    "cancelled_at": None,
+                },
+            )
+            event_bus = get_event_bus()
+            event_bus.cleanup_session(session_id)
+            await event_bus.seed_pending_session(
+                session_id,
+                created_at=metadata.get("created_at"),
+            )
 
-        await reservation.start(
-            execute_pipeline_async(
+            worker = execute_pipeline_async(
                 session_id=session_id,
                 config_dict=pipeline_config,
                 session_manager=manager,
                 only_steps=only_steps,
-            ),
-        )
+            )
+            maintain_lease = getattr(manager, "maintain_generation_lease", None)
+            if maintain_lease is None:
+                await reservation.start(worker)
+            else:
+                await reservation.start(
+                    worker,
+                    wait_heartbeat=maintain_lease,
+                )
+        except BaseException:
+            if generation_started:
+                try:
+                    await manager.restore_session_metadata(
+                        session_id,
+                        deepcopy(metadata),
+                    )
+                except Exception:
+                    log_durable_failure(
+                        logger,
+                        "pipeline_regeneration_restore_failed",
+                        phase=FailurePhase.ROLLBACK,
+                        retryable=True,
+                    )
+            raise
 
     logger.info(f"Pipeline regeneration registered for session {session_id}")
 

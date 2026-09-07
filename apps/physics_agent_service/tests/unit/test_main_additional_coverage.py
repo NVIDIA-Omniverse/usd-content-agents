@@ -167,9 +167,14 @@ def test_load_aws_config_file_handles_read_error(
 
 
 class _S3ishStore(LocalSessionStore):
+    capabilities_verified = False
+
     @property
     def kind(self) -> str:
         return "s3"
+
+    async def verify_capabilities(self) -> None:
+        self.capabilities_verified = True
 
 
 class _FakeConfig:
@@ -287,9 +292,9 @@ async def test_lifespan_initializes_routers_remote_and_s3(
         _FakeConfig(str(tmp_path / "sessions"), api_keys=False, s3=True),
     )
     async with service_main.lifespan(FastAPI()):
-        assert service_main.pipeline_router.get_session_manager().storage_path == (
-            tmp_path / "sessions"
-        )
+        manager = service_main.pipeline_router.get_session_manager()
+        assert manager.storage_path == tmp_path / "sessions"
+        assert manager.store.capabilities_verified is True
 
 
 @pytest.mark.asyncio
@@ -441,6 +446,13 @@ async def test_handlers_and_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> 
         SimpleNamespace(), InvalidSessionIdError("bad id")
     )
     assert response.status_code == 400
+
+    storage_response = await service_main._session_storage_path_handler(
+        SimpleNamespace(), service_main.SessionStoragePathError("unsafe root")
+    )
+    assert storage_response.status_code == 503
+    assert b"non-symlinked storage root" in storage_response.body
+    assert b"unsafe root" not in storage_response.body
 
     calls = []
     monkeypatch.setitem(

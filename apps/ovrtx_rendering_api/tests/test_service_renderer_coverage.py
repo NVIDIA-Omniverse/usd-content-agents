@@ -40,6 +40,11 @@ def _install_fake_pxr_stage(monkeypatch: pytest.MonkeyPatch, stage: Any) -> None
         Stage=types.SimpleNamespace(Open=lambda _path: stage)
     )
     monkeypatch.setitem(sys.modules, "pxr", pxr_mod)
+    monkeypatch.setattr(
+        renderer_module,
+        "_validate_usd_asset_paths_confined",
+        lambda _path, *, intake_root: None,
+    )
 
 
 class _FakeStage:
@@ -165,7 +170,17 @@ class TestRendererLifecycleCoverage:
     def test_warm_up_success_sets_initialized(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        backend = _RecordingRenderBackend(response={"results": [{"ok": True}]})
+        backend = _RecordingRenderBackend(
+            response={
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [_nonblank_image()],
+                        "sensors": {},
+                    }
+                ]
+            }
+        )
         renderer = _renderer_with_backend(backend)
         monkeypatch.setattr(renderer_module, "_build_smoke_stage", lambda: "stage")
 
@@ -243,7 +258,12 @@ class TestRenderBranchCoverage:
                 "results": [
                     {
                         "camera": "/World/Camera",
-                        "images": [_nonblank_image()],
+                        "images": [
+                            _nonblank_image(),
+                            _nonblank_image(),
+                            _nonblank_image(),
+                        ],
+                        "image_frames": [3, 4, 5],
                         "sensors": {"depth": {3: depth}},
                     }
                 ]
@@ -470,34 +490,73 @@ class TestUrlAndRequestCoverage:
             def __init__(self) -> None:
                 self.trust_env = True
                 self.mounts: list[str] = []
+                self.closed = False
 
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_args: Any) -> None:
-                pass
+            def close(self) -> None:
+                self.closed = True
 
             def mount(self, prefix: str, _adapter: Any) -> None:
                 self.mounts.append(prefix)
 
-            def get(self, url: str, *, timeout: float, allow_redirects: bool):
+            def get(
+                self,
+                url: str,
+                *,
+                timeout: float,
+                allow_redirects: bool,
+                stream: bool,
+            ):
                 assert self.trust_env is False
                 assert self.mounts == ["http://", "https://"]
                 assert url == "https://example.com/scene.usd"
                 assert timeout == 3.0
                 assert allow_redirects is False
-                return "response"
+                assert stream is True
+                return type("Response", (), {"close": lambda self: None})()
 
         monkeypatch.setattr(renderer_module.requests, "Session", FakeSession)
 
-        assert (
+        response = renderer_module._safe_requests_get(
+            "https://example.com/scene.usd",
+            timeout=3.0,
+            allow_redirects=False,
+        )
+        assert hasattr(response, "_wu_session")
+        session = response._wu_session
+        renderer_module._close_http_response(response)
+        assert session.closed is True
+
+    def test_safe_get_closes_session_when_request_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        sessions: list[Any] = []
+
+        class FailingSession:
+            def __init__(self) -> None:
+                self.trust_env = True
+                self.closed = False
+                sessions.append(self)
+
+            def close(self) -> None:
+                self.closed = True
+
+            def mount(self, _prefix: str, _adapter: Any) -> None:
+                pass
+
+            def get(self, *_args: Any, **_kwargs: Any) -> Any:
+                raise RuntimeError("request failed")
+
+        monkeypatch.setattr(renderer_module.requests, "Session", FailingSession)
+
+        with pytest.raises(RuntimeError, match="request failed"):
             renderer_module._safe_requests_get(
                 "https://example.com/scene.usd",
                 timeout=3.0,
                 allow_redirects=False,
             )
-            == "response"
-        )
+
+        assert len(sessions) == 1
+        assert sessions[0].closed is True
 
     def test_connected_socket_peer_closes_on_invalid_peer_ip(self) -> None:
         class FakeSocket:
@@ -523,6 +582,45 @@ class TestUrlAndRequestCoverage:
 class TestZipAndFetchCoverage:
     def test_parse_zip_size_valid_override(self) -> None:
         assert renderer_module._parse_zip_max_uncompressed_bytes("128") == 128
+
+    def test_parse_http_size_valid_override(self) -> None:
+        assert renderer_module._parse_http_max_download_bytes("128") == 128
+
+    def test_http_download_ignores_invalid_length_and_empty_chunks(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        class Response:
+            headers = {"Content-Length": "not-an-integer"}
+
+            def __init__(self) -> None:
+                self.closed = False
+
+            def raise_for_status(self) -> None:
+                pass
+
+            def iter_content(self, *, chunk_size: int):
+                assert chunk_size == 1024 * 1024
+                yield b""
+                yield b"usd"
+
+            def close(self) -> None:
+                self.closed = True
+
+        response = Response()
+        monkeypatch.setattr(
+            renderer_module,
+            "_safe_http_get",
+            lambda *_args, **_kwargs: response,
+        )
+        destination = tmp_path / "scene.usd"
+
+        renderer_module._fetch_usd(
+            "https://assets.example/scene.usd",
+            str(destination),
+        )
+
+        assert destination.read_bytes() == b"usd"
+        assert response.closed is True
 
     def test_bad_zip_is_not_usdz(self, tmp_path: Path) -> None:
         bad_zip = tmp_path / "bad.zip"
@@ -577,6 +675,7 @@ class TestZipAndFetchCoverage:
     ) -> None:
         calls = self._install_fake_boto(monkeypatch, behavior="profile")
         monkeypatch.setenv("AWS_PROFILE", "rendering")
+        monkeypatch.setenv("OVRTX_S3_ALLOWED_BUCKETS", "bucket")
 
         renderer_module._download_s3("s3://bucket/key.usd", str(tmp_path / "scene.usd"))
 
@@ -590,6 +689,7 @@ class TestZipAndFetchCoverage:
     ) -> None:
         calls = self._install_fake_boto(monkeypatch, behavior="default-ok")
         monkeypatch.delenv("AWS_PROFILE", raising=False)
+        monkeypatch.setenv("OVRTX_S3_ALLOWED_BUCKETS", "bucket")
 
         renderer_module._download_s3("s3://bucket/key.usd", str(tmp_path / "scene.usd"))
 
@@ -604,6 +704,7 @@ class TestZipAndFetchCoverage:
     ) -> None:
         calls = self._install_fake_boto(monkeypatch, behavior="default-missing")
         monkeypatch.delenv("AWS_PROFILE", raising=False)
+        monkeypatch.setenv("OVRTX_S3_ALLOWED_BUCKETS", "bucket")
 
         renderer_module._download_s3("s3://bucket/key.usd", str(tmp_path / "scene.usd"))
 
@@ -617,6 +718,7 @@ class TestZipAndFetchCoverage:
     ) -> None:
         calls = self._install_fake_boto(monkeypatch, behavior="default-denied")
         monkeypatch.delenv("AWS_PROFILE", raising=False)
+        monkeypatch.setenv("OVRTX_S3_ALLOWED_BUCKETS", "bucket")
 
         renderer_module._download_s3("s3://bucket/key.usd", str(tmp_path / "scene.usd"))
 
@@ -625,6 +727,34 @@ class TestZipAndFetchCoverage:
         assert calls["downloads"] == [
             ("bucket", "key.usd", str(tmp_path / "scene.usd"))
         ]
+
+    @pytest.mark.parametrize(
+        "allowed_buckets",
+        [None, "", "other-bucket", "bucket.example"],
+    )
+    def test_download_s3_rejects_unlisted_bucket_before_aws_access(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        allowed_buckets: str | None,
+    ) -> None:
+        from world_understanding.utils.s3_utils import S3BucketNotAllowedError
+
+        calls = self._install_fake_boto(monkeypatch, behavior="profile")
+        if allowed_buckets is None:
+            monkeypatch.delenv("OVRTX_S3_ALLOWED_BUCKETS", raising=False)
+        else:
+            monkeypatch.setenv("OVRTX_S3_ALLOWED_BUCKETS", allowed_buckets)
+
+        with pytest.raises(S3BucketNotAllowedError, match="configured bucket"):
+            renderer_module._download_s3(
+                "s3://bucket/key.usd",
+                str(tmp_path / "scene.usd"),
+            )
+
+        assert calls["sessions"] == []
+        assert calls["head_buckets"] == []
+        assert calls["downloads"] == []
 
     @staticmethod
     def _install_fake_boto(
@@ -741,6 +871,30 @@ class TestV1ResponseCoverage:
         assert response["images"]["5"]["/World/Camera"]["linear_depth"]
         assert response["images"]["11"]["/World/Camera"]["linear_depth"] == ""
         assert response["images"]["11"]["/World/Camera"]["normals"] == ""
+
+    def test_sensor_encoding_preserves_fractional_frame_identity(self) -> None:
+        response = renderer_module._to_v1_response(
+            {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [_nonblank_image()],
+                        "image_frames": [1.5],
+                        "sensors": {
+                            "depth": {
+                                1.5: np.array([[1.0, 2.0]], dtype=np.float32),
+                            }
+                        },
+                    }
+                ]
+            },
+            requested_sensors=["depth"],
+            ovrtx_sensors=["depth"],
+            frame_start=0,
+        )
+
+        camera = response["images"]["1.5"]["/World/Camera"]
+        assert camera["depth"]
 
     def test_blank_frame_normalization_rejects_invalid_entries(self) -> None:
         assert (

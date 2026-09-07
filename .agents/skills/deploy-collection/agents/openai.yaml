@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Content Agents"
-  short_description: "Deploy Material, Physics, and Texture Agents with shared endpoint dependencies"
-  default_prompt: "Use $deploy-collection to deploy the full Content Agents package with CPU-only agent services, shared OVRTX rendering, configurable model endpoints, and optional Brev-hosted dependencies."

@@ -42,7 +42,7 @@ _SCENE_PIPELINE_FAILURE_MESSAGE = "Scene pipeline failed"
 
 _RETIRED_MATERIAL_HARNESS_MESSAGE = (
     "The Material Agent task-first harness workflow has been retired. Use "
-    "`content-workflow-cli materials assign` with Content Workbench for agentic asset "
+    "`content-workflow-cli materials assign`; its workflow uses usd-cli for agentic asset "
     "workflows."
 )
 
@@ -71,8 +71,8 @@ class ScenePipelineInput:
         simulate: Patch model/render backends to mock and generate fake predictions.
         simulate_mock_analyze: Also mock the scene analyze LLM in simulate mode.
         predict_max_workers: Override per-asset ``steps.predict.max_workers``.
-        harness_sub_assets: Retired. Use ``content-workflow-cli`` with Content
-            Workbench for agentic asset workflows.
+        harness_sub_assets: Retired. Use ``content-workflow-cli`` with
+            ``usd-cli`` as its low-level scene tool for agentic asset workflows.
         harness_sub_asset_config: Retired compatibility field.
         harness_request: Retired compatibility field.
         harness_metadata: Retired compatibility field.
@@ -154,11 +154,14 @@ def _load_scene_config(
     params: ScenePipelineInput,
 ) -> tuple[dict[str, Any], Path | None, Path]:
     """Load config and return ``(config_dict, config_path, base_dir)``."""
+    from material_agent.scene.extract import validate_scene_extraction_config
+
     if isinstance(params.config, dict):
         base_dir = (params.config_base_dir or Path.cwd()).resolve()
         cloned = clone_config_containers(params.config)
         if not isinstance(cloned, dict):  # pragma: no cover - input type contract
             raise AssertionError("scene configuration clone must be a dictionary")
+        validate_scene_extraction_config(cloned)
         return cloned, None, base_dir
 
     config_path = Path(params.config).resolve()
@@ -166,6 +169,7 @@ def _load_scene_config(
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Scene config must contain a mapping: {config_path}")
+    validate_scene_extraction_config(data)
     return data, config_path, config_path.parent
 
 

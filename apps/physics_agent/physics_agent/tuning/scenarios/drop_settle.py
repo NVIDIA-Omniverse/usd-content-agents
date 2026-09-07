@@ -51,7 +51,7 @@ if TYPE_CHECKING:  # pragma: no cover - static typing only
     from physics_agent.tuning.simulator import Simulator
     from physics_agent.tuning.types import Scenario
 
-from physics_agent.tuning.video_rendering import resolve_video_renderer
+from physics_agent.tuning.frame_rendering import resolve_frame_renderer
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +90,9 @@ class MetricContext:
             sampled pose so contact/apex are measured from the body's bottom
             instead of the rigid-body origin.
         bbox_max_local: Optional body-space bbox maximum in stage units.
+        bbox_local_scale: Scale from body-local coordinates into pose-local
+            stage units. Native instance metric-bakes retain centimeter-valued
+            prototype bounds and carry the conversion here.
     """
 
     trajectory: Any
@@ -98,6 +101,7 @@ class MetricContext:
     scenario: Scenario
     bbox_min_local: tuple[float, float, float] | None = None
     bbox_max_local: tuple[float, float, float] | None = None
+    bbox_local_scale: tuple[float, float, float] = (1.0, 1.0, 1.0)
 
 
 def _metric_settle_distance(ctx: MetricContext) -> float:
@@ -156,13 +160,20 @@ def _bottom_positions_from_bbox(
     up_idx: int,
     bbox_min_local: tuple[float, float, float] | None,
     bbox_max_local: tuple[float, float, float] | None,
+    bbox_local_scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> list[float]:
     """Return bbox-bottom height for every pose, falling back to origin height."""
 
     if bbox_min_local is None or bbox_max_local is None:
         return [float(pose[up_idx]) for pose in poses]
 
-    corners = _bbox_corners(bbox_min_local, bbox_max_local)
+    scaled_min = tuple(
+        bbox_min_local[index] * bbox_local_scale[index] for index in range(3)
+    )
+    scaled_max = tuple(
+        bbox_max_local[index] * bbox_local_scale[index] for index in range(3)
+    )
+    corners = _bbox_corners(scaled_min, scaled_max)
     bottoms: list[float] = []
     for pose in poses:
         position = (float(pose[0]), float(pose[1]), float(pose[2]))
@@ -216,6 +227,7 @@ def _metric_max_bounce_height(ctx: MetricContext) -> float:
         up_idx=up_idx,
         bbox_min_local=ctx.bbox_min_local,
         bbox_max_local=ctx.bbox_max_local,
+        bbox_local_scale=ctx.bbox_local_scale,
     )
     v_up = [float(v[up_idx]) for v in velocities]
 
@@ -324,6 +336,9 @@ def evaluate(
     simulator: Simulator,
     work_dir: Path | None = None,
     final_state_judge: FinalStateJudgeCallback | None = None,
+    ground_clearance_support_cache: dict[str, dict[str, Any]] | None = None,
+    ground_clearance_support_cache_key: str | None = None,
+    extra_approved_dependency_roots: tuple[Path, ...] = (),
 ) -> dict[str, Any]:
     """Run one drop_settle tune trial against a physics simulator.
 
@@ -343,6 +358,10 @@ def evaluate(
             recording. Defaults to ``physics_usd.parent / ".tune_scenes"``.
         final_state_judge: Optional VLM judge invoked when
             ``target.vlm_check`` is ``"end_of_tune"`` or ``"always"``.
+        ground_clearance_support_cache: Optional backend-owned cache shared by
+            trials in one tuning session.
+        ground_clearance_support_cache_key: Stable key derived from the base
+            physics USD, not the per-trial patched USD.
 
     Returns:
         Dict shaped for ``backend.evaluate`` consumption: ``score``,
@@ -362,11 +381,11 @@ def evaluate(
 
     target = dict(scenario.target or {})
     vlm_check_mode = str(target.get("vlm_check", "off")).lower()
-    record_video_mode = str(target.get("record_video", "off")).lower()
+    record_frames_mode = str(target.get("record_frames", "off")).lower()
     needs_render = (vlm_check_mode in {"end_of_tune", "always"}) or (
-        record_video_mode in {"end_of_tune", "always"}
+        record_frames_mode in {"end_of_tune", "always"}
     )
-    video_renderer = resolve_video_renderer(target) if needs_render else None
+    frame_renderer = resolve_frame_renderer(target) if needs_render else None
 
     work = (
         Path(work_dir)
@@ -409,6 +428,16 @@ def evaluate(
         # on Z-up scenes.
         cameras=list(target.get("cameras")) if target.get("cameras") else None,
         camera_ground_bias_fraction=target.get("camera_ground_bias_fraction"),
+        # Flattened patch output may retain file-backed paths anchored at the
+        # original input. Bound copying to that trusted input root and this
+        # trial's own generated-artifact root.
+        approved_dependency_roots=(
+            Path(physics_usd).parent,
+            patched_path.parent,
+            *extra_approved_dependency_roots,
+        ),
+        ground_clearance_support_cache=ground_clearance_support_cache,
+        ground_clearance_support_cache_key=ground_clearance_support_cache_key,
     )
 
     # 3. Simulator evaluate (drop_settle has no initial velocity).
@@ -476,6 +505,11 @@ def evaluate(
             "to default to 'settle_distance'."
         )
     metric_fn = _METRICS[metric_name]
+    raw_bbox_scale = scene_info.get("bbox_local_stage_scale") or [1.0, 1.0, 1.0]
+    try:
+        bbox_local_scale = tuple(float(raw_bbox_scale[index]) for index in range(3))
+    except (IndexError, TypeError, ValueError):
+        bbox_local_scale = (1.0, 1.0, 1.0)
     metric_ctx = MetricContext(
         trajectory=trajectory,
         rest_position=tuple(float(v) for v in rest_position[:3]),  # type: ignore[arg-type]
@@ -491,17 +525,21 @@ def evaluate(
             if "bbox_max_local_stage" in scene_info
             else None
         ),
+        bbox_local_scale=bbox_local_scale,
     )
     score_value = float(metric_fn(metric_ctx))
+    objective_value = (
+        -score_value if metric_name == "max_bounce_height" else score_value
+    )
     # ``settle_distance`` is also surfaced separately for backward
     # compatibility — older artifacts and tests inspect it by name.
     distance_value = float(_metric_settle_distance(metric_ctx))
 
-    # 6. Optional video rendering and VLM check.
+    # 6. Optional PNG-frame rendering and VLM check.
     #
-    # ``vlm_check`` and ``record_video`` share the same render output but
-    # have independent triggers. ``record_video`` exists for users who
-    # want PNG/mp4 evidence to eyeball without paying for a VLM call —
+    # ``vlm_check`` and ``record_frames`` share the same render output but
+    # have independent triggers. ``record_frames`` exists for users who
+    # want PNG evidence to eyeball without paying for a VLM call —
     # rendering is the expensive geometric step and VLM is the optional
     # interpretive step on top.
     #
@@ -513,11 +551,11 @@ def evaluate(
     #                      ``run_tune`` itself. ``IterativePhysics\
     #                      RefinementTask`` (driven by ``physics-agent
     #                      refine``) gates by passing
-    #                      ``force_record_video="off"`` so per-trial
+    #                      ``force_record_frames="off"`` so per-trial
     #                      rendering is suppressed and the orchestrator
     #                      replays the winning trial after the sweep.
     #                      Standalone ``run_tune`` callers that set this
-    #                      mode will render once per trial (N videos for
+    #                      mode will render once per trial (N frame sets for
     #                      an N-trial sweep, dominating runtime/cost);
     #                      a one-time WARNING fires per-trial to keep
     #                      the misuse loud. (Codex CX R14 P2#2.)
@@ -525,20 +563,20 @@ def evaluate(
     #
     # Both default to "off". VLM is NEVER the drop_settle objective —
     # settle_distance above is authoritative — so an unavailable renderer
-    # just drops the optional verdict + video.
-    if vlm_check_mode == "end_of_tune" or record_video_mode == "end_of_tune":
+    # just drops the optional verdict + frames.
+    if vlm_check_mode == "end_of_tune" or record_frames_mode == "end_of_tune":
         logger.warning(
-            "drop_settle: vlm_check=%r / record_video=%r set to "
+            "drop_settle: vlm_check=%r / record_frames=%r set to "
             "'end_of_tune' but the per-trial evaluator runs without "
             "winning-trial gating — rendering will fire on every trial. "
             "Use physics-agent refine / IterativePhysicsRefinementTask "
-            "for true end-of-tune rendering (sets force_record_video='off' "
+            "for true end-of-tune rendering (sets force_record_frames='off' "
             "and replays the winner once).",
             vlm_check_mode,
-            record_video_mode,
+            record_frames_mode,
         )
     vlm_block: dict[str, Any] | None = None
-    video_block: dict[str, Any] | None = None
+    frame_block: dict[str, Any] | None = None
     if needs_render and recording_path is not None:
         # Rendering belongs to ``world_understanding.functions.graphics``;
         # imported lazily so drop_settle stays usable when the helper
@@ -558,31 +596,31 @@ def evaluate(
                     "status": "skipped",
                     "reason": skip_reason,
                 }
-            if record_video_mode in {"end_of_tune", "always"}:
-                video_block = {
-                    "mode": record_video_mode,
+            if record_frames_mode in {"end_of_tune", "always"}:
+                frame_block = {
+                    "mode": record_frames_mode,
                     "status": "skipped",
                     "reason": skip_reason,
                 }
 
         if render_time_sampled_usd is not None:
-            assert video_renderer is not None
+            assert frame_renderer is not None
             try:
                 frames = render_time_sampled_usd(
                     recording_path,
                     trial_dir / "render",
-                    renderer=video_renderer,
+                    renderer=frame_renderer,
                     cameras=scene_info.get("camera_paths"),
                     fps=int(target.get("sample_fps", 30)),
                     max_duration_seconds=duration_s or 2.0,
-                    image_width=int(target.get("video_image_width", 512)),
-                    image_height=int(target.get("video_image_height", 512)),
-                    num_sensor_updates=int(target.get("video_sensor_updates", 32)),
-                    render_mode=str(target.get("video_render_mode", "rt2")),
+                    image_width=int(target.get("frame_image_width", 512)),
+                    image_height=int(target.get("frame_image_height", 512)),
+                    num_sensor_updates=int(target.get("frame_sensor_updates", 32)),
+                    render_mode=str(target.get("frame_render_mode", "rt2")),
                 )
-                if record_video_mode in {"end_of_tune", "always"}:
-                    video_block = {
-                        "mode": record_video_mode,
+                if record_frames_mode in {"end_of_tune", "always"}:
+                    frame_block = {
+                        "mode": record_frames_mode,
                         "status": "ok" if frames else "no_frames",
                         "render_dir": str(trial_dir / "render"),
                         "frame_count": len(frames),
@@ -621,8 +659,8 @@ def evaluate(
                 }
                 if vlm_check_mode in {"end_of_tune", "always"}:
                     vlm_block = {"mode": vlm_check_mode, **error_block}
-                if record_video_mode in {"end_of_tune", "always"}:
-                    video_block = {"mode": record_video_mode, **error_block}
+                if record_frames_mode in {"end_of_tune", "always"}:
+                    frame_block = {"mode": record_frames_mode, **error_block}
 
     final_pose = list(response["final_pose"])
     final_position = final_pose[0:3]
@@ -640,6 +678,7 @@ def evaluate(
 
     out: dict[str, Any] = {
         "score": score_value,
+        "objective_value": objective_value,
         "settle_distance": distance_value,
         "final_position": final_position,
         "rest_position": list(rest_position),
@@ -659,6 +698,8 @@ def evaluate(
         out["bbox_min_local_stage"] = list(scene_info["bbox_min_local_stage"])
     if "bbox_max_local_stage" in scene_info:
         out["bbox_max_local_stage"] = list(scene_info["bbox_max_local_stage"])
+    if "bbox_local_stage_scale" in scene_info:
+        out["bbox_local_stage_scale"] = list(scene_info["bbox_local_stage_scale"])
     if scene_world_up is not None:
         out["world_up"] = list(scene_world_up)
     # Surface the raw bounce height (not negated) when the metric is
@@ -668,12 +709,12 @@ def evaluate(
     # diagnostic name for the same value until a separate true-max metric lands.
     # ``score`` stays negated for the optimizer.
     if metric_name == "max_bounce_height":
-        out["max_bounce_height"] = -score_value
-        out["first_bounce_height"] = -score_value
+        out["max_bounce_height"] = objective_value
+        out["first_bounce_height"] = objective_value
     if vlm_block is not None:
         out["vlm_check"] = vlm_block
-    if video_block is not None:
-        out["record_video"] = video_block
+    if frame_block is not None:
+        out["record_frames"] = frame_block
     return out
 
 

@@ -15,8 +15,13 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pxr import Usd
+from pxr import Sdf, Usd, UsdGeom
 from world_understanding.agentic.tasks import Task
+from world_understanding.functions.graphics.so_export import (
+    _atomic_output_file,
+    _normalize_dependency_roots,
+    export_stage_portably,
+)
 from world_understanding.functions.graphics.uv_generation import (
     ProjectionType,
     generate_atlas_uvs,
@@ -24,12 +29,14 @@ from world_understanding.functions.graphics.uv_generation import (
 )
 
 from texture_agent.functions.uv_generation import (
+    DEGENERATE_UV_SPAN,
     UVPreparePolicy,
     UVProjectionMode,
     fix_uv_interpolation,
     generate_uvs_for_stage,
     inspect_uvs_for_stage,
     normalize_uvs,
+    repair_degenerate_uvs,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,6 +61,36 @@ class UVSceneOptimizerGenerationMode(StrEnum):
 
     PROJECTION = "projection"
     ATLAS = "atlas"
+
+
+def _scene_optimizer_dependency_roots(
+    context: dict[str, Any],
+    *,
+    usd_path: str | Path,
+    working_dir: Path,
+) -> tuple[Path, ...]:
+    """Return the bounded source/cache roots needed by portable SO export."""
+    working_root = working_dir.expanduser().resolve()
+    if working_root.parent == working_root:
+        raise ValueError(
+            "approved_dependency_roots must not contain filesystem roots: "
+            f"{working_root}"
+        )
+    source_candidates = [Path(usd_path).expanduser().resolve().parent]
+
+    source_usd_path = context.get("source_usd_path")
+    if isinstance(source_usd_path, str | Path) and str(source_usd_path).strip():
+        source_candidates.append(Path(source_usd_path).expanduser().resolve().parent)
+
+    dependency_root = context.get("usd_dependency_root")
+    if isinstance(dependency_root, str | Path) and str(dependency_root).strip():
+        source_candidates.append(Path(dependency_root).expanduser().resolve())
+
+    # Validate caller/source trust roots before creating ``prepared/`` or
+    # flattening the stage. The task owns ``working_root`` and may create it;
+    # the worker validates the complete tuple again after that happens.
+    source_roots = _normalize_dependency_roots(source_candidates)
+    return tuple(dict.fromkeys((working_root, *source_roots)))
 
 
 def _resolve_uv_policy(texture_config: dict[str, Any]) -> UVPreparePolicy:
@@ -99,30 +136,282 @@ def _collect_uv_target_prim_paths(context: dict[str, Any]) -> tuple[str, ...]:
     texture_config = context.get("texture_config", {})
     target_paths: list[str] = []
 
-    explicit_paths = texture_config.get("uv_target_prim_paths")
-    if explicit_paths is None:
-        explicit_paths = texture_config.get("uv_prim_paths")
-    target_paths.extend(_as_string_list(explicit_paths))
+    raw_plan = context.get("texture_plan")
+    explicit_plan_path = context.get("texture_plan_path")
+    if raw_plan is not None or explicit_plan_path is not None:
+        from texture_agent.tasks.plan_textures import require_executable_texture_plan
 
-    material_textures = context.get("material_textures") or {}
-    for spec in material_textures.values():
-        if not isinstance(spec, dict):
-            continue
-        target_paths.extend(_as_string_list(spec.get("prim_paths")))
-        prim_path = spec.get("prim_path")
-        if prim_path:
-            target_paths.append(str(prim_path))
+        plan = require_executable_texture_plan(context)
+        # Every selected unit is in the immutable operator-approved scope. UV
+        # preparation starts from the original source asset on each service
+        # execution, so retaining every selected member here also preserves
+        # already-accepted units during a targeted texture regeneration.
+        for unit in plan.selected_units:
+            if not unit.member_prim_paths and not unit.member_subset_paths:
+                materials = ", ".join(unit.material_prim_paths)
+                raise UVPreparationError(
+                    "Selected material has no renderable bound geometry: "
+                    f"{materials}. Select a material bound to a renderable prim "
+                    "or use an explicit renderable prim scope."
+                )
+            target_paths.extend(unit.member_prim_paths)
+            target_paths.extend(
+                str(Sdf.Path(path).GetParentPath()) for path in unit.member_subset_paths
+            )
+    else:
+        explicit_paths = texture_config.get("uv_target_prim_paths")
+        if explicit_paths is None:
+            explicit_paths = texture_config.get("uv_prim_paths")
+        target_paths.extend(_as_string_list(explicit_paths))
+        material_textures = context.get("material_textures") or {}
+        for spec in material_textures.values():
+            if not isinstance(spec, dict):
+                continue
+            target_paths.extend(_as_string_list(spec.get("prim_paths")))
+            prim_path = spec.get("prim_path")
+            if prim_path:
+                target_paths.append(str(prim_path))
 
-        per_prim = spec.get("per_prim") or {}
-        if isinstance(per_prim, dict):
-            target_paths.extend(str(path) for path in per_prim if str(path).strip())
+            per_prim = spec.get("per_prim") or {}
+            if isinstance(per_prim, dict):
+                target_paths.extend(str(path) for path in per_prim if str(path).strip())
 
     normalized: list[str] = []
     for raw_path in target_paths:
-        path = str(raw_path).strip()
-        if path:
-            normalized.append(path.rstrip("/"))
+        path = str(raw_path).strip().rstrip("/") or "/"
+        sdf_path = Sdf.Path(path)
+        if (
+            not sdf_path.IsAbsolutePath()
+            or sdf_path.IsAbsoluteRootPath()
+            or not sdf_path.IsPrimPath()
+        ):
+            raise ValueError(
+                "UV target prim paths must be absolute, non-root USD prim paths: "
+                f"{raw_path!r}"
+            )
+        normalized.append(str(sdf_path))
     return tuple(dict.fromkeys(normalized))
+
+
+def _flatten_for_uv_preparation(stage: Usd.Stage, source_path: str) -> Usd.Stage:
+    """Flatten without adding source-path provenance to stage documentation."""
+
+    flat_layer = stage.Flatten(addSourceFileComment=False)
+    flat_stage = Usd.Stage.Open(flat_layer)
+    if not flat_stage:
+        raise RuntimeError(f"Failed to open flattened stage for: {source_path}")
+    return flat_stage
+
+
+def _active_flattened_mesh_backings(stage: Usd.Stage) -> dict[str, str]:
+    """Map composed mesh paths to their active flattened root-layer specs."""
+
+    root_layer = stage.GetRootLayer()
+    backings: dict[str, str] = {}
+    for composed_mesh in Usd.PrimRange.Stage(stage, Usd.TraverseInstanceProxies()):
+        if not composed_mesh.IsA(UsdGeom.Mesh):
+            continue
+        authoring_mesh = (
+            composed_mesh.GetPrimInPrototype()
+            if composed_mesh.IsInstanceProxy()
+            else composed_mesh
+        )
+        candidates = {
+            str(spec.path)
+            for spec in authoring_mesh.GetPrimStack()
+            if spec.layer == root_layer
+            and stage.GetPrimAtPath(spec.path).IsA(UsdGeom.Mesh)
+            and not stage.GetPrimAtPath(spec.path).IsInstanceProxy()
+        }
+        if len(candidates) != 1:
+            raise RuntimeError(
+                "Composed mesh did not resolve to one active flattened backing: "
+                f"{composed_mesh.GetPath()}"
+            )
+        backings[str(composed_mesh.GetPath())] = next(iter(candidates))
+    return backings
+
+
+def _copy_scene_optimizer_uvs(
+    destination_stage: Usd.Stage,
+    optimized_stage: Usd.Stage,
+    *,
+    destination_backings_by_composed: dict[str, str] | None,
+    optimized_backings_by_composed: dict[str, str] | None,
+) -> int:
+    """Copy only Scene Optimizer's UV opinions into the trusted flat stage.
+
+    The isolated SO worker must export a portable USD, which can re-anchor every
+    asset dependency into a sidecar.  SO implementations may also author other
+    scene opinions while running a UV operation.  Neither is part of the UV
+    task's contract, so downstream tasks consume a fresh portable export of the
+    pre-SO flattened stage with only ``primvars:st`` and its indices replaced.
+    """
+
+    destination_layer = destination_stage.GetRootLayer()
+    optimized_layer = optimized_stage.GetRootLayer()
+
+    if (destination_backings_by_composed is None) != (
+        optimized_backings_by_composed is None
+    ):
+        raise RuntimeError(
+            "Scene Optimizer UV path mapping is incomplete between source and output"
+        )
+
+    if destination_backings_by_composed is None:
+        destination_backings = _active_flattened_mesh_backings(destination_stage)
+        optimized_backings = _active_flattened_mesh_backings(optimized_stage)
+    else:
+        assert optimized_backings_by_composed is not None
+        destination_backings = destination_backings_by_composed
+        optimized_backings = optimized_backings_by_composed
+
+    if set(destination_backings) != set(optimized_backings):
+        raise RuntimeError("Scene Optimizer UV output changed the composed mesh scope")
+    path_pairs = list(
+        dict.fromkeys(
+            (
+                Sdf.Path(destination_backings[composed_path]),
+                Sdf.Path(optimized_backings[composed_path]),
+            )
+            for composed_path in sorted(destination_backings)
+        )
+    )
+
+    copied = 0
+    for destination_path, optimized_path in path_pairs:
+        destination_mesh = destination_layer.GetPrimAtPath(destination_path)
+        optimized_mesh = optimized_layer.GetPrimAtPath(optimized_path)
+        if destination_mesh is None or destination_mesh.typeName != "Mesh":
+            raise RuntimeError(
+                f"Scene Optimizer UV destination is not a mesh: {destination_path}"
+            )
+        if optimized_mesh is None or optimized_mesh.typeName != "Mesh":
+            raise RuntimeError(
+                f"Scene Optimizer UV output is missing mesh: {optimized_path}"
+            )
+
+        optimized_st_path = optimized_path.AppendProperty("primvars:st")
+        if optimized_layer.GetPropertyAtPath(optimized_st_path) is None:
+            for property_name in ("primvars:st", "primvars:st:indices"):
+                if (
+                    destination_layer.GetPropertyAtPath(
+                        destination_path.AppendProperty(property_name)
+                    )
+                    is not None
+                ):
+                    del destination_mesh.properties[property_name]
+            continue
+
+        for property_name in ("primvars:st", "primvars:st:indices"):
+            destination_property_path = destination_path.AppendProperty(property_name)
+            optimized_property_path = optimized_path.AppendProperty(property_name)
+            optimized_property = optimized_layer.GetPropertyAtPath(
+                optimized_property_path
+            )
+            destination_property = destination_layer.GetPropertyAtPath(
+                destination_property_path
+            )
+            if optimized_property is not None:
+                if not Sdf.CopySpec(
+                    optimized_layer,
+                    optimized_property_path,
+                    destination_layer,
+                    destination_property_path,
+                ):
+                    raise RuntimeError(
+                        "Failed to copy Scene Optimizer UV property: "
+                        f"{optimized_property_path} -> {destination_property_path}"
+                    )
+            elif destination_property is not None:
+                del destination_mesh.properties[property_name]
+        copied += 1
+
+    return copied
+
+
+def _map_composed_targets_to_flattened_authoring_paths(
+    flat_stage: Usd.Stage,
+    target_prim_paths: tuple[str, ...],
+) -> dict[str, str]:
+    """Resolve composed target meshes to mutable specs in a flattened layer.
+
+    Flattening preserves instance proxies at their composed paths but authors
+    their backing geometry under synthetic ``/Flattened_Prototype_*`` roots.
+    UV helpers cannot write to the proxies, so scoped preparation must mutate
+    those exact backing mesh specs while retaining composed paths in reports.
+    """
+    targets = tuple(Sdf.Path(path) for path in target_prim_paths)
+    matched_targets: set[Sdf.Path] = set()
+    selected_meshes: list[Usd.Prim] = []
+    for prim in flat_stage.Traverse(Usd.TraverseInstanceProxies()):
+        if not prim.IsA(UsdGeom.Mesh):
+            continue
+        prim_path = prim.GetPath()
+        matching = [
+            target
+            for target in targets
+            if prim_path == target or prim_path.HasPrefix(target)
+        ]
+        if not matching:
+            continue
+        matched_targets.update(matching)
+        selected_meshes.append(prim)
+
+    unresolved = [str(path) for path in targets if path not in matched_targets]
+    if unresolved:
+        raise UVPreparationError(
+            "UV target scope did not resolve to composed renderable meshes: "
+            + ", ".join(unresolved)
+        )
+
+    instances_by_prototype: dict[str, list[str]] = {}
+    for prim in flat_stage.Traverse(Usd.TraverseInstanceProxies()):
+        if not prim.IsInstance():
+            continue
+        prototype = prim.GetPrototype()
+        if prototype.IsValid():
+            instances_by_prototype.setdefault(str(prototype.GetPath()), []).append(
+                str(prim.GetPath())
+            )
+
+    root_layer = flat_stage.GetRootLayer()
+    authoring_paths: dict[str, str] = {}
+    for mesh_prim in selected_meshes:
+        authoring_prim = mesh_prim
+        instance_root = None
+        if mesh_prim.IsInstanceProxy():
+            authoring_prim = mesh_prim.GetPrimInPrototype()
+            cursor = mesh_prim.GetParent()
+            while cursor.IsValid() and not cursor.IsInstance():
+                cursor = cursor.GetParent()
+            instance_root = cursor if cursor.IsValid() else None
+
+        if instance_root is not None:
+            prototype = instance_root.GetPrototype()
+            instance_paths = instances_by_prototype.get(str(prototype.GetPath()), [])
+            if len(instance_paths) != 1:
+                raise UVPreparationError(
+                    "UV target scope maps to a shared instance prototype used by "
+                    f"{len(instance_paths)} composed instances ({', '.join(instance_paths)}); "
+                    "refusing a scoped edit whose package writeback is ambiguous"
+                )
+
+        candidates = {
+            str(spec.path)
+            for spec in authoring_prim.GetPrimStack()
+            if spec.layer == root_layer
+            and flat_stage.GetPrimAtPath(spec.path).IsA(UsdGeom.Mesh)
+            and not flat_stage.GetPrimAtPath(spec.path).IsInstanceProxy()
+        }
+        if len(candidates) != 1:
+            raise UVPreparationError(
+                "UV target mesh could not be resolved to one flattened root-layer "
+                f"authoring path: {mesh_prim.GetPath()}"
+            )
+        authoring_paths[str(mesh_prim.GetPath())] = next(iter(candidates))
+
+    return authoring_paths
 
 
 def _resolve_uv_target_scope(
@@ -143,7 +432,8 @@ def _resolve_uv_target_scope(
     if not target_prim_paths:
         raise ValueError(
             "texture.uv_scope='target_prims' requires geometry prim paths via "
-            "texture.uv_target_prim_paths or material_textures.<name>.prim_paths"
+            "the executable texture plan, texture.uv_target_prim_paths, or "
+            "material_textures.<name>.prim_paths"
         )
     return target_prim_paths
 
@@ -295,6 +585,8 @@ def _prepare_with_python_uvs(
     uv_mode: UVProjectionMode,
     policy: UVPreparePolicy,
     normalize_out_of_range: bool,
+    repair_degenerate: bool = True,
+    degenerate_min_span: float = DEGENERATE_UV_SPAN,
     target_prim_paths: tuple[str, ...] | None = None,
     extra_actions: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
@@ -302,16 +594,14 @@ def _prepare_with_python_uvs(
     if not stage:
         raise FileNotFoundError(f"Failed to open: {usd_path}")
 
-    flat_layer = stage.Flatten()
-    flat_stage = Usd.Stage.Open(flat_layer)
-    if not flat_stage:
-        raise RuntimeError(f"Failed to open flattened stage for: {usd_path}")
+    flat_stage = _flatten_for_uv_preparation(stage, usd_path)
 
     pre_report = inspect_uvs_for_stage(flat_stage)
     actions: dict[str, Any] = {
         "backend": "python",
         "generated": 0,
         "fixed_interpolation": 0,
+        "degenerate_repaired": 0,
         "normalized": 0,
     }
     if extra_actions:
@@ -319,7 +609,16 @@ def _prepare_with_python_uvs(
     if target_prim_paths:
         actions["uv_scope"] = "target_prims"
         actions["target_prim_paths"] = list(target_prim_paths)
-        target_kwargs = {"target_prim_paths": target_prim_paths}
+        authoring_targets_by_composed = (
+            _map_composed_targets_to_flattened_authoring_paths(
+                flat_stage,
+                target_prim_paths,
+            )
+        )
+        authoring_target_paths = tuple(
+            dict.fromkeys(authoring_targets_by_composed.values())
+        )
+        target_kwargs = {"target_prim_paths": authoring_target_paths}
     else:
         actions["uv_scope"] = "stage"
         target_kwargs = {}
@@ -367,6 +666,13 @@ def _prepare_with_python_uvs(
             **target_kwargs,
         )
 
+    if repair_degenerate and policy != UVPreparePolicy.VALIDATE:
+        actions["degenerate_repaired"] = repair_degenerate_uvs(
+            flat_stage,
+            min_span=degenerate_min_span,
+            **target_kwargs,
+        )
+
     if normalize_out_of_range and policy != UVPreparePolicy.VALIDATE:
         actions["normalized"] = normalize_uvs(
             flat_stage,
@@ -376,6 +682,7 @@ def _prepare_with_python_uvs(
     total_fixes = (
         int(actions["generated"])
         + int(actions["fixed_interpolation"])
+        + int(actions["degenerate_repaired"])
         + int(actions["normalized"])
     )
 
@@ -423,12 +730,16 @@ class PrepareUVsTask(Task):
 
     Context keys read:
         usd_path (str): Path to the input USD file.
+        source_usd_path (str, optional): Immutable original source path.
+        usd_dependency_root (str, optional): Trusted input-bundle root.
         working_dir (str): Working directory.
         texture_config (dict): May contain uv_policy, uv_projection/uv_mode,
             uv_normalize_out_of_range, and uv_backend.
 
     Context keys written:
         usd_path (str): Updated to point to the prepared USD copy.
+        source_usd_path (str): Immutable original input identity, populated only
+            when the caller did not already provide one.
         uv_preparation (dict): Summary of fixes applied.
     """
 
@@ -438,6 +749,13 @@ class PrepareUVsTask(Task):
 
     def run(self, context: dict[str, Any], object_store: Any = None) -> dict[str, Any]:
         usd_path = context["usd_path"]
+        source_usd_path = context.get("source_usd_path")
+        if not isinstance(source_usd_path, str) or not source_usd_path.strip():
+            # UV preparation may replace ``usd_path`` with a flattened working
+            # copy. Retain the immutable input identity so later tasks can
+            # preserve its authored composition while carrying the UV edits
+            # forward.
+            context["source_usd_path"] = usd_path
         working_dir = Path(context["working_dir"])
         texture_config = context.get("texture_config", {})
 
@@ -471,6 +789,14 @@ class PrepareUVsTask(Task):
         normalize_out_of_range = bool(
             texture_config.get("uv_normalize_out_of_range", False)
         )
+        # CAD conversions routinely emit UVs that sit inside [0, 1] but span a
+        # tiny fraction of it, so a generated map samples a few texels and
+        # renders flat. Repair those by default; normalization only covers
+        # out-of-range UVs and would leave these untouched.
+        repair_degenerate = bool(texture_config.get("uv_repair_degenerate", True))
+        degenerate_min_span = float(
+            texture_config.get("uv_degenerate_min_span", DEGENERATE_UV_SPAN)
+        )
 
         logger.info(
             "Preparing UVs for %s (backend=%s, policy=%s, generation_mode=%s, "
@@ -492,6 +818,11 @@ class PrepareUVsTask(Task):
                 uv_policy.value,
             )
         if use_scene_optimizer:
+            approved_dependency_roots = _scene_optimizer_dependency_roots(
+                context,
+                usd_path=usd_path,
+                working_dir=working_dir,
+            )
             prep_dir = working_dir / "prepared"
             prep_dir.mkdir(parents=True, exist_ok=True)
             flat_input_path = prep_dir / "prepared_input_flat.usd"
@@ -500,7 +831,20 @@ class PrepareUVsTask(Task):
             stage = Usd.Stage.Open(str(usd_path))
             if not stage:
                 raise FileNotFoundError(f"Failed to open: {usd_path}")
-            flat_stage = Usd.Stage.Open(stage.Flatten())
+            flat_stage = _flatten_for_uv_preparation(stage, usd_path)
+            authoring_targets_by_composed = (
+                _map_composed_targets_to_flattened_authoring_paths(
+                    flat_stage,
+                    target_prim_paths,
+                )
+                if target_prim_paths
+                else None
+            )
+            authoring_target_paths = (
+                tuple(dict.fromkeys(authoring_targets_by_composed.values()))
+                if authoring_targets_by_composed
+                else None
+            )
             flat_stage.GetRootLayer().Export(str(flat_input_path))
 
             projection_type: ProjectionType | None = None
@@ -516,7 +860,9 @@ class PrepareUVsTask(Task):
             overwrite_existing = uv_policy == UVPreparePolicy.FORCE_PROJECTION or bool(
                 texture_config.get("uv_overwrite_existing", False)
             )
-            target_paths_list = list(target_prim_paths) if target_prim_paths else None
+            target_paths_list = (
+                list(authoring_target_paths) if authoring_target_paths else None
+            )
 
             try:
                 common_kwargs = {
@@ -532,6 +878,7 @@ class PrepareUVsTask(Task):
                     "scale_factor": texture_config.get("uv_scale_factor", 0.01),
                     "scale_units": texture_config.get("uv_scale_units", 0.0),
                     "timeout": texture_config.get("uv_timeout", 600),
+                    "approved_dependency_roots": approved_dependency_roots,
                 }
                 if so_generation_mode == UVSceneOptimizerGenerationMode.ATLAS:
                     result = generate_atlas_uvs(
@@ -554,10 +901,51 @@ class PrepareUVsTask(Task):
                         projection_type=projection_type,
                         **common_kwargs,
                     )
+                so_prepared_stage = Usd.Stage.Open(str(prepared_path))
+                if not so_prepared_stage:
+                    raise RuntimeError(
+                        f"Scene Optimizer UV output could not be opened: {prepared_path}"
+                    )
+                try:
+                    post_so_authoring_targets_by_composed = (
+                        _map_composed_targets_to_flattened_authoring_paths(
+                            so_prepared_stage,
+                            target_prim_paths,
+                        )
+                        if target_prim_paths
+                        else None
+                    )
+                except UVPreparationError as err:
+                    raise RuntimeError(
+                        "Scene Optimizer UV output could not preserve the scoped "
+                        f"target geometry: {err}"
+                    ) from err
+                uv_writeback_meshes = _copy_scene_optimizer_uvs(
+                    flat_stage,
+                    so_prepared_stage,
+                    destination_backings_by_composed=authoring_targets_by_composed,
+                    optimized_backings_by_composed=(
+                        post_so_authoring_targets_by_composed
+                    ),
+                )
+                if not export_stage_portably(
+                    flat_stage,
+                    prepared_path,
+                    approved_dependency_roots=approved_dependency_roots,
+                ):
+                    raise RuntimeError(
+                        "Failed to publish UV-only Scene Optimizer output: "
+                        f"{prepared_path}"
+                    )
+                # The SO output layer was opened before the UV-only portable
+                # export atomically replaced it.  Refresh USD's layer registry
+                # so downstream repair and reporting consume the new file.
+                so_prepared_stage.GetRootLayer().Reload(force=True)
                 prepared_stage = Usd.Stage.Open(str(prepared_path))
                 if not prepared_stage:
                     raise RuntimeError(
-                        f"Scene Optimizer UV output could not be opened: {prepared_path}"
+                        "UV-only Scene Optimizer output could not be opened: "
+                        f"{prepared_path}"
                     )
             except (OSError, RuntimeError) as err:
                 fallback_uv_mode = UVProjectionMode.BOX
@@ -582,23 +970,41 @@ class PrepareUVsTask(Task):
                 }:
                     fixed_interp = fix_uv_interpolation(
                         prepared_stage,
-                        target_prim_paths=target_prim_paths,
+                        target_prim_paths=authoring_target_paths,
                     )
+                degenerate_repaired = (
+                    repair_degenerate_uvs(
+                        prepared_stage,
+                        min_span=degenerate_min_span,
+                        target_prim_paths=authoring_target_paths,
+                    )
+                    if repair_degenerate
+                    else 0
+                )
                 normalized = (
                     normalize_uvs(
                         prepared_stage,
-                        target_prim_paths=target_prim_paths,
+                        target_prim_paths=authoring_target_paths,
                     )
                     if normalize_out_of_range
                     else 0
                 )
-                prepared_stage.GetRootLayer().Export(str(prepared_path))
+                with _atomic_output_file(prepared_path) as transaction_output:
+                    if not prepared_stage.GetRootLayer().Export(
+                        str(transaction_output)
+                    ):
+                        raise RuntimeError(
+                            "Failed to publish prepared Scene Optimizer UV stage: "
+                            f"{prepared_path}"
+                        )
 
                 actions = {
                     "backend": "scene_optimizer",
                     "generation_mode": so_generation_mode.value,
                     "generated": int(result.get("meshes_with_uvs", 0)),
+                    "uv_writeback_meshes": uv_writeback_meshes,
                     "fixed_interpolation": fixed_interp,
+                    "degenerate_repaired": degenerate_repaired,
                     "normalized": normalized,
                     "so_result": result,
                 }
@@ -648,9 +1054,20 @@ class PrepareUVsTask(Task):
             fallback_uv_mode,
             uv_policy,
             normalize_out_of_range,
+            repair_degenerate=repair_degenerate,
+            degenerate_min_span=degenerate_min_span,
             target_prim_paths=target_prim_paths,
             extra_actions=fallback_actions,
         )
+
+        if fallback_actions and prepared_usd_path != usd_path:
+            # SO may have registered a partially written output layer at the
+            # canonical prepared path before Python fallback replaces its file.
+            # Refresh that registry entry so subsequent tasks in this process
+            # compose the Python output rather than the stale SO stage.
+            cached_so_layer = Sdf.Layer.Find(prepared_usd_path)
+            if cached_so_layer is not None:
+                cached_so_layer.Reload(force=True)
 
         if prepared_usd_path == usd_path:
             context["uv_preparation"] = summary

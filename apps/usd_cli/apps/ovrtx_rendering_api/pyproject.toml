@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ovrtx-rendering-api"
+version = "0.1.0"
+description = "Managed Content Agents HTTP adapter for usd-cli's local OVRTX backend"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = "Apache-2.0"
+
+dependencies = [
+    "usd-cli==0.0.1",
+    "fastapi>=0.110,<1",
+    "uvicorn[standard]>=0.29,<1",
+    "pydantic>=2,<3",
+    # multipart form parsing for the streamed binary USDZ upload (POST /render/upload)
+    "python-multipart>=0.0.9",
+    # The adapter imports usd_core (which needs pxr/usd-core in this process) and spawns
+    # the isolated ovrtx daemon. Install usd-cli editable alongside this app, e.g.:
+    #   pip install -e ../..  (the in-tree component root)  &&  pip install -e .
+    # usd-core is required at runtime for parsing/authoring the stage:
+    "usd-core>=24.0,<27",
+    # zstd wire compression (upload-dedup plan Phase 0); advertised on /live
+    "zstandard>=0.22,<0.26",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["service"]
+ignore-vcs = true
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/service",
+]
+ignore-vcs = true

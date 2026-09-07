@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -16,6 +17,7 @@ from ...service.config import ServiceConfig, _llm_backend_has_credentials
 from ...service.routers import pipeline_router as pipeline_router_module
 from ...service.routers.pipeline_router import (
     _decode_json_form_field,
+    _normalize_texture_endpoint_url,
     _normalize_uri_list,
     _require_projection_endpoint,
     _save_reference_image_upload,
@@ -28,6 +30,7 @@ def test_service_config_reads_prefixed_or_unprefixed_api_key(
 ) -> None:
     monkeypatch.delenv("TA_NVIDIA_API_KEY", raising=False)
     monkeypatch.setenv("NVIDIA_API_KEY", "fallback-key")
+    monkeypatch.setenv("TA_LLM_REASONING_EFFORT", "medium")
     monkeypatch.setattr(
         ServiceConfig, "_load_description", staticmethod(lambda: "desc")
     )
@@ -37,6 +40,7 @@ def test_service_config_reads_prefixed_or_unprefixed_api_key(
     config = ServiceConfig(session_storage_path=str(sessions))
 
     assert config.nvidia_api_key == "fallback-key"
+    assert config.llm_reasoning_effort == "medium"
     assert config.session_storage_path == str(sessions)
     assert config.description == "desc"
 
@@ -73,6 +77,10 @@ def test_service_config_reads_projection_backend_defaults(
     monkeypatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("TA_TEXTURE_ENDPOINT", "http://texture-gen-step1x:8000")
+    monkeypatch.setenv(
+        "TA_TEXTURE_ENDPOINT_ALLOWED_URLS",
+        "https://approved-one.example,https://approved-two.example",
+    )
     monkeypatch.setenv("TA_BACKEND_ENGINE", "step1x")
     monkeypatch.setenv("TA_SIMPLE_TEXTURE_ENDPOINT", "http://texture-gen-simple:8000")
     monkeypatch.setenv("TA_TEXTURE_JOB_TIMEOUT_SEC", "7200")
@@ -85,9 +93,17 @@ def test_service_config_reads_projection_backend_defaults(
     config = ServiceConfig(session_storage_path=str(sessions))
 
     assert config.texture_endpoint == "http://texture-gen-step1x:8000"
+    assert config.texture_endpoint_allowed_urls == (
+        "https://approved-one.example,https://approved-two.example"
+    )
     assert config.backend_engine == "step1x"
     assert config.simple_texture_endpoint == "http://texture-gen-simple:8000"
     assert config.texture_job_timeout_sec == 7200
+
+
+def test_texture_endpoint_normalization_rejects_non_http_url() -> None:
+    with pytest.raises(HTTPException, match="credential-free http"):
+        _normalize_texture_endpoint_url("file:///tmp/texture", source="test endpoint")
 
 
 def test_service_config_reads_auto_prompt_material_limit(
@@ -344,6 +360,11 @@ def test_default_pipeline_config_preserves_llm_api_key_env(
     monkeypatch.setattr(pipeline_router_module.config, "llm_model", "my-custom-llm")
     monkeypatch.setattr(
         pipeline_router_module.config,
+        "llm_reasoning_effort",
+        "medium",
+    )
+    monkeypatch.setattr(
+        pipeline_router_module.config,
         "llm_base_url",
         "https://api.openai-compatible.example/v1",
     )
@@ -365,6 +386,31 @@ def test_default_pipeline_config_preserves_llm_api_key_env(
     assert llm_config["backend"] == "openai"
     assert llm_config["base_url"] == "https://api.openai-compatible.example/v1"
     assert llm_config["api_key_env"] == "OPENAI_API_KEY"
+    assert llm_config["reasoning_effort"] == "medium"
+
+
+def test_default_pipeline_config_omits_reasoning_effort_for_nim(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(pipeline_router_module.config, "llm_backend", "nim")
+    monkeypatch.setattr(
+        pipeline_router_module.config,
+        "llm_model",
+        "openai/openai/gpt-5.6-sol",
+    )
+    monkeypatch.setattr(
+        pipeline_router_module.config,
+        "llm_reasoning_effort",
+        "xhigh",
+    )
+
+    config = build_default_pipeline_config(
+        session_id="session-1",
+        usd_path=str(tmp_path / "asset.usd"),
+        working_dir=str(tmp_path / "work"),
+    )
+
+    assert "reasoning_effort" not in config["auto_prompt"]["llm"]
 
 
 def test_default_pipeline_config_sets_auto_prompt_material_limit(
@@ -464,7 +510,13 @@ def test_default_pipeline_config_preserves_image_gen_api_key_env(
 
 def test_default_pipeline_config_preserves_projection_backend_overrides(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(
+        pipeline_router_module.config,
+        "texture_endpoint_allowed_urls",
+        "http://projection-backend",
+    )
     config = build_default_pipeline_config(
         session_id="session-projection",
         usd_path=str(tmp_path / "asset.usd"),
@@ -474,6 +526,11 @@ def test_default_pipeline_config_preserves_projection_backend_overrides(
         texture_endpoint="http://projection-backend",
         backend_engine="fake_projection",
         backend_custom_parameters={"variant": "success_full_pbr"},
+        external_authoring={
+            "schema_version": "texture-agent-external-authoring.v1",
+            "adapter_id": "fake-headless-dcc",
+            "workflow": "paint",
+        },
         detail_policy="surface_only",
         reference_image_uris=["file:///ref.png"],
         turntable_video_uri="file:///turntable.mp4",
@@ -489,6 +546,7 @@ def test_default_pipeline_config_preserves_projection_backend_overrides(
     assert texture_config["endpoint"] == "http://projection-backend"
     assert texture_config["engine"] == "fake_projection"
     assert texture_config["custom_parameters"] == {"variant": "success_full_pbr"}
+    assert texture_config["external_authoring"]["adapter_id"] == ("fake-headless-dcc")
     assert texture_config["detail_policy"] == "surface_only"
     assert texture_config["reference_image_uris"] == ["file:///ref.png"]
     assert texture_config["turntable_video_uri"] == "file:///turntable.mp4"
@@ -497,6 +555,129 @@ def test_default_pipeline_config_preserves_projection_backend_overrides(
     assert texture_config["strength"] == 0.8
     assert texture_config["strict_scope"] is True
     assert texture_config["job_timeout_sec"] == 3600
+
+
+def test_default_pipeline_config_rejects_unapproved_texture_endpoint_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipeline_router_module.config, "texture_endpoint", None)
+    monkeypatch.setattr(pipeline_router_module.config, "simple_texture_endpoint", None)
+    monkeypatch.setattr(
+        pipeline_router_module.config,
+        "texture_endpoint_allowed_urls",
+        "https://approved.example",
+    )
+
+    with pytest.raises(HTTPException, match="not operator-approved") as exc_info:
+        build_default_pipeline_config(
+            session_id="session-untrusted-endpoint",
+            usd_path=str(tmp_path / "asset.usd"),
+            working_dir=str(tmp_path / "work"),
+            texture_backend="service",
+            texture_endpoint="http://127.0.0.1:8080",
+        )
+
+    assert exc_info.value.status_code == 400
+
+
+def test_default_pipeline_config_accepts_exact_allowlisted_texture_endpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        pipeline_router_module.config,
+        "texture_endpoint_allowed_urls",
+        "https://approved.example/base/",
+    )
+
+    config = build_default_pipeline_config(
+        session_id="session-approved-endpoint",
+        usd_path=str(tmp_path / "asset.usd"),
+        working_dir=str(tmp_path / "work"),
+        texture_backend="service",
+        texture_endpoint="https://approved.example/base",
+    )
+
+    assert config["texture"]["endpoint"] == "https://approved.example/base"
+
+
+def test_default_pipeline_config_preserves_requested_generated_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(pipeline_router_module.config, "texture_size", 1024)
+
+    disabled = build_default_pipeline_config(
+        session_id="session-default-resolution",
+        usd_path=str(tmp_path / "asset.usd"),
+        working_dir=str(tmp_path / "work-default"),
+        backend_custom_parameters={
+            "preserve_generated_resolution": False,
+            "upscale_target_size": None,
+        },
+    )
+    preserved = build_default_pipeline_config(
+        session_id="session-preserved-resolution",
+        usd_path=str(tmp_path / "asset.usd"),
+        working_dir=str(tmp_path / "work-preserved"),
+        backend_custom_parameters={
+            "preserve_generated_resolution": True,
+            "upscale_target_size": 4096,
+        },
+    )
+
+    assert disabled["steps"]["blend_textures"]["output_size"] == 1024
+    assert disabled["steps"]["blend_textures"]["preserve_generated_resolution"] is False
+    assert preserved["texture"]["size"] == 1024
+    assert preserved["steps"]["blend_textures"]["output_size"] == 1024
+    assert (
+        config_to_context(preserved)["blend_config"]["preserve_generated_resolution"]
+        is True
+    )
+
+
+def test_default_pipeline_config_honors_explicit_texture_size(tmp_path: Path) -> None:
+    config = build_default_pipeline_config(
+        session_id="session-explicit-resolution",
+        usd_path=str(tmp_path / "asset.usd"),
+        working_dir=str(tmp_path / "work"),
+        texture_size=2048,
+    )
+
+    assert config["texture"]["size"] == 2048
+    assert config["steps"]["blend_textures"]["output_size"] == 2048
+
+
+@pytest.mark.parametrize(
+    "invalid_value",
+    [
+        None,
+        1,
+        "true",
+        {},
+    ],
+)
+def test_default_pipeline_config_rejects_invalid_generated_resolution_contract(
+    invalid_value: Any,
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        build_default_pipeline_config(
+            session_id="session-invalid-resolution",
+            usd_path=str(tmp_path / "asset.usd"),
+            working_dir=str(tmp_path / "work"),
+            backend_custom_parameters={
+                "preserve_generated_resolution": invalid_value,
+            },
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail[0]["loc"] == [
+        "form",
+        "backend_custom_parameters_json",
+        "preserve_generated_resolution",
+    ]
 
 
 def test_default_pipeline_config_uses_configured_projection_defaults(
@@ -802,9 +983,11 @@ def test_openapi_exposes_projection_backend_request_fields() -> None:
 
     assert "reference_image_file" in body
     assert "backend_custom_parameters_json" in body
+    assert "external_authoring_json" in body
     assert "reference_image_uris_json" in body
     assert "multiview_image_uris_json" in body
     assert "seed" in body
+    assert "texture_size" in body
     assert "strength" in body
     assert "strict_scope" in body
     assert "uv_policy" in body

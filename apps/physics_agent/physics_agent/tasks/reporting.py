@@ -375,11 +375,11 @@ class GeneratePredictionReportTask(Task):
                     restitution = props.get("restitution", "-")
                     props_html = f"""
                         <div class="props">
-                            <span title="Mass">m: {mass}</span>
-                            <span title="Density">rho: {density}</span>
-                            <span title="Static Friction">us: {static_friction}</span>
-                            <span title="Dynamic Friction">ud: {dynamic_friction}</span>
-                            <span title="Restitution">e: {restitution}</span>
+                            <span title="Mass">m: {escape_html(str(mass))}</span>
+                            <span title="Density">rho: {escape_html(str(density))}</span>
+                            <span title="Static Friction">us: {escape_html(str(static_friction))}</span>
+                            <span title="Dynamic Friction">ud: {escape_html(str(dynamic_friction))}</span>
+                            <span title="Restitution">e: {escape_html(str(restitution))}</span>
                         </div>
                     """
                 else:

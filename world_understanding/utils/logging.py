@@ -3,11 +3,29 @@
 import logging
 import logging.config
 import os
+import sys
 from typing import Any
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+def configure_service_standard_streams() -> None:
+    """Configure Windows service streams without replacing or owning them."""
+
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if not callable(reconfigure):
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            # Embedders own their streams. Unsupported adaptations must leave
+            # those objects and their lifecycle untouched.
+            continue
 
 
 def get_logging_config() -> dict[str, Any]:

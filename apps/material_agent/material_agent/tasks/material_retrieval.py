@@ -12,6 +12,7 @@ from world_understanding.agentic.events import EventListener, get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.functions.knowledge.usd_search import USDSearchClient
 from world_understanding.functions.models.chat_models import create_chat_model
+from world_understanding.utils.response_content import extract_text_content
 
 from material_agent.materials import (
     FALLBACK_MATERIAL_BINDING,
@@ -547,7 +548,7 @@ Return the JSON object."""
             ]
 
             response = llm.invoke(messages)
-            response_text = response.content
+            response_text = extract_text_content(response.content)
 
             listener.debug(f"LLM parse request for '{material_name}':")
             listener.debug(f"  System: {system_prompt[:100]}...")
@@ -655,7 +656,7 @@ DO NOT use automotive materials unless explicitly specified."""
             ]
 
             response = llm.invoke(messages)
-            response_text = response.content
+            response_text = extract_text_content(response.content)
 
             listener.debug(f"LLM match selection request for '{original_material}':")
             listener.debug(f"  System: {system_prompt[:100]}...")

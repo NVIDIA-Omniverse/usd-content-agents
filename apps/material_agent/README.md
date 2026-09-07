@@ -2,6 +2,13 @@
 
 A Vision-Language Model (VLM) based system for intelligent material assignment to 3D-rendered object parts. The Material Agent analyzes visual characteristics of object components and assigns appropriate materials from a material library, enabling automated material selection for 3D modeling and rendering workflows.
 
+> **Content Agents 0.6:** this package is the fixed pipeline, config-driven material
+> workflow. For an unqualified material-authoring task, start from the repository
+> root with the default agentic Content Workflow described in the root
+> [README](../../README.md#choose-an-execution-mode). Use `material-agent` when
+> you explicitly need fixed pipeline steps, YAML configuration, benchmarking,
+> Python APIs, or the matching REST contract.
+
 ## Overview
 
 The Material Agent addresses a fundamental challenge in 3D content creation: accurately identifying object parts and assigning suitable materials based on visual analysis. By leveraging Vision-Language Models, it can:
@@ -24,6 +31,8 @@ The Material Agent addresses a fundamental challenge in 3D content creation: acc
 - Checkpointing and resume from failures
 - USD instance handling for cost savings and consistency
 - Optional image-based prim clustering for large scenes with repeated parts
+- Representation-preserving rendered material refinement and judged variation
+  sets, with Texture Variation used only for textured sources
 
 Technical specification text and converted PDF pages stay outside the visual
 model prompt. After the visual material label is selected, extracted material
@@ -32,7 +41,11 @@ or replace the visual label.
 
 ## Prefer the REST service?
 
-This README covers the `material-agent` CLI (Option B in the root [README](../../README.md#three-ways-to-use-content-agents)). If you'd rather drive the same pipeline over HTTP with session management and progress streaming, see [`../material_agent_service/`](../material_agent_service/) — it brings up with a single `docker compose up`.
+This README covers the explicit fixed pipeline `material-agent` CLI described in the
+root [execution-mode guide](../../README.md#choose-an-execution-mode). If you'd
+rather drive the same fixed pipeline over HTTP with session management and
+progress streaming, see [`../material_agent_service/`](../material_agent_service/)
+— it brings up with a single `docker compose up`.
 
 ## Optional Prim Clustering
 
@@ -148,12 +161,71 @@ set `NGC_API_KEY` when that endpoint requires NVCF bearer authentication.
 
 ### Run the Example Pipeline
 
+The fixed-pipeline Material Agent CLI runs on Linux or under WSL2 on Windows.
+Native Windows fixed-pipeline execution is not supported; see the repository
+[platform policy](../../README.md#platform-support).
+
+On native Linux, the unedited example uses remote rendering:
+
 ```bash
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate
 # The unedited config uses backend: nim and requires NVIDIA_API_KEY.
 # Configure RENDER_ENDPOINT, or NVCF_RENDER_FUNCTION_ID when using NVCF.
 material-agent run apps/material_agent/configs/unified_example.yaml
 ```
+
+On WSL2, install and initialize Warp, copy the example beside the original, and
+set both `steps.build_dataset_usd.renderer.backend` and
+`steps.render.backend` to `warp` in the copy before running it:
+
+```bash
+source .venv/bin/activate
+uv pip install -e ".[warp]" -e apps/material_agent
+python -c "import newton; import warp as wp; wp.init()"
+CONFIG_DIR=apps/material_agent/configs
+cp "$CONFIG_DIR/unified_example.yaml" "$CONFIG_DIR/unified_example_wsl2.yaml"
+# Edit both renderer fields listed above to warp.
+material-agent run "$CONFIG_DIR/unified_example_wsl2.yaml"
+```
+
+### Refine a Material or Create Variations
+
+Material Agent can run a fresh bounded optimizer sweep over source-anchored
+color, roughness, and metallic response without changing representation.
+The user-facing `goal` contains only `appearance_prompt`; the configured model
+infers bounded internal PBR controls and records them as output evidence.
+Scalar-PBR sources emit scalar-PBR outputs with no textures. Textured sources
+retain raw Texture Variation maps and emit textured outputs. The workflow
+renders and judges only the sweep winner, then uses VLM feedback for the next
+attempt. Variation sets reuse that core and carry approved evidence between
+slots. Input is an existing `source` material state plus one `goal`; generation
+recipes are not part of the refinement contract. A source can also identify an
+existing OpenPBR MaterialX or UsdPreviewSurface material with `source_usd` and
+`material_prim_path`. That path clones and edits the authored graph without
+mutating the source or invoking material-graph generation. These public
+examples use `nim` with `moonshotai/kimi-k3`; their scalar inputs require no
+Texture Variation endpoint:
+
+```bash
+material-agent refine-material \
+  apps/material_agent/configs/material_refinement_example.yaml
+
+material-agent refine-material \
+  apps/material_agent/configs/material_refinement_preview_surface_graph_example.yaml
+
+material-agent refine-material \
+  apps/material_agent/configs/material_refinement_openpbr_example.yaml
+
+material-agent optimize-variations \
+  apps/material_agent/configs/material_variation_example.yaml
+```
+
+The default `optimization.name: auto` resolves to BoTorch and never silently
+falls back to random search. Install `material-agent[refinement]` before
+running these workflows. Random search remains available only when explicitly
+selected with `optimization.name: random`. See the
+[refinement and variation guide](docs/material_refinement_and_variation.md) for
+the Python API, output evidence, cancellation behavior, and publication rules.
 
 ### Try with Public SimReady Assets
 
@@ -182,7 +254,7 @@ material-agent run my_simready_scaffold.yaml
 Four curated assets (HF: scaffold, cleaning trolley; GitHub
 `NVIDIA/simready-foundation`: electricians toolbox, UR10 robot arm) are
 documented in
-[`../../.agents/skills/material-agent-cli/references/simready-quickstart.md`](../../.agents/skills/material-agent-cli/references/simready-quickstart.md),
+[`../../.agents/skills/fixed-pipeline/references/material-agent-cli/references/simready-quickstart.md`](../../.agents/skills/fixed-pipeline/references/material-agent-cli/references/simready-quickstart.md),
 including the VLM key pre-flight probe and the `skip_instances: false`
 caveat required for the UR10.
 
@@ -201,7 +273,7 @@ material-agent configure my_pipeline.yaml -m materials.yaml -r ref1.jpg -r ref2.
 
 ## CLI Reference
 
-### Pipeline Command (Recommended)
+### Pipeline Command (Fixed-Pipeline Workflow)
 
 ```bash
 # Run complete end-to-end pipeline
@@ -233,6 +305,8 @@ material-agent evaluate CONFIG             # Evaluate existing predictions
 material-agent build-dataset usd CONFIG    # Build dataset from USD
 material-agent build-dataset prepare-dataset CONFIG  # Prepare dataset for VLM
 material-agent configure CONFIG            # Interactive config creation
+material-agent refine-material CONFIG      # Refine one rendered material
+material-agent optimize-variations CONFIG  # Create a judged variation set
 material-agent generate-manifest USD OUT   # Generate materials.yaml from USD
 ```
 
@@ -248,6 +322,11 @@ material-agent scene extract CONFIG -v
 material-agent scene run-agent CONFIG --workers 4 -v
 material-agent scene collect CONFIG -v
 ```
+
+Scene extraction produces standalone per-asset USDs. The optional
+`scene.extract.flatten` setting defaults to `true` and must remain `true`;
+non-flattened extraction is rejected because USD population masks are not
+persisted in exported root layers.
 
 ## Pipeline Steps
 
@@ -280,7 +359,7 @@ steps:
   predict:
     vlm:
       backend: nim                  # or: openai, anthropic, gemini
-      model: google/gemma-4-31b-it  # model from your chosen provider
+      model: moonshotai/kimi-k3     # model from your chosen provider
 
   render:
     backend: ovrtx

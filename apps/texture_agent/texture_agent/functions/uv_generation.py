@@ -9,6 +9,8 @@ Provides multiple UV projection modes for meshes that lack UV unwraps
 from __future__ import annotations
 
 import logging
+import math
+from collections.abc import Iterator
 from enum import StrEnum
 from typing import Any
 
@@ -390,11 +392,11 @@ def inspect_uvs_for_mesh(prim: Usd.Prim) -> dict[str, Any]:
 
 
 def inspect_uvs_for_stage(stage: Usd.Stage) -> dict[str, Any]:
-    """Inspect UV readiness for every mesh in a stage."""
+    """Inspect UV readiness for every composed renderable mesh in a stage."""
     meshes = [
         inspect_uvs_for_mesh(prim)
-        for prim in stage.Traverse()
-        if prim.IsA(UsdGeom.Mesh) and not prim.IsInstanceProxy()
+        for prim in stage.Traverse(Usd.TraverseInstanceProxies())
+        if prim.IsA(UsdGeom.Mesh)
     ]
     summary = {
         "total_meshes": len(meshes),
@@ -605,9 +607,7 @@ def generate_uvs_for_stage(
     """
     count = 0
     target_paths = _normalize_target_paths(target_prim_paths)
-    for prim in stage.Traverse():
-        if not prim.IsA(UsdGeom.Mesh):
-            continue
+    for prim in _iter_authorable_meshes(stage):
         if not _prim_matches_target_paths(prim, target_paths):
             continue
         if not _prepare_mutable_prim(prim, "UV generation"):
@@ -644,6 +644,19 @@ def _prim_matches_target_paths(prim: Usd.Prim, target_paths: tuple[str, ...]) ->
     )
 
 
+def _iter_authorable_meshes(stage: Usd.Stage) -> Iterator[Usd.Prim]:
+    """Yield active, loaded mesh specs that can receive root-layer opinions.
+
+    The default traversal excludes abstract and undefined prims, even though
+    CAD exports commonly author the geometry used by instances under classes
+    and ``over`` specs. Instance proxies are read-only and therefore remain
+    excluded from this mutation traversal.
+    """
+    for prim in stage.Traverse(Usd.PrimIsActive & Usd.PrimIsLoaded):
+        if prim.IsA(UsdGeom.Mesh) and not prim.IsInstanceProxy():
+            yield prim
+
+
 def fix_uv_interpolation(
     stage: Usd.Stage,
     target_prim_paths: list[str] | tuple[str, ...] | None = None,
@@ -659,9 +672,7 @@ def fix_uv_interpolation(
     """
     count = 0
     target_paths = _normalize_target_paths(target_prim_paths)
-    for prim in stage.Traverse():
-        if not prim.IsA(UsdGeom.Mesh):
-            continue
+    for prim in _iter_authorable_meshes(stage):
         if not _prim_matches_target_paths(prim, target_paths):
             continue
         if not _prepare_mutable_prim(prim, "UV interpolation repair"):
@@ -692,9 +703,7 @@ def normalize_uvs(
     """
     count = 0
     target_paths = _normalize_target_paths(target_prim_paths)
-    for prim in stage.Traverse():
-        if not prim.IsA(UsdGeom.Mesh):
-            continue
+    for prim in _iter_authorable_meshes(stage):
         if not _prim_matches_target_paths(prim, target_paths):
             continue
         if not _prepare_mutable_prim(prim, "UV normalization"):
@@ -731,13 +740,95 @@ def normalize_uvs(
     return count
 
 
+#: A mesh whose UV bounds span less than this fraction of the texture samples
+#: only a handful of texels, so any generated map resolves to a flat wash. CAD
+#: conversions routinely emit such UVs. At the default 0.05 a 1024px map still
+#: contributes ~51 texels before a mesh is treated as degenerate.
+DEGENERATE_UV_SPAN = 0.05
+
+
+def repair_degenerate_uvs(
+    stage: Usd.Stage,
+    min_span: float = DEGENERATE_UV_SPAN,
+    margin: float = 0.025,
+    target_prim_paths: list[str] | tuple[str, ...] | None = None,
+) -> int:
+    """Rescale in-range but degenerate UVs so textures sample at a usable scale.
+
+    ``normalize_uvs`` only rewrites meshes whose UVs fall outside ``[0, 1]``. A
+    mesh whose UVs sit inside that range but span a tiny fraction of it is left
+    alone even though it samples almost a single texel, which renders any
+    generated texture as one flat colour.
+
+    Meshes with zero-area UV bounds are skipped: there is no footprint to
+    rescale, and stretching a degenerate point would be a fabrication rather
+    than a repair.
+
+    Returns:
+        Number of meshes repaired.
+    """
+    count = 0
+    target_paths = _normalize_target_paths(target_prim_paths)
+    for prim in _iter_authorable_meshes(stage):
+        if not _prim_matches_target_paths(prim, target_paths):
+            continue
+        if not _prepare_mutable_prim(prim, "degenerate UV repair"):
+            continue
+        st = UsdGeom.PrimvarsAPI(prim).GetPrimvar("st")
+        if not st or not st.IsDefined():
+            continue
+        uvs = np.array(st.Get())
+        if len(uvs) == 0:
+            continue
+        if not np.isfinite(uvs).all():
+            logger.warning("Skipping degenerate UV repair for non-finite UVs: %s", prim)
+            continue
+
+        u_min, u_max = uvs[:, 0].min(), uvs[:, 0].max()
+        v_min, v_max = uvs[:, 1].min(), uvs[:, 1].max()
+        u_range = float(u_max - u_min)
+        v_range = float(v_max - v_min)
+
+        # Compare the geometric mean rather than the wider axis, so a footprint
+        # that is usable in one axis but collapsed in the other still qualifies.
+        # Measured on the acceptance asset, Gunmetal_Dark spans 0.0523 x 0.0260
+        # and samples roughly 1400 of a 1024px map's million texels, yet cleared
+        # a threshold applied to the wider axis alone.
+        if math.sqrt(u_range * v_range) >= min_span:
+            continue
+        if u_range <= 0.0 or v_range <= 0.0:
+            logger.warning(
+                "Skipping degenerate UV repair for zero-area UV bounds: %s", prim
+            )
+            continue
+
+        uvs[:, 0] = (uvs[:, 0] - u_min) / u_range * (1 - 2 * margin) + margin
+        uvs[:, 1] = (uvs[:, 1] - v_min) / v_range * (1 - 2 * margin) + margin
+        st.Set(Vt.Vec2fArray([Gf.Vec2f(float(u), float(v)) for u, v in uvs]))
+        logger.debug(
+            "Repaired degenerate UVs on %s (span %.4f x %.4f)",
+            prim.GetPath(),
+            u_range,
+            v_range,
+        )
+        count += 1
+
+    if count > 0:
+        logger.info("Repaired degenerate UVs on %d meshes", count)
+    return count
+
+
 def _prepare_mutable_prim(prim: Usd.Prim, action: str) -> bool:
     if prim.IsInstanceProxy():
         logger.debug(
             "Skipping %s for read-only instance proxy %s", action, prim.GetPath()
         )
         return False
-    if prim.IsInstance() or prim.IsInstanceable():
+    if prim.IsInstance():
+        # Instance roots are editable and may carry local properties without
+        # widening the prototype shared by their instance proxies.
+        return True
+    if prim.IsInstanceable():
         prim.SetInstanceable(False)
         logger.debug(
             "Disabled instanceability before %s for %s", action, prim.GetPath()

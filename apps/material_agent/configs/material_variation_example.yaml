@@ -1,0 +1,50 @@
+goal:
+  appearance_prompt: >-
+    Cobalt-blue painted steel that remains suitable for an industrial machine
+    enclosure while exploring distinct, restrained surface finishes.
+
+variation_set:
+  description: >-
+    Explore visibly distinct color and sheen treatments without changing the
+    blue paint identity or introducing damage, text, logos, or geometry.
+  requested_count: 3
+  minimum_feature_distance: 0.05
+  diversity_weight: 1.0
+
+source:
+  material_id: cobalt_painted_steel
+  name: Cobalt Painted Steel
+  description: Clean painted steel used as the source material.
+  material_profile: preview_surface
+  base_color: [0.10, 0.24, 0.68]
+  roughness: 0.40
+  metallic: 0.0
+
+search:
+  max_color_delta: 0.25
+  max_roughness_delta: 0.30
+  max_mixed_metallic_delta: 0.10
+
+optimization:
+  name: auto
+  max_trials: 12
+  seed: 42
+  replicas: 1
+  max_refinements: 2
+
+render:
+  backend: ovrtx
+  image_width: 768
+  image_height: 768
+  camera_corners: [+x+y+z, -x+y+z]
+
+judge:
+  vlm:
+    backend: nim
+    model: moonshotai/kimi-k3
+  score_threshold: 0.7
+  temperature: 0.1
+  max_tokens: 2048
+
+output_dir: material_variation_output
+overwrite: false

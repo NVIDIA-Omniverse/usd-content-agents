@@ -14,10 +14,8 @@ from physics_agent.functions.apply_physics import (
     PhysicsAuthoringError,
     _apply_predictions_to_stage,
     _block_existing_mass,
-    _copy_usdz_asset_for_flattened_output,
-    _is_relative_to,
     _remove_flattened_mass_attributes,
-    _rewrite_flattened_usdz_asset_paths,
+    apply_physics,
     load_predictions,
 )
 
@@ -30,6 +28,259 @@ def _stage_with_default() -> Usd.Stage:
     return stage
 
 
+def _mark_deformable(prim: Usd.Prim, semantics: str) -> None:
+    if semantics == "schema":
+        prim.AddAppliedSchema("PhysicsDeformableBodyAPI")
+    elif semantics == "owned-marker":
+        prim.SetCustomDataByKey(
+            "physicsAgentVompDeformable",
+            {"adapter": "physics_agent.vomp_volume_deformable"},
+        )
+    else:
+        prim.AddAppliedSchema(semantics)
+
+
+@pytest.mark.parametrize(
+    "semantics",
+    [
+        "schema",
+        "owned-marker",
+        "PhysicsCurvesDeformableSimAPI",
+        "PhysicsSurfaceDeformableSimAPI",
+        "PhysicsVolumeDeformableSimAPI",
+    ],
+)
+@pytest.mark.parametrize(
+    ("location", "relation"),
+    [("target", "already has"), ("ancestor", "below"), ("descendant", "contains")],
+)
+def test_apply_predictions_rejects_deformable_collider_hierarchy(
+    tmp_path: Path,
+    semantics: str,
+    location: str,
+    relation: str,
+) -> None:
+    stage = Usd.Stage.CreateInMemory()
+    world = UsdGeom.Xform.Define(stage, "/World")
+    ancestor = UsdGeom.Xform.Define(stage, "/World/Ancestor").GetPrim()
+    target = UsdGeom.Xform.Define(stage, "/World/Ancestor/Target").GetPrim()
+    descendant = UsdGeom.Cube.Define(
+        stage, "/World/Ancestor/Target/Descendant"
+    ).GetPrim()
+    stage.SetDefaultPrim(world.GetPrim())
+    conflict = {
+        "target": target,
+        "ancestor": ancestor,
+        "descendant": descendant,
+    }[location]
+    _mark_deformable(conflict, semantics)
+
+    with pytest.raises(PhysicsAuthoringError, match=rf"{relation}.*deformable"):
+        _apply_predictions_to_stage(
+            stage,
+            tmp_path / "scene.usda",
+            [
+                {
+                    "id": str(target.GetPath()),
+                    "classification": {
+                        "physical_properties": {
+                            "estimated_mass_kg": 1.0,
+                            "density": 100.0,
+                        },
+                    },
+                }
+            ],
+            "convexHull",
+            "classification",
+            "skip_mass",
+            allow_empty_predictions=False,
+            author_rigid_body=False,
+        )
+
+    assert not target.HasAPI(UsdPhysics.CollisionAPI)
+    assert not stage.GetPrimAtPath("/World/PhysicsScene").IsValid()
+
+
+def test_apply_predictions_rejects_default_body_containing_deformable(
+    tmp_path: Path,
+) -> None:
+    stage = _stage_with_default()
+    soft_body = UsdGeom.Xform.Define(stage, "/World/SoftBody").GetPrim()
+    _mark_deformable(soft_body, "schema")
+
+    with pytest.raises(
+        PhysicsAuthoringError,
+        match=r"RigidBodyAPI/MassAPI.*contains deformable",
+    ):
+        _apply_predictions_to_stage(
+            stage,
+            tmp_path / "scene.usda",
+            [],
+            "convexHull",
+            "classification",
+            "skip_mass",
+            allow_empty_predictions=True,
+            author_rigid_body=True,
+        )
+
+    assert not stage.GetDefaultPrim().HasAPI(UsdPhysics.RigidBodyAPI)
+
+
+def test_apply_predictions_rejects_explicit_mass_body_containing_deformable(
+    tmp_path: Path,
+) -> None:
+    stage = _stage_with_default()
+    mass_body = UsdGeom.Xform.Define(stage, "/MassBody").GetPrim()
+    soft_body = UsdGeom.Xform.Define(stage, "/MassBody/SoftBody").GetPrim()
+    _mark_deformable(soft_body, "owned-marker")
+
+    with pytest.raises(PhysicsAuthoringError, match=r"MassAPI.*contains deformable"):
+        _apply_predictions_to_stage(
+            stage,
+            tmp_path / "scene.usda",
+            [
+                {
+                    "id": "/World/Cube",
+                    "classification": {
+                        "component_id": "component_001",
+                        "mass_authoring_path": str(mass_body.GetPath()),
+                        "physical_properties": {
+                            "estimated_mass_kg": 1.0,
+                            "density": 100.0,
+                        },
+                    },
+                }
+            ],
+            "convexHull",
+            "classification",
+            "skip_mass",
+            allow_empty_predictions=False,
+            author_rigid_body=True,
+        )
+
+    assert not mass_body.HasAPI(UsdPhysics.MassAPI)
+    assert not stage.GetPrimAtPath("/World/Cube").HasAPI(UsdPhysics.CollisionAPI)
+    assert not stage.GetPrimAtPath("/World/PhysicsScene").IsValid()
+
+
+def test_apply_predictions_rejects_deformable_skip_mass_target_before_writes(
+    tmp_path: Path,
+) -> None:
+    stage = _stage_with_default()
+    mass_body = UsdGeom.Xform.Define(stage, "/MassBody").GetPrim()
+    UsdPhysics.MassAPI.Apply(mass_body).CreateMassAttr(5.0)
+    soft_body = UsdGeom.Xform.Define(stage, "/MassBody/SoftBody").GetPrim()
+    _mark_deformable(soft_body, "schema")
+
+    with pytest.raises(PhysicsAuthoringError, match=r"MassAPI.*contains deformable"):
+        _apply_predictions_to_stage(
+            stage,
+            tmp_path / "scene.usda",
+            [
+                {
+                    "id": "/World/Cube",
+                    "quality_warnings": [{"code": "mass_scale_suspicious"}],
+                    "classification": {
+                        "mass_authoring_path": str(mass_body.GetPath()),
+                        "physical_properties": {
+                            "estimated_mass_kg": 1.0,
+                            "density": 100.0,
+                        },
+                    },
+                }
+            ],
+            "convexHull",
+            "classification",
+            "skip_mass",
+            allow_empty_predictions=False,
+            author_rigid_body=True,
+        )
+
+    assert UsdPhysics.MassAPI(mass_body).GetMassAttr().Get() == 5.0
+    assert not stage.GetPrimAtPath("/World/Cube").HasAPI(UsdPhysics.CollisionAPI)
+    assert not stage.GetPrimAtPath("/World/PhysicsScene").IsValid()
+
+
+def test_apply_predictions_rechecks_rigid_children_after_deinstancing(
+    tmp_path: Path,
+) -> None:
+    referenced_path = tmp_path / "referenced.usda"
+    referenced = Usd.Stage.CreateNew(str(referenced_path))
+    model = UsdGeom.Xform.Define(referenced, "/Model")
+    referenced.SetDefaultPrim(model.GetPrim())
+    link = UsdGeom.Xform.Define(referenced, "/Model/Link").GetPrim()
+    UsdPhysics.RigidBodyAPI.Apply(link).CreateRigidBodyEnabledAttr(True)
+    referenced.GetRootLayer().Save()
+
+    stage = Usd.Stage.CreateInMemory()
+    world = UsdGeom.Xform.Define(stage, "/World").GetPrim()
+    world.GetReferences().AddReference(str(referenced_path), "/Model")
+    world.SetInstanceable(True)
+    stage.SetDefaultPrim(world)
+
+    _apply_predictions_to_stage(
+        stage,
+        tmp_path / "scene.usda",
+        [],
+        "convexHull",
+        "classification",
+        "skip_mass",
+        allow_empty_predictions=True,
+        author_rigid_body=True,
+    )
+
+    assert not world.IsInstanceable()
+    assert not world.HasAPI(UsdPhysics.RigidBodyAPI)
+    assert stage.GetPrimAtPath("/World/Link").HasAPI(UsdPhysics.RigidBodyAPI)
+
+
+def test_apply_predictions_rechecks_rigid_children_after_mass_target_deinstancing(
+    tmp_path: Path,
+) -> None:
+    referenced_path = tmp_path / "referenced_mass_body.usda"
+    referenced = Usd.Stage.CreateNew(str(referenced_path))
+    model = UsdGeom.Xform.Define(referenced, "/Model")
+    referenced.SetDefaultPrim(model.GetPrim())
+    link = UsdGeom.Xform.Define(referenced, "/Model/Link").GetPrim()
+    UsdPhysics.RigidBodyAPI.Apply(link).CreateRigidBodyEnabledAttr(True)
+    referenced.GetRootLayer().Save()
+
+    stage = _stage_with_default()
+    world = stage.GetDefaultPrim()
+    body = UsdGeom.Xform.Define(stage, "/World/Body").GetPrim()
+    body.GetReferences().AddReference(str(referenced_path), "/Model")
+    body.SetInstanceable(True)
+
+    _apply_predictions_to_stage(
+        stage,
+        tmp_path / "scene.usda",
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {
+                    "component_id": "component_001",
+                    "mass_authoring_path": "/World/Body",
+                    "component_estimated_mass_kg": 1.0,
+                    "physical_properties": {
+                        "estimated_mass_kg": 1.0,
+                        "density": 100.0,
+                    },
+                },
+            }
+        ],
+        "convexHull",
+        "classification",
+        "skip_mass",
+        allow_empty_predictions=False,
+        author_rigid_body=True,
+    )
+
+    assert not body.IsInstanceable()
+    assert UsdPhysics.MassAPI(body).GetMassAttr().Get() == 1.0
+    assert not world.HasAPI(UsdPhysics.RigidBodyAPI)
+    assert stage.GetPrimAtPath("/World/Body/Link").HasAPI(UsdPhysics.RigidBodyAPI)
+
+
 def test_load_predictions_skips_blank_lines(tmp_path: Path) -> None:
     predictions = tmp_path / "predictions.jsonl"
     predictions.write_text(
@@ -39,7 +290,7 @@ def test_load_predictions_skips_blank_lines(tmp_path: Path) -> None:
     assert load_predictions(str(predictions)) == [{"id": "/World/Cube"}]
 
 
-def test_mass_cleanup_and_relative_path_edges(tmp_path: Path) -> None:
+def test_mass_cleanup_edges(tmp_path: Path) -> None:
     stage = _stage_with_default()
     cube = stage.GetPrimAtPath("/World/Cube")
     UsdPhysics.MassAPI.Apply(cube).CreateMassAttr(1.0)
@@ -49,62 +300,8 @@ def test_mass_cleanup_and_relative_path_edges(tmp_path: Path) -> None:
     cube_spec = layer.GetPrimAtPath("/World/Cube")
     assert "physics:mass" not in cube_spec.properties
 
-    assert _is_relative_to(tmp_path / "inside", tmp_path) is True
-    assert _is_relative_to(Path("/definitely/outside"), tmp_path) is False
-
     assert _block_existing_mass(stage, "/Missing") is False
     assert _block_existing_mass(stage, "/World") is False
-
-
-def test_usdz_asset_rewrite_edges(tmp_path: Path) -> None:
-    extract_dir = tmp_path / "extract"
-    extract_dir.mkdir()
-    output = tmp_path / "out.usda"
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    outside_asset = outside / "texture.png"
-    outside_asset.write_bytes(b"png")
-
-    unchanged = Sdf.AssetPath(str(outside_asset))
-    assert (
-        _copy_usdz_asset_for_flattened_output(unchanged, extract_dir, output).path
-        == unchanged.path
-    )
-
-    target = outside / "linked.png"
-    target.write_bytes(b"png")
-    (extract_dir / "linked.png").symlink_to(target)
-    symlinked = Sdf.AssetPath("linked.png")
-    assert (
-        _copy_usdz_asset_for_flattened_output(symlinked, extract_dir, output).path
-        == symlinked.path
-    )
-
-    escape_source_dir = extract_dir / "escape"
-    escape_source_dir.mkdir()
-    (escape_source_dir / "texture.png").write_bytes(b"png")
-    escape_target_dir = tmp_path / "escape-target"
-    escape_target_dir.mkdir()
-    assets_escape = tmp_path / "out_assets" / "escape"
-    assets_escape.parent.mkdir()
-    assets_escape.symlink_to(escape_target_dir)
-    escaping = Sdf.AssetPath("escape/texture.png")
-    assert (
-        _copy_usdz_asset_for_flattened_output(escaping, extract_dir, output).path
-        == escaping.path
-    )
-
-    texture = extract_dir / "texture.png"
-    texture.write_bytes(b"png")
-    stage = Usd.Stage.CreateInMemory()
-    prim = UsdGeom.Xform.Define(stage, "/World").GetPrim()
-    attr = prim.CreateAttribute("inputs:textures", Sdf.ValueTypeNames.AssetArray)
-    attr.Set(Sdf.AssetPathArray([Sdf.AssetPath("texture.png")]))
-
-    _rewrite_flattened_usdz_asset_paths(stage.GetRootLayer(), extract_dir, output)
-    rewritten = attr.Get()[0].path
-    assert rewritten == "out_assets/texture.png"
-    assert (tmp_path / "out_assets" / "texture.png").exists()
 
 
 def test_apply_predictions_skips_bad_records_when_allowed(tmp_path: Path) -> None:
@@ -115,6 +312,26 @@ def test_apply_predictions_skips_bad_records_when_allowed(tmp_path: Path) -> Non
         [
             {},
             {"id": "/World/Cube", "classification": "not-a-dict"},
+            {
+                "id": "/World/Cube",
+                "quality_warnings": [{"code": "mass_scale_suspicious"}],
+                "classification": "not-a-dict",
+            },
+            {
+                "id": "/World/Cube",
+                "quality_warnings": [{"code": "mass_scale_suspicious"}],
+                "classification": {},
+            },
+            {
+                "id": "/Missing",
+                "quality_warnings": [{"code": "mass_scale_suspicious"}],
+                "classification": {
+                    "physical_properties": {
+                        "estimated_mass_kg": 1.0,
+                        "density": 100.0,
+                    }
+                },
+            },
         ],
         "convexHull",
         "classification",
@@ -122,7 +339,7 @@ def test_apply_predictions_skips_bad_records_when_allowed(tmp_path: Path) -> Non
         allow_empty_predictions=True,
     )
     assert applied == 0
-    assert skipped == 2
+    assert skipped == 5
 
 
 def test_apply_predictions_blocks_existing_aggregate_mass_on_suspicious_scale(
@@ -205,6 +422,53 @@ def test_apply_predictions_deduplicates_explicit_component_mass(
     assert applied == 2
     assert skipped == 0
     assert UsdPhysics.MassAPI(stage.GetDefaultPrim()).GetMassAttr().Get() == 1.0
+
+
+def test_apply_predictions_plans_mass_after_prior_record_adds_collision(
+    tmp_path: Path,
+) -> None:
+    stage = _stage_with_default()
+    body = UsdGeom.Xform.Define(stage, "/World/Body").GetPrim()
+
+    applied, skipped, _cleared, _skipped_mass, _body_path = _apply_predictions_to_stage(
+        stage,
+        tmp_path / "scene.usda",
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {
+                    "component_id": "component_001",
+                    "mass_authoring_path": "/World/Body",
+                    "component_estimated_mass_kg": 1.0,
+                    "physical_properties": {
+                        "estimated_mass_kg": 1.0,
+                        "density": 100.0,
+                    },
+                },
+            },
+            {
+                "id": "/World/Cube",
+                "classification": {
+                    "collision_mode": "preserve_existing",
+                    "component_id": "component_002",
+                    "mass_authoring_path": "/World/Body",
+                    "component_estimated_mass_kg": 2.0,
+                    "physical_properties": {
+                        "estimated_mass_kg": 2.0,
+                        "density": 100.0,
+                    },
+                },
+            },
+        ],
+        "convexHull",
+        "classification",
+        "skip_mass",
+        allow_empty_predictions=False,
+    )
+
+    assert applied == 2
+    assert skipped == 0
+    assert UsdPhysics.MassAPI(body).GetMassAttr().Get() == 3.0
 
 
 def test_apply_predictions_skips_nonpositive_component_mass(
@@ -597,3 +861,57 @@ def test_block_existing_mass_deinstances_target() -> None:
 
     assert _block_existing_mass(stage, "/World/Cube") is True
     assert cube.IsInstanceable() is False
+
+
+def test_apply_physics_does_not_mutate_open_source_layer(tmp_path: Path) -> None:
+    """apply_physics must be side-effect-free on its input layer.
+
+    Regression: apply_physics opens its input through the process-global
+    Sdf.Layer registry and authors on it. When a long-lived caller (a Content
+    Workbench session) holds that same source layer open, the in-memory edits
+    leaked into later re-inspections of the source, which then rejected an
+    author-on-targets decision because the source "already had" colliders. The
+    authored physics belongs only in the distinct output file.
+    """
+    source = tmp_path / "asset.usda"
+    stage = Usd.Stage.CreateNew(str(source))
+    root = UsdGeom.Xform.Define(stage, "/World")
+    UsdGeom.Cube.Define(stage, "/World/Cube")
+    stage.SetDefaultPrim(root.GetPrim())
+    stage.GetRootLayer().Save()
+    del stage
+
+    predictions = tmp_path / "predictions.jsonl"
+    predictions.write_text(
+        json.dumps(
+            {
+                "id": "/World/Cube",
+                "classification": {
+                    "material": "generic",
+                    "component_type": "body",
+                    "physical_properties": {"density": 850.0},
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "asset_physics.usda"
+
+    # Hold the source layer open for the duration of the call, mimicking a
+    # persistent session that keeps the source stage resident in the registry.
+    held = Usd.Stage.Open(str(source))
+    apply_physics(str(source), str(predictions), str(output), collision_approx="none")
+
+    # The still-registered source layer must be reverted to its on-disk
+    # (physics-free) state: not dirty and carrying no authored physics schema.
+    source_layer = Sdf.Layer.Find(str(source))
+    assert source_layer is not None
+    assert not source_layer.dirty
+    assert "PhysicsCollisionAPI" not in source_layer.ExportToString()
+    assert held is not None  # keep the source layer registered across the call
+
+    # The output, however, must carry the authored collider.
+    out_stage = Usd.Stage.Open(str(output))
+    out_cube = out_stage.GetPrimAtPath("/World/Cube")
+    assert "PhysicsCollisionAPI" in out_cube.GetAppliedSchemas()

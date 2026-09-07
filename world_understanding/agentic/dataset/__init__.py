@@ -52,6 +52,8 @@ from world_understanding.agentic.dataset.schema import (
     SourceInfo,
     StepResult,
     TaskConfig,
+    UntrustedSpecEvidence,
+    UntrustedSpecReferencePage,
     export_json_schema,
     validate_dataset_config_file,
     validate_dataset_entry,
@@ -79,6 +81,8 @@ __all__ = [
     "GroundTruth",
     "GroundTruthMetadata",
     "StepResult",
+    "UntrustedSpecEvidence",
+    "UntrustedSpecReferencePage",
     # Loader functions
     "detect_dataset_version",
     "load_dataset",

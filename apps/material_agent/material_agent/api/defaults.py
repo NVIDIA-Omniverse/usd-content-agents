@@ -8,6 +8,11 @@ Having everything in one place ensures consistency across CLI, API, and workflow
 
 from typing import Any
 
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+    resolve_reasoning_effort_for_model_config,
+)
+
 # ============================================================================
 # Pipeline Step Names (Constants)
 # ============================================================================
@@ -29,7 +34,7 @@ PIPELINE_STEP_NAMES = [
     "benchmark",
     "validate_predictions",
     "harmonize_predictions",
-    "create_materials",  # Create run-local materials from explicit requests
+    "create_materials",  # Author run-local materials from explicit requests
     "restore_usd",  # USD restoration via API (inverse of optimize_usd)
     "apply",
     "evaluate",
@@ -86,14 +91,18 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = "nim"
-DEFAULT_VLM_MODEL = "google/gemma-4-31b-it"
+DEFAULT_VLM_MODEL = "moonshotai/kimi-k3"
 DEFAULT_VLM_TEMPERATURE = 1.0
 DEFAULT_VLM_MAX_TOKENS = 24576
-DEFAULT_VLM_REASONING_EFFORT = "high"  # for reasoning-capable models
+DEFAULT_VLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
+    DEFAULT_VLM_BACKEND,
+    DEFAULT_VLM_MODEL,
+    fallback="high",
+)
 DEFAULT_VLM_MAX_WORKERS = 64
 
 DEFAULT_LLM_BACKEND = "nim"
-DEFAULT_LLM_MODEL = "google/gemma-4-31b-it"
+DEFAULT_LLM_MODEL = "moonshotai/kimi-k3"
 DEFAULT_LLM_TEMPERATURE = 0.1
 DEFAULT_LLM_MAX_TOKENS = 512
 
@@ -118,11 +127,17 @@ DEFAULT_CLUSTER_COMPLEXITY_THRESHOLDS = {
     "high": [0.08, 1.0, 0.90],
 }
 
-# Public judge defaults use NVIDIA NIM.
+# Text-only benchmark/evaluation judge defaults use the same qualified Kimi-K3
+# NIM model. Visual judging falls back to the VLM default unless a dedicated
+# judge VLM is set.
 DEFAULT_JUDGE_BACKEND = "nim"
-DEFAULT_JUDGE_MODEL = "google/gemma-4-31b-it"
+DEFAULT_JUDGE_MODEL = "moonshotai/kimi-k3"
 DEFAULT_JUDGE_TEMPERATURE = 0.1
 DEFAULT_JUDGE_MAX_TOKENS = 2048
+
+DEFAULT_VLM_JUDGE_BACKEND = DEFAULT_VLM_BACKEND
+DEFAULT_VLM_JUDGE_MODEL = DEFAULT_VLM_MODEL
+DEFAULT_VLM_JUDGE_REASONING_EFFORT = DEFAULT_VLM_REASONING_EFFORT
 
 
 # ============================================================================
@@ -135,7 +150,11 @@ PREDICT_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+        **(
+            {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+            if DEFAULT_VLM_REASONING_EFFORT
+            else {}
+        ),
     },
     "llm": {
         "backend": DEFAULT_LLM_BACKEND,
@@ -160,7 +179,11 @@ BENCHMARK_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+        **(
+            {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+            if DEFAULT_VLM_REASONING_EFFORT
+            else {}
+        ),
     },
     "llm": {
         "backend": DEFAULT_LLM_BACKEND,
@@ -352,7 +375,9 @@ def get_predict_config_with_defaults(
         >>> full = get_predict_config_with_defaults(minimal)
         >>> # VLM backend, temperature, etc. auto-filled
     """
-    return apply_defaults(user_config, PREDICT_DEFAULTS)
+    config = apply_defaults(user_config, PREDICT_DEFAULTS)
+    _resolve_vlm_reasoning_defaults(config, user_config)
+    return config
 
 
 def get_benchmark_config_with_defaults(
@@ -366,7 +391,24 @@ def get_benchmark_config_with_defaults(
     Returns:
         Complete configuration with defaults
     """
-    return apply_defaults(user_config, BENCHMARK_DEFAULTS)
+    config = apply_defaults(user_config, BENCHMARK_DEFAULTS)
+    _resolve_vlm_reasoning_defaults(config, user_config)
+    return config
+
+
+def _resolve_vlm_reasoning_defaults(
+    config: dict[str, Any],
+    user_config: dict[str, Any],
+) -> None:
+    """Resolve inherited VLM reasoning against the effective model identity."""
+    vlm = config.get("vlm")
+    if not isinstance(vlm, dict):
+        return
+    user_vlm = user_config.get("vlm")
+    resolve_reasoning_effort_for_model_config(
+        vlm,
+        user_vlm if isinstance(user_vlm, dict) else None,
+    )
 
 
 def get_apply_config_with_defaults(user_config: dict[str, Any]) -> dict[str, Any]:

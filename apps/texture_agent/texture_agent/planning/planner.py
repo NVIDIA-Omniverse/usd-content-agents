@@ -119,10 +119,31 @@ def _candidate_materials(
     material_paths = set(request.explicit_material_paths)
     prim_paths = set(request.explicit_prim_paths)
     selected: list[Any] = []
-    for material in authored:
+    # An explicit semantic path can remain as an unbound source definition while
+    # a generated, effectively bound material carries it as a stable alias. In
+    # that case select the effective material instead of the stale definition.
+    selected_paths: set[str] = set()
+    covered_material_paths: set[str] = set()
+    for material in effective:
         bound_prims, bound_subsets = _effective_members(material)
+        matching_material_paths = material_paths.intersection(
+            _material_alias_paths(material)
+        )
         if (
-            material_paths.intersection(_material_alias_paths(material))
+            matching_material_paths
+            or prim_paths.intersection(bound_prims)
+            or prim_paths.intersection(bound_subsets)
+        ):
+            selected.append(material)
+            selected_paths.add(_material_path(material))
+            covered_material_paths.update(matching_material_paths)
+    for material in authored:
+        if _material_path(material) in selected_paths:
+            continue
+        bound_prims, bound_subsets = _effective_members(material)
+        unmatched_material_paths = material_paths - covered_material_paths
+        if (
+            unmatched_material_paths.intersection(_material_alias_paths(material))
             or prim_paths.intersection(bound_prims)
             or prim_paths.intersection(bound_subsets)
         ):

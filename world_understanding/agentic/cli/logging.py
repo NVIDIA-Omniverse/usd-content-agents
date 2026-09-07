@@ -6,7 +6,9 @@ This module provides a unified logging setup used across all World Understanding
 ensuring consistent log formatting, handlers, and configuration.
 """
 
+import copy
 import logging
+import traceback
 from pathlib import Path
 
 from rich.console import Console
@@ -16,6 +18,77 @@ from world_understanding.utils.credentials import redact_sensitive_path
 from world_understanding.utils.model_auth import ModelAuthenticationLogFilter
 
 _LOG_FILE_OPEN_FAILURE_MESSAGE = "Unable to open log file"
+_CONSOLE_GLYPH_FALLBACKS = str.maketrans(
+    {
+        "✓": "OK",
+        "✗": "X",
+        "⚠": "!",
+        "✨": "*",
+        "○": "-",
+        "⊘": "-",
+        "→": "->",
+        "█": "#",
+        "📁": "[files]",
+        "🎬": "[render]",
+        "\ufe0f": "",
+    }
+)
+
+
+class _ConsoleEncodingFilter(logging.Filter):
+    """Project console records into the active stream's encoding.
+
+    Python 3.12 handler filters may return a replacement record. Keeping the
+    projection handler-local preserves the original Unicode message for file
+    handlers while preventing Rich from dropping a console record with a
+    ``UnicodeEncodeError`` on legacy Windows code pages.
+    """
+
+    def __init__(self, encoding: str | None) -> None:
+        super().__init__()
+        self.encoding = encoding or "utf-8"
+
+    def _project(self, value: str) -> tuple[str, bool]:
+        try:
+            value.encode(self.encoding)
+        except LookupError:
+            target_encoding = "ascii"
+        except UnicodeEncodeError:
+            target_encoding = self.encoding
+        else:
+            return value, False
+
+        translated = value.translate(_CONSOLE_GLYPH_FALLBACKS)
+        projected = translated.encode(
+            target_encoding,
+            errors="backslashreplace",
+        ).decode(target_encoding)
+        return projected, True
+
+    def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
+        message, message_changed = self._project(record.getMessage())
+        exception_text = ""
+        if record.exc_info is not None:
+            exception_text = "".join(traceback.format_exception(*record.exc_info))
+        elif record.exc_text:
+            exception_text = record.exc_text
+        exception_text, exception_changed = self._project(exception_text)
+        stack_text, stack_changed = self._project(record.stack_info or "")
+        if not (message_changed or exception_changed or stack_changed):
+            return True
+
+        console_record = copy.copy(record)
+        rendered = message
+        if exception_text:
+            rendered = f"{rendered}\n{exception_text.rstrip()}"
+        if stack_text:
+            rendered = f"{rendered}\n{stack_text.rstrip()}"
+        console_record.msg = rendered
+        console_record.args = ()
+        console_record.exc_info = None
+        console_record.exc_text = None
+        console_record.stack_info = None
+        return console_record
 
 
 def setup_logging(
@@ -72,6 +145,7 @@ def setup_logging(
     format_str = "%(message)s"
     console_handler.setFormatter(logging.Formatter(format_str))
     console_handler.addFilter(ModelAuthenticationLogFilter())
+    console_handler.addFilter(_ConsoleEncodingFilter(console.encoding))
 
     # Configure main logger for the agent
     logger = logging.getLogger(agent_name)
@@ -107,7 +181,7 @@ def setup_logging(
         file_open_failed = False
         try:
             # Keep the raw path solely for the requested I/O operation.
-            file_handler = logging.FileHandler(log_file)
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
         except Exception:
             file_open_failed = True
             # Do not retain the credential-bearing path in the frame that will

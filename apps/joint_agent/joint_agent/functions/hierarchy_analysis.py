@@ -17,11 +17,24 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
 from pydantic import ValidationError
+from world_understanding.functions.models.vision_language_models import (
+    NonRetryableVLMTimeoutError,
+)
+
+from joint_agent.functions.provider_response_conformance import (
+    ProviderAttemptJournal,
+    ProviderAttemptRecorderError,
+    ProviderAttemptRecording,
+    ProviderRequestKind,
+    build_provider_attempt_diagnostic,
+    evaluate_whole_asset_structure,
+    invoke_provider_attempt_recorder,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +67,18 @@ class _ParsedAnalysisResponse:
     malformed_node_roles: tuple[str, ...]
 
 
+def _record_attempt(
+    callback: Callable[[dict[str, Any]], Any] | None,
+    attempt: dict[str, Any],
+) -> BaseException | None:
+    if callback is None:
+        return None
+    recording = invoke_provider_attempt_recorder(lambda: callback(attempt))
+    if isinstance(recording, ProviderAttemptRecording):
+        return recording.failure_carrier
+    return None
+
+
 def _fibonacci_delay(attempt: int, base_delay: float = DEFAULT_BASE_DELAY) -> float:
     """Fibonacci backoff delay (matches predict step convention)."""
     if attempt <= 1:
@@ -69,6 +94,8 @@ def _call_with_retry(
     *args: Any,
     max_retries: int = DEFAULT_MAX_RETRIES,
     label: str = "LLM call",
+    on_attempt: Callable[[dict[str, Any]], Any] | None = None,
+    request_kind: ProviderRequestKind = "initial",
     **kwargs: Any,
 ) -> str:
     """Call a function with Fibonacci backoff retry on failure.
@@ -78,6 +105,10 @@ def _call_with_retry(
         *args: Positional arguments for fn.
         max_retries: Maximum number of attempts.
         label: Label for log messages.
+        on_attempt: Optional recorder for each transport outcome. Recorder
+            failures abort through ``ProviderAttemptRecorderError``.
+        request_kind: Request class for the first attempt; retries are recorded
+            as ``transport_retry``.
         **kwargs: Keyword arguments for fn.
 
     Returns:
@@ -87,11 +118,24 @@ def _call_with_retry(
 
     Raises:
         The last exception if all retries are exhausted due to errors.
+        ProviderAttemptRecorderError: If recording an attempt fails.
     """
     for attempt in range(max_retries):
         try:
             result = fn(*args, **kwargs)
             if result and result.strip():
+                _record_attempt(
+                    on_attempt,
+                    {
+                        "attempt_number": attempt + 1,
+                        "request_kind": (
+                            "transport_retry" if attempt else request_kind
+                        ),
+                        "outcome": "response_received",
+                        "raw_response": result,
+                        "error": None,
+                    },
+                )
                 if attempt > 0:
                     logger.info(
                         "%s succeeded on attempt %d/%d",
@@ -101,6 +145,16 @@ def _call_with_retry(
                     )
                 return result
             # Empty response — retry
+            _record_attempt(
+                on_attempt,
+                {
+                    "attempt_number": attempt + 1,
+                    "request_kind": ("transport_retry" if attempt else request_kind),
+                    "outcome": "empty_response",
+                    "raw_response": result,
+                    "error": None,
+                },
+            )
             if attempt < max_retries - 1:
                 delay = _fibonacci_delay(attempt)
                 logger.warning(
@@ -114,7 +168,23 @@ def _call_with_retry(
             else:
                 logger.error("Empty %s response after %d attempts", label, max_retries)
                 return ""
+        except ProviderAttemptRecorderError:
+            raise
         except Exception as e:
+            failure_carrier = _record_attempt(
+                on_attempt,
+                {
+                    "attempt_number": attempt + 1,
+                    "request_kind": ("transport_retry" if attempt else request_kind),
+                    "outcome": "transport_error",
+                    "raw_response": None,
+                    "error": e,
+                },
+            )
+            if isinstance(e, NonRetryableVLMTimeoutError):
+                if failure_carrier is not None:
+                    raise failure_carrier from e
+                raise
             if attempt < max_retries - 1:
                 delay = _fibonacci_delay(attempt)
                 logger.warning(
@@ -128,6 +198,8 @@ def _call_with_retry(
                 time.sleep(delay)
             else:
                 logger.error("%s failed after %d attempts: %s", label, max_retries, e)
+                if failure_carrier is not None:
+                    raise failure_carrier from e
                 raise
     return ""
 
@@ -1322,7 +1394,11 @@ Respond with JSON only:
   "dof": N,
   "segment_names": ["base", "shoulder", ...]
 }}
-</answer>"""
+</answer>
+
+If the identified asset is legitimately non-articulated, preserve its identified
+asset taxonomy in robot_type and return exactly dof 0 with an empty segment_names
+list. Do not use a placeholder taxonomy such as "none" or "unknown"."""
 
 
 def infer_segment_names(
@@ -1336,6 +1412,8 @@ def infer_segment_names(
     asset_confidence: Any | None = None,
     use_prompt_library: bool = False,
     robot_id: str | None = None,
+    articulation_intended: bool = False,
+    attempt_journal: ProviderAttemptJournal | None = None,
 ) -> list[str]:
     """Infer segment names from the scene tree and optional preview images.
 
@@ -1352,6 +1430,8 @@ def infer_segment_names(
         vlm_generate_with_images_fn: Optional callable(system_prompt, user_prompt,
             image_paths) -> str. Used when preview images are available.
         preview_images: Optional list of preview image paths from identify_asset.
+        attempt_journal: Optional shared provider-attempt journal. When supplied,
+            every bounded provider response or transport failure is recorded there.
 
     Returns:
         List of segment names ordered from base to end-effector,
@@ -1384,51 +1464,137 @@ def infer_segment_names(
             )
             return list(matched_entry.component_names)
 
-    tree_text, _ = extract_scene_tree(usd_path)
+    tree_text, source_prim_inventory = extract_scene_tree(usd_path)
     user_prompt = build_infer_segments_prompt(tree_text, asset_type, asset_subtype)
 
-    # If we have preview images and a VLM, use vision for identification
-    # This is critical for generic hierarchies (Joint_001, Joint_002...)
-    # where the LLM alone can't determine the robot model
-    if preview_images and vlm_generate_with_images_fn:
-        logger.info(
-            "Using VLM with %d preview images for robot identification",
-            len(preview_images),
-        )
-        response = _call_with_retry(
-            vlm_generate_with_images_fn,
-            INFER_SEGMENTS_SYSTEM_PROMPT,
-            user_prompt,
-            preview_images,
-            label="segment inference (VLM)",
-        )
-    else:
-        response = _call_with_retry(
-            llm_generate_fn,
-            INFER_SEGMENTS_SYSTEM_PROMPT,
-            user_prompt,
-            label="segment inference (LLM)",
-        )
+    journal = attempt_journal or ProviderAttemptJournal()
 
-    logger.info("Segment inference response (%d chars)", len(response))
+    for contract_attempt in range(2 if articulation_intended else 1):
+        request_kind: ProviderRequestKind = (
+            "initial" if contract_attempt == 0 else "contract_correction"
+        )
+        attempt_prompt = user_prompt
+        if contract_attempt:
+            attempt_prompt += (
+                "\n\nThe prior response failed the whole-asset contract. Return only "
+                "one complete <answer> JSON object with robot_type, non-negative "
+                "integer dof, and segment_names for this same identified asset. "
+                "Do not substitute an unrelated taxonomy."
+            )
 
-    # Parse
-    answer_match = re.search(r"<answer>(.*?)</answer>", response, re.DOTALL)
-    json_str = answer_match.group(1).strip() if answer_match else response
-    json_match = re.search(r"\{[\s\S]*\}", json_str)
-    if json_match:
-        try:
-            data = json.loads(json_match.group())
-            names = data.get("segment_names", []) if isinstance(data, dict) else []
-            if (
-                isinstance(names, list)
-                and len(names) >= 2
-                and all(isinstance(name, str) for name in names)
-            ):
+        # If we have preview images and a VLM, use vision for identification.
+        if preview_images and vlm_generate_with_images_fn:
+            logger.info(
+                "Using VLM with %d preview images for robot identification",
+                len(preview_images),
+            )
+            response = _call_with_retry(
+                vlm_generate_with_images_fn,
+                INFER_SEGMENTS_SYSTEM_PROMPT,
+                attempt_prompt,
+                preview_images,
+                label="segment inference (VLM)",
+                on_attempt=lambda attempt: journal.record_transport_attempt(
+                    attempt,
+                    entry_id="segment_inference",
+                ),
+                request_kind=request_kind,
+            )
+        else:
+            response = _call_with_retry(
+                llm_generate_fn,
+                INFER_SEGMENTS_SYSTEM_PROMPT,
+                attempt_prompt,
+                label="segment inference (LLM)",
+                on_attempt=lambda attempt: journal.record_transport_attempt(
+                    attempt,
+                    entry_id="segment_inference",
+                ),
+                request_kind=request_kind,
+            )
+
+        logger.info("Segment inference response (%d chars)", len(response))
+        evaluation = evaluate_whole_asset_structure(
+            response,
+            asset_type=asset_type,
+            asset_subtype=asset_subtype,
+            articulation_intended=articulation_intended,
+            source_prim_inventory=tuple(source_prim_inventory),
+        )
+        names = list(evaluation.segment_names)
+        optional_source_present = bool(
+            evaluation.robot_type is not None
+            or evaluation.dof is not None
+            or evaluation.segment_names
+        )
+        non_articulated = bool(
+            articulation_intended
+            and evaluation.accepted
+            and evaluation.dof == 0
+            and not names
+        )
+        accepted = evaluation.accepted and (
+            len(names) >= 2 or non_articulated
+            if articulation_intended
+            else optional_source_present
+        )
+        names_resolved = len(names) >= 2
+        journal_evaluation = evaluation
+        if articulation_intended and evaluation.accepted and not accepted:
+            journal_evaluation = replace(
+                evaluation,
+                accepted=False,
+                reason_codes=("zero_whole_asset_assignments",),
+            )
+        elif not articulation_intended and not accepted:
+            journal_evaluation = replace(
+                evaluation,
+                accepted=False,
+                reason_codes=("missing_whole_asset_source_contract",),
+            )
+        normalized_diagnostics: dict[str, Any]
+        if not accepted:
+            normalized_diagnostics = {
+                "reason_codes": list(journal_evaluation.reason_codes)
+            }
+        elif non_articulated:
+            normalized_diagnostics = {
+                "structure_outcome": "not_articulated",
+                "dof": 0,
+                "segment_name_count": 0,
+                "source_prim_count": len(evaluation.source_prim_inventory),
+            }
+        elif names_resolved:
+            normalized_diagnostics = {}
+        else:
+            normalized_diagnostics = {
+                "names_resolved": False,
+                "segment_name_count": len(names),
+            }
+        journal.record(
+            build_provider_attempt_diagnostic(
+                request_kind=request_kind,
+                outcome="accepted" if accepted else "contract_rejected",
+                attempt_number=contract_attempt + 1,
+                normalized_diagnostics=normalized_diagnostics,
+            ),
+            entry_id="segment_inference",
+        )
+        if articulation_intended:
+            journal.set_whole_asset_structure(journal_evaluation)
+        if accepted and (names_resolved or non_articulated):
+            if non_articulated:
+                logger.info(
+                    "Whole-asset analysis accepted a non-articulated zero-DOF result"
+                )
+            else:
                 logger.info("Inferred %d segments: %s", len(names), ", ".join(names))
-                return names
-        except json.JSONDecodeError:
-            pass
+            return names
+        if articulation_intended and contract_attempt == 0:
+            logger.warning(
+                "Whole-asset structure failed contract validation; retrying once "
+                "with a corrective request"
+            )
 
     logger.warning(
         "Failed to infer segment names; no hardcoded default taxonomy is used"
@@ -1643,6 +1809,8 @@ def analyze_hierarchy(
     asset_confidence: Any | None = None,
     use_prompt_library: bool = False,
     robot_id: str | None = None,
+    articulation_intended: bool = False,
+    attempt_journal: ProviderAttemptJournal | None = None,
 ) -> tuple[dict[str, str], dict[str, Any]]:
     """Analyze a USD file's hierarchy and produce segment assignments.
 
@@ -1658,6 +1826,8 @@ def analyze_hierarchy(
         asset_type: Optional asset type from identify_asset step.
         asset_subtype: Optional asset subtype.
         asset_confidence: Optional confidence from identify_asset step.
+        attempt_journal: Optional shared provider-attempt journal. When supplied,
+            segment inference and hierarchy analysis append to the same evidence.
 
     Returns:
         (assignments, metadata) where assignments maps prim_path -> segment_name
@@ -1692,11 +1862,20 @@ def analyze_hierarchy(
     )
     trusted_prompt_library = bool(matched_entry)
     prompt_library_active = False
+    journal_is_caller_owned = attempt_journal is not None
+    journal = attempt_journal or ProviderAttemptJournal()
 
     def _with_common_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         metadata.setdefault("heuristic_paths_used", [])
         metadata["prompt_library_used"] = prompt_library_active
         metadata.update(prompt_library_metadata)
+        if not journal_is_caller_owned:
+            journal_snapshot = journal.snapshot().to_dict()
+            if (
+                journal_snapshot["attempts"]
+                or "whole_asset_structure" in journal_snapshot
+            ):
+                metadata["provider_response_conformance"] = journal_snapshot
         return metadata
 
     # Infer segment names if not provided
@@ -1722,9 +1901,31 @@ def analyze_hierarchy(
                 asset_confidence=asset_confidence,
                 use_prompt_library=False,
                 robot_id=None,
+                articulation_intended=articulation_intended,
+                attempt_journal=journal,
             )
         segments_inferred = True
         if not segment_names:
+            structure_evaluation = journal.snapshot().whole_asset_structure
+            if (
+                structure_evaluation is not None
+                and structure_evaluation.accepted
+                and structure_evaluation.dof == 0
+                and not structure_evaluation.segment_names
+            ):
+                logger.info(
+                    "Structure analysis completed with no articulation candidates"
+                )
+                return {}, _with_common_metadata(
+                    {
+                        "strategy": "none",
+                        "reason": "provider_reported_zero_dof",
+                        "structure_outcome": "not_articulated",
+                        "segments_inferred": segments_inferred,
+                        "num_meshes": len(mesh_paths),
+                        "num_assigned": 0,
+                    }
+                )
             logger.info("Segment names unresolved; hierarchy analysis is disabled")
             return {}, _with_common_metadata(
                 {
@@ -1762,6 +1963,10 @@ def analyze_hierarchy(
         system_prompt,
         user_prompt,
         label="hierarchy analysis (LLM)",
+        on_attempt=lambda attempt: journal.record_transport_attempt(
+            attempt,
+            entry_id="hierarchy_analysis",
+        ),
     )
     logger.info("LLM response received (%d chars)", len(response))
 

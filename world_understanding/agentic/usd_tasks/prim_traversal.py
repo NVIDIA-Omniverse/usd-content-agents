@@ -23,6 +23,7 @@ from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.functions.graphics.rendering import (
     RemoteRenderingBackend,
+    RenderingConfig,
     format_direction_for_filename,
     prepare_prims_with_composition,
     prepare_render_prims,
@@ -36,6 +37,10 @@ from world_understanding.utils.nvcf_utils import (
     resolve_endpoint_or_function_id,
 )
 from world_understanding.utils.object_store import ObjectStore
+from world_understanding.utils.render_failure_diagnostics import (
+    PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY,
+    create_blank_render_failure_diagnostic,
+)
 from world_understanding.utils.s3_utils import delete_s3_path
 from world_understanding.utils.usd.stage import (
     MAX_FILENAME_STEM_LEN,
@@ -1164,6 +1169,11 @@ class USDPrimTraversalAndRenderingTask(Task):
         # Convert prim_data_dict back to list for context
         prim_data = list(prim_data_dict.values())
 
+        # Validate the FULL render set the dataset will consume: pre-existing
+        # renders recorded for skip_existing/resume prims plus freshly rendered
+        # ones. This must run even when zero prims were freshly rendered
+        # ("Rendering 0 prims in 0 batches"), so a resumed session cannot
+        # bypass the blank-render guard that a fresh run would trip.
         self._check_blank_dataset_renders(
             prim_data,
             output_dir,
@@ -1233,7 +1243,15 @@ class USDPrimTraversalAndRenderingTask(Task):
         listener,
         context: dict[str, Any],
     ) -> None:
-        """Fail when too many material-dataset renders are blank."""
+        """Fail when too many material-dataset renders are blank.
+
+        The candidate set covers every render the dataset will consume:
+        pre-existing files recorded for ``skip_existing``/resume prims are
+        validated exactly like freshly rendered ones, and pre-existing
+        (``skipped``) entries are always re-analyzed from disk so the verdict
+        cannot depend on metadata inherited from a previous session. The check
+        also runs when zero prims were freshly rendered.
+        """
         candidates = self._dataset_render_candidates(
             prim_data,
             output_dir,
@@ -1282,7 +1300,15 @@ class USDPrimTraversalAndRenderingTask(Task):
         blank_renders: list[dict[str, Any]] = []
         for candidate in candidates:
             renderer_stats = candidate.get("stats")
-            if candidate.get("blank_render") and isinstance(renderer_stats, dict):
+            # Renderer-produced blank stats are only trusted for renders made
+            # by this invocation. Pre-existing (skipped) renders are always
+            # re-analyzed from disk so resumed sessions get the same verdict a
+            # fresh run would produce.
+            if (
+                not candidate.get("skipped")
+                and candidate.get("blank_render")
+                and isinstance(renderer_stats, dict)
+            ):
                 if renderer_stats.get("blank", True):
                     blank_renders.append(
                         {
@@ -1346,6 +1372,25 @@ class USDPrimTraversalAndRenderingTask(Task):
             context.get("fail_on_blank_dataset_renders"), True
         )
         if ratio > threshold and fail_on_blank_renders:
+            context[PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY] = (
+                create_blank_render_failure_diagnostic(
+                    blank_renders=blank_renders,
+                    output_dir=output_dir,
+                    rendering_backend=context.get("rendering_backend"),
+                    checked_count=checked_count,
+                    blank_count=blank_count,
+                    threshold=threshold,
+                    render_modes=[
+                        blank_render.get("render_mode")
+                        for blank_render in blank_renders
+                    ],
+                    render_mode_base_map=(
+                        context["rendering_config"].per_mode_base_mode
+                        if isinstance(context.get("rendering_config"), RenderingConfig)
+                        else None
+                    ),
+                )
+            )
             raise RuntimeError(message)
 
         listener.warning(message)
@@ -1504,7 +1549,13 @@ class USDPrimTraversalAndRenderingTask(Task):
         rgb_modes: list[str],
         sensor_modes: list[str],
     ) -> list[dict[str, Any]]:
-        """Return composition renders when present, otherwise all RGB renders."""
+        """Return composition renders when present, otherwise all RGB renders.
+
+        Includes pre-existing renders recorded for ``skip_existing``/resume
+        prims (marked ``skipped``) alongside freshly rendered ones, so the
+        blank-render guard always validates the full render set the dataset
+        will consume.
+        """
         rgb_mode_set = set(rgb_modes)
         sensor_mode_set = set(sensor_modes)
         candidates: list[dict[str, Any]] = []
@@ -1533,6 +1584,8 @@ class USDPrimTraversalAndRenderingTask(Task):
                     "view": image_info.get("view"),
                     "camera": image_info.get("camera"),
                 }
+                if image_info.get("skipped"):
+                    candidate["skipped"] = True
                 if image_info.get("blank_render"):
                     candidate["blank_render"] = True
                 if isinstance(image_info.get("stats"), dict):
@@ -2272,6 +2325,11 @@ class USDPrimTraversalAndRenderingTask(Task):
         # Post-processing
         prim_data = list(prim_data_dict.values())
 
+        # Validate the FULL render set the dataset will consume: pre-existing
+        # renders recorded for skip_existing/resume prims plus freshly rendered
+        # ones. This must run even when zero prims were freshly rendered, so a
+        # resumed session cannot bypass the blank-render guard that a fresh run
+        # would trip.
         self._check_blank_dataset_renders(
             prim_data,
             output_dir,
@@ -2962,7 +3020,10 @@ class USDPrimTraversalAndRenderingTask(Task):
                     sensors_data = camera_result["sensors"]
                     for sensor_name, frame_data in sensors_data.items():
                         for frame_num, sensor_array in frame_data.items():
-                            frame_idx = int(frame_num) - batch_start
+                            numeric_frame = float(frame_num)
+                            if not numeric_frame.is_integer():
+                                continue
+                            frame_idx = int(numeric_frame) - batch_start
                             if frame_idx < 0 or frame_idx >= len(batch_prims):
                                 continue
 
@@ -3564,7 +3625,10 @@ class USDPrimTraversalAndRenderingTask(Task):
 
                     for sensor_name, frame_data in sensors_data.items():
                         for frame_num, sensor_array in frame_data.items():
-                            frame_idx = int(frame_num) - batch_start
+                            numeric_frame = float(frame_num)
+                            if not numeric_frame.is_integer():
+                                continue
+                            frame_idx = int(numeric_frame) - batch_start
                             if frame_idx < 0 or frame_idx >= len(batch_prims):
                                 continue
 

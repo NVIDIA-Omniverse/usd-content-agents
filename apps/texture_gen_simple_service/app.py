@@ -44,6 +44,9 @@ from apps.texture_gen_service_common import (
     append_bounded_instruction,
     create_app,
 )
+from apps.texture_gen_service_common.weathering_intent import (
+    prompt_requests_weathering,
+)
 
 __all__ = [
     "BackendCapabilities",
@@ -304,6 +307,7 @@ class SimpleImageGenerationBackend(TextureGenerationBackend):
             orm=True,
             masks=False,
             coverage=False,
+            weathering=False,
             geometry_output="none",
         )
 
@@ -370,6 +374,10 @@ class SimpleImageGenerationBackend(TextureGenerationBackend):
             unsupported_fields.append("turntable_video_uri")
         if request.conditioning.multiview_image_uris:
             unsupported_fields.append("multiview_image_uris")
+        if request.configuration.weathering is not None or prompt_requests_weathering(
+            request.conditioning.text_prompt
+        ):
+            unsupported_fields.append("weathering")
         if not unsupported_fields:
             return
 
@@ -386,8 +394,13 @@ class SimpleImageGenerationBackend(TextureGenerationBackend):
             ),
             "material_name": (request.target.material_name if request.target else None),
             "message": (
-                "simple_image_gen is a text-only backend and cannot use the "
-                "requested reference, turntable, or multiview conditioning."
+                "simple_image_gen cannot enforce prompt-requested weathering "
+                "masks or material-specific PBR correlation."
+                if "weathering" in unsupported_fields
+                else (
+                    "simple_image_gen is a text-only backend and cannot use the "
+                    "requested reference, turntable, or multiview conditioning."
+                )
             ),
             "recommended_action": (
                 "Remove the unsupported conditioning fields or select a backend "

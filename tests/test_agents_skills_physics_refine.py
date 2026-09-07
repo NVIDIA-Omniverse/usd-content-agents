@@ -7,11 +7,11 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
+SKILLS_DIR = REPO_ROOT / ".agents" / "skills" / "fixed-pipeline" / "references"
 
 
 def _read_skill(name: str) -> str:
-    return (SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+    return (SKILLS_DIR / name / "reference.md").read_text(encoding="utf-8")
 
 
 def _assert_contains(text: str, snippet: str, *, source: str) -> None:
@@ -71,10 +71,10 @@ def test_deploy_skills_document_provider_neutral_refine_runtime() -> None:
 
 def test_public_physics_refine_docs_do_not_claim_internal_only_backends() -> None:
     paths = (
-        SKILLS_DIR / "deploy-physics-agent-docker" / "SKILL.md",
-        SKILLS_DIR / "deploy-physics-agent-brev" / "SKILL.md",
+        SKILLS_DIR / "deploy-physics-agent-docker" / "reference.md",
+        SKILLS_DIR / "deploy-physics-agent-brev" / "reference.md",
         SKILLS_DIR / "deploy-physics-agent-brev" / "agents" / "openai.yaml",
-        SKILLS_DIR / "physics-agent-client" / "SKILL.md",
+        SKILLS_DIR / "physics-agent-client" / "reference.md",
         SKILLS_DIR / "physics-agent-client" / "agents" / "openai.yaml",
         REPO_ROOT / "apps" / "physics_agent_service" / "client" / "README.md",
         REPO_ROOT / "apps" / "physics_agent_service" / "docs" / "api.md",
@@ -107,7 +107,7 @@ def test_physics_cli_metadata_is_refine_discoverable() -> None:
     _assert_contains(
         skill_text,
         "refine-loop workflows",
-        source="physics-agent-cli/SKILL.md",
+        source="physics-agent-cli/reference.md",
     )
     _assert_contains(
         agent_text,

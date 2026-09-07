@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Texture Agent CLI"
+  short_description: "Fixed pipeline: Run the Texture Agent CLI"
+  default_prompt: "Use $fixed-pipeline to run the Texture Agent CLI for AI-driven texture generation on USD materials."

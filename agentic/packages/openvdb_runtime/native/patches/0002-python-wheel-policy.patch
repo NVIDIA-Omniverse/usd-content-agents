@@ -1,0 +1,88 @@
+diff --git a/pyproject.toml b/pyproject.toml
+index b42bcd5..f184a76 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,22 +1,30 @@
+ [build-system]
+-requires = ["scikit_build_core", "nanobind"]
++requires = [
++    "scikit-build-core==0.11.6",
++    "nanobind==2.13.0",
++]
+ build-backend = "scikit_build_core.build"
+
+ [project]
+ name = "openvdb"
+-version = "12.0.1"
+-description= "Python bindings for OpenVDB: sparse volume data structure and tools."
++version = "13.0.0+wu.3"
++description = "Pinned OpenVDB 13 Python bindings for World Understanding."
+ dependencies = [
+-    "numpy",
+ ]
+ authors = [
+   { name = "OpenVDB Developer Team", email = "openvdb-dev@lists.aswf.io" },
+ ]
+-requires-python = ">=3.10"
++license = "Apache-2.0"
++license-files = [
++    "LICENSE",
++    "LICENSES/*",
++    "NATIVE_DEPENDENCY_PROVENANCE.json",
++    "SOURCE_PROVENANCE.md",
++    "THIRD_PARTY_NOTICES.md",
++]
++requires-python = ">=3.12,<3.13"
+ classifiers = [
+-  "License :: OSI Approved :: Apache Software License",
+-  "Programming Language :: Python :: 3.10",
+-  "Programming Language :: Python :: 3.11",
++  "Programming Language :: Python :: 3.12",
+ ]
+
+ [project.urls]
+@@ -31,14 +40,34 @@ wheel.packages = []
+
+ [tool.scikit-build.cmake.define]
+ OPENVDB_CORE_STATIC="OFF"
+-USE_EXPLICIT_INSTANTIATION="OFF"
+-DISABLE_DEPENDENCY_VERSION_CHECKS="ON"
+-OPENVDB_USE_DELAYED_LOADING="OFF"
++OPENVDB_CORE_SHARED="ON"
++OPENVDB_BUILD_BINARIES="OFF"
++OPENVDB_BUILD_UNITTESTS="OFF"
++OPENVDB_BUILD_DOCS="OFF"
++OPENVDB_BUILD_AX="OFF"
++OPENVDB_BUILD_NANOVDB="OFF"
++OPENVDB_INSTALL_CMAKE_MODULES="OFF"
++OPENVDB_ENABLE_UNINSTALL="OFF"
+ OPENVDB_BUILD_PYTHON_MODULE="ON"
+-USE_NUMPY="ON"
+-
+-USE_NANOVDB="ON"
+-NANOVDB_USE_CUDA="ON"
+-NANOVDB_BUILD_PYTHON_MODULE="ON"
+-NANOVDB_USE_OPENVDB="ON"
+-
++OPENVDB_PYTHON_USE_AX="OFF"
++OPENVDB_PYTHON_WRAP_ALL_GRID_TYPES="OFF"
++OPENVDB_BUILD_PYTHON_UNITTESTS="OFF"
++OPENVDB_USE_DELAYED_LOADING="OFF"
++OPENVDB_ENABLE_RPATH="ON"
++CMAKE_BUILD_RPATH_USE_ORIGIN="ON"
++OPENVDB_FUTURE_DEPRECATION="OFF"
++USE_AX="OFF"
++USE_NANOVDB="OFF"
++USE_BLOSC="ON"
++USE_ZLIB="ON"
++USE_PKGCONFIG="OFF"
++DISABLE_CMAKE_SEARCH_PATHS="ON"
++BLOSC_USE_STATIC_LIBS="ON"
++ZLIB_USE_STATIC_LIBS="ON"
++USE_EXR="OFF"
++USE_IMATH_HALF="OFF"
++USE_LOG4CPLUS="OFF"
++USE_PNG="OFF"
++USE_EXPLICIT_INSTANTIATION="OFF"
++DISABLE_DEPENDENCY_VERSION_CHECKS="OFF"
++USE_CCACHE="OFF"

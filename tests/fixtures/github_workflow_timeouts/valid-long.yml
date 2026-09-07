@@ -1,0 +1,13 @@
+name: valid long workflow
+on: push
+jobs:
+  cold-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Install tools
+        timeout-minutes: 10
+        run: echo install
+      - name: Cold native build
+        timeout-minutes: 210
+        run: echo build

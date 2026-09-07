@@ -21,6 +21,14 @@ from ...service.session.manager import SessionManager
 from ...service.storage import LocalSessionStore
 from ...service.workers import executor
 
+# Ceiling for every wait in this file that only bounds a hang. Generous on
+# purpose: reaching a step, the artifact-sync commit, or the final drain goes
+# through session setup, the event bus, and a thread pool, which routinely
+# exceeds one second under coverage tracing and parallel workers on a shared
+# CI runner. None of these waits asserts speed — the cancellation, heartbeat,
+# and drain semantics are asserted separately once the wait completes.
+_HANG_GUARD_SECONDS = 30
+
 
 class _StubSessionManager:
     """Minimal session_manager stub for execute_pipeline_async."""
@@ -62,7 +70,9 @@ class BlockingTask:
 
     def run(self, context: dict[str, Any]) -> dict[str, Any]:
         self.started.set()
-        if not self.release.wait(timeout=5):
+        # Harness failsafe so a broken test cannot hang the worker thread;
+        # the test body controls the actual release timing.
+        if not self.release.wait(timeout=_HANG_GUARD_SECONDS):
             raise TimeoutError("blocking test task was not released")
         self.finished.set()
         return context
@@ -81,7 +91,9 @@ class FailingAfterCancelTask:
 
     def run(self, context: dict[str, Any]) -> dict[str, Any]:
         self.started.set()
-        if not self.release.wait(timeout=5):
+        # Harness failsafe so a broken test cannot hang the worker thread;
+        # the test body controls the actual release timing.
+        if not self.release.wait(timeout=_HANG_GUARD_SECONDS):
             raise TimeoutError("failing test task was not released")
         raise RuntimeError("step crashed during cancellation drain")
 
@@ -191,7 +203,9 @@ async def test_outer_wrapper_marks_startup_before_inner_setup(
 
 
 async def test_outer_wrapper_does_not_persist_cancelled_on_normal_exception(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Sanity check: non-cancellation errors still hit the failed branch.
 
@@ -208,8 +222,10 @@ async def test_outer_wrapper_does_not_persist_cancelled_on_normal_exception(
     bus_module._event_bus = None
     bus = bus_module.init_event_bus(manager)
 
+    error_text = "kaboom\nforged-log-line"
+
     async def _raises_runtime(*args: Any, **kwargs: Any) -> None:
-        raise RuntimeError("kaboom")
+        raise RuntimeError(error_text)
 
     monkeypatch.setattr(executor, "_execute_pipeline_inner", _raises_runtime)
 
@@ -220,6 +236,15 @@ async def test_outer_wrapper_does_not_persist_cancelled_on_normal_exception(
             session_manager=manager,
         )
 
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == executor.__name__
+    ]
+    assert "code=pipeline_unhandled_failure" in messages
+    assert all("kaboom" not in message for message in messages)
+    assert all("\n" not in message and "\r" not in message for message in messages)
+
     assert any(u.get("status") == "failed" for u in manager.updates)
     assert all(u.get("status") != "cancelled" for u in manager.updates)
 
@@ -228,7 +253,34 @@ async def test_outer_wrapper_does_not_persist_cancelled_on_normal_exception(
     snapshot = bus.get_snapshot(session_id)
     assert snapshot is not None
     assert snapshot["status"] == "failed"
-    assert snapshot.get("error") == "kaboom"
+    assert snapshot.get("error") == error_text
+
+
+async def test_cancel_drain_exception_cannot_forge_log_lines(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A completed worker failure is logged without its raw traceback."""
+    step_future = asyncio.get_running_loop().create_future()
+    error_text = "drain failed\nforged-log-line"
+    step_future.set_exception(RuntimeError(error_text))
+
+    with pytest.raises(RuntimeError, match="drain failed"):
+        await executor._drain_cancelled_step(
+            session_id="drain-session",
+            step_name="GenerateTextures",
+            step_future=step_future,
+            session_manager=_StubSessionManager(tmp_path),
+        )
+
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == executor.__name__
+    ]
+    assert "code=cancelled_step_drain_failed" in messages
+    assert all(error_text not in message for message in messages)
+    assert all("\n" not in message and "\r" not in message for message in messages)
 
 
 async def test_inner_cancellation_waits_for_threaded_step_to_stop(
@@ -266,7 +318,7 @@ async def test_inner_cancellation_waits_for_threaded_step_to_stop(
         )
     )
 
-    assert await asyncio.to_thread(started.wait, 1)
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
 
     pipeline_task.cancel()
     await asyncio.sleep(0.05)
@@ -276,9 +328,319 @@ async def test_inner_cancellation_waits_for_threaded_step_to_stop(
 
     release.set()
     with pytest.raises(asyncio.CancelledError):
-        await asyncio.wait_for(pipeline_task, timeout=1)
+        await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
 
     assert finished.is_set() is True
+
+
+async def test_post_step_threaded_call_drains_before_cancellation_returns(
+    tmp_path: Path,
+) -> None:
+    """Reconstruction and packaging calls keep the worker lock while draining."""
+    session_id = "post-step-threaded-cancel"
+    manager = _StubSessionManager(tmp_path)
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+
+    def _blocking_call() -> str:
+        started.set()
+        # Harness failsafe so a broken test cannot hang the worker thread;
+        # the test body controls the actual release timing.
+        if not release.wait(timeout=_HANG_GUARD_SECONDS):
+            raise TimeoutError("blocking post-step call was not released")
+        finished.set()
+        return "done"
+
+    call_task = asyncio.create_task(
+        executor._run_threaded_call_with_cancel_drain(
+            _blocking_call,
+            session_id=session_id,
+            step_name="package_layered_usdz",
+            session_manager=manager,
+        )
+    )
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
+
+    call_task.cancel()
+    await asyncio.sleep(0.05)
+    assert call_task.done() is False
+    assert finished.is_set() is False
+
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(call_task, timeout=_HANG_GUARD_SECONDS)
+    assert finished.is_set() is True
+
+
+async def test_late_packaging_cancellation_drain_error_is_not_swallowed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Late single-layer packaging must propagate an unsafe drain timeout."""
+    session_id = "late-package-drain-timeout"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = _StubSessionManager(session_dir)
+    bus_module._event_bus = None
+    bus = bus_module.init_event_bus(manager)
+    output_usd = session_dir / "cache" / "output" / "textured_output.usda"
+    output_usd.parent.mkdir(parents=True, exist_ok=True)
+    output_usd.write_text("#usda 1.0\n", encoding="utf-8")
+
+    class ApplyTexturesTask:
+        name = "ApplyTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            context["output_usd_paths"] = [str(output_usd)]
+            return context
+
+    context: dict[str, Any] = {}
+    monkeypatch.setattr(
+        executor,
+        "_prepare_config_and_context",
+        lambda config_dict, session_dir: (config_dict, context),
+    )
+
+    async def _threaded_call(
+        function: Any,
+        *args: Any,
+        session_id: str,
+        step_name: str,
+        session_manager: Any,
+    ) -> Any:
+        del function, args, session_id, session_manager
+        if step_name == "prepare_source_usdz_stage":
+            return output_usd
+        raise executor._CancellationDrainError("unsafe package thread is still active")
+
+    monkeypatch.setattr(
+        executor,
+        "_run_threaded_call_with_cancel_drain",
+        _threaded_call,
+    )
+
+    with pytest.raises(
+        executor._CancellationDrainError,
+        match="unsafe package thread is still active",
+    ):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={},
+            session_manager=manager,
+            event_bus=bus,
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=lambda context, skip=None, only=None: [
+                ApplyTexturesTask()
+            ],
+        )
+
+
+async def test_downstream_render_failure_syncs_existing_layered_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A render failure must not strand the USDZ created after apply."""
+
+    class RecordingSyncManager(SessionManager):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            self.sync_prefixes: list[str] = []
+
+        def sync_to_store(self, session_id: str, prefix: str = "") -> int:
+            self.sync_prefixes.append(prefix)
+            return 1
+
+    class ApplyTexturesTask:
+        name = "ApplyTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            context["output_usd_paths"] = [str(output_usd)]
+            return context
+
+    class RenderOutputTask:
+        name = "RenderOutput"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            assert manager.sync_prefixes.count("cache/output/") == 1
+            raise RuntimeError("render failed after package")
+
+    session_id = "render-failure-after-package"
+    manager = RecordingSyncManager(
+        storage_path=tmp_path / "sessions",
+        ttl_hours=24,
+    )
+    session_dir = manager.create_session(session_id, config={})
+    output_usd = session_dir / "cache" / "output" / "textured_output.usda"
+    output_usdz = output_usd.with_suffix(".usdz")
+    output_usd.parent.mkdir(parents=True, exist_ok=True)
+    output_usd.write_text("#usda 1.0\n", encoding="utf-8")
+    output_usdz.write_bytes(b"already packaged")
+    context: dict[str, Any] = {"working_dir": str(session_dir / "cache")}
+
+    bus_module._event_bus = None
+    bus = bus_module.init_event_bus(manager)
+    monkeypatch.setattr(
+        executor,
+        "_prepare_config_and_context",
+        lambda config_dict, session_dir: (config_dict, context),
+    )
+    monkeypatch.setattr(executor, "_extract_step_stats", lambda step, context: {})
+    monkeypatch.setattr(
+        executor,
+        "_get_step_validation_error",
+        lambda step, stats, planned, context: None,
+    )
+
+    async def _threaded_call(
+        function: Any,
+        *args: Any,
+        session_id: str,
+        step_name: str,
+        session_manager: Any,
+    ) -> Any:
+        del function, args, session_id, session_manager
+        if step_name == "prepare_source_usdz_stage":
+            context["render_output_usd_paths"] = [str(output_usd)]
+            return output_usd
+        if step_name == "package_layered_usdz":
+            return str(output_usdz)
+        raise AssertionError(step_name)
+
+    monkeypatch.setattr(
+        executor,
+        "_run_threaded_call_with_cancel_drain",
+        _threaded_call,
+    )
+
+    def _write_manifest(context: dict[str, Any], **kwargs: Any) -> str:
+        manifest_path = Path(context["working_dir"]) / "artifacts_manifest.json"
+        manifest_path.write_text("{}", encoding="utf-8")
+        context["artifacts_manifest_path"] = str(manifest_path)
+        return str(manifest_path)
+
+    monkeypatch.setattr(executor, "_write_service_artifact_manifest", _write_manifest)
+
+    with pytest.raises(RuntimeError, match="render failed after package"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={},
+            session_manager=manager,
+            event_bus=bus,
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=lambda context, skip=None, only=None: [
+                ApplyTexturesTask(),
+                RenderOutputTask(),
+            ],
+        )
+
+    assert "cache/textures/" in manager.sync_prefixes
+    assert "cache/output/" in manager.sync_prefixes
+    assert "cache/artifacts_manifest.json" in manager.sync_prefixes
+
+
+async def test_cancellation_during_layered_package_checkpoint_drains_sync(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cancellation cannot strand a completed USDZ before its durable sync."""
+
+    started = threading.Event()
+    release = threading.Event()
+    synced = threading.Event()
+
+    class BlockingSyncManager(SessionManager):
+        def sync_to_store(self, session_id: str, prefix: str = "") -> int:
+            if prefix == "cache/output/":
+                started.set()
+                # Harness failsafe so a broken test cannot hang the worker
+                # thread; the test body controls the actual release timing.
+                if not release.wait(timeout=_HANG_GUARD_SECONDS):
+                    raise TimeoutError("checkpoint sync was not released")
+                synced.set()
+            return 1
+
+    class ApplyTexturesTask:
+        name = "ApplyTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            context["output_usd_paths"] = [str(output_usd)]
+            return context
+
+    session_id = "cancel-layered-package-checkpoint"
+    manager = BlockingSyncManager(
+        storage_path=tmp_path / "sessions",
+        ttl_hours=24,
+    )
+    session_dir = manager.create_session(session_id, config={})
+    output_usd = session_dir / "cache" / "output" / "textured_output.usda"
+    output_usdz = output_usd.with_suffix(".usdz")
+    output_usd.parent.mkdir(parents=True, exist_ok=True)
+    output_usd.write_text("#usda 1.0\n", encoding="utf-8")
+    output_usdz.write_bytes(b"completed package")
+    context: dict[str, Any] = {"working_dir": str(session_dir / "cache")}
+
+    bus_module._event_bus = None
+    bus = bus_module.init_event_bus(manager)
+    monkeypatch.setattr(
+        executor,
+        "_prepare_config_and_context",
+        lambda config_dict, session_dir: (config_dict, context),
+    )
+    monkeypatch.setattr(executor, "_extract_step_stats", lambda step, context: {})
+    monkeypatch.setattr(
+        executor,
+        "_get_step_validation_error",
+        lambda step, stats, planned, context: None,
+    )
+
+    async def _threaded_call(
+        function: Any,
+        *args: Any,
+        session_id: str,
+        step_name: str,
+        session_manager: Any,
+    ) -> Any:
+        del function, args, session_id, session_manager
+        if step_name == "prepare_source_usdz_stage":
+            context["render_output_usd_paths"] = [str(output_usd)]
+            return output_usd
+        if step_name == "package_layered_usdz":
+            return str(output_usdz)
+        raise AssertionError(step_name)
+
+    monkeypatch.setattr(
+        executor,
+        "_run_threaded_call_with_cancel_drain",
+        _threaded_call,
+    )
+    pipeline_task = asyncio.create_task(
+        executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={},
+            session_manager=manager,
+            event_bus=bus,
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=lambda context, skip=None, only=None: [
+                ApplyTexturesTask()
+            ],
+        )
+    )
+
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
+    pipeline_task.cancel()
+    await asyncio.sleep(0)
+    assert not pipeline_task.done()
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
+    assert synced.is_set()
 
 
 async def test_inner_progress_callback_tolerates_minimal_session_manager(
@@ -494,14 +856,14 @@ async def test_cancel_during_artifact_finalization_drains_durable_commit(
         )
     )
 
-    await asyncio.wait_for(started.wait(), timeout=1)
+    await asyncio.wait_for(started.wait(), timeout=_HANG_GUARD_SECONDS)
     pipeline_task.cancel()
     await asyncio.sleep(0)
     assert await asyncio.to_thread(manager.is_worker_active, session_id) is True
 
     release.set()
     with pytest.raises(asyncio.CancelledError):
-        await asyncio.wait_for(pipeline_task, timeout=1)
+        await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
 
     assert committed is True
     assert manager.get_session_metadata(session_id)["status"] == "cancelled"
@@ -561,16 +923,19 @@ async def test_execute_pipeline_heartbeats_shared_reservation_without_events(
         )
     )
 
-    assert await asyncio.to_thread(started.wait, 1)
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
     calls_after_step_started = len(heartbeat_calls)
 
-    for _ in range(50):
+    # Progress wait, not a cadence assertion: give the 0.01s heartbeat loop
+    # time to tick at least once even on a stalled shared runner. The actual
+    # heartbeat requirement is asserted below after the pipeline drains.
+    for _ in range(100 * _HANG_GUARD_SECONDS):
         if len(heartbeat_calls) > calls_after_step_started:
             break
         await asyncio.sleep(0.01)
 
     release.set()
-    await asyncio.wait_for(pipeline_task, timeout=1)
+    await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
 
     assert len(heartbeat_calls) > calls_after_step_started
     assert all(call == session_id for call in heartbeat_calls)
@@ -660,7 +1025,7 @@ async def test_repeated_cancel_keeps_worker_lock_until_thread_stops(
         )
     )
 
-    assert await asyncio.to_thread(started.wait, 1)
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
 
     pipeline_task.cancel()
     await asyncio.sleep(0.05)
@@ -674,7 +1039,7 @@ async def test_repeated_cancel_keeps_worker_lock_until_thread_stops(
 
     release.set()
     with pytest.raises(asyncio.CancelledError):
-        await asyncio.wait_for(pipeline_task, timeout=1)
+        await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
 
     assert finished.is_set() is True
     assert await asyncio.to_thread(manager.is_worker_active, session_id) is False
@@ -844,12 +1209,12 @@ async def test_cancel_drain_step_failure_is_not_reported_as_cancelled(
         )
     )
 
-    assert await asyncio.to_thread(started.wait, 1)
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
 
     pipeline_task.cancel()
     release.set()
     with pytest.raises(RuntimeError, match="step crashed during cancellation drain"):
-        await asyncio.wait_for(pipeline_task, timeout=1)
+        await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
 
     metadata = manager.get_session_metadata(session_id)
     assert metadata is not None
@@ -907,11 +1272,11 @@ async def test_cancel_drain_timeout_marks_worker_stalled_and_releases_lock(
         )
     )
 
-    assert await asyncio.to_thread(started.wait, 1)
+    assert await asyncio.to_thread(started.wait, _HANG_GUARD_SECONDS)
 
     pipeline_task.cancel()
     with pytest.raises(RuntimeError, match="Cancellation timed out"):
-        await asyncio.wait_for(pipeline_task, timeout=1)
+        await asyncio.wait_for(pipeline_task, timeout=_HANG_GUARD_SECONDS)
 
     metadata = manager.get_session_metadata(session_id)
     assert metadata is not None
@@ -927,7 +1292,12 @@ async def test_cancel_drain_timeout_marks_worker_stalled_and_releases_lock(
     assert manager.delete_session(session_id) is False
 
     release.set()
-    assert await asyncio.to_thread(finished.wait, 1)
-    await asyncio.sleep(0.05)
+    assert await asyncio.to_thread(finished.wait, _HANG_GUARD_SECONDS)
+    # Progress wait for the drain future's completion callback to release the
+    # stalled-worker lock; the release itself is what the final assert checks.
+    for _ in range(100 * _HANG_GUARD_SECONDS):
+        if not await asyncio.to_thread(manager.is_worker_active, session_id):
+            break
+        await asyncio.sleep(0.01)
 
     assert await asyncio.to_thread(manager.is_worker_active, session_id) is False

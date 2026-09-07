@@ -42,6 +42,7 @@ def test_static_html_helpers_and_pricing_defaults() -> None:
     pricing = report.get_public_token_pricing_defaults_2026()
     assert pricing["gemini-3-pro-preview"]["prompt_tier_threshold_tokens"] == 200_000
     assert pricing["bedrock-claude-opus-4-1-v1"]["output_per_mtok_usd"] == 150.0
+    assert "gpt-5.6-sol" not in pricing
 
     assert report._format_price_per_mtok_usd(None)
     assert report._format_price_per_mtok_usd("not-a-price")
@@ -146,6 +147,7 @@ def test_format_images_html_variants(
         ("claude sonnet 4", "us.anthropic.claude-sonnet-4-v1"),
         ("gpt-5.2-2026", "gpt-5.2"),
         ("gpt-5.1-mini", "gpt-5.1"),
+        ("openai/openai/gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5", "gpt-5"),
         ("gemini-2.5-flash-lite", "gemini-2.5-flash-lite"),
         ("gemini-2-5-flash-image", "gemini-2.5-flash-image"),
@@ -263,6 +265,24 @@ def test_format_cost_estimate_with_aggregate_usage() -> None:
     assert "aggregate" in html
     assert "12,345" in html
     assert 'data-model-canonical=""' in html
+
+
+def test_format_cost_estimate_requires_price_for_sol() -> None:
+    html = report.format_cost_estimate_section(
+        {
+            "invocation_count": 1,
+            "by_model": {
+                "openai/openai/gpt-5.6-sol": {
+                    "input_tokens": 1_000,
+                    "output_tokens": 100,
+                }
+            },
+        }
+    )
+
+    assert 'data-model-canonical="gpt-5.6-sol"' in html
+    assert 'data-pricing-complete="false"' in html
+    assert "Pricing required" in html
 
 
 def test_validate_image_options(caplog: pytest.LogCaptureFixture) -> None:

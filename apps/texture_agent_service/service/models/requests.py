@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 _TEXTURE_UNIT_ID_RE = re.compile(r"^tu_[0-9a-f]{20}$")
+_EXECUTION_ID_PATTERN = r"^[0-9a-f]{32}$"
 
 
 class TexturePipelineStep(StrEnum):
@@ -148,6 +149,17 @@ class RegenerateRequest(BaseModel):
     steps: list[TexturePipelineStep] = Field(
         min_length=1,
         description="Steps to re-run from cache (at least one)",
+    )
+    execution_id: str | None = Field(
+        default=None,
+        min_length=32,
+        max_length=32,
+        pattern=_EXECUTION_ID_PATTERN,
+        description=(
+            "Optional client execution identifier used to reconcile an accepted "
+            "regeneration after a connection interruption. Must be exactly 32 "
+            "lowercase hexadecimal characters."
+        ),
     )
 
     material_textures: dict[str, MaterialTextureOverride] | None = Field(

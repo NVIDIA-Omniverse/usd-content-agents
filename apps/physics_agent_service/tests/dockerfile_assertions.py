@@ -14,9 +14,17 @@ def assert_locked_tuning_and_ovphysx_profiles(text: str) -> None:
         "arm64) ovphysx_lock=pylock.ovphysx-runtime.aarch64.toml",
         'echo "Unsupported TARGETARCH: ${TARGETARCH}"',
         "--require-hashes --no-deps",
-        'touch "${WU_OVPHYSX_VENV_DIR}/.wu-ovphysx-runtime-ready"',
+        ".usd-cli-ovphysx-ready",
+        "usd-cli.ovphysx-runtime-ready.v2",
         "is_botorch_available",
         "physics_agent[tuning] install missing BoTorch support",
+        "libgl1",
+        "libgomp1",
+        "libopengl0",
+        "libx11-6",
+        "libxt6",
+        "from ovphysx import PhysX",
+        "PhysX(device='cpu')",
     )
     forbidden_markers = (
         '-e ".[tuning]"',

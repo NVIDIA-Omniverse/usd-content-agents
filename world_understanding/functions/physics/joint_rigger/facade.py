@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import stat
+import sys
 import tempfile
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -65,6 +66,7 @@ _MAX_REPORT_BYTES = 64 * 1024 * 1024
 _MAX_OPAQUE_DOCUMENT_BYTES = 16 * 1024 * 1024
 _MAX_OPAQUE_DEPENDENCY_FILES = 256
 _MAX_OPAQUE_DEPENDENCY_REFERENCES = 4096
+_AUTHORING_PLATFORM_SUPPORTED = sys.platform.startswith("linux")
 
 
 class _DuplicateJsonObjectKeyError(ValueError):
@@ -99,6 +101,29 @@ class JointRiggerBackendIncompatibleError(JointRiggerFacadeError):
 
 class JointRiggerArtifactError(JointRiggerFacadeError):
     """A backend did not produce one complete, contract-valid artifact set."""
+
+
+def _require_joint_rigger_authoring_platform() -> None:
+    """Fail before mutation when descriptor-sealed authoring is unavailable."""
+
+    if _AUTHORING_PLATFORM_SUPPORTED:
+        return
+    raise JointRiggerBackendUnavailableError(
+        "Descriptor-sealed Joint Rigger authoring requires Linux, a Linux "
+        "container, or WSL2. This host may inspect a Joint CLI dry-run, but it "
+        "cannot author Joint Rigger artifacts."
+    )
+
+
+def require_joint_rigger_authoring_platform() -> None:
+    """Public form of the authoring platform gate for app-owned entry points.
+
+    Callers that stage descriptor-anchored work of their own before reaching
+    ``author_joint_rig`` must reject an unsupported host first, so the platform
+    decision keeps one definition instead of each caller inventing its own.
+    """
+
+    _require_joint_rigger_authoring_platform()
 
 
 def _attach_cleanup_failure(
@@ -497,6 +522,7 @@ def author_joint_rig_from_factory(
         raise TypeError("request_backend_factory must be callable")
     if not isinstance(artifact_targets, JointRiggerArtifactTargets):
         raise TypeError("artifact_targets must be JointRiggerArtifactTargets")
+    _require_joint_rigger_authoring_platform()
 
     # Validate only caller-controlled target shape first. Local input reads are
     # deliberately deferred until every final target has been descriptor-bound;
@@ -3853,6 +3879,15 @@ def _is_remote_dependency_identifier(identifier: str) -> bool:
     return re.match(r"^[A-Za-z]:[\\/]", outer) is None
 
 
+def validate_diagnostic_decisions(
+    request: JointRiggerInputV1,
+    diagnostics: Any,
+) -> None:
+    """Require exact request-bound dispositions for every planned fact."""
+
+    _validate_diagnostic_decisions(request, diagnostics)
+
+
 def _validate_diagnostic_decisions(
     request: JointRiggerInputV1,
     diagnostics: Any,
@@ -4916,4 +4951,5 @@ __all__ = [
     "JointRiggerFacadeError",
     "JointRiggerPostCommitCleanupError",
     "author_joint_rig",
+    "validate_diagnostic_decisions",
 ]

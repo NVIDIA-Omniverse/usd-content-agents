@@ -1481,3 +1481,21 @@ def test_render_preview_and_generate_ref_image_config_tasks(
                 )
             }
         )
+
+
+def test_prepare_dataset_discovery_skips_uninspectable_entries(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    usd_dir = tmp_path / "usd"
+    bad_entry = usd_dir / "uninspectable"
+    bad_entry.mkdir(parents=True)
+    original_is_dir = Path.is_dir
+
+    def guarded_is_dir(path: Path) -> bool:
+        if path == bad_entry:
+            raise OSError("stat failed")
+        return original_is_dir(path)
+
+    monkeypatch.setattr(Path, "is_dir", guarded_is_dir)
+
+    assert PrepareDatasetConfigTask()._discover_models_from_usd_dir(usd_dir) == []

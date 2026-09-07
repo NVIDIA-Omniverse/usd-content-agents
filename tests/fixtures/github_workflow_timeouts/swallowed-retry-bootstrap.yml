@@ -1,0 +1,13 @@
+name: swallowed retry failure
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Retried install whose failure is swallowed
+        timeout-minutes: 15
+        continue-on-error: true
+        run: >-
+          bash ci/github/retry-network-command.sh --
+          python -m pip install example-tool

@@ -37,12 +37,15 @@ SURFACE_ONLY_FORBIDDEN_DETAILS = (
 
 SURFACE_ONLY_PROMPT_PREFIX = "Surface-only material texture:"
 SURFACE_ONLY_PROMPT_TEMPLATE = (
-    SURFACE_ONLY_PROMPT_PREFIX + " material swatch: "
-    "{description}. Avoid traces, vias, pads, labels, text, logos, holes, "
+    SURFACE_ONLY_PROMPT_PREFIX + " flat seamless tileable orthographic material "
+    "swatch filling the entire image: {description}. Do not depict an object, "
+    "product, scene, silhouette, border, background, perspective, or lighting. "
+    "Avoid traces, vias, pads, labels, text, logos, holes, "
     "seams, fasteners, components, decals, stickers, linework, symbols, and "
-    "geometry markings. Plain roughness, gloss, subtle color, dust, scratches, "
-    "and mild wear."
+    "geometry markings. Use only plain continuous roughness, gloss, and subtle "
+    "color variation."
 )
+_LEGACY_SURFACE_ONLY_MARKER = "Plain roughness, gloss"
 
 _SURFACE_ONLY_STRIP_PATTERNS = (
     r"\b(?:printed|visible|exposed)?\s*copper\s+traces?\b",
@@ -111,11 +114,33 @@ def apply_detail_policy_to_prompt(prompt: str, detail_policy: str) -> str:
 
 
 def _has_surface_only_guardrails(prompt: str) -> bool:
-    return (
-        prompt.startswith(SURFACE_ONLY_PROMPT_PREFIX)
+    if not prompt.startswith(SURFACE_ONLY_PROMPT_PREFIX):
+        return False
+    has_current_markers = (
+        "Do not depict an object, product, scene" in prompt
         and "Avoid traces, vias, pads" in prompt
-        and "Plain roughness, gloss" in prompt
+        and (
+            "plain continuous roughness, gloss" in prompt
+            or _LEGACY_SURFACE_ONLY_MARKER in prompt
+        )
     )
+    has_legacy_markers = (
+        "Avoid traces, vias, pads" in prompt
+        and "geometry markings" in prompt
+        and _LEGACY_SURFACE_ONLY_MARKER in prompt
+    )
+    if not has_current_markers and not has_legacy_markers:
+        return False
+    guardrail_marker = (
+        ". Do not depict an object, product, scene"
+        if has_current_markers
+        else ". Avoid traces, vias, pads"
+    )
+    description, separator, _guardrails = prompt.partition(guardrail_marker)
+    if not separator:
+        return False
+    description = _remove_surface_only_prompt_prefix(description).strip(" ,.;:")
+    return _surface_only_description(description) == description
 
 
 def _remove_surface_only_prompt_prefix(prompt: str) -> str:
@@ -137,16 +162,10 @@ def _surface_only_description(prompt: str) -> str:
         sanitized,
         flags=re.IGNORECASE,
     )
-    sanitized = re.sub(
-        r"([,.;:])\s*(?:and|or|with)\b\s*",
-        r"\1 ",
-        sanitized,
-        flags=re.IGNORECASE,
-    )
     sanitized = re.sub(r"\s+([,.;:])", r"\1", sanitized)
     sanitized = re.sub(r"\s+", " ", sanitized)
     sanitized = re.sub(
-        r"\b(?:with|and|or|featuring|including)\s*$",
+        r"(?:\b(?:with|and|or|featuring|including)\b\s*)+$",
         "",
         sanitized,
         flags=re.IGNORECASE,

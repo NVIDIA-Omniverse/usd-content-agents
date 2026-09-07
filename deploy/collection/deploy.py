@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -36,6 +38,7 @@ AGENT_SERVICES = {
 SCENE_OPTIMIZER_AGENT_SERVICES = {
     "material-agent-service",
     "physics-agent-service",
+    "texture-agent-service",
 }
 BREV_ROLE_DEFAULTS = {
     "render": {
@@ -286,7 +289,7 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     if is_enabled(vlm):
         vlm_base_url = model_base_url(vlm)
         vlm_backend = backend(vlm, "nim")
-        vlm_model = model(vlm, "google/gemma-4-31b-it")
+        vlm_model = model(vlm, "moonshotai/kimi-k3")
         env["MA_VLM_BACKEND"] = vlm_backend
         env["PA_VLM_BACKEND"] = vlm_backend
         env["MA_VLM_MODEL"] = vlm_model
@@ -314,7 +317,7 @@ def build_env(config: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     if is_enabled(llm):
         llm_base_url = model_base_url(llm)
         llm_backend = backend(llm, "nim")
-        llm_model = model(llm, "google/gemma-4-31b-it")
+        llm_model = model(llm, "moonshotai/kimi-k3")
         env["MA_LLM_BACKEND"] = llm_backend
         env["TA_LLM_BACKEND"] = llm_backend
         env["MA_LLM_MODEL"] = llm_model
@@ -409,7 +412,25 @@ def write_env(config: dict[str, Any], output: Path = GENERATED_ENV) -> None:
     env, errors = build_env(config)
     if errors:
         raise ValueError("\n".join(errors))
-    output.write_text(env_text(env, redact=False), encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{output.name}.",
+        suffix=".tmp",
+        dir=output.parent,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            descriptor = -1
+            stream.write(env_text(env, redact=False))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, output)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary_path.unlink(missing_ok=True)
     try:
         display_path = output.relative_to(REPO_ROOT)
     except ValueError:

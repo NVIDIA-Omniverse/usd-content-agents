@@ -90,6 +90,7 @@ def test_validation_render_backend_schema_advertises_capability_subset() -> None
 
     backend_schema = ValidationRenderConfig.model_json_schema()["properties"]["backend"]
     assert "remote, ovrtx" in backend_schema["description"]
+    assert "Omission selects no backend" in backend_schema["description"]
     assert "structured unknown-versus-unsupported" in backend_schema["description"]
     assert "enum" not in backend_schema
 

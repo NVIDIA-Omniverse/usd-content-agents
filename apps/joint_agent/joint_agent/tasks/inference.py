@@ -6,8 +6,9 @@ import json
 import logging
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, NoReturn, cast
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.utils.object_store import ObjectStore
@@ -15,6 +16,24 @@ from world_understanding.utils.token_tracking import TokenTracker, format_token_
 
 from joint_agent.functions.consistency import write_predictions_jsonl
 from joint_agent.functions.inference import batch_classify_assets
+from joint_agent.functions.provider_response_conformance import (
+    ProviderAttemptDiagnostic,
+    ProviderAttemptJournal,
+    ProviderAttemptOutcome,
+    ProviderAttemptRecorderError,
+    ProviderAttemptRecording,
+    ProviderRequestKind,
+    ProviderResponseConformanceTerminalError,
+    build_provider_attempt_diagnostic,
+    evaluate_exhausted_transport_terminal,
+    evaluate_stage1_response,
+    invoke_provider_attempt_recorder,
+    load_provider_attempt_journal,
+    persist_provider_attempt_journal,
+    project_provider_attempt_persistence,
+    require_provider_attempt_journal_persistence,
+    run_provider_call_with_journal,
+)
 from joint_agent.functions.stage1_schema import (
     STAGE1_SCHEMA_VERSION,
     has_parseable_stage1_source_response,
@@ -37,6 +56,9 @@ def _stage1_completion_error(response: Any, *, output_key: str) -> str | None:
 
     if not has_parseable_stage1_source_response(response, output_key=output_key):
         return "stage 1 classification has no parseable source response"
+    evaluation = evaluate_stage1_response(response, output_key=output_key)
+    if not evaluation.accepted:
+        return "stage 1 classification violates contract"
     return None
 
 
@@ -56,7 +78,14 @@ def _completion_checked_result(
     completion_error = _stage1_completion_error(response, output_key=output_key)
     if completion_error is None:
         return result
-    return {**result, "status": "error", "error": completion_error}
+    evaluation = evaluate_stage1_response(response, output_key=output_key)
+    return {
+        **result,
+        "status": "error",
+        "error": completion_error,
+        "contract_reason": evaluation.reason,
+        "contract_diagnostics": dict(evaluation.diagnostics),
+    }
 
 
 def _index_dataset_entries(
@@ -169,6 +198,9 @@ class VLMInferenceTask(Task):
     Output context keys:
         - predictions: List of prediction results
         - predictions_path: Path to saved predictions file
+        - provider_response_diagnostics_path: Durable provider-attempt journal
+        - provider_response_diagnostics_sha256: SHA-256 of that journal
+        - provider_response_conformance_terminal_status: Typed fail-closed status
     """
 
     def __init__(
@@ -340,15 +372,196 @@ class VLMInferenceTask(Task):
             output_dir = predictions_path.parent
             output_dir.mkdir(parents=True, exist_ok=True)
         else:
-            output_dir = context.get("output_dir")
-            if output_dir is None:
+            output_dir_value = context.get("output_dir")
+            if output_dir_value is None:
                 dataset_path_str = context.get("dataset_path")
                 if not dataset_path_str:
                     raise ValueError("dataset_path not found in context")
-                output_dir = Path(dataset_path_str).parent / "output"
-            output_dir = Path(output_dir)
+                output_dir_value = Path(dataset_path_str).parent / "output"
+            output_dir = Path(output_dir_value)
             output_dir.mkdir(parents=True, exist_ok=True)
             predictions_path = output_dir / "predictions.jsonl"
+
+        provider_response_diagnostics_path = (
+            output_dir / "provider_response_attempts.json"
+        )
+        expected_diagnostics_sha256 = context.get(
+            "provider_response_diagnostics_expected_sha256"
+        )
+
+        def bind_persisted_journal(path: Path, digest: str) -> None:
+            project_provider_attempt_persistence(
+                context,
+                path=path,
+                digest=digest,
+                path_key="provider_response_diagnostics_path",
+                digest_key="provider_response_diagnostics_sha256",
+            )
+
+        def bind_terminal(
+            error: ProviderResponseConformanceTerminalError,
+        ) -> None:
+            context["provider_response_conformance_terminal_status"] = dict(
+                error.status
+            )
+
+        if resume_enabled and (
+            provider_response_diagnostics_path.is_file()
+            or expected_diagnostics_sha256 is not None
+        ):
+            attempt_journal = load_provider_attempt_journal(
+                provider_response_diagnostics_path,
+                on_persisted=bind_persisted_journal,
+                expected_sha256=expected_diagnostics_sha256,
+                failure_stage="stage1_provider_evidence",
+                on_terminal=bind_terminal,
+            )
+        else:
+            attempt_journal = ProviderAttemptJournal(
+                path=provider_response_diagnostics_path,
+                on_persisted=bind_persisted_journal,
+            )
+        current_run_first_attempt_sequence = attempt_journal.attempt_count() + 1
+        request_kind_by_entry: dict[str, ProviderRequestKind] = {}
+        require_provider_attempt_journal_persistence(
+            attempt_journal,
+            failure_stage="stage1_provider_evidence",
+            diagnostics_artifact_path=str(provider_response_diagnostics_path),
+            on_terminal=bind_terminal,
+        )
+
+        def raise_stage1_terminal(
+            contract_failures: list[dict[str, Any]],
+            *,
+            message: str,
+            prior_persistence_error: BaseException | None = None,
+        ) -> NoReturn:
+            persistence = persist_provider_attempt_journal(
+                attempt_journal,
+                prior_error=prior_persistence_error,
+            )
+            terminal_error = ProviderResponseConformanceTerminalError.for_stage1(
+                reason=str(contract_failures[0]["reason"]),
+                attempt_diagnostics=contract_failures,
+                diagnostics_artifact_path=(
+                    str(provider_response_diagnostics_path)
+                    if persistence.artifact_sha256 is not None
+                    else None
+                ),
+                diagnostics_artifact_sha256=persistence.artifact_sha256,
+                diagnostics_persistence_error=persistence.error,
+                message=message,
+            )
+            bind_terminal(terminal_error)
+            raise terminal_error
+
+        def on_provider_attempt(
+            entry_id: str,
+            attempt: dict[str, Any],
+        ) -> BaseException | None:
+            def record_attempt() -> ProviderAttemptRecording:
+                attempt_number = int(attempt.get("attempt_number", 1))
+                return attempt_journal.record_transport_attempt(
+                    attempt,
+                    entry_id=entry_id,
+                    initial_request_kind=(
+                        "transport_retry"
+                        if attempt_number > 1
+                        else request_kind_by_entry.get(entry_id, "initial")
+                    ),
+                )
+
+            recording = invoke_provider_attempt_recorder(record_attempt)
+            if not isinstance(recording, ProviderAttemptRecording):
+                raise ProviderAttemptRecorderError(
+                    "provider attempt recorder returned an invalid receipt"
+                )
+            return cast(BaseException | None, recording.failure_carrier)
+
+        def record_contract_outcomes(
+            indexed_results: dict[str, dict[str, Any]],
+            *,
+            attempt_number: int = 1,
+            minimum_sequence_number: int = current_run_first_attempt_sequence,
+        ) -> None:
+            diagnostics_to_record: list[
+                tuple[str | None, ProviderAttemptDiagnostic]
+            ] = []
+            contract_failures: list[dict[str, Any]] = []
+            for entry_id, result in indexed_results.items():
+                contract_reason = result.get("contract_reason")
+                if result.get("status") == "success":
+                    outcome: ProviderAttemptOutcome = "accepted"
+                    diagnostics: dict[str, Any] = {}
+                elif contract_reason:
+                    # A fallback parser can exhaust its own provider transport
+                    # and return a legacy sentinel row. Preserve that exact
+                    # transport outcome instead of appending a synthetic
+                    # contract rejection that would overwrite terminal meaning.
+                    if (
+                        attempt_journal.latest_transport_attempt(
+                            (entry_id,),
+                            minimum_sequence_number=minimum_sequence_number,
+                        )
+                        is not None
+                    ):
+                        continue
+                    outcome = "contract_rejected"
+                    diagnostics = {
+                        "reason": contract_reason,
+                        **dict(result.get("contract_diagnostics") or {}),
+                    }
+                else:
+                    continue
+                diagnostics_to_record.append(
+                    (
+                        entry_id,
+                        build_provider_attempt_diagnostic(
+                            request_kind=request_kind_by_entry.get(entry_id, "initial"),
+                            outcome=outcome,
+                            attempt_number=attempt_number,
+                            normalized_diagnostics=diagnostics,
+                        ),
+                    )
+                )
+                if outcome == "contract_rejected":
+                    contract_failures.append(
+                        {
+                            "entry_id": entry_id,
+                            "request_kind": request_kind_by_entry.get(
+                                entry_id, "initial"
+                            ),
+                            "outcome": outcome,
+                            "reason": contract_reason,
+                            "normalized_diagnostics": diagnostics,
+                        }
+                    )
+            try:
+                attempt_journal.record_many(diagnostics_to_record)
+            except Exception as persistence_error:
+                if contract_failures:
+                    raise_stage1_terminal(
+                        contract_failures,
+                        message=(
+                            "Provider-backed Stage 1 contract rejection could not "
+                            "be durably checkpointed"
+                        ),
+                        prior_persistence_error=persistence_error,
+                    )
+                require_provider_attempt_journal_persistence(
+                    attempt_journal,
+                    failure_stage="stage1_provider_evidence",
+                    diagnostics_artifact_path=str(provider_response_diagnostics_path),
+                    on_terminal=bind_terminal,
+                    attempt_diagnostics=(
+                        {
+                            **({"entry_id": entry_id} if entry_id is not None else {}),
+                            **diagnostic.to_dict(),
+                        }
+                        for entry_id, diagnostic in diagnostics_to_record
+                    ),
+                    prior_error=persistence_error,
+                )
 
         # Clear existing predictions if not resuming
         if stream_predictions and not resume_enabled and predictions_path.exists():
@@ -474,25 +687,44 @@ class VLMInferenceTask(Task):
             *,
             already_processed: set[str],
             workers: int | None,
+            request_kinds: dict[str, ProviderRequestKind],
         ) -> list[dict[str, Any]]:
-            return batch_classify_assets(
-                vlm=vlm,
-                entries=entries,
-                llm=llm,
-                image_base_dir=Path(context["image_base_dir"])
-                if context.get("image_base_dir")
-                else None,
-                system_prompt=system_prompt,
-                invoke_kwargs=vlm_invoke_kwargs,
-                on_progress=on_progress,
-                on_error=on_error,
-                processed_ids=already_processed,
-                on_result=on_result,
-                on_prediction=on_prediction,
-                max_workers=workers,
-                max_retries=max_retries,
-                output_key=output_key,
-                token_tracker=token_tracker,
+            request_kind_by_entry.update(request_kinds)
+
+            def invoke() -> list[dict[str, Any]]:
+                return cast(
+                    list[dict[str, Any]],
+                    batch_classify_assets(
+                        vlm=vlm,
+                        entries=entries,
+                        llm=cast(BaseChatModel, llm),
+                        image_base_dir=Path(context["image_base_dir"])
+                        if context.get("image_base_dir")
+                        else None,
+                        system_prompt=system_prompt,
+                        invoke_kwargs=vlm_invoke_kwargs,
+                        on_progress=on_progress,
+                        on_error=on_error,
+                        processed_ids=already_processed,
+                        on_result=on_result,
+                        on_prediction=on_prediction,
+                        max_workers=workers,
+                        max_retries=max_retries,
+                        output_key=output_key,
+                        token_tracker=token_tracker,
+                        on_provider_attempt=on_provider_attempt,
+                    ),
+                )
+
+            return cast(
+                list[dict[str, Any]],
+                run_provider_call_with_journal(
+                    invoke,
+                    journal=attempt_journal,
+                    failure_stage="stage1_provider_transport",
+                    diagnostics_artifact_path=str(provider_response_diagnostics_path),
+                    on_terminal=bind_terminal,
+                ),
             )
 
         # Run the normal batch, then retry only unresolved entries with one
@@ -502,6 +734,9 @@ class VLMInferenceTask(Task):
             dataset,
             already_processed=processed_ids,
             workers=max_workers,
+            request_kinds=dict.fromkeys(
+                expected_dataset_ids - processed_ids, "initial"
+            ),
         )
         attempted_ids = expected_dataset_ids - processed_ids
         latest_results = _index_batch_results(
@@ -510,6 +745,7 @@ class VLMInferenceTask(Task):
             phase="initial inference",
             output_key=output_key,
         )
+        record_contract_outcomes(latest_results)
         successful_results: dict[str, dict[str, Any]] = {
             entry_id: {
                 "id": entry_id,
@@ -526,6 +762,7 @@ class VLMInferenceTask(Task):
             }
         )
 
+        terminal_attempt_floor = current_run_first_attempt_sequence
         for completion_attempt in range(1, completion_retries + 1):
             unresolved_ids = expected_dataset_ids - set(successful_results)
             if not unresolved_ids:
@@ -539,16 +776,30 @@ class VLMInferenceTask(Task):
                 for entry_id in ordered_dataset_ids
                 if entry_id in unresolved_ids
             ]
+            terminal_attempt_floor = attempt_journal.attempt_count() + 1
             retry_results = run_batch(
                 retry_entries,
                 already_processed=set(),
                 workers=1,
+                request_kinds={
+                    entry_id: (
+                        "contract_correction"
+                        if latest_results.get(entry_id, {}).get("contract_reason")
+                        else "transport_retry"
+                    )
+                    for entry_id in unresolved_ids
+                },
             )
             indexed_retry_results = _index_batch_results(
                 retry_results,
                 expected_ids=unresolved_ids,
                 phase=f"completion inference pass {completion_attempt}",
                 output_key=output_key,
+            )
+            record_contract_outcomes(
+                indexed_retry_results,
+                attempt_number=completion_attempt + 1,
+                minimum_sequence_number=terminal_attempt_floor,
             )
             latest_results.update(indexed_retry_results)
             successful_results.update(
@@ -589,15 +840,68 @@ class VLMInferenceTask(Task):
 
         if unresolved_ids:
             unresolved_details = []
+            contract_failures: list[dict[str, Any]] = []
             for entry_id in ordered_dataset_ids:
                 if entry_id not in unresolved_ids:
                     continue
                 result = latest_results.get(entry_id)
-                error = result.get("error") if result else "batch returned no result"
-                unresolved_details.append(f"{entry_id}: {error}")
+                if result is None:
+                    failure_detail = "batch returned no result"
+                    contract_reason = None
+                    contract_diagnostics: dict[str, Any] = {}
+                else:
+                    failure_detail = str(result.get("error") or "unknown error")
+                    contract_reason = result.get("contract_reason")
+                    contract_diagnostics = dict(
+                        result.get("contract_diagnostics") or {}
+                    )
+                unresolved_details.append(f"{entry_id}: {failure_detail}")
+                has_current_transport_failure = (
+                    attempt_journal.latest_transport_attempt(
+                        (entry_id,),
+                        minimum_sequence_number=terminal_attempt_floor,
+                    )
+                    is not None
+                )
+                if contract_reason and not has_current_transport_failure:
+                    contract_failures.append(
+                        {
+                            "entry_id": entry_id,
+                            "request_kind": request_kind_by_entry.get(
+                                entry_id, "initial"
+                            ),
+                            "outcome": "contract_rejected",
+                            "reason": contract_reason,
+                            "normalized_diagnostics": contract_diagnostics,
+                        }
+                    )
             if object_store:
                 object_store.set("predictions", predictions)
                 object_store.set("failed_predictions", failed)
+            if contract_failures:
+                failure_message = (
+                    "VLM inference incomplete after bounded recovery: expected "
+                    f"{len(dataset)} unique predictions, got {len(predictions)}; "
+                    "unresolved entries: " + "; ".join(unresolved_details)
+                )
+                raise_stage1_terminal(
+                    contract_failures,
+                    message=failure_message,
+                )
+            transport_terminal_error = evaluate_exhausted_transport_terminal(
+                journal=attempt_journal,
+                failure_stage="stage1_provider_transport",
+                diagnostics_artifact_path=str(provider_response_diagnostics_path),
+                entry_ids=(
+                    entry_id
+                    for entry_id in ordered_dataset_ids
+                    if entry_id in unresolved_ids
+                ),
+                minimum_sequence_number=terminal_attempt_floor,
+                on_terminal=bind_terminal,
+            )
+            if transport_terminal_error is not None:
+                raise transport_terminal_error
             raise RuntimeError(
                 "VLM inference incomplete after bounded recovery: expected "
                 f"{len(dataset)} unique predictions, got {len(predictions)}; "
@@ -630,5 +934,17 @@ class VLMInferenceTask(Task):
         context["predictions_path"] = str(predictions_path)
         context["token_stats"] = token_stats
         context["output_key"] = output_key
+        context["provider_response_diagnostics_path"] = str(
+            provider_response_diagnostics_path
+        )
+        final_persistence = require_provider_attempt_journal_persistence(
+            attempt_journal,
+            failure_stage="stage1_provider_evidence",
+            diagnostics_artifact_path=str(provider_response_diagnostics_path),
+            on_terminal=bind_terminal,
+        )
+        context["provider_response_diagnostics_sha256"] = (
+            final_persistence.artifact_sha256
+        )
 
         return context

@@ -123,6 +123,7 @@ class PipelineOutput(SecretSafeReprMixin):
     session_id: str | None = None
     working_dir: Path | None = None
     raw_result: dict[str, Any] | None = None
+    terminal_status: dict[str, Any] | None = None
 
 
 async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
@@ -290,6 +291,9 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             )
             raw_working_dir = result.get("working_dir")
             safe_working_dir = retain_safe_result_path(raw_working_dir)
+            safe_terminal_status = project_result_metadata(
+                result.get("terminal_failure")
+            )
             return PipelineOutput(
                 success=False,
                 error=failure_message,
@@ -298,6 +302,7 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
                 skipped_steps=safe_skip_steps,
                 session_id=safe_session_id,
                 working_dir=safe_working_dir,
+                terminal_status=safe_terminal_status or None,
             )
 
         # Pipeline succeeded. Runtime context remains raw through execution;
@@ -335,6 +340,7 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
 
     except Exception as error:
         failure_message = public_model_failure_message(error, _PIPELINE_FAILURE_MESSAGE)
+        safe_terminal_status = project_result_metadata(getattr(error, "status", None))
         listener.error(failure_message)
         listener.event(
             "workflow.failed",
@@ -343,6 +349,7 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
         return PipelineOutput(
             success=False,
             error=failure_message,
+            terminal_status=safe_terminal_status or None,
         )
 
 

@@ -124,6 +124,227 @@ def test_patch_with_no_recognised_keys_is_idempotent_copy(tmp_path: Path) -> Non
     assert UsdPhysics.MassAPI(body).GetMassAttr().Get() == pytest.approx(2.5)
 
 
+def test_patch_authors_scenario_gravity_in_original_stage_units(tmp_path: Path) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 0.01)
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-1.62)
+
+    result = Usd.Stage.Open(str(out_path))
+    assert UsdGeom.GetStageMetersPerUnit(result) == pytest.approx(0.01)
+    scenes = [prim for prim in result.Traverse() if prim.IsA(UsdPhysics.Scene)]
+    assert [str(prim.GetPath()) for prim in scenes] == ["/Body/PhysicsScene"]
+    physics_scene = UsdPhysics.Scene(scenes[0])
+    assert physics_scene.GetGravityMagnitudeAttr().Get() == pytest.approx(162.0)
+    assert tuple(physics_scene.GetGravityDirectionAttr().Get()) == (0.0, 0.0, -1.0)
+
+
+def test_patch_authors_y_up_gravity_with_usd_default_units(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=1.62)
+
+    result = Usd.Stage.Open(str(out_path))
+    assert not UsdGeom.StageHasAuthoredMetersPerUnit(result)
+    physics_scene = UsdPhysics.Scene(result.GetPrimAtPath("/Body/PhysicsScene"))
+    assert physics_scene.GetGravityMagnitudeAttr().Get() == pytest.approx(162.0)
+    assert tuple(physics_scene.GetGravityDirectionAttr().Get()) == (0.0, 1.0, 0.0)
+    assert "does not author metersPerUnit" in caplog.text
+
+
+def test_patch_preserves_existing_gravity_when_scenario_omits_it(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    UsdGeom.SetStageMetersPerUnit(stage, 0.01)
+    scene = UsdPhysics.Scene.Define(stage, "/PhysicsScene")
+    scene.CreateGravityMagnitudeAttr(123.0)
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {})
+
+    result = Usd.Stage.Open(str(out_path))
+    scene = UsdPhysics.Scene(result.GetPrimAtPath("/PhysicsScene"))
+    assert scene.GetGravityMagnitudeAttr().Get() == pytest.approx(123.0)
+
+
+def test_patch_preserves_artifact_with_multiple_physics_scenes(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from pxr import Usd, UsdPhysics
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    UsdPhysics.Scene.Define(stage, "/PhysicsSceneA")
+    UsdPhysics.Scene.Define(stage, "/PhysicsSceneB")
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-9.81)
+
+    assert out_path.exists()
+    result = Usd.Stage.Open(str(out_path))
+    scenes = [prim for prim in result.Traverse() if prim.IsA(UsdPhysics.Scene)]
+    assert [str(prim.GetPath()) for prim in scenes] == [
+        "/PhysicsSceneA",
+        "/PhysicsSceneB",
+    ]
+    assert all(
+        not UsdPhysics.Scene(prim).GetGravityMagnitudeAttr().HasAuthoredValueOpinion()
+        for prim in scenes
+    )
+    assert "multiple active PhysicsScene prims" in caplog.text
+
+
+def test_patch_preserves_artifact_with_instance_proxy_physics_scene(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    scene_asset = tmp_path / "scene_asset.usda"
+    asset_stage = Usd.Stage.CreateNew(str(scene_asset))
+    asset = UsdGeom.Xform.Define(asset_stage, "/Asset")
+    asset_stage.SetDefaultPrim(asset.GetPrim())
+    UsdPhysics.Scene.Define(asset_stage, "/Asset/PhysicsScene")
+    asset_stage.GetRootLayer().Save()
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    scene_instance = UsdGeom.Xform.Define(stage, "/SceneAsset").GetPrim()
+    scene_instance.GetReferences().AddReference(str(scene_asset), "/Asset")
+    scene_instance.SetInstanceable(True)
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-9.81)
+
+    assert out_path.exists()
+    result = Usd.Stage.Open(str(out_path))
+    traversal = Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)
+    scene_paths = [
+        str(prim.GetPath())
+        for prim in Usd.PrimRange.Stage(result, traversal)
+        if prim.IsA(UsdPhysics.Scene)
+    ]
+    assert scene_paths == ["/SceneAsset/PhysicsScene"]
+    assert "instance-proxy PhysicsScene prims are read-only" in caplog.text
+
+
+def test_patch_preserves_artifact_when_gravity_has_no_default_prim(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    in_path = tmp_path / "in.usda"
+    stage = Usd.Stage.CreateNew(str(in_path))
+    UsdGeom.Cube.Define(stage, "/Body")
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-9.81)
+
+    assert out_path.exists()
+    result = Usd.Stage.Open(str(out_path))
+    assert not any(prim.IsA(UsdPhysics.Scene) for prim in result.Traverse())
+    assert "USD has no default prim" in caplog.text
+
+
+def test_patch_ignores_inactive_scene_when_selecting_gravity_target(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdPhysics
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    active_scene = UsdPhysics.Scene.Define(stage, "/PhysicsScene")
+    active_scene.CreateGravityMagnitudeAttr(123.0)
+    inactive_scene = UsdPhysics.Scene.Define(stage, "/InactivePhysicsScene")
+    inactive_scene.GetPrim().SetActive(False)
+    stage.GetRootLayer().Save()
+    out_path = tmp_path / "out.usda"
+
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-1.62)
+
+    result = Usd.Stage.Open(str(out_path))
+    result_scene = UsdPhysics.Scene(result.GetPrimAtPath("/PhysicsScene"))
+    assert result_scene.GetGravityMagnitudeAttr().Get() == pytest.approx(162.0)
+    assert not result.GetPrimAtPath("/InactivePhysicsScene").IsValid()
+
+
+def test_patch_deinstances_physics_scene_before_updating_gravity(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdPhysics
+
+    scene_asset = tmp_path / "scene_asset.usda"
+    asset_stage = Usd.Stage.CreateNew(str(scene_asset))
+    asset_scene = UsdPhysics.Scene.Define(asset_stage, "/Scene")
+    asset_stage.SetDefaultPrim(asset_scene.GetPrim())
+    asset_stage.GetRootLayer().Save()
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    scene_prim = stage.DefinePrim("/PhysicsScene", "PhysicsScene")
+    scene_prim.GetReferences().AddReference(str(scene_asset), "/Scene")
+    scene_prim.SetInstanceable(True)
+    stage.GetRootLayer().Save()
+
+    out_path = tmp_path / "out.usda"
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-9.81)
+
+    result = Usd.Stage.Open(str(out_path))
+    result_scene_prim = result.GetPrimAtPath("/PhysicsScene")
+    assert not result_scene_prim.IsInstanceable()
+    result_scene = UsdPhysics.Scene(result_scene_prim)
+    assert result_scene.GetGravityMagnitudeAttr().Get() == pytest.approx(981.0)
+
+
+def test_patch_deinstances_default_prim_before_creating_scene(tmp_path: Path) -> None:
+    from pxr import Usd, UsdGeom, UsdPhysics
+
+    body_asset = tmp_path / "body_asset.usda"
+    asset_stage = Usd.Stage.CreateNew(str(body_asset))
+    asset_body = UsdGeom.Cube.Define(asset_stage, "/Body")
+    asset_stage.SetDefaultPrim(asset_body.GetPrim())
+    asset_stage.GetRootLayer().Save()
+
+    in_path = _author_physics_usd(tmp_path / "in.usda")
+    stage = Usd.Stage.Open(str(in_path))
+    default_prim = stage.GetDefaultPrim()
+    default_prim.GetReferences().AddReference(str(body_asset), "/Body")
+    default_prim.SetInstanceable(True)
+    stage.GetRootLayer().Save()
+
+    out_path = tmp_path / "out.usda"
+    patch_physics_usd(in_path, out_path, {}, gravity_m_per_s2=-9.81)
+
+    result = Usd.Stage.Open(str(out_path))
+    assert not result.GetDefaultPrim().IsInstanceable()
+    assert result.GetPrimAtPath("/Body/PhysicsScene").IsA(UsdPhysics.Scene)
+
+
 def test_patch_applies_resolved_usd_attribute_bindings(tmp_path: Path) -> None:
     in_path = _author_physics_usd(tmp_path / "in.usda")
     out_path = tmp_path / "out.usda"
@@ -318,12 +539,20 @@ def test_patch_applies_newton_contact_bindings(tmp_path: Path) -> None:
 
 def test_newton_import_consumes_contact_bindings(tmp_path: Path) -> None:
     newton = pytest.importorskip("newton")
+    pytest.importorskip(
+        "newton_usd_schemas",
+        reason="Newton contact import requires apps/physics_agent[newton]",
+    )
     from importlib import metadata
 
     if tuple(map(int, metadata.version("newton").split(".")[:2])) < (1, 2):
         pytest.skip("Newton contact binding consumption requires newton>=1.2")
     if not hasattr(newton.ModelBuilder, "add_usd"):
         pytest.skip("Newton USD importer is unavailable")
+    try:
+        metadata.version("newton-usd-schemas")
+    except metadata.PackageNotFoundError:
+        pytest.skip("Newton USD importer dependencies are unavailable")
 
     in_path = _author_physics_usd(tmp_path / "in.usda")
     out_path = tmp_path / "out.usda"

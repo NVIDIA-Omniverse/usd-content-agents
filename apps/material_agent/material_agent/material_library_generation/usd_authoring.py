@@ -4,12 +4,9 @@
 
 from __future__ import annotations
 
-import importlib
 import os
 import re
 import shutil
-from dataclasses import dataclass
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +20,7 @@ from world_understanding.utils.usd.asset_paths import (
 from material_agent.material_library_generation.schema import (
     DEFAULT_LIBRARY_ROOT,
     GeneratedMaterial,
+    MaterialRecipeSemantics,
 )
 from material_agent.material_profiles import MaterialProfile, normalize_material_profile
 
@@ -46,31 +44,7 @@ _OPENPBR_IMAGE_SHADER_IDS = frozenset(
         "ND_tiledimage_vector3",
     }
 )
-_OPENPBR_USDEX_FUNCTIONS = (
-    "definePbrMaterial",
-    "addDiffuseTextureToPbrMaterial",
-    "addNormalTextureToPbrMaterial",
-    "addOrmTextureToPbrMaterial",
-)
 _TEXTURE_SUFFIXES = frozenset({".bmp", ".exr", ".jpeg", ".jpg", ".png", ".tga"})
-
-
-@dataclass(frozen=True)
-class OpenPbrMaterialXAuthoringCapability:
-    """Installed USD-Exchange support required by the textured OpenPBR path."""
-
-    available: bool
-    installed_version: str | None
-    missing_symbols: tuple[str, ...]
-    import_error: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "available": self.available,
-            "installed_version": self.installed_version,
-            "missing_symbols": list(self.missing_symbols),
-            "import_error": self.import_error,
-        }
 
 
 class MaterialAuthoringError(ValueError):
@@ -87,10 +61,6 @@ class MaterialAuthoringError(ValueError):
             "message": str(self),
             "details": dict(self.details),
         }
-
-
-class MaterialAuthoringPrerequisiteError(MaterialAuthoringError):
-    """The installed authoring runtime cannot satisfy an explicit profile."""
 
 
 class MaterialAuthoringContractError(MaterialAuthoringError):
@@ -136,6 +106,18 @@ def _srgb_color_to_linear(
         _srgb_channel_to_linear(color[1]),
         _srgb_channel_to_linear(color[2]),
     )
+
+
+def _authored_base_color(
+    generated: GeneratedMaterial,
+    *,
+    recipe_semantics: MaterialRecipeSemantics,
+) -> tuple[float, float, float]:
+    """Return a linear shader color under the recipe's explicit input contract."""
+    color = generated.recipe.base_color_hint
+    if recipe_semantics is MaterialRecipeSemantics.LITERAL_SHADER_VALUES:
+        return (float(color[0]), float(color[1]), float(color[2]))
+    return _srgb_color_to_linear(color)
 
 
 def _is_matte(generated: GeneratedMaterial) -> bool:
@@ -354,6 +336,8 @@ def _adapt_openpbr_material(
 ) -> None:
     from pxr import Gf, UsdShade
 
+    if generated.textures is None:
+        raise ValueError("prototype adaptation requires generated texture maps")
     prim = stage.GetPrimAtPath(material_path)
     material = UsdShade.Material(prim)
     recipe = generated.recipe
@@ -514,73 +498,32 @@ def _define_texture_shader(
     return shader
 
 
-def _installed_usd_exchange_version() -> str | None:
-    try:
-        return metadata.version("usd-exchange")
-    except metadata.PackageNotFoundError:
-        return None
-
-
-def probe_openpbr_materialx_authoring() -> OpenPbrMaterialXAuthoringCapability:
-    """Probe the complete USD-Exchange API needed for textured OpenPBR."""
-
-    installed_version = _installed_usd_exchange_version()
-    try:
-        core = importlib.import_module("usdex.core")
-    except Exception as exc:
-        return OpenPbrMaterialXAuthoringCapability(
-            available=False,
-            installed_version=installed_version,
-            missing_symbols=tuple(
-                f"usdex.core.{name}" for name in _OPENPBR_USDEX_FUNCTIONS
-            ),
-            import_error=f"{type(exc).__name__}: {exc}",
-        )
-
-    missing_symbols = tuple(
-        f"usdex.core.{name}"
-        for name in _OPENPBR_USDEX_FUNCTIONS
-        if not callable(getattr(core, name, None))
-    )
-    return OpenPbrMaterialXAuthoringCapability(
-        available=not missing_symbols,
-        installed_version=installed_version,
-        missing_symbols=missing_symbols,
-    )
-
-
-def can_author_openpbr_materialx_with_usdex() -> bool:
-    """Return whether USD-Exchange can author the complete textured graph."""
-
-    return probe_openpbr_materialx_authoring().available
-
-
 def require_material_authoring_prerequisites(
     material_profile: str | MaterialProfile,
 ) -> None:
-    """Fail before generation when an explicit authoring profile is unavailable."""
+    """Validate the requested profile before synthesis begins."""
 
     normalized = normalize_material_profile(material_profile)
     if normalized != "openpbr_materialx":
         return
-
-    capability = probe_openpbr_materialx_authoring()
-    if capability.available:
-        return
-
-    version = capability.installed_version or "not installed"
-    missing = ", ".join(capability.missing_symbols) or "unknown capability"
-    raise MaterialAuthoringPrerequisiteError(
-        "OPENPBR_MATERIALX_AUTHORING_UNAVAILABLE",
-        "material_profile='openpbr_materialx' requires the public USD-Exchange "
-        "core OpenPBR definition and texture attachment APIs tracked by issue "
-        f"#371. Installed usd-exchange version: {version}. Missing: {missing}.",
-        details={
-            "requested_profile": normalized,
-            "dependency_issue": 371,
-            "usd_exchange": capability.to_dict(),
-        },
-    )
+    try:
+        from world_understanding.utils.usd.material import (
+            define_materialx_openpbr_material,
+        )
+    except (ImportError, AttributeError) as exc:
+        raise MaterialAuthoringContractError(
+            "OPENPBR_MATERIALX_AUTHORING_UNAVAILABLE",
+            "OpenPBR/MaterialX authoring support is unavailable in the installed "
+            "world-understanding package.",
+            details={"requested_profile": normalized},
+        ) from exc
+    if not callable(define_materialx_openpbr_material):
+        raise MaterialAuthoringContractError(
+            "OPENPBR_MATERIALX_AUTHORING_UNAVAILABLE",
+            "OpenPBR/MaterialX authoring support is unavailable in the installed "
+            "world-understanding package.",
+            details={"requested_profile": normalized},
+        )
 
 
 def _connect_preview_material_surface(
@@ -614,6 +557,8 @@ def _define_preview_material_from_recipe(
     material_path: str,
     roughness: float,
     Sdf: Any,
+    *,
+    recipe_semantics: MaterialRecipeSemantics = MaterialRecipeSemantics.GENERATION_HINTS,
 ) -> Any:
     from pxr import Gf, UsdShade
 
@@ -623,10 +568,17 @@ def _define_preview_material_from_recipe(
     shader = UsdShade.Shader.Define(stage, f"{material_path}/PreviewSurface")
     shader.CreateIdAttr("UsdPreviewSurface")
     shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(
-        Gf.Vec3f(*_srgb_color_to_linear(recipe.base_color_hint))
+        Gf.Vec3f(
+            *_authored_base_color(
+                generated,
+                recipe_semantics=recipe_semantics,
+            )
+        )
     )
     shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(
-        min(recipe.pbr_hints.opacity, 0.65) if optical else 1.0
+        float(recipe.pbr_hints.opacity)
+        if recipe_semantics is MaterialRecipeSemantics.LITERAL_SHADER_VALUES
+        else (min(recipe.pbr_hints.opacity, 0.65) if optical else 1.0)
     )
     shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(float(roughness))
     shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(
@@ -644,6 +596,8 @@ def _define_omnipbr_mdl_material_from_recipe(
     material_path: str,
     roughness: float,
     Sdf: Any,
+    *,
+    recipe_semantics: MaterialRecipeSemantics = MaterialRecipeSemantics.GENERATION_HINTS,
 ) -> Any:
     import usdex.rtx
     from pxr import Gf
@@ -652,23 +606,33 @@ def _define_omnipbr_mdl_material_from_recipe(
     material = usdex.rtx.definePbrMaterial(
         stage,
         Sdf.Path(material_path),
-        Gf.Vec3f(*_srgb_color_to_linear(recipe.base_color_hint)),
+        Gf.Vec3f(
+            *_authored_base_color(
+                generated,
+                recipe_semantics=recipe_semantics,
+            )
+        ),
         float(recipe.pbr_hints.opacity),
         roughness,
         float(recipe.pbr_hints.metallic),
     )
-    usdex.rtx.addDiffuseTextureToPbrMaterial(
-        material,
-        Sdf.AssetPath(_relative_asset_path(generated.textures.albedo, library_path)),
-    )
-    usdex.rtx.addNormalTextureToPbrMaterial(
-        material,
-        Sdf.AssetPath(_relative_asset_path(generated.textures.normal, library_path)),
-    )
-    usdex.rtx.addOrmTextureToPbrMaterial(
-        material,
-        Sdf.AssetPath(_relative_asset_path(generated.textures.orm, library_path)),
-    )
+    if generated.textures is not None:
+        usdex.rtx.addDiffuseTextureToPbrMaterial(
+            material,
+            Sdf.AssetPath(
+                _relative_asset_path(generated.textures.albedo, library_path)
+            ),
+        )
+        usdex.rtx.addNormalTextureToPbrMaterial(
+            material,
+            Sdf.AssetPath(
+                _relative_asset_path(generated.textures.normal, library_path)
+            ),
+        )
+        usdex.rtx.addOrmTextureToPbrMaterial(
+            material,
+            Sdf.AssetPath(_relative_asset_path(generated.textures.orm, library_path)),
+        )
     return material
 
 
@@ -679,42 +643,69 @@ def _define_openpbr_materialx_from_recipe(
     material_path: str,
     roughness: float,
     Sdf: Any,
+    *,
+    recipe_semantics: MaterialRecipeSemantics = MaterialRecipeSemantics.GENERATION_HINTS,
 ) -> Any:
     from pxr import Gf
-
-    core = importlib.import_module("usdex.core")
+    from world_understanding.utils.usd.material import (
+        define_materialx_openpbr_material,
+    )
 
     recipe = generated.recipe
-    material = core.definePbrMaterial(
-        stage,
-        Sdf.Path(material_path),
-        Gf.Vec3f(*_srgb_color_to_linear(recipe.base_color_hint)),
-        float(recipe.pbr_hints.opacity),
-        roughness,
-        float(recipe.pbr_hints.metallic),
+    textures = generated.textures
+    albedo_texture = (
+        Sdf.AssetPath(_relative_asset_path(textures.albedo, library_path))
+        if textures is not None
+        else None
     )
+    normal_texture = (
+        Sdf.AssetPath(_relative_asset_path(textures.normal, library_path))
+        if textures is not None
+        else None
+    )
+    orm_texture = (
+        Sdf.AssetPath(_relative_asset_path(textures.orm, library_path))
+        if textures is not None
+        else None
+    )
+    try:
+        material = define_materialx_openpbr_material(
+            stage,
+            Sdf.Path(material_path),
+            base_color=Gf.Vec3f(
+                *_authored_base_color(
+                    generated,
+                    recipe_semantics=recipe_semantics,
+                )
+            ),
+            opacity=float(recipe.pbr_hints.opacity),
+            roughness=roughness,
+            metallic=float(recipe.pbr_hints.metallic),
+            albedo_texture=albedo_texture,
+            normal_texture=normal_texture,
+            orm_texture=orm_texture,
+            transmission_weight=float(recipe.pbr_hints.transmission),
+            specular_ior=float(recipe.pbr_hints.ior),
+            thin_walled=bool(recipe.pbr_hints.thin_walled),
+        )
+    except Exception as exc:
+        raise MaterialAuthoringContractError(
+            "OPENPBR_MATERIALX_DEFINITION_FAILED",
+            f"Direct UsdShade OpenPBR authoring failed: {exc}",
+            details={
+                "requested_profile": "openpbr_materialx",
+                "material_path": material_path,
+            },
+        ) from exc
     if not material or not material.GetPrim().IsValid():
         raise MaterialAuthoringContractError(
             "OPENPBR_MATERIALX_DEFINITION_FAILED",
-            "usdex.core.definePbrMaterial did not return a valid material.",
+            "Direct UsdShade OpenPBR authoring did not return a valid material.",
             details={
                 "requested_profile": "openpbr_materialx",
                 "material_path": material_path,
             },
         )
-
-    core.addDiffuseTextureToPbrMaterial(
-        material,
-        Sdf.AssetPath(_relative_asset_path(generated.textures.albedo, library_path)),
-    )
-    core.addNormalTextureToPbrMaterial(
-        material,
-        Sdf.AssetPath(_relative_asset_path(generated.textures.normal, library_path)),
-    )
-    core.addOrmTextureToPbrMaterial(
-        material,
-        Sdf.AssetPath(_relative_asset_path(generated.textures.orm, library_path)),
-    )
     return material
 
 
@@ -1135,6 +1126,15 @@ def _validate_openpbr_materialx_graph(
             },
         )
 
+    if generated.textures is None:
+        return {
+            "authoritative_output": "outputs:mtlx:surface",
+            "authoritative_shader_id": _OPENPBR_MATERIALX_SHADER_ID,
+            "compatibility_outputs": ["outputs:surface"],
+            "compatibility_shader_id": "UsdPreviewSurface",
+            "textures": {},
+        }
+
     expected_paths = {
         "albedo": _relative_asset_path(generated.textures.albedo, library_path),
         "normal": _relative_asset_path(generated.textures.normal, library_path),
@@ -1358,11 +1358,15 @@ def inspect_material_library_authoring(
             )
 
         references = _material_texture_references(material, library_path=library_path)
-        expected_paths = {
-            _relative_asset_path(generated.textures.albedo, library_path),
-            _relative_asset_path(generated.textures.normal, library_path),
-            _relative_asset_path(generated.textures.orm, library_path),
-        }
+        expected_paths = (
+            {
+                _relative_asset_path(generated.textures.albedo, library_path),
+                _relative_asset_path(generated.textures.normal, library_path),
+                _relative_asset_path(generated.textures.orm, library_path),
+            }
+            if generated.textures is not None
+            else set()
+        )
         if (requested_profile != "auto" or not generated.prototype_source) and not (
             expected_paths <= set(references)
         ):
@@ -1415,8 +1419,21 @@ def write_material_library_usd(
     *,
     material_profile: str | MaterialProfile = "auto",
     authoring_evidence: dict[str, Any] | None = None,
+    recipe_semantics: MaterialRecipeSemantics = MaterialRecipeSemantics.GENERATION_HINTS,
 ) -> Path:
-    """Write and validate a USD library, optionally returning evidence by mutation."""
+    """Write and validate a USD library with an explicit input-value convention.
+
+    ``GENERATION_HINTS`` interprets ``MaterialRecipe.base_color_hint`` as
+    display-encoded sRGB and decodes it to linear light before shader authoring.
+    ``LITERAL_SHADER_VALUES`` requires an already-linear color tuple and authors
+    color, roughness, metallic, opacity, and optical controls literally without
+    semantic or prototype heuristics. Outputs from both modes therefore use the
+    same linear USD shader convention; only recipe input interpretation differs.
+
+    Literal mode is reserved for source-preserving refinement and canonical
+    ``MaterialAuthoringRequest`` controls. General generation callers must keep
+    the default generation-hint semantics.
+    """
     from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
     from world_understanding.utils.usd.material import (
         add_ovrtx_preview_fallbacks_for_materialx_openpbr,
@@ -1424,6 +1441,7 @@ def write_material_library_usd(
 
     if not materials:
         raise ValueError("at least one generated material is required")
+    recipe_semantics = MaterialRecipeSemantics(recipe_semantics)
     material_profile = normalize_material_profile(material_profile)
     require_material_authoring_prerequisites(material_profile)
     if material_profile == "display_color":
@@ -1440,15 +1458,22 @@ def write_material_library_usd(
     UsdGeom.Scope.Define(stage, DEFAULT_LIBRARY_ROOT)
 
     for generated in materials:
-        if material_profile == "auto" and _try_author_from_prototype(
-            stage,
-            library_path,
-            generated,
+        if (
+            generated.textures is not None
+            and material_profile == "auto"
+            and recipe_semantics is MaterialRecipeSemantics.GENERATION_HINTS
+            and _try_author_from_prototype(
+                stage,
+                library_path,
+                generated,
+            )
         ):
             continue
 
         recipe = generated.recipe
-        roughness = _optical_roughness(generated, float(recipe.pbr_hints.roughness))
+        roughness = float(recipe.pbr_hints.roughness)
+        if recipe_semantics is MaterialRecipeSemantics.GENERATION_HINTS:
+            roughness = _optical_roughness(generated, roughness)
         material_path = recipe.binding
         if material_profile == "openpbr_materialx":
             _define_openpbr_materialx_from_recipe(
@@ -1458,6 +1483,7 @@ def write_material_library_usd(
                 material_path,
                 roughness,
                 Sdf,
+                recipe_semantics=recipe_semantics,
             )
             continue
 
@@ -1469,6 +1495,7 @@ def write_material_library_usd(
                 material_path,
                 roughness,
                 Sdf,
+                recipe_semantics=recipe_semantics,
             )
             continue
 
@@ -1479,7 +1506,10 @@ def write_material_library_usd(
             material_path,
             roughness,
             Sdf,
+            recipe_semantics=recipe_semantics,
         )
+        if generated.textures is None:
+            continue
         preview = UsdShade.Shader(
             stage.GetPrimAtPath(f"{material_path}/PreviewSurface")
         )
@@ -1503,7 +1533,14 @@ def write_material_library_usd(
         )
         _connect_texture_st(albedo, st_reader, Sdf)
         diffuse_input = preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
-        diffuse_input.Set(Gf.Vec3f(*_srgb_color_to_linear(recipe.base_color_hint)))
+        diffuse_input.Set(
+            Gf.Vec3f(
+                *_authored_base_color(
+                    generated,
+                    recipe_semantics=recipe_semantics,
+                )
+            )
+        )
         diffuse_input.ConnectToSource(
             albedo.ConnectableAPI(),
             "rgb",

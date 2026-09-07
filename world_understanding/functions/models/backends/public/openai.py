@@ -12,6 +12,11 @@ from world_understanding.functions.models.backends.registry import (
     register_image_gen_backend,
     register_vlm_backend,
 )
+from world_understanding.functions.models.token_limits import (
+    model_reasoning_effort_default,
+    model_uses_openai_responses_api,
+    normalize_openai_token_kwargs,
+)
 from world_understanding.utils.credentials import get_openai_api_key_for_base_url
 
 _DEFAULT_OPENAI_MODEL = "gpt-5.4"
@@ -63,40 +68,62 @@ def create_openai_chat(
     max_tokens: int | None = None,
     streaming: bool = False,
     base_url: str | None = None,
+    timeout: float | None = _DEFAULT_TIMEOUT_SECONDS,
     **kwargs: Any,
 ) -> BaseChatModel:
     """Create OpenAI chat model."""
     from langchain_openai import ChatOpenAI
 
     api_key = _validate_openai_api_key_for_endpoint(api_key, base_url)
+    resolved_model = model or _DEFAULT_OPENAI_MODEL
+    uses_responses_api = model_uses_openai_responses_api(resolved_model)
 
     # Remove kwargs not applicable to OpenAI
     kwargs.pop("api_version", None)
 
-    chat_kwargs: dict[str, Any] = {}
-    if temperature is not None:
-        chat_kwargs["temperature"] = temperature
-    if top_p is not None:
-        chat_kwargs["top_p"] = top_p
-    if max_tokens is not None:
-        chat_kwargs["max_tokens"] = max_tokens
+    chat_kwargs: dict[str, Any]
+    if uses_responses_api:
+        chat_kwargs = normalize_openai_token_kwargs(
+            resolved_model,
+            max_tokens,
+            kwargs,
+            prefer_max_tokens_argument=True,
+        )
+        chat_kwargs.pop("temperature", None)
+        chat_kwargs.pop("top_p", None)
+        if "reasoning_effort" not in chat_kwargs and "reasoning" not in chat_kwargs:
+            chat_kwargs["reasoning_effort"] = model_reasoning_effort_default(
+                resolved_model
+            )
+        chat_kwargs["use_responses_api"] = True
+    else:
+        chat_kwargs = {}
+        if temperature is not None:
+            chat_kwargs["temperature"] = temperature
+        if top_p is not None:
+            chat_kwargs["top_p"] = top_p
+        if max_tokens is not None:
+            chat_kwargs["max_tokens"] = max_tokens
+        chat_kwargs.update(kwargs)
     resolved_base_url = _resolve_base_url(base_url)
     if resolved_base_url:
         chat_kwargs["base_url"] = resolved_base_url
-    chat_kwargs.update(kwargs)
 
     return ChatOpenAI(
-        model=model or _DEFAULT_OPENAI_MODEL,
+        model=resolved_model,
         api_key=api_key,  # type: ignore[arg-type]
         streaming=streaming,
-        timeout=_DEFAULT_TIMEOUT_SECONDS,
+        timeout=timeout,
         **chat_kwargs,
     )
 
 
 def create_openai_vlm(api_key: str | None = None, **kwargs: Any) -> Any:
     """Create OpenAI VLM."""
-    from world_understanding.functions.models.vision_language_models import OpenAIVLM
+    from world_understanding.functions.models.vision_language_models import (
+        LangChainChatVLM,
+        OpenAIVLM,
+    )
 
     api_key = _validate_openai_api_key_for_endpoint(api_key, kwargs.get("base_url"))
     # Same OPENAI_BASE_URL / OPENAI_API_BASE resolution as create_openai_chat
@@ -105,6 +132,17 @@ def create_openai_vlm(api_key: str | None = None, **kwargs: Any) -> Any:
         resolved = _resolve_base_url()
         if resolved:
             kwargs["base_url"] = resolved
+    model = kwargs.get("model") or _DEFAULT_OPENAI_MODEL
+    if model_uses_openai_responses_api(model):
+        request_timeout = kwargs.get("timeout", _DEFAULT_TIMEOUT_SECONDS)
+        chat_model = create_openai_chat(api_key=api_key, **kwargs)
+        return LangChainChatVLM(
+            chat_model,
+            model_name=model,
+            backend_name="openai",
+            request_style="openai_responses_reasoning",
+            request_timeout_seconds=request_timeout,
+        )
     return OpenAIVLM(api_key=api_key, **kwargs)
 
 
@@ -122,7 +160,11 @@ def create_openai_image_gen(api_key: str | None = None, **kwargs: Any) -> Any:
     return OpenAIImageGenerationModel(api_key=api_key, **kwargs)
 
 
-register_chat_backend("openai", create_openai_chat)
+register_chat_backend(
+    "openai",
+    create_openai_chat,
+    capabilities=frozenset({"reasoning_effort"}),
+)
 register_vlm_backend(
     "openai",
     create_openai_vlm,

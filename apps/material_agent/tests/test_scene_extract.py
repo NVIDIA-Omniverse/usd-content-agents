@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from material_agent.scene.extract import (
     _collect_instanceable_prims,
     _find_instances_recursive,
@@ -15,6 +17,7 @@ from material_agent.scene.extract import (
     _unique_safe_names,
     extract_all,
     extract_sub_asset,
+    validate_scene_extraction_config,
 )
 from material_agent.scene.manifest import PayloadGroup, SceneManifest, SubAsset
 
@@ -325,9 +328,11 @@ def test_extract_sub_asset_flatten_and_nonflatten_paths(
     class FakeLayer:
         def __init__(self) -> None:
             self.exported: list[str] = []
+            self.export_result = True
 
-        def Export(self, path: str) -> None:
+        def Export(self, path: str) -> bool:
             self.exported.append(path)
+            return self.export_result
 
     class FakeMaskedPrim:
         def __init__(self) -> None:
@@ -374,6 +379,10 @@ def test_extract_sub_asset_flatten_and_nonflatten_paths(
             open_masked_calls.append((root_or_path, mask, load))
             return stage
 
+        @staticmethod
+        def Open(path):
+            return stage
+
     fake_usd.Stage = FakeUsdStage
     fake_usd.StagePopulationMask = lambda paths: tuple(paths)
     fake_sdf.Layer = SimpleNamespace(FindOrOpen=lambda path: object())
@@ -412,26 +421,129 @@ def test_extract_sub_asset_flatten_and_nonflatten_paths(
     assert stage.flat.exported == [str(out_path)]
     assert stage.session.cleared is True
 
-    stage.root.exported.clear()
-    stage.flat.exported.clear()
-    strip_calls.clear()
-    created_overs.clear()
-    monkeypatch.setattr(
-        "material_agent.scene.extract._collect_instanceable_prims",
-        lambda layer, root_path, instance_paths, mask_paths: None,
-    )
+    stage.flat.export_result = False
+    failed_out = tmp_path / "out" / "asset_failed.usd"
+    with pytest.raises(RuntimeError, match="Failed to export extracted USD"):
+        extract_sub_asset(
+            scene_usd_path=tmp_path / "scene.usda",
+            prim_path="/World/Asset",
+            output_path=failed_out,
+        )
 
     second_out = tmp_path / "out" / "asset_unflattened.usd"
-    extract_sub_asset(
-        scene_usd_path=tmp_path / "scene.usda",
-        prim_path="/World/Asset",
-        output_path=second_out,
-        flatten=False,
-    )
+    with pytest.raises(ValueError, match="population masks are runtime-only"):
+        extract_sub_asset(
+            scene_usd_path=tmp_path / "scene.usda",
+            prim_path="/World/Asset",
+            output_path=second_out,
+            flatten=False,
+        )
 
-    assert stage.root.exported == [str(second_out)]
-    assert stage.flat.exported == []
-    assert strip_calls == []
+    assert stage.root.exported == []
+    assert not second_out.exists()
+
+
+def _write_layered_scene(tmp_path: Path) -> Path:
+    layers_dir = tmp_path / "source" / "layers"
+    layers_dir.mkdir(parents=True)
+    geometry_path = layers_dir / "geometry.usda"
+    geometry_path.write_text(
+        """#usda 1.0
+
+def Xform "World"
+{
+    def Xform "AssetA"
+    {
+        def Mesh "Body"
+        {
+            int[] faceVertexCounts = [3]
+            int[] faceVertexIndices = [0, 1, 2]
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+        }
+    }
+
+    def Xform "AssetB"
+    {
+        def Mesh "Body"
+        {
+            int[] faceVertexCounts = [3]
+            int[] faceVertexIndices = [0, 1, 2]
+            point3f[] points = [(0, 0, 0), (0, 1, 0), (0, 0, 1)]
+        }
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    scene_path = tmp_path / "source" / "scene.usda"
+    scene_path.write_text(
+        """#usda 1.0
+(
+    defaultPrim = "World"
+    subLayers = [
+        @layers/geometry.usda@
+    ]
+)
+""",
+        encoding="utf-8",
+    )
+    return scene_path
+
+
+def test_extract_sub_asset_real_layered_stage_honors_population_mask(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd
+
+    scene_path = _write_layered_scene(tmp_path)
+    output_path = tmp_path / "relocated" / "asset_a.usda"
+
+    extract_sub_asset(scene_path, "/World/AssetA", output_path)
+
+    extracted = Usd.Stage.Open(str(output_path))
+    assert extracted
+    assert extracted.GetPrimAtPath("/World/AssetA/Body")
+    assert not extracted.GetPrimAtPath("/World/AssetB")
+    assert extracted.GetRootLayer().subLayerPaths == []
+
+    geometry_path = scene_path.parent / "layers" / "geometry.usda"
+    geometry_path.unlink()
+    reopened = Usd.Stage.Open(str(output_path))
+    assert reopened
+    assert reopened.GetPrimAtPath("/World/AssetA/Body")
+
+
+def test_nonflattened_real_layered_extraction_fails_before_writing(
+    tmp_path: Path,
+) -> None:
+    scene_path = _write_layered_scene(tmp_path)
+    output_path = tmp_path / "relocated" / "asset_a.usda"
+
+    with pytest.raises(ValueError, match="relocating.*composition arcs"):
+        extract_sub_asset(
+            scene_path,
+            "/World/AssetA",
+            output_path,
+            flatten=False,
+        )
+
+    assert not output_path.exists()
+
+
+def test_scene_extraction_config_rejects_nonflattened_mode() -> None:
+    validate_scene_extraction_config({})
+    validate_scene_extraction_config({"scene": {"extract": {"flatten": True}}})
+
+    with pytest.raises(ValueError, match="scene.extract.flatten=false"):
+        validate_scene_extraction_config({"scene": {"extract": {"flatten": False}}})
+
+    with pytest.raises(ValueError, match="scene.extract.flatten=false"):
+        extract_all(
+            Path("scene.usda"),
+            SceneManifest(),
+            Path("output"),
+            flatten=False,
+        )
 
 
 def test_extract_all_marks_failures_and_uses_thread_pool(

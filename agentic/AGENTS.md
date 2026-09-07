@@ -1,98 +1,48 @@
-# Agentic Workflow Agent Guide
+# Agentic Workflow Compatibility Guide
 
-This directory is the public Agentic Workflow preview workspace. Use it when a
-coding agent should operate a USD asset through Content Workbench instead of
-running the older config-driven app CLIs.
+The repository root is the canonical entrypoint for Content Agent workflows.
+This directory contains implementation packages and compatibility links for
+existing nested-workspace users.
 
-## Start Here
-
-1. Read `README.md` in this directory.
-2. If `content-workflow-cli` is missing, run from this directory:
-
-   ```bash
-   ../scripts/setup_content_agent.sh
-   ```
-
-3. Make sure the repository environment is active:
-
-   ```bash
-   source ../.venv/bin/activate
-   ```
-
-4. Keep secrets in environment variables or `.env`; never print or commit them.
-
-## Skill Routing
-
-The public Agentic Workflow skills live under `.agents/skills/`. The
-`.codex/skills` and `.claude/skills` paths are compatibility mirrors.
-
-Use these skills for public single-asset workflows:
-
-- `content-workbench`: Content Workbench scene/session/render/pick/edit APIs.
-- `content-workflow-cli`: Public batch launcher guidance for prepared runs.
-- `content-workflow-convert-to-usd`: Convert supported source assets to USD.
-- `content-workflow-material`: Assign materials and run visual review.
-- `content-workflow-physics`: Author physics schema and validation evidence.
-- `content-workflow-simready`: Run SimReady profile checks and evidence export.
-
-Use these skills for public large-scene workflows:
-
-- `content-workflow-large-scene`: Coordinate decomposition, asset-task
-  processing, collection, handoff gates, and recovery.
-- `content-workflow-scene-decomposition`: Build processable representatives and
-  original-topology mappings.
-- `content-workflow-asset-task-processing`: Run per-representative domain tasks
-  such as material or physics.
-- `content-workflow-scene-collection`: Project validated task results back onto
-  the original scene topology.
-
-For one-line samples covering every public skill, use the "Public Skill Quick
-Samples" table in `README.md`.
-
-## First Command
-
-From this directory, run the shipped ladder example:
+## Start From The Repository Root
 
 ```bash
-content-workflow-cli materials assign \
-  --usd ../apps/material_agent/data/examples/ladder/sources/usd/ladder.usd \
-  --reference-image ../apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg \
-  --reference-image ../apps/material_agent/data/examples/ladder/sources/images/ladder_reference_2.jpeg \
-  --materials-yaml ../apps/material_agent/data/materials/material_libs_default/materials.yaml \
-  --output-dir runs/content-workflow-cli/ladder-codex
+./scripts/setup_content_agent.sh
+source .venv/bin/activate
+content-workflow-cli auth status
+content-workflow-cli --help
 ```
 
-For a large scene, use the batch scene launcher rather than invoking transition
-helpers directly:
+Do not require users to enter `agentic/`. Release-approved workflow skills are
+discoverable under root `.agents/skills`; root `.codex/skills` and
+`.claude/skills` expose the same set.
 
-```bash
-content-workflow-cli scene run \
-  --usd path/to/scene.usd \
-  --task material \
-  --materials-yaml ../apps/material_agent/data/materials/material_libs_default/materials.yaml \
-  --reference-dir path/to/references \
-  --additional-instructions-file path/to/material-guidance.md \
-  --output-dir runs/scene-material
-```
+## Routing
 
-For physics authoring, run the shipped Lightbulb01 example:
+- The established application workflows under `apps/` are the fixed pipeline.
+  Invoke the root `$fixed-pipeline` umbrella only when the user explicitly
+  requests one of those interfaces.
+- Use `content-workflow-cli` and the `content-workflow-*` skills by default for
+  supported conversion, material, texture, physics, segmentation, validation,
+  large-scene, articulation, and composed-asset tasks.
+- Use `material-agent`, `physics-agent`, `joint-agent`, `texture-agent`, their
+  YAML configs, benchmarks, or REST services only when the user explicitly
+  requests that fixed pipeline interface.
+- Never silently fall back to fixed pipeline when an agentic prerequisite is
+  missing.
+- Write run artifacts under root `runs/` unless the user provides another
+  output directory.
 
-```bash
-content-workflow-cli physics apply \
-  --usd ../apps/physics_agent/data/examples/Lightbulb01/light_bulb_01.usda \
-  --output-dir runs/content-workflow-cli/lightbulb-physics
-```
+See the root `README.md` for first-run examples and
+`../MIGRATING_TO_0_6.md` for the canonical capability and recovery matrix.
 
-## Safety
+## Skill Organization
 
-- Treat Workbench as a trusted local sidecar. Do not expose it to shared
-  networks without an operator-controlled proxy.
-- Do not mutate source USD files unless the user explicitly requests it.
-- Write run outputs under `runs/`.
-- Inspect `assignments.json`, `visual_quality_assessment.json`, final renders,
-  and `trace/operation_trace.md` before claiming success.
-- For large scenes, inspect `large_scene_run.json`, phase outputs, and terminal
-  validation before reporting completion.
-- For physics runs, inspect `physics_assignments.json`,
-  `physics_behavior_assessment.json`, `validation_evidence.json`, and runtime
-  validation artifacts before reporting completion.
+- Root `.agents/skills/` is the canonical discovery surface.
+- Agentic implementations remain in this directory under `.agents/skills/` and
+  are promoted to root discovery.
+- Fixed-pipeline procedures remain nested under the root
+  `.agents/skills/fixed-pipeline/references/` umbrella and must not be invoked
+  as independent skills.
+- Use the owning workflow's render method, or `usd-cli` for an explicit
+  low-level local or remote OVRTX render.

@@ -28,6 +28,22 @@ def test_public_response_sanitizer_is_outermost() -> None:
     )
 
 
+def test_openapi_reports_serving_nvcf_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_schema = service_main.app.openapi_schema
+    monkeypatch.setenv("NVCF_FUNCTION_VERSION_ID", "joint-version-under-test")
+    service_main.app.openapi_schema = None
+
+    try:
+        schema = service_main.app.openapi()
+        assert schema["info"]["x-nvcf-function-version-id"] == (
+            "joint-version-under-test"
+        )
+    finally:
+        service_main.app.openapi_schema = original_schema
+
+
 def test_get_max_active_sessions_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("JA_MAX_ACTIVE_SESSIONS", raising=False)
     assert registry_module.resolve_max_active_sessions() == 1
@@ -245,6 +261,13 @@ async def test_handlers_and_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> 
         SimpleNamespace(), InvalidSessionIdError("bad id")
     )
     assert response.status_code == 400
+
+    storage_response = await service_main._session_storage_path_handler(
+        SimpleNamespace(), service_main.SessionStoragePathError("unsafe root")
+    )
+    assert storage_response.status_code == 503
+    assert b"non-symlinked storage root" in storage_response.body
+    assert b"unsafe root" not in storage_response.body
 
     calls = []
     monkeypatch.setitem(

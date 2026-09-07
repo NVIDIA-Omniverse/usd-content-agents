@@ -52,6 +52,9 @@ _FIXED_PACKAGE_MTIME = 315532800
 _ZIP_LOCAL_HEADER_SIZE = 30
 _ZIP_ALIGNMENT = 64
 _MAX_PACKAGE_PATH_DEPTH = 256
+_MAX_USDZ_MEMBER_BYTES = 1024 * 1024 * 1024
+_MAX_USDZ_TOTAL_BYTES = 4 * 1024 * 1024 * 1024
+_MAX_USDZ_MEMBER_COUNT = 100_000
 _PART_PREFIX = "MeshPart_"
 _NORMAL_WINDING_COSINE_EPSILON = 1.0e-6
 
@@ -756,7 +759,7 @@ def _capture_source(
         shutil.copyfile(source, captured)
         if _file_sha256(captured) != source_sha256:
             _fail("source_capture_mismatch", "captured USDZ bytes differ from source")
-        manifest = _extract_usdz_without_size_limit(captured, package_root)
+        manifest = _extract_usdz_with_resource_limits(captured, package_root)
         root_entry = manifest["root_entry"]
         return _SourceCapture(
             package_root=package_root,
@@ -786,7 +789,7 @@ def _capture_source(
     )
 
 
-def _extract_usdz_without_size_limit(
+def _extract_usdz_with_resource_limits(
     package_path: Path,
     destination: Path,
 ) -> dict[str, Any]:
@@ -797,10 +800,26 @@ def _extract_usdz_without_size_limit(
         infos = archive.infolist()
         if not infos:
             _fail("invalid_usdz", "USDZ package is empty")
+        if len(infos) > _MAX_USDZ_MEMBER_COUNT:
+            _fail(
+                "invalid_usdz",
+                f"USDZ exceeds the {_MAX_USDZ_MEMBER_COUNT} member limit",
+            )
+        total_uncompressed_bytes = 0
+        for info in infos:
+            if info.file_size > _MAX_USDZ_MEMBER_BYTES:
+                _fail(
+                    "invalid_usdz",
+                    f"USDZ member exceeds the uncompressed size limit: {info.filename}",
+                )
+            total_uncompressed_bytes += info.file_size
+            if total_uncompressed_bytes > _MAX_USDZ_TOTAL_BYTES:
+                _fail("invalid_usdz", "USDZ exceeds the total uncompressed size limit")
         root_parts = _validate_usdz_info(infos[0], require_file=True)
         root_entry = "/".join(root_parts)
         if Path(root_entry).suffix.lower() not in _USD_LAYER_SUFFIXES:
             _fail("invalid_usdz", "USDZ first entry must be a USD root layer")
+        streamed_total_bytes = 0
         for info in infos:
             parts = _validate_usdz_info(info, require_file=False)
             normalized = "/".join(parts)
@@ -818,11 +837,24 @@ def _extract_usdz_without_size_limit(
             file_names.add(normalized)
             target.parent.mkdir(parents=True, exist_ok=True, mode=stat.S_IRWXU)
             digest = hashlib.sha256()
+            member_bytes = 0
             with (
                 archive.open(info) as source_stream,
                 target.open("xb") as output_stream,
             ):
                 for chunk in iter(lambda: source_stream.read(1024 * 1024), b""):
+                    member_bytes += len(chunk)
+                    streamed_total_bytes += len(chunk)
+                    if member_bytes > _MAX_USDZ_MEMBER_BYTES:
+                        _fail(
+                            "invalid_usdz",
+                            f"USDZ member exceeds the streamed size limit: {normalized}",
+                        )
+                    if streamed_total_bytes > _MAX_USDZ_TOTAL_BYTES:
+                        _fail(
+                            "invalid_usdz",
+                            "USDZ exceeds the streamed total size limit",
+                        )
                     output_stream.write(chunk)
                     digest.update(chunk)
             entries.append(

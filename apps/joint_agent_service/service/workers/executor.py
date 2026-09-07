@@ -64,6 +64,7 @@ class PipelineRunSupersededError(RuntimeError):
 
 _TERMINAL_RUN_STATUSES = {"completed", "failed", "cancelled"}
 _RUN_CANCELLATION_POLL_SECONDS = 1.0
+_MAX_LOG_COUNT = 2_147_483_647
 _DATASET_PRODUCER_STEPS = {
     "build_dataset_usd",
     "build_dataset_prepare_dataset",
@@ -73,6 +74,29 @@ _PREDICTION_PRODUCER_STEPS = {
     "consistency_pass",
     "infer_articulation_candidates",
 }
+
+
+def _bounded_log_count(value: Any) -> int:
+    """Return a non-negative integer suitable for a fixed-schema log field."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return min(_MAX_LOG_COUNT, max(0, value))
+    if isinstance(value, float) and value.is_integer():
+        return min(_MAX_LOG_COUNT, max(0, int(value)))
+    return 0
+
+
+def _log_pipeline_stats(stats: dict[str, Any]) -> None:
+    """Log only bounded count fields from the pipeline result."""
+    logger.info(
+        "Pipeline stats: prims_processed=%d images_generated=%d "
+        "predictions_made=%d articulation_candidates=%d",
+        _bounded_log_count(stats.get("prims_processed")),
+        _bounded_log_count(stats.get("images_generated")),
+        _bounded_log_count(stats.get("predictions_made")),
+        _bounded_log_count(stats.get("articulation_candidates")),
+    )
 
 
 def _pipeline_failure_diagnostic(failed_step: str) -> DurableDiagnostic:
@@ -493,7 +517,7 @@ async def _execute_pipeline_async_impl(
             )
 
         stats = project_result_metadata(_extract_stats_from_result(result, session_dir))
-        logger.info(f"Pipeline stats for {session_id[:8]}: {stats}")
+        _log_pipeline_stats(stats)
 
         metadata = await session_manager.get_session_metadata(session_id)
         duration_seconds = 0

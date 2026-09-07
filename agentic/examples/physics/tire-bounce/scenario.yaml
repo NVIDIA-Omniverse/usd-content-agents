@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Drop-settle scenario for the public Tire_B01 agentic refinement example.
+# The scalar objective rewards a higher first airborne rebound. The
+# coding agent uses the behavior prompt and generated PNG frames for semantic
+# selection and may revise this complete scenario between budgeted sweeps.
+
+name: drop_settle
+metric: max_bounce_height
+
+target:
+  drop_height_m: 1.0
+  duration_s: 3.0
+  gravity: -9.81
+  sample_fps: 30
+  cameras: ["+x+y+z"]
+  camera_ground_bias_fraction: 0.75
+  vlm_check: "off"
+  # The agent exports exact top-candidate recordings for OVRTX review.
+  record_frames: "off"
+
+parameters:
+  # Omitted bounds are derived from values already authored in tire.usdc.
+  # A later agentic refinement sweep may replace these bounds.
+  - name: mass_scale
+  - name: static_friction
+  - name: dynamic_friction
+  - name: restitution

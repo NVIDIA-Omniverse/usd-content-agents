@@ -18,7 +18,7 @@ from world_understanding.utils.credentials import (
 )
 
 # Default configurations
-_DEFAULT_NIM_MODEL = "google/gemma-4-31b-it"
+_DEFAULT_NIM_MODEL = "moonshotai/kimi-k3"
 
 
 class EchoChatModel(BaseChatModel):

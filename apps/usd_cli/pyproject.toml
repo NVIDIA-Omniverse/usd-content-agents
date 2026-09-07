@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "usd-cli"
+version = "0.0.1"
+description = "In-tree Content Agents component exposing low-level OpenUSD and Omniverse operations to agents through a CLI and local daemon"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"     # component-gated versions
+license = "Apache-2.0"
+
+# usd_core drives USD directly (pxr); the containing Content Agents environment
+# supplies the compatible pxr provider. Isolated artifact tests use the `usd` extra.
+# NumPy backs camera/spatial math and Pillow writes image artifacts.
+dependencies = ["numpy>=1.24,<3", "pillow>=10,<13"]
+
+[project.optional-dependencies]
+# zstandard: optional zstd wire compression for remote renders (plan Phase 0) —
+# used only when the backend advertises it; gzip remains the floor.
+cli    = ["typer>=0.12,<1", "httpx>=0.27,<1", "zstandard>=0.22,<0.26"]
+server = ["fastapi>=0.110,<1", "uvicorn>=0.29,<1", "pydantic>=2,<3"]
+test   = ["pytest>=8,<10"]
+usd    = ["usd-core>=23.5,<27"]
+# Quantitative camera coverage and placement.  Keep this isolated from the root
+# Content Agents service venv: its physics/VoMP lane remains qualified on Newton
+# 1.4, while camera analysis is qualified on the public Newton 1.5 + Warp 1.16 APIs.
+# Base Newton only — the importer extra would introduce a second usd-core owner.
+camera-analysis = ["newton==1.5.*", "warp-lang==1.16.*"]
+# Regenerate the public CLI reference and internal engineering notebooks.
+docs   = ["typer[all]>=0.12", "nbformat>=5", "nbclient>=0.10,<1", "ipykernel>=6", "ipython>=8"]
+# Local OVRTX photoreal rendering (Linux/Windows + NVIDIA RTX; ~2.5 GB wheel). The pins must
+# match OVRTX_PIN/OVSTAGE_PIN in src/usd_core/render/ovrtx.py. uv resolves both from
+# pypi.nvidia.com via
+# [tool.uv.sources] below; plain pip needs: pip install -e '.[ovrtx]' --extra-index-url
+# https://pypi.nvidia.com. Deliberately NOT part of `all` — opt in with --extra ovrtx.
+ovrtx  = [
+  "ovrtx==0.4.1.364340; sys_platform == 'linux' or sys_platform == 'win32'",
+  "ovstage==0.1.1.355824; sys_platform == 'linux' or sys_platform == 'win32'",
+  "warp-lang==1.16.0; sys_platform == 'linux' or sys_platform == 'win32'",
+]
+# Empty-space detection (`usd-cli space`). NVIDIA Warp JIT-compiles the heightfield/
+# extract kernels and runs the same source on CPU and CUDA. Ordinary PyPI wheel, but
+# kept optional: it is a ~100 MB install that only the `space` verbs need, and the
+# rest of the component must not acquire Warp as a mandatory dependency.
+space  = ["warp-lang>=1.14,<2"]
+all    = ["usd-cli[cli,server,usd]"]
+dev    = ["typer>=0.12,<1", "httpx>=0.27,<1", "zstandard>=0.22,<0.26",
+          "fastapi>=0.110,<1", "uvicorn>=0.29,<1",
+          "pydantic>=2,<3", "python-multipart>=0.0.9", "warp-lang>=1.14,<2",
+          "pytest>=8,<10", "nbformat>=5", "nbclient>=0.10,<1",
+          "ipykernel>=6", "ipython>=8", "build>=1,<2", "hatchling>=1.27,<2", "ruff>=0.12,<1", "mypy>=1.16,<2",
+          "pytest-cov>=6,<8", "pip-audit>=2.9,<3", "pip-licenses>=5,<6",
+          "cyclonedx-bom>=6,<8", "detect-secrets>=1.5,<2", "usd-core>=23.5,<27"]
+
+[project.scripts]
+"usd-cli" = "usd_cli.main:run"
+# Deprecated pre-rename aliases — same entry point, one-line stderr notice.
+"ov" = "usd_cli.main:run"
+"3dsc" = "usd_cli.main:run"
+# Telemetry wrapper: execs usd-cli as a subprocess, records OTel-shaped JSONL.
+# Stdlib-only and imports nothing from usd_cli.
+"usd-cli-tel" = "usd_telemetry.main:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/usd_core", "src/usd_server", "src/usd_cli", "src/usd_telemetry"]
+ignore-vcs = true
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/requirements/constraints.txt",
+    "/src",
+]
+ignore-vcs = true
+
+# ovrtx lives only on the NVIDIA index. `explicit = true` keeps every other dependency
+# on PyPI (no dependency-confusion surface); only packages pinned via [tool.uv.sources]
+# may resolve from it.
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+explicit = true
+
+[tool.uv.sources]
+ovrtx = { index = "nvidia" }
+ovstage = { index = "nvidia" }
+
+[tool.pytest.ini_options]
+# Black-box tests drive the `usd-cli` CLI as a subprocess against a real USD daemon.
+# Run from the repo root: `pytest`. Backends unavailable on the host are skipped.
+testpaths = ["tests"]
+addopts = "-ra"
+# Let the test modules `from conftest import ...` without an installed test package.
+pythonpath = ["tests"]

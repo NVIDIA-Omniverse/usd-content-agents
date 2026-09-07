@@ -324,16 +324,26 @@ class TestGenerateChatResponse:
 
         assert result["response"] == "visible 1\nvisible 2"
 
-    def test_list_content_without_text_parts_falls_back_to_string(
-        self, mock_chat_model
-    ):
+    @pytest.mark.parametrize(
+        "content",
+        [
+            [{"type": "reasoning", "summary": []}],
+            [],
+            None,
+        ],
+    )
+    def test_list_content_without_text_parts_is_empty(
+        self,
+        mock_chat_model: Mock,
+        content: list[dict[str, object]] | None,
+    ) -> None:
         mock_response = Mock()
-        mock_response.content = [{"type": "thinking", "text": "hidden"}]
+        mock_response.content = content
         mock_chat_model.invoke.return_value = mock_response
 
         result = generate_chat_response(chat_model=mock_chat_model, prompt="Test")
 
-        assert result["response"] == "[{'type': 'thinking', 'text': 'hidden'}]"
+        assert result["response"] == ""
 
     def test_non_string_response_content_falls_back_to_string(self, mock_chat_model):
         mock_response = Mock()

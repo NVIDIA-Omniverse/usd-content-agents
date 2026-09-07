@@ -77,7 +77,7 @@ class TestRemoteRenderingBackendConfig:
         assert backend.s3_region == "ap-south-1"
         assert backend.s3_profile == "module-profile"
 
-    def test_sync_render_passes_base_dir_to_remote_renderer(
+    def test_sync_render_passes_asset_boundaries_to_remote_renderer(
         self,
         monkeypatch,
         tmp_path,
@@ -86,6 +86,7 @@ class TestRemoteRenderingBackendConfig:
 
         def fake_render_all_cameras(**kwargs: Any) -> dict[str, Any]:
             captured["base_dir"] = kwargs.get("base_dir")
+            captured["asset_root"] = kwargs.get("asset_root")
             return {
                 "successful_cameras": 1,
                 "results": [{"images": [], "status": "success"}],
@@ -98,9 +99,74 @@ class TestRemoteRenderingBackendConfig:
         )
 
         backend = RemoteRenderingBackend(api_key="test")
-        result = backend.render(object(), cameras=["/Camera"], base_dir=tmp_path)
+        result = backend.render(
+            object(),
+            cameras=["/Camera"],
+            base_dir=tmp_path / "output",
+            asset_root=tmp_path,
+        )
 
-        assert captured["base_dir"] == tmp_path
+        assert captured["base_dir"] == tmp_path / "output"
+        assert captured["asset_root"] == tmp_path
+        assert result["successful_cameras"] == 1
+
+    def test_sync_render_passes_no_redirect_policy_to_remote_renderer(
+        self,
+        monkeypatch,
+    ):
+        captured: dict[str, object] = {}
+
+        def fake_render_all_cameras(**kwargs: Any) -> dict[str, Any]:
+            captured["allow_redirects"] = kwargs.get("allow_redirects")
+            return {
+                "successful_cameras": 1,
+                "results": [{"images": [], "status": "success"}],
+            }
+
+        monkeypatch.setattr(
+            rendering.render_remote,
+            "render_all_cameras",
+            fake_render_all_cameras,
+        )
+
+        assert RemoteRenderingBackend().allow_redirects is True
+        backend = RemoteRenderingBackend(
+            api_key="test",
+            allow_redirects=False,
+        )
+        result = backend.render(object(), cameras=["/Camera"])
+
+        assert captured["allow_redirects"] is False
+        assert result["successful_cameras"] == 1
+
+    def test_sync_render_passes_ovrtx_settings_to_remote_renderer(
+        self,
+        monkeypatch,
+    ):
+        captured: dict[str, object] = {}
+
+        def fake_render_all_cameras(**kwargs: Any) -> dict[str, Any]:
+            captured["num_sensor_updates"] = kwargs.get("num_sensor_updates")
+            captured["render_mode"] = kwargs.get("render_mode")
+            return {
+                "successful_cameras": 1,
+                "results": [{"images": [], "status": "success"}],
+            }
+
+        monkeypatch.setattr(
+            rendering.render_remote,
+            "render_all_cameras",
+            fake_render_all_cameras,
+        )
+
+        backend = RemoteRenderingBackend(
+            api_key="test",
+            num_sensor_updates=64,
+            render_mode="pt",
+        )
+        result = backend.render(object(), cameras=["/Camera"])
+
+        assert captured == {"num_sensor_updates": 64, "render_mode": "pt"}
         assert result["successful_cameras"] == 1
 
     def test_sync_render_passes_preview_fallback_flag_to_remote_renderer(
@@ -415,6 +481,7 @@ class TestRemoteRenderingBackendConfig:
 
         def fake_render_all_cameras_from_url(**kwargs: Any) -> dict[str, Any]:
             captured["add_preview_fallbacks"] = kwargs.get("add_preview_fallbacks")
+            captured["allow_redirects"] = kwargs.get("allow_redirects")
             return {
                 "successful_cameras": 1,
                 "results": [{"images": ["image"], "status": "success"}],
@@ -426,7 +493,11 @@ class TestRemoteRenderingBackendConfig:
             fake_render_all_cameras_from_url,
         )
 
-        backend = RemoteRenderingBackend(api_key="test", add_preview_fallbacks=False)
+        backend = RemoteRenderingBackend(
+            api_key="test",
+            add_preview_fallbacks=False,
+            allow_redirects=False,
+        )
         config = rendering.RenderingConfig(image_width=64)
 
         rendering.render_from_prepared_prims(
@@ -440,6 +511,7 @@ class TestRemoteRenderingBackendConfig:
         )
 
         assert captured["add_preview_fallbacks"] is False
+        assert captured["allow_redirects"] is False
 
     def test_url_composition_render_passes_preview_fallback_flag(self, monkeypatch):
         captured: list[object] = []

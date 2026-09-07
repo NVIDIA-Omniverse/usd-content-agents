@@ -9,6 +9,11 @@ from typing import Any
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 from world_understanding.agentic.workflows import Workflow
+from world_understanding.optimization import (
+    RefinementDecision,
+    RefinementIteration,
+    run_refinement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,86 +127,93 @@ class IterationTask(Task):
         iteration_count = 0
         iteration_results = []
         all_iteration_outputs = []
+        iteration_setup_error: Exception | None = None
 
         # Preserve original context values that shouldn't change between iterations
         original_context = self._preserve_original_context(context)
 
-        while iteration_count < max_iterations:
-            iteration_count += 1
+        def evaluate_iteration(
+            iteration: RefinementIteration[dict[str, Any]],
+        ) -> dict[str, Any]:
+            nonlocal iteration_count, iteration_setup_error
+            iteration_count = iteration.iteration
             listener.info("")
             listener.info("=" * 80)
             listener.info(f"ITERATION {iteration_count}/{max_iterations}")
             listener.info("=" * 80)
 
-            # Prepare context for this iteration
-            iteration_context = self._prepare_iteration_context(
-                context=context,
-                original_context=original_context,
-                iteration_num=iteration_count,
-                intermediate_base_dir=intermediate_base_dir,
-                save_intermediate=save_intermediate,
-            )
-
             try:
-                # Execute the sub-workflow for this iteration
-                listener.info(f"Executing sub-workflow: {self.sub_workflow.name}")
-                iteration_result_context = self.sub_workflow.run(
-                    initial_context=iteration_context
+                iteration_context = self._prepare_iteration_context(
+                    context=iteration.state,
+                    original_context=original_context,
+                    iteration_num=iteration_count,
+                    intermediate_base_dir=intermediate_base_dir,
+                    save_intermediate=save_intermediate,
+                )
+            except Exception as error:
+                iteration_setup_error = error
+                raise
+
+            listener.info(f"Executing sub-workflow: {self.sub_workflow.name}")
+            iteration_result_context = self.sub_workflow.run(
+                initial_context=iteration_context
+            )
+            iteration_result = self._extract_iteration_results(
+                iteration_result_context, iteration_count
+            )
+            iteration_results.append(iteration_result)
+            if "output_usd_path" in iteration_result_context:
+                all_iteration_outputs.append(
+                    str(iteration_result_context["output_usd_path"])
                 )
 
-                # Extract results from this iteration
-                iteration_result = self._extract_iteration_results(
-                    iteration_result_context, iteration_count
-                )
+            iteration.state.update(iteration_result_context)
+            self._log_iteration_summary(iteration.state, iteration_result)
+            return iteration_result_context
 
-                iteration_results.append(iteration_result)
-
-                # Track output paths
-                if "output_usd_path" in iteration_result_context:
-                    all_iteration_outputs.append(
-                        str(iteration_result_context["output_usd_path"])
-                    )
-
-                # Update context for next iteration
-                context.update(iteration_result_context)
-
-                # Log iteration summary
-                self._log_iteration_summary(context, iteration_result)
-
-                # Check if we should continue
-                should_continue = iteration_result_context.get(
-                    self.continue_iteration_key, False
-                )
-
-                if not should_continue:
-                    listener.info("")
-                    listener.info(
-                        f"✓ Iteration stopped after {iteration_count} iteration(s)"
-                    )
-                    reason = iteration_result_context.get(
-                        "judge_reasoning", "Judge approved termination"
-                    )
-                    listener.info(f"  Reason: {reason}")
-                    context["termination_reason"] = "approved"
-                    break
-
+        def decide_iteration(
+            _iteration: RefinementIteration[dict[str, Any]],
+            _result: dict[str, Any],
+            should_continue: bool,
+        ) -> RefinementDecision:
+            if should_continue:
                 listener.info("")
                 listener.info("→ Continuing to next iteration...")
+                return RefinementDecision.continue_()
 
-            except Exception as e:
-                listener.error(f"Error in iteration {iteration_count}: {e}")
-                context["termination_reason"] = "error"
-                context["iteration_error"] = str(e)
-                # Still record the iteration results we have
-                break
+            listener.info("")
+            listener.info(f"✓ Iteration stopped after {iteration_count} iteration(s)")
+            reason = context.get("judge_reasoning", "Judge approved termination")
+            listener.info(f"  Reason: {reason}")
+            return RefinementDecision.approve()
 
-        # Check if we hit max iterations
-        if (
-            iteration_count >= max_iterations
-            and context.get("termination_reason") != "approved"
-        ):
-            listener.warning(f"Reached maximum iterations ({max_iterations})")
+        if max_iterations <= 0:
             context["termination_reason"] = "max_iterations"
+            listener.warning(f"Reached maximum iterations ({max_iterations})")
+        else:
+            refinement = run_refinement(
+                initial_state=context,
+                max_iterations=max_iterations,
+                evaluate=evaluate_iteration,
+                judge=lambda _iteration, result: bool(
+                    result.get(self.continue_iteration_key, False)
+                ),
+                decide=decide_iteration,
+                revise=lambda iteration, _result, _judgment: iteration.state,
+                caught_exceptions=(Exception,),
+            )
+
+            if iteration_setup_error is not None:
+                raise iteration_setup_error
+
+            context["termination_reason"] = refinement.termination_reason
+            if refinement.error is not None:
+                listener.error(
+                    f"Error in iteration {iteration_count}: {refinement.error}"
+                )
+                context["iteration_error"] = str(refinement.error)
+            elif refinement.termination_reason == "max_iterations":
+                listener.warning(f"Reached maximum iterations ({max_iterations})")
 
         # Store final iteration results
         context["iteration_count"] = iteration_count

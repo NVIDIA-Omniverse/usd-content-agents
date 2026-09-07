@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import logging
+import shutil
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,6 +16,8 @@ from typing import Any
 import pytest
 import yaml
 from fastapi import HTTPException, UploadFile
+from PIL import Image
+from starlette.datastructures import FormData
 from world_understanding.utils.credentials import InlineSecretError
 from world_understanding.utils.held_file_response import open_held_artifact_file
 
@@ -27,11 +31,26 @@ from ...service.routers import (
 )
 from ...service.runtime import get_event_bus
 from ...service.runtime.events import ProgressEvent, StepState
+from ...service.session.manager import SessionManager
+from ...service.storage.base import (
+    CompletedSessionSnapshot,
+    SessionGenerationConflictError,
+    SessionNotCompletedError,
+)
 
 
 def _assert_rejected_exception_graph_severed(error: BaseException) -> None:
     assert error.__cause__ is None
     assert error.__context__ is None
+
+
+def _write_authored_asset_usd(path: Path, asset_path: str) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    stage = Usd.Stage.CreateNew(str(path))
+    shader = UsdShade.Shader.Define(stage, "/World/Shader")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(Sdf.AssetPath(asset_path))
+    stage.GetRootLayer().Save()
 
 
 def _assert_config_persistence_traceback_safe(
@@ -51,6 +70,12 @@ def _assert_config_persistence_traceback_safe(
             assert forbidden_locals.isdisjoint(frame.f_locals)
         traceback = traceback.tb_next
     assert owned_frames
+
+
+def test_config_persistence_rejects_cyclic_json_like_values() -> None:
+    cyclic: list[object] = []
+    cyclic.append(cyclic)
+    assert not config_persistence._is_supported_durable_yaml_value(cyclic)
 
 
 class _Store:
@@ -256,7 +281,27 @@ class _ClosingRegistry(_Registry):
         return _ClosingReservation(self, session_id)
 
 
-def _upload(name: str, data: bytes = b"data") -> UploadFile:
+def _image_bytes(suffix: str = ".png") -> bytes:
+    image_format = {
+        ".png": "PNG",
+        ".jpg": "JPEG",
+        ".jpeg": "JPEG",
+        ".webp": "WEBP",
+        ".bmp": "BMP",
+    }[suffix.lower()]
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), "blue").save(buffer, format=image_format)
+    return buffer.getvalue()
+
+
+def _upload(name: str, data: bytes | None = None) -> UploadFile:
+    if data is None:
+        suffix = Path(name).suffix.lower()
+        data = (
+            _image_bytes(suffix)
+            if suffix in tune_router._VALID_REFERENCE_IMAGE_EXTENSIONS
+            else b"data"
+        )
     return UploadFile(file=io.BytesIO(data), filename=name)
 
 
@@ -906,6 +951,49 @@ async def test_config_persistence_does_not_misclassify_writer_value_error(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("writer_fails", "repeat_cancel"),
+    [(False, True), (True, False)],
+)
+async def test_config_persistence_drains_repeated_cancel_and_writer_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_fails: bool,
+    repeat_cancel: bool,
+) -> None:
+    manager = _Manager(tmp_path)
+    writer_started = threading.Event()
+    release_writer = threading.Event()
+
+    def blocked_writer(_path: Path, _config: dict[str, Any]) -> None:
+        writer_started.set()
+        if not release_writer.wait(timeout=5):
+            raise TimeoutError("writer was not released")
+        if writer_fails:
+            raise OSError("writer failed during cancellation")
+
+    monkeypatch.setattr(config_persistence, "write_pipeline_config", blocked_writer)
+    task = asyncio.create_task(
+        config_persistence.build_and_write_pipeline_config(
+            config_factory=lambda: {"steps": {}},
+            config_path=tmp_path / "config.yaml",
+            session_manager=manager,
+            session_id="request-session",
+            session_created_here=False,
+        )
+    )
+    assert await asyncio.to_thread(writer_started.wait, 2)
+    task.cancel()
+    await asyncio.sleep(0)
+    if repeat_cancel:
+        task.cancel()
+        await asyncio.sleep(0)
+    release_writer.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
 async def test_config_persistence_reports_owned_session_cleanup_failure(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -1018,7 +1106,11 @@ async def test_pipeline_stream_copy_status_and_terminal_events(
 
     manager = _Manager(tmp_path)
     pipeline_router.set_session_manager(manager)
-    monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: _Registry(False))
+    monkeypatch.setattr(
+        pipeline_router,
+        "get_job_registry",
+        lambda: _Registry(running=False),
+    )
     manager.metadata["created_at"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     status = await pipeline_router.get_pipeline_status("sid")
     assert status.elapsed_seconds >= 0
@@ -1259,6 +1351,75 @@ async def test_regenerate_resets_prior_terminal_state_and_event_snapshot(
 
 
 @pytest.mark.asyncio
+async def test_s3_regenerate_replaces_stale_local_config_from_one_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = "regen-s3-config"
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+    manager.metadata.update({"status": "completed"})
+    pipeline_router.set_session_manager(manager)
+    registry = _ClosingRegistry()
+    monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: registry)
+
+    config_path = manager.get_session_dir(session_id) / "input" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("project: {name: stale}\n", encoding="utf-8")
+
+    async def hydrate_publication(_session_id: str, *, prefix) -> int:
+        assert prefix == ("input/", "cache/")
+        config_path.write_text("project: {name: published}\n", encoding="utf-8")
+        return 1
+
+    built_configs: list[dict[str, Any]] = []
+
+    async def build_config(*, config_factory, **_kwargs) -> dict[str, Any]:
+        config = config_factory()
+        built_configs.append(config)
+        return config
+
+    manager.sync_from_store = hydrate_publication
+    monkeypatch.setattr(
+        pipeline_router,
+        "build_and_validate_pipeline_config",
+        build_config,
+    )
+
+    response = await pipeline_router.regenerate_pipeline(
+        session_id,
+        pipeline_router.RegenerateRequest(steps=[]),
+    )
+
+    assert response.status == "pending"
+    assert built_configs[0]["project"]["name"] == "published"
+
+
+@pytest.mark.asyncio
+async def test_upload_usd_with_native_local_store_confinement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(tmp_path / "sessions")
+    monkeypatch.setattr(pipeline_router, "session_manager", manager)
+    monkeypatch.setattr(pipeline_router.config, "max_upload_size_mb", 1)
+
+    uploaded = await pipeline_router.upload_usd_immediate(
+        usd_file=_upload("scene.usda", b"#usda 1.0\n"),
+        s3_uri=None,
+    )
+
+    assert uploaded.status == "ready"
+    assert await manager.sync_from_store(uploaded.session_id, prefix="input/") == 0
+    assert (
+        manager.get_session_dir(uploaded.session_id)
+        .joinpath("input", "scene.usda")
+        .read_bytes()
+        == b"#usda 1.0\n"
+    )
+
+
+@pytest.mark.asyncio
 async def test_pipeline_create_and_upload_validation_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1466,6 +1627,59 @@ async def test_pipeline_create_cleanup_and_store_fallback_paths(
     assert registry.registered == registered_before
 
 
+@pytest.mark.asyncio
+async def test_pipeline_generic_input_failures_and_cancel_claim_conflict(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(pipeline_router.config, "s3_allowed_buckets", "bucket")
+
+    with pytest.raises(HTTPException) as missing_session:
+        pipeline_router._require_pipeline_session_id(None)
+    assert missing_session.value.status_code == 500
+    assert pipeline_router._require_pipeline_session_id("sid") == "sid"
+
+    def fail_download(*_args: Any, **_kwargs: Any) -> Path:
+        raise RuntimeError("download failed")
+
+    monkeypatch.setattr(pipeline_router, "_download_s3_to_session", fail_download)
+    with pytest.raises(HTTPException) as upload_s3_failure:
+        await pipeline_router.upload_usd_immediate(
+            usd_file=None,
+            s3_uri="s3://bucket/path/scene.usda",
+        )
+    assert upload_s3_failure.value.status_code == 500
+    assert upload_s3_failure.value.detail == "Failed to download USD from S3"
+
+    with pytest.raises(HTTPException) as pipeline_s3_failure:
+        await pipeline_router.create_pipeline(
+            **_pipeline_create_kwargs(s3_uri="s3://bucket/path/scene.usda")
+        )
+    assert pipeline_s3_failure.value.status_code == 500
+    assert pipeline_s3_failure.value.detail == "Failed to download USD from S3"
+
+    async def fail_upload(*_args: Any, **_kwargs: Any) -> int:
+        raise RuntimeError("upload failed")
+
+    monkeypatch.setattr(pipeline_router, "_stream_copy", fail_upload)
+    with pytest.raises(HTTPException) as pipeline_upload_failure:
+        await pipeline_router.create_pipeline(
+            **_pipeline_create_kwargs(usd_file=_upload("scene.usda"))
+        )
+    assert pipeline_upload_failure.value.status_code == 500
+    assert pipeline_upload_failure.value.detail == "Failed to save USD file"
+
+    manager.metadata = {"status": "running"}
+    manager.terminal_claim = "completed"
+    monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: _Registry())
+    with pytest.raises(HTTPException) as cancel_conflict:
+        await pipeline_router.cancel_pipeline("sid")
+    assert cancel_conflict.value.status_code == 409
+    assert "reached terminal state" in cancel_conflict.value.detail
+
+
 def test_predict_helper_validation_and_s3_preflight(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1582,7 +1796,13 @@ async def test_predict_create_validation_download_and_fallback_paths(
         await predict_router.create_predict(**_predict_create_kwargs(session_id="busy"))
     assert conflict.value.status_code == 409
 
-    manager.metadata = {"status": "completed", "config": {}}
+    manager.metadata = {
+        "session_id": "stale-remote-dataset",
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
+        "status": "completed",
+        "config": {},
+    }
 
     async def sync_without_input(_session_id: str, *, prefix: str = "") -> int:
         manager.sync_from_calls.append(prefix)
@@ -1619,7 +1839,13 @@ async def test_predict_create_validation_download_and_fallback_paths(
     )
     assert fallback.status == "pending"
     assert manager.sync_from_calls[-2:] == ["cache/dataset/", "input/"]
-    manager.metadata = {"status": "completed", "config": {}}
+    manager.metadata = {
+        "session_id": "fixture-session",
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
+        "status": "completed",
+        "config": {},
+    }
 
     input_path = manager.get_session_dir("invalid-options") / "input" / "scene.usda"
     input_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1725,8 +1951,9 @@ async def test_tune_upload_reference_and_source_helpers(
             current_batch_bytes=2,
             max_batch_bytes=1,
         )
+    valid_png = _image_bytes()
     copied, batch_bytes = await tune_router._copy_reference_uploads(
-        uploads=[_upload("ok.png", b"abc")],
+        uploads=[_upload("ok.png", valid_png)],
         session_dir=tmp_path,
         subdir="refs",
         file_prefix="ref",
@@ -1734,7 +1961,18 @@ async def test_tune_upload_reference_and_source_helpers(
         label="reference image",
     )
     assert copied[0].name == "ref_01.png"
-    assert batch_bytes == 3
+    assert batch_bytes == len(valid_png)
+
+    with pytest.raises(HTTPException, match="Invalid reference image content"):
+        await tune_router._copy_reference_uploads(
+            uploads=[_upload("renamed-video.png", b"\x00\x00\x00\x18ftypmp42")],
+            session_dir=tmp_path,
+            subdir="refs",
+            file_prefix="spoofed",
+            valid_extensions={".png"},
+            label="reference image",
+        )
+    assert not (tmp_path / "input/refs/spoofed_01.png").exists()
 
     with pytest.raises(HTTPException, match="Invalid S3 URI"):
         tune_router._download_s3_to_session("not-s3", tmp_path)
@@ -1777,8 +2015,8 @@ async def test_tune_upload_reference_and_source_helpers(
             self.artifact = artifact
             self.synced: list[str] = []
 
-        async def session_exists(self, _session_id: str) -> bool:
-            return self.exists
+        async def get_session_metadata(self, _session_id: str) -> dict | None:
+            return {"status": "completed"} if self.exists else None
 
         async def get_artifact_path(
             self, _session_id: str, _artifact_type: str
@@ -1820,16 +2058,363 @@ async def test_tune_upload_reference_and_source_helpers(
         tune_router._validate_engine_name_for_request("missing")
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source_marker",
+    [None, tune_router.PORTABLE_SIDECAR_MARKER_BYTES],
+    ids=["legacy-missing-marker", "current-valid-marker"],
+)
+@pytest.mark.parametrize(
+    "source_sidecar_name",
+    ["scene_physics.usda_assets", "scene_physics_assets"],
+    ids=["collision-safe-name", "legacy-name"],
+)
+async def test_copy_from_source_session_preserves_portable_output_sidecar(
+    tmp_path: Path,
+    source_marker: bytes | None,
+    source_sidecar_name: str,
+) -> None:
+    from pxr import Ar, Sdf, Usd, UsdShade
+    from world_understanding.functions.graphics.so_export import (
+        _require_owned_sidecar,
+    )
+
+    source_cache = tmp_path / "source-session" / "cache" / "physics"
+    source_cache.mkdir(parents=True)
+    source_usd = source_cache / "scene_physics.usda"
+    source_sidecar = source_cache / source_sidecar_name
+    source_sidecar.mkdir()
+    texture = source_sidecar / "albedo.png"
+    texture.write_bytes(b"portable-texture")
+    if source_sidecar_name == "scene_physics.usda_assets":
+        legacy_shadow = source_cache / "scene_physics_assets"
+        legacy_shadow.mkdir()
+        (legacy_shadow / "stale.png").write_bytes(b"stale")
+    if source_marker is not None:
+        (source_sidecar / tune_router.PORTABLE_SIDECAR_MARKER_NAME).write_bytes(
+            source_marker
+        )
+
+    stage = Usd.Stage.CreateNew(str(source_usd))
+    shader = UsdShade.Shader.Define(stage, "/World/Shader")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(f"{source_sidecar_name}/albedo.png")
+    )
+    stage.GetRootLayer().Save()
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_usd
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    copied = await tune_router._copy_from_source_session(
+        SourceManager(),
+        "source",
+        target_session,
+    )
+    copied_sidecar = target_session / "input" / source_sidecar_name
+    assert copied.name == "physics.usda"
+    assert copied_sidecar.is_dir()
+    assert not (target_session / "input" / "physics.usda_assets").exists()
+    if source_sidecar_name == "scene_physics.usda_assets":
+        assert not (target_session / "input" / "scene_physics_assets").exists()
+    assert (
+        copied_sidecar / tune_router.PORTABLE_SIDECAR_MARKER_NAME
+    ).read_bytes() == tune_router.PORTABLE_SIDECAR_MARKER_BYTES
+    _require_owned_sidecar(copied_sidecar)
+    shutil.rmtree(tmp_path / "source-session")
+
+    reopened = Usd.Stage.Open(str(copied))
+    assert reopened is not None
+    asset = reopened.GetPrimAtPath("/World/Shader").GetAttribute("inputs:file").Get()
+    assert asset.resolvedPath
+    resolved = Ar.GetResolver().Resolve(asset.resolvedPath)
+    resolver_asset = Ar.GetResolver().OpenAsset(resolved)
+    assert resolver_asset is not None
+    assert bytes(resolver_asset.GetBuffer()) == b"portable-texture"
+
+
+@pytest.mark.asyncio
+async def test_copy_from_source_session_rejects_invalid_sidecar_marker(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source-session"
+    source_dir.mkdir()
+    source_usd = source_dir / "scene.usda"
+    _write_authored_asset_usd(
+        source_usd,
+        "scene.usda_assets/albedo.png",
+    )
+    source_sidecar = source_dir / "scene.usda_assets"
+    source_sidecar.mkdir()
+    (source_sidecar / "albedo.png").write_bytes(b"texture")
+    (source_sidecar / tune_router.PORTABLE_SIDECAR_MARKER_NAME).write_bytes(
+        b"not-an-exporter-marker\n"
+    )
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_usd
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    with pytest.raises(HTTPException, match="unsafe or unreadable"):
+        await tune_router._copy_from_source_session(
+            SourceManager(),
+            "source",
+            target_session,
+        )
+
+    assert not (target_session / "input" / "physics.usda").exists()
+    assert not (target_session / "input" / "scene.usda_assets").exists()
+
+
+@pytest.mark.asyncio
+async def test_copy_from_source_session_ignores_unreferenced_current_sidecar(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source-session"
+    source_dir.mkdir()
+    source_usd = source_dir / "scene.usda"
+    source_usd.write_text("#usda 1.0\n", encoding="utf-8")
+    source_sidecar = source_dir / "scene.usda_assets"
+    source_sidecar.mkdir()
+    (source_sidecar / tune_router.PORTABLE_SIDECAR_MARKER_NAME).write_bytes(
+        tune_router.PORTABLE_SIDECAR_MARKER_BYTES
+    )
+    (source_sidecar / "stale.png").write_bytes(b"stale")
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_usd
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    copied = await tune_router._copy_from_source_session(
+        SourceManager(),
+        "source",
+        target_session,
+    )
+
+    assert copied.read_bytes() == source_usd.read_bytes()
+    assert not (target_session / "input" / source_sidecar.name).exists()
+    assert (source_sidecar / "stale.png").read_bytes() == b"stale"
+
+
+@pytest.mark.asyncio
+async def test_copy_from_source_session_rejects_dangling_current_sidecar(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source-session"
+    source_dir.mkdir()
+    source_usd = source_dir / "scene.usda"
+    _write_authored_asset_usd(
+        source_usd,
+        "scene.usda_assets/albedo.png",
+    )
+    (source_dir / "scene.usda_assets").symlink_to(source_dir / "missing-assets")
+    legacy_sidecar = source_dir / "scene_assets"
+    legacy_sidecar.mkdir()
+    (legacy_sidecar / "albedo.png").write_bytes(b"legacy-texture")
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_usd
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    with pytest.raises(HTTPException, match="unsafe or unreadable"):
+        await tune_router._copy_from_source_session(
+            SourceManager(),
+            "source",
+            target_session,
+        )
+
+    assert not (target_session / "input" / "physics.usda").exists()
+    assert not (target_session / "input" / "scene.usda_assets").exists()
+    assert not (target_session / "input" / "scene_assets").exists()
+
+
+@pytest.mark.asyncio
+async def test_copy_from_source_session_rejects_symlinked_primary_usd(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    source_link = tmp_path / "source-link.usda"
+    source_link.symlink_to(source)
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_link
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    with pytest.raises(HTTPException, match="unsafe or unreadable"):
+        await tune_router._copy_from_source_session(
+            SourceManager(),
+            "source",
+            target_session,
+        )
+
+    assert source.read_text(encoding="utf-8") == "#usda 1.0\n"
+    assert not (target_session / "input" / "physics.usda").exists()
+
+
+@pytest.mark.asyncio
+async def test_copy_from_source_session_preserves_preexisting_sidecar_on_collision(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source-session"
+    source_dir.mkdir()
+    source_usd = source_dir / "scene.usda"
+    _write_authored_asset_usd(
+        source_usd,
+        "scene.usda_assets/albedo.png",
+    )
+    source_sidecar = source_dir / "scene.usda_assets"
+    source_sidecar.mkdir()
+    (source_sidecar / "a-new.png").write_bytes(b"must-not-be-injected")
+    (source_sidecar / "albedo.png").write_bytes(b"new-texture")
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_usd
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    target_sidecar = target_session / "input" / "scene.usda_assets"
+    target_sidecar.mkdir(parents=True)
+    (target_sidecar / "albedo.png").write_bytes(b"existing-texture")
+    (target_sidecar / "keep.txt").write_text("keep", encoding="utf-8")
+
+    with pytest.raises(HTTPException, match="target bundle already exists"):
+        await tune_router._copy_from_source_session(
+            SourceManager(),
+            "source",
+            target_session,
+        )
+
+    assert (target_sidecar / "albedo.png").read_bytes() == b"existing-texture"
+    assert (target_sidecar / "keep.txt").read_text(encoding="utf-8") == "keep"
+    assert not (target_sidecar / "a-new.png").exists()
+    assert not (target_session / "input" / "physics.usda").exists()
+
+
+@pytest.mark.asyncio
+async def test_copy_from_source_session_preserves_preexisting_primary_usd(
+    tmp_path: Path,
+) -> None:
+    source_usd = tmp_path / "source.usda"
+    source_usd.write_text("#usda 1.0\n", encoding="utf-8")
+
+    class SourceManager:
+        async def session_exists(self, _session_id: str) -> bool:
+            return True
+
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "completed"}
+
+        async def get_artifact_path(
+            self, _session_id: str, _artifact_type: str
+        ) -> Path:
+            return source_usd
+
+        async def sync_from_store(self, _session_id: str, *, prefix: str = "") -> int:
+            return 0
+
+    target_session = tmp_path / "target-session"
+    existing = target_session / "input" / "physics.usda"
+    existing.parent.mkdir(parents=True)
+    existing.write_text("#usda 1.0\n# existing\n", encoding="utf-8")
+
+    with pytest.raises(HTTPException, match="target bundle already exists"):
+        await tune_router._copy_from_source_session(
+            SourceManager(),
+            "source",
+            target_session,
+        )
+
+    assert existing.read_text(encoding="utf-8") == "#usda 1.0\n# existing\n"
+
+
+class _FormRequest:
+    def __init__(self, items: list[tuple[str, object]] | None = None) -> None:
+        self._form = FormData(items or [])
+
+    async def form(self) -> FormData:
+        return self._form
+
+
 async def _call_create_refine(**overrides: Any):
     kwargs: dict[str, Any] = {
+        "request": _FormRequest(),
         "physics_usd": _upload("physics.usda", b"#usda\n"),
         "s3_uri": None,
         "source_session_id": None,
         "reference_images": [],
-        "reference_videos": [],
         "reference_descriptions": "",
-        "reference_video_descriptions": "",
-        "reference_video_frames": 8,
         "judge_reference_frames": 8,
         "judge_generated_frames": 16,
         "scenario_yaml": _REFINE_SCENARIO_YAML,
@@ -1842,7 +2427,8 @@ async def _call_create_refine(**overrides: Any):
         "seed": 42,
         "judge_max_tokens": None,
         "judge_temperature": None,
-        "visual_evidence_enabled": True,
+        "visual_evidence_enabled": False,
+        "visual_evidence_timeout_seconds": 600.0,
         "llm_timeout_seconds": 180.0,
     }
     kwargs.update(overrides)
@@ -1860,7 +2446,10 @@ async def _call_create_refine(**overrides: Any):
         ({"judge_max_tokens": 0}, "judge_max_tokens"),
         ({"judge_temperature": -0.1}, "judge_temperature"),
         ({"llm_timeout_seconds": float("nan")}, "llm_timeout_seconds"),
-        ({"reference_video_frames": 0}, "reference_video_frames"),
+        (
+            {"visual_evidence_timeout_seconds": float("nan")},
+            "visual_evidence_timeout_seconds",
+        ),
         ({"judge_reference_frames": 65}, "judge_reference_frames"),
         ({"judge_generated_frames": 0}, "judge_generated_frames"),
         (
@@ -1870,7 +2459,7 @@ async def _call_create_refine(**overrides: Any):
         ({"user_prompt": "x" * (17 * 1024)}, "user_prompt"),
         (
             {"reference_images": [_upload(f"ref{i}.png") for i in range(17)]},
-            "Too many reference media",
+            "Too many reference images",
         ),
     ],
 )
@@ -1883,17 +2472,33 @@ async def test_refine_create_rejects_scalar_and_payload_limits(
 
 
 @pytest.mark.asyncio
+async def test_refine_create_rejects_fake_visual_evidence() -> None:
+    with pytest.raises(HTTPException, match="recording_usd"):
+        await _call_create_refine(visual_evidence_enabled=True)
+
+
+@pytest.mark.asyncio
 async def test_refine_create_rejects_reference_description_mismatches() -> None:
     with pytest.raises(HTTPException, match="reference_descriptions"):
         await _call_create_refine(
             reference_images=[_upload("ref.png")],
             reference_descriptions=json.dumps(["one", "two"]),
         )
-    with pytest.raises(HTTPException, match="reference_video_descriptions"):
+
+
+@pytest.mark.asyncio
+async def test_refine_create_rejects_removed_video_inputs() -> None:
+    with pytest.raises(HTTPException, match="Video inputs are unsupported") as field:
         await _call_create_refine(
-            reference_videos=[_upload("ref.mp4")],
-            reference_video_descriptions=json.dumps([]),
+            request=_FormRequest([("reference_videos", "legacy")])
         )
+    assert field.value.status_code == 400
+
+    with pytest.raises(HTTPException, match="video uploads") as upload:
+        await _call_create_refine(
+            request=_FormRequest([("reference_images", _upload("ref.mp4"))])
+        )
+    assert upload.value.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -1982,14 +2587,12 @@ async def test_refine_create_input_cleanup_paths(
 
 async def _call_create_tune(**overrides: Any):
     kwargs: dict[str, Any] = {
+        "request": _FormRequest(),
         "physics_usd": _upload("physics.usda", b"#usda\n"),
         "s3_uri": None,
         "source_session_id": None,
         "reference_images": [],
-        "reference_videos": [],
         "reference_descriptions": "",
-        "reference_video_descriptions": "",
-        "reference_video_frames": 8,
         "judge_reference_frames": 8,
         "judge_generated_frames": 16,
         "scenario_yaml": "",
@@ -2019,15 +2622,11 @@ async def test_tune_create_validation_and_input_cleanup_paths(
             reference_images=[_upload("ref.png")],
             reference_descriptions=json.dumps(["one", "two"]),
         )
-    with pytest.raises(HTTPException, match="reference_video_descriptions"):
-        await _call_create_tune(
-            reference_videos=[_upload("ref.mp4")],
-            reference_video_descriptions=json.dumps([]),
-        )
+    with pytest.raises(HTTPException, match="Video inputs are unsupported") as video:
+        await _call_create_tune(request=_FormRequest([("reference_video_frames", "8")]))
+    assert video.value.status_code == 400
     with pytest.raises(HTTPException, match="parse to a mapping"):
         await _call_create_tune(scenario_yaml="- item\n", user_prompt="")
-    with pytest.raises(HTTPException, match="reference_video_frames"):
-        await _call_create_tune(reference_video_frames=0)
     with pytest.raises(HTTPException, match="judge_reference_frames"):
         await _call_create_tune(judge_reference_frames=65)
     with pytest.raises(HTTPException, match="judge_generated_frames"):
@@ -2325,6 +2924,11 @@ async def test_tune_refine_status_results_cancel_and_artifacts(
     assert tune_router._coerce_finite_score("bad") is None
 
     manager.metadata["created_at"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    monkeypatch.setattr(
+        tune_router,
+        "get_job_registry",
+        lambda: _Registry(running=True),
+    )
     bus = get_event_bus()
     bus.cleanup_session("sid")
     await bus.emit(
@@ -2515,3 +3119,312 @@ async def test_tune_refine_status_results_cancel_and_artifacts(
     refine_file.symlink_to(outside_refine_file)
     with pytest.raises(HTTPException, match="Artifact not available"):
         await refine_router.download_refine_artifact(valid_uuid, "final/report.md")
+
+
+@pytest.mark.asyncio
+async def test_tune_source_copy_refreshes_s3_publication_first(tmp_path: Path) -> None:
+    live_source = tmp_path / "source" / "cache" / "physics" / "scene_physics.usda"
+    live_source.parent.mkdir(parents=True)
+    live_source.write_text("stale-live-cache", encoding="utf-8")
+
+    class Store:
+        kind = "s3"
+
+    class Manager:
+        store = Store()
+        sync_calls: list[tuple[str, Path, str]] = []
+
+        async def snapshot_completed_publication(
+            self,
+            session_id: str,
+            destination: Path,
+            *,
+            prefix: str,
+        ) -> CompletedSessionSnapshot:
+            self.sync_calls.append((session_id, destination, prefix))
+            output = destination / "cache" / "physics" / "scene_physics.usda"
+            output.parent.mkdir(parents=True)
+            output.write_text("#usda 1.0\n", encoding="utf-8")
+            return CompletedSessionSnapshot(
+                metadata={"status": "completed"},
+                artifact_keys=("cache/physics/scene_physics.usda",),
+                downloaded_count=1,
+            )
+
+    manager = Manager()
+    copied = await tune_router._copy_from_source_session(
+        manager,  # type: ignore[arg-type]
+        "source-session",
+        tmp_path / "target",
+    )
+    assert copied.read_text(encoding="utf-8") == "#usda 1.0\n"
+    assert live_source.read_text(encoding="utf-8") == "stale-live-cache"
+    assert len(manager.sync_calls) == 1
+    session_id, snapshot_dir, prefix = manager.sync_calls[0]
+    assert session_id == "source-session"
+    assert prefix == "cache/physics/"
+    assert snapshot_dir != live_source.parents[2]
+    assert not snapshot_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_tune_source_copy_rejects_nonterminal_source(tmp_path: Path) -> None:
+    class Store:
+        kind = "s3"
+
+    class Manager:
+        store = Store()
+
+        async def snapshot_completed_publication(self, *_args, **_kwargs):
+            raise SessionNotCompletedError("source-session")
+
+    with pytest.raises(HTTPException, match="not completed") as error:
+        await tune_router._copy_from_source_session(
+            Manager(),  # type: ignore[arg-type]
+            "source-session",
+            tmp_path / "target",
+        )
+    assert error.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_tune_source_copy_rejects_nonterminal_local_source(
+    tmp_path: Path,
+) -> None:
+    class Manager:
+        async def get_session_metadata(self, _session_id: str) -> dict:
+            return {"status": "running"}
+
+    with pytest.raises(HTTPException, match="not completed") as error:
+        await tune_router._copy_from_source_session(
+            Manager(),  # type: ignore[arg-type]
+            "source-session",
+            tmp_path / "target",
+        )
+    assert error.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_tune_source_copy_rejects_missing_metadata(tmp_path: Path) -> None:
+    class Store:
+        kind = "s3"
+
+    class Manager:
+        store = Store()
+
+        async def snapshot_completed_publication(self, *_args, **_kwargs):
+            raise FileNotFoundError("source-session")
+
+    with pytest.raises(HTTPException, match="not found") as error:
+        await tune_router._copy_from_source_session(
+            Manager(),  # type: ignore[arg-type]
+            "source-session",
+            tmp_path / "target",
+        )
+    assert error.value.status_code == 404
+
+
+def test_tune_snapshot_output_path_falls_back_to_known_suffixes(
+    tmp_path: Path,
+) -> None:
+    assert tune_router._snapshot_output_path(tmp_path, []) is None
+    report = tmp_path / "cache" / "physics" / "report.json"
+    report.parent.mkdir(parents=True)
+    report.write_text("{}\n", encoding="utf-8")
+    fallback = tmp_path / "cache" / "physics" / "scene_physics.usdc"
+    fallback.write_bytes(b"usdc")
+    assert (
+        tune_router._snapshot_output_path(
+            tmp_path,
+            ["cache/physics/report.json"],
+        )
+        == fallback
+    )
+    assert tune_router._snapshot_output_path(tmp_path, []) == fallback
+
+
+@pytest.mark.asyncio
+async def test_pipeline_create_rejects_unavailable_startup_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.metadata = {}
+    session_dir = manager.get_session_dir("existing")
+    input_path = session_dir / "input" / "scene.usda"
+    input_path.parent.mkdir(parents=True)
+    input_path.write_text("#usda 1.0\n", encoding="utf-8")
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(
+        pipeline_router,
+        "get_job_registry",
+        lambda: _ClosingRegistry(),
+    )
+
+    with pytest.raises(HTTPException, match="metadata is unavailable") as error:
+        await pipeline_router.create_pipeline(
+            **_pipeline_create_kwargs(session_id="existing")
+        )
+    assert error.value.status_code == 500
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("valid_config_snapshot", [True, False])
+async def test_pipeline_create_restores_config_after_claimed_start_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_config_snapshot: bool,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.metadata = {
+        "session_id": "existing",
+        "created_at": datetime.now(UTC).isoformat(),
+        "status": "completed",
+        "config": {},
+    }
+    session_dir = manager.get_session_dir("existing")
+    input_path = session_dir / "input" / "scene.usda"
+    input_path.parent.mkdir(parents=True)
+    input_path.write_text("#usda 1.0\n", encoding="utf-8")
+    config_path = input_path.parent / "config.yaml"
+    config_path.write_text(
+        "project: {name: prior}\n" if valid_config_snapshot else "prior-scalar\n",
+        encoding="utf-8",
+    )
+    restored: list[dict] = []
+
+    async def restore(_session_id: str, metadata: dict) -> None:
+        restored.append(metadata)
+
+    async def fail_config(**_kwargs):
+        raise RuntimeError("startup failed")
+
+    monkeypatch.setattr(manager, "restore_session_metadata", restore, raising=False)
+    monkeypatch.setattr(
+        pipeline_router,
+        "build_and_write_pipeline_config",
+        fail_config,
+    )
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(
+        pipeline_router,
+        "get_job_registry",
+        lambda: _ClosingRegistry(),
+    )
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        await pipeline_router.create_pipeline(
+            **_pipeline_create_kwargs(session_id="existing")
+        )
+    assert restored and restored[0]["status"] == "completed"
+    if valid_config_snapshot:
+        assert yaml.safe_load(config_path.read_text(encoding="utf-8")) == {
+            "project": {"name": "prior"}
+        }
+
+
+@pytest.mark.asyncio
+async def test_pipeline_create_rolls_back_post_claim_generation_conflict(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.metadata = {
+        "session_id": "existing",
+        "created_at": datetime.now(UTC).isoformat(),
+        "status": "completed",
+        "config": {},
+    }
+    session_dir = manager.get_session_dir("existing")
+    input_path = session_dir / "input" / "scene.usda"
+    input_path.parent.mkdir(parents=True)
+    input_path.write_text("#usda 1.0\n", encoding="utf-8")
+    config_path = input_path.parent / "config.yaml"
+    config_path.write_text("project: {name: prior}\n", encoding="utf-8")
+    restored: list[dict] = []
+
+    async def restore(_session_id: str, metadata: dict) -> None:
+        restored.append(metadata)
+
+    async def conflict_after_mutation(**_kwargs):
+        config_path.write_text("project: {name: rejected}\n", encoding="utf-8")
+        raise SessionGenerationConflictError("generation changed")
+
+    monkeypatch.setattr(manager, "restore_session_metadata", restore, raising=False)
+    monkeypatch.setattr(
+        pipeline_router,
+        "build_and_write_pipeline_config",
+        conflict_after_mutation,
+    )
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(
+        pipeline_router,
+        "get_job_registry",
+        lambda: _ClosingRegistry(),
+    )
+
+    with pytest.raises(HTTPException, match="generation changed") as error:
+        await pipeline_router.create_pipeline(
+            **_pipeline_create_kwargs(session_id="existing")
+        )
+    assert error.value.status_code == 409
+    assert restored and restored[0]["status"] == "completed"
+    assert yaml.safe_load(config_path.read_text(encoding="utf-8")) == {
+        "project": {"name": "prior"}
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("restore_fails", [False, True])
+async def test_pipeline_regeneration_rolls_back_claimed_generation_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    restore_fails: bool,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.metadata = {
+        "session_id": "regen",
+        "created_at": datetime.now(UTC).isoformat(),
+        "status": "completed",
+        "config": {},
+    }
+    config_path = manager.get_session_dir("regen") / "input" / "config.yaml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text("steps: {}\n", encoding="utf-8")
+    restored: list[dict] = []
+
+    async def valid_config(**_kwargs) -> dict[str, Any]:
+        return {"steps": {}}
+
+    async def begin_generation(_session_id: str) -> None:
+        return None
+
+    async def fail_after_claim(_session_id: str) -> None:
+        raise RuntimeError("post-claim failure")
+
+    async def restore(_session_id: str, metadata: dict) -> None:
+        if restore_fails:
+            raise RuntimeError("restore failed")
+        restored.append(metadata)
+
+    monkeypatch.setattr(
+        pipeline_router,
+        "build_and_validate_pipeline_config",
+        valid_config,
+    )
+    monkeypatch.setattr(manager, "begin_generation", begin_generation, raising=False)
+    monkeypatch.setattr(manager, "clear_cancellation", fail_after_claim)
+    monkeypatch.setattr(manager, "restore_session_metadata", restore, raising=False)
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(
+        pipeline_router,
+        "get_job_registry",
+        lambda: _ClosingRegistry(),
+    )
+
+    with pytest.raises(RuntimeError, match="post-claim failure"):
+        await pipeline_router.regenerate_pipeline(
+            "regen",
+            pipeline_router.RegenerateRequest(steps=[]),
+        )
+    assert bool(restored) is not restore_fails

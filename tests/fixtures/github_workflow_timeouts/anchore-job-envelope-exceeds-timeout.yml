@@ -1,0 +1,27 @@
+name: anchore acquisition and scan envelope exceeds job timeout
+on: push
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 87
+    steps:
+      - name: Install a Python tool
+        timeout-minutes: 15
+        run: >-
+          bash ci/github/retry-network-command.sh --
+          python -m pip install example-tool
+      - name: Bootstrap pinned Anchore tools
+        timeout-minutes: 15
+        run: bash ci/github/bootstrap-anchore-tools.sh
+      - name: Generate SBOM
+        timeout-minutes: 30
+        uses: anchore/sbom-action@pinned
+        with:
+          path: .
+          syft-version: v1.42.3
+      - name: Scan dependencies
+        timeout-minutes: 30
+        uses: anchore/scan-action@pinned
+        with:
+          path: .
+          grype-version: v0.110.0

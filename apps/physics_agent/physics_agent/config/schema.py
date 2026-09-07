@@ -19,6 +19,12 @@ from physics_agent.api.defaults import (
     DEFAULT_VLM_REASONING_EFFORT,
     DEFAULT_VLM_TEMPERATURE,
     IDENTIFY_ASSET_DEFAULTS,
+    PIPELINE_STEP_NAMES,
+)
+from physics_agent.integrations.vomp_defaults import (
+    DEFAULT_VOMP_ARTIFACT_SHA256,
+    DEFAULT_VOMP_RENDER_CONFIG,
+    DEFAULT_VOMP_REVISION,
 )
 
 # Step name to directory name mapping
@@ -30,18 +36,11 @@ STEP_OUTPUT_DIRS = {
     "predict": "predictions",
     "restore_usd": "restored",
     "apply_physics": "physics",
+    "vomp_mass": "vomp",
 }
 
 # Step execution order
-STEP_ORDER = [
-    "optimize_usd",
-    "identify_asset",
-    "build_dataset_usd",
-    "build_dataset_prepare_dataset",
-    "predict",
-    "restore_usd",
-    "apply_physics",
-]
+STEP_ORDER: tuple[str, ...] = tuple(PIPELINE_STEP_NAMES)
 
 # Required top-level sections
 REQUIRED_SECTIONS = ["project", "input"]
@@ -90,7 +89,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
     Returns:
         Dictionary with default step configuration
     """
-    defaults = {
+    defaults: dict[str, dict[str, Any]] = {
         "optimize_usd": {
             "enabled": False,  # Disabled by default, opt-in
             # optimization_config defaults are applied by OptimizeUSDConfigTask
@@ -170,6 +169,20 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "collision_approx": "convexHull",
             "mass_scale_policy": "skip_mass",
             "allow_empty_predictions": False,
+        },
+        "vomp_mass": {
+            "enabled": False,
+            "target_prim": None,
+            "runtime_root": None,
+            "python_executable": ".venv/bin/python",
+            "config_path": "weights/inference.json",
+            "expected_revision": DEFAULT_VOMP_REVISION,
+            "expected_artifact_sha256": dict(DEFAULT_VOMP_ARTIFACT_SHA256),
+            "attention_backend": "xformers",
+            "timeout_seconds": 3600.0,
+            "max_complete_voxels": 262144,
+            "provenance_path": None,
+            "render": dict(DEFAULT_VOMP_RENDER_CONFIG),
         },
     }
 

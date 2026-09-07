@@ -15,6 +15,8 @@ from typing import Any
 
 from pxr import Sdf, Usd, UsdGeom  # type: ignore
 
+from world_understanding.utils.credentials import redact_sensitive_log_text
+
 logger = logging.getLogger(__name__)
 
 
@@ -1004,7 +1006,11 @@ class USDModel:
             try:
                 model.load()
             except Exception as e:
-                logger.warning(f"Could not load USD stage from {file_path}: {e}")
+                logger.warning(
+                    "Could not load USD stage from %s: %s",
+                    redact_sensitive_log_text(file_path),
+                    redact_sensitive_log_text(e),
+                )
 
         return model
 

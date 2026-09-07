@@ -43,6 +43,8 @@ DEFAULTS = {
         "uv_generation_mode": "projection",
         "uv_projection": "box",
         "uv_normalize_out_of_range": False,
+        "uv_repair_degenerate": True,
+        "uv_degenerate_min_span": 0.05,
         "uv_rebake_source_albedo": False,
         "uv_rebake_size": None,
         "uv_atlas_distortion_threshold": 3.0,

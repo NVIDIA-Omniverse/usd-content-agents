@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import asyncio
 import io
 import threading
 import time
@@ -13,6 +14,7 @@ from apps.texture_gen_service_common import (
     BackendCapabilities,
     BackendHealth,
     Conditioning,
+    Configuration,
     CreateJobRequest,
     GeneratedTextures,
     GenerationResult,
@@ -21,6 +23,7 @@ from apps.texture_gen_service_common import (
     TextureGenerationBackend,
     TextureGenerationBackendError,
     TextureVariationService,
+    WeatheringControls,
     create_app,
     local_file_uri,
     local_path_from_file_uri,
@@ -29,9 +32,15 @@ from apps.texture_gen_service_common import (
 from apps.texture_gen_service_common import service as service_module
 from apps.texture_gen_service_common import usd_package as service_usd_package
 from apps.texture_gen_service_common.service import _JobRecord
+from apps.texture_gen_service_common.weathering_intent import (
+    infer_weathering_effect,
+    prompt_requests_weathering,
+)
 from apps.texture_gen_simple_service.client.client import TextureVariationClient
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from PIL import Image
+from starlette.requests import ClientDisconnect, Request
 
 from texture_agent.functions.rest_client import RestTextureVariationClient
 from texture_agent.functions.texture_generation import (
@@ -46,6 +55,60 @@ from texture_agent.functions.texture_generation import (
 from texture_agent.functions.texture_generation import (
     TextureVariationConfig as ClientTextureVariationConfig,
 )
+
+
+@pytest.mark.parametrize(
+    "variant_name",
+    (
+        "../outside",
+        "..\\outside",
+        "/absolute",
+        "nested/name",
+        ".",
+        "  ",
+        "control\nname",
+    ),
+)
+def test_configuration_rejects_variant_path_traversal(variant_name: str) -> None:
+    with pytest.raises(ValueError, match="variant_name"):
+        Configuration(variant_name=variant_name)
+
+
+def test_configuration_accepts_explicit_default_variant_name() -> None:
+    assert Configuration(variant_name=None).variant_name is None
+
+
+@pytest.mark.parametrize("field_name", ["editable_mask_uri", "protected_mask_uri"])
+def test_weathering_mask_uris_reject_blank_values(field_name: str) -> None:
+    with pytest.raises(ValueError, match=field_name):
+        WeatheringControls.model_validate({field_name: "  "})
+
+
+def test_weathering_mask_uri_validation_accepts_non_blank_values() -> None:
+    spec = WeatheringControls(
+        editable_mask_uri="file:///editable.png",
+        protected_mask_uri="file:///protected.png",
+    )
+
+    assert spec.editable_mask_uri == "file:///editable.png"
+    assert spec.protected_mask_uri == "file:///protected.png"
+
+
+def test_weathering_prompt_intent_is_prompt_first_and_negation_aware() -> None:
+    assert infer_weathering_effect(None) is None
+    assert infer_weathering_effect("rust around the lower bolts") == "rust"
+    assert infer_weathering_effect("worn edges") == "wear"
+    assert infer_weathering_effect("clean steel with no rust") is None
+    assert infer_weathering_effect("clean rubber with no surface dust") is None
+    assert infer_weathering_effect("clean steel with no rust, dust") is None
+    assert infer_weathering_effect("clean steel with no rust; dust") is None
+    assert infer_weathering_effect("clean steel with no rust, but add dust") == "dust"
+    assert infer_weathering_effect("avoid heavy rust but add dust") == "dust"
+    assert prompt_requests_weathering("clean polished steel") is False
+
+
+def test_ambiguous_weathering_prompt_is_still_detected_fail_closed() -> None:
+    assert prompt_requests_weathering("rust and dust") is True
 
 
 class _ImmediateBackend(TextureGenerationBackend):
@@ -328,7 +391,7 @@ def test_create_app_submits_polls_and_reports_health(tmp_path: Path) -> None:
     job_id = response.json()["job_id"]
 
     status = response.json()
-    for _ in range(20):
+    for _ in range(200):
         status = client.get(f"/v1/texture-variations/{job_id}").json()
         if status["status"] == "completed":
             break
@@ -341,6 +404,211 @@ def test_create_app_submits_polls_and_reports_health(tmp_path: Path) -> None:
     assert backend.requests[0].conditioning.multiview_image_uris == [
         "file:///work/view0.png"
     ]
+
+
+def test_service_owns_uploaded_inputs_and_publishes_job_artifacts(
+    tmp_path: Path,
+) -> None:
+    backend = _ImmediateBackend()
+    app = create_app(
+        backend=backend,
+        output_dir=tmp_path,
+        title="Transport Test Texture API",
+        max_upload_bytes=64,
+    )
+
+    with TestClient(app) as client:
+        source_upload = client.post(
+            "/v1/texture-variation-assets?filename=source.usdz",
+            content=b"source-package",
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        reference_upload = client.post(
+            "/v1/texture-variation-assets?filename=reference.png",
+            content=b"reference-image",
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        mask_upload = client.post(
+            "/v1/texture-variation-assets?filename=editable.png",
+            content=b"editable-mask",
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        assert source_upload.status_code == 201
+        assert reference_upload.status_code == 201
+        assert mask_upload.status_code == 201
+        source_uri = source_upload.json()["asset_uri"]
+        reference_uri = reference_upload.json()["asset_uri"]
+        mask_uri = mask_upload.json()["asset_uri"]
+
+        request = _request("transported").model_copy(
+            update={
+                "source_asset_uri": source_uri,
+                "conditioning": Conditioning(
+                    text_prompt="painted steel",
+                    reference_image_uris=[reference_uri],
+                ),
+                "configuration": Configuration(
+                    variant_name="transported",
+                    engine="test",
+                    texture_size=16,
+                    weathering=WeatheringControls(editable_mask_uri=mask_uri),
+                ),
+            }
+        )
+        response = client.post(
+            "/v1/texture-variations",
+            json=request.model_dump(mode="json"),
+        )
+        assert response.status_code == 202
+        job_id = response.json()["job_id"]
+        status = response.json()
+        for _ in range(200):
+            status = client.get(f"/v1/texture-variations/{job_id}").json()
+            if status["status"] == "completed":
+                break
+            time.sleep(0.01)
+
+        assert status["status"] == "completed"
+        result = status["result"]
+        assert result["variant_asset_uri"].startswith(
+            "http://testserver/v1/texture-variation-assets/"
+        )
+        albedo_uri = result["generated_textures"]["albedo"]
+        assert albedo_uri.startswith(
+            f"http://testserver/v1/texture-variations/{job_id}/artifacts/"
+        )
+        assert client.get(albedo_uri).content == b"fake-png"
+        assert client.get(source_uri).content == b"source-package"
+
+    submitted = backend.requests[0]
+    assert submitted.source_asset_uri.startswith("file://")
+    assert submitted.conditioning.reference_image_uris[0].startswith("file://")
+    assert submitted.configuration.weathering is not None
+    assert submitted.configuration.weathering.editable_mask_uri is not None
+    assert submitted.configuration.weathering.editable_mask_uri.startswith("file://")
+    assert Path(submitted.source_asset_uri.removeprefix("file://")).is_file()
+
+
+def test_service_rejects_unsafe_or_oversized_uploads(tmp_path: Path) -> None:
+    app = create_app(
+        backend=_ImmediateBackend(),
+        output_dir=tmp_path,
+        title="Bounded Upload Test Texture API",
+        max_upload_bytes=4,
+    )
+
+    with TestClient(app) as client:
+        assert (
+            client.post(
+                "/v1/texture-variation-assets?filename=../source.usdz",
+                content=b"usd",
+            ).status_code
+            == 400
+        )
+        assert (
+            client.post(
+                "/v1/texture-variation-assets?filename=source.usdz",
+                content=b"12345",
+            ).status_code
+            == 413
+        )
+
+    upload_root = tmp_path / "_uploads"
+    assert not upload_root.exists() or not any(upload_root.iterdir())
+
+
+def test_service_cleans_partial_upload_after_client_disconnect(tmp_path: Path) -> None:
+    app = create_app(
+        backend=_ImmediateBackend(),
+        output_dir=tmp_path,
+        title="Disconnected Upload Test Texture API",
+    )
+    upload_endpoint = next(
+        route.endpoint
+        for route in app.routes
+        if isinstance(route, APIRoute) and route.path == "/v1/texture-variation-assets"
+    )
+
+    async def receive() -> dict[str, str]:
+        return {"type": "http.disconnect"}
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "headers": [],
+        },
+        receive,
+    )
+
+    async def upload() -> None:
+        with pytest.raises(ClientDisconnect):
+            await upload_endpoint(request, filename="aborted.usdz")
+
+    try:
+        asyncio.run(upload())
+    finally:
+        app.state.texture_variation_service.shutdown()
+
+    upload_root = tmp_path / "_uploads"
+    assert not upload_root.exists() or not any(upload_root.iterdir())
+
+
+@pytest.mark.parametrize(
+    ("body", "max_upload_bytes", "status_code", "detail"),
+    [
+        (b"", 4, 400, "Upload is empty."),
+        (b"12345", 4, 413, "Upload is too large."),
+    ],
+)
+def test_service_cleans_stream_rejections_without_content_length(
+    body: bytes,
+    max_upload_bytes: int,
+    status_code: int,
+    detail: str,
+    tmp_path: Path,
+) -> None:
+    app = create_app(
+        backend=_ImmediateBackend(),
+        output_dir=tmp_path,
+        title="Rejected Stream Upload Test Texture API",
+        max_upload_bytes=max_upload_bytes,
+    )
+    chunks = [] if not body else [body]
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/texture-variation-assets?filename=rejected.usdz",
+            content=(chunk for chunk in chunks),
+        )
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
+
+    upload_root = tmp_path / "_uploads"
+    assert not upload_root.exists() or not any(upload_root.iterdir())
+
+
+def test_service_uri_parsing_decodes_only_path_segments_once(tmp_path: Path) -> None:
+    assert TextureVariationService._asset_id_from_uri(
+        "https://textures.example/v1/texture-variation-assets/va-test/map%2Fpart.png"
+    ) == ("va-test", "map/part.png")
+    assert (
+        TextureVariationService._asset_id_from_uri(
+            "https://textures.example/not-an-upload/va-test/map.png"
+        )
+        is None
+    )
+    assert (
+        TextureVariationService._asset_id_from_uri(
+            "https://textures.example/v1/texture-variation-assets/va-test/map.png/extra"
+        )
+        is None
+    )
+    assert (
+        service_module._local_path_from_artifact_uri(
+            f"file://{tmp_path.as_posix()}/map%252Fpart.png"
+        )
+        == (tmp_path / "map%2Fpart.png").resolve()
+    )
 
 
 def test_common_models_round_trip_with_texture_agent_rest_client() -> None:
@@ -736,7 +1004,7 @@ def test_service_reports_failed_job_and_unknown_job(tmp_path: Path) -> None:
     job_id = response.json()["job_id"]
 
     status = response.json()
-    for _ in range(20):
+    for _ in range(200):
         status = client.get(f"/v1/texture-variations/{job_id}").json()
         if status["status"] == "failed":
             break
@@ -761,7 +1029,7 @@ def test_service_marks_job_failed_when_output_dir_cannot_be_created(
     try:
         submitted = service.submit(_request("bad_output_dir"))
         status = submitted
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "failed":
                 break
@@ -1181,7 +1449,7 @@ def test_service_can_cancel_queued_job(tmp_path: Path) -> None:
 
         assert service.get_status(second.job_id).status == "cancelled"
         backend.release.set()
-        for _ in range(20):
+        for _ in range(200):
             if service.get_status(first.job_id).status == "completed":
                 break
             time.sleep(0.05)
@@ -1227,7 +1495,7 @@ def test_service_preserves_partial_result_from_backend_error(tmp_path: Path) -> 
     try:
         submitted = service.submit(_request("partial-failure"))
         status = submitted
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "failed":
                 break
@@ -1295,7 +1563,7 @@ def test_create_app_reports_busy_and_cancel_route_errors(tmp_path: Path) -> None
 
             job_id = first.json()["job_id"]
             backend.release.set()
-            for _ in range(20):
+            for _ in range(200):
                 status = client.get(f"/v1/texture-variations/{job_id}").json()
                 if status["status"] == "completed":
                     break
@@ -1320,7 +1588,7 @@ def test_service_marks_running_exception_after_cancel_as_cancelled(
     try:
         submitted = service.submit(_request("cancel-failure"))
         status = submitted
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "cancelled":
                 break
@@ -1344,7 +1612,7 @@ def test_service_preserves_cancelled_result_when_cancelled_after_backend_result(
     try:
         submitted = service.submit(_request("cancel-result"))
         status = submitted
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "cancelled":
                 break
@@ -1366,7 +1634,7 @@ def test_service_evicts_terminal_jobs_after_ttl(tmp_path: Path) -> None:
 
     try:
         submitted = service.submit(_request("ttl"))
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "completed":
                 break
@@ -1410,7 +1678,7 @@ def test_service_evicts_terminal_jobs_without_locking_output_cleanup(
 
     try:
         submitted = service.submit(_request("ttl-unlocked"))
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "completed":
                 break
@@ -1453,7 +1721,7 @@ def test_service_retries_failed_output_cleanup(
 
     try:
         submitted = service.submit(_request("ttl-retry"))
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "completed":
                 break
@@ -1490,7 +1758,7 @@ def test_service_keeps_terminal_jobs_when_ttl_disabled(tmp_path: Path) -> None:
 
     try:
         submitted = service.submit(_request("ttl-disabled"))
-        for _ in range(20):
+        for _ in range(200):
             status = service.get_status(submitted.job_id)
             if status.status == "completed":
                 break
@@ -1539,6 +1807,120 @@ def test_service_cleanup_job_output_warns_when_delete_fails(
         with caplog.at_level("WARNING", logger=service_module.logger.name):
             assert service._cleanup_job_output("stuck-job") is False
         assert "Failed to clean texture generation job output" in caplog.text
+    finally:
+        service.shutdown()
+
+
+def test_service_cleanup_job_output_removes_owned_uploads(tmp_path: Path) -> None:
+    service = TextureVariationService(
+        backend=_ImmediateBackend(),
+        output_dir=tmp_path,
+    )
+    job_id = "job-with-uploads"
+    live_path = tmp_path / "_uploads" / "va-live" / "live.usdz"
+    live_path.parent.mkdir(parents=True)
+    live_path.write_bytes(b"live")
+    absent_path = tmp_path / "_uploads" / "va-absent" / "absent.usdz"
+    service.register_upload("va-live", live_path)
+    service.register_upload("va-absent", absent_path)
+    with service._lock:
+        service._uploads["va-live"].claimed_job_id = job_id
+        service._uploads["va-absent"].claimed_job_id = job_id
+        service._jobs[job_id] = _JobRecord(
+            JobStatus(job_id=job_id, status="completed"),
+            upload_ids=("va-missing", "va-live", "va-absent"),
+        )
+    (tmp_path / job_id).mkdir()
+
+    try:
+        assert service.upload_id_for_job_path("unknown-job", live_path) is None
+        assert service._cleanup_job_output(job_id) is True
+        assert "va-live" not in service._uploads
+        assert "va-absent" not in service._uploads
+        assert not live_path.parent.exists()
+    finally:
+        service.shutdown()
+
+
+def test_service_cleanup_job_output_reports_failed_upload_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    service = TextureVariationService(
+        backend=_ImmediateBackend(),
+        output_dir=tmp_path,
+    )
+    job_id = "job-with-stuck-upload"
+    upload_path = tmp_path / "_uploads" / "va-stuck" / "stuck.usdz"
+    upload_path.parent.mkdir(parents=True)
+    upload_path.write_bytes(b"stuck")
+    service.register_upload("va-stuck", upload_path)
+    with service._lock:
+        service._uploads["va-stuck"].claimed_job_id = job_id
+        service._jobs[job_id] = _JobRecord(
+            JobStatus(job_id=job_id, status="completed"),
+            upload_ids=("va-stuck",),
+        )
+    job_dir = tmp_path / job_id
+    job_dir.mkdir()
+    original_rmtree = service_module.shutil.rmtree
+
+    def fail_upload_cleanup(path: Path) -> None:
+        if Path(path) == upload_path.parent:
+            raise OSError(f"cannot remove {path}")
+        original_rmtree(path)
+
+    monkeypatch.setattr(service_module.shutil, "rmtree", fail_upload_cleanup)
+
+    try:
+        with caplog.at_level("WARNING", logger=service_module.logger.name):
+            assert service._cleanup_job_output(job_id) is False
+        assert "Failed to clean texture generation upload" in caplog.text
+        assert "va-stuck" in service._uploads
+    finally:
+        service.shutdown()
+
+
+def test_service_cleanup_unclaimed_uploads_covers_all_outcomes(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path,
+) -> None:
+    service = TextureVariationService(
+        backend=_ImmediateBackend(),
+        output_dir=tmp_path,
+    )
+    live_path = tmp_path / "_uploads" / "va-live" / "live.usdz"
+    live_path.parent.mkdir(parents=True)
+    live_path.write_bytes(b"live")
+    absent_path = tmp_path / "_uploads" / "va-absent" / "absent.usdz"
+    stuck_path = tmp_path / "_uploads" / "va-stuck" / "stuck.usdz"
+    stuck_path.parent.mkdir(parents=True)
+    stuck_path.write_bytes(b"stuck")
+    service.register_upload("va-live", live_path)
+    service.register_upload("va-absent", absent_path)
+    service.register_upload("va-stuck", stuck_path)
+    with service._lock:
+        service._pending_upload_cleanup.update(
+            {"va-missing", "va-live", "va-absent", "va-stuck"}
+        )
+
+    original_rmtree = service_module.shutil.rmtree
+
+    def fail_stuck_cleanup(path: Path) -> None:
+        if Path(path) == stuck_path.parent:
+            raise OSError(f"cannot remove {path}")
+        original_rmtree(path)
+
+    monkeypatch.setattr(service_module.shutil, "rmtree", fail_stuck_cleanup)
+
+    try:
+        with caplog.at_level("WARNING", logger=service_module.logger.name):
+            service._cleanup_uploads(["va-missing", "va-live", "va-absent", "va-stuck"])
+        assert "Failed to clean texture generation upload" in caplog.text
+        assert set(service._uploads) == {"va-stuck"}
+        assert service._pending_upload_cleanup == {"va-stuck"}
     finally:
         service.shutdown()
 

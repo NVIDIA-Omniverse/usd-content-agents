@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import signal
@@ -15,10 +16,18 @@ import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from importlib import import_module
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as distribution_version
 from pathlib import Path
 from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from content_agent_workflows.common.artifacts import read_contained_artifact
+from content_agent_workflows.common.run_record import (
+    MAX_RUN_RECORD_JSON_BYTES,
+    WorkflowRunRecorder,
+)
 
 CONVERT_TO_USD_REPORT_SCHEMA_VERSION = (
     "content-agent-workflows.convert-to-usd-report.v1"
@@ -55,6 +64,7 @@ USD_CONVERT_CAD_EXTENSIONS = frozenset(
         ".3dxml",
         ".3mf",
         ".asm",
+        ".brep",
         ".catpart",
         ".catproduct",
         ".cgr",
@@ -107,11 +117,9 @@ CONVERTER_PACKAGES = {
     "mujoco-usd-converter": "mujoco-usd-converter",
     "usd-convert-cad": "usd-convert-cad",
 }
-USD_CONVERT_CAD_REVISION = "4226fd49c06420adf193f821e2ddee805bb38eef"
-USD_CONVERT_CAD_INSTALL_SPEC = (
-    "git+https://github.com/NVIDIA-Omniverse/usd-convert-cad.git"
-    f"@{USD_CONVERT_CAD_REVISION}"
-)
+USD_CONVERT_CAD_VERSION = "0.2.0"
+USD_CONVERT_CAD_INSTALL_SPEC = f"usd-convert-cad=={USD_CONVERT_CAD_VERSION}"
+USD_CONVERT_CAD_QUALITY_ARGS = ("--accurate-tessellation",)
 CONVERTER_INSTALL_SPECS = {
     "urdf-usd-converter": ("urdf-usd-converter",),
     "mujoco-usd-converter": ("mujoco-usd-converter",),
@@ -132,7 +140,10 @@ CONVERTER_SOURCE_FORMATS = {
     "usd-convert-cad": "cad",
 }
 CONVERTER_INSTALL_TIMEOUT_S = 300.0
+DEFAULT_CONVERTER_TIMEOUT_S = 120.0
 DIRECTORY_SOURCE_MAX_FILES = 4096
+DIRECTORY_SOURCE_IDENTITY_MAX_FILE_BYTES = 16 * 1024 * 1024 * 1024
+DIRECTORY_SOURCE_IDENTITY_MAX_TOTAL_BYTES = 64 * 1024 * 1024 * 1024
 DIRECTORY_SOURCE_EXCLUDED_DIR_NAMES = frozenset(
     {
         ".git",
@@ -220,6 +231,11 @@ class ConversionReport(BaseModel):
     converter_reference: str = ""
     converter_tool: str
     converter_command: list[str] = Field(default_factory=list)
+    converter_timeout_s: float = Field(
+        default=DEFAULT_CONVERTER_TIMEOUT_S,
+        gt=0.0,
+        allow_inf_nan=False,
+    )
     output_directory: str
     output_usd_path: str = ""
     output_format: str = "unknown"
@@ -247,6 +263,7 @@ class ConversionReport(BaseModel):
             f"- Converter reference: `{self.converter_reference or 'none'}`",
             f"- Converter tool: `{self.converter_tool}`",
             f"- Converter command: `{command}`",
+            f"- Converter timeout: `{self.converter_timeout_s:g}` seconds",
             f"- Output directory: `{self.output_directory}`",
             f"- Output USD: `{self.output_usd_path}`",
             f"- Output format: `{self.output_format}`",
@@ -283,8 +300,13 @@ class ConvertToUsdWorkflowInput(BaseModel):
     output_format: OutputUsdFormat | None = None
     install_missing: bool = True
     reference_order: tuple[str, ...] = DEFAULT_REFERENCE_ORDER
-    converter_timeout_s: float = 120.0
+    converter_timeout_s: float = Field(
+        default=DEFAULT_CONVERTER_TIMEOUT_S,
+        gt=0.0,
+        allow_inf_nan=False,
+    )
     fail_on_error: bool = False
+    resume: bool = False
 
 
 class ConvertToUsdWorkflowResult(BaseModel):
@@ -298,6 +320,11 @@ class ConvertToUsdWorkflowResult(BaseModel):
     output_usd_path: str | None = None
     selected_converter: str | None = None
     source_format: str = "unknown"
+    converter_timeout_s: float = Field(
+        default=DEFAULT_CONVERTER_TIMEOUT_S,
+        gt=0.0,
+        allow_inf_nan=False,
+    )
     request_path: str
     converter_probe_path: str
     conversion_report_path: str
@@ -305,11 +332,19 @@ class ConvertToUsdWorkflowResult(BaseModel):
     validation_report_path: str
     manifest_path: str
     validation_status: str = "not_evaluated"
+    workflow_run_manifest_path: str | None = None
     error: str | None = None
 
 
 def _as_json(model: BaseModel) -> dict[str, Any]:
     return cast(dict[str, Any], model.model_dump(mode="json"))
+
+
+def _validate_converter_timeout_s(timeout_s: float) -> float:
+    value = float(timeout_s)
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError("converter timeout must be a positive finite number")
+    return value
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> Path:
@@ -512,9 +547,6 @@ def converter_package_for_source(source_asset: Path | str) -> str | None:
 
 
 def _converter_tool_path(tool_name: str) -> str | None:
-    tool_path = shutil.which(tool_name)
-    if tool_path:
-        return tool_path
     scripts_dir = Path(sys.executable).parent
     candidates = [scripts_dir / tool_name]
     if sys.platform == "win32":
@@ -522,14 +554,39 @@ def _converter_tool_path(tool_name: str) -> str | None:
     for candidate in candidates:
         if candidate.is_file():
             return str(candidate)
-    return None
+    return shutil.which(tool_name)
+
+
+def _usd_convert_cad_tool_path() -> str | None:
+    """Resolve usd-convert-cad only from the version-checked Python environment."""
+
+    tool_path = _converter_tool_path("usd-convert-cad")
+    if tool_path is None:
+        return None
+    try:
+        tool_parent = Path(tool_path).expanduser().resolve(strict=True).parent
+        scripts_dir = Path(sys.executable).expanduser().absolute().parent.resolve()
+    except OSError:
+        return None
+    return (
+        str(Path(tool_path).expanduser().resolve(strict=True))
+        if tool_parent == scripts_dir
+        else None
+    )
 
 
 def _dependency_available(converter_reference: str) -> bool:
     module_name = CONVERTER_MODULES.get(converter_reference)
     tool_name = CONVERTER_TOOLS.get(converter_reference)
-    if converter_reference == "usd-convert-cad" and _usd_convert_cad_script():
-        return True
+    if converter_reference == "usd-convert-cad":
+        if _usd_convert_cad_script():
+            return True
+        return bool(
+            tool_name
+            and _usd_convert_cad_tool_path()
+            and _installed_distribution_version(CONVERTER_PACKAGES[converter_reference])
+            == USD_CONVERT_CAD_VERSION
+        )
     if tool_name:
         return bool(_converter_tool_path(tool_name))
     if module_name:
@@ -539,6 +596,33 @@ def _dependency_available(converter_reference: str) -> bool:
         except ImportError:
             return False
     return False
+
+
+def _installed_distribution_version(package: str) -> str | None:
+    try:
+        return distribution_version(package)
+    except PackageNotFoundError:
+        return None
+
+
+def _dependency_error(converter_reference: str, tool_name: str) -> str:
+    if (
+        converter_reference == "usd-convert-cad"
+        and _usd_convert_cad_script() is None
+        and _converter_tool_path(tool_name)
+    ):
+        tool_path = _converter_tool_path(tool_name)
+        if _usd_convert_cad_tool_path() is None and tool_path is not None:
+            return (
+                "usd-convert-cad must be installed in the active Python "
+                f"environment; PATH resolves a different executable: {tool_path}"
+            )
+        installed = _installed_distribution_version(
+            CONVERTER_PACKAGES[converter_reference]
+        )
+        found = installed or "an unverified version"
+        return f"usd-convert-cad {USD_CONVERT_CAD_VERSION} is required; found {found}"
+    return f"{tool_name} CLI is required but was not found on PATH"
 
 
 def _installer_command(converter_reference: str) -> list[str]:
@@ -678,7 +762,7 @@ def preflight_convert_to_usd_dependencies(
     dependency_available = _dependency_available(converter_reference)
     if not dependency_available:
         errors.append(
-            f"{selected_probe.converter_tool} CLI is required but was not found on PATH"
+            _dependency_error(converter_reference, selected_probe.converter_tool)
         )
 
     return ConverterPreflightReport(
@@ -732,15 +816,14 @@ def _converter_command(
                 str(source_asset),
                 str(expected_output),
             ]
-        tool_command = (
-            _converter_tool_path(selected.converter_tool) or selected.converter_tool
-        )
+        tool_command = _usd_convert_cad_tool_path()
         return [
-            tool_command,
+            tool_command or selected.converter_tool,
             "--input",
             str(source_asset),
             "--output",
             str(expected_output),
+            *USD_CONVERT_CAD_QUALITY_ARGS,
         ]
     extra_args = ["--no-layer-structure"] if single_file else []
     tool_command = (
@@ -1033,10 +1116,21 @@ def _directory_source_files(source_directory: Path) -> list[Path]:
         source_directory,
         onerror=raise_walk_error,
     ):
-        dirnames[:] = sorted(
+        root_path = Path(root)
+        retained_dirnames = sorted(
             name for name in dirnames if name not in DIRECTORY_SOURCE_EXCLUDED_DIR_NAMES
         )
-        root_path = Path(root)
+        symlinked_directories = [
+            root_path / name
+            for name in retained_dirnames
+            if (root_path / name).is_symlink()
+        ]
+        if symlinked_directories:
+            raise ValueError(
+                "Directory source identity does not follow symlinked directories: "
+                + ", ".join(str(path) for path in symlinked_directories[:5])
+            )
+        dirnames[:] = retained_dirnames
         for filename in sorted(filenames):
             inspected_count += 1
             if inspected_count > DIRECTORY_SOURCE_MAX_FILES:
@@ -1047,6 +1141,81 @@ def _directory_source_files(source_directory: Path) -> list[Path]:
                 )
             files.append(root_path / filename)
     return files
+
+
+def _directory_source_identity(source_directory: Path) -> dict[str, Any]:
+    """Return a deterministic identity for every inspected directory input.
+
+    Directory conversion supports one selected asset plus adjacent dependency
+    files.  Binding only the directory pathname lets those bytes change between
+    an initial run and ``--resume``.  Record relative paths and content digests
+    in the immutable request so the generic run recorder rejects that drift.
+    """
+
+    source_root = source_directory.expanduser().resolve(strict=True)
+    entries: list[dict[str, Any]] = []
+    total_bytes = 0
+    for path in _directory_source_files(source_root):
+        try:
+            artifact = read_contained_artifact(
+                source_root,
+                path,
+                max_bytes=DIRECTORY_SOURCE_IDENTITY_MAX_FILE_BYTES,
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "Directory source identity requires contained, non-symlinked "
+                f"regular files: {path}: {exc}"
+            ) from exc
+        total_bytes += artifact.size_bytes
+        if total_bytes > DIRECTORY_SOURCE_IDENTITY_MAX_TOTAL_BYTES:
+            raise ValueError(
+                "Directory source identity exceeds the aggregate byte limit of "
+                f"{DIRECTORY_SOURCE_IDENTITY_MAX_TOTAL_BYTES}: {source_root}"
+            )
+        entries.append(
+            {
+                "path": artifact.path.relative_to(source_root).as_posix(),
+                "sha256": artifact.sha256,
+                "size_bytes": artifact.size_bytes,
+            }
+        )
+    return {
+        "kind": "directory",
+        "path": str(source_root),
+        "total_bytes": total_bytes,
+        "entries": entries,
+    }
+
+
+def _validate_directory_source_output_paths(
+    source_directory: Path,
+    *,
+    output_dir: Path,
+    output_usd_path: Path,
+) -> None:
+    """Keep workflow-generated files outside a directory source identity.
+
+    A nested run or output path would become a new directory-source input after
+    the first invocation, so an otherwise unchanged ``--resume`` could never
+    match its sealed request. Reject that ambiguous layout before creating the
+    run directory or writing any output.
+    """
+
+    source_root = source_directory.expanduser().resolve(strict=True)
+    for label, candidate in (
+        ("output directory", output_dir),
+        ("output USD", output_usd_path),
+    ):
+        resolved = candidate.expanduser().resolve()
+        try:
+            resolved.relative_to(source_root)
+        except ValueError:
+            continue
+        raise ValueError(
+            f"Directory-source {label} must be outside the source directory: "
+            f"{resolved} is within {source_root}"
+        )
 
 
 def _run_converter_command(
@@ -1128,7 +1297,7 @@ def _run_converter(
         )
 
     if not _dependency_available(selected.converter_skill):
-        errors.append(f"{tool} CLI is required but was not found on PATH")
+        errors.append(_dependency_error(selected.converter_skill, tool))
 
     if errors:
         return _report(
@@ -1212,11 +1381,12 @@ def convert_to_usd(
     output_directory: Path | str,
     *,
     reference_order: tuple[str, ...] = DEFAULT_REFERENCE_ORDER,
-    timeout_s: float = 120.0,
+    timeout_s: float = DEFAULT_CONVERTER_TIMEOUT_S,
     single_file: bool = False,
 ) -> tuple[ConversionReport, ConversionProbeArtifact]:
     """Route one source asset to USD and return the report plus probe artifact."""
 
+    timeout_s = _validate_converter_timeout_s(timeout_s)
     source_path = Path(source_asset).resolve()
     output_dir = Path(output_directory).resolve()
     selected_probe: ConverterProbeResult | None = None
@@ -1234,6 +1404,7 @@ def convert_to_usd(
             output_directory=output_dir,
             errors=["source asset does not exist"],
         )
+        report = report.model_copy(update={"converter_timeout_s": timeout_s})
         return report, ConversionProbeArtifact(
             source_asset_path=str(source_path),
             reference_order=list(reference_order),
@@ -1248,6 +1419,7 @@ def convert_to_usd(
             )
         )
         if report is not None:
+            report = report.model_copy(update={"converter_timeout_s": timeout_s})
             return report, ConversionProbeArtifact(
                 source_asset_path=str(report.source_asset_path),
                 reference_order=list(reference_order),
@@ -1259,6 +1431,7 @@ def convert_to_usd(
 
     if is_existing_usd(source_path):
         report = _already_usd_report(source_path, output_dir, warnings=warnings)
+        report = report.model_copy(update={"converter_timeout_s": timeout_s})
         return report, ConversionProbeArtifact(
             source_asset_path=str(source_path),
             reference_order=list(reference_order),
@@ -1273,6 +1446,7 @@ def convert_to_usd(
         )
     if selected_probe is None:
         report = _unsupported_report(source_path, output_dir, probes, warnings=warnings)
+        report = report.model_copy(update={"converter_timeout_s": timeout_s})
         return report, ConversionProbeArtifact(
             source_asset_path=str(source_path),
             reference_order=list(reference_order),
@@ -1299,6 +1473,7 @@ def convert_to_usd(
         single_file=single_file,
         warnings=selection_warnings,
     )
+    report = report.model_copy(update={"converter_timeout_s": timeout_s})
     return report, ConversionProbeArtifact(
         source_asset_path=str(source_path),
         reference_order=list(reference_order),
@@ -1356,7 +1531,12 @@ def _create_usdz_package(root_layer_path: Path, output_usd: Path) -> None:
 def _export_usd_layer(source_usd: Path, output_usd: Path) -> None:
     source_usd = _filesystem_usd_path(source_usd)
     output_usd.parent.mkdir(parents=True, exist_ok=True)
-    from pxr import Sdf
+
+    # usd-exchange registers the built-in USDA/USDC/USD/USDZ file formats when
+    # the Usd module is imported.  A fresh converter process that imports only
+    # Sdf otherwise cannot open even a valid USDA layer or select USDC for the
+    # export target.
+    from pxr import Sdf, Usd  # noqa: F401
 
     source_layer = Sdf.Layer.FindOrOpen(str(source_usd))
     if source_layer is None:
@@ -1492,7 +1672,7 @@ def convert_source_to_usd_file(
     output_format: str | None = None,
     install_missing: bool = True,
     reference_order: tuple[str, ...] = DEFAULT_REFERENCE_ORDER,
-    timeout_s: float = 120.0,
+    timeout_s: float = DEFAULT_CONVERTER_TIMEOUT_S,
 ) -> tuple[ConversionReport, ConversionProbeArtifact]:
     """Convert one source asset to a requested USD file path.
 
@@ -1500,6 +1680,7 @@ def convert_source_to_usd_file(
     working directory using the source stem and a ``.usda`` suffix.
     """
 
+    timeout_s = _validate_converter_timeout_s(timeout_s)
     requested_source_path = Path(source_asset).resolve()
 
     if not requested_source_path.exists():
@@ -1518,6 +1699,7 @@ def convert_source_to_usd_file(
             output_directory=output_usd.parent,
             errors=["source asset does not exist"],
         )
+        report = report.model_copy(update={"converter_timeout_s": timeout_s})
         return report, ConversionProbeArtifact(
             source_asset_path=str(requested_source_path),
             reference_order=list(reference_order),
@@ -1535,6 +1717,7 @@ def convert_source_to_usd_file(
             )
         )
         if report is not None:
+            report = report.model_copy(update={"converter_timeout_s": timeout_s})
             output_usd = resolve_output_usd_path(
                 requested_source_path,
                 output_usd_path,
@@ -1574,6 +1757,7 @@ def convert_source_to_usd_file(
             output_usd_path=output_usd if not errors else None,
             warnings=warnings,
         )
+        report = report.model_copy(update={"converter_timeout_s": timeout_s})
         report = _file_output_report(
             report,
             output_usd_path=output_usd,
@@ -1606,6 +1790,7 @@ def convert_source_to_usd_file(
                 output_directory=output_usd.parent,
                 errors=[str(exc)],
             )
+            report = report.model_copy(update={"converter_timeout_s": timeout_s})
             return report, ConversionProbeArtifact(
                 source_asset_path=str(source_path),
                 reference_order=list(reference_order),
@@ -1696,18 +1881,111 @@ def _validation_report(report: ConversionReport) -> dict[str, Any]:
 def run_convert_to_usd_workflow(
     params: ConvertToUsdWorkflowInput,
 ) -> ConvertToUsdWorkflowResult:
+    """Route a source asset to USD and durably record unexpected failures."""
+
+    recorders: list[WorkflowRunRecorder] = []
+    try:
+        return _run_convert_to_usd_workflow(params, recorders)
+    except Exception as exc:
+        if recorders:
+            recorders[-1].finalize_unexpected_failure(exc)
+        raise
+
+
+def _conversion_run_policy(
+    params: ConvertToUsdWorkflowInput,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Return the exact current or narrowly compatible legacy policy.
+
+    Converter timeout was already frozen in ``request.json`` before it was
+    duplicated into the run-manifest policy.  A default-timeout run created by
+    that earlier schema can therefore resume without weakening any other
+    identity check.  The legacy policy is used only when both the recorded
+    request and current request bind the original 120-second default and the
+    recorded policy differs by exactly that one absent key.
+    """
+
+    current_policy = {
+        "install_missing": params.install_missing,
+        "output_format": params.output_format,
+        "converter_timeout_s": params.converter_timeout_s,
+        "fail_on_error": params.fail_on_error,
+    }
+    if not params.resume or params.converter_timeout_s != DEFAULT_CONVERTER_TIMEOUT_S:
+        return current_policy
+
+    recorded = WorkflowRunRecorder.resume(output_dir)
+    legacy_policy = dict(current_policy)
+    legacy_policy.pop("converter_timeout_s")
+    if (
+        recorded.manifest.workflow != "convert_to_usd"
+        or recorded.manifest.policy != legacy_policy
+    ):
+        return current_policy
+
+    request_read = read_contained_artifact(
+        output_dir,
+        output_dir / recorded.manifest.request_path,
+        max_bytes=MAX_RUN_RECORD_JSON_BYTES,
+        parse_json=True,
+    )
+    recorded_request = request_read.json_object
+    if (
+        not isinstance(recorded_request, dict)
+        or recorded_request.get("converter_timeout_s") != DEFAULT_CONVERTER_TIMEOUT_S
+    ):
+        return current_policy
+    return legacy_policy
+
+
+def _run_convert_to_usd_workflow(
+    params: ConvertToUsdWorkflowInput,
+    recorders: list[WorkflowRunRecorder],
+) -> ConvertToUsdWorkflowResult:
     """Route a source asset to USD and write canonical workflow artifacts."""
 
-    output_dir = params.output_dir.resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
+    source_path = params.source_asset_path.expanduser().resolve()
+    output_dir = params.output_dir.expanduser().resolve()
     output_usd_path = resolve_output_usd_path(
         params.source_asset_path,
         params.output_usd_path,
         output_format=params.output_format,
         cwd=output_dir,
     )
+    if source_path.is_dir():
+        _validate_directory_source_output_paths(
+            source_path,
+            output_dir=output_dir,
+            output_usd_path=output_usd_path,
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    request_path = _write_json(output_dir / "request.json", _as_json(params))
+    request = _as_json(params)
+    request.pop("resume", None)
+    if source_path.is_dir():
+        request["source_identity"] = _directory_source_identity(source_path)
+    recorder = WorkflowRunRecorder.start(
+        output_dir,
+        workflow="convert_to_usd",
+        request=request,
+        source_path=source_path if source_path.is_file() else None,
+        backend={
+            "kind": "converter_router",
+            "reference_order": list(params.reference_order),
+        },
+        policy=_conversion_run_policy(params, output_dir),
+        required_artifacts=[
+            "converter_probe",
+            "conversion_report",
+            "markdown_report",
+            "validation_report",
+            "conversion_manifest",
+        ],
+        resume=params.resume,
+    )
+    recorders.append(recorder)
+    request_path = output_dir / recorder.manifest.request_path
     report, probe_artifact = convert_source_to_usd_file(
         params.source_asset_path,
         output_usd_path,
@@ -1745,18 +2023,74 @@ def run_convert_to_usd_workflow(
         },
     )
 
+    recorded_artifacts = [
+        recorder.record_artifact(
+            "converter_probe",
+            converter_probe_path,
+            kind="converter_probe",
+        ).logical_name,
+        recorder.record_artifact(
+            "conversion_report",
+            conversion_report_path,
+            kind="workflow_report",
+        ).logical_name,
+        recorder.record_artifact(
+            "markdown_report",
+            markdown_report_path,
+            kind="workflow_report_markdown",
+        ).logical_name,
+        recorder.record_artifact(
+            "validation_report",
+            validation_report_path,
+            kind="validation",
+        ).logical_name,
+        recorder.record_artifact(
+            "conversion_manifest",
+            manifest_path,
+            kind="conversion_manifest",
+        ).logical_name,
+    ]
+    if report.output_usd_path:
+        try:
+            output_record = recorder.record_artifact(
+                "output_usd",
+                Path(report.output_usd_path),
+                kind="usd",
+                required=False,
+            )
+        except ValueError:
+            # Explicit output paths may intentionally live outside the run
+            # directory. The normalized validation report remains the durable
+            # in-run evidence for that authorized output.
+            pass
+        else:
+            recorded_artifacts.append(output_record.logical_name)
+    recorder.checkpoint("validated", recorded_artifacts)
+    run_status: Literal["pass", "fail", "blocked"]
+    if report.passed:
+        run_status = "pass"
+    elif report.status == "blocked":
+        run_status = "blocked"
+    else:
+        run_status = "fail"
+    run_manifest = recorder.finalize(
+        run_status,
+        failure={"errors": report.errors} if not report.passed else None,
+    )
+
     if params.fail_on_error and not report.passed:
         error = "; ".join(report.errors) or "conversion did not pass"
     else:
         error = "; ".join(report.errors) if report.errors else None
 
     return ConvertToUsdWorkflowResult(
-        success=report.passed,
+        success=report.passed and run_manifest.status == "pass",
         source_asset=report.source_asset_path,
         output_dir=str(output_dir),
         output_usd_path=report.output_usd_path or None,
         selected_converter=probe_artifact.selected_converter,
         source_format=report.source_format,
+        converter_timeout_s=params.converter_timeout_s,
         request_path=str(request_path),
         converter_probe_path=str(converter_probe_path),
         conversion_report_path=str(conversion_report_path),
@@ -1764,5 +2098,6 @@ def run_convert_to_usd_workflow(
         validation_report_path=str(validation_report_path),
         manifest_path=str(manifest_path),
         validation_status=str(validation_payload["status"]),
+        workflow_run_manifest_path=str(recorder.path),
         error=error,
     )

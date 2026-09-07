@@ -1,0 +1,69 @@
+{
+  "schema_version": "content-agents.large-scene-request.v1",
+  "created_at": "2026-01-15T12:00:00Z",
+  "workflow": "scene.run",
+  "dry_run": false,
+  "run_id": "legacy-scene-fixture",
+  "run_dir": "__RUN_DIR__",
+  "run_state": "__RUN_STATE__",
+  "repository_root": "__REPOSITORY_ROOT__",
+  "agent_workspace": "__AGENT_WORKSPACE__",
+  "source_scene": "__SOURCE_SCENE__",
+  "requested_tasks": [
+    "material"
+  ],
+  "references": {
+    "directories": [],
+    "images": [
+      "__REFERENCE_IMAGE__"
+    ],
+    "files": []
+  },
+  "additional_instructions": "Use blue panels and white frames.",
+  "additional_instruction_sources": [
+    "__GUIDANCE__"
+  ],
+  "tasks": [
+    {
+      "domain": "material",
+      "inputs": {
+        "materials_yaml": "__MATERIALS_YAML__",
+        "materials_usd": "__MATERIALS_USD__"
+      },
+      "policy": {
+        "appearance_evidence_policy": {
+          "default": "ignore",
+          "global_sources": [],
+          "schema_version": "content-agent-workflows.appearance-evidence-policy.v1",
+          "scopes": []
+        },
+        "candidate_space": "source",
+        "respect_existing_material_bindings": false
+      }
+    }
+  ],
+  "decomposition": {
+    "mode": "agent_planned",
+    "overrides": {}
+  },
+  "collection": {
+    "mode": "domain_aware",
+    "overrides": {}
+  },
+  "runtime": {
+    "runner": "codex",
+    "model": null,
+    "model_reasoning_effort": null,
+    "workbench_url": "http://127.0.0.1:8088",
+    "start_workbench": true,
+    "keep_workbench": false,
+    "workbench_timeout_seconds": 73.0,
+    "child_timeout_seconds": 1800.0,
+    "codex_base_url": null,
+    "codex_sandbox_mode": "workspace-write",
+    "codex_config": {},
+    "claude_config": {},
+    "claude_permission_mode": "default",
+    "claude_max_turns": null
+  }
+}

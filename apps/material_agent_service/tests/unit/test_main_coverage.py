@@ -30,6 +30,23 @@ def test_public_response_sanitizer_is_outermost() -> None:
     )
 
 
+def test_openapi_reports_serving_nvcf_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_schema = main_module.app.openapi_schema
+    monkeypatch.setenv("NVCF_FUNCTION_VERSION_ID", "material-version-under-test")
+    main_module.app.openapi_schema = None
+
+    try:
+        schema = main_module.app.openapi()
+        assert (
+            schema["info"]["x-nvcf-function-version-id"]
+            == "material-version-under-test"
+        )
+    finally:
+        main_module.app.openapi_schema = original_schema
+
+
 class _FakeConfig:
     service_name = "Material Agent Service"
     service_version = "1.2.3"
@@ -386,10 +403,13 @@ async def test_main_endpoints_and_entrypoint(
     assert health["status"] == "healthy"
     assert health["max_active_sessions"] == 4
 
-    assert any(
-        model["value"] == "nim/nvidia/cosmos-reason2-8b"
-        for model in (await main_module.get_vlm_models())["models"]
-    )
+    vlm_models = (await main_module.get_vlm_models())["models"]
+    assert vlm_models[0] == {
+        "value": "nim/moonshotai/kimi-k3",
+        "label": "Kimi K3 (Default)",
+        "is_default": True,
+    }
+    assert any(model["value"] == "nim/nvidia/cosmos-reason2-8b" for model in vlm_models)
     assert "pipeline" in (await main_module.root_api_info())["api"]
     invalid_response = await main_module._invalid_session_id_handler(
         types.SimpleNamespace(),
@@ -403,6 +423,12 @@ async def test_main_endpoints_and_entrypoint(
     assert contended_response.status_code == 503
     assert contended_response.headers["retry-after"] == "1"
     assert b"internal session details" not in contended_response.body
+    storage_response = await main_module._session_storage_path_handler(
+        types.SimpleNamespace(), main_module.SessionStoragePathError("unsafe root")
+    )
+    assert storage_response.status_code == 503
+    assert b"non-symlinked storage root" in storage_response.body
+    assert b"unsafe root" not in storage_response.body
 
     fake_root = tmp_path / "app"
     service_dir = fake_root / "service"

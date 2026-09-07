@@ -1,0 +1,40 @@
+goal:
+  appearance_prompt: >-
+    Satin cobalt-blue painted steel with soft broad highlights and a physically
+    plausible dielectric response.
+
+source:
+  material_id: neutral_satin_polymer_mdl
+  name: Neutral Satin Polymer MDL
+  source_usd: ../data/materials/material_refinement_examples/omnipbr_mdl.usda
+  material_prim_path: /World/Looks/NeutralSatinPolymer
+  material_profile: omnipbr_mdl
+
+search:
+  max_color_delta: 0.40
+  max_roughness_delta: 0.30
+  max_mixed_metallic_delta: 0.10
+
+optimization:
+  name: auto
+  max_trials: 12
+  seed: 42
+  replicas: 1
+  max_refinements: 2
+
+render:
+  backend: ovrtx
+  image_width: 768
+  image_height: 768
+  camera_corners: [+x+y+z, -x+y+z]
+
+judge:
+  vlm:
+    backend: nim
+    model: moonshotai/kimi-k3
+  score_threshold: 0.7
+  temperature: 0.1
+  max_tokens: 2048
+
+output_dir: material_refinement_omnipbr_mdl_output
+overwrite: false

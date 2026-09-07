@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy OVRTX Docker"
+  short_description: "Fixed pipeline standalone OVRTX Docker deployment"
+  default_prompt: "Use $fixed-pipeline to deploy just the OVRTX rendering API standalone via Docker Compose so one or more agent CLIs / services can point at it as a shared rendering endpoint."

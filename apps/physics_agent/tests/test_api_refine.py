@@ -133,6 +133,19 @@ def test_refine_input_rejects_empty_user_prompt(tmp_path: Path) -> None:
         )
 
 
+def test_refine_input_rejects_unknown_optimizer(tmp_path: Path) -> None:
+    from physics_agent.api.refine import RefineInput
+
+    with pytest.raises(ValueError, match="Unknown optimizer 'botroch'"):
+        RefineInput(
+            scenario=_scenario_yaml_file(tmp_path),
+            physics_usd=_fake_usd(tmp_path),
+            user_prompt="bouncy",
+            output_dir=tmp_path / "out",
+            optimizer="botroch",
+        )
+
+
 def test_refine_input_rejects_missing_scenario_file(tmp_path: Path) -> None:
     from physics_agent.api.refine import RefineInput
 
@@ -212,8 +225,20 @@ def test_refine_input_rejects_rest_incompatible_bounds(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="llm_timeout_seconds"):
         RefineInput(**base, llm_timeout_seconds=float("inf"))
 
-    with pytest.raises(ValueError, match="reference_video_frames"):
-        RefineInput(**base, reference_video_frames=0)
+    with pytest.raises(ValueError, match="visual_evidence_timeout_seconds"):
+        RefineInput(**base, visual_evidence_timeout_seconds=float("inf"))
+
+    with pytest.raises(ValueError, match="engine='fake'"):
+        RefineInput(**base, engine="fake")
+
+    assert (
+        RefineInput(
+            **base,
+            engine="fake",
+            visual_evidence_enabled=False,
+        ).engine
+        == "fake"
+    )
 
     with pytest.raises(ValueError, match="judge_reference_frames"):
         RefineInput(**base, judge_reference_frames=65)
@@ -257,16 +282,16 @@ def test_refine_input_rejects_invalid_judge_knobs(tmp_path: Path) -> None:
         )
 
 
-def test_refine_input_rejects_invalid_force_record_video(tmp_path: Path) -> None:
+def test_refine_input_rejects_invalid_force_record_frames(tmp_path: Path) -> None:
     from physics_agent.api.refine import RefineInput
 
-    with pytest.raises(ValueError, match="force_record_video"):
+    with pytest.raises(ValueError, match="force_record_frames"):
         RefineInput(
             scenario=_scenario_yaml_dict(),
             physics_usd=_fake_usd(tmp_path),
             user_prompt="bouncy",
             output_dir=tmp_path / "out",
-            force_record_video="bogus",
+            force_record_frames="bogus",
         )
 
 
@@ -283,15 +308,13 @@ def test_refine_input_rejects_invalid_cancel_event(tmp_path: Path) -> None:
         )
 
 
-def test_refine_input_validates_reference_media_paths_and_descriptions(
+def test_refine_input_validates_reference_image_paths_and_descriptions(
     tmp_path: Path,
 ) -> None:
     from physics_agent.api.refine import RefineInput
 
     reference = tmp_path / "reference.png"
     reference.write_bytes(b"fake image bytes")
-    video = tmp_path / "reference.mp4"
-    video.write_bytes(b"fake video bytes")
 
     params = RefineInput(
         scenario=_scenario_yaml_dict(),
@@ -299,12 +322,9 @@ def test_refine_input_validates_reference_media_paths_and_descriptions(
         user_prompt="match the target motion",
         output_dir=tmp_path / "out",
         reference_images=[reference],
-        reference_videos=[video],
         reference_descriptions=["target pose"],
-        reference_video_descriptions=["target motion"],
     )
     assert params.reference_images == [reference]
-    assert params.reference_videos == [video]
 
     with pytest.raises(FileNotFoundError, match="reference image"):
         RefineInput(
@@ -326,22 +346,15 @@ def test_refine_input_validates_reference_media_paths_and_descriptions(
             reference_images=[reference_dir],
         )
 
-    with pytest.raises(FileNotFoundError, match="reference video"):
+    video = tmp_path / "reference.mp4"
+    video.write_bytes(b"video")
+    with pytest.raises(ValueError, match="Unsupported reference image extension"):
         RefineInput(
             scenario=_scenario_yaml_dict(),
             physics_usd=_fake_usd(tmp_path),
             user_prompt="match the target motion",
             output_dir=tmp_path / "out",
-            reference_videos=[tmp_path / "missing.mp4"],
-        )
-
-    with pytest.raises(ValueError, match="reference video must be a file"):
-        RefineInput(
-            scenario=_scenario_yaml_dict(),
-            physics_usd=_fake_usd(tmp_path),
-            user_prompt="match the target motion",
-            output_dir=tmp_path / "out",
-            reference_videos=[reference_dir],
+            reference_images=[video],
         )
 
     with pytest.raises(ValueError, match="reference_descriptions"):
@@ -362,26 +375,6 @@ def test_refine_input_validates_reference_media_paths_and_descriptions(
             output_dir=tmp_path / "out",
             reference_images=[reference, reference],
             reference_descriptions=["only one"],
-        )
-
-    with pytest.raises(ValueError, match="reference_video_descriptions"):
-        RefineInput(
-            scenario=_scenario_yaml_dict(),
-            physics_usd=_fake_usd(tmp_path),
-            user_prompt="match the target motion",
-            output_dir=tmp_path / "out",
-            reference_videos=[video],
-            reference_video_descriptions=[],
-        )
-
-    with pytest.raises(ValueError, match="reference_video_descriptions"):
-        RefineInput(
-            scenario=_scenario_yaml_dict(),
-            physics_usd=_fake_usd(tmp_path),
-            user_prompt="match the target motion",
-            output_dir=tmp_path / "out",
-            reference_videos=[video, video],
-            reference_video_descriptions=["only one"],
         )
 
 
@@ -484,9 +477,9 @@ def test_run_refine_happy_path(tmp_path: Path, monkeypatch) -> None:
         history_window=7,
         judge_max_tokens=777,
         judge_temperature=0.25,
-        reference_video_frames=12,
         judge_reference_frames=11,
         judge_generated_frames=22,
+        visual_evidence_timeout_seconds=321,
         cancel_event=cancel_event,
     )
 
@@ -505,10 +498,10 @@ def test_run_refine_happy_path(tmp_path: Path, monkeypatch) -> None:
     assert _FakeTask.last_kwargs["history_window"] == 7
     assert _FakeTask.last_kwargs["judge_max_tokens"] == 777
     assert _FakeTask.last_kwargs["judge_temperature"] == 0.25
-    assert _FakeTask.last_kwargs["reference_video_frames"] == 12
     assert _FakeTask.last_kwargs["judge_reference_frames"] == 11
     assert _FakeTask.last_kwargs["judge_generated_frames"] == 22
     assert _FakeTask.last_kwargs["visual_evidence_enabled"] is True
+    assert _FakeTask.last_kwargs["visual_evidence_timeout_seconds"] == 321
     assert _FakeTask.last_kwargs["cancel_event"] is cancel_event
 
 

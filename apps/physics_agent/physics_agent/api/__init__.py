@@ -118,9 +118,37 @@ if TYPE_CHECKING:  # pragma: no cover - static typing only
     from physics_agent.tuning import TuneOutput as TuneOutput
     from physics_agent.tuning import arun_tune as arun_tune
     from physics_agent.tuning import run_tune as run_tune
+    from physics_agent.tuning.external import ExternalRefineInput as ExternalRefineInput
+    from physics_agent.tuning.external import (
+        ExternalRefineOutput as ExternalRefineOutput,
+    )
+    from physics_agent.tuning.external import ExternalTuneInput as ExternalTuneInput
+    from physics_agent.tuning.external import ExternalTuneOutput as ExternalTuneOutput
+    from physics_agent.tuning.external import (
+        arun_external_refine as arun_external_refine,
+    )
+    from physics_agent.tuning.external import arun_external_tune as arun_external_tune
+    from physics_agent.tuning.external import run_external_refine as run_external_refine
+    from physics_agent.tuning.external import run_external_tune as run_external_tune
 
 
 _LAZY_TUNING_NAMES = frozenset({"TuneInput", "TuneOutput", "run_tune", "arun_tune"})
+_LAZY_EXTERNAL_TUNING_NAMES = frozenset(
+    {
+        "ExternalTuneInput",
+        "ExternalTuneOutput",
+        "run_external_tune",
+        "arun_external_tune",
+    }
+)
+_LAZY_EXTERNAL_REFINE_NAMES = frozenset(
+    {
+        "ExternalRefineInput",
+        "ExternalRefineOutput",
+        "run_external_refine",
+        "arun_external_refine",
+    }
+)
 _LAZY_REFINE_NAMES = frozenset(
     {"RefineInput", "RefineOutput", "run_refine", "arun_refine"}
 )
@@ -131,6 +159,14 @@ def __getattr__(name: str) -> object:
         import physics_agent.tuning as _tuning
 
         return getattr(_tuning, name)
+    if name in _LAZY_EXTERNAL_TUNING_NAMES:
+        import physics_agent.tuning.external as _external
+
+        return getattr(_external, name)
+    if name in _LAZY_EXTERNAL_REFINE_NAMES:
+        import physics_agent.tuning.external as _external
+
+        return getattr(_external, name)
     if name in _LAZY_REFINE_NAMES:
         import physics_agent.api.refine as _refine
 
@@ -166,6 +202,15 @@ __all__ = [
     "TuneOutput",
     "run_tune",
     "arun_tune",
+    # Trusted local customer-runtime tuning
+    "ExternalTuneInput",
+    "ExternalTuneOutput",
+    "run_external_tune",
+    "arun_external_tune",
+    "ExternalRefineInput",
+    "ExternalRefineOutput",
+    "run_external_refine",
+    "arun_external_refine",
     # Refine — iterative tune → judge → scenario_refine loop. Mirrors the
     # material-agent refine surface so cross-domain callers get a
     # consistent contract.

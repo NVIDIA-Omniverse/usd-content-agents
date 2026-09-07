@@ -1,0 +1,2314 @@
+{
+  "schema_version": "joint-agent-capability-manifest-v3",
+  "manifest_version": "0.6.0-dev.6",
+  "frozen_0_5": {
+    "release_manifest": "apps/joint_agent/tests/fixtures/prop_dataset/internal/issue_529_exact17_release_manifest.yaml",
+    "release_manifest_sha256": "0a832fd67ed8e7495bbaba687ea8d1e56d2d56d780f0359c588f933da3ca8061",
+    "gate3_baseline": "apps/joint_agent/tests/fixtures/prop_dataset/internal/issue_529_gate3_baseline.json",
+    "gate3_baseline_sha256": "9da2bffd7ed026ee3f49d4b38cee9f796fda6a0ce13361f8e9e4730af7a5ca0b",
+    "asset_count": 17,
+    "joint_count": 78
+  },
+  "corpus": {
+    "corpus_id": "joint-agent-post-0-5-reference-corpus-issue-871-v1",
+    "corpus_sha256": "8a67bbc3a4923c730c9be1923bfe9cb3aeb903957e81648622ed477235926b0c",
+    "coverage_report": "apps/joint_agent/tests/fixtures/prop_dataset/internal/issue_871_reference_corpus_coverage.json",
+    "coverage_report_sha256": "46662f08e4988c06ba9059e9b64942b37f0d6bdbbdaa52f6411713199453fa94",
+    "admission_receipt": "apps/joint_agent/tests/fixtures/prop_dataset/internal/issue_1119_controlled_distance_admission_receipt.json",
+    "admission_receipt_sha256": "3f193678ca8b3b809e80a83a535d3573e714e4d9e1a29a2ef9ec6e60452ba283",
+    "fixed_admission_receipt": "apps/joint_agent/tests/fixtures/prop_dataset/internal/issue_1114_fixed_full_profile_admission_receipt.json",
+    "fixed_admission_receipt_sha256": "4cba2fd6b5a271c0796aea50fa9e050f8c5761466297446e14922468cd9e9354"
+  },
+  "selected_public_capability_ids": [
+    "prismatic.cardinal_topology.0_5",
+    "revolute.cardinal_topology.0_5"
+  ],
+  "capabilities": [
+    {
+      "capability_id": "revolute.cardinal_topology.0_5",
+      "roadmap_issues": [
+        860,
+        861,
+        868,
+        870
+      ],
+      "canonical_type": "revolute",
+      "property_profile": "cardinal_axis_topology",
+      "accepted_input_aliases": [
+        "hinge",
+        "revolute"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v1"
+      ],
+      "candidate_artifact_versions": [
+        "joint-agent-stage2-v0"
+      ],
+      "properties": {
+        "axis": "required",
+        "anchors_and_frames": "optional",
+        "scalar_limit": "optional",
+        "controls": "deferred"
+      },
+      "support_level": "authorable",
+      "disposition": "supported",
+      "public_exposure": "enabled",
+      "authoring_backends": [
+        "owned_core"
+      ],
+      "reason_codes": [],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "frozen_0_5",
+            "evidence_role": "frozen_0_5",
+            "artifact_key": "release_manifest",
+            "sha256": "0a832fd67ed8e7495bbaba687ea8d1e56d2d56d780f0359c588f933da3ca8061"
+          }
+        ],
+        "negative": [],
+        "representative": [],
+        "qualification_result_ids": [
+          "issue-529-gate3-baseline"
+        ]
+      },
+      "qualification": {
+        "static_status": "fail",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [
+              "articulated-prop-v1"
+            ],
+            "result_ids": [
+              "issue-529-gate3-baseline"
+            ]
+          },
+          "gate3b": {
+            "profile_ids": [
+              "Prop-Robotics-Isaac@1.0.0"
+            ],
+            "result_ids": [
+              "issue-529-gate3-baseline"
+            ]
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [],
+        "asset_archetypes": [],
+        "notes": [
+          "Official 0.5 topology-only Research Preview behavior.",
+          "Static validators completed on exact bytes and retained their findings."
+        ]
+      }
+    },
+    {
+      "capability_id": "prismatic.cardinal_topology.0_5",
+      "roadmap_issues": [
+        860,
+        861,
+        868,
+        870
+      ],
+      "canonical_type": "prismatic",
+      "property_profile": "cardinal_axis_topology",
+      "accepted_input_aliases": [
+        "prismatic",
+        "slider"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v1"
+      ],
+      "candidate_artifact_versions": [
+        "joint-agent-stage2-v0"
+      ],
+      "properties": {
+        "axis": "required",
+        "anchors_and_frames": "optional",
+        "scalar_limit": "optional",
+        "controls": "deferred"
+      },
+      "support_level": "authorable",
+      "disposition": "supported",
+      "public_exposure": "enabled",
+      "authoring_backends": [
+        "owned_core"
+      ],
+      "reason_codes": [],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "frozen_0_5",
+            "evidence_role": "frozen_0_5",
+            "artifact_key": "release_manifest",
+            "sha256": "0a832fd67ed8e7495bbaba687ea8d1e56d2d56d780f0359c588f933da3ca8061"
+          }
+        ],
+        "negative": [],
+        "representative": [],
+        "qualification_result_ids": [
+          "issue-529-gate3-baseline"
+        ]
+      },
+      "qualification": {
+        "static_status": "fail",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [
+              "articulated-prop-v1"
+            ],
+            "result_ids": [
+              "issue-529-gate3-baseline"
+            ]
+          },
+          "gate3b": {
+            "profile_ids": [
+              "Prop-Robotics-Isaac@1.0.0"
+            ],
+            "result_ids": [
+              "issue-529-gate3-baseline"
+            ]
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [],
+        "asset_archetypes": [],
+        "notes": [
+          "Official 0.5 topology-only Research Preview behavior.",
+          "Static validators completed on exact bytes and retained their findings."
+        ]
+      }
+    },
+    {
+      "capability_id": "revolute.continuous_normalization",
+      "roadmap_issues": [
+        860,
+        862,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "revolute",
+      "property_profile": "source_continuous_unbounded",
+      "accepted_input_aliases": [
+        "continuous"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v1"
+      ],
+      "candidate_artifact_versions": [
+        "joint-agent-stage2-v0"
+      ],
+      "properties": {
+        "axis": "required",
+        "anchors_and_frames": "optional",
+        "scalar_limit": "not_applicable",
+        "controls": "deferred"
+      },
+      "support_level": "contract_ready",
+      "disposition": "review_required",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "aggregate_multi_root_execution_missing",
+        "continuous_limit_conflict_fixture_missing",
+        "continuous_positive_fixture_missing",
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "representative_author_reopen_missing",
+        "static_qualification_missing",
+        "transformed_nested_representative_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [],
+        "representative": [
+          {
+            "asset_id": "joint_ref_turtlebot3_burger_continuous_fixed",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "2a4aefc24e0bf0a23a8ba7e28c2a27844415ad3a19e105df376748580a4b8f6c"
+          }
+        ],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "turtlebot3"
+        ],
+        "asset_archetypes": [
+          "mobile_robot"
+        ],
+        "notes": [
+          "Continuous remains an input alias normalized to unbounded revolute.",
+          "It is not a new MotionType.",
+          "Candidate bytes retain the joint-agent-stage2-v0 envelope but require the internal source-backed adapter opt-in; the public Stage 2 model and schema are unchanged."
+        ]
+      }
+    },
+    {
+      "capability_id": "spherical.passive_topology",
+      "roadmap_issues": [
+        860,
+        862,
+        863,
+        864,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "spherical",
+      "property_profile": "passive_unlimited",
+      "accepted_input_aliases": [
+        "ball",
+        "spherical"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v1"
+      ],
+      "candidate_artifact_versions": [
+        "joint-agent-stage2-v0"
+      ],
+      "properties": {
+        "axis": "not_applicable",
+        "anchors_and_frames": "optional",
+        "scalar_limit": "not_applicable",
+        "controls": "not_applicable"
+      },
+      "support_level": "contract_ready",
+      "disposition": "review_required",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "aggregate_multi_root_execution_missing",
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "representative_author_reopen_missing",
+        "spherical_negative_fixture_missing",
+        "spherical_positive_fixture_missing",
+        "spherical_scalar_controls_unsupported",
+        "static_qualification_missing",
+        "transformed_nested_representative_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [],
+        "representative": [
+          {
+            "asset_id": "joint_ref_mujoco_menagerie_cassie_ball",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "5614cefc6ee6588a083b8efaee18ab97b3fa15f15ce7ce265083103a25e4f338"
+          },
+          {
+            "asset_id": "joint_ref_simready_foundation_joystick",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "7bb32b547d787592e7e70deda02704fbeef8ea8b6ae9cd51e49a315c62fe2be4"
+          }
+        ],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "mujoco_menagerie",
+          "simready_foundation"
+        ],
+        "asset_archetypes": [
+          "human_control_device",
+          "legged_robot"
+        ],
+        "notes": [
+          "Passive spherical only; cone/twist limits and controls remain out of scope.",
+          "Candidate bytes retain the joint-agent-stage2-v0 envelope but require the internal source-backed adapter opt-in; the public Stage 2 model and schema are unchanged."
+        ]
+      }
+    },
+    {
+      "capability_id": "revolute.arbitrary_axis",
+      "roadmap_issues": [
+        860,
+        862,
+        863,
+        864,
+        868,
+        870
+      ],
+      "canonical_type": "revolute",
+      "property_profile": "source_backed_non_cardinal_axis",
+      "accepted_input_aliases": [
+        "revolute"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v1"
+      ],
+      "candidate_artifact_versions": [
+        "joint-agent-stage2-v0"
+      ],
+      "properties": {
+        "axis": "required",
+        "anchors_and_frames": "required",
+        "scalar_limit": "optional",
+        "controls": "deferred"
+      },
+      "support_level": "contract_ready",
+      "disposition": "review_required",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "aggregate_multi_root_execution_missing",
+        "arbitrary_axis_negative_fixture_missing",
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "representative_author_reopen_missing",
+        "static_qualification_missing",
+        "transformed_nested_representative_missing"
+      ],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "joint_ref_analytic_axis_frame_positive_v3",
+            "evidence_role": "analytic_positive",
+            "artifact_key": "reference_asset",
+            "sha256": "f298ea6a3621402101247ddc2a34d4520af3ae2d8255aab0ed323be9779899ab"
+          }
+        ],
+        "negative": [],
+        "representative": [
+          {
+            "asset_id": "joint_ref_simready_foundation_ur10",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "5704cd13903886fd8f41dccf62d1950ad7d7a024c9d4ee5a7a2041fa66d98ff8"
+          }
+        ],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic",
+          "simready_foundation"
+        ],
+        "asset_archetypes": [
+          "industrial_serial_manipulator",
+          "transformed_multi_root_mechanism"
+        ],
+        "notes": [
+          "Only finite normalized source-backed stage-frame vectors are admissible.",
+          "Candidate bytes retain the joint-agent-stage2-v0 envelope but require the internal source-backed adapter opt-in; the public Stage 2 model and schema are unchanged."
+        ]
+      }
+    },
+    {
+      "capability_id": "prismatic.arbitrary_axis",
+      "roadmap_issues": [
+        860,
+        862,
+        863,
+        864,
+        868,
+        870
+      ],
+      "canonical_type": "prismatic",
+      "property_profile": "source_backed_non_cardinal_axis",
+      "accepted_input_aliases": [
+        "prismatic"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v1"
+      ],
+      "candidate_artifact_versions": [
+        "joint-agent-stage2-v0"
+      ],
+      "properties": {
+        "axis": "required",
+        "anchors_and_frames": "required",
+        "scalar_limit": "optional",
+        "controls": "deferred"
+      },
+      "support_level": "contract_ready",
+      "disposition": "review_required",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "aggregate_multi_root_execution_missing",
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "representative_author_reopen_missing",
+        "static_qualification_missing",
+        "transformed_nested_representative_missing"
+      ],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "joint_ref_analytic_axis_frame_positive_v3",
+            "evidence_role": "analytic_positive",
+            "artifact_key": "reference_asset",
+            "sha256": "f298ea6a3621402101247ddc2a34d4520af3ae2d8255aab0ed323be9779899ab"
+          }
+        ],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_axis_frame_positive",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "177cd7945472a7a46ffeadbebd10be83fef8cb7efbc8fe12b62c7552a7efeb0e"
+          }
+        ],
+        "representative": [
+          {
+            "asset_id": "joint_ref_robocasa_cabinet_drawer",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "d7b439a06994780547d84ad5b06b978827622ff797e90f623e661993f420df2d"
+          }
+        ],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic",
+          "robocasa"
+        ],
+        "asset_archetypes": [
+          "furniture_storage",
+          "transformed_multi_root_mechanism"
+        ],
+        "notes": [
+          "The analytic fixture is the non-cardinal gate; RoboCasa is representative prismatic source truth.",
+          "Candidate bytes retain the joint-agent-stage2-v0 envelope but require the internal source-backed adapter opt-in; the public Stage 2 model and schema are unchanged."
+        ]
+      }
+    },
+    {
+      "capability_id": "articulation.full_attachment_frames",
+      "roadmap_issues": [
+        860,
+        863,
+        864,
+        868,
+        870
+      ],
+      "canonical_type": "attachment_frame",
+      "property_profile": "two_endpoint_position_orientation",
+      "accepted_input_aliases": [],
+      "contract_versions": [
+        "joint-agent-articulation-v2"
+      ],
+      "articulation_v2_constraint_kinds": [
+        "prismatic",
+        "revolute",
+        "spherical"
+      ],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "optional",
+        "anchors_and_frames": "required",
+        "scalar_limit": "optional",
+        "controls": "deferred"
+      },
+      "support_level": "authorable",
+      "disposition": "review_required",
+      "public_exposure": "internal_only",
+      "authoring_backends": [
+        "articulation_v2_captured_raw_usd",
+        "articulation_v2_captured_usdz"
+      ],
+      "reason_codes": [
+        "aggregate_source_evidence_missing",
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "static_qualification_missing"
+      ],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "joint_ref_analytic_axis_frame_positive_v3",
+            "evidence_role": "analytic_positive",
+            "artifact_key": "reference_asset",
+            "sha256": "f298ea6a3621402101247ddc2a34d4520af3ae2d8255aab0ed323be9779899ab"
+          }
+        ],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_axis_frame_positive",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "177cd7945472a7a46ffeadbebd10be83fef8cb7efbc8fe12b62c7552a7efeb0e"
+          },
+          {
+            "asset_id": "joint_ref_analytic_axis_frame_positive_v2",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "8c54ffd156d20aedc56478a224148f8663c9196e23e9be1b591e9fa87ac76f8f"
+          }
+        ],
+        "representative": [
+          {
+            "asset_id": "joint_ref_robocasa_cabinet_hinge",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "22cd5068b9a3baa87a0916316e7e77c8b2b156f2970c3e81486beec271cccdf2"
+          },
+          {
+            "asset_id": "joint_ref_simready_foundation_ur10",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "5704cd13903886fd8f41dccf62d1950ad7d7a024c9d4ee5a7a2041fa66d98ff8"
+          },
+          {
+            "asset_id": "joint_ref_simready_foundation_joystick",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "7bb32b547d787592e7e70deda02704fbeef8ea8b6ae9cd51e49a315c62fe2be4"
+          }
+        ],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic",
+          "robocasa",
+          "simready_foundation"
+        ],
+        "asset_archetypes": [
+          "furniture_storage",
+          "human_control_device",
+          "industrial_serial_manipulator",
+          "transformed_multi_root_mechanism"
+        ],
+        "notes": [
+          "The RoboCasa hinge supplies source-backed revolute semantics plus reviewed paired USD frames.",
+          "This row is a v2 contract gate, not public support; the hinge bundle remains internal-only.",
+          "Captured raw-USD and USDZ authoring plus exact saved-stage readback are implemented for explicit revolute, prismatic, and spherical records.",
+          "The original analytic axis/frame identity is an endpoint-frame-conflict negative, v2 is a transverse-anchor-separation full-frame negative, and v3 is the sole analytic full-frame positive.",
+          "The exact v3 identity passes the implementation authoring/readback gate; its contract, output, and readback result identities are not yet persisted in static qualification artifacts.",
+          "Mobile aggregate-link authoring is implemented for exact contract-declared members; corpus-bound aggregate source evidence, static and dynamic qualification, and public release selection remain blocked."
+        ]
+      }
+    },
+    {
+      "capability_id": "physics.source_backed_minimum_bundle",
+      "roadmap_issues": [
+        860,
+        865,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "physics_bundle",
+      "property_profile": "mass_inertia_collider_drive_state",
+      "accepted_input_aliases": [],
+      "contract_versions": [
+        "joint-agent-gate3-physics-plan-envelope-v1",
+        "world-understanding-joint-rigger-plan-v1"
+      ],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "optional",
+        "anchors_and_frames": "optional",
+        "scalar_limit": "optional",
+        "controls": "required"
+      },
+      "support_level": "contract_ready",
+      "disposition": "review_required",
+      "public_exposure": "internal_only",
+      "authoring_backends": [],
+      "reason_codes": [
+        "joint_physics_ownership_review_required",
+        "physics_analytic_fixtures_missing",
+        "static_qualification_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [],
+        "representative": [
+          {
+            "asset_id": "joint_ref_simready_foundation_ur10_physics",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "5704cd13903886fd8f41dccf62d1950ad7d7a024c9d4ee5a7a2041fa66d98ff8"
+          }
+        ],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "simready_foundation"
+        ],
+        "asset_archetypes": [
+          "industrial_serial_manipulator_physics"
+        ],
+        "notes": [
+          "Friction and mimic remain unprepared.",
+          "The row does not claim Physics Agent ownership or dynamic behavior."
+        ]
+      }
+    },
+    {
+      "capability_id": "fixed.explicit_two_body_constraint",
+      "roadmap_issues": [
+        860,
+        863,
+        864,
+        866,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "fixed",
+      "property_profile": "explicit_two_body_constraint",
+      "accepted_input_aliases": [
+        "fixed"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v2"
+      ],
+      "articulation_v2_constraint_kinds": [
+        "fixed"
+      ],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "not_applicable",
+        "anchors_and_frames": "required",
+        "scalar_limit": "not_applicable",
+        "controls": "not_applicable"
+      },
+      "support_level": "authorable",
+      "disposition": "review_required",
+      "public_exposure": "internal_only",
+      "authoring_backends": [
+        "articulation_v2_captured_raw_usd",
+        "articulation_v2_captured_usdz"
+      ],
+      "reason_codes": [
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "static_qualification_missing"
+      ],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "joint_ref_analytic_fixed_full_profile_gate3_ready_positive",
+            "evidence_role": "analytic_positive",
+            "artifact_key": "reference_asset",
+            "sha256": "868c0d2169c0d6fd8639aa4292259203aa96fce5cdfe937b7d13e8a4b87715b3"
+          }
+        ],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_fail_closed_negative",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "fafec20a785fc79149677b22945c9d4ef73fb27405381e86d65c58e70b455ba3"
+          }
+        ],
+        "representative": [
+          {
+            "asset_id": "joint_ref_turtlebot3_burger_continuous_fixed",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "2a4aefc24e0bf0a23a8ba7e28c2a27844415ad3a19e105df376748580a4b8f6c"
+          },
+          {
+            "asset_id": "joint_ref_simready_foundation_joystick",
+            "evidence_role": "representative_source",
+            "artifact_key": "reference_asset",
+            "sha256": "7bb32b547d787592e7e70deda02704fbeef8ea8b6ae9cd51e49a315c62fe2be4"
+          }
+        ],
+        "qualification_result_ids": [
+          "issue-1114-fixed-explicit-two-body-constraint-authoring-v1",
+          "issue-1114-fixed-explicit-two-body-constraint-contract-v1",
+          "issue-1114-fixed-explicit-two-body-constraint-gate3a-v1",
+          "issue-1114-fixed-explicit-two-body-constraint-gate3b-v1",
+          "issue-1114-fixed-explicit-two-body-constraint-readback-v1"
+        ]
+      },
+      "qualification": {
+        "static_status": "scheduled",
+        "static_stages": {
+          "contract": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-articulation-v2-static-adoption-v1",
+                "profile_id": "articulation-v2-static-adoption-v1",
+                "result_id": "issue-1114-fixed-explicit-two-body-constraint-contract-v1"
+              }
+            ]
+          },
+          "authoring": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-articulation-v2-static-authoring-v1",
+                "profile_id": "articulation-v2-static-authoring-v1",
+                "result_id": "issue-1114-fixed-explicit-two-body-constraint-authoring-v1"
+              }
+            ]
+          },
+          "readback": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-articulation-v2-static-readback-v1",
+                "profile_id": "articulation-v2-static-readback-v1",
+                "result_id": "issue-1114-fixed-explicit-two-body-constraint-readback-v1"
+              }
+            ]
+          },
+          "gate3a": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-isaac-sim-asset-validator-v2",
+                "profile_id": "articulated-prop-v1",
+                "result_id": "issue-1114-fixed-explicit-two-body-constraint-gate3a-v1"
+              }
+            ]
+          },
+          "gate3b": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-simready-foundation-validation-v2",
+                "profile_id": "Prop-Robotics-Isaac@1.0.0",
+                "result_id": "issue-1114-fixed-explicit-two-body-constraint-gate3b-v1"
+              }
+            ]
+          }
+        },
+        "selector_admissions": [
+          {
+            "release_gate_asset_id": "joint_ref_analytic_fixed_full_profile_gate3_ready_positive",
+            "selector_type": "usd_prim",
+            "source_joint_path": "/World/Joints/fixed_attachment",
+            "constraint_kind": "fixed",
+            "expected_joint_semantics": {
+              "schema_version": "joint-agent-articulation-v2-static-joint-semantics-v1",
+              "transform_version": "joint-agent-selector-semantic-preimage-v1-to-articulation-v2-static-v1",
+              "source_semantic_preimage_sha256": "caa4502ede82e6263b1890ca617be085a7868e885b162ac60e91c3464210ad4d",
+              "capability_id": "fixed.explicit_two_body_constraint",
+              "release_gate_asset_id": "joint_ref_analytic_fixed_full_profile_gate3_ready_positive",
+              "selector_type": "usd_prim",
+              "source_joint_path": "/World/Joints/fixed_attachment",
+              "joint_id": "fixed_attachment",
+              "topology_decision": "explicit_two_body_constraint",
+              "source_authority": {
+                "parent_reference": {
+                  "path": "usd/reference.usdz",
+                  "sha256": "868c0d2169c0d6fd8639aa4292259203aa96fce5cdfe937b7d13e8a4b87715b3",
+                  "dependency_bundle": {
+                    "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                    "sha256": "46fb5cc745eb325e3ee5cd7f3408b314f3df386752408b177d9273b0c9ecccd5",
+                    "entry_count": 4
+                  }
+                },
+                "effective_reference_manifest": {
+                  "path": "references/effective_reference_manifest.json",
+                  "sha256": "59fc2b49e793d260a7a60f7c3aa44c593e48d11c13c155840c778b9fb16a9f0d"
+                }
+              },
+              "source_stage_default_prim": "/World",
+              "source_stage_meters_per_unit": 1,
+              "source_stage_up_axis": "Z",
+              "body0_link_id": "fixed_attachment_body0",
+              "body1_link_id": "fixed_attachment_body1",
+              "body0_prim_path": "/World/FixedFullProfileAssembly/Base",
+              "body1_prim_path": "/World/FixedFullProfileAssembly/Tool",
+              "linear_unit_interpretation": "source-stage-units-normalized-to-si-meters-v1",
+              "orientation_interpretation": "body-local-active-unit-quaternion-wxyz-v1",
+              "attachments": {
+                "kind": "explicit",
+                "body0": {
+                  "position_meters": [
+                    0.6,
+                    0,
+                    0
+                  ],
+                  "orientation_wxyz": [
+                    1,
+                    0,
+                    0,
+                    0
+                  ],
+                  "sampling_mode": "static"
+                },
+                "body1": {
+                  "position_meters": [
+                    -0.6,
+                    0,
+                    0
+                  ],
+                  "orientation_wxyz": [
+                    1,
+                    0,
+                    0,
+                    0
+                  ],
+                  "sampling_mode": "static"
+                }
+              },
+              "constraint": {
+                "kind": "fixed"
+              }
+            },
+            "expected_joint_semantics_sha256": "7534e4b6f4478fc277dc03d136021eb1a1ebfef91c762a4d5e8dec3e2c32addb",
+            "authoring_reference": {
+              "joint_type": "fixed",
+              "selector": {
+                "kind": "usd_prim",
+                "value": "/World/Joints/fixed_attachment"
+              },
+              "parent_reference_sha256": "868c0d2169c0d6fd8639aa4292259203aa96fce5cdfe937b7d13e8a4b87715b3",
+              "semantic_digest_sha256": "caa4502ede82e6263b1890ca617be085a7868e885b162ac60e91c3464210ad4d",
+              "raw_reference": {
+                "path": "usd/authoring/fixed/reference.usda",
+                "sha256": "2b7424737d74473cb199c7b9a12905dcbed821767881766875e59d862c0ea94a",
+                "dependency_bundle": {
+                  "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                  "sha256": "0c4cb7768f325e218d3b63d5c0c0330228a8955caaa249371bcbd2c0503343ce",
+                  "entry_count": 1
+                }
+              },
+              "package_reference": {
+                "path": "usd/authoring/fixed/reference.usdz",
+                "sha256": "67330d72ac507922eef096bdf5a48c48a72f4cf06918d2f30824f5a4f60e3a1f",
+                "dependency_bundle": {
+                  "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                  "sha256": "a36afe6ae5342fe9eff2c794737a1d949d0d74f3c4ce238e25048acf91121e1d",
+                  "entry_count": 1
+                }
+              },
+              "effective_reference_manifest": {
+                "path": "references/authoring/fixed/effective_reference_manifest.json",
+                "sha256": "aaae6e898b612788bd97d7a7c09b3a1c3ecd990776229bd81613444d3b3be797"
+              },
+              "identity": {
+                "path": "references/authoring/fixed/identity.json",
+                "sha256": "9ba89050099e69fae976c63759df5b0298738114f583f825406e14f29689d3a9"
+              }
+            },
+            "fixture_prevalidation": {
+              "fixture_result_sha256": "55721d4a8b6f35ddd12ba619eac2532fd0b3b0124add723c7571eae02b171321",
+              "structural_audit_sha256": "6b372a801ae8b928ac1194de665bb970da60d657ba9d0f5071dc9f3ca9a9a02d",
+              "validator_closeout_sha256": "2285ed8ba05f052b8676c18df971a80620ef4fbffa222119a972e949c5d08dfc",
+              "gate3a_results_sha256": "bf7f67226ac0864966bc113e18ebc02679ceaba53df3b35aa7c442e3658b60ec",
+              "gate3b_results_sha256": "7e4ede3b4abc043d2279ed6c78cfc94d510426a029481ab284cb4f8c6b120b23",
+              "independent_review_sha256": "4a8cffa1778972be79c85139bf30853b73ef89ee29ce394aef6b75dc520f188a",
+              "source_sha256": "868c0d2169c0d6fd8639aa4292259203aa96fce5cdfe937b7d13e8a4b87715b3",
+              "target_sha256": "f8c80444dbb0dda9588a20b7de7aa194b1375d686333250a6527021444c0690b",
+              "authoring_reference_sha256": "67330d72ac507922eef096bdf5a48c48a72f4cf06918d2f30824f5a4f60e3a1f",
+              "independent_review_check_count": 44,
+              "gate3a_target_count": 2,
+              "gate3b_target_count": 2,
+              "gate3b_features_passed_per_target": 7,
+              "gate3b_features_failed_per_target": 0,
+              "status": "PASS",
+              "fixture_prevalidation_only": true,
+              "production_execution": false,
+              "production_attestation": false,
+              "production_qualification": false,
+              "scoring_authority": false,
+              "selection_authority": false,
+              "capability_manifest_updated": false
+            },
+            "source_semantic_preimage": {
+              "schema_version": "joint-agent-selector-semantic-preimage-v1",
+              "selector": {
+                "kind": "usd_prim",
+                "value": "/World/Joints/fixed_attachment"
+              },
+              "topology_decision": "explicit_two_body_constraint",
+              "stage": {
+                "default_prim": "/World",
+                "meters_per_unit": 1,
+                "up_axis": "Z"
+              },
+              "joint": {
+                "authored_metadata": {
+                  "applied_schemas": [],
+                  "authored_properties": [
+                    "physics:body0",
+                    "physics:body1",
+                    "physics:localPos0",
+                    "physics:localPos1",
+                    "physics:localRot0",
+                    "physics:localRot1"
+                  ],
+                  "body0_applied_schemas": [
+                    "PhysicsRigidBodyAPI",
+                    "PhysicsMassAPI",
+                    "PhysicsArticulationRootAPI"
+                  ],
+                  "body1_applied_schemas": [
+                    "PhysicsRigidBodyAPI",
+                    "PhysicsMassAPI"
+                  ],
+                  "physics_attributes": {
+                    "physics:localPos0": "(0.6, 0, 0)",
+                    "physics:localPos1": "(-0.6, 0, 0)",
+                    "physics:localRot0": "(1, 0, 0, 0)",
+                    "physics:localRot1": "(1, 0, 0, 0)"
+                  },
+                  "usd_type_name": "PhysicsFixedJoint"
+                },
+                "axis": null,
+                "axis_world": null,
+                "body0": "/World/FixedFullProfileAssembly/Base",
+                "body1": "/World/FixedFullProfileAssembly/Tool",
+                "joint_prim_path": "/World/Joints/fixed_attachment",
+                "joint_type": "fixed",
+                "lower_limit": null,
+                "upper_limit": null
+              },
+              "endpoint_hierarchy": {
+                "body0": [
+                  {
+                    "path": "/World",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/FixedFullProfileAssembly",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/FixedFullProfileAssembly/Base",
+                    "type_name": "Xform",
+                    "applied_schemas": [
+                      "PhysicsRigidBodyAPI",
+                      "PhysicsMassAPI",
+                      "PhysicsArticulationRootAPI"
+                    ],
+                    "xform_ops": [
+                      {
+                        "name": "xformOp:translate",
+                        "type": "UsdGeom.XformOp.TypeTranslate",
+                        "value": "(0, 0, 0)"
+                      }
+                    ]
+                  }
+                ],
+                "body1": [
+                  {
+                    "path": "/World",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/FixedFullProfileAssembly",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/FixedFullProfileAssembly/Tool",
+                    "type_name": "Xform",
+                    "applied_schemas": [
+                      "PhysicsRigidBodyAPI",
+                      "PhysicsMassAPI"
+                    ],
+                    "xform_ops": [
+                      {
+                        "name": "xformOp:translate",
+                        "type": "UsdGeom.XformOp.TypeTranslate",
+                        "value": "(1.2, 0, 0)"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "source_semantic_preimage_sha256": "caa4502ede82e6263b1890ca617be085a7868e885b162ac60e91c3464210ad4d"
+          }
+        ],
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic",
+          "simready_foundation",
+          "turtlebot3"
+        ],
+        "asset_archetypes": [
+          "analytic_constraint_demo",
+          "human_control_device",
+          "invalid_constraint_matrix",
+          "mobile_robot"
+        ],
+        "notes": [
+          "Captured raw-USD and project-canonical USDZ authoring plus constraint-bearing v3 saved-stage readback are implemented for explicit two-body fixed constraints.",
+          "The fixed production admission is bound only to the corrected full-profile Gate 3-ready successor; the earlier fixed-only row remains immutable non-evidence, while the mixed fixed/distance row remains immutable contract/readback evidence outside qualification.",
+          "This opt-in authorer remains internal-only until #870 explicitly selects a qualified public row.",
+          "The all-five static run is admitted but has no recorded outcome; static and dynamic qualification and public release selection remain blocked."
+        ]
+      }
+    },
+    {
+      "capability_id": "distance.bounded_two_body_constraint",
+      "roadmap_issues": [
+        860,
+        863,
+        864,
+        866,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "distance",
+      "property_profile": "frame_axis_bounded_distance_source_backed_position_control_state",
+      "accepted_input_aliases": [
+        "distance"
+      ],
+      "contract_versions": [
+        "joint-agent-articulation-v2",
+        "joint-agent-articulation-v2-controlled-distance-v2",
+        "joint-agent-articulation-v2-static-controlled-distance-authoring-contract-v2",
+        "joint-agent-articulation-v2-static-intake-v2",
+        "joint-agent-articulation-v2-static-run-plan-v2",
+        "joint-agent-articulation-v2-static-run-request-v2"
+      ],
+      "articulation_v2_constraint_kinds": [
+        "distance"
+      ],
+      "candidate_artifact_versions": [
+        "controlled-distance-retained-source-readback-v2",
+        "joint-agent-articulation-v2-static-controlled-distance-authoring-result-v2",
+        "joint-agent-articulation-v2-static-controlled-distance-preflight-v2"
+      ],
+      "properties": {
+        "axis": "required",
+        "anchors_and_frames": "required",
+        "scalar_limit": "required",
+        "controls": "required"
+      },
+      "support_level": "authorable",
+      "disposition": "review_required",
+      "public_exposure": "internal_only",
+      "authoring_backends": [
+        "articulation_v2_controlled_distance_usd_v2"
+      ],
+      "reason_codes": [
+        "dynamic_qualification_missing",
+        "public_release_selection_missing",
+        "static_qualification_missing"
+      ],
+      "fixtures": {
+        "positive": [
+          {
+            "asset_id": "joint_ref_analytic_controlled_distance_gate3_ready_positive",
+            "evidence_role": "analytic_positive",
+            "artifact_key": "reference_asset",
+            "sha256": "53cdc1a08da6c45ee816e0d8580528c6c227e7ca4eda3255ff7ff568b82f607a"
+          }
+        ],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_fail_closed_negative",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "fafec20a785fc79149677b22945c9d4ef73fb27405381e86d65c58e70b455ba3"
+          }
+        ],
+        "representative": [],
+        "qualification_result_ids": [
+          "issue-1119-distance-bounded-two-body-constraint-authoring-v1",
+          "issue-1119-distance-bounded-two-body-constraint-contract-v1",
+          "issue-1119-distance-bounded-two-body-constraint-gate3a-v1",
+          "issue-1119-distance-bounded-two-body-constraint-gate3b-v1",
+          "issue-1119-distance-bounded-two-body-constraint-readback-v1"
+        ]
+      },
+      "qualification": {
+        "static_status": "scheduled",
+        "static_stages": {
+          "contract": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-articulation-v2-static-adoption-v1",
+                "profile_id": "articulation-v2-static-adoption-v1",
+                "result_id": "issue-1119-distance-bounded-two-body-constraint-contract-v1"
+              }
+            ]
+          },
+          "authoring": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-articulation-v2-static-authoring-v1",
+                "profile_id": "articulation-v2-static-authoring-v1",
+                "result_id": "issue-1119-distance-bounded-two-body-constraint-authoring-v1"
+              }
+            ]
+          },
+          "readback": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-articulation-v2-static-readback-v1",
+                "profile_id": "articulation-v2-static-readback-v1",
+                "result_id": "issue-1119-distance-bounded-two-body-constraint-readback-v1"
+              }
+            ]
+          },
+          "gate3a": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-isaac-sim-asset-validator-v2",
+                "profile_id": "articulated-prop-v1",
+                "result_id": "issue-1119-distance-bounded-two-body-constraint-gate3a-v1"
+              }
+            ]
+          },
+          "gate3b": {
+            "admissions": [
+              {
+                "validation_contract": "joint-agent-simready-foundation-validation-v2",
+                "profile_id": "Prop-Robotics-Isaac@1.0.0",
+                "result_id": "issue-1119-distance-bounded-two-body-constraint-gate3b-v1"
+              }
+            ]
+          }
+        },
+        "selector_admissions": [
+          {
+            "admission_version": "joint-agent-controlled-distance-selector-admission-v2",
+            "release_gate_asset_id": "joint_ref_analytic_controlled_distance_gate3_ready_positive",
+            "selector_type": "usd_prim",
+            "source_joint_path": "/World/Joints/controlled_distance",
+            "constraint_kind": "distance",
+            "source_semantic_preimage": {
+              "schema_version": "joint-agent-selector-semantic-preimage-v1",
+              "selector": {
+                "kind": "usd_prim",
+                "value": "/World/Joints/controlled_distance"
+              },
+              "topology_decision": "explicit_two_body_constraint",
+              "stage": {
+                "default_prim": "/World",
+                "meters_per_unit": 1.0,
+                "up_axis": "Z"
+              },
+              "joint": {
+                "authored_metadata": {
+                  "applied_schemas": [
+                    "PhysicsDriveAPI:linear"
+                  ],
+                  "authored_properties": [
+                    "drive:linear:physics:damping",
+                    "drive:linear:physics:maxForce",
+                    "drive:linear:physics:stiffness",
+                    "drive:linear:physics:targetPosition",
+                    "drive:linear:physics:targetVelocity",
+                    "drive:linear:physics:type",
+                    "physics:axis",
+                    "physics:body0",
+                    "physics:body1",
+                    "physics:localPos0",
+                    "physics:localPos1",
+                    "physics:localRot0",
+                    "physics:localRot1",
+                    "physics:lowerLimit",
+                    "physics:upperLimit",
+                    "state:linear:physics:position",
+                    "state:linear:physics:velocity"
+                  ],
+                  "body0_applied_schemas": [
+                    "PhysicsRigidBodyAPI",
+                    "PhysicsMassAPI",
+                    "PhysicsArticulationRootAPI"
+                  ],
+                  "body1_applied_schemas": [
+                    "PhysicsRigidBodyAPI",
+                    "PhysicsMassAPI"
+                  ],
+                  "physics_attributes": {
+                    "physics:axis": "X",
+                    "physics:localPos0": "(0, 0, 0)",
+                    "physics:localPos1": "(0, 0, 0)",
+                    "physics:localRot0": "(1, 0, 0, 0)",
+                    "physics:localRot1": "(1, 0, 0, 0)",
+                    "physics:lowerLimit": 0.20000000298023224,
+                    "physics:upperLimit": 0.800000011920929
+                  },
+                  "usd_type_name": "PhysicsPrismaticJoint"
+                },
+                "axis": "x",
+                "axis_world": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "body0": "/World/ControlledDistanceAssembly/Base",
+                "body1": "/World/ControlledDistanceAssembly/Carriage",
+                "joint_prim_path": "/World/Joints/controlled_distance",
+                "joint_type": "prismatic",
+                "lower_limit": 0.20000000298023224,
+                "upper_limit": 0.800000011920929
+              },
+              "endpoint_hierarchy": {
+                "body0": [
+                  {
+                    "path": "/World",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/ControlledDistanceAssembly",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/ControlledDistanceAssembly/Base",
+                    "type_name": "Xform",
+                    "applied_schemas": [
+                      "PhysicsRigidBodyAPI",
+                      "PhysicsMassAPI",
+                      "PhysicsArticulationRootAPI"
+                    ],
+                    "xform_ops": [
+                      {
+                        "name": "xformOp:translate",
+                        "type": "UsdGeom.XformOp.TypeTranslate",
+                        "value": "(0.45, 0, 0)"
+                      }
+                    ]
+                  }
+                ],
+                "body1": [
+                  {
+                    "path": "/World",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/ControlledDistanceAssembly",
+                    "type_name": "Xform",
+                    "applied_schemas": [],
+                    "xform_ops": []
+                  },
+                  {
+                    "path": "/World/ControlledDistanceAssembly/Carriage",
+                    "type_name": "Xform",
+                    "applied_schemas": [
+                      "PhysicsRigidBodyAPI",
+                      "PhysicsMassAPI"
+                    ],
+                    "xform_ops": [
+                      {
+                        "name": "xformOp:translate",
+                        "type": "UsdGeom.XformOp.TypeTranslate",
+                        "value": "(0, 0, 0)"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "source_semantic_preimage_sha256": "84ec335c2f8dc51f748b40aeeb34e004c90328747e5101041f109c69ae6f72e0",
+            "expected_joint_semantics": {
+              "schema_version": "joint-agent-articulation-v2-controlled-distance-selector-semantics-v2",
+              "transform_version": "joint-agent-selector-semantic-preimage-v1-to-controlled-distance-v2",
+              "source_semantic_preimage_sha256": "84ec335c2f8dc51f748b40aeeb34e004c90328747e5101041f109c69ae6f72e0",
+              "capability_id": "distance.bounded_two_body_constraint",
+              "release_gate_asset_id": "joint_ref_analytic_controlled_distance_gate3_ready_positive",
+              "selector_type": "usd_prim",
+              "source_joint_path": "/World/Joints/controlled_distance",
+              "topology_decision": "explicit_two_body_constraint",
+              "source_authority": {
+                "parent_reference": {
+                  "path": "usd/reference.usdz",
+                  "sha256": "53cdc1a08da6c45ee816e0d8580528c6c227e7ca4eda3255ff7ff568b82f607a",
+                  "dependency_bundle": {
+                    "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                    "sha256": "7d88acfa2d5b7e35de5155ffd0a2b239366c6054412696f601112c9a7caf9fe5",
+                    "entry_count": 4
+                  }
+                },
+                "effective_reference_manifest": {
+                  "path": "references/effective_reference_manifest.json",
+                  "sha256": "a42c1b1b2ab927cb38d7f1a59c0c45398c4b6f5c9a448dc27bab8c23dc03ebe6"
+                }
+              },
+              "source_contract": {
+                "path": "source/generated/controlled_distance_contract.usda",
+                "sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                "dependency_bundle": {
+                  "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                  "sha256": "67c0d49c9a668f91fae53a98f19fe660b8d9b2319de59e47c0c98eacbe671c95",
+                  "entry_count": 1
+                }
+              },
+              "controlled_distance_contract": {
+                "schema_version": "joint-agent-articulation-v2-controlled-distance-v2",
+                "articulation_contract_sha256": "35de5343ef7d897318275e42cd60e11ab0be05a5d766b175f8d7b827bfa103a8",
+                "source_artifact": {
+                  "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                  "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                  "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                },
+                "source_joint_path": "/World/Joints/controlled_distance",
+                "body0_prim_path": "/World/ControlledDistanceAssembly/Base",
+                "body1_prim_path": "/World/ControlledDistanceAssembly/Carriage",
+                "joint_id": "controlled_distance",
+                "representation": "prismatic_axial_interval_drive_body1_to_body0_v2",
+                "axis_stage": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "axial_interval": {
+                  "kind": "distance",
+                  "minimum_meters": 0.20000000298023224,
+                  "maximum_meters": 0.800000011920929
+                },
+                "drive": {
+                  "classification": "source_backed_position_drive",
+                  "instance": "linear",
+                  "drive_type": "force",
+                  "target_position_meters": 0.6499999761581421,
+                  "target_velocity_meters_per_second": 0.0,
+                  "stiffness_newtons_per_meter": 50.0,
+                  "damping_newton_seconds_per_meter": 5.0,
+                  "maximum_force_newtons": 100.0
+                },
+                "state": {
+                  "instance": "linear",
+                  "position_meters": 0.44999998807907104,
+                  "velocity_meters_per_second": 0.0
+                },
+                "field_evidence": [
+                  {
+                    "field": "axial_interval.maximum_meters",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "physics:upperLimit"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance axial_interval.maximum_meters"
+                    }
+                  },
+                  {
+                    "field": "axial_interval.minimum_meters",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "physics:lowerLimit"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance axial_interval.minimum_meters"
+                    }
+                  },
+                  {
+                    "field": "axis_stage",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "physics:axis",
+                        "physics:localRot0",
+                        "physics:localRot1"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance axis_stage"
+                    }
+                  },
+                  {
+                    "field": "body0_prim_path",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "physics:body0"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance body0_prim_path"
+                    }
+                  },
+                  {
+                    "field": "body1_prim_path",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "physics:body1"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance body1_prim_path"
+                    }
+                  },
+                  {
+                    "field": "drive.damping_newton_seconds_per_meter",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "drive:linear:physics:damping"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.damping_newton_seconds_per_meter"
+                    }
+                  },
+                  {
+                    "field": "drive.drive_type",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "drive:linear:physics:type"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.drive_type"
+                    }
+                  },
+                  {
+                    "field": "drive.instance",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "usd:appliedSchema:PhysicsDriveAPI:linear"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.instance"
+                    }
+                  },
+                  {
+                    "field": "drive.maximum_force_newtons",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "drive:linear:physics:maxForce"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.maximum_force_newtons"
+                    }
+                  },
+                  {
+                    "field": "drive.stiffness_newtons_per_meter",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "drive:linear:physics:stiffness"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.stiffness_newtons_per_meter"
+                    }
+                  },
+                  {
+                    "field": "drive.target_position_meters",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "drive:linear:physics:targetPosition"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.target_position_meters"
+                    }
+                  },
+                  {
+                    "field": "drive.target_velocity_meters_per_second",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "drive:linear:physics:targetVelocity"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance drive.target_velocity_meters_per_second"
+                    }
+                  },
+                  {
+                    "field": "endpoint_frame.body0_world_transform",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/ControlledDistanceAssembly/Base",
+                      "properties": [
+                        "xformOp:translate",
+                        "xformOpOrder"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance endpoint_frame.body0_world_transform"
+                    }
+                  },
+                  {
+                    "field": "endpoint_frame.body1_world_transform",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/ControlledDistanceAssembly/Carriage",
+                      "properties": [
+                        "xformOp:translate",
+                        "xformOpOrder"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance endpoint_frame.body1_world_transform"
+                    }
+                  },
+                  {
+                    "field": "representation",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "usd:schema:PrismaticJoint"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance representation"
+                    }
+                  },
+                  {
+                    "field": "state.instance",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "usd:appliedSchema:PhysicsJointStateAPI:linear"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance state.instance"
+                    }
+                  },
+                  {
+                    "field": "state.position_meters",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "state:linear:physics:position"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance state.position_meters"
+                    }
+                  },
+                  {
+                    "field": "state.velocity_meters_per_second",
+                    "provenance": {
+                      "source": "authored_reference",
+                      "artifact": {
+                        "uri": "asset://joint-1118/controlled-distance-gate3-ready-v2/reference",
+                        "root_sha256": "616147229f22c62dcc1eb9df8b89d8afb9bd92c865427d6f09c979266da94e23",
+                        "dependency_bundle_sha256": "600b99238ecda824d32d43f7b4097339249bb5ed537063b86fb35aa170e1da46"
+                      },
+                      "prim_path": "/World/Joints/controlled_distance",
+                      "properties": [
+                        "state:linear:physics:velocity"
+                      ],
+                      "derivation": null,
+                      "evidence": "exact source-backed controlled-distance state.velocity_meters_per_second"
+                    }
+                  }
+                ],
+                "static_qualified": false,
+                "dynamic_qualified": false,
+                "public_enabled": false
+              },
+              "controlled_distance_contract_sha256": "26d904c74f365d40e5654ce181076e8cc43e9cebdf7fb7026f9431cfce48c063",
+              "release_selection_applied": false
+            },
+            "expected_joint_semantics_sha256": "d9bb453b10aa8482f39053a47a487bd4d0791e4c4b7d290ed96b4beeca277b58",
+            "authoring_reference": {
+              "role": "controlled_distance",
+              "joint_type": "prismatic",
+              "selector": {
+                "kind": "usd_prim",
+                "value": "/World/Joints/controlled_distance"
+              },
+              "parent_reference_sha256": "53cdc1a08da6c45ee816e0d8580528c6c227e7ca4eda3255ff7ff568b82f607a",
+              "semantic_digest_sha256": "84ec335c2f8dc51f748b40aeeb34e004c90328747e5101041f109c69ae6f72e0",
+              "raw_reference": {
+                "path": "usd/authoring/controlled_distance/reference.usda",
+                "sha256": "198f7f13d634c4d8f9af2d823de3a9f0eb60d37f5c7d439e97ff3490aa683be5",
+                "dependency_bundle": {
+                  "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                  "sha256": "138a4643b460a9761ae5f99b2c84cf142c22eeaa0260da25e4c6c955d95f6ee6",
+                  "entry_count": 1
+                }
+              },
+              "package_reference": {
+                "path": "usd/authoring/controlled_distance/reference.usdz",
+                "sha256": "749b3706e91edaa0cdcb67c0b383304f5dacf2f10ec64ce1c6f8e9fb61ccca95",
+                "dependency_bundle": {
+                  "schema_version": "joint-agent-usd-artifact-dependency-bundle-v3",
+                  "sha256": "effc69d70267c44dff8b7a851e6a7aa3d329459aad0672a58d232721dab6fd5c",
+                  "entry_count": 1
+                }
+              },
+              "effective_reference_manifest": {
+                "path": "references/authoring/controlled_distance/effective_reference_manifest.json",
+                "sha256": "fd2590bbe9dc0606190227f430ae7a5c6601b8605a139b082e527fcac79a79cf"
+              },
+              "identity": {
+                "path": "references/authoring/controlled_distance/identity.json",
+                "sha256": "3c619853b56365f0a0fd6da9d58e26992872ad6fdaee159c87c12869222e8da8"
+              }
+            },
+            "fixture_prevalidation": {
+              "retained_tree_identity_sha256": "72793823e053dfec4ae84c90baf430d724762e959ba06433c65abbfc10097a09",
+              "primary_fixture_result_sha256": "cf75671ce552a5c8bd6fb10e710f49236fc4679fbe22941de048cbedc1626ba1",
+              "structural_audit_receipt_sha256": "5000b75fad26672bb85bed7e8803f5ba18fabfcbff39686fddd2b7d1950bab9a",
+              "gate3a_results_sha256": "a169f7b239fef2e7ce3e26320b1b4c25e06919d166472257ecd6d0497fd22641",
+              "gate3b_results_sha256": "676af1c0877a73ad34bce5c25e535ff04460e21cbb55d9383b89f1b048448548",
+              "independent_postexec_receipt_sha256": "afbe86d8cf29bd911438e8fd3a3337e137ca22c269a6ff84fda53873514db316",
+              "production_attestation": false,
+              "release_selection_applied": false,
+              "capability_manifest_updated": false
+            },
+            "release_selection_applied": false
+          }
+        ],
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic",
+          "nvidia_physx"
+        ],
+        "asset_archetypes": [
+          "analytic_constraint_demo",
+          "invalid_constraint_matrix"
+        ],
+        "notes": [
+          "Only the exact issue-1118 controlled-distance-v2 fixture and selector are admitted.",
+          "Passive DistanceJoint, D6, mixed analytic, and stale predecessor identities are historical non-evidence.",
+          "Static and dynamic qualification, release selection, and public enablement remain false."
+        ]
+      }
+    },
+    {
+      "capability_id": "d6.per_dof_constraint",
+      "roadmap_issues": [
+        860,
+        863,
+        867,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "d6",
+      "property_profile": "per_dof_free_locked_limited",
+      "accepted_input_aliases": [
+        "d6"
+      ],
+      "contract_versions": [],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "deferred",
+        "anchors_and_frames": "required",
+        "scalar_limit": "not_applicable",
+        "controls": "deferred"
+      },
+      "support_level": "recognized",
+      "disposition": "unsupported",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "d6_contract_not_selected",
+        "d6_representative_oracle_missing",
+        "d6_authoring_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_fail_closed_negative",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "fafec20a785fc79149677b22945c9d4ef73fb27405381e86d65c58e70b455ba3"
+          }
+        ],
+        "representative": [],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic"
+        ],
+        "asset_archetypes": [
+          "invalid_constraint_matrix"
+        ],
+        "notes": [
+          "The current asset is a fail-closed contract vector, not representative mechanism evidence."
+        ]
+      }
+    },
+    {
+      "capability_id": "planar.canonical_profile",
+      "roadmap_issues": [
+        860,
+        867,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "planar",
+      "property_profile": "unresolved_d6_or_native",
+      "accepted_input_aliases": [
+        "planar"
+      ],
+      "contract_versions": [],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "deferred",
+        "anchors_and_frames": "required",
+        "scalar_limit": "not_applicable",
+        "controls": "deferred"
+      },
+      "support_level": "recognized",
+      "disposition": "deferred",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "planar_semantics_unresolved",
+        "planar_representative_oracle_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_fail_closed_negative",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "fafec20a785fc79149677b22945c9d4ef73fb27405381e86d65c58e70b455ba3"
+          }
+        ],
+        "representative": [],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic"
+        ],
+        "asset_archetypes": [
+          "invalid_constraint_matrix"
+        ],
+        "notes": [
+          "Planar remains a design decision, not an implementation family."
+        ]
+      }
+    },
+    {
+      "capability_id": "coupling.typed_cross_joint",
+      "roadmap_issues": [
+        860,
+        865,
+        867,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "coupling",
+      "property_profile": "mimic_gear_or_rack",
+      "accepted_input_aliases": [
+        "gear",
+        "mimic",
+        "rack"
+      ],
+      "contract_versions": [],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "deferred",
+        "anchors_and_frames": "deferred",
+        "scalar_limit": "not_applicable",
+        "controls": "required"
+      },
+      "support_level": "recognized",
+      "disposition": "deferred",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "coupling_contract_unresolved",
+        "coupling_normalized_oracle_missing",
+        "coupling_semantic_preservation_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_fail_closed_negative",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "fafec20a785fc79149677b22945c9d4ef73fb27405381e86d65c58e70b455ba3"
+          }
+        ],
+        "representative": [],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic"
+        ],
+        "asset_archetypes": [
+          "invalid_constraint_matrix"
+        ],
+        "notes": [
+          "Robotiq remains a pinned discovery candidate outside the prepared roster."
+        ]
+      }
+    },
+    {
+      "capability_id": "graph.closed_loop_constraints",
+      "roadmap_issues": [
+        860,
+        867,
+        868,
+        869,
+        870
+      ],
+      "canonical_type": "closed_loop",
+      "property_profile": "multiple_constraints_and_loop_edges",
+      "accepted_input_aliases": [
+        "closed_loop",
+        "loop_constraint"
+      ],
+      "contract_versions": [],
+      "candidate_artifact_versions": [],
+      "properties": {
+        "axis": "deferred",
+        "anchors_and_frames": "required",
+        "scalar_limit": "deferred",
+        "controls": "deferred"
+      },
+      "support_level": "recognized",
+      "disposition": "deferred",
+      "public_exposure": "gated",
+      "authoring_backends": [],
+      "reason_codes": [
+        "closed_loop_graph_contract_unresolved",
+        "closed_loop_normalized_oracle_missing",
+        "closed_loop_runtime_profile_missing"
+      ],
+      "fixtures": {
+        "positive": [],
+        "negative": [
+          {
+            "asset_id": "joint_ref_analytic_fail_closed_negative",
+            "evidence_role": "fail_closed_negative",
+            "artifact_key": "reference_asset",
+            "sha256": "fafec20a785fc79149677b22945c9d4ef73fb27405381e86d65c58e70b455ba3"
+          }
+        ],
+        "representative": [],
+        "qualification_result_ids": []
+      },
+      "qualification": {
+        "static_status": "not_run",
+        "static_stages": {
+          "contract": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "authoring": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "readback": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3a": {
+            "profile_ids": [],
+            "result_ids": []
+          },
+          "gate3b": {
+            "profile_ids": [],
+            "result_ids": []
+          }
+        },
+        "dynamic_status": "not_run",
+        "dynamic_profile_ids": [],
+        "dynamic_result_ids": []
+      },
+      "scope": {
+        "source_families": [
+          "joint_agent_analytic"
+        ],
+        "asset_archetypes": [
+          "invalid_constraint_matrix"
+        ],
+        "notes": [
+          "Cassie and Robotiq remain discovery candidates; neither is a normalized loop oracle."
+        ]
+      }
+    }
+  ]
+}

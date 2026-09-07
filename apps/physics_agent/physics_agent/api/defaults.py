@@ -13,18 +13,19 @@ from typing import Any
 from world_understanding.functions.graphics.rendering_backend_factory import (
     validate_rendering_backend_name,
 )
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+    resolve_reasoning_effort_for_model_config,
+)
 from world_understanding.utils.credentials import format_env_reference
 from world_understanding.utils.environment import parse_float_env, parse_int_env
 
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# Pipeline Step Names (Constants)
-# ============================================================================
-
-# All valid pipeline step names in execution order
-PIPELINE_STEP_NAMES = [
+# Canonical public pipeline-step list. Internal execution order takes an
+# immutable copy so callers can keep relying on this documented list surface.
+PIPELINE_STEP_NAMES: list[str] = [
     "optimize_usd",
     "identify_asset",
     "build_dataset_usd",
@@ -32,6 +33,7 @@ PIPELINE_STEP_NAMES = [
     "predict",
     "restore_usd",
     "apply_physics",
+    "vomp_mass",
 ]
 
 # Step name constants for type-safe references
@@ -64,19 +66,25 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = os.environ.get("PA_VLM_BACKEND", "nim")
-DEFAULT_VLM_MODEL = os.environ.get("PA_VLM_MODEL", "google/gemma-4-31b-it")
+DEFAULT_VLM_MODEL = os.environ.get("PA_VLM_MODEL", "moonshotai/kimi-k3")
 DEFAULT_VLM_TEMPERATURE = parse_float_env(
     "PA_VLM_TEMPERATURE", 1.0, minimum=0.0, maximum=2.0, logger=logger
 )
 DEFAULT_VLM_MAX_TOKENS = parse_int_env(
     "PA_VLM_MAX_TOKENS", 24576, minimum=1, logger=logger
 )
-DEFAULT_VLM_REASONING_EFFORT = os.environ.get(
-    "PA_VLM_REASONING_EFFORT", "high"
-)  # for reasoning-capable models (e.g. gpt-5)
+DEFAULT_VLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
+    DEFAULT_VLM_BACKEND,
+    DEFAULT_VLM_MODEL,
+    explicit=os.environ.get("PA_VLM_REASONING_EFFORT"),
+    fallback="high",
+)
 # Bound per-pipeline inference concurrency to avoid accidental resource exhaustion.
 DEFAULT_VLM_MAX_WORKERS = parse_int_env(
     "PA_VLM_MAX_WORKERS", 64, minimum=1, maximum=256, logger=logger
+)
+DEFAULT_IDENTIFY_ASSET_VLM_TIMEOUT = parse_float_env(
+    "PA_IDENTIFY_ASSET_VLM_TIMEOUT", 180.0, minimum=0.001, logger=logger
 )
 DEFAULT_VLM_BASE_URL = os.environ.get("PA_VLM_BASE_URL") or None
 DEFAULT_VLM_API_KEY = os.environ.get("PA_VLM_API_KEY") or None
@@ -114,7 +122,11 @@ PREDICT_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+        **(
+            {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+            if DEFAULT_VLM_REASONING_EFFORT
+            else {}
+        ),
         **_vlm_endpoint_config(),
     },
     # No separate parser LLM by default. Predict falls back to llm = vlm
@@ -141,6 +153,7 @@ IDENTIFY_ASSET_DEFAULTS: dict[str, Any] = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": 4096,
+        "timeout": DEFAULT_IDENTIFY_ASSET_VLM_TIMEOUT,
         **_vlm_endpoint_config(),
     },
     "prompts": {
@@ -556,7 +569,15 @@ def get_predict_config_with_defaults(
         >>> full = get_predict_config_with_defaults(minimal)
         >>> # VLM backend, temperature, etc. auto-filled
     """
-    return apply_defaults(user_config, PREDICT_DEFAULTS)
+    config = apply_defaults(user_config, PREDICT_DEFAULTS)
+    vlm = config.get("vlm")
+    user_vlm = user_config.get("vlm")
+    if isinstance(vlm, dict):
+        resolve_reasoning_effort_for_model_config(
+            vlm,
+            user_vlm if isinstance(user_vlm, dict) else None,
+        )
+    return config
 
 
 def get_minimal_required_fields() -> dict[str, list[str]]:

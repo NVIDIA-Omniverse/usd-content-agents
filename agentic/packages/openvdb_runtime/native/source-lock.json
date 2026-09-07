@@ -1,0 +1,631 @@
+{
+  "schema": "world-understanding.openvdb-native-source-lock.v1",
+  "source": {
+    "id": "openvdb",
+    "name": "OpenVDB",
+    "version": "13.0.0",
+    "tag": "v13.0.0",
+    "repository": "https://github.com/AcademySoftwareFoundation/openvdb.git",
+    "commit": "7c03e1f084873cd1b3422c7ff7aec6ee681b3b38",
+    "archive_url": "https://codeload.github.com/AcademySoftwareFoundation/openvdb/tar.gz/7c03e1f084873cd1b3422c7ff7aec6ee681b3b38",
+    "archive_sha256": "b3bbac7dd950d8d64f0fd0448dcc9efcd4e0e257c4a081fb606a00e1d75760d6",
+    "git_tree_inventory_sha256": "6fd85ffddeb0f0354ecb284f955583817d0810b034aedbecb44dcc3ab0439e0d",
+    "source_date_epoch": 1762211065,
+    "relationship": "bundled",
+    "license": "Apache-2.0",
+    "license_files": [
+      {
+        "source_path": "LICENSE",
+        "redistribution_path": "LICENSE",
+        "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+      }
+    ],
+    "vendored_components": [
+      {
+        "id": "openexr-half",
+        "name": "OpenEXR Project Half implementation",
+        "version": "openvdb-13.0.0-embedded",
+        "derivation": "OpenEXR Project Half sources embedded and namespace-adapted in the locked OpenVDB 13.0.0 tree",
+        "license": "BSD-3-Clause",
+        "containing_source_id": "openvdb",
+        "containing_path": "openvdb/openvdb/math",
+        "source_files": [
+          {
+            "path": "openvdb/openvdb/math/Half.cc",
+            "sha256": "07a515b1bddd6ad51f7a918ca988461f9ad25a379b37da2e728e2e986051d293"
+          },
+          {
+            "path": "openvdb/openvdb/math/Half.h",
+            "sha256": "5c6ca5d229150ceff5112bd1f63bff28578a8a1fea23956184f0c19193c6f6b4"
+          }
+        ],
+        "license_files": [
+          {
+            "source_path": "openvdb/openvdb/math/Half.h",
+            "source_sha256": "5c6ca5d229150ceff5112bd1f63bff28578a8a1fea23956184f0c19193c6f6b4",
+            "redistribution_path": "licenses/openexr-half-BSD-3-Clause.txt",
+            "sha256": "c20236d3b39fd20eba8e3d1fb3b892a5483df2e7d8d61bf43f165d3fac22f601"
+          }
+        ]
+      }
+    ]
+  },
+  "distribution": {
+    "name": "openvdb",
+    "version": "13.0.0+wu.3",
+    "python_implementation": "CPython",
+    "python_version": "3.12",
+    "openvdb_abi": 13,
+    "module": "openvdb",
+    "native_module": "openvdb.lib.openvdb"
+  },
+  "build_tools": {
+    "uv": "0.11.19",
+    "cmake": "3.31.6",
+    "scikit_build_core": "0.11.6",
+    "nanobind": "2.13.0",
+    "auditwheel": "6.4.2",
+    "packaging": "25.0",
+    "pathspec": "0.12.1",
+    "pyelftools": "0.32"
+  },
+  "bootstrap": {
+    "architecture": "x86_64",
+    "python": {
+      "implementation": "CPython",
+      "version": "3.12.13",
+      "build": "20260602",
+      "filename": "cpython-3.12.13+20260602-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://releases.astral.sh/github/python-build-standalone/releases/download/20260602/cpython-3.12.13%2B20260602-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "191b5188b42886fb8a14968d714571e8f3d1cef92ac7ad4c7e24cc4d0929b194",
+      "executable_path": "bin/python3.12",
+      "executable_sha256": "d713474fd44339f8bd8150edc7b324d0be494dbf2998a1de04a7b0ecdbc1c2ed",
+      "libpython_path": "lib/libpython3.12.so.1.0",
+      "libpython_sha256": "8083793fd24e3ca7d04c5e857bc2d4c0115513a4fa6c24b9fbcf496c2e78ef80"
+    },
+    "uv": {
+      "version": "0.11.19",
+      "filename": "uv-0.11.19-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/5a/74/2bd8b51e1d76210fd424ae55ec3f34ded5a10eeff3dd38aeb03c816a0af2/uv-0.11.19-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "sha256": "731d9fab8db5d41590af64236d03f8069c8da665fd0f9493b85985f19c86cd90",
+      "executable_path": "uv-0.11.19.data/scripts/uv",
+      "executable_sha256": "a00d3a24514fc0403fc232c9c99bf5e542657c38f4ed941e0611731e4cff268b"
+    }
+  },
+  "build_tool_wheels": [
+    {
+      "name": "cmake",
+      "version": "3.31.6",
+      "filename": "cmake-3.31.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/59/e8/096984b89133681533650b9078c5ed1c5c9b534e869b5487f22d4de1935c/cmake-3.31.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "sha256": "1c8b05df0602365da91ee6a3336fe57525b137706c4ab5675498f662ae1dbcec"
+    },
+    {
+      "name": "scikit-build-core",
+      "version": "0.11.6",
+      "filename": "scikit_build_core-0.11.6-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/43/49/ec16b3db6893db788ae35f98506ff5a9c25dca7eb18cc38ada8a4c1dc944/scikit_build_core-0.11.6-py3-none-any.whl",
+      "sha256": "ce6d8fe64e6b4c759ea0fb95d2f8a68f60d2df31c2989838633b8ec930736360"
+    },
+    {
+      "name": "auditwheel",
+      "version": "6.4.2",
+      "filename": "auditwheel-6.4.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d6/66/d790dc341d93c80e1ee61f2580177d7ee2e3e16dc100c36889b8bd176acf/auditwheel-6.4.2-py3-none-any.whl",
+      "sha256": "4302ae79dcff242e799a37173cfeeae727d0924843eca4b3f622d3bcb28de2db"
+    },
+    {
+      "name": "packaging",
+      "version": "25.0",
+      "filename": "packaging-25.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl",
+      "sha256": "29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484"
+    },
+    {
+      "name": "pathspec",
+      "version": "0.12.1",
+      "filename": "pathspec-0.12.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/cc/20/ff623b09d963f88bfde16306a54e12ee5ea43e9b597108672ff3a408aad6/pathspec-0.12.1-py3-none-any.whl",
+      "sha256": "a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"
+    },
+    {
+      "name": "pyelftools",
+      "version": "0.32",
+      "filename": "pyelftools-0.32-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/af/43/700932c4f0638c3421177144a2e86448c0d75dbaee2c7936bda3f9fd0878/pyelftools-0.32-py3-none-any.whl",
+      "sha256": "013df952a006db5e138b1edf6d8a68ecc50630adbd0d83a2d41e7f846163d738"
+    }
+  ],
+  "toolchain": {
+    "architecture": "x86_64",
+    "target": "x86_64-linux-gnu",
+    "compiler_family": "GNU",
+    "compiler_version": "11.4.0",
+    "tools": {
+      "cc": {
+        "path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+        "sha256": "821af3c74506283c179ca413bb33e6b528805a4dd8a5c09df125e5ad560a9e89",
+        "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+      },
+      "cxx": {
+        "path": "/usr/bin/x86_64-linux-gnu-g++-11",
+        "sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+        "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+      },
+      "ld": {
+        "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+        "sha256": "58937fc20c21e147883b4fdaa0fc7438a8e8f2bb886cfcaa4896100ca91139e7",
+        "version": "GNU ld (GNU Binutils for Ubuntu) 2.38"
+      },
+      "ar": {
+        "path": "/usr/bin/x86_64-linux-gnu-ar",
+        "sha256": "5b394f8752fde1776992d405d76034d5017b24b9b922bedaeeaff8cc344ef044",
+        "version": "GNU ar (GNU Binutils for Ubuntu) 2.38"
+      },
+      "ranlib": {
+        "path": "/usr/bin/x86_64-linux-gnu-ranlib",
+        "sha256": "95e470c76f1fb0383ef5c10cfdf10127aefab07dad924fe94933ec8be8a5a9fb",
+        "version": "GNU ranlib (GNU Binutils for Ubuntu) 2.38"
+      },
+      "as": {
+        "path": "/usr/bin/x86_64-linux-gnu-as",
+        "sha256": "4e6b50c3faaa834150db32be778fd7d9440a4e1f5fa8beb8a72277b12159d689",
+        "version": "GNU assembler (GNU Binutils for Ubuntu) 2.38"
+      },
+      "nm": {
+        "path": "/usr/bin/x86_64-linux-gnu-nm",
+        "sha256": "ed6565c132d6f20019ff3f050043dc1b2b8bc2e8b3b94c1ffe3f34436431a5a4",
+        "version": "GNU nm (GNU Binutils for Ubuntu) 2.38"
+      },
+      "strip": {
+        "path": "/usr/bin/x86_64-linux-gnu-strip",
+        "sha256": "001150abd7bbfaf605f2b091a2a3db7d00aa05aba1b6c62dc7cbb416336e23c7",
+        "version": "GNU strip (GNU Binutils for Ubuntu) 2.38"
+      },
+      "objcopy": {
+        "path": "/usr/bin/x86_64-linux-gnu-objcopy",
+        "sha256": "876729646822863167b0a2cb03e5a1052d82755824026a664673ddb54f05b54f",
+        "version": "GNU objcopy (GNU Binutils for Ubuntu) 2.38"
+      },
+      "objdump": {
+        "path": "/usr/bin/x86_64-linux-gnu-objdump",
+        "sha256": "1eaaef2e7f57c4c7f69115c495e2466f5a8c8e5f3bc42221d092382f30f9d4cd",
+        "version": "GNU objdump (GNU Binutils for Ubuntu) 2.38"
+      },
+      "readelf": {
+        "path": "/usr/bin/x86_64-linux-gnu-readelf",
+        "sha256": "04db0000749aff89e4af21429340b00b536fc6f80e811c872c006507881a5560",
+        "version": "GNU readelf (GNU Binutils for Ubuntu) 2.38"
+      },
+      "strings": {
+        "path": "/usr/bin/x86_64-linux-gnu-strings",
+        "sha256": "2f72e4d1091897cfec64708064307bed19e2d79ab9aa0816022bcc8368482353",
+        "version": "GNU strings (GNU Binutils for Ubuntu) 2.38"
+      },
+      "ninja": {
+        "path": "/usr/bin/ninja",
+        "sha256": "a9ddfbf7e365a2e5026ed44f9173e498e37d8b71ec5e259b2c2a684f16cfa862",
+        "version": "1.10.1"
+      },
+      "patchelf": {
+        "path": "/usr/bin/patchelf",
+        "sha256": "ebc7bde09fdc923acdfade62f49c32b7c32de3d64f83aea14fc38143ecf77c25",
+        "version": "patchelf 0.14.3"
+      },
+      "gcc_ar": {
+        "path": "/usr/bin/x86_64-linux-gnu-gcc-ar-11",
+        "sha256": "e1697276051ba32ecc4b715875f7dd232491a282d274d97ce32a826a0325c5d3",
+        "version": "GNU ar (GNU Binutils for Ubuntu) 2.38"
+      },
+      "gcc_ranlib": {
+        "path": "/usr/bin/x86_64-linux-gnu-gcc-ranlib-11",
+        "sha256": "da8f6901ca3ed58b7abef4aea8ffee05faad80b6061bee81c7dff5abcf392777",
+        "version": "GNU ranlib (GNU Binutils for Ubuntu) 2.38"
+      }
+    },
+    "compiler_components": {
+      "cc1": {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/11/cc1",
+        "sha256": "31c2233432d9105001eea158b799f7d403dc5a1944c712283dba251f3ab8eb43"
+      },
+      "cc1plus": {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/11/cc1plus",
+        "sha256": "283421000e15a9152de4affe89ac2e528f3e0bcf2038b245171a17d8a912ace9"
+      },
+      "collect2": {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/11/collect2",
+        "sha256": "74da9a263cce4582f98c7995d04fa52110c8366d65cba1c5bc976a00f1b3f14b"
+      },
+      "liblto_plugin": {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/11/liblto_plugin.so",
+        "sha256": "fa42ac5108eaf6d91d2299ac8387278ac4add3d8f60131cf14267730867188dd"
+      },
+      "lto_wrapper": {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/11/lto-wrapper",
+        "sha256": "eedb0194034b36c3d22f2912eaeac300253b4be3cdba8e3d8999699f129da9f4"
+      }
+    }
+  },
+  "build_recipe": {
+    "path": "build_openvdb_wheel.sh",
+    "sha256": "0ba207c5ce8e12c82ba854d1298b44e6d5a9bf3f0a6b0b30a486a90d987bb927"
+  },
+  "build_inputs": {
+    "nanobind": {
+      "id": "nanobind",
+      "name": "nanobind",
+      "version": "2.13.0",
+      "tag": "v2.13.0",
+      "repository": "https://github.com/wjakob/nanobind.git",
+      "commit": "e2dc00f7a34f935c6cf91948776d59c4709e9fe6",
+      "archive_url": "https://codeload.github.com/wjakob/nanobind/tar.gz/e2dc00f7a34f935c6cf91948776d59c4709e9fe6",
+      "archive_sha256": "99fea0ea1c61b94a02811f7ad4915e70145b8acdb4b65bb67a4e56981d1f7d32",
+      "git_tree_inventory_sha256": "a3d3ae363c1d7863b7587dc9bb3e2406b7719f7bad51e0b287418102bf7d0e81",
+      "source_date_epoch": 1781762486,
+      "relationship": "compiled_in",
+      "license": "BSD-3-Clause",
+      "license_files": [
+        {
+          "source_path": "LICENSE",
+          "redistribution_path": "licenses/nanobind-BSD-3-Clause.txt",
+          "sha256": "f305091a4e57805870b217a28ea4b1f16610eece8457d2370f822a9696b75836"
+        }
+      ]
+    },
+    "robin-map": {
+      "id": "robin-map",
+      "name": "robin-map",
+      "version": "1.4.0",
+      "repository": "https://github.com/Tessil/robin-map.git",
+      "commit": "4ec1bf19c6a96125ea22062f38c2cf5b958e448e",
+      "archive_url": "https://codeload.github.com/Tessil/robin-map/tar.gz/4ec1bf19c6a96125ea22062f38c2cf5b958e448e",
+      "archive_sha256": "4968947bd2e908854481519ec422823af4161a286ff1e16943293b753e80cb3f",
+      "git_tree_inventory_sha256": "81b5210cdbe6050767ee99d5279bc13eff3e1970f2c924ed9c2cf5ebfc26f11d",
+      "source_date_epoch": 1743341950,
+      "relationship": "compiled_in",
+      "containing_source_id": "nanobind",
+      "containing_path": "ext/robin_map",
+      "license": "MIT",
+      "license_files": [
+        {
+          "source_path": "LICENSE",
+          "redistribution_path": "licenses/robin-map-MIT.txt",
+          "sha256": "11f2c685ba565a31aef1219f63a7a8845602c97bff70016b9e3278dfe51a2ec5"
+        }
+      ]
+    }
+  },
+  "native_dependencies": [
+    {
+      "id": "onetbb",
+      "name": "oneTBB",
+      "version": "2022.2.0",
+      "tag": "v2022.2.0",
+      "repository": "https://github.com/uxlfoundation/oneTBB.git",
+      "commit": "06ce6212da6710f4bb2d20a1904b018aa44069bf",
+      "archive_url": "https://codeload.github.com/uxlfoundation/oneTBB/tar.gz/06ce6212da6710f4bb2d20a1904b018aa44069bf",
+      "archive_sha256": "f588cbd1635ebe2dbc1ac4a82e7bcf9aa90be40c98259b237bb7ae288fac269e",
+      "git_tree_inventory_sha256": "c020138f4eed44ae2a5a02b565fd39dba112f3fd2c012936848aa78b84b85e78",
+      "source_date_epoch": 1751290262,
+      "relationship": "native_runtime",
+      "linkage": "shared",
+      "license": "Apache-2.0",
+      "license_files": [
+        {
+          "source_path": "LICENSE.txt",
+          "redistribution_path": "licenses/oneTBB-Apache-2.0.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "source_path": "third-party-programs.txt",
+          "redistribution_path": "licenses/oneTBB-third-party-programs.txt",
+          "source_sha256": "1634857eb058dce5278c57a832b8974190785145f4be9acdbdb511f3a0c4091c",
+          "sha256": "0cc219fbbb4cf86f876e4c53ed73a27ff8e9f8af54673a03bb2d8fa02a50db14"
+        }
+      ],
+      "patches": [
+        {
+          "path": "native-patches/onetbb/0001-disable-optional-runtime-loaders.patch",
+          "sha256": "567e4163f0e4569887605ddea4e21981bfef03bb921fc295c96a1b28309bf881"
+        }
+      ],
+      "excluded_source_features": [
+        {
+          "id": "gcc-libstdcxx-bug-62258-workaround",
+          "source_path": "src/tbb/exception.cpp",
+          "source_lines": "123-157",
+          "compile_condition": "__GLIBCXX__ && __TBB_GLIBCXX_VERSION >= 40700 && __TBB_GLIBCXX_VERSION < 60000 && TBB_USE_EXCEPTIONS",
+          "toolchain_evaluation": "false because the locked GCC 11 libstdc++ sets __TBB_GLIBCXX_VERSION to 110000",
+          "compiled": false,
+          "required_absent_symbol": "__cxa_get_globals",
+          "license_note": "oneTBB third-party-programs.txt item 4 describes this public-domain workaround and its GCC internal ABI caveat; the guarded workaround is not compiled or bundled"
+        }
+      ],
+      "build_defines": {
+        "BUILD_SHARED_LIBS": "ON",
+        "TBB4PY_BUILD": "OFF",
+        "TBBMALLOC_BUILD": "OFF",
+        "TBBMALLOC_PROXY_BUILD": "OFF",
+        "TBB_CPF": "OFF",
+        "TBB_DISABLE_HWLOC_AUTOMATIC_SEARCH": "ON",
+        "TBB_ENABLE_IPO": "OFF",
+        "TBB_ENABLE_ITT_NOTIFY": "OFF",
+        "TBB_ENABLE_OPTIONAL_DYNAMIC_LOADING": "OFF",
+        "TBB_EXAMPLES": "OFF",
+        "TBB_FIND_PACKAGE": "OFF",
+        "TBB_INSTALL": "ON",
+        "TBB_STRICT": "OFF",
+        "TBB_TEST": "OFF"
+      }
+    },
+    {
+      "id": "c-blosc",
+      "name": "c-blosc",
+      "version": "1.21.6",
+      "tag": "v1.21.6",
+      "repository": "https://github.com/Blosc/c-blosc.git",
+      "commit": "616f4b7343a8479f7e71dd3d7025bd92c9a6bbd0",
+      "archive_url": "https://codeload.github.com/Blosc/c-blosc/tar.gz/616f4b7343a8479f7e71dd3d7025bd92c9a6bbd0",
+      "archive_sha256": "07471e2a569bc7f7dee0640bf4d48d944f9bf35fb2fca49ad9f0a2bfe060c382",
+      "git_tree_inventory_sha256": "7feb9bf1135ecdf8e62791a36f96ce2b1487ec05ab975164ce37c5e937660ad0",
+      "source_date_epoch": 1719244577,
+      "relationship": "compiled_in",
+      "linkage": "static",
+      "license": "BSD-3-Clause",
+      "license_files": [
+        {
+          "source_path": "LICENSE.txt",
+          "redistribution_path": "licenses/c-blosc-BSD-3-Clause.txt",
+          "sha256": "22623131a9b9f6a86a4dc6b9bccbb1d2aeb390df86bca00fc727af24735c2fae"
+        }
+      ],
+      "build_defines": {
+        "BUILD_BENCHMARKS": "OFF",
+        "BUILD_FUZZERS": "OFF",
+        "BUILD_SHARED": "OFF",
+        "BUILD_STATIC": "ON",
+        "BUILD_TESTS": "OFF",
+        "DEACTIVATE_LZ4": "OFF",
+        "DEACTIVATE_SNAPPY": "ON",
+        "DEACTIVATE_ZLIB": "OFF",
+        "DEACTIVATE_ZSTD": "OFF",
+        "PREFER_EXTERNAL_LZ4": "OFF",
+        "PREFER_EXTERNAL_ZLIB": "ON",
+        "PREFER_EXTERNAL_ZSTD": "OFF"
+      },
+      "vendored_components": [
+        {
+          "id": "lz4",
+          "version": "1.9.4",
+          "license": "BSD-2-Clause",
+          "containing_source_id": "c-blosc",
+          "containing_path": "internal-complibs/lz4-1.9.4",
+          "license_files": [
+            {
+              "source_path": "LICENSES/LZ4.txt",
+              "redistribution_path": "licenses/lz4-BSD-2-Clause.txt",
+              "sha256": "fe6dc1f27f68d9dd6b0192e39be1a8f1fbed0fe86e13540f618a7133971b10b3"
+            }
+          ]
+        },
+        {
+          "id": "zstandard",
+          "version": "1.5.6",
+          "license": "BSD-3-Clause",
+          "license_selection_note": "BSD-3-Clause selected from the upstream BSD-3-Clause or GPL-2.0-only offer",
+          "containing_source_id": "c-blosc",
+          "containing_path": "internal-complibs/zstd-1.5.6",
+          "license_files": [
+            {
+              "source_path": "internal-complibs/zstd-1.5.6/LICENSE",
+              "redistribution_path": "licenses/zstd-BSD-3-Clause.txt",
+              "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+            }
+          ]
+        },
+        {
+          "id": "libdivsufsort-lite",
+          "name": "libdivsufsort-lite",
+          "version": "zstd-1.5.6-vendored",
+          "derivation": "Exact libdivsufsort-lite sources vendored by Zstandard 1.5.6 inside the locked c-blosc 1.21.6 tree",
+          "license": "MIT",
+          "containing_source_id": "c-blosc",
+          "containing_path": "internal-complibs/zstd-1.5.6/dictBuilder",
+          "source_files": [
+            {
+              "path": "internal-complibs/zstd-1.5.6/dictBuilder/divsufsort.c",
+              "sha256": "2081acb08865f623857d2c0dcb0e79fce9489f01416528c30cfee7097915c616"
+            },
+            {
+              "path": "internal-complibs/zstd-1.5.6/dictBuilder/divsufsort.h",
+              "sha256": "f8312544f98feb695e611c68d5191b5ae5302e01a3613e2a6f8e6cd365dd3b2d"
+            }
+          ],
+          "license_files": [
+            {
+              "source_path": "internal-complibs/zstd-1.5.6/dictBuilder/divsufsort.c",
+              "source_sha256": "2081acb08865f623857d2c0dcb0e79fce9489f01416528c30cfee7097915c616",
+              "redistribution_path": "licenses/libdivsufsort-lite-MIT.txt",
+              "sha256": "a801f489b279d91b8afc67d41e3769ec4df476fda218d63f4326c005db881541"
+            }
+          ]
+        },
+        {
+          "id": "bitshuffle",
+          "version": "c-blosc-1.21.6-adapted",
+          "license": "MIT",
+          "containing_source_id": "c-blosc",
+          "containing_path": "blosc/bitshuffle-*.c",
+          "license_files": [
+            {
+              "source_path": "LICENSES/BITSHUFFLE.txt",
+              "redistribution_path": "licenses/bitshuffle-MIT.txt",
+              "sha256": "ef357c2061cf67db298f9f1565572ee229ad9263582a9f9d0ebff5094f5d10ac"
+            }
+          ]
+        },
+        {
+          "id": "fastlz",
+          "version": "c-blosc-1.21.6-derived",
+          "license": "MIT",
+          "containing_source_id": "c-blosc",
+          "containing_path": "blosc/blosclz.c",
+          "license_files": [
+            {
+              "source_path": "LICENSES/FASTLZ.txt",
+              "redistribution_path": "licenses/fastlz-MIT.txt",
+              "sha256": "cf52909e6ed770fe81511ba62d4ebee13185d30a37d0fd7de2b56685e288ab38"
+            }
+          ]
+        },
+        {
+          "id": "zlib-ng",
+          "version": "c-blosc-1.21.6-derived",
+          "license": "Zlib",
+          "containing_source_id": "c-blosc",
+          "containing_path": "blosc/fastcopy.c",
+          "license_files": [
+            {
+              "source_path": "LICENSES/ZLIB-NG.txt",
+              "redistribution_path": "licenses/zlib-ng-Zlib.txt",
+              "sha256": "f8ad3757bc2ae9f5a6af77e13b37a5721397421ce55ab16e1da49e4629264d2c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zlib",
+      "name": "zlib",
+      "version": "1.3.1",
+      "tag": "v1.3.1",
+      "repository": "https://github.com/madler/zlib.git",
+      "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+      "archive_url": "https://codeload.github.com/madler/zlib/tar.gz/51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+      "archive_sha256": "d9e270d46252734aa49770fbc544125391617956266f220bd63216c834f3a522",
+      "git_tree_inventory_sha256": "995f6cac975a6b8fdd90439d70fc5e7d6c803b06be866251ae651a1b4551fbe7",
+      "source_date_epoch": 1705948357,
+      "relationship": "compiled_in",
+      "linkage": "static",
+      "license": "Zlib",
+      "license_files": [
+        {
+          "source_path": "LICENSE",
+          "redistribution_path": "licenses/zlib.txt",
+          "sha256": "845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243"
+        }
+      ],
+      "build_defines": {
+        "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+        "SKIP_INSTALL_FILES": "ON",
+        "ZLIB_BUILD_EXAMPLES": "OFF"
+      }
+    }
+  ],
+  "disabled_native_dependencies": {
+    "boost": "disabled by OPENVDB_USE_DELAYED_LOADING=OFF",
+    "imath": "disabled by USE_IMATH_HALF=OFF",
+    "snappy": "disabled by DEACTIVATE_SNAPPY=ON and absent from the c-blosc 1.21.6 source archive"
+  },
+  "overlay": {
+    "path": "overlay",
+    "inventory_sha256": "989bbdd53eabf1042f46cd887424b5a50e92b40ea76de120011fe3af70986153"
+  },
+  "patches": [
+    {
+      "path": "patches/0001-export-python-tools.patch",
+      "sha256": "950860e01310a9ba264055bebbb0ed2606ff987033d7cf9fcb8a94447c65ba91"
+    },
+    {
+      "path": "patches/0002-python-wheel-policy.patch",
+      "sha256": "3d8812db5ffd961d32028f4d9a9c5b6ee3377c0bb85c0e5493e77299886d2152"
+    },
+    {
+      "path": "patches/0003-relocatable-wheel-and-source-lock.patch",
+      "sha256": "822b84c2223dcba11f39fcfacec24bb7a4b0da041b8e0fe8f55c6ed2af1a50a7"
+    },
+    {
+      "path": "patches/0004-bounded-volume-to-mesh.patch",
+      "sha256": "6f19dacb455f77754fa14264c4c082875bcd24177ac25359aea170c08685e14e"
+    }
+  ],
+  "redistribution_files": [
+    {
+      "path": "SOURCE_PROVENANCE.md",
+      "sha256": "d28ffb1bf9c6a8a234b350ef7b1d26a5af1f48ac62975fefa997e9ad635ebee2"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha256": "f4a92009cce70474988c5d08fc2d2399ce04223ec2b776170fb0b961f13463fd"
+    },
+    {
+      "path": "licenses/bitshuffle-MIT.txt",
+      "sha256": "ef357c2061cf67db298f9f1565572ee229ad9263582a9f9d0ebff5094f5d10ac"
+    },
+    {
+      "path": "licenses/c-blosc-BSD-3-Clause.txt",
+      "sha256": "22623131a9b9f6a86a4dc6b9bccbb1d2aeb390df86bca00fc727af24735c2fae"
+    },
+    {
+      "path": "licenses/fastlz-MIT.txt",
+      "sha256": "cf52909e6ed770fe81511ba62d4ebee13185d30a37d0fd7de2b56685e288ab38"
+    },
+    {
+      "path": "licenses/libdivsufsort-lite-MIT.txt",
+      "sha256": "a801f489b279d91b8afc67d41e3769ec4df476fda218d63f4326c005db881541"
+    },
+    {
+      "path": "licenses/lz4-BSD-2-Clause.txt",
+      "sha256": "fe6dc1f27f68d9dd6b0192e39be1a8f1fbed0fe86e13540f618a7133971b10b3"
+    },
+    {
+      "path": "licenses/nanobind-BSD-3-Clause.txt",
+      "sha256": "f305091a4e57805870b217a28ea4b1f16610eece8457d2370f822a9696b75836"
+    },
+    {
+      "path": "licenses/oneTBB-Apache-2.0.txt",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "licenses/oneTBB-third-party-programs.txt",
+      "sha256": "0cc219fbbb4cf86f876e4c53ed73a27ff8e9f8af54673a03bb2d8fa02a50db14"
+    },
+    {
+      "path": "licenses/openexr-half-BSD-3-Clause.txt",
+      "sha256": "c20236d3b39fd20eba8e3d1fb3b892a5483df2e7d8d61bf43f165d3fac22f601"
+    },
+    {
+      "path": "licenses/robin-map-MIT.txt",
+      "sha256": "11f2c685ba565a31aef1219f63a7a8845602c97bff70016b9e3278dfe51a2ec5"
+    },
+    {
+      "path": "licenses/zlib-ng-Zlib.txt",
+      "sha256": "f8ad3757bc2ae9f5a6af77e13b37a5721397421ce55ab16e1da49e4629264d2c"
+    },
+    {
+      "path": "licenses/zlib.txt",
+      "sha256": "845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243"
+    },
+    {
+      "path": "licenses/zstd-BSD-3-Clause.txt",
+      "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+    }
+  ],
+  "license_admission": {
+    "policy": {
+      "path": "license-policy.json",
+      "schema": "world-understanding.sdf-native-license-policy.v2",
+      "sha256": "44ec824749679d262c94a6ab3c6c515e340d405ef802c2efea28e5558c1df42e"
+    },
+    "verifier": {
+      "path": "verify_wheel_license_policy.py",
+      "report_schema": "world-understanding.sdf-native-license-admission.v1",
+      "sha256": "813df352c8dfce7ef5076c782313446e5e22668b4cf0cdaf9cafa74d261a4e18"
+    }
+  },
+  "wheel_policy": {
+    "linux": "manylinux_2_36",
+    "repair_external_shared_libraries": true,
+    "forbid_build_prefix_in_runtime_dependencies": true
+  }
+}

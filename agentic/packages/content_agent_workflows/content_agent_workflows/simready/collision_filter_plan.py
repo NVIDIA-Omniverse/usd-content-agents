@@ -49,6 +49,9 @@ _USD_LAYER_SUFFIXES = {".usd", ".usda", ".usdc"}
 _FILTER_API_NAME = "PhysicsFilteredPairsAPI"
 _FILTER_RELATIONSHIP_NAME = "physics:filteredPairs"
 _MAX_PACKAGE_PATH_DEPTH = 256
+_MAX_USDZ_MEMBER_BYTES = 1024 * 1024 * 1024
+_MAX_USDZ_TOTAL_BYTES = 4 * 1024 * 1024 * 1024
+_MAX_USDZ_MEMBER_COUNT = 100_000
 
 
 class _Blocked(ValueError):
@@ -632,7 +635,7 @@ def _source_package(
         )
         extraction_complete = False
         try:
-            root_relative = _extract_usdz_without_size_limit(
+            root_relative = _extract_usdz_with_resource_limits(
                 asset_path=asset_path,
                 extraction_dir=extraction_dir,
             )
@@ -672,14 +675,20 @@ def _resolve_package_root(*, asset_path: Path, package_root: Path | None) -> Pat
     return package_root
 
 
-def _extract_usdz_without_size_limit(*, asset_path: Path, extraction_dir: Path) -> Path:
-    """Stream every safe USDZ member without an arbitrary byte ceiling."""
+def _extract_usdz_with_resource_limits(
+    *, asset_path: Path, extraction_dir: Path
+) -> Path:
+    """Stream safe USDZ members within explicit resource ceilings."""
 
     root_relative: Path | None = None
     with zipfile.ZipFile(asset_path) as archive:
         normalized_entries: dict[tuple[str, ...], zipfile.ZipInfo] = {}
         validated_members: list[tuple[zipfile.ZipInfo, Path, str]] = []
-        for info in archive.infolist():
+        infos = archive.infolist()
+        if len(infos) > _MAX_USDZ_MEMBER_COUNT:
+            raise _Blocked(f"USDZ exceeds the {_MAX_USDZ_MEMBER_COUNT} member limit")
+        total_uncompressed_bytes = 0
+        for info in infos:
             parts = safe_usdz_member_parts(info.filename)
             if parts is None:
                 raise _Blocked(f"USDZ contains an unsafe entry: {info.filename}")
@@ -704,6 +713,13 @@ def _extract_usdz_without_size_limit(*, asset_path: Path, extraction_dir: Path) 
                 raise _Blocked(f"USDZ contains a symlink entry: {normalized}")
             if info.flag_bits & 0x1:
                 raise _Blocked(f"USDZ contains an encrypted entry: {normalized}")
+            if info.file_size > _MAX_USDZ_MEMBER_BYTES:
+                raise _Blocked(
+                    f"USDZ member exceeds the uncompressed size limit: {normalized}"
+                )
+            total_uncompressed_bytes += info.file_size
+            if total_uncompressed_bytes > _MAX_USDZ_TOTAL_BYTES:
+                raise _Blocked("USDZ exceeds the total uncompressed size limit")
             validated_members.append((info, relative, normalized))
 
         file_paths = {

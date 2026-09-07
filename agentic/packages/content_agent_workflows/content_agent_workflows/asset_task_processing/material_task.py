@@ -1,29 +1,22 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Material-task survey and Workbench execution for Workflow 2 work items."""
+"""Material-task survey and usd-cli execution for Workflow 2 work items."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import io
 import json
 import os
 import sys
+import tempfile
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-import yaml
-from content_workbench_agent_client.client import (
-    apply_command,
-    close_session,
-    create_session,
-    get_material_assignments,
-    post_json,
-    render_view,
-    session_url,
-    wait_until_healthy,
-)
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -34,10 +27,19 @@ from pydantic import (
 )
 
 from content_agent_workflows.common.artifacts import (
+    atomic_write_bytes,
     atomic_write_json,
+    atomic_write_text,
     file_sha256,
     load_json,
+    read_contained_artifact,
     resolve_artifact_path,
+)
+from content_agent_workflows.common.usd_cli import validate_ovrtx_probe
+from content_agent_workflows.common.usd_cli_session import WorkflowUsdCliSession
+from content_agent_workflows.material_assignment.manifest import (
+    ResolvedMaterialManifest,
+    load_material_manifest,
 )
 
 from .contracts import (
@@ -71,12 +73,19 @@ LEGACY_MATERIAL_TASK_REQUEST_SCHEMA_VERSION = (
 MATERIAL_VALIDATION_SCHEMA_VERSION = (
     "content-agent-workflows.material-task-validation.v1"
 )
+MAX_MATERIAL_STAGE_BYTES = 512 * 1024 * 1024
+# OpenUSD's TfSafeOutputFile appends two PID/token-bearing temporary suffixes
+# before replacing the requested layer.  The current Windows build still hits
+# the legacy MAX_PATH boundary for that intermediate name even when Python can
+# address the requested path itself.  Reserve a conservative suffix budget and
+# reject an overlong run root before starting a daemon-backed work item.
+WINDOWS_OPENUSD_REPLACE_SUFFIX_CODE_UNITS = 72
+WINDOWS_LEGACY_MAX_PATH_CODE_UNITS = 260
 APPEARANCE_EVIDENCE_POLICY_SCHEMA_VERSION = (
     "content-agent-workflows.appearance-evidence-policy.v1"
 )
-DEFAULT_WORKBENCH_URL = os.environ.get("CONTENT_WORKBENCH_URL", "http://127.0.0.1:8088")
-
 AppearanceEvidenceSource = Literal["material_binding", "display_color"]
+MaterialSceneBackend = Literal["usd-cli"]
 
 
 class AppearanceEvidenceScope(BaseModel):
@@ -298,6 +307,56 @@ class MaterialBatchPlan(BaseModel):
         if len(identities) != len(set(identities)):
             raise ValueError("material batch work_item_id values must be unique")
         return self
+
+
+@dataclass(frozen=True, slots=True)
+class _MaterialSceneExecution:
+    """Backend-neutral facts returned by one low-level scene executor."""
+
+    preview_layer: Path
+    output_stage: Any
+    assignments_response: dict[str, object]
+    apply_response: dict[str, object]
+    command_records: list[dict[str, object]]
+    command_artifact_path: Path
+    render_paths: list[str]
+    render_validation_path: Path | None
+    render_validation_errors: list[str]
+    backend_artifact_paths: tuple[Path, ...] = ()
+
+
+def _open_captured_material_stage(data: bytes, *, suffix: str) -> Any:
+    """Open one parent-private USD snapshot from already captured bytes."""
+
+    from pxr import Usd
+
+    if suffix.lower() not in {".usd", ".usda", ".usdc"}:
+        suffix = ".usda"
+    with tempfile.TemporaryDirectory(prefix="material-task-usd-audit-") as value:
+        root = Path(value).resolve(strict=True)
+        root.chmod(0o700)
+        snapshot = root / f"captured{suffix}"
+        atomic_write_bytes(snapshot, data, within=root)
+        stage = Usd.Stage.Open(str(snapshot))
+    return stage
+
+
+def _material_scene_backend(request: MaterialTaskRequest) -> MaterialSceneBackend:
+    """Require the canonical low-level scene backend."""
+
+    configured = request.processing_policy.get("scene_backend")
+    if configured not in (None, "usd-cli"):
+        raise AssetTaskRuntimeError(
+            "Material requests using the retired scene backend cannot be "
+            "replayed; regenerate the request with scene_backend='usd-cli'."
+        )
+    session_scope = request.processing_policy.get("scene_session_scope")
+    if session_scope not in (None, "per_asset"):
+        raise AssetTaskRuntimeError(
+            "usd-cli material tasks require "
+            "processing_policy.scene_session_scope='per_asset'"
+        )
+    return "usd-cli"
 
 
 def _json_value(value: object) -> object:
@@ -716,7 +775,6 @@ def match_work_item_display_colors(
     work_item_id: str,
     *,
     scope_paths: list[str],
-    workbench_url: str,
     top_k: int = 5,
     appearance_cache_dir: str | Path | None = None,
     swatch_template_path: str | Path | None = None,
@@ -820,13 +878,11 @@ def match_work_item_display_colors(
             material_library_path=library_path,
             swatch_template_path=template_path,
             cache_dir=cache_dir,
-            workbench_url=workbench_url,
         )
         target_appearances = render_display_color_targets(
             colors=scoped_colors,
             swatch_template_path=template_path,
             output_dir=_item_dir(root, work_item_id) / "display_color_target_swatches",
-            workbench_url=workbench_url,
         )
         matches = rank_display_color_candidates(
             work_item_id=work_item_id,
@@ -861,36 +917,22 @@ def match_work_item_display_colors(
     }
 
 
-def _load_material_library(
+def _resolve_material_library(
     yaml_path: Path,
     expected_library_path: Path,
-) -> dict[str, str]:
+) -> ResolvedMaterialManifest:
     try:
-        payload = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+        manifest = load_material_manifest(yaml_path)
+    except (OSError, RuntimeError, ValueError) as exc:
         raise AssetTaskRuntimeError(
-            f"Cannot read material library {yaml_path}: {exc}"
+            f"Invalid workflow material manifest {yaml_path}: {exc}"
         ) from exc
-    if not isinstance(payload, dict) or not isinstance(payload.get("entries"), list):
-        raise AssetTaskRuntimeError(f"Invalid material library metadata: {yaml_path}")
-    configured_library = payload.get("library_path")
-    if isinstance(configured_library, str):
-        configured_path = resolve_artifact_path(
-            configured_library, base_dir=yaml_path.parent
+    if manifest.library_path != expected_library_path:
+        raise AssetTaskRuntimeError(
+            "Decision material_library_path does not match the workflow "
+            "material manifest"
         )
-        if configured_path != expected_library_path:
-            raise AssetTaskRuntimeError(
-                "Decision material_library_path does not match material YAML"
-            )
-    materials: dict[str, str] = {}
-    for entry in payload["entries"]:
-        if not isinstance(entry, dict):
-            continue
-        name = entry.get("name")
-        binding = entry.get("binding")
-        if isinstance(name, str) and isinstance(binding, str):
-            materials[name] = binding
-    return materials
+    return manifest
 
 
 def _validate_decision(
@@ -900,7 +942,7 @@ def _validate_decision(
     task_request_digest: str | None = None,
     task_request: MaterialTaskRequest | None = None,
     task_request_path: Path | None = None,
-) -> dict[str, str]:
+) -> ResolvedMaterialManifest:
     if decision.work_item_id != survey.work_item_id:
         raise AssetTaskRuntimeError("Material decision and survey identities differ")
     if (
@@ -982,21 +1024,17 @@ def _validate_decision(
                 raise AssetTaskRuntimeError(
                     "Material decision library does not match the frozen material task request"
                 )
-    if not library_path.is_file():
-        raise AssetTaskRuntimeError(
-            f"Material USD library does not exist: {library_path}"
-        )
-    materials = _load_material_library(yaml_path, library_path)
+    manifest = _resolve_material_library(yaml_path, library_path)
     unknown = sorted(
         {
             assignment.material_name
             for assignment in decision.assignments
-            if assignment.material_name not in materials
+            if assignment.material_name not in manifest.by_name
         }
     )
     if unknown:
         raise AssetTaskRuntimeError(f"Unknown material names: {unknown}")
-    return materials
+    return manifest
 
 
 def _load_material_decision(path: Path) -> MaterialDecisionPatch:
@@ -1008,16 +1046,717 @@ def _load_material_decision(path: Path) -> MaterialDecisionPatch:
         ) from exc
 
 
+def _validate_usd_cli_library_lookups(
+    decision: MaterialDecisionPatch,
+    manifest: ResolvedMaterialManifest,
+) -> None:
+    """Fail before mutation when usd-cli cannot address the exact manifest prim."""
+
+    from pxr import Tf, Usd, UsdShade
+
+    stage = Usd.Stage.Open(str(manifest.library_path))
+    if stage is None:
+        raise AssetTaskRuntimeError(
+            f"Could not reopen material USD library: {manifest.library_path}"
+        )
+    requested_names = {assignment.material_name for assignment in decision.assignments}
+    for name in sorted(requested_names):
+        entry = manifest.by_name[name]
+        lookup_name = Tf.MakeValidIdentifier(entry.name).lower()
+        matches = sorted(
+            str(prim.GetPath())
+            for prim in stage.Traverse()
+            if UsdShade.Material(prim) and prim.GetName().lower() == lookup_name
+        )
+        if matches != [entry.binding_path]:
+            raise AssetTaskRuntimeError(
+                "usd-cli cannot unambiguously address the selected workflow "
+                f"material {entry.name!r}; expected {entry.binding_path!r}, "
+                f"lookup matches={matches}"
+            )
+
+
+def _usd_cli_local_material_path(stage: Any, material_name: str) -> str:
+    """Return the exact local path used by usd-cli for a library material."""
+
+    from pxr import Sdf, Tf
+
+    default_prim = stage.GetDefaultPrim()
+    default_prim_path = (
+        default_prim.GetPath()
+        if default_prim
+        and default_prim.IsValid()
+        and default_prim.GetPath().pathString != "/"
+        else Sdf.Path.absoluteRootPath
+    )
+    return (
+        default_prim_path.AppendChild("Looks")
+        .AppendChild(Tf.MakeValidIdentifier(material_name))
+        .pathString
+    )
+
+
+def _validate_usd_cli_import_destinations(
+    *,
+    stage_path: str | Path,
+    decision: MaterialDecisionPatch,
+) -> None:
+    """Fail closed when a library import could compose with existing opinions."""
+
+    from pxr import Usd
+
+    stage = Usd.Stage.Open(str(stage_path))
+    if stage is None:
+        raise AssetTaskRuntimeError(
+            f"Could not reopen staged USD before material import: {stage_path}"
+        )
+
+    names_by_destination: dict[str, set[str]] = {}
+    for assignment in decision.assignments:
+        destination = _usd_cli_local_material_path(stage, assignment.material_name)
+        names_by_destination.setdefault(destination, set()).add(
+            assignment.material_name
+        )
+
+    ambiguous = {
+        path: sorted(names)
+        for path, names in names_by_destination.items()
+        if len(names) > 1
+    }
+    if ambiguous:
+        raise AssetTaskRuntimeError(
+            "Selected material names resolve to the same usd-cli import "
+            f"destination: {ambiguous}"
+        )
+
+    occupied = sorted(
+        path for path in names_by_destination if stage.GetPrimAtPath(path).IsValid()
+    )
+    if occupied:
+        raise AssetTaskRuntimeError(
+            "usd-cli library import destination already exists in the staged "
+            "scene; importing by reference could leave stronger source material "
+            f"opinions active instead of the selected library material: {occupied}"
+        )
+
+
+def _validate_saved_material_bindings(
+    *,
+    output_stage: Any,
+    decision: MaterialDecisionPatch,
+    manifest: ResolvedMaterialManifest,
+    scene_backend: MaterialSceneBackend,
+) -> list[str]:
+    """Reopen the derivative and verify every accepted target's effective binding."""
+
+    from pxr import UsdShade
+
+    errors: list[str] = []
+    for assignment in decision.assignments:
+        prim = output_stage.GetPrimAtPath(assignment.target_prim_path)
+        material, _relationship = UsdShade.MaterialBindingAPI(
+            prim
+        ).ComputeBoundMaterial()
+        if not material:
+            errors.append(
+                f"Saved {scene_backend} derivative has no effective material at "
+                f"{assignment.target_prim_path}."
+            )
+            continue
+        expected_path = manifest.by_name[assignment.material_name].binding_path
+        actual_path = str(material.GetPrim().GetPath())
+        # ``usd-cli material --library`` imports the selected library material
+        # beneath the opened stage's Looks scope.  Composition flattening then
+        # removes the reference while preserving that canonical local path, so a
+        # library material declared at /World/Looks/<Name> can legitimately be
+        # bound from <defaultPrim>/Looks/<Name> in the saved derivative.  The
+        # A flattened scene-tool derivative localizes the same way: apply-materials
+        # remaps every library material path beneath the input stage's default
+        # prim, so a default prim named unlike the library root also binds from
+        # <defaultPrim>/Looks/<Name>.
+        #
+        # Derive the one allowed localized path from the stage default prim and
+        # the exact identifier the backends author.  Do not accept a
+        # basename-only match: /Counterfeit/.../<Name> must continue to fail
+        # validation.
+        localized_path = _usd_cli_local_material_path(
+            output_stage, assignment.material_name
+        )
+        if scene_backend == "usd-cli":
+            saved_expected_paths = {localized_path}
+        else:
+            saved_expected_paths = {expected_path, localized_path}
+        if actual_path not in saved_expected_paths:
+            errors.append(
+                f"Saved {scene_backend} derivative bound the wrong material at "
+                f"{assignment.target_prim_path}: expected manifest path "
+                f"{expected_path!r}, got {actual_path!r}."
+            )
+    return errors
+
+
+def _render_validation(
+    *,
+    image_reference: str | None,
+    backend_label: str,
+    image_bytes: bytes | None = None,
+) -> tuple[dict[str, object] | None, list[str]]:
+    errors: list[str] = []
+    blankness: dict[str, object] | None = None
+    if not image_reference:
+        errors.append(
+            f"{backend_label} verification render did not return an image path."
+        )
+        return blankness, errors
+    image_path = Path(image_reference).expanduser().resolve()
+    if image_bytes is None and not image_path.is_file():
+        errors.append(f"{backend_label} verification render is missing: {image_path}.")
+        return blankness, errors
+    from world_understanding.utils.image_blankness import analyze_image_blankness
+
+    stats = analyze_image_blankness(
+        image_bytes if image_bytes is not None else image_path
+    )
+    blankness = stats.to_dict()
+    if stats.blank:
+        errors.append(
+            f"{backend_label} verification render is blank: "
+            f"{image_path} ({stats.reason})."
+        )
+    return blankness, errors
+
+
+def _validate_usd_cli_output_scope(
+    *,
+    processing_root: Path,
+    output_dir: Path,
+) -> None:
+    """Reject an output path that escapes through a child-controlled symlink."""
+
+    root = processing_root.resolve(strict=True)
+    try:
+        relative_output = output_dir.relative_to(root)
+    except ValueError as exc:
+        raise AssetTaskRuntimeError(
+            f"usd-cli per-asset output escapes the processing run: {output_dir}"
+        ) from exc
+    current = root
+    for component in relative_output.parts:
+        current = current / component
+        if current.is_symlink():
+            raise AssetTaskRuntimeError(
+                "usd-cli per-asset output must not contain symlink components: "
+                f"{current}"
+            )
+
+
+def _usd_cli_session_scope(
+    *,
+    processing_root: Path,
+    output_dir: Path,
+    work_item_id: str,
+    attempt_count: int,
+    input_roots: tuple[Path, ...],
+) -> WorkflowUsdCliSession:
+    """Create one trusted daemon project and named session per item attempt."""
+
+    _validate_usd_cli_output_scope(
+        processing_root=processing_root,
+        output_dir=output_dir,
+    )
+    if attempt_count < 1:
+        raise AssetTaskRuntimeError("usd-cli material attempt_count must be positive")
+    if os.name == "nt":
+        # Keep OpenUSD-authored layers out of the descriptive per-asset artifact
+        # tree.  The terse, digest-bound scope is still run-confined, unique per
+        # work item and attempt, and leaves enough room for TfSafeOutputFile's
+        # private temporary names on native Windows.
+        item_digest = hashlib.sha256(work_item_id.encode("utf-8")).hexdigest()[:20]
+        project_dir = processing_root / f".m-{item_digest}-a{attempt_count:04d}"
+        clean_slate_target = project_dir / "clean_slate_layer.usda"
+        target_code_units = len(os.fspath(clean_slate_target).encode("utf-16-le")) // 2
+        if (
+            target_code_units + WINDOWS_OPENUSD_REPLACE_SUFFIX_CODE_UNITS
+            >= WINDOWS_LEGACY_MAX_PATH_CODE_UNITS
+        ):
+            raise AssetTaskRuntimeError(
+                "Windows run directory is too long for OpenUSD atomic layer "
+                "publication; choose a shorter --output-dir "
+                f"(target={target_code_units} UTF-16 code units, reserved "
+                f"suffix={WINDOWS_OPENUSD_REPLACE_SUFFIX_CODE_UNITS}, limit="
+                f"{WINDOWS_LEGACY_MAX_PATH_CODE_UNITS - 1}): "
+                f"{clean_slate_target}"
+            )
+    else:
+        project_dir = output_dir / "usd_cli_sessions" / f"attempt-{attempt_count:04d}"
+    try:
+        return WorkflowUsdCliSession.create(
+            owner_root=processing_root,
+            project_dir=project_dir,
+            identity=f"{work_item_id}:attempt:{attempt_count}",
+            workflow="material-task",
+            input_roots=input_roots,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise AssetTaskRuntimeError(
+            "Could not create the usd-cli per-asset session scope: "
+            f"{project_dir}: {exc}"
+        ) from exc
+
+
+def _require_ovrtx_probe(
+    payload: dict[str, object],
+    *,
+    probe_dir: Path,
+    require_clear_appearance: bool,
+) -> Path:
+    """Require strict OVRTX identity plus one contained, decodable 64px render."""
+
+    required_capabilities = ("appearance.clear.v1",) if require_clear_appearance else ()
+    try:
+        validate_ovrtx_probe(
+            payload,
+            required_capabilities=required_capabilities,
+        )
+    except RuntimeError as exc:
+        raise AssetTaskRuntimeError(str(exc)) from exc
+
+    render = payload.get("render")
+    render_path = render.get("path") if isinstance(render, dict) else None
+    if not isinstance(render_path, str) or not render_path:
+        raise AssetTaskRuntimeError("OVRTX probe did not return a render artifact path")
+    try:
+        render_artifact = read_contained_artifact(
+            probe_dir,
+            render_path,
+            max_bytes=16 * 1024 * 1024,
+            image=True,
+            capture_bytes=True,
+        )
+    except ValueError as exc:
+        raise AssetTaskRuntimeError(
+            f"OVRTX probe render evidence is unsafe: {exc}"
+        ) from exc
+
+    from PIL import Image
+
+    assert render_artifact.data is not None
+    with Image.open(io.BytesIO(render_artifact.data)) as image:
+        dimensions = image.size
+    if dimensions != (64, 64):
+        raise AssetTaskRuntimeError(
+            f"OVRTX probe render artifact has unexpected dimensions: {dimensions!r}"
+        )
+    reported_size = render.get("size_bytes")
+    if reported_size != render_artifact.size_bytes:
+        raise AssetTaskRuntimeError(
+            "OVRTX probe render artifact size does not match its evidence record"
+        )
+    return render_artifact.path
+
+
+def _require_clear_appearance_audit(payload: dict[str, object]) -> None:
+    data = payload.get("data")
+    if (
+        not isinstance(data, dict)
+        or data.get("clear") is not True
+        or data.get("overlay_active") is not True
+    ):
+        raise AssetTaskRuntimeError(
+            "usd-cli appearance audit did not prove a clean-slate overlay"
+        )
+    counts = data.get("counts")
+    required_counts = {
+        "binding_relationships_with_targets",
+        "effective_material_bindings",
+        "effective_shader_appearances",
+        "display_values",
+        "instance_proxies",
+    }
+    if (
+        not isinstance(counts, dict)
+        or not required_counts.issubset(counts)
+        or any(
+            not isinstance(value, int) or isinstance(value, bool) or value != 0
+            for key, value in counts.items()
+            if key in required_counts
+        )
+    ):
+        raise AssetTaskRuntimeError(
+            "usd-cli appearance audit reported remaining appearance evidence"
+        )
+
+
+def _execute_usd_cli_material(
+    *,
+    processing_root: Path,
+    output_dir: Path,
+    work_item_id: str,
+    attempt_count: int,
+    working_usd_path: str,
+    task_request: MaterialTaskRequest,
+    decision: MaterialDecisionPatch,
+    manifest: ResolvedMaterialManifest,
+    render: bool,
+) -> _MaterialSceneExecution:
+    """Use usd-cli only for validated, low-level per-asset scene operations."""
+
+    _validate_usd_cli_import_destinations(
+        stage_path=working_usd_path,
+        decision=decision,
+    )
+    session = _usd_cli_session_scope(
+        processing_root=processing_root,
+        output_dir=output_dir,
+        work_item_id=work_item_id,
+        attempt_count=attempt_count,
+        input_roots=(
+            Path(working_usd_path).resolve(),
+            manifest.library_path.resolve(),
+        ),
+    )
+    project_dir = session.project_dir
+    session_id = session.session_id
+    source_digest = file_sha256(working_usd_path)
+    command_records: list[dict[str, object]] = []
+    backend_artifacts: list[Path] = []
+    primary_error = False
+    try:
+        probe_dir = project_dir / "ovrtx_probe"
+        atomic_write_text(
+            probe_dir / ".workflow-owned",
+            "content-agent-workflows.material-task-probe\n",
+            within=processing_root,
+        )
+        probe_response = session.require_ovrtx(probe_dir)
+        probe_execution_source = probe_response.get("execution_source")
+        if probe_execution_source not in {
+            "parent-readiness-reuse",
+            "render-probe",
+        }:
+            raise AssetTaskRuntimeError(
+                "usd-cli OVRTX readiness omitted its execution source"
+            )
+        probe_render_path = _require_ovrtx_probe(
+            probe_response,
+            probe_dir=probe_dir,
+            require_clear_appearance=(
+                not task_request.respect_existing_material_bindings
+            ),
+        )
+        probe_path = atomic_write_json(
+            output_dir / "ovrtx_probe.json",
+            probe_response,
+            within=processing_root,
+        )
+        backend_artifacts.extend([probe_path, probe_render_path])
+        command_records.append(
+            {
+                "command": probe_execution_source,
+                "status": "passed",
+                "engine": "ovrtx",
+            }
+        )
+
+        session.open(Path(working_usd_path))
+        command_records.append({"command": "open", "status": "applied"})
+        session.run_json(["checkpoint", "save", "workflow-open", "--full"])
+        command_records.append(
+            {
+                "command": "checkpoint save",
+                "checkpoint": "workflow-open",
+                "status": "applied",
+            }
+        )
+        if not task_request.respect_existing_material_bindings:
+            clear_response = session.run_json(["appearance", "clear"])
+            clear_audit = session.run_json(["appearance", "audit"])
+            _require_clear_appearance_audit(clear_audit)
+            clear_report_path = atomic_write_json(
+                output_dir / "appearance_clear_report.json",
+                {
+                    "schema_version": (
+                        "content-agent-workflows.appearance-clear-report.v1"
+                    ),
+                    "scene_backend": "usd-cli",
+                    "session_id": session_id,
+                    "source_usd": str(Path(working_usd_path).resolve()),
+                    "clear_response": clear_response,
+                    "audit_response": clear_audit,
+                },
+                within=processing_root,
+            )
+            backend_artifacts.append(clear_report_path)
+            command_records.extend(
+                [
+                    {"command": "appearance clear", "status": "applied"},
+                    {"command": "appearance audit", "status": "passed"},
+                ]
+            )
+
+            # ``appearance clear`` deliberately authors its masks in the anonymous
+            # session layer.  The clean usd-cli package revision resolves library
+            # references relative to the file-backed root layer, so material imports
+            # must not be attempted while that session layer remains the edit target.
+            # Persist the audited clean composition first, then reopen that immutable
+            # derivative as the file-backed working stage for all accepted bindings.
+            clean_slate_layer = project_dir / "clean_slate_layer.usda"
+            clean_slate_save_response = session.run_json(
+                ["save", str(clean_slate_layer), "--flatten"]
+            )
+            try:
+                clean_slate_artifact = read_contained_artifact(
+                    processing_root,
+                    clean_slate_layer,
+                    max_bytes=MAX_MATERIAL_STAGE_BYTES,
+                )
+            except ValueError as exc:
+                raise AssetTaskRuntimeError(
+                    f"usd-cli did not create a safe clean-slate derivative: {exc}"
+                ) from exc
+            if clean_slate_artifact.size_bytes <= 0:
+                raise AssetTaskRuntimeError(
+                    "usd-cli created an empty clean-slate derivative"
+                )
+            clean_slate_layer = clean_slate_artifact.path
+            backend_artifacts.append(clean_slate_layer)
+            command_records.append(
+                {
+                    "command": "save",
+                    "output": str(clean_slate_layer),
+                    "flatten": True,
+                    "purpose": "clean-slate",
+                    "status": "applied",
+                    "response": clean_slate_save_response,
+                }
+            )
+            session.run_json(
+                [
+                    "open",
+                    str(clean_slate_layer),
+                    "--force-reload",
+                ],
+            )
+            command_records.append(
+                {
+                    "command": "open",
+                    "input": str(clean_slate_layer),
+                    "force_reload": True,
+                    "purpose": "clean-slate",
+                    "status": "applied",
+                }
+            )
+            session.run_json(
+                [
+                    "checkpoint",
+                    "save",
+                    "workflow-clean-slate",
+                    "--full",
+                ],
+            )
+            command_records.append(
+                {
+                    "command": "checkpoint save",
+                    "checkpoint": "workflow-clean-slate",
+                    "status": "applied",
+                }
+            )
+            _validate_usd_cli_import_destinations(
+                stage_path=clean_slate_layer,
+                decision=decision,
+            )
+
+        normalized_assignments: list[dict[str, object]] = []
+        for assignment in decision.assignments:
+            material = manifest.by_name[assignment.material_name]
+            response = session.run_json(
+                [
+                    "material",
+                    assignment.target_prim_path,
+                    "--library",
+                    str(manifest.library_path),
+                    "--name",
+                    material.name,
+                ],
+            )
+            record = {
+                "target_prim_path": assignment.target_prim_path,
+                "material_name": material.name,
+                "material_path": material.binding_path,
+                "status": "applied",
+            }
+            command_records.append({"command": "material", **record})
+            normalized_assignments.append({**record, "response": response})
+
+        audit_response = session.run_json(
+            ["material", "audit", "--effective", "--include-subsets"]
+        )
+        command_records.append({"command": "material audit", "status": "passed"})
+        session.run_json(["checkpoint", "save", "workflow-applied", "--full"])
+        command_records.append(
+            {
+                "command": "checkpoint save",
+                "checkpoint": "workflow-applied",
+                "status": "applied",
+            }
+        )
+
+        preview_layer = project_dir / "preview_layer.usda"
+        save_response = session.run_json(["save", str(preview_layer), "--flatten"])
+        command_records.append(
+            {
+                "command": "save",
+                "output": str(preview_layer),
+                "flatten": True,
+                "status": "applied",
+            }
+        )
+        try:
+            preview_artifact = read_contained_artifact(
+                processing_root,
+                preview_layer,
+                max_bytes=MAX_MATERIAL_STAGE_BYTES,
+                capture_bytes=True,
+            )
+        except ValueError as exc:
+            raise AssetTaskRuntimeError(
+                f"usd-cli did not create a safe material derivative: {exc}"
+            ) from exc
+        if preview_artifact.size_bytes <= 0:
+            raise AssetTaskRuntimeError("usd-cli created an empty material derivative")
+        assert preview_artifact.data is not None
+        preview_layer = preview_artifact.path
+        output_stage = _open_captured_material_stage(
+            preview_artifact.data,
+            suffix=preview_layer.suffix,
+        )
+
+        render_paths: list[str] = []
+        render_validation_path: Path | None = None
+        render_validation_errors: list[str] = []
+        if render:
+            render_dir = project_dir / "final_renders"
+            atomic_write_text(
+                render_dir / ".workflow-owned",
+                "content-agent-workflows.material-task-render\n",
+                within=processing_root,
+            )
+            image_path = render_dir / "final_oblique.png"
+            render_response = session.run_json(
+                [
+                    "render",
+                    "--res",
+                    "512x512",
+                    "-o",
+                    str(image_path),
+                ],
+            )
+            try:
+                image_artifact = read_contained_artifact(
+                    processing_root,
+                    image_path,
+                    max_bytes=128 * 1024 * 1024,
+                    image=True,
+                    capture_bytes=True,
+                )
+            except ValueError as exc:
+                raise AssetTaskRuntimeError(
+                    f"usd-cli produced unsafe final render evidence: {exc}"
+                ) from exc
+            assert image_artifact.data is not None
+            image_path = image_artifact.path
+            blankness, render_validation_errors = _render_validation(
+                image_reference=str(image_path),
+                backend_label="usd-cli OVRTX",
+                image_bytes=image_artifact.data,
+            )
+            render_validation_path = atomic_write_json(
+                render_dir / "final_oblique_validation.json",
+                {
+                    "schema_version": (
+                        "content-agent-workflows.material-render-validation.v1"
+                    ),
+                    "passed": not render_validation_errors,
+                    "image_path": str(image_path),
+                    "blankness": blankness,
+                    "response": render_response,
+                    "errors": render_validation_errors,
+                },
+                within=processing_root,
+            )
+            render_paths.extend([str(image_path), str(render_validation_path)])
+            command_records.append({"command": "render", "status": "applied"})
+
+        source_digest_after = file_sha256(working_usd_path)
+        if source_digest_after != source_digest:
+            raise AssetTaskRuntimeError(
+                "usd-cli material execution changed the immutable source USD"
+            )
+        command_artifact_path = atomic_write_json(
+            output_dir / "usd_cli_commands.json",
+            {
+                "schema_version": (
+                    "content-agent-workflows.usd-cli-command-records.v1"
+                ),
+                "project_dir": str(project_dir),
+                "session_id": session_id,
+                "commands": command_records,
+            },
+            within=processing_root,
+        )
+        assignments_response: dict[str, object] = {
+            "schema_version": ("content-agent-workflows.material-task-assignments.v1"),
+            "scene_backend": "usd-cli",
+            "assignments": normalized_assignments,
+            "binding_audit": audit_response,
+        }
+        apply_response: dict[str, object] = {
+            "schema_version": (
+                "content-agent-workflows.material-task-apply-response.v1"
+            ),
+            "scene_backend": "usd-cli",
+            "status": "applied",
+            "applied_assignment_count": len(normalized_assignments),
+            "save_response": save_response,
+            "source_sha256_before": source_digest,
+            "source_sha256_after": source_digest_after,
+            "session_id": session_id,
+            "project_dir": str(project_dir),
+        }
+        return _MaterialSceneExecution(
+            preview_layer=preview_layer,
+            output_stage=output_stage,
+            assignments_response=assignments_response,
+            apply_response=apply_response,
+            command_records=command_records,
+            command_artifact_path=command_artifact_path,
+            render_paths=render_paths,
+            render_validation_path=render_validation_path,
+            render_validation_errors=render_validation_errors,
+            backend_artifact_paths=tuple(backend_artifacts),
+        )
+    except Exception:
+        primary_error = True
+        raise
+    finally:
+        try:
+            session.close()
+        except RuntimeError as exc:
+            if not primary_error:
+                raise AssetTaskRuntimeError(
+                    f"Could not close the per-asset usd-cli daemon: {exc}"
+                ) from exc
+
+
 def run_material_work_item(
     processing_dir: str | Path,
     work_item_id: str,
     *,
     decision_path: str | Path,
-    workbench_url: str,
     render: bool = False,
     actor: str = "agent",
 ) -> AssetTaskResult:
-    """Apply and validate one material decision through Content Workbench."""
+    """Apply and validate one material decision through its frozen scene backend."""
 
     root = Path(processing_dir).expanduser().resolve()
     decision_file = Path(decision_path).expanduser().resolve()
@@ -1036,77 +1775,48 @@ def run_material_work_item(
         root, item.task_id
     )
     decision = _load_material_decision(decision_file)
-    materials = _validate_decision(
+    scene_backend = _material_scene_backend(task_request)
+    manifest = _validate_decision(
         decision,
         survey,
         task_request_digest=task_request_digest,
         task_request=task_request,
         task_request_path=task_request_path,
     )
+    _validate_usd_cli_library_lookups(decision, manifest)
+    _validate_usd_cli_import_destinations(
+        stage_path=item.working_usd_path,
+        decision=decision,
+    )
+    _validate_usd_cli_output_scope(
+        processing_root=root,
+        output_dir=output_dir,
+    )
+    palette_path = atomic_write_json(
+        output_dir / "material_palette.json", manifest.as_palette()
+    )
 
     begin_work_item(root, work_item_id, actor=actor)
-    session_id = ""
     try:
-        wait_until_healthy(workbench_url, timeout_seconds=30.0)
-        session = create_session(
-            workbench_url,
-            {
-                "scene_path": item.working_usd_path,
-                "optimize": False,
-                "clear_materials": not task_request.respect_existing_material_bindings,
-                "width": 512,
-                "height": 512,
-            },
+        _running_item, running_state = get_work_item(root, work_item_id)
+        execution = _execute_usd_cli_material(
+            processing_root=root,
+            output_dir=output_dir,
+            work_item_id=work_item_id,
+            attempt_count=running_state.attempt_count,
+            working_usd_path=item.working_usd_path,
+            task_request=task_request,
+            decision=decision,
+            manifest=manifest,
+            render=render,
         )
-        session_id_value = session.get("session_id")
-        if not isinstance(session_id_value, str) or not session_id_value:
-            raise AssetTaskRuntimeError("Workbench did not return a session_id")
-        session_id = session_id_value
-        command_records: list[dict[str, object]] = []
-        library_path = str(Path(decision.material_library_path).expanduser().resolve())
-        for assignment in decision.assignments:
-            response = apply_command(
-                workbench_url,
-                session_id,
-                "material_override",
-                {
-                    "prim_path": assignment.target_prim_path,
-                    "space": "source",
-                    "unbind_existing": not task_request.respect_existing_material_bindings,
-                    "material": {
-                        "source": "material_library",
-                        "library_path": library_path,
-                        "material_name": assignment.material_name,
-                        "material_path": materials[assignment.material_name],
-                    },
-                },
-            )
-            command_records.append(
-                {
-                    "target_prim_path": assignment.target_prim_path,
-                    "material_name": assignment.material_name,
-                    "status": response.get("status", "applied"),
-                }
-            )
-
-        assignments_response = get_material_assignments(workbench_url, session_id)
-        preview_layer = output_dir / "preview_layer.usda"
-        apply_response = post_json(
-            session_url(
-                workbench_url,
-                session_id,
-                "/authoring/material-assignments:apply",
-            ),
-            {
-                "output_usd_path": str(preview_layer),
-                "output_mode": "layer",
-                "material_profile": "preview_surface",
-                "overwrite": True,
-            },
-        )
-        atomic_write_json(
-            output_dir / "workbench_commands.json", {"commands": command_records}
-        )
+        preview_layer = execution.preview_layer
+        assignments_response = execution.assignments_response
+        apply_response = execution.apply_response
+        render_paths = execution.render_paths
+        render_validation_path = execution.render_validation_path
+        render_validation_errors = execution.render_validation_errors
+        output_stage = execution.output_stage
         assignments_path = atomic_write_json(
             output_dir / "assignments.json", assignments_response
         )
@@ -1114,69 +1824,6 @@ def run_material_work_item(
             output_dir / "material_apply_response.json", apply_response
         )
 
-        render_paths: list[str] = []
-        render_validation_path: Path | None = None
-        render_validation_errors: list[str] = []
-        if render:
-            (output_dir / "final_renders").mkdir(parents=True, exist_ok=True)
-            record = render_view(
-                workbench_url=workbench_url,
-                session_id=session_id,
-                output_dir=output_dir / "final_renders",
-                name="final_oblique",
-                direction="oblique",
-                width=512,
-                height=512,
-                render_quality="inspection",
-            )
-            render_paths.extend(
-                str(path)
-                for key in ("image_path", "camera_json_path", "response_path")
-                if (path := record.get(key))
-            )
-            image_reference = record.get("image_path")
-            blankness: dict[str, object] | None = None
-            if not isinstance(image_reference, str) or not image_reference:
-                render_validation_errors.append(
-                    "Workbench verification render did not return an image path."
-                )
-            else:
-                image_path = Path(image_reference).expanduser().resolve()
-                if not image_path.is_file():
-                    render_validation_errors.append(
-                        f"Workbench verification render is missing: {image_path}."
-                    )
-                else:
-                    from world_understanding.utils.image_blankness import (
-                        analyze_image_blankness,
-                    )
-
-                    stats = analyze_image_blankness(image_path)
-                    blankness = stats.to_dict()
-                    if stats.blank:
-                        render_validation_errors.append(
-                            "Workbench verification render is blank: "
-                            f"{image_path} ({stats.reason})."
-                        )
-            render_validation_path = atomic_write_json(
-                output_dir / "final_renders" / "final_oblique_validation.json",
-                {
-                    "schema_version": (
-                        "content-agent-workflows.material-render-validation.v1"
-                    ),
-                    "passed": not render_validation_errors,
-                    "image_path": image_reference,
-                    "blankness": blankness,
-                    "errors": render_validation_errors,
-                },
-            )
-            render_paths.append(str(render_validation_path))
-
-        from pxr import Usd
-
-        output_stage = (
-            Usd.Stage.Open(str(preview_layer)) if preview_layer.is_file() else None
-        )
         applied_count = apply_response.get("applied_assignment_count")
         if not isinstance(applied_count, int):
             assignments = (
@@ -1188,6 +1835,15 @@ def run_material_work_item(
         validation_errors = list(render_validation_errors)
         if output_stage is None:
             validation_errors.append("Authored preview layer could not be opened.")
+        else:
+            validation_errors.extend(
+                _validate_saved_material_bindings(
+                    output_stage=output_stage,
+                    decision=decision,
+                    manifest=manifest,
+                    scene_backend=scene_backend,
+                )
+            )
         if applied_count != len(decision.assignments):
             validation_errors.append(
                 f"Expected {len(decision.assignments)} assignments, got {applied_count}."
@@ -1198,6 +1854,7 @@ def run_material_work_item(
                 "schema_version": MATERIAL_VALIDATION_SCHEMA_VERSION,
                 "passed": not validation_errors,
                 "work_item_id": work_item_id,
+                "scene_backend": scene_backend,
                 "candidate_count": len(survey.candidates),
                 "decision_count": len(decision.assignments),
                 "applied_assignment_count": applied_count,
@@ -1218,11 +1875,15 @@ def run_material_work_item(
             "task_request_path": str(task_request_path),
             "survey_path": str(survey_path),
             "decision_path": str(decision_file),
+            "material_palette_path": str(palette_path),
             "assignments_path": str(assignments_path),
             "preview_layer_path": str(preview_layer),
             "apply_response_path": str(apply_response_path),
             "validation_path": str(validation_path),
+            "scene_command_artifact_path": str(execution.command_artifact_path),
         }
+        for index, backend_path in enumerate(execution.backend_artifact_paths):
+            domain_outputs[f"backend_artifact_{index}"] = str(backend_path)
         for index, render_path in enumerate(render_paths):
             domain_outputs[f"render_artifact_{index}"] = render_path
         result = AssetTaskResult(
@@ -1251,8 +1912,11 @@ def run_material_work_item(
                 str(survey_path),
                 str(decision_file),
                 str(task_request_path),
+                str(palette_path),
                 str(assignments_path),
                 str(preview_layer),
+                str(execution.command_artifact_path),
+                *(str(path) for path in execution.backend_artifact_paths),
                 *render_paths,
             ],
             confidence=decision.confidence,
@@ -1288,20 +1952,14 @@ def run_material_work_item(
         raise AssetTaskRuntimeError(
             f"Material task failed for {work_item_id}: {exc}"
         ) from exc
-    finally:
-        if session_id:
-            try:
-                close_session(workbench_url, session_id)
-            except Exception:
-                pass
 
 
 def run_material_batch(
     processing_dir: str | Path,
     batch_plan_path: str | Path,
     *,
-    workbench_url: str,
     actor: str = "agent",
+    fail_fast: bool = False,
 ) -> dict[str, object]:
     """Execute an agent-authored material plan sequentially with resume."""
 
@@ -1323,13 +1981,12 @@ def run_material_batch(
                 processing_dir,
                 batch_item.work_item_id,
                 decision_path=decision_path,
-                workbench_url=workbench_url,
                 render=batch_item.render,
                 actor=actor,
             )
         except AssetTaskRuntimeError as exc:
             failed[batch_item.work_item_id] = str(exc)
-            if plan.stop_on_error:
+            if plan.stop_on_error or fail_fast:
                 break
         else:
             completed.append(batch_item.work_item_id)
@@ -1359,21 +2016,26 @@ def _parser() -> argparse.ArgumentParser:
     match_display_color.add_argument("--top-k", type=int, default=5)
     match_display_color.add_argument("--appearance-cache-dir", type=Path)
     match_display_color.add_argument("--swatch-template", type=Path)
-    match_display_color.add_argument("--workbench-url", default=DEFAULT_WORKBENCH_URL)
 
     run_item = subparsers.add_parser("run-item")
     run_item.add_argument("--processing-dir", type=Path, required=True)
     run_item.add_argument("--work-item-id", required=True)
     run_item.add_argument("--decision", type=Path, required=True)
-    run_item.add_argument("--workbench-url", default=DEFAULT_WORKBENCH_URL)
     run_item.add_argument("--render", action="store_true")
     run_item.add_argument("--actor", default="agent")
 
     run_batch = subparsers.add_parser("run-batch")
     run_batch.add_argument("--processing-dir", type=Path, required=True)
     run_batch.add_argument("--batch-plan", type=Path, required=True)
-    run_batch.add_argument("--workbench-url", default=DEFAULT_WORKBENCH_URL)
     run_batch.add_argument("--actor", default="agent")
+    run_batch.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help=(
+            "Stop after the first failed work item and return a nonzero exit "
+            "status so supervised workflows fail at the originating command."
+        ),
+    )
     return parser
 
 
@@ -1391,7 +2053,6 @@ def main(argv: list[str] | None = None) -> int:
                 args.processing_dir,
                 args.work_item_id,
                 scope_paths=args.scope,
-                workbench_url=args.workbench_url,
                 top_k=args.top_k,
                 appearance_cache_dir=args.appearance_cache_dir,
                 swatch_template_path=args.swatch_template,
@@ -1401,7 +2062,6 @@ def main(argv: list[str] | None = None) -> int:
                 args.processing_dir,
                 args.work_item_id,
                 decision_path=args.decision,
-                workbench_url=args.workbench_url,
                 render=args.render,
                 actor=args.actor,
             ).model_dump(mode="json")
@@ -1409,8 +2069,8 @@ def main(argv: list[str] | None = None) -> int:
             output = run_material_batch(
                 args.processing_dir,
                 args.batch_plan,
-                workbench_url=args.workbench_url,
                 actor=args.actor,
+                fail_fast=args.fail_fast,
             )
         else:  # pragma: no cover
             raise AssertionError(f"Unhandled command: {args.command}")
@@ -1418,6 +2078,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(output, indent=2, sort_keys=True))
+    if (
+        args.command == "run-batch"
+        and args.fail_fast
+        and isinstance(output.get("failed_count"), int)
+        and output["failed_count"] > 0
+    ):
+        return 2
     return 0
 
 

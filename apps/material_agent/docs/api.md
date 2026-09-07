@@ -51,8 +51,52 @@ else:
 ```
 
 **When to use each pattern:**
+
 - **Convenience functions**: Quick scripts, notebooks, simple use cases
 - **Input classes**: Web services, complex logic, when you need type safety
+
+### Deterministic material authoring
+
+Use the low-level authoring API when planning and visual acceptance are owned by
+your caller. A `create` request does not require an asset USD; a `modify` request
+requires an exact source material USD and prim path and preserves its profile,
+representation, and graph topology.
+
+```python
+from material_agent.material_library_generation import (
+    MaterialAuthoringRequest,
+    MaterialRecipe,
+    PBRHints,
+    author_material_package,
+)
+
+recipe = MaterialRecipe(
+    name="Satin Blue",
+    description="A scalar satin-blue coating.",
+    appearance_prompt="satin blue coating",
+    base_color_hint=(0.1, 0.3, 0.7),
+    pbr_hints=PBRHints(roughness=0.42, metallic=0.0),
+)
+package = author_material_package(
+    MaterialAuthoringRequest(
+        operation="create",
+        recipe=recipe,
+        material_profile="preview_surface",
+    ),
+    "output/satin-blue",
+)
+```
+
+`MaterialAuthoringRequest` is the literal shader-control boundary, so its
+`base_color_hint` tuple is linear RGB. The higher-level generation-plan path
+interprets the same recipe field as display-encoded sRGB and converts it before
+USD authoring. In both cases, the resulting USD contains linear shader values.
+
+Pass a complete `TextureMapSet` to publish a textured package. To apply an
+accepted package to an asset, hand its material library and binding to the
+existing assignment or pipeline API. See the
+[material authoring architecture](internal/material_authoring_architecture.md)
+for the agentic/fixed workflow boundary and compatibility routes.
 
 ## ⚠️ Important: Required Config Fields
 

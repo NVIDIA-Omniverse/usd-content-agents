@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Material Agent CLI"
+  short_description: "Fixed pipeline: Run the Material Agent CLI"
+  default_prompt: "Use $fixed-pipeline to run the direct Material Agent CLI for a config-driven VLM material assignment pipeline."

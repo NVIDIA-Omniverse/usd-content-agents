@@ -18,6 +18,7 @@ import tempfile
 import time
 import uuid
 import zipfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import StrEnum
 from pathlib import Path
@@ -54,11 +55,17 @@ from world_understanding.utils.nvcf_utils import (
 )
 from world_understanding.utils.s3_utils import delete_s3_path, upload_file_to_s3
 from world_understanding.utils.usd.material import (
+    PackageMdlLocalizationError,
+    PackageTextureLocalizationError,
     add_ovrtx_preview_fallbacks_for_texture_file_materials,
     add_ovrtx_preview_fallbacks_to_stage_file,
     bake_texture_file_materials_to_display_color_for_render,
     get_local_mdl_assets,
     get_local_texture_file_assets,
+    get_sdf_attribute_owner_path,
+    iter_sdf_layer_attribute_specs,
+    localize_package_mdl_assets_for_render,
+    localize_package_texture_assets_for_render,
 )
 from world_understanding.utils.usd.stage import (
     create_data_uri_from_file,
@@ -67,6 +74,10 @@ from world_understanding.utils.usd.stage import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class UnsafeLocalAssetPathError(ValueError):
+    """Raised when remote-render bundling would read outside its asset root."""
 
 
 class RenderingStatus(StrEnum):
@@ -100,6 +111,92 @@ def _http_error_detail(response: requests.Response) -> str:
     if payload.get("error"):
         return str(payload["error"])
     return json.dumps(payload, sort_keys=True)[:500]
+
+
+def _color_output_coverage(
+    result: dict[str, Any],
+    *,
+    cameras: list[str],
+    frame_start: int,
+    frame_end: int,
+) -> tuple[int, int]:
+    """Return observed decodable and requested V1 color-output counts."""
+    decoded_images, requested_count = _decoded_color_output_coverage(
+        result,
+        cameras=cameras,
+        frame_start=frame_start,
+        frame_end=frame_end,
+        decode_image=base64_to_image,
+    )
+    return len(decoded_images), requested_count
+
+
+def _decoded_color_output_coverage(
+    result: dict[str, Any],
+    *,
+    cameras: list[str],
+    frame_start: int,
+    frame_end: int,
+    decode_image: Callable[[str], Image.Image],
+) -> tuple[dict[tuple[int, str], Image.Image], int]:
+    """Decode exact requested camera/frame outputs and return their coverage."""
+    requested_count = len(cameras) * (frame_end - frame_start + 1)
+    images = result.get("images", {})
+    if not isinstance(images, dict):
+        return {}, requested_count
+
+    decoded_images: dict[tuple[int, str], Image.Image] = {}
+    for frame in range(frame_start, frame_end + 1):
+        frame_data = images.get(str(frame), images.get(frame))
+        if not isinstance(frame_data, dict):
+            continue
+        response_keys = [key for key in frame_data if isinstance(key, str)]
+        for camera in cameras:
+            response_key = _matching_response_camera_key(camera, response_keys)
+            camera_data = (
+                frame_data.get(response_key) if response_key is not None else None
+            )
+            if not isinstance(camera_data, dict):
+                continue
+            color_payload = camera_data.get("images")
+            if isinstance(color_payload, str) and color_payload:
+                try:
+                    decoded_images[(frame, camera)] = decode_image(color_payload)
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to decode color output for camera %s frame %s: %s",
+                        camera,
+                        frame,
+                        exc,
+                    )
+    return decoded_images, requested_count
+
+
+def _matching_response_camera_key(
+    requested_camera: str,
+    response_keys: list[str],
+) -> str | None:
+    """Match renderer camera keys without accepting ambiguous basenames."""
+    if requested_camera in response_keys:
+        return requested_camera
+
+    normalized = requested_camera.lstrip("/")
+    normalized_matches = [key for key in response_keys if key.lstrip("/") == normalized]
+    if len(normalized_matches) == 1:
+        return normalized_matches[0]
+
+    basename = requested_camera.rsplit("/", 1)[-1]
+    basename_matches = [
+        key for key in response_keys if key.rsplit("/", 1)[-1] == basename
+    ]
+    return basename_matches[0] if len(basename_matches) == 1 else None
+
+
+def _incomplete_color_output_error(observed_count: int, requested_count: int) -> str:
+    return (
+        "Remote renderer returned incomplete color output coverage: "
+        f"{observed_count}/{requested_count} requested outputs present"
+    )
 
 
 # Note: decode_base64_to_image and decode_base64_to_numpy have been moved to
@@ -332,6 +429,7 @@ def _bundle_stage_with_local_assets(
     stage: "Usd.Stage",
     temp_dir: Path,
     base_dir: str | Path | None = None,
+    asset_root: str | Path | None = None,
     has_local_composition_arcs: bool | None = None,
     add_preview_fallbacks: bool | None = None,
 ) -> tuple[Path | None, bool]:
@@ -348,6 +446,10 @@ def _bundle_stage_with_local_assets(
         temp_dir: Temporary directory for creating the bundle
         base_dir: Base directory for resolving relative texture paths. If None,
                  uses the stage's root layer directory.
+        asset_root: Explicit trusted root that may contain bundled assets. If
+                 None, confinement defaults to ``base_dir``. The resolution
+                 base must be inside this root; paths that escape it still
+                 fail closed.
         has_local_composition_arcs: Precomputed composition-arc guard result.
                  If None, the guard is evaluated here.
         add_preview_fallbacks: If True, author render-export UsdPreviewSurface
@@ -362,7 +464,7 @@ def _bundle_stage_with_local_assets(
     """
     import shutil
 
-    from pxr import Sdf
+    from pxr import Sdf, Usd
 
     if has_local_composition_arcs is None:
         has_local_composition_arcs = _stage_has_local_composition_arcs(stage)
@@ -374,15 +476,175 @@ def _bundle_stage_with_local_assets(
             "flatten=True) or by setting flatten_before_render=True."
         )
 
-    # Get all MDL assets from the stage
-    mdl_assets = get_local_mdl_assets(stage, base_dir=base_dir)
+    root_layer = stage.GetRootLayer()
+    if base_dir is None:
+        resolution_base = (
+            Path(root_layer.realPath).parent if root_layer.realPath else Path.cwd()
+        )
+    else:
+        resolution_base = Path(base_dir)
+    try:
+        resolution_base = resolution_base.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise UnsafeLocalAssetPathError(
+            "Remote render asset resolution base could not be resolved safely"
+        ) from exc
+    if asset_root is None:
+        authorized_asset_root = resolution_base
+    else:
+        try:
+            authorized_asset_root = Path(asset_root).resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise UnsafeLocalAssetPathError(
+                "Remote render asset root could not be resolved safely"
+            ) from exc
+        if not (
+            resolution_base == authorized_asset_root
+            or authorized_asset_root in resolution_base.parents
+        ):
+            raise UnsafeLocalAssetPathError(
+                "Remote render asset resolution base is outside the authorized "
+                "bundle root"
+            )
 
-    # Filter to only local, existing files
-    local_assets = [a for a in mdl_assets if a["is_local"] and a["resolved_path"]]
+    # Flattening a USDZ correctly anchors its package-member asset paths as
+    # ``/path/source.usdz[member]``. Do not send that host-bound identity to a
+    # REST renderer or relax the renderer's intake confinement. Instead,
+    # localize package assets on a private clone and let the existing bundle
+    # rewrite map copy them into the outbound archive. MDL requires complete
+    # package extraction because imports and resources inside MDL source are not
+    # represented as USD dependencies.
+    try:
+        localization_layer = stage.Flatten()
+    except Exception as exc:
+        raise PackageTextureLocalizationError(
+            "Unable to flatten the cloned USD stage for package texture localization"
+        ) from exc
+    localization_stage = Usd.Stage.Open(localization_layer)
+    if localization_stage is None:
+        raise PackageTextureLocalizationError(
+            "Unable to clone the USD stage for package texture localization"
+        )
+    package_texture_root = temp_dir / "package_textures"
+    try:
+        localized_package_textures = localize_package_texture_assets_for_render(
+            localization_stage,
+            package_texture_root,
+            base_dir=resolution_base,
+            allowed_package_root=authorized_asset_root,
+            strict=True,
+        )
+    except PackageTextureLocalizationError:
+        raise
+    except Exception as exc:
+        raise PackageTextureLocalizationError(
+            "Unable to localize USDZ package textures for remote rendering"
+        ) from exc
+    package_mdl_root = temp_dir / "package_mdl"
+    try:
+        localized_package_mdls = localize_package_mdl_assets_for_render(
+            localization_stage,
+            package_mdl_root,
+            base_dir=resolution_base,
+            allowed_package_root=authorized_asset_root,
+            strict=True,
+        )
+    except PackageMdlLocalizationError:
+        raise
+    except Exception as exc:
+        raise PackageMdlLocalizationError(
+            "Unable to localize USDZ package MDL assets for remote rendering"
+        ) from exc
+
+    authorized_roots = [authorized_asset_root]
+    resolved_package_texture_root: Path | None = None
+    resolved_package_mdl_root: Path | None = None
+    if localized_package_textures:
+        try:
+            resolved_package_texture_root = package_texture_root.resolve(strict=True)
+            authorized_roots.append(resolved_package_texture_root)
+        except (OSError, RuntimeError) as exc:
+            raise PackageTextureLocalizationError(
+                "Localized USDZ package texture root is unavailable"
+            ) from exc
+    if localized_package_mdls:
+        try:
+            resolved_package_mdl_root = package_mdl_root.resolve(strict=True)
+            authorized_roots.append(resolved_package_mdl_root)
+        except (OSError, RuntimeError) as exc:
+            raise PackageMdlLocalizationError(
+                "Localized USDZ package MDL root is unavailable"
+            ) from exc
+
+    def authorize_local_asset(asset: dict[str, Any]) -> dict[str, Any]:
+        try:
+            resolved = Path(str(asset["resolved_path"])).resolve(strict=True)
+        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+            raise UnsafeLocalAssetPathError(
+                "Local render asset resolves outside the authorized bundle root"
+            ) from exc
+        if not any(
+            resolved == root or root in resolved.parents for root in authorized_roots
+        ):
+            raise UnsafeLocalAssetPathError(
+                "Local render asset resolves outside the authorized bundle root"
+            )
+        if not resolved.is_file():
+            raise UnsafeLocalAssetPathError(
+                "Local render asset is not a regular file inside the authorized root"
+            )
+        return {**asset, "resolved_path": str(resolved)}
+
+    # Get all MDL assets from the stage
+    mdl_assets = get_local_mdl_assets(localization_stage, base_dir=resolution_base)
+
+    # Filter to only local, existing files, then confine every source before any
+    # copy begins. A USD can carry absolute or file:// paths authored by an
+    # untrusted caller; bundling must not turn those into host-file exfiltration.
+    local_assets = [
+        authorize_local_asset(a)
+        for a in mdl_assets
+        if a["is_local"] and a["resolved_path"]
+    ]
+    localized_mdl_attrs = {
+        (
+            str(asset["shader_path"]),
+            "info:mdl:sourceAsset",
+            asset.get("time_code"),
+        )
+        for asset in local_assets
+        if resolved_package_mdl_root is not None
+        and (
+            Path(str(asset["resolved_path"])) == resolved_package_mdl_root
+            or resolved_package_mdl_root in Path(str(asset["resolved_path"])).parents
+        )
+    }
 
     # Get all texture file assets from the stage
-    texture_assets = get_local_texture_file_assets(stage, base_dir=base_dir)
-    local_textures = [a for a in texture_assets if a["is_local"] and a["resolved_path"]]
+    texture_assets = get_local_texture_file_assets(
+        localization_stage,
+        base_dir=resolution_base,
+        deduplicate=False,
+    )
+    local_textures = [
+        authorize_local_asset(a)
+        for a in texture_assets
+        if a["is_local"] and a["resolved_path"]
+    ]
+    localized_texture_attrs = {
+        (
+            str(texture["prim_path"]),
+            str(texture["attr_name"]),
+            texture.get("time_code"),
+        )
+        for texture in local_textures
+        if resolved_package_texture_root is not None
+        and (
+            Path(str(texture["resolved_path"])) == resolved_package_texture_root
+            or resolved_package_texture_root
+            in Path(str(texture["resolved_path"])).parents
+        )
+    }
 
     if not local_assets and not local_textures:
         logger.info("No local MDL or texture assets found, skipping bundling")
@@ -400,6 +662,7 @@ def _bundle_stage_with_local_assets(
     # Track copied directories to avoid duplicates (for MDL)
     copied_dirs: dict[str, str] = {}  # original_dir -> relative_path_in_bundle
     copied_mdl_files: dict[str, str] = {}  # resolved MDL file -> relative bundle path
+    copied_package_dirs: set[Path] = set()
 
     # ---- Copy MDL files and their directories ----
     if local_assets:
@@ -407,13 +670,55 @@ def _bundle_stage_with_local_assets(
         mdl_dir.mkdir(parents=True, exist_ok=True)
 
         for asset in local_assets:
-            mdl_file = Path(asset["resolved_path"])
+            mdl_file = Path(asset["resolved_path"]).resolve()
             mdl_parent = mdl_file.parent
+
+            if resolved_package_mdl_root is not None and (
+                mdl_file == resolved_package_mdl_root
+                or resolved_package_mdl_root in mdl_file.parents
+            ):
+                try:
+                    localized_relative = mdl_file.relative_to(resolved_package_mdl_root)
+                    package_name = localized_relative.parts[0]
+                except (IndexError, ValueError) as exc:
+                    raise PackageMdlLocalizationError(
+                        "Localized USDZ MDL path is outside its extraction root"
+                    ) from exc
+                source_package_dir = resolved_package_mdl_root / package_name
+                destination_package_dir = bundle_dir / "mdl_packages" / package_name
+                if source_package_dir not in copied_package_dirs:
+                    try:
+                        destination_package_dir.parent.mkdir(
+                            parents=True,
+                            exist_ok=True,
+                        )
+                        shutil.copytree(
+                            source_package_dir,
+                            destination_package_dir,
+                        )
+                    except Exception as exc:
+                        raise PackageMdlLocalizationError(
+                            "Unable to copy a localized USDZ package MDL into "
+                            "the remote-render bundle"
+                        ) from exc
+                    copied_package_dirs.add(source_package_dir)
+                copied_mdl_files[str(mdl_file)] = (
+                    Path("mdl_packages") / localized_relative
+                ).as_posix()
+                continue
 
             # Use directory name as unique identifier
             dir_name = mdl_parent.name
 
             if str(mdl_parent) not in copied_dirs:
+                # copytree follows file symlinks by default. Reject any link in
+                # the copied MDL package so an otherwise in-root package cannot
+                # smuggle an out-of-root target into the outbound archive.
+                if any(path.is_symlink() for path in mdl_parent.rglob("*")):
+                    raise UnsafeLocalAssetPathError(
+                        "Local MDL package contains a symbolic link"
+                    )
+
                 # Copy entire directory to preserve textures
                 dest_dir = mdl_dir / dir_name
 
@@ -471,23 +776,64 @@ def _bundle_stage_with_local_assets(
                 copied_textures[resolved] = rel_path
                 logger.debug(f"Copied texture: {src_path} -> {dest_path}")
             except Exception as e:
+                if resolved_package_texture_root is not None and (
+                    src_path == resolved_package_texture_root
+                    or resolved_package_texture_root in src_path.parents
+                ):
+                    raise PackageTextureLocalizationError(
+                        "Unable to copy a localized USDZ package texture into "
+                        "the remote-render bundle"
+                    ) from e
                 logger.warning(f"Failed to copy texture {src_path}: {e}")
 
-    if not copied_dirs and not copied_textures:
+    if not copied_mdl_files and not copied_textures:
         logger.warning("No assets were copied, skipping bundling")
         return None, False
 
-    copied_texture_attrs: dict[tuple[str, str], str] = {}
-    for tex in local_textures:
-        resolved = tex.get("resolved_path")
-        if not resolved:  # pragma: no cover - local_textures is already prefiltered
+    copied_mdl_attrs: dict[tuple[str, str, float | None], str] = {}
+    for asset in local_assets:
+        resolved_mdl_asset = asset.get("resolved_path")
+        if not resolved_mdl_asset:  # pragma: no cover - already prefiltered
             continue
-        rel_path = copied_textures.get(str(Path(resolved).resolve()))
-        if rel_path is not None:
-            copied_texture_attrs[(tex["prim_path"], tex["attr_name"])] = rel_path
+        copied_mdl_path = copied_mdl_files.get(str(Path(resolved_mdl_asset).resolve()))
+        if copied_mdl_path is not None and asset.get("shader_path"):
+            copied_mdl_attrs[
+                (
+                    str(asset["shader_path"]),
+                    "info:mdl:sourceAsset",
+                    asset.get("time_code"),
+                )
+            ] = copied_mdl_path
+
+    missing_localized_mdl_copies = localized_mdl_attrs - copied_mdl_attrs.keys()
+    if missing_localized_mdl_copies:
+        raise PackageMdlLocalizationError(
+            "Localized USDZ package MDL attributes were not copied into the "
+            "remote-render bundle: "
+            f"{sorted(missing_localized_mdl_copies, key=repr)!r}"
+        )
+
+    copied_texture_attrs: dict[tuple[str, str, float | None], str] = {}
+    for tex in local_textures:
+        resolved_texture_asset = tex.get("resolved_path")
+        if not resolved_texture_asset:  # pragma: no cover - already prefiltered
+            continue
+        copied_texture_path = copied_textures.get(
+            str(Path(resolved_texture_asset).resolve())
+        )
+        if copied_texture_path is not None:
+            copied_texture_attrs[
+                (tex["prim_path"], tex["attr_name"], tex.get("time_code"))
+            ] = copied_texture_path
+
+    missing_localized_copies = localized_texture_attrs - copied_texture_attrs.keys()
+    if missing_localized_copies:
+        raise PackageTextureLocalizationError(
+            "Localized USDZ package texture attributes were not copied into "
+            f"the remote-render bundle: {sorted(missing_localized_copies)!r}"
+        )
 
     # Export the stage and update paths
-    root_layer = stage.GetRootLayer()
     if base_dir is None:
         asset_base_dir = (
             Path(root_layer.realPath).parent if root_layer.realPath else Path.cwd()
@@ -497,7 +843,7 @@ def _bundle_stage_with_local_assets(
 
     # Create a copy of the layer to modify
     temp_usda = bundle_dir / "stage.usda"
-    root_layer.Export(str(temp_usda))
+    localization_layer.Export(str(temp_usda))
 
     if add_preview_fallbacks:
         preview_fallbacks = add_ovrtx_preview_fallbacks_to_stage_file(temp_usda)
@@ -514,80 +860,121 @@ def _bundle_stage_with_local_assets(
         return None, False
 
     # Update asset paths in the exported layer
-    def update_asset_paths_in_layer(layer: Sdf.Layer) -> int:
-        """Recursively update MDL and texture asset paths in a layer."""
+    def update_asset_paths_in_layer(
+        layer: Sdf.Layer,
+        *,
+        require_localized_rewrites: bool = True,
+    ) -> int:
+        """Update composed default and time-sampled asset opinions in a layer."""
         updated_count = 0
+        rewritten_mdl_attrs: set[tuple[str, str, float | None]] = set()
+        rewritten_texture_attrs: set[tuple[str, str, float | None]] = set()
 
-        def process_prim_spec(prim_spec):
-            nonlocal updated_count
-            prim_path = str(prim_spec.path)
-
-            for attr_name in list(prim_spec.attributes.keys()):
-                attr_spec = prim_spec.attributes[attr_name]
-                value = attr_spec.default
-
-                if value is None:
-                    continue
-
-                # Only process Sdf.AssetPath values
+        for attr_spec in iter_sdf_layer_attribute_specs(layer):
+            prim_path = str(get_sdf_attribute_owner_path(attr_spec))
+            attr_name = attr_spec.name
+            opinions: list[tuple[float | None, Any]] = [(None, attr_spec.default)]
+            opinions.extend(
+                (time_code, layer.QueryTimeSample(attr_spec.path, time_code))
+                for time_code in layer.ListTimeSamplesForPath(attr_spec.path)
+            )
+            for time_code, value in opinions:
                 if not isinstance(value, Sdf.AssetPath):
                     continue
-
                 try:
                     asset_path = value.path if hasattr(value, "path") else str(value)
-                except Exception:  # pragma: no cover - defensive Sdf.AssetPath access
+                except Exception:  # pragma: no cover - defensive asset access
                     continue
-
                 if not asset_path:
                     continue
 
                 # --- MDL path rewriting ---
                 if attr_name == "info:mdl:sourceAsset":
-                    resolved_mdl_path = _resolve_export_asset_path(
-                        asset_path,
-                        asset_base_dir,
-                    )
-
-                    new_path = copied_mdl_files.get(resolved_mdl_path)
+                    opinion_key = (prim_path, attr_name, time_code)
+                    new_path = copied_mdl_attrs.get(opinion_key)
                     if new_path is None:
-                        for orig_dir, rel_bundle_path in copied_dirs.items():
-                            if asset_path.startswith(orig_dir) or (
-                                os.path.isabs(asset_path)
-                                and str(Path(asset_path).parent) == orig_dir
-                            ):
-                                mdl_filename = Path(asset_path).name
-                                new_path = f"{rel_bundle_path}/{mdl_filename}"
-                                break
-
+                        resolved_mdl_path = _resolve_export_asset_path(
+                            asset_path,
+                            asset_base_dir,
+                        )
+                        new_path = copied_mdl_files.get(resolved_mdl_path)
+                        if new_path is None:
+                            for orig_dir, rel_bundle_path in copied_dirs.items():
+                                if asset_path.startswith(orig_dir) or (
+                                    os.path.isabs(asset_path)
+                                    and str(Path(asset_path).parent) == orig_dir
+                                ):
+                                    mdl_filename = Path(asset_path).name
+                                    new_path = f"{rel_bundle_path}/{mdl_filename}"
+                                    break
                     if new_path is not None:
-                        attr_spec.default = Sdf.AssetPath(new_path)
+                        replacement = Sdf.AssetPath(new_path)
+                        if time_code is None:
+                            attr_spec.default = replacement
+                        else:
+                            layer.SetTimeSample(
+                                attr_spec.path,
+                                time_code,
+                                replacement,
+                            )
                         updated_count += 1
-                        logger.debug(f"Updated MDL path: {asset_path} -> {new_path}")
+                        rewritten_mdl_attrs.add(opinion_key)
+                        logger.debug("Updated MDL path: %s -> %s", asset_path, new_path)
                     continue
 
                 # --- Texture path rewriting ---
                 if not copied_textures:
                     continue
-
-                new_path = copied_texture_attrs.get((prim_path, attr_name))
+                opinion_key = (prim_path, attr_name, time_code)
+                new_path = copied_texture_attrs.get(opinion_key)
                 if new_path is None:
                     resolved_texture_path = _resolve_export_asset_path(
                         asset_path,
                         asset_base_dir,
                     )
                     new_path = copied_textures.get(resolved_texture_path)
+                if new_path is None:
+                    continue
+                try:
+                    replacement = Sdf.AssetPath(new_path)
+                    if time_code is None:
+                        attr_spec.default = replacement
+                    else:
+                        layer.SetTimeSample(
+                            attr_spec.path,
+                            time_code,
+                            replacement,
+                        )
+                except Exception as exc:
+                    if opinion_key in localized_texture_attrs:
+                        raise PackageTextureLocalizationError(
+                            "Unable to rewrite a localized USDZ package "
+                            "texture in the remote-render layer: "
+                            f"prim={prim_path}, attribute={attr_name!r}, "
+                            f"time={time_code!r}"
+                        ) from exc
+                    raise
+                updated_count += 1
+                rewritten_texture_attrs.add(opinion_key)
+                logger.debug("Updated texture path: %s -> %s", asset_path, new_path)
 
-                if new_path is not None:
-                    attr_spec.default = Sdf.AssetPath(new_path)
-                    updated_count += 1
-                    logger.debug(f"Updated texture path: {asset_path} -> {new_path}")
-
-            # Process child prims
-            for child in prim_spec.nameChildren:
-                process_prim_spec(child)
-
-        for prim in layer.rootPrims:
-            process_prim_spec(prim)
+        if require_localized_rewrites:
+            missing_localized_mdl_rewrites = localized_mdl_attrs - rewritten_mdl_attrs
+            if missing_localized_mdl_rewrites:
+                raise PackageMdlLocalizationError(
+                    "Localized USDZ package MDL attributes were not rewritten "
+                    "in the remote-render layer: "
+                    f"{sorted(missing_localized_mdl_rewrites, key=repr)!r}"
+                )
+            missing_localized_rewrites = (
+                localized_texture_attrs - rewritten_texture_attrs
+            )
+            if missing_localized_rewrites:
+                raise PackageTextureLocalizationError(
+                    "Localized USDZ package texture attributes were not rewritten "
+                    "in the remote-render layer: "
+                    f"{sorted(missing_localized_rewrites, key=repr)!r}"
+                )
 
         return updated_count
 
@@ -624,7 +1011,10 @@ def _bundle_stage_with_local_assets(
             )
         exported_layer = Sdf.Layer.FindOrOpen(str(temp_usda))
         if exported_layer:
-            post_fallback_updates = update_asset_paths_in_layer(exported_layer)
+            post_fallback_updates = update_asset_paths_in_layer(
+                exported_layer,
+                require_localized_rewrites=False,
+            )
             if post_fallback_updates:
                 exported_layer.Save()
                 logger.info(
@@ -736,6 +1126,7 @@ def export_stage_to_s3(
     base_dir: str | Path | None = None,
     add_preview_fallbacks: bool | None = None,
     material_target: str | None = None,
+    asset_root: str | Path | None = None,
 ) -> tuple[str, str | None]:
     """Export a USD stage for REST rendering, returning URL and optional S3 URI.
 
@@ -769,6 +1160,8 @@ def export_stage_to_s3(
                           Default: True
         base_dir: Base directory for resolving relative texture paths. If None,
                  uses the stage's root layer directory.
+        asset_root: Explicit trusted root that may contain local assets. If
+                 omitted, confinement defaults to ``base_dir``.
         add_preview_fallbacks: Legacy compatibility flag. If explicitly True,
                      author render-export UsdPreviewSurface bridges for
                      MaterialX OpenPBR materials. If None, follows
@@ -822,9 +1215,23 @@ def export_stage_to_s3(
                 stage,
                 temp_dir,
                 base_dir=base_dir,
+                asset_root=asset_root,
                 has_local_composition_arcs=has_local_composition_arcs,
                 add_preview_fallbacks=effective_add_preview_fallbacks,
             )
+        except (
+            UnsafeLocalAssetPathError,
+            PackageMdlLocalizationError,
+            PackageTextureLocalizationError,
+        ):
+            # A security-policy rejection must not degrade to a USD-only
+            # export: the remote renderer could share a filesystem mount and
+            # resolve the same attacker-authored absolute path itself.
+            if temp_dir and temp_dir.exists():
+                import shutil
+
+                shutil.rmtree(temp_dir)
+            raise
         except Exception as e:
             logger.warning(f"MDL bundling failed, falling back to USD-only: {e}")
             was_bundled = False
@@ -999,6 +1406,7 @@ def render_single_camera(
     retry_jitter: float = 0.1,
     add_preview_fallbacks: bool | None = None,
     material_target: str | None = None,
+    allow_redirects: bool = True,
 ) -> dict[str, Any]:
     """
     Render a single camera view from an in-memory USD Stage using a REST renderer.
@@ -1042,6 +1450,8 @@ def render_single_camera(
         material_target: Explicit material target sent in the REST request so
             the renderer can choose material handling. This helper does not
             rewrite the temporary stage export before sending that request.
+        allow_redirects: Whether the REST render request may follow HTTP
+            redirects. Defaults to True for backward compatibility.
 
     Returns:
         Dict containing:
@@ -1134,6 +1544,7 @@ def render_single_camera(
             retry_backoff_factor=retry_backoff_factor,
             retry_jitter=retry_jitter,
             material_target=material_target,
+            allow_redirects=allow_redirects,
         )
         return result
     finally:
@@ -1163,6 +1574,9 @@ def render_single_camera_from_url(
     retry_backoff_factor: float = 2.0,
     retry_jitter: float = 0.1,
     material_target: str | None = None,
+    allow_redirects: bool = True,
+    num_sensor_updates: int | None = None,
+    render_mode: str | None = None,
 ) -> dict[str, Any]:
     """
     Render a single camera view from a USD file URL using a REST renderer.
@@ -1193,6 +1607,10 @@ def render_single_camera_from_url(
         material_target: Explicit material target forwarded to the REST renderer.
             Use ``openpbr_materialx`` to render native OpenPBR/MaterialX without
             requesting render-export PreviewSurface fallbacks.
+        allow_redirects: Whether the REST render request may follow HTTP
+            redirects. Defaults to True for backward compatibility.
+        num_sensor_updates: Optional OVRTX progressive-update count.
+        render_mode: Optional OVRTX mode (``rt1``, ``rt2``, or ``pt``).
 
     Returns:
         Dict containing:
@@ -1258,6 +1676,10 @@ def render_single_camera_from_url(
     }
     if material_target is not None:
         params["render_settings"]["material_target"] = material_target
+    if num_sensor_updates is not None:
+        params["render_settings"]["num_sensor_updates"] = num_sensor_updates
+    if render_mode is not None:
+        params["render_settings"]["render_mode"] = render_mode
 
     # Create headers using common utility
     headers = create_nvcf_headers(api_key, timeout)
@@ -1271,6 +1693,7 @@ def render_single_camera_from_url(
     # Retry logic for Remote render request
     last_error = None
     current_delay = retry_delay
+    decoded_color_images: dict[tuple[int, str], Image.Image] = {}
 
     for attempt in range(max_retries + 1):
         try:
@@ -1293,8 +1716,14 @@ def render_single_camera_from_url(
                 headers=headers,
                 json=params,
                 timeout=timeout + 10,
-                allow_redirects=True,
+                allow_redirects=allow_redirects,
             )
+            if not allow_redirects and not 200 <= response.status_code < 300:
+                raise HTTPError(
+                    "Remote render request returned non-success HTTP "
+                    f"{response.status_code} while redirects were disabled",
+                    response=response,
+                )
             response.raise_for_status()
 
             # Check content type to handle both JSON and ZIP responses
@@ -1323,7 +1752,43 @@ def render_single_camera_from_url(
                 )
                 raise ValueError("Unexpected content type")
 
-            # Success - break out of retry loop
+            if _is_v2_response(result):
+                result = _convert_v2_to_v1(result)
+
+            if result.get("status") == RenderingStatus.success:
+                decoded_color_images, requested_count = _decoded_color_output_coverage(
+                    result,
+                    cameras=[camera],
+                    frame_start=frame_start,
+                    frame_end=frame_end,
+                    decode_image=base64_to_image,
+                )
+                observed_count = len(decoded_color_images)
+                if observed_count != requested_count:
+                    error_msg = _incomplete_color_output_error(
+                        observed_count,
+                        requested_count,
+                    )
+                    logger.warning(
+                        "%s on attempt %d/%d",
+                        error_msg,
+                        attempt + 1,
+                        max_retries + 1,
+                    )
+                    if attempt < max_retries:
+                        continue
+                    return {
+                        "camera": camera,
+                        "images": [],
+                        "sensors": {},
+                        "render_time": time.time() - start_time,
+                        "frame_count": 0,
+                        "status": RenderingStatus.empty_response,
+                        "error": error_msg,
+                        "error_code": "incomplete_render_output",
+                    }
+
+            # Complete success or a typed renderer failure handled below.
             break
 
         except (ConnectionError, Timeout) as e:
@@ -1441,10 +1906,6 @@ def render_single_camera_from_url(
     render_time = time.time() - start_time
     logger.info("Remote render request completed in %.2fs", render_time)
 
-    # Convert V2 response to V1 format if needed
-    if _is_v2_response(result):
-        result = _convert_v2_to_v1(result)
-
     # Check status
     status = result.get("status", RenderingStatus.exception)
     if status != RenderingStatus.success:
@@ -1471,49 +1932,53 @@ def render_single_camera_from_url(
     warnings = result.get("warnings", [])
     blank_render_frames = result.get("blank_render_frames", [])
 
-    # Sort frames by frame number to maintain order
-    frame_items = sorted(result.get("images", {}).items(), key=lambda x: int(x[0]))
-    for frame_num, frame_data in frame_items:
-        frame_num_int = int(frame_num)
+    response_images = result.get("images", {})
+    for frame_num_int in range(frame_start, frame_end + 1):
+        frame_data = response_images.get(
+            str(frame_num_int),
+            response_images.get(frame_num_int),
+        )
+        if not isinstance(frame_data, dict):  # pragma: no cover - validated above
+            raise RuntimeError(
+                "Validated render response lost frame coverage while parsing"
+            )
+        response_camera_key = _matching_response_camera_key(
+            camera,
+            [key for key in frame_data if isinstance(key, str)],
+        )
+        if response_camera_key is None:  # pragma: no cover - validated above
+            raise RuntimeError(
+                "Validated render response lost camera coverage while parsing"
+            )
+        camera_data = frame_data[response_camera_key]
+        images.append(decoded_color_images[(frame_num_int, camera)])
 
-        # Get camera data (should only be one camera)
-        for _camera_path, camera_data in frame_data.items():
-            # Process main image
-            if "images" in camera_data:
+        # Process sensor data
+        for sensor_name in sensors or []:
+            if sensor_name in camera_data:
                 try:
-                    img = base64_to_image(camera_data["images"])
-                    images.append(img)
+                    # Determine dtype based on sensor type
+                    if sensor_name == "instance_id_segmentation":
+                        # Segmentation uses uint32 for instance IDs (not uint8!)
+                        # Using uint8 causes 4x data size and stride issues
+                        dtype = np.uint32
+                    else:
+                        dtype = np.float32
+
+                    data = base64_to_numpy(camera_data[sensor_name], dtype=dtype)
+                    sensor_data[sensor_name][frame_num_int] = data
                 except Exception as e:
                     logger.warning(
-                        "Failed to decode image for frame %s: %s", frame_num, e
+                        "Failed to decode %s for frame %s: %s",
+                        sensor_name,
+                        frame_num_int,
+                        e,
                     )
-
-            # Process sensor data
-            for sensor_name in sensors or []:
-                if sensor_name in camera_data:
-                    try:
-                        # Determine dtype based on sensor type
-                        if sensor_name == "instance_id_segmentation":
-                            # Segmentation uses uint32 for instance IDs (not uint8!)
-                            # Using uint8 causes 4x data size and stride issues
-                            dtype = np.uint32
-                        else:
-                            dtype = np.float32
-
-                        data = base64_to_numpy(camera_data[sensor_name], dtype=dtype)
-                        sensor_data[sensor_name][frame_num_int] = data
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to decode %s for frame %s: %s",
-                            sensor_name,
-                            frame_num,
-                            e,
-                        )
 
     frame_count = len(images)
     logger.info("Successfully rendered %s frames for camera %s", frame_count, camera)
 
-    return {
+    rendered = {
         "camera": camera,
         "images": images,
         "sensors": sensor_data,
@@ -1523,6 +1988,10 @@ def render_single_camera_from_url(
         "warnings": warnings,
         "blank_render_frames": blank_render_frames,
     }
+    for key in ("ovrtx_render_mode", "ovrtx_num_sensor_updates", "active_aov"):
+        if key in result:
+            rendered[key] = result[key]
+    return rendered
 
 
 def render_all_cameras(
@@ -1549,8 +2018,12 @@ def render_all_cameras(
     base_dir: str | Path | None = None,
     add_preview_fallbacks: bool | None = None,
     material_target: str | None = None,
+    allow_redirects: bool = True,
     use_global_render_slots: bool = False,
     render_slot_timeout_sec: float | None = None,
+    num_sensor_updates: int | None = None,
+    render_mode: str | None = None,
+    asset_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """
     Render multiple cameras from an in-memory USD Stage using a REST renderer.
@@ -1600,11 +2073,18 @@ def render_all_cameras(
         material_target: Explicit material target for render export. ``auto``
                   preserves authored/native material outputs. Use
                   ``preview_surface`` to request preview fallback authoring.
+        allow_redirects: Whether REST render requests may follow HTTP
+                  redirects. Defaults to True for backward compatibility.
         use_global_render_slots: Acquire one process-wide remote-render slot
                   around each camera request. Use this when ``max_workers`` is
                   greater than one so the shared request cap remains exact.
         render_slot_timeout_sec: Optional timeout for each process-wide slot
                   acquisition when ``use_global_render_slots`` is enabled.
+        num_sensor_updates: Optional OVRTX progressive-update count forwarded
+                  to the REST renderer.
+        render_mode: Optional OVRTX mode forwarded to the REST renderer.
+        asset_root: Explicit trusted root that may contain local assets. If
+                  omitted, confinement defaults to ``base_dir``.
 
     Returns:
         Dict containing:
@@ -1667,6 +2147,7 @@ def render_all_cameras(
             use_data_uri=use_data_uri,
             bundle_mdl_assets=bundle_mdl_assets,
             base_dir=base_dir,
+            asset_root=asset_root,
             add_preview_fallbacks=add_preview_fallbacks,
             material_target=material_target,
         )
@@ -1714,6 +2195,9 @@ def render_all_cameras(
                     retry_backoff_factor=retry_backoff_factor,
                     retry_jitter=retry_jitter,
                     material_target=material_target,
+                    allow_redirects=allow_redirects,
+                    num_sensor_updates=num_sensor_updates,
+                    render_mode=render_mode,
                 )
 
             if global_render_slot is None:
@@ -1819,6 +2303,9 @@ def render_all_cameras_from_url(
     retry_backoff_factor: float = 2.0,
     retry_jitter: float = 0.1,
     material_target: str | None = None,
+    allow_redirects: bool = True,
+    num_sensor_updates: int | None = None,
+    render_mode: str | None = None,
 ) -> dict[str, Any]:
     """
     Render multiple cameras from a USD file URL using a REST renderer.
@@ -1843,6 +2330,10 @@ def render_all_cameras_from_url(
         retry_backoff_factor: Factor to multiply delay by after each retry. Default: 2.0
         retry_jitter: Random jitter factor (0-1) to add to delays. Default: 0.1
         material_target: Explicit material target forwarded to the REST renderer.
+        allow_redirects: Whether REST render requests may follow HTTP
+            redirects. Defaults to True for backward compatibility.
+        num_sensor_updates: Optional OVRTX progressive-update count.
+        render_mode: Optional OVRTX mode (``rt1``, ``rt2``, or ``pt``).
 
     Returns:
         Dict containing:
@@ -1895,6 +2386,9 @@ def render_all_cameras_from_url(
                     retry_backoff_factor=retry_backoff_factor,
                     retry_jitter=retry_jitter,
                     material_target=material_target,
+                    allow_redirects=allow_redirects,
+                    num_sensor_updates=num_sensor_updates,
+                    render_mode=render_mode,
                 ): camera
                 for camera in cameras
             }
@@ -1941,6 +2435,9 @@ def render_all_cameras_from_url(
                     retry_backoff_factor=retry_backoff_factor,
                     retry_jitter=retry_jitter,
                     material_target=material_target,
+                    allow_redirects=allow_redirects,
+                    num_sensor_updates=num_sensor_updates,
+                    render_mode=render_mode,
                 )
                 results.append(result)
                 if result.get("status") == RenderingStatus.success:
@@ -2212,7 +2709,7 @@ def save_render_results(
 
                     # Save as NPY
                     npy_path = (
-                        output_dir / f"{file_name}_f{frame_num:04d}_{sensor_name}.npy"
+                        output_dir / f"{file_name}_f{frame_num:04}_{sensor_name}.npy"
                     )
                     if save_npy:
                         np.save(npy_path, data)
@@ -2243,7 +2740,7 @@ def save_render_results(
                     success_count += 1
                 except Exception as e:
                     logger.warning(
-                        "Failed to save %s for frame %d: %s",
+                        "Failed to save %s for frame %s: %s",
                         sensor_name,
                         frame_num,
                         e,

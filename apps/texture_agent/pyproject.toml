@@ -25,7 +25,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -41,6 +41,9 @@ all = [
 
 [project.scripts]
 texture-agent = "texture_agent.cli:app"
+
+[project.entry-points."content_agent_workflows.asset_leaf_runtime_bundles"]
+texture = "content_agent_workflows.texture.asset_leaf_adapter:texture_asset_leaf_runtime_bundle"
 
 [tool.hatch.build.targets.wheel]
 packages = ["texture_agent"]
@@ -82,6 +85,13 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+# Running `pytest apps/texture_agent/tests` from the repo root (as CLAUDE.md
+# documents) makes pytest walk up from the argument and select THIS file as the
+# configfile, so the repo-root `pythonpath` list never applies. Tests that
+# declare `pytest_plugins = ("fake_projection_backend",)` then fail to import
+# it. CI sidesteps this by forcing `-c pyproject.toml`; declare the path here so
+# the documented invocation works too.
+pythonpath = ["tests"]
 addopts = [
     "--verbose",
     "--cov=texture_agent",

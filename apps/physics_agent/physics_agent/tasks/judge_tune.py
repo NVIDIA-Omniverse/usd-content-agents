@@ -56,6 +56,12 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from world_understanding.optimization.contracts import (
+    DEFAULT_JUDGE_PROGRAMMATIC_WEIGHT,
+    DEFAULT_JUDGE_VLM_WEIGHT,
+    combine_judge_scores,
+)
+
 from physics_agent.tuning.types import Scenario, TrialRecord, TunableParam
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
@@ -65,7 +71,13 @@ from physics_agent.tuning.visual_evidence import (
     validate_visual_frame_count,
 )
 
-__all__ = ["JudgeResult", "JudgeError", "run_tune_judge"]
+__all__ = [
+    "JUDGE_PROGRAMMATIC_WEIGHT",
+    "JUDGE_VLM_WEIGHT",
+    "JudgeResult",
+    "JudgeError",
+    "run_tune_judge",
+]
 
 _logger = logging.getLogger(__name__)
 
@@ -77,9 +89,9 @@ _W_PARAM_PLAUSIBILITY = 0.60
 _W_FAILED_PENALTY = 0.30
 _W_FINITE_BEST = 0.10
 
-# Combined-score weights.
-_W_PROGRAMMATIC = 0.60
-_W_LLM = 0.40
+# Combined-score weights shared by standard and external-runtime judging.
+JUDGE_PROGRAMMATIC_WEIGHT = DEFAULT_JUDGE_PROGRAMMATIC_WEIGHT
+JUDGE_VLM_WEIGHT = DEFAULT_JUDGE_VLM_WEIGHT
 
 # Reasoning summary cap (chars). Mirrors the spec's "≤ ~500 chars".
 _REASONING_MAX = 500
@@ -225,12 +237,11 @@ def run_tune_judge(
         judge_temperature: Optional temperature for the judge call.
             ``None`` uses ``scenario.extra["judge"]["temperature"]`` if
             present, else the physics judge default.
-        judge_reference_frames: Max reference images/video frames to send to
+        judge_reference_frames: Max reference images to send to
             the VLM judge. Reference media is sampled evenly when there are
             more items than this limit.
         judge_generated_frames: Max generated render frames to send to the VLM
-            judge. Rendered videos are sampled evenly when there are more
-            frames than this limit.
+            judge. Frames are sampled evenly when there are more than this limit.
         score_threshold: Combined-score cut-off for ``approve``. Default 0.7.
         iteration: Caller-tracked refine-loop iteration number (1-indexed).
         prior_refine_history: Optional compact summaries of previous refine
@@ -280,9 +291,7 @@ def run_tune_judge(
     )
 
     # -------------------------------------------------- combine + decide
-    combined = _W_PROGRAMMATIC * prog_score + _W_LLM * llm_score
-    # Clamp into [0, 1] just in case sub-scores escaped their ranges.
-    combined = max(0.0, min(1.0, combined))
+    combined = combine_judge_scores(prog_score, llm_score)
     backend_hard_failure = _has_backend_programmatic_hard_failure(prog_critique)
     decision: Literal["approve", "continue"]
     # Round-12 follow-up (CI flake fix for

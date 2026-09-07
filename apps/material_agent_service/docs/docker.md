@@ -4,8 +4,10 @@
 
 ### Prerequisites
 
-- Docker Compose **v2.24+** (required for the `env_file: required: false` long-form syntax used by the compose file)
-- RTX-capable NVIDIA GPU with 48GB+ VRAM (e.g., L40, L40S, RTX6000 Ada)
+- Docker Compose **v2.24.4+** (required for the `!override` tags and
+  `env_file: required: false` long-form syntax used by the Compose files)
+- Default OVRTX topology: RTX-capable NVIDIA GPU with 48GB+ VRAM (e.g., L40, L40S, RTX6000 Ada)
+- WSL2 WARP topology: CUDA-capable NVIDIA GPU exposed to WSL2
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed
 - VLM provider API key (OpenAI, Anthropic, Gemini, or NVIDIA)
 
@@ -25,6 +27,24 @@ Expect the bundled `ovrtx-rendering-api` sidecar to spend roughly 5 minutes in
 GPU warm-up on a cold start. During that time `/health` on port `8001` returns
 `gpu_initialized=false`, and `material-agent-service` will wait to start.
 
+### WSL2 with in-process WARP
+
+Local OVRTX is not supported inside WSL2. Use the WARP overlay, which removes
+the OVRTX startup dependency, keeps that sidecar inactive, and assigns one GPU
+to `material-agent-service`:
+
+```bash
+docker compose --env-file .env \
+  -f apps/material_agent_service/docker-compose.yml \
+  -f apps/material_agent_service/docker-compose.warp.yml up --build
+```
+
+The service image already installs the qualified WARP/Newton dependency set.
+Set `MA_WARP_GPU_DEVICE_ID` before invoking Compose to select a GPU other than
+device 0. The overlay works either with Docker Engine and Compose installed
+directly inside WSL2 (without Docker Desktop), or with Docker Desktop's WSL2
+backend.
+
 ### Access
 
 - **Health**: http://localhost:8000/health
@@ -37,7 +57,7 @@ For Brev deployment planning, see [`brev.md`](brev.md).
 
 | Service | Port | GPU | Build | Description |
 |---|---|---|---|---|
-| material-agent-service | 8000 | No | From source | Main service (pipeline + REST API) |
+| material-agent-service | 8000 | No; 1x with WARP overlay | From source | Main service (pipeline + REST API) |
 | ovrtx-rendering-api | 8001 | 1x | From source | OVRTX-based USD rendering |
 | vlm-nim (optional) | 8003 | 1x | NGC image | Local Cosmos Reason2 8B VLM |
 | cluster-embedding-nim (optional) | 8004 | 1x | NGC image | Local Llama Nemotron VLM embeddings for prim clustering |
@@ -47,6 +67,11 @@ For Brev deployment planning, see [`brev.md`](brev.md).
 ```bash
 # Main + rendering (default, no NGC needed)
 docker compose -f apps/material_agent_service/docker-compose.yml up --build
+
+# WSL2 + in-process WARP (no local OVRTX sidecar)
+docker compose --env-file .env \
+  -f apps/material_agent_service/docker-compose.yml \
+  -f apps/material_agent_service/docker-compose.warp.yml up --build
 
 # Add local VLM NIM (requires NGC login and 2+ GPUs)
 printf '%s' "$NGC_API_KEY" | docker login nvcr.io \
@@ -164,12 +189,14 @@ sets `shm_size` to `16gb` by default for Triton; override it with
 | Configuration | GPUs | CPU | Memory |
 |---|---|---|---|
 | Main + rendering (default) | 1 | 10 | 20G |
+| WSL2 + WARP | 1 | 8 | 16G |
 | + VLM NIM | 2 | 16 | 56G |
 | + embedding NIM | 2 | 16 | 32G |
 
 ### GPU Notes
 
 - OVRTX rendering needs 1 RTX-capable GPU with 48GB VRAM
+- Local OVRTX is unsupported inside WSL2; use `docker-compose.warp.yml` there
 - Local compose starts one OVRTX renderer, so the main service defaults
   `MA_MAX_ACTIVE_SESSIONS`, `MA_MAX_RENDER_NUM_WORKERS`, and
   `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` to `1`

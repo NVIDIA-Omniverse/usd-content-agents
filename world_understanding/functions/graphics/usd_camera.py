@@ -98,6 +98,26 @@ def extract_camera_parameters(
     if not stage:
         raise ValueError(f"Failed to open USD file: {usd_path}")
 
+    return extract_camera_parameters_from_stage(
+        stage=stage,
+        camera_path=camera_path,
+        image_width=image_width,
+        image_height=image_height,
+        time_code=time_code,
+    )
+
+
+def extract_camera_parameters_from_stage(
+    stage: Usd.Stage,
+    camera_path: str,
+    image_width: int,
+    image_height: int | None = None,
+    time_code: float | None = None,
+    *,
+    xform_cache: UsdGeom.XformCache | None = None,
+) -> dict[str, Any]:
+    """Extract camera parameters from an already-open USD stage."""
+
     # Get the camera prim
     cam_prim = stage.GetPrimAtPath(Sdf.Path(camera_path))
     if not cam_prim or not cam_prim.IsA(UsdGeom.Camera):
@@ -110,7 +130,10 @@ def extract_camera_parameters(
 
     # Get camera and transforms
     cam = UsdGeom.Camera(cam_prim)
-    xform_cache = UsdGeom.XformCache(time)
+    if xform_cache is None:
+        xform_cache = UsdGeom.XformCache(time)
+    elif xform_cache.GetTime() != time:
+        raise ValueError("xform_cache time does not match time_code")
     c2w: Gf.Matrix4d = xform_cache.GetLocalToWorldTransform(cam_prim)
     w2c: Gf.Matrix4d = c2w.GetInverse()
 

@@ -8,7 +8,7 @@
     {
       "name": "visual_materials",
       "status": "pass",
-      "summary": "All visible material candidates have explicit material assignments and final Workbench renders passed visual review.",
+      "summary": "All visible material candidates have explicit material assignments and final usd-cli OVRTX renders passed visual review.",
       "evidence_artifacts": [
         {
           "kind": "render",

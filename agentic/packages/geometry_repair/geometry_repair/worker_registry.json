@@ -1,0 +1,204 @@
+{
+  "schema_version": "geometry-repair.worker-registry.v1",
+  "policy": "Only NVIDIA first-party components and third-party open-source software may execute.",
+  "workers": [
+    {
+      "name": "noop",
+      "approval_status": "enabled",
+      "component_class": "nvidia_first_party",
+      "license": "Apache-2.0",
+      "source": "world-understanding/agentic/packages/geometry_repair",
+      "version_evidence": "geometry-repair package version plus repository commit",
+      "execution_scope": "in_process",
+      "operations": ["immutable_copy"]
+    },
+    {
+      "name": "collision_geometry_pipeline",
+      "approval_status": "enabled",
+      "component_class": "nvidia_first_party",
+      "license": "Apache-2.0",
+      "source": "world-understanding/agentic/packages/geometry_repair",
+      "version_evidence": "geometry-repair package version, repository commit, collision report, and output digests",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["build_collision_geometry"]
+    },
+    {
+      "name": "trimesh_conservative_cleanup",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "MIT",
+      "source": "https://github.com/mikedh/trimesh",
+      "version_evidence": "environment lock plus importlib.metadata runtime capture",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["remove_degenerate_faces", "remove_duplicate_faces", "orient_faces"]
+    },
+    {
+      "name": "trimesh_bounded_hole_fill",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "Trimesh MIT; bounded topology adapter Apache-2.0",
+      "source": "https://github.com/mikedh/trimesh plus world-understanding/agentic/packages/geometry_repair",
+      "version_evidence": "environment lock plus importlib.metadata runtime capture and repository commit",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["triangular_hole_fill", "planar_quad_hole_fill"]
+    },
+    {
+      "name": "trimesh_convex_hull_collision",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "Trimesh MIT; SciPy BSD-3-Clause; Qhull permissive license",
+      "source": "https://github.com/mikedh/trimesh",
+      "version_evidence": "environment lock plus Trimesh runtime capture",
+      "execution_scope": "point_bounded_in_process",
+      "operations": ["convex_hull_collision"]
+    },
+    {
+      "name": "fast_simplification_collision_working_copy",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "MIT",
+      "source": "https://github.com/pyvista/fast-simplification/tree/v0.1.13",
+      "version_evidence": "fast-simplification==0.1.13 plus environment lock and collision report",
+      "execution_scope": "bounded_in_process_collision_preprocessing",
+      "operations": ["collision_only_quadric_decimation"]
+    },
+    {
+      "name": "ocp_shape_heal",
+      "approval_status": "enabled_with_notice",
+      "component_class": "open_source",
+      "license": "Runtime-provider terms apply; no B-rep backend is distributed with Geometry Repair",
+      "source": "optional separately authorized OCP-compatible runtime",
+      "version_evidence": "runtime import and distribution identity capture when separately configured",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["brep_check", "shape_fix", "bounded_sewing"]
+    },
+    {
+      "name": "usd_structure_repair",
+      "approval_status": "enabled",
+      "component_class": "nvidia_first_party",
+      "license": "Apache-2.0",
+      "source": "world-understanding/agentic/packages/geometry_repair",
+      "version_evidence": "repository commit plus usd-exchange provider and OpenUSD runtime capture",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["set_default_prim", "coherent_stage_metric_normalization"]
+    },
+    {
+      "name": "scene_optimizer",
+      "approval_status": "enabled_external",
+      "component_class": "nvidia_first_party",
+      "license": "NVIDIA first-party authorized component",
+      "source": "world_understanding.functions.graphics.scene_optimizer_local",
+      "version_evidence": "world-understanding repository commit and optimizer report",
+      "execution_scope": "shared_geometry_workflow",
+      "operations": ["correspondence_preserving_optimization"]
+    },
+    {
+      "name": "scene_optimizer_deinstance",
+      "approval_status": "enabled",
+      "component_class": "nvidia_first_party",
+      "license": "NVIDIA first-party authorized component",
+      "source": "world_understanding.functions.graphics.scene_optimizer_local",
+      "version_evidence": "Scene Optimizer Core package manifest, worker report, and repository commit",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["deinstance_without_split_merge_or_deduplicate"]
+    },
+    {
+      "name": "geogram_local_repair",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/BrunoLevy/geogram/tree/c8529bb00838186938ab31d96008a59b6a892dee",
+      "version_evidence": "independently approved executable SHA-256 plus vorpalite 1.10.0 runtime enforcement; release tag commit c8529bb00838186938ab31d96008a59b6a892dee",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["local_topology_repair", "intersection_repair"]
+    },
+    {
+      "name": "sdf_rebuild",
+      "approval_status": "enabled_with_notice",
+      "component_class": "nvidia_first_party",
+      "license": "Geometry Repair Apache-2.0; selected SDF drivers require separate structured license admission",
+      "source": "world-understanding/agentic/packages/geometry_repair",
+      "version_evidence": "repository-owned SDF reconstruction worker; selected drivers require checked-in behavioral qualification and exact runtime identity evidence",
+      "backend_qualification_policy": "geometry_repair/sdf_backend_qualifications.json",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["per_part_signed_level_set_reconstruction", "per_part_unsigned_offset_reconstruction"]
+    },
+    {
+      "name": "sdf_collision_rebuild",
+      "approval_status": "enabled_with_notice",
+      "component_class": "nvidia_first_party",
+      "license": "Geometry Repair Apache-2.0; selected SDF drivers require separate structured license admission",
+      "source": "world-understanding/agentic/packages/geometry_repair",
+      "version_evidence": "repository-owned collision-only SDF reconstruction policy; selected drivers require checked-in behavioral qualification and render USD remains immutable",
+      "backend_qualification_policy": "geometry_repair/sdf_backend_qualifications.json",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["per_part_signed_collision_reconstruction"]
+    },
+    {
+      "name": "coacd_collision",
+      "approval_status": "enabled_with_notice",
+      "component_class": "open_source",
+      "license": "CoACD MIT; CDT/Eigen MPL-2.0; remaining bundled dependencies permissive OSS",
+      "source": "https://github.com/SarahWeiii/CoACD/tree/1.0.11 (b678aa0802996fa03e1ec0e68bd05acf8cd20cf9)",
+      "version_evidence": "coacd==1.0.11 plus importlib.metadata runtime enforcement",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["approximate_convex_decomposition"]
+    },
+    {
+      "name": "manifold_restore_merge_vectors",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "Apache-2.0",
+      "source": "https://github.com/elalish/manifold/tree/v3.5.2",
+      "version_evidence": "manifold3d==3.5.2 plus importlib.metadata runtime enforcement and exact surface/property round-trip hashes",
+      "execution_scope": "isolated_subprocess_analysis_only",
+      "operations": ["manifold_restore_merge_vectors"]
+    },
+    {
+      "name": "pmp_patch",
+      "approval_status": "enabled",
+      "component_class": "open_source",
+      "license": "pmp-library MIT; Eigen MPL-2.0; nlohmann/json MIT; OpenSSL Apache-2.0",
+      "source": "https://github.com/pmp-library/pmp-library/tree/2a2ad502743724ba90e09af816364c84032f9015",
+      "version_evidence": "pinned source commit and tree digest, independently approved executable SHA-256, capability document, native report, and output hashes",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["pmp_fill_classified_hole"]
+    },
+    {
+      "name": "cgal_local_repair",
+      "approval_status": "evaluation_only_gpl_not_distributed",
+      "component_class": "open_source_candidate",
+      "license": "GPL package-dependent",
+      "source": "https://github.com/CGAL/cgal",
+      "execution_scope": "isolated_service",
+      "operations": ["exact_intersection_detection", "local_mesh_repair"]
+    },
+    {
+      "name": "libigl_local_repair",
+      "approval_status": "disabled_pending_module_review",
+      "component_class": "open_source_candidate",
+      "license": "MPL-2.0 or GPL by selected module",
+      "source": "https://github.com/libigl/libigl",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["exact_intersection_detection", "local_remesh"]
+    },
+    {
+      "name": "cellocut_rebuild",
+      "approval_status": "evaluation_only_transitive_review",
+      "component_class": "open_source_candidate",
+      "license": "Apache-2.0 top level; bundled Eigen/libigl and CGAL-linked modules require exact module review",
+      "source": "https://github.com/rangeryx-66/CelloCut/tree/afb58ba54bcb265922ea6e1c8c4d0f8a02cf7539",
+      "execution_scope": "isolated_subprocess",
+      "operations": ["global_watertight_reconstruction"]
+    },
+    {
+      "name": "pamo_rebuild",
+      "approval_status": "disabled_pending_agpl_service_approval",
+      "component_class": "open_source_candidate",
+      "license": "AGPL-3.0",
+      "source": "https://github.com/SarahWeiii/pamo/tree/a10e34351eb7de71f41eb279e7ab9b2b101cf7a4",
+      "execution_scope": "separate_service_only_if_approved",
+      "operations": ["gpu_watertight_remesh", "intersection_free_simplification"]
+    }
+  ]
+}

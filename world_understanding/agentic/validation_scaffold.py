@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterable, Mapping, Sequence
+import re
+import time
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Protocol, cast
@@ -54,6 +56,7 @@ from world_understanding.utils.credentials import (
     get_env_api_key_for_backend,
     get_nim_api_key_for_base_url,
     get_openai_api_key_for_base_url,
+    resolve_endpoint_api_key,
 )
 from world_understanding.utils.input_resolver import (
     InputInventory,
@@ -875,6 +878,65 @@ def plan_validation(
     )
 
 
+def prepare_validation_scaffold_context(
+    request: DraftValidationRequest,
+    registry: TemplateRegistry | None = None,
+    *,
+    plan: DraftValidationPlan | None = None,
+    previous_template_results: Sequence[DraftTemplateResult] = (),
+    runtime_visual_evidence: RuntimeVisualEvidence | None = None,
+) -> DraftValidationContext:
+    """Prepare one reusable context for per-template scaffold execution.
+
+    ``runtime_visual_evidence`` is an explicit resume seam. When omitted, the
+    normal renderer-backed evidence preparation runs. A resumable caller may
+    instead provide evidence rehydrated from an already accepted
+    ``render_valid`` checkpoint so ``look_right`` does not rerender or consume
+    unrelated caller evidence.
+    """
+
+    template_registry = registry or create_default_scaffold_registry()
+    validation_plan = plan or plan_validation(request, template_registry)
+    if validation_plan.input_inventory.working_dir is None:
+        raise DraftValidationError("A working directory is required to run templates")
+    working_dir = Path(validation_plan.input_inventory.working_dir)
+    selected_template_names = tuple(
+        step.template_name for step in validation_plan.steps
+    )
+    prepared_runtime_evidence = runtime_visual_evidence
+    if prepared_runtime_evidence is None:
+        prepared_runtime_evidence = _runtime_visual_evidence_for_request(
+            request,
+            input_inventory=validation_plan.input_inventory,
+            working_dir=working_dir,
+            selected_template_names=selected_template_names,
+        )
+    return DraftValidationContext(
+        request=request,
+        plan=validation_plan,
+        input_inventory=validation_plan.input_inventory,
+        working_dir=working_dir,
+        runtime_visual_evidence=prepared_runtime_evidence,
+        previous_template_results=tuple(previous_template_results),
+    )
+
+
+def run_validation_scaffold_template(
+    template_name: str,
+    context: DraftValidationContext,
+    registry: TemplateRegistry | None = None,
+) -> DraftTemplateResult:
+    """Execute one planned scaffold template with structured error handling."""
+
+    planned_template_names = tuple(step.template_name for step in context.plan.steps)
+    if template_name not in planned_template_names:
+        raise DraftValidationError(
+            f"Validation template {template_name!r} is not present in the plan"
+        )
+    template_registry = registry or create_default_scaffold_registry()
+    return _run_template_safely(template_registry.get(template_name), context)
+
+
 def run_validation_scaffold(
     request: DraftValidationRequest,
     registry: TemplateRegistry | None = None,
@@ -902,33 +964,25 @@ def run_validation_scaffold(
             },
         )
 
-    runtime_visual_evidence = _runtime_visual_evidence_for_request(
+    context = prepare_validation_scaffold_context(
         request,
-        input_inventory=plan.input_inventory,
-        working_dir=working_dir,
-        selected_template_names=tuple(step.template_name for step in plan.steps),
-    )
-    context = DraftValidationContext(
-        request=request,
+        template_registry,
         plan=plan,
-        input_inventory=plan.input_inventory,
-        working_dir=working_dir,
-        runtime_visual_evidence=runtime_visual_evidence,
     )
     template_results_list: list[DraftTemplateResult] = []
     for step in plan.steps:
-        step_context = DraftValidationContext(
+        step_context = prepare_validation_scaffold_context(
             request=context.request,
+            registry=template_registry,
             plan=context.plan,
-            input_inventory=context.input_inventory,
-            working_dir=context.working_dir,
             runtime_visual_evidence=context.runtime_visual_evidence,
             previous_template_results=tuple(template_results_list),
         )
         template_results_list.append(
-            _run_template_safely(
-                template_registry.get(step.template_name),
+            run_validation_scaffold_template(
+                step.template_name,
                 step_context,
+                template_registry,
             )
         )
     template_results = tuple(template_results_list)
@@ -1365,6 +1419,14 @@ def _runtime_visual_evidence_from_render_result(
         ),
         metadata=dict(_mapping_value(render_result, "metadata")),
     )
+
+
+def runtime_visual_evidence_from_render_result(
+    render_result: Mapping[str, Any],
+) -> RuntimeVisualEvidence:
+    """Rehydrate runtime render evidence for a trusted resume checkpoint."""
+
+    return _runtime_visual_evidence_from_render_result(render_result)
 
 
 def _runtime_visual_evidence_from_policy(
@@ -2504,9 +2566,66 @@ def _copy_policy_value(
             return
 
 
+LOOK_RIGHT_JUDGE_MAX_ATTEMPTS = 3
+LOOK_RIGHT_JUDGE_RETRY_BACKOFF_SECONDS = (1.0, 4.0)
+_RETRYABLE_JUDGE_STATUS_CODES = frozenset({408, 409, 425, 429})
+_RETRYABLE_JUDGE_ERROR_TYPES = frozenset(
+    {
+        "ChunkedEncodingError",
+        "ConnectionError",
+        "ConnectTimeout",
+        "IncompleteRead",
+        "ProtocolError",
+        "ReadTimeout",
+        "RemoteDisconnected",
+        "Timeout",
+    }
+)
+# Clients report the status three different ways: a bracketed prefix from the
+# NVIDIA endpoint wrapper (``[500] Internal Server Error``), a bare leading code
+# from ``requests``/``httpx`` (``500 Server Error: ... for url: ...``), or no
+# text at all when the code lives on the exception or its response object.
+_JUDGE_STATUS_PATTERN = re.compile(r"^\s*(?:\[(\d{3})\]|(\d{3})\s+\D)")
+
+
+def _judge_error_status(exc: BaseException) -> int | None:
+    """Return the HTTP status a judge failure reports, when it carries one."""
+
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    # requests.HTTPError and httpx.HTTPStatusError carry the code on the
+    # response rather than the exception, and their message text does not use
+    # the bracketed form, so missing this reads a retryable 5xx as permanent.
+    response_status = getattr(getattr(exc, "response", None), "status_code", None)
+    if isinstance(response_status, int):
+        return response_status
+    match = _JUDGE_STATUS_PATTERN.match(str(exc))
+    if match is None:
+        return None
+    return int(match.group(1) or match.group(2))
+
+
+def _is_retryable_judge_error(exc: BaseException) -> bool:
+    """Decide whether a judge failure is worth another attempt.
+
+    Only transport faults and server-side failures are retried. A `410 Gone`
+    for a retired model, a `404` for an unentitled one, and a `401` for a bad
+    key are permanent: retrying them wastes a validation run's time and buries
+    the real cause under identical repeats.
+    """
+
+    status = _judge_error_status(exc)
+    if status is not None:
+        return status in _RETRYABLE_JUDGE_STATUS_CODES or 500 <= status <= 599
+    return type(exc).__name__ in _RETRYABLE_JUDGE_ERROR_TYPES
+
+
 def _invoke_live_look_right_judge(
     judge_plan: Any,
     live_judge_config: Mapping[str, Any] | None,
+    *,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> tuple[LookRightJudgeInvocation | None, DraftValidationIssue | None]:
     if live_judge_config is None:
         return None, _live_look_right_unavailable_issue(
@@ -2514,25 +2633,57 @@ def _invoke_live_look_right_judge(
             details={"configured": False},
         )
 
-    try:
-        vlm = _create_live_look_right_vlm(live_judge_config)
-        invocation = invoke_look_right_judge(
-            judge_plan,
-            vlm,
-            **_look_right_generation_kwargs(live_judge_config),
-        )
-    except Exception as exc:
-        sanitized_config = _sanitize_model_config(live_judge_config)
-        return None, _live_look_right_unavailable_issue(
-            "The look_right VLM judge could not be invoked.",
-            details={
-                "configured": True,
-                "model_config": sanitized_config,
-                "error_type": type(exc).__name__,
-                "error": _redact_sensitive_text(str(exc), live_judge_config),
-            },
-        )
-    return invocation, None
+    # A single transient upstream failure must not silently downgrade a whole
+    # validation run to `visual.judge_unavailable`. Retry the transport, keep
+    # failing closed once the attempts are spent, and record what was tried.
+    attempts: list[dict[str, Any]] = []
+    for attempt in range(1, LOOK_RIGHT_JUDGE_MAX_ATTEMPTS + 1):
+        try:
+            vlm = _create_live_look_right_vlm(live_judge_config)
+            invocation = invoke_look_right_judge(
+                judge_plan,
+                vlm,
+                **_look_right_generation_kwargs(live_judge_config),
+            )
+        except Exception as exc:
+            retryable = _is_retryable_judge_error(exc)
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "error_type": type(exc).__name__,
+                    "error": _redact_sensitive_text(str(exc), live_judge_config),
+                    "status": _judge_error_status(exc),
+                    "retryable": retryable,
+                }
+            )
+            if retryable and attempt < LOOK_RIGHT_JUDGE_MAX_ATTEMPTS:
+                backoff_index = min(
+                    attempt - 1,
+                    len(LOOK_RIGHT_JUDGE_RETRY_BACKOFF_SECONDS) - 1,
+                )
+                _LOGGER.warning(
+                    "look_right VLM judge attempt %d/%d failed with a "
+                    "retryable error (%s); retrying",
+                    attempt,
+                    LOOK_RIGHT_JUDGE_MAX_ATTEMPTS,
+                    type(exc).__name__,
+                )
+                sleep(LOOK_RIGHT_JUDGE_RETRY_BACKOFF_SECONDS[backoff_index])
+                continue
+            last = attempts[-1]
+            return None, _live_look_right_unavailable_issue(
+                "The look_right VLM judge could not be invoked.",
+                details={
+                    "configured": True,
+                    "model_config": _sanitize_model_config(live_judge_config),
+                    "error_type": last["error_type"],
+                    "error": last["error"],
+                    "attempts": len(attempts),
+                    "attempt_history": attempts,
+                },
+            )
+        return invocation, None
+    raise AssertionError("unreachable: judge retry loop exhausted without result")
 
 
 class _UnavailableTextJudge:
@@ -2589,6 +2740,8 @@ def _create_live_look_right_llm(config: Mapping[str, Any]) -> Any:
             "provider",
             "enabled",
             "generation_kwargs",
+            "api_key",
+            "api_key_env",
             "max_tokens",
             "temperature",
         }
@@ -2597,7 +2750,8 @@ def _create_live_look_right_llm(config: Mapping[str, Any]) -> Any:
     api_key = _resolve_live_vlm_api_key(
         backend,
         base_url=llm_kwargs.get("base_url"),
-        explicit_api_key=llm_kwargs.get("api_key"),
+        explicit_api_key=config.get("api_key"),
+        api_key_env=config.get("api_key_env"),
     )
     if api_key:
         llm_kwargs["api_key"] = api_key
@@ -2627,13 +2781,16 @@ def _create_live_look_right_vlm(config: Mapping[str, Any]) -> Any:
             "provider",
             "enabled",
             "generation_kwargs",
+            "api_key",
+            "api_key_env",
         }
         and value is not None
     }
     api_key = _resolve_live_vlm_api_key(
         backend,
         base_url=vlm_kwargs.get("base_url"),
-        explicit_api_key=vlm_kwargs.get("api_key"),
+        explicit_api_key=config.get("api_key"),
+        api_key_env=config.get("api_key_env"),
     )
     if api_key:
         vlm_kwargs["api_key"] = api_key
@@ -2654,16 +2811,22 @@ def _resolve_live_vlm_api_key(
     *,
     base_url: Any,
     explicit_api_key: Any,
+    api_key_env: Any = None,
 ) -> str | None:
+    configured_api_key = resolve_endpoint_api_key(
+        explicit_api_key,
+        api_key_env,
+        require_env=True,
+    )
     backend_name = backend.strip().lower()
     if backend_name == "nim":
-        return get_nim_api_key_for_base_url(base_url, explicit_api_key)
+        return get_nim_api_key_for_base_url(base_url, configured_api_key)
     if backend_name == "openai":
-        return get_openai_api_key_for_base_url(base_url, explicit_api_key)
+        return get_openai_api_key_for_base_url(base_url, configured_api_key)
     if backend_name in API_KEY_ENV_VAR_MAP:
-        return get_env_api_key_for_backend(backend_name, explicit_api_key)
-    if isinstance(explicit_api_key, str) and explicit_api_key.strip():
-        return explicit_api_key.strip()
+        return get_env_api_key_for_backend(backend_name, configured_api_key)
+    if isinstance(configured_api_key, str) and configured_api_key.strip():
+        return configured_api_key.strip()
     return None
 
 

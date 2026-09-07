@@ -5,343 +5,403 @@
 from __future__ import annotations
 
 import json
-import signal
+import re
+import shutil
 import subprocess
+import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from content_agent_workflows.common import usd_cli as usd_cli_common
+from world_understanding.utils.windows_process import windows_process_is_live
 
-from content_workflow_cli import runner as workflow_runner
+import content_workflow_cli.cli as cli_module
 from content_workflow_cli.cli import (
+    _codex_base_url_from_args,
     _default_codex_sandbox_mode,
     _handle_auth_status,
+    _linux_codex_sandbox_prerequisite_error,
     _load_claude_config,
     _parse_json_object,
+    _probe_codex_workspace_write_access,
+    _read_exact_smoke_marker,
     _resolve_materials_usd_from_manifest,
-    _should_start_workbench,
+    _sanitize_native_diagnostic,
+    _smoke_write_command,
     build_parser,
     main,
 )
-from content_workflow_cli.workbench_tools.snapshot_scene import (
-    MaterialCandidatePolicy,
-    _remap_instance_source_target,
-    compact_summary,
-    write_snapshot_artifacts,
-)
 
 
-class _FakeCodexProbeProcess:
-    pid = 4321
+def test_parser_rejects_invalid_vision_max_tokens_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONTENT_AGENT_VISION_MAX_TOKENS", "not-an-integer")
 
-    def __init__(
-        self,
-        *,
-        returncode: int | None,
-        stdout: str = "",
-        stderr: str = "",
-        timeout_once: bool = False,
-    ) -> None:
-        self.returncode = returncode
-        self.stdout = stdout
-        self.stderr = stderr
-        self.timeout_once = timeout_once
-        self.communicate_timeouts: list[float | None] = []
-
-    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
-        self.communicate_timeouts.append(timeout)
-        if self.timeout_once and len(self.communicate_timeouts) == 1:
-            raise subprocess.TimeoutExpired("codex-test", timeout=timeout or 0)
-        if self.returncode is None:
-            self.returncode = -signal.SIGKILL
-        return self.stdout, self.stderr
-
-    def wait(self) -> int:
-        assert self.returncode is not None
-        return self.returncode
-
-    def poll(self) -> int | None:
-        return self.returncode
-
-    def kill(self) -> None:
-        self.returncode = -signal.SIGKILL
+    with pytest.raises(
+        SystemExit,
+        match="CONTENT_AGENT_VISION_MAX_TOKENS must be an integer",
+    ):
+        build_parser()
 
 
-def test_auth_status_probes_model_usability(
+def test_main_converts_argparse_system_exit_to_an_exit_code(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["--not-a-real-option"]) == 2
+    assert "unrecognized arguments" in capsys.readouterr().err
+
+
+def test_articulation_platform_preflight_uses_canonical_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        "world_understanding.functions.physics.joint_rigger."
+        "require_joint_rigger_authoring_platform",
+        lambda: calls.append(True),
+    )
+
+    assert main(["preflight", "articulation-authoring-platform"]) == 0
+    assert calls == [True]
+    assert capsys.readouterr().out == ("articulation authoring platform preflight ok\n")
+
+
+def test_articulation_platform_preflight_reports_intentional_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from world_understanding.functions.physics.joint_rigger import (
+        JointRiggerBackendUnavailableError,
+    )
+
+    message = (
+        "Descriptor-sealed Joint Rigger authoring requires Linux, a Linux "
+        "container, or WSL2."
+    )
+
+    def reject() -> None:
+        raise JointRiggerBackendUnavailableError(message)
+
+    monkeypatch.setattr(
+        "world_understanding.functions.physics.joint_rigger."
+        "require_joint_rigger_authoring_platform",
+        reject,
+    )
+
+    assert main(["preflight", "articulation-authoring-platform"]) == 2
+    captured = capsys.readouterr()
+    assert message in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_claude_sandbox_preflight_routes_to_confinement_smoke(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[Path] = []
+    monkeypatch.setattr(
+        "content_workflow_cli.runner.preflight_claude_windows_sandbox",
+        lambda path: calls.append(path),
+    )
+
+    assert main(["preflight", "claude-sandbox"]) == 0
+    assert calls == [Path.cwd()]
+    assert "Claude sandbox preflight" in capsys.readouterr().out
+
+
+def test_auth_status_probes_workspace_write_usability(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     run_calls: list[list[str]] = []
-    popen_calls: list[tuple[list[str], dict[str, object]]] = []
-    probe_process = _FakeCodexProbeProcess(returncode=0, stdout="OK\n")
 
     def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
         run_calls.append(command)
         return SimpleNamespace(returncode=0)
 
-    def fake_popen(command: list[str], **kwargs: object) -> _FakeCodexProbeProcess:
-        popen_calls.append((command, kwargs))
-        return probe_process
-
     monkeypatch.setattr("content_workflow_cli.cli.subprocess.run", fake_run)
-    monkeypatch.setattr("content_workflow_cli.cli.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(
+        "content_workflow_cli.cli._linux_codex_sandbox_prerequisite_error",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "content_workflow_cli.cli._probe_codex_workspace_write_access", lambda _exe: 0
+    )
     monkeypatch.setattr(
         "content_workflow_cli.cli._codex_executable", lambda: "codex-test"
     )
 
     assert _handle_auth_status(SimpleNamespace()) == 0
     assert run_calls == [["codex-test", "login", "status"]]
-    probe_command, probe_kwargs = popen_calls[0]
-    assert probe_command[0:2] == ["codex-test", "exec"]
-    assert "--ephemeral" in probe_command
-    assert "--ignore-user-config" in probe_command
-    assert "--skip-git-repo-check" in probe_command
-    assert ["--sandbox", "read-only"] == probe_command[
-        probe_command.index("--sandbox") : probe_command.index("--sandbox") + 2
-    ]
-    probe_cwd = probe_command[probe_command.index("--cd") + 1]
-    assert Path(probe_cwd).name.startswith("content-workflow-codex-auth-")
-    assert probe_kwargs["stdin"] is subprocess.DEVNULL
-    assert probe_kwargs["start_new_session"] is True
-    assert probe_process.communicate_timeouts == [60]
-    assert "Codex login is usable for model calls." in capsys.readouterr().out
+    assert capsys.readouterr().out == ""
 
 
-def test_auth_status_fails_when_login_cannot_call_models(
+def test_auth_status_accepts_explicit_sandbox_smoke_flag() -> None:
+    args = build_parser().parse_args(["auth", "status", "--sandbox-smoke"])
+
+    assert args.sandbox_smoke is True
+    assert args.handler is _handle_auth_status
+
+
+def test_auth_status_fails_before_provider_when_linux_sandbox_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    probe_process = _FakeCodexProbeProcess(
-        returncode=1,
-        stderr="HTTP 400: model calls are not supported for this account",
-    )
-
-    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(returncode=0)
-
-    monkeypatch.setattr("content_workflow_cli.cli.subprocess.run", fake_run)
-    monkeypatch.setattr(
-        "content_workflow_cli.cli.subprocess.Popen",
-        lambda *args, **kwargs: probe_process,
-    )
     monkeypatch.setattr(
         "content_workflow_cli.cli._codex_executable", lambda: "codex-test"
     )
+    monkeypatch.setattr(
+        "content_workflow_cli.cli._run_codex_command", lambda _command: 0
+    )
+    monkeypatch.setattr(
+        "content_workflow_cli.cli._linux_codex_sandbox_prerequisite_error",
+        lambda: "bubblewrap cannot create the Codex workspace-write sandbox",
+    )
 
     assert _handle_auth_status(SimpleNamespace()) == 1
-    captured = capsys.readouterr()
-    assert "cannot complete a model call" in captured.err
-    assert "HTTP 400" in captured.err
+    assert "bubblewrap cannot create" in capsys.readouterr().err
 
 
-def test_auth_status_fails_when_model_probe_times_out(
+def test_linux_sandbox_probe_uses_resolved_true_executable(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # Model the Node launcher exiting while its native child still holds the
-    # captured pipes open. Cleanup must signal the process group even though
-    # the launcher itself already has a return code.
-    probe_process = _FakeCodexProbeProcess(returncode=0, timeout_once=True)
-    killpg_calls: list[tuple[int, int]] = []
+    commands: list[list[str]] = []
 
-    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(returncode=0)
-
-    monkeypatch.setattr("content_workflow_cli.cli.subprocess.run", fake_run)
+    monkeypatch.setattr("content_workflow_cli.cli.sys.platform", "linux")
     monkeypatch.setattr(
-        "content_workflow_cli.cli.subprocess.Popen",
-        lambda *args, **kwargs: probe_process,
+        "content_workflow_cli.cli.shutil.which",
+        lambda command: {
+            "bwrap": "/usr/bin/bwrap",
+            "true": "/nix/store/true/bin/true",
+        }.get(command),
     )
     monkeypatch.setattr(
-        "content_workflow_cli.cli.os.killpg",
-        lambda pid, sig: killpg_calls.append((pid, sig)),
-    )
-    monkeypatch.setattr(
-        "content_workflow_cli.cli._codex_executable", lambda: "codex-test"
-    )
-
-    assert _handle_auth_status(SimpleNamespace()) == 1
-    assert "model usability probe timed out" in capsys.readouterr().err
-    assert killpg_calls == [(probe_process.pid, signal.SIGKILL)]
-    assert probe_process.communicate_timeouts == [60, None]
-
-
-def test_materials_assign_dry_run_writes_contract(tmp_path: Path) -> None:
-    usd = tmp_path / "asset.usdc"
-    reference = tmp_path / "reference.png"
-    reference_pdf = tmp_path / "reference.pdf"
-    materials_yaml = tmp_path / "materials.yaml"
-    materials_usd = tmp_path / "materials.usd"
-    codex_config = tmp_path / "codex-config.json"
-    instructions = tmp_path / "material-guidance.md"
-    for path in [usd, reference, reference_pdf, materials_usd]:
-        path.write_text("placeholder", encoding="utf-8")
-    materials_yaml.write_text(
-        'library_path: "materials.usd"\nentries: []\n',
-        encoding="utf-8",
-    )
-    codex_config.write_text(
-        json.dumps(
-            {
-                "model_provider": "proxy",
-                "model_providers": {
-                    "proxy": {
-                        "name": "Proxy",
-                        "base_url": "https://proxy.example.com/v1",
-                    }
-                },
-            }
+        "content_workflow_cli.cli.subprocess.run",
+        lambda command, **_kwargs: (
+            commands.append(command) or subprocess.CompletedProcess(command, 0)
         ),
-        encoding="utf-8",
-    )
-    instructions.write_text(
-        "White structural frames.\nReserve yellow for safety accents.\n",
-        encoding="utf-8",
     )
 
-    run_dir = tmp_path / "run"
-    exit_code = main(
-        [
-            "materials",
-            "assign",
-            "--usd",
-            str(usd),
-            "--reference-image",
-            str(reference),
-            "--reference",
-            str(reference_pdf),
-            "--materials-yaml",
-            str(materials_yaml),
-            "--workbench-url",
-            "http://127.0.0.1:8088",
-            "--repo-root",
-            str(tmp_path),
-            "--output-dir",
-            str(run_dir),
-            "--model",
-            "gpt-5.6-sol",
-            "--model-reasoning-effort",
-            "ultra",
-            "--codex-base-url",
-            "https://codex-proxy.example.com/v1",
-            "--codex-sandbox-mode",
-            "workspace-write",
-            "--codex-config-file",
-            str(codex_config),
-            "--codex-config-json",
-            '{"model_providers":{"proxy":{"wire_api":"responses"}}}',
-            "--child-timeout",
-            "120",
-            "--additional-instructions-file",
-            str(instructions),
-            "--dry-run",
-        ]
+    assert _linux_codex_sandbox_prerequisite_error() is None
+    assert commands[0][-1] == "/nix/store/true/bin/true"
+
+
+def test_workspace_write_probe_checks_direct_and_sdk_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "content_workflow_cli.cli.preflight_codex_windows_support",
+        lambda: None,
     )
 
-    assert exit_code == 0
-    request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
-    assert request["workflow"] == "materials.assign"
-    assert request["dry_run"] is True
-    assert request["workbench_optimize"] is True
-    assert request["optimizer_options"] == {
-        "flatten_prototypes": None,
-        "enable_deinstance": None,
-        "enable_split": None,
-        "enable_deduplicate": None,
-    }
-    assert request["material_candidate_policy"] == {
-        "material_candidate_space": "source",
-        "root_prim_path": None,
-        "skip_instances": True,
-        "skip_prototypes": False,
-        "skip_invisible": False,
-    }
-    assert request["runner"] == "codex"
-    assert request["model"] == "gpt-5.6-sol"
-    assert request["model_reasoning_effort"] == "ultra"
-    assert request["codex_base_url"] == "https://codex-proxy.example.com/v1"
-    assert request["codex_sandbox_mode"] == "workspace-write"
-    assert request["child_timeout_seconds"] == 120
-    assert request["vqa_refinement_max_iterations"] == 3
-    assert request["codex_persistent_refinement"] is False
-    assert request["additional_instructions"] == (
-        "White structural frames.\nReserve yellow for safety accents."
-    )
-    assert "convergence" not in request
-    assert request["inputs"]["materials_yaml"] == str(materials_yaml)
-    assert request["inputs"]["materials_usd"] == str(materials_usd)
-    assert request["codex_config"] == {
-        "model_provider": "proxy",
-        "model_providers": {
-            "proxy": {
-                "name": "Proxy",
-                "base_url": "https://proxy.example.com/v1",
-                "wire_api": "responses",
-            }
-        },
-    }
-    assert request["constraints"]["source_usd_edits_allowed"] is False
-    assert request["constraints"]["material_candidate_policy"] == {
-        "material_candidate_space": "source",
-        "root_prim_path": None,
-        "skip_instances": True,
-        "skip_prototypes": False,
-        "skip_invisible": False,
-    }
-    assert request["inputs"]["reference_images"] == [str(reference)]
-    assert request["inputs"]["reference_files"] == [str(reference_pdf)]
+    def fake_probe(command: list[str]) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        if command[0] == "codex-test":
+            cwd = Path(command[command.index("--cd") + 1])
+            (cwd / ".content-workflow-codex-direct-smoke").write_text("direct-ok")
+        return subprocess.CompletedProcess(command, 0, "", "")
 
-    prompt = (run_dir / "agent_prompt.md").read_text(encoding="utf-8")
-    assert "material_override" in prompt
-    assert '"space":"<source-or-inspection>"' in prompt
-    assert "Use only Workbench API calls" in prompt
-    assert "quick navigation at or below 640x480" in prompt
-    assert "evidence/final verification at or below 768x576" in prompt
-    assert 'render_quality: "inspection"' in prompt
-    assert "HDRI-600-only default" in prompt
-    assert 'ovrtx_render_mode: "rt2"' in prompt
-    assert "optimize: true" in prompt
-    assert "content-workbench-snapshot-scene" in prompt
-    assert '"material_candidate_space": "source"' in prompt
-    assert "--include-instances" in prompt
-    assert "/scene/snapshot" in prompt
-    assert "--materials-yaml" in prompt
-    assert "raw/material_authoring_context.md" in prompt
-    assert "raw/material_assignment_seed.json" in prompt
-    assert "raw/visible_candidate_prims.json" in prompt
-    assert "raw/visible_candidate_table.tsv" in prompt
-    assert "raw/material_palette.json" in prompt
-    assert "Workbench API quick contract" in prompt
-    assert "Pick uses the current session camera" in prompt
-    assert "render-response camera JSON" in prompt
-    assert "matching camera/view fields" not in prompt
-    assert "closest opaque/surface-compatible visual proxy" in prompt
-    assert "dominant gray/white/black mismatches" in prompt
-    assert "Do not open, grep, `sed`, or `jq` saved Workbench docs" in prompt
+    monkeypatch.setattr("content_workflow_cli.cli._run_codex_model_probe", fake_probe)
+
+    assert _probe_codex_workspace_write_access("codex-test") == 0
+    direct, bridge = calls
+    assert direct[0:2] == ["codex-test", "exec"]
+    assert ["--sandbox", "workspace-write"] == direct[
+        direct.index("--sandbox") : direct.index("--sandbox") + 2
+    ]
+    assert bridge[-2] == "--sandbox-smoke"
+    assert "SDK bridge workspace-write" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="requires Windows Job Objects")
+def test_codex_model_probe_timeout_reaps_windows_descendants(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    child_pid_path = tmp_path / "child.pid"
+    child_code = (
+        "import os,time; "
+        f"open({str(child_pid_path)!r}, 'w').write(str(os.getpid())); "
+        "time.sleep(60)"
+    )
+    parent_code = (
+        "import subprocess,sys,time; "
+        f"subprocess.Popen([sys.executable, '-c', {child_code!r}]); "
+        "time.sleep(60)"
+    )
+    monkeypatch.setattr(cli_module, "_CODEX_MODEL_PROBE_TIMEOUT_SECONDS", 0.5)
+
+    started = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        cli_module._run_codex_model_probe([sys.executable, "-c", parent_code])
+
+    assert time.monotonic() - started < 10
+    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+    assert not windows_process_is_live(child_pid)
+
+
+def test_windows_workspace_write_probe_rejects_before_provider_execution(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[list[str]] = []
+
+    def reject_windows() -> None:
+        raise RuntimeError(
+            "The Codex runner is not supported on native Windows in release 0.6. "
+            "Run the Content Agent workflow inside WSL2 or on native Linux."
+        )
+
+    monkeypatch.setattr(
+        "content_workflow_cli.cli.preflight_codex_windows_support", reject_windows
+    )
+    monkeypatch.setattr(
+        "content_workflow_cli.cli._run_codex_model_probe",
+        lambda command: calls.append(command),
+    )
+
+    assert _probe_codex_workspace_write_access("codex-test") == 1
+    assert calls == []
+    error = capsys.readouterr().err
+    assert "not supported on native Windows" in error
+    assert "WSL2" in error
+
+
+def test_workspace_write_probe_uses_a_native_windows_powershell_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = Path(r"C:\Temp\sandbox marker")
+    monkeypatch.setattr("content_workflow_cli.cli.sys.platform", "win32")
+
+    command = _smoke_write_command(marker, "direct-ok")
+
+    assert command == (
+        "Set-Content -NoNewline -LiteralPath 'C:\\Temp\\sandbox marker' "
+        "-Value 'direct-ok'"
+    )
+
+
+def test_exact_smoke_marker_rejects_symlinks_and_oversized_content(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker"
+    marker.write_text("direct-ok-extra", encoding="utf-8")
+    assert not _read_exact_smoke_marker(marker, "direct-ok")
+
+    target = tmp_path / "target"
+    target.write_text("direct-ok", encoding="utf-8")
+    marker.unlink()
+    try:
+        marker.symlink_to(target)
+    except OSError:
+        pytest.skip("symlinks are unavailable on this platform")
+    assert not _read_exact_smoke_marker(marker, "direct-ok")
+
+
+def test_setup_script_quotes_child_runner_advice_heredoc() -> None:
+    setup_script = Path(__file__).parents[4] / "scripts" / "setup_content_agent.sh"
+    setup_text = setup_script.read_text(encoding="utf-8")
+
     assert (
-        "Do not read local skill docs, README files, or prior run summaries" in prompt
+        "if [[ \"$INSTALL_CHILD_RUNNERS\" -eq 1 ]]; then\n    cat <<'EOF'" in setup_text
     )
-    assert "Avoid broad `jq`, `sed`, or Python inspection" in prompt
-    assert "In clean-slate mode, visible material candidates need explicit" in prompt
-    assert "Literally iterate the candidate list during prediction" in prompt
-    assert "Material assignments are not capped by prim count" in prompt
-    assert "reference_files" in prompt
-    assert str(reference_pdf) in prompt
-    assert "12 pick calls" in prompt
-    assert "/properties:batch" in prompt
-    assert "/material-binding:batch" in prompt
-    assert "/paths/translate:batch" in prompt
-    assert "coverage_status" in prompt
-    assert "preserved_existing" in prompt
-    assert "ambiguous_unassigned" in prompt
-    assert "Termination goal" in prompt
-    assert "candidate_visible_prim_count == material_decision_prim_count" in prompt
-    assert "raw/visible_candidate_prims.json" in prompt
-    assert "final review/remediation pass" in prompt
-    assert "VQA refinement iteration 1 of 3" in prompt
-    assert (run_dir / "trace" / "operation_trace.json").exists()
-    assert (run_dir / "trace" / "run_retrospective.json").exists()
-    assert (run_dir / "trace" / "replay_manifest.json").exists()
+    assert 'bwrap_probe_executable="$(type -P true || true)"' in setup_text
+    assert "require_command jq" in setup_text
+    assert "content-workflow-cli auth status --sandbox-smoke" in setup_text
+
+
+def test_bridge_smoke_cleanup_removes_all_artifacts(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the Codex SDK bridge test")
+    artifacts = [
+        tmp_path / ".content-workflow-codex-sandbox-smoke",
+        tmp_path / "bridge-final.txt",
+        tmp_path / "bridge-items.json",
+    ]
+    for artifact in artifacts:
+        artifact.write_text("smoke output", encoding="utf-8")
+    bridge = Path(__file__).parents[1] / "content_workflow_cli" / "codex_sdk_bridge.mjs"
+    script = (
+        "import { cleanupSandboxSmokeArtifacts } from "
+        f"{json.dumps(bridge.resolve().as_uri())}; "
+        f"cleanupSandboxSmokeArtifacts({json.dumps([str(path) for path in artifacts])});"
+    )
+
+    subprocess.run(
+        [node, "--input-type=module", "--eval", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert all(not artifact.exists() for artifact in artifacts)
+
+
+def test_bridge_smoke_pins_windows_powershell_policy() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the Codex SDK bridge test")
+    bridge = Path(__file__).parents[1] / "content_workflow_cli" / "codex_sdk_bridge.mjs"
+    script = (
+        "import { sandboxSmokeHostExecutables } from "
+        f"{json.dumps(bridge.resolve().as_uri())}; "
+        "process.stdout.write(JSON.stringify(sandboxSmokeHostExecutables("
+        "'win32', { SystemRoot: 'C:\\\\Windows' }, (value) => value, () => true)));"
+    )
+
+    completed = subprocess.run(
+        [node, "--input-type=module", "--eval", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert json.loads(completed.stdout) == [
+        {
+            "name": "powershell",
+            "paths": [r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"],
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "diagnostic",
+    [
+        "Authorization: Bearer test-secret",
+        "authorization=Basic test-secret",
+        "Bearer test-secret",
+        "TOKEN: test-secret",
+        "api_key=test-secret",
+        "API key: test-secret",
+        "API key=test-secret",
+        "credential=test-secret",
+        "access_key=test-secret",
+        "Incorrect API key provided: test-secret",
+        "token is test-secret",
+        "API key provided was test-secret",
+        "token provided is test-secret",
+        "OPENAI_API_KEY='test secret'",
+        "AWS_SECRET_ACCESS_KEY=test-secret",
+        '{"access_token":"test-secret"}',
+        '{"OPENAI_API_KEY":"test secret"}',
+        'PASSWORD="ab\\"test-secret"',
+        "PASSWORD='ab\\'test-secret'",
+        "PASSWORD=`ab\\`test-secret`",
+        'PASSWORD="test secret"',
+    ],
+)
+def test_native_diagnostic_redacts_credentials(diagnostic: str) -> None:
+    sanitized = _sanitize_native_diagnostic(diagnostic)
+
+    assert "test-secret" not in sanitized
+    assert "[redacted]" in sanitized
 
 
 def test_materials_assign_cli_rejects_symlinked_output_dir(
@@ -374,7 +434,7 @@ def test_materials_assign_cli_rejects_symlinked_output_dir(
             "--materials-yaml",
             str(materials_yaml),
             "--repo-root",
-            str(tmp_path),
+            str(_repo_root_with_usd_cli_source(tmp_path)),
             "--output-dir",
             str(lexical_run_dir),
             "--dry-run",
@@ -422,12 +482,65 @@ def test_model_and_reasoning_effort_are_provider_passthrough(args: list[str]) ->
     assert parsed.model_reasoning_effort == "provider-future-effort"
 
 
-def test_physics_apply_dry_run_writes_visual_validation_contract(
+def test_physics_apply_long_running_dry_run_writes_vomp_contract(
     tmp_path: Path,
 ) -> None:
     usd = tmp_path / "asset.usdc"
     usd.write_text("placeholder", encoding="utf-8")
-    run_dir = tmp_path / "physics-run"
+    vomp_root = tmp_path / "VoMP"
+    vomp_root.mkdir()
+    run_dir = tmp_path / "physics-vomp-run"
+
+    exit_code = main(
+        [
+            "physics",
+            "apply",
+            "--usd",
+            str(usd),
+            "--repo-root",
+            str(_repo_root_with_usd_cli_source(tmp_path)),
+            "--output-dir",
+            str(run_dir),
+            "--simulation-engine",
+            "fake",
+            "--vomp-root",
+            str(vomp_root),
+            "--vomp-target-prim",
+            "/World/Body",
+            "--vomp-num-views",
+            "12",
+            "--vomp-seed",
+            "7",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
+    contract = json.loads(
+        (run_dir / "raw" / "physics_agentic_contract.json").read_text(encoding="utf-8")
+    )
+    prompt = (run_dir / "agent_prompt.md").read_text(encoding="utf-8")
+    assert request["vomp_runtime"]["runtime_root"] == str(vomp_root.resolve())
+    assert request["vomp_runtime"]["num_views"] == 12
+    assert request["vomp_runtime"]["seed"] == 7
+    assert contract["mass_properties"]["enabled"] is True
+    assert contract["mass_properties"]["provider"] == "vomp"
+    assert contract["mass_properties"]["target_prim_path"] == "/World/Body"
+    assert contract["tuning"]["protected_parameters"] == ["mass_scale"]
+    assert contract["tuning"]["allow_revise_patch"] is False
+    assert "VoMP is the authoritative" in prompt
+    assert "raw/physics_vomp_result.json" in prompt
+
+
+@pytest.mark.parametrize("seed", ["-1", str(2**32)])
+def test_physics_apply_rejects_vomp_seed_outside_uint32(
+    seed: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    usd = tmp_path / "asset.usdc"
+    usd.write_text("placeholder", encoding="utf-8")
 
     exit_code = main(
         [
@@ -438,29 +551,45 @@ def test_physics_apply_dry_run_writes_visual_validation_contract(
             "--repo-root",
             str(tmp_path),
             "--output-dir",
-            str(run_dir),
-            "--workbench-url",
-            "http://127.0.0.1:8088",
-            "--visual-validation-max-iterations",
-            "2",
-            "--additional-instructions",
-            "Treat the base as static.",
+            str(tmp_path / "run"),
+            "--vomp-root",
+            str(tmp_path / "VoMP"),
+            "--vomp-seed",
+            seed,
             "--dry-run",
         ]
     )
 
-    assert exit_code == 0
-    prompt = (run_dir / "agent_prompt.md").read_text(encoding="utf-8")
-    request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
-    assert request["workflow"] == "physics.apply"
-    assert request["visual_validation_max_iterations"] == 2
-    assert request["additional_instructions"] == "Treat the base as static."
-    assert not (run_dir / "raw" / "physics_topology_plan.json").exists()
-    assert "physics_behavior_assessment.json" in prompt
-    assert "ovphysx/runtime metrics are authoritative" in prompt
+    assert exit_code == 2
+    assert "must be between 0 and 4294967295" in capsys.readouterr().err
 
 
-def test_physics_apply_cli_rejects_symlinked_output_dir(
+def test_physics_apply_rejects_vomp_options_without_runtime_root(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    usd = tmp_path / "asset.usdc"
+    usd.write_text("placeholder", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "physics",
+            "apply",
+            "--usd",
+            str(usd),
+            "--output-dir",
+            str(tmp_path / "physics-run"),
+            "--vomp-target-prim",
+            "/World/Body",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 2
+    assert "--vomp-target-prim require --vomp-root" in capsys.readouterr().err
+
+
+def test_physics_deterministic_cli_preserves_lexical_output_dir(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -477,69 +606,16 @@ def test_physics_apply_cli_rejects_symlinked_output_dir(
             "apply",
             "--usd",
             str(usd),
-            "--repo-root",
-            str(tmp_path),
             "--output-dir",
             str(lexical_run_dir),
-            "--workbench-url",
-            "http://127.0.0.1:8088",
-            "--dry-run",
+            "--deterministic-workflow",
+            "--no-simulation",
         ]
     )
 
     assert exit_code == 2
     assert "must resolve without traversing symlinks" in capsys.readouterr().err
     assert list(outside.iterdir()) == []
-
-
-def test_physics_preflight_closes_workbench_session_on_inspection_failure(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    closed: list[tuple[str, str, float]] = []
-
-    monkeypatch.setattr(
-        workflow_runner.workbench_client,
-        "download_agent_api_docs",
-        lambda *_args, **_kwargs: {},
-    )
-    monkeypatch.setattr(
-        workflow_runner.workbench_client,
-        "create_session",
-        lambda *_args, **_kwargs: {"session_id": "session-one"},
-    )
-
-    def fail_inspect_components(*_args: object, **_kwargs: object) -> dict[str, object]:
-        raise RuntimeError("inspection failed")
-
-    monkeypatch.setattr(
-        workflow_runner.workbench_client,
-        "inspect_physics_components",
-        fail_inspect_components,
-    )
-
-    def fake_close_session(
-        workbench_url: str,
-        session_id: str,
-        *,
-        timeout: float,
-    ) -> None:
-        closed.append((workbench_url, session_id, timeout))
-
-    monkeypatch.setattr(workflow_runner, "close_workbench_session", fake_close_session)
-
-    with pytest.raises(RuntimeError, match="inspection failed"):
-        workflow_runner._prepare_physics_run_packet(
-            workflow_runner.PhysicsApplyConfig(
-                repo_root=tmp_path,
-                usd_path=tmp_path / "asset.usda",
-                workbench_url="http://127.0.0.1:8088",
-                workbench_timeout_seconds=12.0,
-            ),
-            tmp_path / "run",
-        )
-
-    assert closed == [("http://127.0.0.1:8088", "session-one", 12.0)]
 
 
 def test_physics_apply_json_dry_run_keeps_stdout_machine_readable(
@@ -574,14 +650,42 @@ def test_physics_apply_json_dry_run_keeps_stdout_machine_readable(
     assert "content-workflow-cli: run directory:" in captured.err
 
 
-def test_model_reasoning_effort_rejects_max(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as error:
-        main(["scene", "run", "--model-reasoning-effort", "max"])
+def test_model_reasoning_effort_accepts_claude_max() -> None:
+    parsed = build_parser().parse_args(
+        [
+            "materials",
+            "assign",
+            "--usd",
+            "asset.usd",
+            "--materials-yaml",
+            "materials.yaml",
+            "--runner",
+            "claude",
+            "--model-reasoning-effort",
+            "max",
+        ]
+    )
 
-    assert error.value.code == 2
-    assert (
-        "unsupported model reasoning effort 'max'; use 'xhigh'"
-        in capsys.readouterr().err
+    assert parsed.model_reasoning_effort == "max"
+
+
+def test_physics_no_simulation_help_is_explicitly_non_passing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["physics", "apply", "--help"]) == 0
+
+    help_text = capsys.readouterr().out
+    no_simulation_block = re.search(
+        r"(?ms)^\s+--no-simulation\s+(.*?)(?=^\s+--[a-z]|\Z)",
+        help_text,
+    )
+    assert no_simulation_block is not None
+
+    no_simulation_help = no_simulation_block.group(1)
+    assert re.search(r"conditional\s+and\s+non-\s*passing", no_simulation_help)
+    assert re.search(
+        r"does not satisfy required runtime\s+and\s+visual evidence",
+        no_simulation_help,
     )
 
 
@@ -628,7 +732,7 @@ def test_physics_deterministic_apply_failure_returns_nonzero(
     assert exit_code == 1
 
 
-def test_physics_apply_rejects_session_id_without_deterministic_workflow(
+def test_physics_deterministic_workflow_rejects_agentic_refine_flags(
     tmp_path: Path,
 ) -> None:
     usd = tmp_path / "asset.usdc"
@@ -642,9 +746,10 @@ def test_physics_apply_rejects_session_id_without_deterministic_workflow(
             str(usd),
             "--output-dir",
             str(tmp_path / "physics-run"),
-            "--workbench-session-id",
-            "existing-session",
-            "--dry-run",
+            "--deterministic-workflow",
+            "--refine",
+            "--behavior-prompt",
+            "make it bouncy",
         ]
     )
 
@@ -694,9 +799,11 @@ def test_convert_to_usd_installs_missing_dependencies_by_default(
         *,
         output_format: str | None = None,
         install_missing: bool = False,
+        timeout_s: float = 120.0,
     ) -> tuple[ConversionReport, ConversionProbeArtifact]:
         called["install_missing"] = install_missing
         called["output_format"] = output_format == "usdc"
+        called["default_timeout"] = timeout_s == 120.0
         output_usd_path.write_text("#usda 1.0\n", encoding="utf-8")
         return (
             ConversionReport(
@@ -730,6 +837,7 @@ def test_convert_to_usd_installs_missing_dependencies_by_default(
     assert exit_code == 0
     assert called["install_missing"] is True
     assert called["output_format"] is False
+    assert called["default_timeout"] is True
     assert payload["status"] == "passed"
 
 
@@ -842,6 +950,8 @@ def test_convert_to_usd_output_dir_writes_artifacts_without_changing_default_out
             str(source),
             "--output-dir",
             str(run_dir),
+            "--converter-timeout",
+            "300",
             "--json",
         ]
     )
@@ -850,26 +960,128 @@ def test_convert_to_usd_output_dir_writes_artifacts_without_changing_default_out
     payload = json.loads(captured.out)
     assert exit_code == 0
     assert payload["success"] is True
+    assert payload["converter_timeout_s"] == 300.0
     assert payload["output_usd_path"] == str((cwd / "asset.usda").resolve())
     assert (cwd / "asset.usda").exists()
     assert (run_dir / "request.json").exists()
     assert (run_dir / "conversion_report.json").exists()
+    request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (run_dir / "workflow_run_manifest.json").read_text(encoding="utf-8")
+    )
+    report = json.loads(
+        (run_dir / "conversion_report.json").read_text(encoding="utf-8")
+    )
+    assert request["converter_timeout_s"] == 300.0
+    assert manifest["policy"]["converter_timeout_s"] == 300.0
+    assert report["converter_timeout_s"] == 300.0
 
 
-def test_materials_assign_dry_run_supports_skill_routed_prompt(
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf"])
+def test_convert_to_usd_rejects_non_positive_or_non_finite_timeout(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    value: str,
 ) -> None:
-    usd = tmp_path / "asset.usdc"
+    source = tmp_path / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+
+    exit_code = main(["convert-to-usd", str(source), "--converter-timeout", value])
+
+    assert exit_code == 2
+    assert "must be greater than 0" in capsys.readouterr().err
+
+
+def test_convert_to_usd_help_documents_converter_timeout(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["convert-to-usd", "--help"]) == 0
+
+    help_text = capsys.readouterr().out
+    assert "--converter-timeout SECONDS" in help_text
+    assert "Defaults to 120" in help_text
+
+
+def test_convert_to_usd_direct_output_reports_converter_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source = source_dir / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["convert-to-usd", str(source), "--converter-timeout", "300"])
+
+    assert exit_code == 0
+    assert "Converter timeout: 300s" in capsys.readouterr().out
+
+
+def test_materials_assign_dry_run_writes_contract(tmp_path: Path) -> None:
+    usd = tmp_path / "asset.usda"
     reference = tmp_path / "reference.png"
     materials_yaml = tmp_path / "materials.yaml"
     materials_usd = tmp_path / "materials.usd"
-    run_dir = tmp_path / "run"
-    for path in [usd, reference, materials_usd]:
-        path.write_text("placeholder", encoding="utf-8")
+    usd.write_text("#usda 1.0\n", encoding="utf-8")
+    reference.write_text("placeholder", encoding="utf-8")
+    materials_usd.write_text("#usda 1.0\n", encoding="utf-8")
     materials_yaml.write_text(
         'library_path: "materials.usd"\nentries: []\n',
         encoding="utf-8",
     )
+
+    run_dir = tmp_path / "run"
+    exit_code = main(
+        [
+            "materials",
+            "assign",
+            "--usd",
+            str(usd),
+            "--reference-image",
+            str(reference),
+            "--materials-yaml",
+            str(materials_yaml),
+            "--repo-root",
+            str(_repo_root_with_usd_cli_source(tmp_path)),
+            "--output-dir",
+            str(run_dir),
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
+    assert request["workflow"] == "materials.assign"
+    assert request["dry_run"] is True
+    for relative_path in (
+        "agent_prompt.md",
+        "trace/events.jsonl",
+        "trace/operation_trace.json",
+        "trace/operation_trace.md",
+        "trace/run_retrospective.json",
+        "trace/replay_manifest.json",
+    ):
+        assert (run_dir / relative_path).is_file()
+
+
+def test_materials_assign_accepts_exact_custom_responses_endpoint(
+    tmp_path: Path,
+) -> None:
+    usd = tmp_path / "asset.usda"
+    reference = tmp_path / "reference.png"
+    materials_yaml = tmp_path / "materials.yaml"
+    materials_usd = tmp_path / "materials.usd"
+    usd.write_text("#usda 1.0\n", encoding="utf-8")
+    reference.write_text("placeholder", encoding="utf-8")
+    materials_usd.write_text("#usda 1.0\n", encoding="utf-8")
+    materials_yaml.write_text(
+        'library_path: "materials.usd"\nentries: []\n',
+        encoding="utf-8",
+    )
+    endpoint = "https://integrate.api.nvidia.com/v1/responses"
+    run_dir = tmp_path / "custom-endpoint-run"
 
     exit_code = main(
         [
@@ -881,762 +1093,94 @@ def test_materials_assign_dry_run_supports_skill_routed_prompt(
             str(reference),
             "--materials-yaml",
             str(materials_yaml),
+            "--repo-root",
+            str(_repo_root_with_usd_cli_source(tmp_path)),
             "--output-dir",
             str(run_dir),
-            "--prompt-mode",
-            "skill-routed",
+            "--codex-responses-url",
+            endpoint,
             "--dry-run",
         ]
     )
 
     assert exit_code == 0
     request = json.loads((run_dir / "request.json").read_text(encoding="utf-8"))
-    assert request["prompt_mode"] == "skill-routed"
-    prompt = (run_dir / "agent_prompt.md").read_text(encoding="utf-8")
-    assert "`content-workbench`" in prompt
-    assert "`content-workflow-material`" in prompt
-    assert "Structured task:" in prompt
-    assert "Workbench API quick contract" not in prompt
+    assert request["codex_responses_url"] == endpoint
+    assert request["codex_base_url"] == "https://integrate.api.nvidia.com/v1"
 
 
-def test_snapshot_scene_tool_writes_standard_artifacts(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run"
-    materials_yaml = tmp_path / "materials.yaml"
-    materials_usd = tmp_path / "materials.usd"
-    materials_usd.write_text("placeholder", encoding="utf-8")
-    materials_yaml.write_text(
-        json.dumps(
-            {
-                "library_path": "materials.usd",
-                "entries": [
-                    {
-                        "name": "Plastic Orange",
-                        "description": "Smooth orange plastic with light gloss",
-                        "binding": "/World/Looks/Plastic_Orange",
-                    },
-                    {
-                        "name": "Rubber Black Matte",
-                        "description": "Matte black rubber surface",
-                        "binding": "/World/Looks/Rubber_Black_Matte",
-                    },
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-    snapshot = {
-        "session_id": "session-1",
-        "root_prim_path": "/World",
-        "source_scene_path": "/tmp/source.usdc",
-        "inspection_scene_path": "/tmp/inspection.usdc",
-        "paths": ["/World", "/World/Step", "/World/Part", "/World/Part/Geometry"],
-        "nodes": [
-            {
-                "path": "/World",
-                "name": "World",
-                "type_name": "Xform",
-                "active": True,
-                "loaded": True,
-                "children": True,
-                "child_paths": ["/World/Step", "/World/Part"],
-            },
-            {
-                "path": "/World/Step",
-                "name": "Step",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-            {
-                "path": "/World/Part",
-                "name": "Part",
-                "type_name": "Xform",
-                "active": True,
-                "loaded": True,
-                "children": True,
-                "child_paths": ["/World/Part/Geometry"],
-            },
-            {
-                "path": "/World/Part/Geometry",
-                "name": "Geometry",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-        ],
-        "properties": [{"prim_path": "/World/Step", "properties": {}}],
-        "material_bindings": [
-            {
-                "prim_path": "/World/Step",
-                "binding_type": "direct",
-                "bound_material_path": "/World/Looks/Blue",
-                "binding_source_path": "/World/Step",
-                "relationship_path": "/World/Step.material:binding",
-                "direct_targets": ["/World/Looks/Blue"],
-                "material_override": None,
-            }
-        ],
-        "path_translations": [
-            {
-                "session_id": "session-1",
-                "input_path": "/World/Step",
-                "source_space": "inspection",
-                "target_space": "source",
-                "source_paths": ["/World/Step"],
-                "inspection_paths": ["/World/Step"],
-                "ambiguous": False,
-                "optimization": {"enabled": False, "status": "disabled"},
-            }
-        ],
-        "candidates": [
-            {
-                "inspection_path": "/World",
-                "source_paths": ["/World"],
-                "type_name": "Xform",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "bounds_center": [0.0, 0.0, 0.0],
-                "bounds_size": [1.0, 1.0, 0.0],
-                "material_binding_type": "direct",
-                "bound_material_path": "/World/Looks/Blue",
-                "binding_source_path": "/World",
-                "direct_targets": ["/World/Looks/Blue"],
-                "material_override": None,
-                "ambiguous_translation": False,
-                "candidate_reason": "material_bound_container",
-            },
-            {
-                "inspection_path": "/World/Part",
-                "source_paths": ["/World/Part"],
-                "type_name": "Xform",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "bounds_center": [0.0, 0.0, 0.0],
-                "bounds_size": [0.5, 0.5, 0.5],
-                "material_binding_type": "direct",
-                "bound_material_path": None,
-                "binding_source_path": "/World/Part",
-                "direct_targets": ["/World/Looks/Rubber_Black_Matte"],
-                "material_override": None,
-                "ambiguous_translation": False,
-                "candidate_reason": "material_bound_container",
-            },
-            {
-                "inspection_path": "/World/Step",
-                "source_paths": ["/World/Step"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "bounds_center": [0.0, 0.0, 0.0],
-                "bounds_size": [1.0, 1.0, 0.0],
-                "material_binding_type": "direct",
-                "bound_material_path": "/World/Looks/Blue",
-                "binding_source_path": "/World/Step",
-                "direct_targets": ["/World/Looks/Blue"],
-                "material_override": None,
-                "ambiguous_translation": False,
-                "candidate_reason": "renderable_prim",
-            },
-            {
-                "inspection_path": "/World/Part/Geometry",
-                "source_paths": ["/World/Part"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "bounds_center": [0.0, 0.0, 0.0],
-                "bounds_size": [0.5, 0.5, 0.5],
-                "material_binding_type": "none",
-                "bound_material_path": None,
-                "binding_source_path": "/World/Part",
-                "direct_targets": [],
-                "material_override": None,
-                "ambiguous_translation": False,
-                "candidate_reason": "renderable_prim",
-            },
-        ],
-        "excluded_non_candidates": [],
-        "summary": {
-            "prim_count": 4,
-            "candidate_count": 4,
-            "ambiguous_translation_count": 0,
-            "truncated": False,
-        },
-    }
+def test_materials_assign_help_documents_custom_responses_endpoint(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["materials", "assign", "--help"]) == 0
 
-    artifacts = write_snapshot_artifacts(
-        snapshot,
-        run_dir,
-        materials_yaml=materials_yaml,
-        materials_usd=materials_usd,
-    )
+    help_text = capsys.readouterr().out
+    assert "--codex-responses-url CODEX_RESPONSES_URL" in help_text
+    assert "NVIDIA Inference Hub" in help_text
 
-    assert set(artifacts) == {
-        "scene_snapshot",
-        "tree_paths",
-        "properties",
-        "material_bindings",
-        "path_translations",
-        "visible_candidates_preliminary",
-        "visible_candidates",
-        "material_authoring_context",
-        "material_authoring_context_md",
-        "visible_candidate_table",
-        "material_palette",
-        "material_assignment_seed",
-    }
-    assert (
-        json.loads((run_dir / "raw" / "scene_snapshot.json").read_text())["session_id"]
-        == "session-1"
-    )
-    tree = json.loads((run_dir / "raw" / "tree_paths.json").read_text())
-    assert tree["nodes"][0]["children_count"] == 2
-    candidates = json.loads(
-        (run_dir / "raw" / "visible_candidate_prims_preliminary.json").read_text()
-    )
-    assert candidates["candidate_visible_prim_count"] == 4
-    assert candidates["candidates"][0]["inspection_path"] == "/World"
-    visible = json.loads((run_dir / "raw" / "visible_candidate_prims.json").read_text())
-    assert visible["candidate_visible_prim_count"] == 2
-    assert visible["path_space"] == "source"
-    assert [candidate["source_path"] for candidate in visible["candidates"]] == [
-        "/World/Part",
-        "/World/Step",
-    ]
-    assert "/World" in visible["excluded_non_candidates"]
-    assert "/World/Part" not in visible["excluded_non_candidates"]
-    context = json.loads(
-        (run_dir / "raw" / "material_authoring_context.json").read_text()
-    )
-    assert context["summary"]["candidate_count"] == 2
-    assert context["summary"]["preliminary_candidate_count"] == 4
-    assert (
-        context["material_binding_policy"]["respect_existing_material_bindings"]
-        is False
-    )
-    assert {group["grouping_basis"] for group in context["candidate_groups"]} == {
-        "authoring_family"
-    }
-    assert {group["material_name"] for group in context["candidate_groups"]} == {None}
-    assert {
-        group["recommended_coverage_status"] for group in context["candidate_groups"]
-    } == {"ambiguous_unassigned"}
-    assert context["candidate_groups"][0]["requires_material_assignment"] is False
-    assert (
-        context["candidates"][1]["recommended_initial_status"] == "ambiguous_unassigned"
-    )
-    assert context["candidates"][1]["requires_material_assignment"] is False
-    assert context["material_palette"]["material_count"] == 2
-    assert context["material_palette"]["materials"][0]["name"] == "Plastic Orange"
-    assert context["material_palette"]["materials"][0]["manifest_semantics"][
-        "colors"
-    ] == ["orange"]
-    assert context["material_palette"]["materials"][0]["manifest_semantics"][
-        "substances"
-    ] == ["plastic"]
-    candidate_table = (run_dir / "raw" / "visible_candidate_table.tsv").read_text()
-    assert (
-        "runtime_path\truntime_paths\truntime_space\tsource_path\tsource_paths\t"
-        "original_source_paths\tinspection_path\tinspection_paths"
-    ) in candidate_table
-    assert "/World/Step" in candidate_table
-    assert "/World/Part/Geometry" in candidate_table
-    assignment_seed = json.loads(
-        (run_dir / "raw" / "material_assignment_seed.json").read_text()
-    )
-    assert assignment_seed["coverage"]["candidate_visible_prim_count"] == 2
-    assert assignment_seed["coverage"]["preserved_existing_prim_count"] == 0
-    assert assignment_seed["coverage"]["ambiguous_unassigned_prim_count"] == 2
-    assert {
-        assignment["coverage_status"] for assignment in assignment_seed["assignments"]
-    } == {"ambiguous_unassigned"}
-    assert sorted(
-        path
-        for assignment in assignment_seed["assignments"]
-        for path in assignment["prim_paths"]
-    ) == ["/World/Part", "/World/Step"]
-    context_md = (run_dir / "raw" / "material_authoring_context.md").read_text()
-    assert "Material Authoring Context" in context_md
-    assert (
-        "Existing material bindings and authored display colors are cleared"
-        in context_md
-    )
-    assert "Plastic Orange" in context_md
-    assert "coverage evidence, not a material assignment plan" in context_md
-    trace = (run_dir / "trace" / "events.jsonl").read_text()
-    assert "POST /sessions/{session_id}/scene/snapshot" in trace
-    summary = compact_summary(snapshot, artifacts)
-    assert summary["prim_count"] == 4
-    assert summary["candidate_count"] == 4
-    assert summary["coverage_candidate_count"] == 2
-    assert summary["agent_context"].endswith("material_authoring_context.json")
-    assert summary["assignment_seed"].endswith("material_assignment_seed.json")
 
-    respected_run_dir = tmp_path / "respected-run"
-    write_snapshot_artifacts(
-        snapshot,
-        respected_run_dir,
-        materials_yaml=materials_yaml,
-        materials_usd=materials_usd,
-        append_trace=False,
-        respect_existing_material_bindings=True,
-    )
-    respected_context = json.loads(
-        (respected_run_dir / "raw" / "material_authoring_context.json").read_text()
-    )
-    assert (
-        respected_context["material_binding_policy"][
-            "respect_existing_material_bindings"
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://provider.example/v1/responses",
+        "https://user:password@provider.example/v1/responses",
+        "https://provider.example/v1/chat/completions",
+        "https://provider.example/v1/responses?tenant=secret",
+    ],
+)
+def test_materials_assign_rejects_invalid_responses_endpoint_before_launch(
+    endpoint: str,
+) -> None:
+    args = build_parser().parse_args(
+        [
+            "materials",
+            "assign",
+            "--usd",
+            "asset.usda",
+            "--reference-image",
+            "reference.png",
+            "--materials-yaml",
+            "materials.yaml",
+            "--codex-responses-url",
+            endpoint,
         ]
-        is True
-    )
-    assert {
-        group["grouping_basis"] for group in respected_context["candidate_groups"]
-    } == {"existing_material"}
-    assert {
-        group["recommended_coverage_status"]
-        for group in respected_context["candidate_groups"]
-    } == {"preserved_existing"}
-
-
-def test_optimized_snapshot_suppresses_source_clones_covered_by_dedup(
-    tmp_path: Path,
-) -> None:
-    run_dir = tmp_path / "run"
-    materials_yaml = tmp_path / "materials.yaml"
-    materials_usd = tmp_path / "materials.usd"
-    materials_usd.write_text("placeholder", encoding="utf-8")
-    materials_yaml.write_text(
-        json.dumps({"library_path": "materials.usd", "entries": []}),
-        encoding="utf-8",
-    )
-    snapshot = {
-        "session_id": "session-optimized",
-        "root_prim_path": "/World",
-        "source_scene_path": "/tmp/source.usdc",
-        "inspection_scene_path": "/tmp/optimized.usdc",
-        "optimization": {"enabled": True, "status": "ready"},
-        "paths": [
-            "/World",
-            "/World/BoltPrototype/Geometry",
-            "/World/BoltB/Geometry",
-            "/World/Panel/Geometry",
-        ],
-        "nodes": [
-            {
-                "path": "/World",
-                "name": "World",
-                "type_name": "Xform",
-                "active": True,
-                "loaded": True,
-                "children": True,
-                "child_paths": [
-                    "/World/BoltPrototype/Geometry",
-                    "/World/BoltB/Geometry",
-                    "/World/Panel/Geometry",
-                ],
-            },
-            {
-                "path": "/World/BoltPrototype/Geometry",
-                "name": "Geometry",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-            {
-                "path": "/World/BoltB/Geometry",
-                "name": "Geometry",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-            {
-                "path": "/World/Panel/Geometry",
-                "name": "Geometry",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-        ],
-        "properties": [],
-        "material_bindings": [],
-        "path_translations": [],
-        "candidates": [
-            {
-                "inspection_path": "/World/BoltPrototype/Geometry",
-                "source_paths": ["/World/BoltA", "/World/BoltB"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": True,
-                "direct_targets": [],
-                "bound_material_path": None,
-            },
-            {
-                "inspection_path": "/World/BoltB/Geometry",
-                "source_paths": ["/World/BoltB/Geometry"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": False,
-                "direct_targets": [],
-                "bound_material_path": None,
-            },
-            {
-                "inspection_path": "/World/Panel/Geometry",
-                "source_paths": ["/World/Panel/Geometry"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": False,
-                "direct_targets": [],
-                "bound_material_path": None,
-            },
-        ],
-    }
-
-    write_snapshot_artifacts(
-        snapshot,
-        run_dir,
-        materials_yaml=materials_yaml,
-        materials_usd=materials_usd,
-        append_trace=False,
-        respect_existing_material_bindings=False,
-        candidate_policy=MaterialCandidatePolicy(material_candidate_space="inspection"),
     )
 
-    visible = json.loads((run_dir / "raw" / "visible_candidate_prims.json").read_text())
-    assert visible["path_space"] == "inspection"
-    assert visible["candidate_visible_prim_count"] == 2
-    assert [candidate["runtime_path"] for candidate in visible["candidates"]] == [
-        "/World/BoltPrototype/Geometry",
-        "/World/Panel/Geometry",
-    ]
-    dedup_candidate = visible["candidates"][0]
-    assert dedup_candidate["deduplicated"] is True
-    assert dedup_candidate["source_paths"] == ["/World/BoltA", "/World/BoltB"]
-    assert dedup_candidate["source_instance_count"] == 2
-
-    assignment_seed = json.loads(
-        (run_dir / "raw" / "material_assignment_seed.json").read_text()
-    )
-    assert assignment_seed["path_space"] == "inspection"
-    assert sorted(
-        path
-        for assignment in assignment_seed["assignments"]
-        for path in assignment["prim_paths"]
-    ) == ["/World/BoltPrototype/Geometry", "/World/Panel/Geometry"]
+    with pytest.raises(ValueError, match="--codex-responses-url"):
+        _codex_base_url_from_args(args)
 
 
-def test_snapshot_collapses_instance_proxy_candidates_to_source_targets(
-    tmp_path: Path,
-) -> None:
-    Usd = pytest.importorskip("pxr.Usd")
-    UsdGeom = pytest.importorskip("pxr.UsdGeom")
-
-    usd_path = tmp_path / "instanced.usda"
-    stage = Usd.Stage.CreateNew(str(usd_path))
-    UsdGeom.Xform.Define(stage, "/World")
-    UsdGeom.Xform.Define(stage, "/World/Prototype")
-    UsdGeom.Mesh.Define(stage, "/World/Prototype/Mesh")
-    for instance_path in ("/World/InstanceA", "/World/InstanceB"):
-        instance = UsdGeom.Xform.Define(stage, instance_path).GetPrim()
-        instance.GetReferences().AddInternalReference("/World/Prototype")
-        instance.SetInstanceable(True)
-    stage.GetRootLayer().Save()
-
-    materials_yaml = tmp_path / "materials.yaml"
-    materials_usd = tmp_path / "materials.usd"
-    materials_usd.write_text("placeholder", encoding="utf-8")
-    materials_yaml.write_text(
-        json.dumps({"library_path": "materials.usd", "entries": []}),
-        encoding="utf-8",
-    )
-    snapshot = {
-        "session_id": "session-instance",
-        "root_prim_path": "/World",
-        "source_scene_path": str(usd_path),
-        "inspection_scene_path": str(usd_path),
-        "optimization": {"enabled": False, "status": "disabled"},
-        "paths": [
-            "/World",
-            "/World/InstanceA",
-            "/World/InstanceA/Mesh",
-            "/World/InstanceB",
-            "/World/InstanceB/Mesh",
-        ],
-        "nodes": [],
-        "properties": [],
-        "material_bindings": [],
-        "path_translations": [],
-        "candidates": [
-            {
-                "inspection_path": "/World/InstanceA/Mesh",
-                "source_paths": ["/World/InstanceA/Mesh"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": False,
-                "direct_targets": [],
-                "bound_material_path": None,
-                "bounds_center": [0.0, 0.0, 0.0],
-                "bounds_size": [1.0, 1.0, 1.0],
-            },
-            {
-                "inspection_path": "/World/InstanceB/Mesh",
-                "source_paths": ["/World/InstanceB/Mesh"],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": False,
-                "direct_targets": [],
-                "bound_material_path": None,
-                "bounds_center": [0.0, 0.0, 0.0],
-                "bounds_size": [1.0, 1.0, 1.0],
-            },
-        ],
-        "excluded_non_candidates": [],
-        "summary": {"prim_count": 5, "candidate_count": 2, "truncated": False},
-    }
-
-    collapsed_run_dir = tmp_path / "collapsed"
-    write_snapshot_artifacts(
-        snapshot,
-        collapsed_run_dir,
-        materials_yaml=materials_yaml,
-        materials_usd=materials_usd,
-        append_trace=False,
+def test_materials_assign_rejects_both_codex_endpoint_forms() -> None:
+    args = build_parser().parse_args(
+        [
+            "materials",
+            "assign",
+            "--usd",
+            "asset.usda",
+            "--reference-image",
+            "reference.png",
+            "--materials-yaml",
+            "materials.yaml",
+            "--codex-base-url",
+            "https://provider.example/v1",
+            "--codex-responses-url",
+            "https://provider.example/v1/responses",
+        ]
     )
 
-    collapsed = json.loads(
-        (collapsed_run_dir / "raw" / "visible_candidate_prims.json").read_text()
-    )
-    assert collapsed["path_space"] == "source"
-    assert collapsed["material_candidate_policy"]["skip_instances"] is True
-    assert collapsed["candidate_visible_prim_count"] == 1
-    assert collapsed["candidates"][0]["source_path"] == "/World/Prototype/Mesh"
-    assert collapsed["candidates"][0]["original_source_paths"] == [
-        "/World/InstanceA/Mesh",
-        "/World/InstanceB/Mesh",
-    ]
-    assert collapsed["candidates"][0]["runtime_paths"] == [
-        "/World/InstanceA/Mesh",
-        "/World/InstanceB/Mesh",
-    ]
-    assert collapsed["candidates"][0]["source_instance_count"] == 2
-    assert collapsed["candidates"][0]["instance_collapsed"] is True
-    collapsed_context = json.loads(
-        (collapsed_run_dir / "raw" / "material_authoring_context.json").read_text()
-    )
-    assert collapsed_context["candidate_groups"][0]["runtime_evidence_count"] == 2
-    assert collapsed_context["candidate_groups"][0]["runtime_paths"] == [
-        "/World/InstanceA/Mesh",
-        "/World/InstanceB/Mesh",
-    ]
-
-    expanded_run_dir = tmp_path / "expanded"
-    write_snapshot_artifacts(
-        snapshot,
-        expanded_run_dir,
-        materials_yaml=materials_yaml,
-        materials_usd=materials_usd,
-        append_trace=False,
-        candidate_policy=MaterialCandidatePolicy(skip_instances=False),
-    )
-    expanded = json.loads(
-        (expanded_run_dir / "raw" / "visible_candidate_prims.json").read_text()
-    )
-    assert expanded["material_candidate_policy"]["skip_instances"] is False
-    assert [candidate["source_path"] for candidate in expanded["candidates"]] == [
-        "/World/InstanceA/Mesh",
-        "/World/InstanceB/Mesh",
-    ]
-    assert all(
-        not candidate["instance_collapsed"] for candidate in expanded["candidates"]
-    )
-
-
-def test_snapshot_keeps_unresolved_external_instance_candidates() -> None:
-    source_path = "/World/ExternalInstance/Mesh"
-
-    remapped, collapsed, skip = _remap_instance_source_target(
-        source_path,
-        {"/World/ExternalInstance": None},
-    )
-
-    assert remapped == source_path
-    assert collapsed is False
-    assert skip is False
-
-
-def test_snapshot_ignores_display_color_as_preserved_material(
-    tmp_path: Path,
-) -> None:
-    run_dir = tmp_path / "run"
-    materials_yaml = tmp_path / "materials.yaml"
-    materials_usd = tmp_path / "materials.usd"
-    materials_usd.write_text("placeholder", encoding="utf-8")
-    materials_yaml.write_text(
-        json.dumps({"library_path": "materials.usd", "entries": []}),
-        encoding="utf-8",
-    )
-    green_path = "/World/body__1/shape/mesh"
-    orange_path = "/World/body__2/shape/mesh"
-    snapshot = {
-        "session_id": "session-display-color",
-        "root_prim_path": "/World",
-        "source_scene_path": "/tmp/source.usdc",
-        "inspection_scene_path": "/tmp/source.usdc",
-        "paths": ["/World", green_path, orange_path],
-        "nodes": [
-            {
-                "path": "/World",
-                "name": "World",
-                "type_name": "Xform",
-                "active": True,
-                "loaded": True,
-                "children": True,
-                "child_paths": [green_path, orange_path],
-            },
-            {
-                "path": green_path,
-                "name": "mesh",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-            {
-                "path": orange_path,
-                "name": "mesh",
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "children": False,
-                "child_paths": [],
-            },
-        ],
-        "properties": [
-            {
-                "prim_path": green_path,
-                "properties": {
-                    "attributes": {
-                        "primvars:displayColor": {
-                            "type_name": "color3f[]",
-                            "value": ["(0.2, 0.6, 0.2)"],
-                        }
-                    }
-                },
-            },
-            {
-                "prim_path": orange_path,
-                "properties": {
-                    "attributes": {
-                        "primvars:displayColor": {
-                            "type_name": "color3f[]",
-                            "value": ["(0.8235, 0.4196, 0.2157)"],
-                        }
-                    }
-                },
-            },
-        ],
-        "material_bindings": [],
-        "path_translations": [],
-        "candidates": [
-            {
-                "inspection_path": green_path,
-                "source_paths": [green_path],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": False,
-                "direct_targets": [],
-                "bound_material_path": None,
-                "bounds_size": [1.0, 1.0, 1.0],
-            },
-            {
-                "inspection_path": orange_path,
-                "source_paths": [orange_path],
-                "type_name": "Mesh",
-                "active": True,
-                "loaded": True,
-                "effective_visible": True,
-                "candidate_reason": "renderable_prim",
-                "ambiguous_translation": False,
-                "direct_targets": [],
-                "bound_material_path": None,
-                "bounds_size": [1.0, 1.0, 1.0],
-            },
-        ],
-    }
-
-    write_snapshot_artifacts(
-        snapshot,
-        run_dir,
-        materials_yaml=materials_yaml,
-        materials_usd=materials_usd,
-        append_trace=False,
-        respect_existing_material_bindings=False,
-    )
-
-    context = json.loads(
-        (run_dir / "raw" / "material_authoring_context.json").read_text()
-    )
-    assert (
-        context["material_binding_policy"]["respect_existing_material_bindings"]
-        is False
-    )
-    assert context["summary"]["candidate_group_count"] == 2
-    assert {
-        next(iter(group["display_color_counts"]))
-        for group in context["candidate_groups"]
-    } == {"green_display_color", "orange_brown_display_color"}
-    assert {
-        group["recommended_coverage_status"] for group in context["candidate_groups"]
-    } == {"ambiguous_unassigned"}
-
-    assignment_seed = json.loads(
-        (run_dir / "raw" / "material_assignment_seed.json").read_text()
-    )
-    assert {
-        assignment["coverage_status"] for assignment in assignment_seed["assignments"]
-    } == {"ambiguous_unassigned"}
+    with pytest.raises(ValueError, match="either --codex-base-url"):
+        _codex_base_url_from_args(args)
 
 
 def test_materials_assign_dry_run_supports_claude_runner(tmp_path: Path) -> None:
-    usd = tmp_path / "asset.usdc"
+    usd = tmp_path / "asset.usda"
     reference = tmp_path / "reference.png"
     materials_yaml = tmp_path / "materials.yaml"
     materials_usd = tmp_path / "materials.usd"
     claude_config = tmp_path / "claude-config.json"
-    for path in [usd, reference, materials_usd]:
+    for path in [reference, materials_usd]:
         path.write_text("placeholder", encoding="utf-8")
+    usd.write_text("#usda 1.0\n", encoding="utf-8")
     materials_yaml.write_text(
         'library_path: "materials.usd"\nentries: []\n',
         encoding="utf-8",
@@ -1663,7 +1207,7 @@ def test_materials_assign_dry_run_supports_claude_runner(tmp_path: Path) -> None
             "--materials-yaml",
             str(materials_yaml),
             "--repo-root",
-            str(tmp_path),
+            str(_repo_root_with_usd_cli_source(tmp_path)),
             "--output-dir",
             str(run_dir),
             "--runner",
@@ -1790,7 +1334,7 @@ def test_materials_assign_reports_missing_additional_instructions_file(
             "--materials-yaml",
             str(materials_yaml),
             "--repo-root",
-            str(tmp_path),
+            str(_repo_root_with_usd_cli_source(tmp_path)),
             "--output-dir",
             str(tmp_path / "run"),
             "--additional-instructions-file",
@@ -1803,39 +1347,13 @@ def test_materials_assign_reports_missing_additional_instructions_file(
     assert "--additional-instructions-file does not exist" in capsys.readouterr().err
 
 
-def test_materials_assign_rejects_non_positive_vqa_refinement_iterations() -> None:
-    with pytest.raises(SystemExit) as error:
-        main(["materials", "assign", "--vqa-refinement-max-iterations", "0"])
+def test_materials_assign_rejects_non_positive_vqa_refinement_iterations(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["materials", "assign", "--vqa-refinement-max-iterations", "0"])
 
-    assert error.value.code == 2
-
-
-def test_should_start_workbench_defaults_for_loopback_hosts() -> None:
-    assert _should_start_workbench(
-        SimpleNamespace(start_workbench=None, workbench_url="http://127.0.0.1:8088")
-    )
-    assert _should_start_workbench(
-        SimpleNamespace(start_workbench=None, workbench_url="http://127.0.0.2:8088")
-    )
-    assert _should_start_workbench(
-        SimpleNamespace(start_workbench=None, workbench_url="http://localhost:8088")
-    )
-    assert _should_start_workbench(
-        SimpleNamespace(start_workbench=None, workbench_url="http://[::1]:8088")
-    )
-    assert not _should_start_workbench(
-        SimpleNamespace(
-            start_workbench=None, workbench_url="http://workbench-host:8088"
-        )
-    )
-    assert not _should_start_workbench(
-        SimpleNamespace(start_workbench=False, workbench_url="http://127.0.0.1:8088")
-    )
-    assert _should_start_workbench(
-        SimpleNamespace(
-            start_workbench=True, workbench_url="http://workbench-host:8088"
-        )
-    )
+    assert exit_code == 2
+    assert "must be at least 1" in capsys.readouterr().err
 
 
 def test_resolve_materials_usd_from_yaml_manifest(tmp_path: Path) -> None:
@@ -1861,6 +1379,11 @@ def test_resolve_materials_usd_requires_manifest_library_path(
         _resolve_materials_usd_from_manifest(materials_yaml)
 
 
+def test_resolve_materials_usd_reports_manifest_read_failure(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Failed to read material YAML manifest"):
+        _resolve_materials_usd_from_manifest(tmp_path)
+
+
 def test_claude_config_validation_error_names_claude() -> None:
     with pytest.raises(ValueError, match="Claude config does not accept"):
         _parse_json_object(
@@ -1868,3 +1391,102 @@ def test_claude_config_validation_error_names_claude() -> None:
             "--claude-config-json",
             config_name="Claude config",
         )
+
+
+def test_physics_apply_rejects_resume_without_deterministic_workflow(
+    tmp_path: Path,
+) -> None:
+    usd = tmp_path / "asset.usdc"
+    usd.write_text("placeholder", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "physics",
+            "apply",
+            "--usd",
+            str(usd),
+            "--output-dir",
+            str(tmp_path / "physics-run"),
+            "--resume",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 2
+
+
+def test_convert_to_usd_resume_requires_output_dir(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "asset.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+
+    exit_code = main(["convert-to-usd", str(source), "--resume"])
+
+    assert exit_code == 2
+    assert "--resume requires --output-dir" in capsys.readouterr().err
+
+
+def test_simready_resume_flags_parse() -> None:
+    parser = build_parser()
+
+    validation = parser.parse_args(
+        ["simready", "validate-profile", "asset.usda", "--resume"]
+    )
+    conformance = parser.parse_args(
+        [
+            "simready",
+            "conform-profile",
+            "asset.usda",
+            "--output-dir",
+            "run",
+            "--resume",
+        ]
+    )
+
+    assert validation.resume
+    assert conformance.resume
+
+
+def _repo_root_with_usd_cli_source(tmp_path: Path) -> Path:
+    if not usd_cli_common.USD_CLI_REQUIRED_SOURCE:
+        pytest.skip("usd-cli backend source is not distributed in public staging")
+
+    repo_root = tmp_path / "repo"
+    source_root = repo_root / usd_cli_common.USD_CLI_SOURCE_PATH
+    if (repo_root / ".git").exists():
+        return repo_root
+
+    source_root.mkdir(parents=True)
+    for relative in usd_cli_common.USD_CLI_REQUIRED_SOURCE:
+        path = repo_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("source\n", encoding="utf-8")
+
+    subprocess.run(
+        ["git", "init", "--quiet"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "add", "."],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Content Workflow Tests",
+            "-c",
+            "user.email=content-workflow-tests@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "fixture",
+        ],
+        cwd=repo_root,
+        check=True,
+    )
+    return repo_root

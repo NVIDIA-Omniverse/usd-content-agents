@@ -1,3 +1,203 @@
+# Content Agents 0.6.0 (19 Aug 2026)
+
+Content Agents 0.6 makes the adaptive, evidence-driven Content Workflow the
+default public entry point for supported asset tasks. It integrates governed
+scene operations through usd-cli and strengthens resumability, provenance,
+packaging, and release safeguards across the public stack.
+
+Agentic workflow runtime targets are native Linux and WSL2. Native Windows
+execution is unsupported in the 0.6 release. On a Windows host, run the
+supported workflow inside WSL2. Agentic WSL2 workflows use remote OVRTX because
+the local Vulkan renderer is unavailable there. Fixed pipelines use the Warp
+rendering backend under WSL2 only.
+
+## Added
+
+- Added root-discoverable Content Workflow skills for composed asset,
+  articulation, material, texture, physics, validation, Geometry, repair,
+  SimReady, large-scene, and mesh-segmentation work. Durable runs retain typed
+  handoffs, review decisions, reusable memory, exact artifact identities, and
+  interruption-safe resume evidence under root `runs/`.
+- Integrated usd-cli as the governed low-level scene-operation layer for
+  inspection, conversion, editing, rendering, material binding, physics,
+  validation, and live workflow viewing. Local and remote OVRTX execution,
+  package-owned telemetry, and workflow-owned acceptance evidence remain
+  distinct and fail closed when the selected renderer is not ready.
+- Retained the Joint Research Preview's established revolute/prismatic boundary
+  while moving Joint, Texture, and Validation execution into the durable
+  long-running coordination layer with explicit custody, truthful recovery,
+  and resource teardown.
+- Added rendered Material refinement and variation authoring and agentic
+  Physics refinement evidence.
+- Added opt-in, provenance-bound VoMP mass-property authoring to agentic Physics
+  and prompt-first, material-aware Texture weathering with bounded quality
+  checks.
+- Added provider-free Texture UV preparation and selective-leaf execution for
+  scoped application, evidence, and publication. Composed workflows retain
+  exact leaf, dependency, artifact, and terminal-receipt identities and fail
+  closed when UV, provider-result, or custody requirements are not met.
+- Added complete composed-asset catalog coverage for Material, Physics,
+  SimReady conformance and validation, portable USDZ packaging, independently
+  bound Articulation and final-package OVRTX evidence, and one exact combined
+  terminal result. Requests can require capabilities, dependency edges, and the
+  sole terminal up front, so an incomplete installation or graph stops before
+  model, renderer, authoring, or runtime work instead of beginning a partial
+  run.
+- Added provider-neutral Geometry workflows, self-contained Geometry Repair,
+  SDF Tools, and OpenVDB Runtime packages, source-free semantic CAD handoff,
+  dependency-closed non-USD intake, and exact render-bound mesh-segmentation
+  evidence. Native B-rep authoring remains an optional, separately authorized
+  deployment capability rather than a public package.
+
+## Changed
+
+- Replaced the public NVIDIA NIM chat and VLM defaults with
+  `moonshotai/kimi-k3` across shared model tooling, Material, Physics, Joint,
+  Texture, Validation, services, benchmarks, deployments, and examples.
+  Kimi-K3 reasoning effort is model-aware and defaults to `max`. Texture image
+  generation remains on its separate image model; Kimi-K3 supplies its
+  text-only auto-prompt path.
+- Moved Onshape authoring to the official Onshape Labs FeatureScript MCP and
+  added an optional local handoff for immutable STEP, glTF, and OBJ exports.
+  Onshape credentials remain local and are not accepted by the Geometry Agent
+  service or Helm deployment.
+- Moved the unreleased Geometry Authoring implementation and its direct-OCP
+  dependency behind explicit internal boundaries. Public staging, packages,
+  images, locks, notices, and release workflows no longer ship that stack.
+- Start setup, authentication, workflow commands, and coding-agent sessions
+  from the repository root. Release-approved skills are discoverable from the
+  root; `agentic/` remains an implementation and package reference rather than
+  a required working directory.
+- Existing `material-agent`, `physics-agent`, `joint-agent`, `texture-agent`,
+  and `validation-agent` CLIs, YAML configs, Python APIs, benchmarks, and REST
+  services remain available as explicit fixed-pipeline interfaces. The
+  `$fixed-pipeline` umbrella keeps their detailed guidance separate from
+  adaptive workflow routing.
+- Replaced the retired Content Workbench scene transport with workflow-owned
+  usd-cli sessions and renamed scene-operation timeout options accordingly.
+- Updated OVRTX to `0.4.1.364340`, with version-bound isolated-runtime readiness,
+  complete-lock-digest readiness, verified side-by-side replacement and
+  rollback, updated Python 3.11/3.12 and x86_64/ARM64 runtime locks, and aligned
+  rendering-service documentation and images. WSL2 cannot run local OVRTX
+  because it lacks the required Vulkan device; use remote OVRTX for path-traced
+  or material evidence, while supported mesh-only contexts may use the
+  CUDA-only `warp` renderer.
+- Reworked public READMEs, skill routing, package inventories, native builds,
+  service contracts, and dependency notices so public copies, wheels, and
+  source distributions stay aligned with the release source.
+
+## Fixed
+
+- Setup now checks for `unzip` before fetching build resources, documents the
+  resource-skip path, and accurately distinguishes the fixed-pipeline CLIs
+  installed by general setup from the separately installed Validation CLI.
+- WSL2 physics runtime routing recognizes the `/dev/dxg` GPU bridge. Remote
+  rendering can authorize a declared run artifact root so generated sibling
+  textures remain portable without weakening traversal and symlink confinement.
+- Geometry deployments can explicitly opt into an unauthenticated identity for
+  an operator-controlled remote-render sidecar; authenticated endpoints remain
+  the default. The Helm chart package version reflects that template change.
+- Native-Windows development clone guidance enables Git long paths while the
+  supported 0.6 execution route remains Linux or WSL2.
+- Preserved variant selections in OVRTX asset-opinion identities so textures
+  and MDL modules authored directly on a variant-owning prim cannot overwrite a
+  sibling variant during export. Remote package-member texture arrays remain
+  untouched when local USDZ textures are localized for rendering.
+- Localized complete MDL and texture dependency packages at the shared OVRTX
+  export boundary for local and remote rendering. USDZ-backed materials now
+  preserve MDL imports and resources across variants and instances without
+  mutating the source package, while unsafe recursive directory layouts and
+  incomplete rewrites fail closed for every workflow using OVRTX.
+- Hardened public service images with digest-pinned bases, current distro
+  packages, and an image-only media contract. Public Geometry and Physics no
+  longer encode or decode video or install FFmpeg, imageio-ffmpeg, or OpenCV;
+  they publish PNG evidence frames, with Pillow GIF previews where applicable.
+  Material keeps its separately owned codec-free OpenCV build. The public
+  dependency closure also drops `pyte`; video and terminal-replay demo skills
+  and their dependencies are internal-only. The public Geometry 0.6 package
+  and image also no longer ship the CAD converter or its unqualified embedded
+  Python runtime. CAD and mesh sources remain immutable handoffs and fail closed
+  before conversion unless a separately qualified converter or provider-produced
+  USD is available.
+- Prevented public staging from copying NVIDIA-managed Step1X runtime
+  definitions, dependency locks, and component/model inventories. The
+  operator-managed Texture Variation API adapter remains available.
+- Strengthened Geometry source admission with private dependency snapshots,
+  undeclared-UDIM rejection, and retained provider units and axes. Provider
+  provenance inputs now remain digest-bound across later revision and export
+  requests.
+- Preserved Geometry provider-bundle dependency closure and source coordinate
+  metadata through normalization, semantic OVRTX view planning, connector
+  handoffs, and service publication. Manifest-only B-rep inputs now repair the
+  admitted selected representation before USD conversion, while accepted repair
+  derivatives remain bound to their worker-verified digest through consumption.
+- Made the standalone OVRTX rendering service compatible with the usd-cli
+  remote protocol used by Content Workflow. Remote readiness, bounded USDZ
+  uploads, complete frame and camera coverage, renderer-reported execution
+  metadata, and one-time daemon recovery now fail closed together while the
+  legacy rendering endpoint remains available. Ordered, repeated, and
+  fractional USD time codes now retain their exact response association.
+- Fixed writable USDZ rendering so managed camera edits and package-relative
+  textures reach OVRTX together without modifying the source package. Untouched
+  packages remain byte-reused, while edited packages retain valid render-product
+  camera targets instead of producing zero render products.
+- Fixed strict usd-cli verification so dependencies stored inside the inspected
+  USDZ package remain package-local instead of being reported as external
+  filesystem dependencies.
+- Fixed Texture UV verification for self-contained USDZ inputs so deterministic
+  projection hashes stable authored asset operands instead of transient package
+  extraction paths while retaining exact source and dependency byte bindings.
+- Fixed Texture discovery, provided-image authoring, and scope validation for
+  uniquely authorable internal instance proxies while retaining fail-closed
+  handling for external or multiply instanced references.
+- Fixed skill-routed Texture resume after interruption at the provider-free
+  usd-cli preparation boundary by reconstructing only the exact empty,
+  workflow-owned telemetry directory. Nonempty, nested, symlinked, or
+  non-private interrupted state remains rejected.
+- Bound Texture plan/review reasoning to tool-free, provider-schema-enforced
+  turns over parent-validated embedded inputs. The outer workflow now owns the
+  canonical proposal writes, projects canonical models onto API-compatible
+  strict output schemas, attaches accepted references and outer-provided images
+  to review with explicit roles, preserves valid future schema field names, and
+  rejects legacy canonical artifacts that lack exact clean structured-output
+  provenance instead of repeating or bypassing a provider turn.
+- Restored the Joint Agent package in the Geometry Agent service image build
+  context so its public workflow dependency resolves during image locking.
+- Fixed skill-routed Articulation startup on collaborative-umask hosts by
+  enforcing private launcher directories and accepting valid post-author
+  checkpoints, and made concurrent author retries converge on the same durable
+  result. Selected proposal paths now explicitly prepare a `not_evaluated`
+  proposal slot instead of carrying an omitted leaf's `not_requested` status,
+  and decision patches now cite only evidence available in the current author
+  observation.
+- Bound composed SimReady conformance and validation reports to the exact
+  invoked asset path, digest, and confined report destination before accepting
+  native pass evidence. Material staged and published outputs retain an exact
+  custody chain, and Physics passes require typed validation evidence bound to
+  the authored output bytes.
+- Bound accepted visual, Geometry, mesh-segmentation, Material, Joint, Physics,
+  and Validation evidence to exact source digests, renderer-reported settings,
+  retained artifacts, and the operation or review decision that produced it.
+- Hardened file, archive, URL, redirect, XML, SVG, 3MF, CAD service, catalog,
+  and external-asset boundaries with confinement, size, scheme, credential,
+  and parser preflight checks before untrusted data enters expensive or native
+  processing.
+- Preserved USD/USDZ composition, payloads, variants, instances, textures,
+  coordinate conventions, non-USD dependency closures, and prior accepted
+  artifacts across relocation, resume, repair, normalization, and failure.
+- Strengthened concurrent workflow publication and recovery with immutable
+  attempt identities, persistent leases, generation-aware storage ownership,
+  atomic manifests, exact replay contracts, and typed terminal failures.
+- Closed release-path gaps in Geometry provider boundaries, OpenVDB/SDF
+  admission, dependency handling, service ingress, and package license
+  metadata.
+
+## Fixed
+
+- Cleared high-severity dependency findings in the shipped public Python
+  inventory. Public dependencies use the reviewed pyasn1 floor, while usd-cli
+  notebook generation no longer ships the unpatched Bleach dependency.
+
 # Content Agents 0.5.2 (28 Jul 2026)
 
 Content Agents 0.5.2 restores Gemma 4 31B as the consistent hosted public NIM
@@ -237,10 +437,11 @@ Physics/OvPhysX and OVRTX.
 
 ## Changed
 
-- Agentic Workflow child execution now requires Linux or WSL2 and fails closed
-  unless per-run sandboxing and descendant supervision are available. Codex
-  uses `workspace-write`; Claude additionally requires `bubblewrap`, `socat`,
-  and unprivileged user namespaces.
+- Agentic Workflow child execution supports Linux and native Windows and fails
+  closed unless per-run confinement and descendant supervision are available.
+  Codex uses `workspace-write`; Linux Claude execution additionally requires
+  `bubblewrap`, `socat`, and unprivileged user namespaces, while Windows child
+  processes use kill-on-close Job Object supervision.
 - Material assignment now reports prim-level preparation, prediction, fallback,
   binding, and unbound evidence. Strict policy fails closed unless every target
   is release-ready, while partial policy preserves diagnostics for inspection.

@@ -171,6 +171,24 @@ def test_regenerate_request_without_material_textures_has_no_override() -> None:
     assert request.material_textures_config() is None
 
 
+@pytest.mark.parametrize(
+    "execution_id",
+    [
+        "0" * 31,
+        "0" * 33,
+        "A" * 32,
+        "g" * 32,
+        f" {'0' * 31}",
+    ],
+)
+def test_regenerate_request_rejects_invalid_execution_id(execution_id: str) -> None:
+    with pytest.raises(ValidationError, match="execution_id"):
+        RegenerateRequest(
+            steps=[TexturePipelineStep.GENERATE_TEXTURES],
+            execution_id=execution_id,
+        )
+
+
 def test_regenerate_request_accepts_only_canonical_target_unit_ids() -> None:
     unit_id = "tu_0123456789abcdefabcd"
     assert (

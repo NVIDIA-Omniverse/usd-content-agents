@@ -9,15 +9,16 @@ or load configs again.
 
 import asyncio
 import logging
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from world_understanding.agentic.base_pipeline_executor import (
     BasePipelineExecutor,
+    record_step_failure,
     remove_legacy_pipeline_temp_with_safe_diagnostics,
     safe_diagnostic_steps,
     safe_diagnostic_text,
-    safe_step_failure_message,
 )
 from world_understanding.agentic.config import normalize_yaml_config_value
 from world_understanding.agentic.events import get_listener
@@ -26,9 +27,26 @@ from world_understanding.utils.credentials import (
     redact_sensitive_config,
 )
 
+from joint_agent.functions.articulation_adjudication import (
+    ArticulationTopologyReconciliationPreflightError,
+    ArticulationTopologyReconciliationTerminalError,
+    preflight_articulation_topology_reconciliation,
+)
+from joint_agent.functions.articulation_candidates import (
+    infer_articulation_candidates,
+    load_predictions_jsonl,
+)
+from joint_agent.functions.provider_response_conformance import (
+    PROVIDER_RESPONSE_CHECKPOINT_CALLBACK_KEY,
+    ProviderResponseConformanceTerminalError,
+)
 from joint_agent.joint_rigger_options import (
     PREDICTION_FREE_JOINT_RIGGER_ADAPTERS,
     PREDICTION_OPTIONAL_JOINT_RIGGER_ADAPTERS,
+)
+from joint_agent.tasks.articulation_candidates import (
+    ArticulationCandidatesTask,
+    load_articulation_source_metadata,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,6 +137,16 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         if not steps_to_run:
             raise ValueError("No steps to run in pipeline")
 
+        context["_topology_reconciliation_preflight_config"] = (
+            self._topology_reconciliation_preflight_config(
+                steps_to_run=steps_to_run,
+                step_configs=step_configs,
+            )
+        )
+        context["_provider_backed_articulation_intended"] = (
+            "infer_articulation_candidates" in steps_to_run
+        )
+
         # Clean working directory if requested. The base implementation keeps
         # both safety-check and filesystem diagnostics value-safe.
         if clean:
@@ -140,6 +168,37 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
         state_file = Path(working_dir) / ".pipeline_state.json"
         pipeline_state = self._initialize_pipeline_state(context, resume)
+        resume_terminal_failure = pipeline_state.get("terminal_failure")
+        if resume and isinstance(resume_terminal_failure, dict):
+            context["_resume_terminal_failure"] = dict(resume_terminal_failure)
+            self._require_resumed_provider_step_scheduled(
+                steps_to_run=steps_to_run,
+                context=context,
+                pipeline_state=pipeline_state,
+                state_file=state_file,
+            )
+        else:
+            context.pop("_resume_terminal_failure", None)
+        preflight_config = context.get("_topology_reconciliation_preflight_config")
+        if (
+            resume
+            and isinstance(preflight_config, dict)
+            and "predict" in pipeline_state.get("completed_steps", ())
+        ):
+            preflight_config["run_before_step"] = "infer_articulation_candidates"
+        if resume:
+            if not (
+                isinstance(resume_terminal_failure, dict)
+                and resume_terminal_failure.get("error_type")
+                == ProviderResponseConformanceTerminalError.__name__
+            ):
+                pipeline_state.pop("terminal_failure", None)
+            step_outputs = pipeline_state.get("step_outputs")
+            if isinstance(step_outputs, dict):
+                step_outputs.pop("topology_reconciliation_terminal_status", None)
+            context.pop("articulation_topology_reconciliation_status", None)
+            context.pop("provider_response_conformance_status", None)
+            context.pop("terminal_failure", None)
 
         safe_session_id = safe_diagnostic_text(session_id)
         safe_project_name = safe_diagnostic_text(project_name)
@@ -173,6 +232,46 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             _raise_if_cancelled(context, listener, step_name)
             # Skip if already completed (resume mode)
             if resume and step_name in pipeline_state["completed_steps"]:
+                persisted_output = pipeline_state["step_outputs"].get(step_name)
+                try:
+                    if isinstance(persisted_output, dict):
+                        self._raise_for_terminal_step_result(
+                            step_name,
+                            persisted_output,
+                        )
+                except (
+                    ArticulationTopologyReconciliationTerminalError,
+                    ProviderResponseConformanceTerminalError,
+                ) as error:
+                    invalidated_steps = set(steps_to_run[i - 1 :])
+                    pipeline_state["completed_steps"] = [
+                        completed_step
+                        for completed_step in pipeline_state["completed_steps"]
+                        if completed_step not in invalidated_steps
+                    ]
+                    if step_name not in pipeline_state["failed_steps"]:
+                        pipeline_state["failed_steps"].append(step_name)
+                    pipeline_state["current_step"] = None
+                    # Startup already removed the previous .pipeline_temp, so
+                    # this resumed terminal failure must record its own debug
+                    # entry; the public event stays value-free as before.
+                    safe_error = record_step_failure(working_dir, step_name, error)
+                    if event_listener := context.get("event_listener"):
+                        event_listener.event(
+                            "step.failed",
+                            {
+                                "step_name": safe_step_name,
+                                "error": safe_error,
+                            },
+                        )
+                    self._record_terminal_failure(
+                        context=context,
+                        pipeline_state=pipeline_state,
+                        state_file=state_file,
+                        step_name=step_name,
+                        error=error,
+                    )
+                    raise
                 logger.info(
                     "[%d/%d] Skipping %s (already completed)",
                     i,
@@ -208,8 +307,19 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_name, step_config, context, object_store, pipeline_state
                 )
 
+                self._clear_resumed_provider_terminal(
+                    step_name=step_name,
+                    context=context,
+                    pipeline_state=pipeline_state,
+                )
+
                 # Mark step as completed
                 pipeline_state["completed_steps"].append(step_name)
+                pipeline_state["failed_steps"] = [
+                    failed_step
+                    for failed_step in pipeline_state["failed_steps"]
+                    if failed_step != step_name
+                ]
                 pipeline_state["step_outputs"][step_name] = outputs
                 pipeline_state["current_step"] = None
 
@@ -229,7 +339,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 _raise_if_cancelled(context, listener)
 
             except Exception as error:
-                safe_error = safe_step_failure_message(error)
+                context.pop("_topology_reconciliation_preflight_config", None)
+                # Persist a session-local, secret-scrubbed traceback so the
+                # real cause stays diagnosable. Every public surface (log
+                # line, event, checkpoint, raised message) below remains
+                # value-free exactly as before.
+                safe_error = record_step_failure(working_dir, step_name, error)
                 logger.error("Step '%s' failed: %s", safe_step_name, safe_error)
                 pipeline_state["failed_steps"].append(step_name)
                 pipeline_state["current_step"] = None
@@ -242,11 +357,29 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         {"step_name": safe_step_name, "error": safe_error},
                     )
 
+                if isinstance(
+                    error,
+                    (
+                        ArticulationTopologyReconciliationPreflightError
+                        | ArticulationTopologyReconciliationTerminalError
+                        | ProviderResponseConformanceTerminalError
+                    ),
+                ):
+                    self._record_terminal_failure(
+                        context=context,
+                        pipeline_state=pipeline_state,
+                        state_file=state_file,
+                        step_name=step_name,
+                        error=error,
+                    )
+                    raise
+
                 raise RuntimeError(
                     f"Pipeline failed at step '{safe_step_name}': {safe_error}"
                 ) from None
 
         # Pipeline completed
+        context.pop("_topology_reconciliation_preflight_config", None)
         pipeline_state["current_step"] = None
         self._save_checkpoint(pipeline_state, state_file)
 
@@ -273,6 +406,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
         context["pipeline_results"] = pipeline_state["step_outputs"]
         context["pipeline_state"] = "completed"
+        context.pop("_resume_terminal_failure", None)
 
         return context
 
@@ -305,6 +439,22 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         step_outputs = pipeline_state.get("step_outputs", {})
         working_dir = Path(context.get("working_dir", Path.cwd()))
 
+        preflight_config = context.get("_topology_reconciliation_preflight_config")
+        if isinstance(preflight_config, dict) and step_name == preflight_config.get(
+            "run_before_step"
+        ):
+            try:
+                if self._topology_reconciliation_preflight_is_needed(
+                    config=preflight_config,
+                    step_outputs=step_outputs,
+                ):
+                    self._run_topology_reconciliation_preflight(
+                        context=context,
+                        step_outputs=step_outputs,
+                    )
+            finally:
+                context.pop("_topology_reconciliation_preflight_config", None)
+
         # Auto-wire optimized USD for identify_asset and build_dataset_usd steps
         # When optimize_usd has run, use the optimized USD for downstream steps
         if step_name in ("identify_asset", "build_dataset_usd"):
@@ -322,6 +472,18 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
         # Auto-wire identification results into analyze_structure step
         if step_name == "analyze_structure":
+            derived_articulation_intent = bool(
+                context.get("_provider_backed_articulation_intended", False)
+            )
+            explicit_articulation_intent = step_config.get("articulation_intended")
+            if explicit_articulation_intent is False and derived_articulation_intent:
+                raise ValueError(
+                    "articulation_intended=false conflicts with scheduled articulation"
+                )
+            step_config.setdefault(
+                "articulation_intended",
+                derived_articulation_intent,
+            )
             if "identify_asset" in step_outputs:
                 identification = step_outputs["identify_asset"].get("identification")
                 if identification:
@@ -647,8 +809,56 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         # values, including credentials, stay in memory and are never serialized
         # to .pipeline_temp.
         step_context: dict[str, Any] = {"config_dict": step_config}
+        if step_name == "infer_articulation_candidates":
+            structure_metadata = step_outputs.get("analyze_structure", {}).get(
+                "structure_metadata"
+            )
+            if isinstance(structure_metadata, dict):
+                # This value is deliberately passed outside config_dict. Only
+                # the result produced by this pipeline's analyze_structure step
+                # may suppress Stage 2 candidate inference; a user-authored
+                # config value is not trusted as provider evidence.
+                step_context["verified_structure_metadata"] = deepcopy(
+                    structure_metadata
+                )
         if config_path := context.get("config_path"):
             step_context["config_path"] = str(config_path)
+
+        # Provider evidence resume is a nested-workflow concern as well as an
+        # outer pipeline concern. Forward the scalar control value plus a
+        # write-only checkpoint callback rather than sharing the outer context;
+        # nested tasks cannot read credentials, cancellation state, or other
+        # per-run values through that callback boundary.
+        if step_name in {"analyze_structure", "predict"}:
+            resume_enabled = context.get("resume", False)
+            step_context["resume"] = resume_enabled
+            resume_terminal_failure = self._resumed_provider_terminal_for_step(
+                step_name=step_name,
+                context=context,
+            )
+            if resume_enabled and resume_terminal_failure is not None:
+                expected_sha256 = resume_terminal_failure.get(
+                    "diagnostics_artifact_sha256"
+                )
+                if not isinstance(expected_sha256, str):
+                    # Evidence-unavailable provider terminals cannot safely
+                    # resume into an unbound or replacement journal.
+                    raise ProviderResponseConformanceTerminalError.from_status(
+                        resume_terminal_failure
+                    )
+                step_context["provider_response_diagnostics_expected_sha256"] = (
+                    expected_sha256
+                )
+                step_context[PROVIDER_RESPONSE_CHECKPOINT_CALLBACK_KEY] = (
+                    lambda path, digest: self._checkpoint_resumed_provider_evidence(
+                        step_name=step_name,
+                        context=context,
+                        pipeline_state=pipeline_state,
+                        state_file=working_dir / ".pipeline_state.json",
+                        path=path,
+                        digest=digest,
+                    )
+                )
 
         if "event_listener" in context:
             step_context["event_listener"] = context["event_listener"]
@@ -676,6 +886,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         if not result:
             raise RuntimeError(f"Step '{step_name}' returned empty result")
 
+        self._raise_for_terminal_step_result(step_name, result)
+
         if result.get("error") or result.get("workflow_terminated"):
             failed_task = result.get("failed_task", "unknown")
             error_msg = result.get("error", "Workflow terminated")
@@ -684,7 +896,399 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             )
 
         # Extract outputs
-        return self._extract_step_outputs(step_name, result)
+        outputs = self._extract_step_outputs(step_name, result)
+        if step_name == "predict":
+            preflight_status = context.get(
+                "articulation_topology_reconciliation_preflight_status"
+            )
+            if isinstance(preflight_status, dict):
+                outputs["topology_reconciliation_preflight"] = preflight_status
+        return outputs
+
+    def _checkpoint_resumed_provider_evidence(
+        self,
+        *,
+        step_name: str,
+        context: dict[str, Any],
+        pipeline_state: dict[str, Any],
+        state_file: Path,
+        path: Path,
+        digest: str,
+    ) -> None:
+        """Keep a resumed terminal checkpoint bound to every journal write."""
+        terminal_failure = self._resumed_provider_terminal_for_step(
+            step_name=step_name,
+            context=context,
+        )
+        if terminal_failure is None:
+            return
+        checkpointed_failure = dict(terminal_failure)
+        checkpointed_failure.update(
+            {
+                "diagnostics_artifact_path": str(path),
+                "diagnostics_artifact_sha256": digest,
+                "diagnostics_artifact_status": "persisted",
+            }
+        )
+        checkpointed_failure.pop("diagnostics_persistence_error_type", None)
+        context["_resume_terminal_failure"] = checkpointed_failure
+        pipeline_state["terminal_failure"] = checkpointed_failure
+        self._save_checkpoint(pipeline_state, state_file)
+
+    @staticmethod
+    def _clear_resumed_provider_terminal(
+        *,
+        step_name: str,
+        context: dict[str, Any],
+        pipeline_state: dict[str, Any],
+    ) -> None:
+        """Clear the temporary terminal binding after its resumed step succeeds."""
+        if (
+            UnifiedPipelineExecutorTask._resumed_provider_terminal_for_step(
+                step_name=step_name,
+                context=context,
+            )
+            is None
+        ):
+            return
+        context.pop("_resume_terminal_failure", None)
+        pipeline_state.pop("terminal_failure", None)
+
+    def _require_resumed_provider_step_scheduled(
+        self,
+        *,
+        steps_to_run: list[str],
+        context: dict[str, Any],
+        pipeline_state: dict[str, Any],
+        state_file: Path,
+    ) -> None:
+        """Reject a resume that cannot execute its retained provider failure."""
+        terminal_failure = context.get("_resume_terminal_failure")
+        if not (
+            isinstance(terminal_failure, dict)
+            and terminal_failure.get("error_type")
+            == ProviderResponseConformanceTerminalError.__name__
+        ):
+            return
+        recovery_action = terminal_failure.get("recovery_action")
+        failed_step = (
+            recovery_action.get("failed_step")
+            if isinstance(recovery_action, dict)
+            else None
+        )
+        if isinstance(failed_step, str) and failed_step in steps_to_run:
+            return
+        error = ProviderResponseConformanceTerminalError.from_status(terminal_failure)
+        self._record_terminal_failure(
+            context=context,
+            pipeline_state=pipeline_state,
+            state_file=state_file,
+            step_name=(
+                failed_step if isinstance(failed_step, str) else "provider_response"
+            ),
+            error=error,
+        )
+        raise error
+
+    @staticmethod
+    def _resumed_provider_terminal_for_step(
+        *,
+        step_name: str,
+        context: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Return the one provider terminal whose exact step is being resumed."""
+        terminal_failure = context.get("_resume_terminal_failure")
+        if not isinstance(terminal_failure, dict):
+            return None
+        recovery_action = terminal_failure.get("recovery_action")
+        if not (
+            isinstance(recovery_action, dict)
+            and recovery_action.get("failed_step") == step_name
+        ):
+            return None
+        is_provider_terminal = (
+            terminal_failure.get("error_type")
+            == ProviderResponseConformanceTerminalError.__name__
+        )
+        return terminal_failure if is_provider_terminal else None
+
+    @staticmethod
+    def _raise_for_terminal_step_result(
+        step_name: str,
+        result: dict[str, Any],
+    ) -> None:
+        """Enforce terminal contracts for live and persisted step outputs."""
+        provider_conformance_status = result.get(
+            "provider_response_conformance_terminal_status"
+        )
+        if isinstance(provider_conformance_status, dict):
+            raise ProviderResponseConformanceTerminalError.from_status(
+                provider_conformance_status
+            )
+
+        if step_name != "infer_articulation_candidates":
+            return
+        status = result.get("articulation_topology_reconciliation_status")
+        if not (
+            isinstance(status, dict)
+            and status.get("requested") is True
+            and status.get("outcome") == "failed"
+        ):
+            return
+        status = dict(status)
+        candidate_path = result.get("articulation_candidates_path")
+        summary = result.get("articulation_summary")
+        unresolved_decisions: dict[str, Any] = {}
+        if candidate_path:
+            unresolved_decisions["candidate_artifact_path"] = str(candidate_path)
+        if isinstance(summary, dict):
+            review_count = summary.get("review_required_candidate_count")
+            if (
+                isinstance(review_count, int)
+                and not isinstance(review_count, bool)
+                and review_count >= 0
+            ):
+                unresolved_decisions["review_required_candidate_count"] = review_count
+        if unresolved_decisions:
+            status["unresolved_decisions"] = unresolved_decisions
+        raise ArticulationTopologyReconciliationTerminalError(status)
+
+    def _record_terminal_failure(
+        self,
+        *,
+        context: dict[str, Any],
+        pipeline_state: dict[str, Any],
+        state_file: Path,
+        step_name: str,
+        error: (
+            ArticulationTopologyReconciliationPreflightError
+            | ArticulationTopologyReconciliationTerminalError
+            | ProviderResponseConformanceTerminalError
+        ),
+    ) -> None:
+        """Persist one typed terminal status at the outer pipeline boundary."""
+        context.pop("_topology_reconciliation_preflight_config", None)
+        context.pop("_resume_terminal_failure", None)
+        status = dict(error.status)
+        clean_restart_required = bool(
+            isinstance(error, ProviderResponseConformanceTerminalError)
+            and not (
+                status.get("diagnostics_artifact_status") == "persisted"
+                and isinstance(status.get("diagnostics_artifact_sha256"), str)
+            )
+        )
+        if clean_restart_required:
+            status["diagnostics_artifact_status"] = "unavailable"
+            status.pop("diagnostics_artifact_path", None)
+            status.pop("diagnostics_artifact_sha256", None)
+        status.update(
+            {
+                "success": False,
+                "terminal": True,
+                "required": True,
+                "recovery_action": {
+                    "kind": "restart" if clean_restart_required else "resume",
+                    "operation": "joint_agent.api.pipeline",
+                    "resume": not clean_restart_required,
+                    "clean": clean_restart_required,
+                    "failed_step": step_name,
+                    "checkpoint_path": str(state_file),
+                },
+            }
+        )
+        status_key = (
+            "provider_response_conformance_status"
+            if isinstance(error, ProviderResponseConformanceTerminalError)
+            else "articulation_topology_reconciliation_status"
+        )
+        context[status_key] = status
+        context["terminal_failure"] = status
+        pipeline_state["terminal_failure"] = status
+        error.status = dict(status)
+        context["pipeline_results"] = pipeline_state["step_outputs"]
+        context["pipeline_state"] = "failed"
+        self._save_checkpoint(pipeline_state, state_file)
+
+    @staticmethod
+    def _topology_reconciliation_preflight_config(
+        *,
+        steps_to_run: list[str],
+        step_configs: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        if "infer_articulation_candidates" not in steps_to_run:
+            return None
+        inference_config = step_configs.get("infer_articulation_candidates")
+        if not isinstance(inference_config, dict):
+            return None
+        adjudication = inference_config.get("adjudication")
+        if not isinstance(adjudication, dict):
+            return None
+        if not (
+            adjudication.get("enabled") is True
+            and adjudication.get("reconcile_topology") is True
+        ):
+            return None
+        return {
+            "run_before_step": (
+                "predict"
+                if "predict" in steps_to_run
+                else "infer_articulation_candidates"
+            ),
+            "max_images": int(adjudication.get("max_images", 64)),
+            "require_source_images": bool(
+                adjudication.get("require_source_images", False)
+            ),
+            "dataset_path": inference_config.get("dataset_path"),
+            "prim_metadata_path": inference_config.get("prim_metadata_path"),
+            "predictions_path": inference_config.get("predictions_path"),
+            "output_key": inference_config.get("output_key"),
+            "candidate_joint_types": inference_config.get("candidate_joint_types"),
+            "enable_source_backed_v1_breadth": inference_config.get(
+                "enable_source_backed_v1_breadth",
+                False,
+            ),
+        }
+
+    @staticmethod
+    def _topology_reconciliation_preflight_is_needed(
+        *,
+        config: dict[str, Any],
+        step_outputs: dict[str, Any],
+    ) -> bool:
+        """Return whether an inference-only run could still call reconciliation."""
+        if config.get("run_before_step") != "infer_articulation_candidates":
+            return True
+
+        predictions_path: Any = config.get("predictions_path")
+        for step_name, output_name in (
+            ("predict", "predictions_path"),
+            ("consistency_pass", "consistent_predictions_path"),
+        ):
+            outputs = step_outputs.get(step_name)
+            if isinstance(outputs, dict) and outputs.get(output_name):
+                predictions_path = outputs[output_name]
+        if not predictions_path or not Path(predictions_path).is_file():
+            return True
+
+        try:
+            predictions = load_predictions_jsonl(predictions_path)
+        except (OSError, TypeError, ValueError):
+            return True
+        output_key: Any = config.get("output_key")
+        predict_outputs = step_outputs.get("predict")
+        if not output_key and isinstance(predict_outputs, dict):
+            output_key = predict_outputs.get("output_key")
+        output_key = str(output_key or "classification")
+        if ArticulationCandidatesTask._has_topology_reconciliation_trace(
+            predictions,
+            output_key=output_key,
+        ):
+            # Receipt recovery or rejection occurs before any new model request.
+            return False
+
+        dataset_entries: list[dict[str, Any]] | None = None
+        dataset_path = config.get("dataset_path")
+        prepare_outputs = step_outputs.get("build_dataset_prepare_dataset")
+        if not dataset_path and isinstance(prepare_outputs, dict):
+            dataset_path = prepare_outputs.get("dataset_jsonl_path")
+        if dataset_path and Path(dataset_path).is_file():
+            try:
+                dataset_entries = load_predictions_jsonl(dataset_path)
+            except (OSError, TypeError, ValueError):
+                return True
+        try:
+            source_metadata, _ = load_articulation_source_metadata(
+                dataset_entries,
+                config.get("prim_metadata_path"),
+            )
+            candidate_document = infer_articulation_candidates(
+                predictions,
+                output_key=output_key,
+                candidate_joint_types=config.get("candidate_joint_types"),
+                enable_source_backed_v1_breadth=config.get(
+                    "enable_source_backed_v1_breadth",
+                    False,
+                ),
+                prim_metadata=source_metadata,
+            )
+        except (OSError, TypeError, ValueError):
+            return True
+        return bool(
+            ArticulationCandidatesTask._requires_topology_reconciliation(
+                predictions,
+                candidate_document,
+                output_key=output_key,
+            )
+        )
+
+    @staticmethod
+    def _run_topology_reconciliation_preflight(
+        *,
+        context: dict[str, Any],
+        step_outputs: dict[str, Any],
+    ) -> None:
+        config = context.get("_topology_reconciliation_preflight_config")
+        if not isinstance(config, dict):
+            return
+        dataset_path: Any = config.get("dataset_path")
+        prepare_outputs = step_outputs.get("build_dataset_prepare_dataset")
+        if not dataset_path and isinstance(prepare_outputs, dict):
+            dataset_path = prepare_outputs.get("dataset_jsonl_path")
+        if not dataset_path or not Path(dataset_path).is_file():
+            raise ArticulationTopologyReconciliationPreflightError(
+                "Topology reconciliation preflight requires a prepared dataset "
+                "JSONL from steps.infer_articulation_candidates.dataset_path or "
+                "build_dataset_prepare_dataset.dataset_jsonl_path before prediction "
+                "or reconciliation-model provisioning",
+                reason="dataset_unavailable",
+                source_prediction_count=None,
+                configured_max_images=int(config["max_images"]),
+            )
+        dataset_entries = load_predictions_jsonl(dataset_path)
+        if config.get("require_source_images") is not True:
+            raise ArticulationTopologyReconciliationPreflightError(
+                "Topology reconciliation requires "
+                "adjudication.require_source_images=true",
+                reason="invalid_configuration",
+                source_prediction_count=len(dataset_entries),
+                configured_max_images=int(config["max_images"]),
+            )
+        source_metadata, _ = load_articulation_source_metadata(
+            dataset_entries,
+            config.get("prim_metadata_path"),
+        )
+        try:
+            plan = preflight_articulation_topology_reconciliation(
+                dataset_entries,
+                source_metadata=source_metadata,
+                max_images=int(config["max_images"]),
+                require_images=bool(config["require_source_images"]),
+            )
+        except ArticulationTopologyReconciliationPreflightError as error:
+            if error.status.get("reason") != "invalid_authoritative_membership":
+                raise
+            # Prepared datasets without a complete authoritative partition keep
+            # their existing Stage 1 behavior. If Stage 2 later establishes that
+            # reconciliation is required, its request preflight fails closed
+            # before the model call.
+            context["articulation_topology_reconciliation_preflight_status"] = {
+                "requested": True,
+                "outcome": "deferred",
+                "reason": "invalid_authoritative_membership",
+                "source_prediction_count": len(dataset_entries),
+                "configured_max_images": int(config["max_images"]),
+            }
+            return
+        status = {
+            "requested": True,
+            "outcome": "passed",
+            "grouping_mode": plan.grouping_mode,
+            "source_prediction_count": len(dataset_entries),
+            "authoritative_group_count": len(plan.groups),
+            "configured_max_images": int(config["max_images"]),
+            "required_image_budget": plan.required_image_budget,
+        }
+        context["articulation_topology_reconciliation_preflight_status"] = status
 
     def _prepare_runtime_config(self, step_config: dict[str, Any]) -> dict[str, Any]:
         """Return an isolated, YAML-equivalent runtime configuration."""
@@ -729,6 +1333,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 "structure_assignments_path"
             )
             outputs["structure_metadata"] = result.get("structure_metadata")
+            outputs["structure_provider_response_diagnostics_path"] = result.get(
+                "structure_provider_response_diagnostics_path"
+            )
+            outputs["structure_provider_response_diagnostics_sha256"] = result.get(
+                "structure_provider_response_diagnostics_sha256"
+            )
 
         elif step_name == "build_dataset_usd":
             outputs["output_dir"] = result.get("output_dir")
@@ -742,6 +1352,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             outputs["predictions_path"] = result.get("predictions_path")
             outputs["predictions_count"] = result.get("predictions_count")
             outputs["output_key"] = result.get("output_key")
+            outputs["provider_response_diagnostics_path"] = result.get(
+                "provider_response_diagnostics_path"
+            )
+            outputs["provider_response_diagnostics_sha256"] = result.get(
+                "provider_response_diagnostics_sha256"
+            )
 
         elif step_name == "consistency_pass":
             outputs["consistent_predictions_path"] = result.get(

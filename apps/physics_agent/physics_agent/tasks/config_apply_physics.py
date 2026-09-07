@@ -35,6 +35,8 @@ class ApplyPhysicsConfigTask(Task):
         - mass_scale_policy: warn | skip_mass | fail for mass/scale QA warnings
         - allow_empty_predictions: Allow empty prediction files to produce a
           rigid-body-only USD (default: False)
+        - approved_dependency_roots: Filesystem roots from which portable
+          exports may copy dependencies
     """
 
     def __init__(self) -> None:
@@ -89,6 +91,23 @@ class ApplyPhysicsConfigTask(Task):
                 "apply_physics.allow_empty_predictions must be a boolean, got "
                 f"{type(allow_empty_predictions).__name__}"
             )
+        approved_dependency_roots = config.get("approved_dependency_roots")
+        if approved_dependency_roots is not None:
+            if (
+                not isinstance(approved_dependency_roots, list)
+                or not approved_dependency_roots
+                or not all(
+                    isinstance(root, str) and root for root in approved_dependency_roots
+                )
+            ):
+                raise ValueError(
+                    "apply_physics.approved_dependency_roots must be a non-empty "
+                    "list of paths"
+                )
+            approved_dependency_roots = [
+                str(self._resolve_path(root, config_dir))
+                for root in approved_dependency_roots
+            ]
 
         context.update(
             {
@@ -101,6 +120,8 @@ class ApplyPhysicsConfigTask(Task):
                 "allow_empty_predictions": allow_empty_predictions,
             }
         )
+        if approved_dependency_roots is not None:
+            context["approved_dependency_roots"] = approved_dependency_roots
 
         logger.info("Input USD: %s", redact_sensitive_path(usd_path))
         logger.info("Predictions: %s", redact_sensitive_path(predictions_path))

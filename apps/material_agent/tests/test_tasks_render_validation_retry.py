@@ -139,3 +139,35 @@ def test_render_task_fails_if_blank_remote_image_persists(
     assert context["rendering_stats"]["total_images"] == 0
     assert context["rendering_stats"]["failed_renders"] == 1
     assert context["rendering_stats"]["validation_retry_count"] == 1
+
+
+def test_render_task_uses_injected_rendering_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _FakeRemoteBackend.images = [_valid_render_image()]
+    _FakeRemoteBackend.calls = 0
+    injected = _FakeRemoteBackend()
+    monkeypatch.setattr(
+        render_module,
+        "create_rendering_backend",
+        lambda *_args, **_kwargs: pytest.fail("discarded injected backend"),
+    )
+
+    result = RenderTask().run(
+        {
+            "input_usd_path": str(_make_stage(tmp_path / "scene.usda")),
+            "output_base_path": str(tmp_path / "renders"),
+            "rendering_backend": injected,
+            "render_config": {
+                "backend": "remote",
+                "image_width": 32,
+                "image_height": 32,
+                "camera_corners": ["+x+y+z"],
+                "max_attempts": 1,
+            },
+        }
+    )
+
+    assert _FakeRemoteBackend.calls == 1
+    assert Path(result["rendered_image_path"]).is_file()

@@ -37,6 +37,7 @@ from physics_agent.api import (
     arun_pipeline,
     arun_predict,
 )
+from world_understanding.utils.credentials import redact_sensitive_log_text
 from world_understanding.utils.durable_diagnostics import (
     DurableDiagnostic,
     FailurePhase,
@@ -57,6 +58,36 @@ class _PredictResultError(RuntimeError):
     def __init__(self, diagnostic: DurableDiagnostic) -> None:
         self.diagnostic = diagnostic
         super().__init__(diagnostic.code)
+
+
+async def _watch_predict_generation(
+    session_manager,
+    session_id: str,
+    execution_task: asyncio.Task,
+    poll_interval: float = 1.0,
+) -> None:
+    """Renew the generation lease and deliver cross-replica cancellation."""
+    is_cancelled = getattr(session_manager, "is_cancelled", None)
+    if is_cancelled is None:
+        return
+    try:
+        while not execution_task.done():
+            try:
+                if await is_cancelled(session_id):
+                    execution_task.cancel()
+                    return
+            except Exception:  # noqa: BLE001
+                # A transient S3 failure must not permanently stop lease
+                # renewal and cross-replica cancellation delivery.
+                log_durable_failure(
+                    logger,
+                    "physics_predict_generation_heartbeat_failed",
+                    phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                    retryable=True,
+                )
+            await asyncio.sleep(poll_interval)
+    except asyncio.CancelledError:
+        return
 
 
 def _extract_image_paths(entry: dict[str, Any]) -> list[str]:
@@ -270,8 +301,14 @@ async def execute_predict_async(
         session_dir=session_dir, dataset_path=dataset_path
     )
     logger.info(
-        f"/predict mode for {session_id[:8]}: {mode}"
-        + (f" (dataset={resolved_dataset})" if resolved_dataset else "")
+        "/predict mode for %s: %s%s",
+        session_id[:8],
+        mode,
+        (
+            f" (dataset={redact_sensitive_log_text(resolved_dataset)})"
+            if resolved_dataset
+            else ""
+        ),
     )
 
     # Persist mode + intended steps up front so /predict/{id}/status and
@@ -299,6 +336,17 @@ async def execute_predict_async(
         },
     )
 
+    execution_task = asyncio.current_task()
+    if execution_task is not None:
+        generation_watcher = asyncio.create_task(
+            _watch_predict_generation(
+                session_manager,
+                session_id,
+                execution_task,
+            )
+        )
+        execution_task.add_done_callback(lambda _task: generation_watcher.cancel())
+
     listener = FastAPIEventListener(session_id, session_dir)
     event_bus = get_event_bus()
 
@@ -309,6 +357,9 @@ async def execute_predict_async(
     # status stuck on "cancelling".
     execution_failure: DurableDiagnostic | None = None
     try:
+        is_cancelled = getattr(session_manager, "is_cancelled", None)
+        if is_cancelled is not None and await is_cancelled(session_id):
+            raise asyncio.CancelledError
         if mode == "dataset_only":
             # Seed an EventBus snapshot for Mode A so /predict/{id}/events
             # can stream. arun_predict doesn't accept an event_listener, so
@@ -386,6 +437,9 @@ async def execute_predict_async(
 
             stats = _extract_stats_from_pipeline_result(result, session_dir)
 
+        if is_cancelled is not None and await is_cancelled(session_id):
+            raise asyncio.CancelledError
+
         # Pipeline duration
         metadata = await session_manager.get_session_metadata(session_id)
         duration_seconds = 0
@@ -395,49 +449,58 @@ async def execute_predict_async(
                 created_at = created_at.replace(tzinfo=UTC)
             duration_seconds = int((datetime.now(UTC) - created_at).total_seconds())
 
-        # Persist a terminal overall_progress snapshot so /predict/{id}/status
-        # reads from the store (other pods, post-eventbus-reset, or the bus
-        # was never seeded for Mode A) report 100% rather than predict's
-        # mid-pipeline 90% or Mode A's 0%. Matches what the in-memory
-        # snapshot ends up with after the pipeline_completed event.
-        await session_manager.update_session(
-            session_id,
-            {
-                "status": "completed",
-                "results": stats,
-                "duration_seconds": duration_seconds,
-                "completed_at": datetime.now(UTC).isoformat(),
-                "overall_progress": {
-                    "percent": 100,
-                    "current_step": 1 if mode == "dataset_only" else 4,
-                    "total_steps": 1 if mode == "dataset_only" else 4,
-                    "message": "Predict completed",
-                },
-            },
-        )
-
-        # Sync prediction artifacts to store; we deliberately omit the
-        # physics/ prefix because /predict never runs apply_physics.
-        synced = 0
-        for prefix in (
-            "cache/predictions/",
-            "cache/dataset/dataset.jsonl",
-        ):
-            try:
-                n = await session_manager.sync_to_store(session_id, prefix=prefix)
-                synced += n
-            except Exception:
-                log_durable_failure(
-                    logger,
-                    "physics_predict_artifact_sync_failed",
-                    phase=FailurePhase.SYNC_UPLOAD,
-                    retryable=True,
-                )
+        # Publish one complete immutable generation before advertising terminal
+        # metadata. Readers retain the previous manifest until this succeeds.
+        try:
+            synced = await session_manager.sync_to_store(
+                session_id,
+                prefix=(
+                    "input/",
+                    "cache/predictions/",
+                    "cache/dataset/dataset.jsonl",
+                ),
+            )
+        except Exception as error:
+            diagnostic = durable_diagnostic(
+                "physics_predict_artifact_sync_failed",
+                phase=FailurePhase.SYNC_UPLOAD,
+                retryable=True,
+            )
+            raise _PredictResultError(diagnostic) from error
         if synced > 0:
             logger.info(
-                f"Synced {synced} predict artifact file(s) to store for "
+                f"Published {synced} predict artifact file(s) to store for "
                 f"{session_id[:8]}"
             )
+
+        if is_cancelled is not None and await is_cancelled(session_id):
+            raise asyncio.CancelledError
+
+        # Persist a terminal snapshot only after the artifact manifest moved.
+        terminal_updates = {
+            "status": "completed",
+            "results": stats,
+            "duration_seconds": duration_seconds,
+            "completed_at": datetime.now(UTC).isoformat(),
+            "overall_progress": {
+                "percent": 100,
+                "current_step": 1 if mode == "dataset_only" else 4,
+                "total_steps": 1 if mode == "dataset_only" else 4,
+                "message": "Predict completed",
+            },
+        }
+        commit_if_not_cancelled = getattr(
+            session_manager,
+            "update_session_if_not_cancelled",
+            None,
+        )
+        if commit_if_not_cancelled is not None:
+            if not await commit_if_not_cancelled(session_id, terminal_updates):
+                raise asyncio.CancelledError
+        else:
+            if is_cancelled is not None and await is_cancelled(session_id):
+                raise asyncio.CancelledError
+            await session_manager.update_session(session_id, terminal_updates)
 
         # Mark the EventBus snapshot terminal. The bus's COMPLETED handler
         # is if/elif: when ``current_step.name == event.step`` it appends
@@ -561,16 +624,33 @@ async def _mark_failed(
     on the executing instance — without the event the snapshot stays
     "running" forever.
     """
+    failed_updates = {
+        "status": "failed",
+        "error": diagnostic.code,
+        "error_diagnostic": diagnostic.to_dict(),
+        "failed_step": failed_step,
+    }
+    terminal_state = StepState.FAILED
     try:
-        await session_manager.update_session(
-            session_id,
-            {
-                "status": "failed",
-                "error": diagnostic.code,
-                "error_diagnostic": diagnostic.to_dict(),
-                "failed_step": failed_step,
-            },
+        commit_if_not_cancelled = getattr(
+            session_manager,
+            "update_session_if_not_cancelled",
+            None,
         )
+        if commit_if_not_cancelled is not None:
+            committed = await commit_if_not_cancelled(session_id, failed_updates)
+            if not committed:
+                terminal_state = StepState.CANCELLED
+                await session_manager.update_session(
+                    session_id,
+                    {
+                        "status": "cancelled",
+                        "cancelled_at": datetime.now(UTC).isoformat(),
+                        "can_cancel": False,
+                    },
+                )
+        else:
+            await session_manager.update_session(session_id, failed_updates)
     except Exception:
         log_durable_failure(
             logger,
@@ -588,8 +668,12 @@ async def _mark_failed(
                 ProgressEvent(
                     session_id=session_id,
                     step=failed_step,
-                    state=StepState.FAILED,
-                    message=diagnostic.code,
+                    state=terminal_state,
+                    message=(
+                        diagnostic.code
+                        if terminal_state == StepState.FAILED
+                        else "Predict cancelled"
+                    ),
                     extra={
                         "error": diagnostic.code,
                         "error_diagnostic": diagnostic.to_dict(),

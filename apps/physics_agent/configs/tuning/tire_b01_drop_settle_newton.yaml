@@ -17,7 +17,7 @@ target:
   cameras: ["+x+y+z"]
   camera_ground_bias_fraction: 0.75
   vlm_check: "off"
-  record_video: "end_of_tune"
+  record_frames: "end_of_tune"
 
 parameters:
   - name: mass_scale

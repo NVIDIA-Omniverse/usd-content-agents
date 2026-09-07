@@ -48,6 +48,22 @@ class TokenUsage:
             "invocation_type": self.invocation_type,
         }
 
+    def cached_input_tokens(self) -> int | None:
+        """Return provider-reported cached input tokens when available."""
+        if not isinstance(self.input_token_details, dict):
+            return None
+        for key in (
+            "cached_input_tokens",
+            "cached_tokens",
+            "cache_read_input_tokens",
+            "cache_read",
+            "cache",
+        ):
+            value = self.input_token_details.get(key)
+            if isinstance(value, int) and not isinstance(value, bool):
+                return max(0, value)
+        return None
+
     @classmethod
     def from_langchain_response(
         cls,
@@ -158,8 +174,16 @@ class TokenTracker:
                 - all_usages: List of serialized individual usage dictionaries
         """
         with self._lock:
+            cached_input_values = [
+                cached
+                for usage in self.usages
+                if (cached := usage.cached_input_tokens()) is not None
+            ]
             stats = {
                 "total_input_tokens": sum(u.input_tokens for u in self.usages),
+                "cached_input_tokens": (
+                    sum(cached_input_values) if cached_input_values else None
+                ),
                 "total_output_tokens": sum(u.output_tokens for u in self.usages),
                 "total_tokens": sum(u.total_tokens for u in self.usages),
                 "invocation_count": len(self.usages),
@@ -174,11 +198,17 @@ class TokenTracker:
                 if model_key not in stats["by_model"]:
                     stats["by_model"][model_key] = {
                         "input_tokens": 0,
+                        "cached_input_tokens": None,
                         "output_tokens": 0,
                         "total_tokens": 0,
                         "count": 0,
                     }
                 stats["by_model"][model_key]["input_tokens"] += usage.input_tokens
+                cached = usage.cached_input_tokens()
+                if cached is not None:
+                    stats["by_model"][model_key]["cached_input_tokens"] = (
+                        stats["by_model"][model_key]["cached_input_tokens"] or 0
+                    ) + cached
                 stats["by_model"][model_key]["output_tokens"] += usage.output_tokens
                 stats["by_model"][model_key]["total_tokens"] += usage.total_tokens
                 stats["by_model"][model_key]["count"] += 1
@@ -189,11 +219,17 @@ class TokenTracker:
                 if type_key not in stats["by_type"]:
                     stats["by_type"][type_key] = {
                         "input_tokens": 0,
+                        "cached_input_tokens": None,
                         "output_tokens": 0,
                         "total_tokens": 0,
                         "count": 0,
                     }
                 stats["by_type"][type_key]["input_tokens"] += usage.input_tokens
+                cached = usage.cached_input_tokens()
+                if cached is not None:
+                    stats["by_type"][type_key]["cached_input_tokens"] = (
+                        stats["by_type"][type_key]["cached_input_tokens"] or 0
+                    ) + cached
                 stats["by_type"][type_key]["output_tokens"] += usage.output_tokens
                 stats["by_type"][type_key]["total_tokens"] += usage.total_tokens
                 stats["by_type"][type_key]["count"] += 1
@@ -231,9 +267,15 @@ def format_token_stats(stats: dict[str, Any], include_details: bool = True) -> s
         "Token Usage Statistics:",
         f"  Total Invocations: {stats['invocation_count']}",
         f"  Input Tokens:  {stats['total_input_tokens']:,}",
-        f"  Output Tokens: {stats['total_output_tokens']:,}",
-        f"  Total Tokens:  {stats['total_tokens']:,}",
     ]
+    if stats.get("cached_input_tokens") is not None:
+        lines.append(f"  Cached Input:  {stats['cached_input_tokens']:,}")
+    lines.extend(
+        [
+            f"  Output Tokens: {stats['total_output_tokens']:,}",
+            f"  Total Tokens:  {stats['total_tokens']:,}",
+        ]
+    )
 
     if include_details and stats.get("by_model"):
         lines.append("\n  By Model:")

@@ -16,10 +16,10 @@ from .collector import CollectionRuntimeError, run_collection
 from .contracts import CollectionRequest
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Collect asset-task results")
     parser.add_argument("--request", type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         request = CollectionRequest.model_validate(load_json(args.request))
         result = run_collection(request)

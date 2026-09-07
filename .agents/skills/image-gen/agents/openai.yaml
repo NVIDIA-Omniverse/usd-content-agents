@@ -1,4 +1,0 @@
-interface:
-  display_name: "Image Gen"
-  short_description: "Help with Image Gen tasks"
-  default_prompt: "Use $image-gen to generate images from text prompts using the wu CLI."

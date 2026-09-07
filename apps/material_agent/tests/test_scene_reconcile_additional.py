@@ -6,12 +6,15 @@ from __future__ import annotations
 
 import builtins
 import json
+import os
+import stat
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from world_understanding.utils.artifacts import ArtifactPathError
 
 import material_agent.scene.reconcile as reconcile
 from material_agent.scene.reconcile import (
@@ -330,3 +333,25 @@ def test_remap_predictions_file_keeps_blank_and_invalid_lines(tmp_path: Path) ->
     assert _remap_predictions_file(pred_file, {"Old": "New"}) == 1
     assert pred_file.read_text().splitlines()[1] == ""
     assert pred_file.read_text().splitlines()[2] == "{not-json}"
+
+
+def test_remap_predictions_file_preserves_restrictive_mode(tmp_path: Path) -> None:
+    pred_file = tmp_path / "predictions.jsonl"
+    pred_file.write_text(json.dumps({"materials": {"material": "Old"}}) + "\n")
+    pred_file.chmod(0o600)
+
+    assert _remap_predictions_file(pred_file, {"Old": "New"}) == 1
+
+    assert stat.S_IMODE(pred_file.stat().st_mode) == 0o600
+
+
+def test_remap_predictions_file_rejects_symlink_destination(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.jsonl"
+    outside.write_text(json.dumps({"materials": {"material": "Old"}}) + "\n")
+    pred_file = tmp_path / "predictions.jsonl"
+    os.symlink(outside, pred_file)
+
+    with pytest.raises(ArtifactPathError, match="symlinked artifact"):
+        _remap_predictions_file(pred_file, {"Old": "New"})
+
+    assert json.loads(outside.read_text())["materials"]["material"] == "Old"

@@ -16,6 +16,8 @@ from ...service.routers import sessions_router
 from ...service.runtime.bus import EventBus
 from ...service.runtime.events import ProgressEvent, StepState
 from ...service.runtime.registry import JobRegistry
+from ...service.storage import local_store as local_store_module
+from ...service.storage.base import _prune_local_snapshot
 from ...service.storage.local_store import LocalSessionStore
 from ...service.utils import AccessLogFilter, get_version
 from ...service.workers.executor import (
@@ -206,6 +208,19 @@ async def test_local_store_edges(tmp_path: Path) -> None:
     assert await store.sync_from_local(sid, str(equivalent_session_path)) == 0
     assert await store.cleanup_stale_local_sessions(str(tmp_path), max_age_hours=0) == 0
 
+    await store.delete_key("missing", "cache/a.txt")
+    assert await store.get_event_log("../escaped") == []
+    assert await store.sync_to_local("../escaped", str(tmp_path / "dest")) == 0
+    assert (
+        store._copy_local_snapshot(
+            tmp_path / "missing-source",
+            tmp_path / "copy-destination",
+            "",
+            overwrite=False,
+        )
+        == 0
+    )
+
     target = tmp_path / "target"
     await store.put_bytes(sid, "other.txt", b"skip")
     legacy_temp = (
@@ -273,6 +288,47 @@ async def test_local_store_edges(tmp_path: Path) -> None:
         / "config.yaml"
     ).exists()
     assert not (store._session_dir("copied") / "other.txt").exists()
+
+
+def test_local_snapshot_pruning_respects_prefix_and_source_inventory(
+    tmp_path: Path,
+) -> None:
+    local = tmp_path / "local"
+    stale = local / "cache" / "stale.txt"
+    kept = local / "cache" / "kept.txt"
+    outside = local / "outside" / "untouched.txt"
+    for path in (stale, kept, outside):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(path.name, encoding="utf-8")
+
+    _prune_local_snapshot(local, "cache/", {"cache/kept.txt"})
+
+    assert not stale.exists()
+    assert kept.exists()
+    assert outside.exists()
+
+
+@pytest.mark.asyncio
+async def test_local_store_delete_exhausts_bounded_retries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalSessionStore(str(tmp_path / "store"))
+    attempts = 0
+
+    def fail_delete(*_args, **_kwargs) -> None:
+        nonlocal attempts
+        attempts += 1
+        raise OSError("delete failed")
+
+    async def no_sleep(_delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(local_store_module, "remove_confined_tree", fail_delete)
+    monkeypatch.setattr(local_store_module.asyncio, "sleep", no_sleep)
+    with pytest.raises(OSError, match="delete failed"):
+        await store.delete_session("sid")
+    assert attempts == 3
 
 
 @pytest.mark.asyncio

@@ -126,6 +126,73 @@ class TestPipelineRegenerate:
 
         assert regen_r.status_code == 202
 
+    async def test_regenerate_routes_configured_renderer_backend(
+        self,
+        client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from ...service.routers import pipeline_router
+
+        create_r = await client.post(
+            "/pipeline",
+            files={
+                "usd_file": (
+                    "scene.usda",
+                    b"#usda 1.0\n",
+                    "application/octet-stream",
+                )
+            },
+        )
+        assert create_r.status_code == 202
+        session_id = create_r.json()["session_id"]
+        await _wait_for_completed(client, session_id)
+
+        captured_pipeline_configs: list[dict[str, Any]] = []
+        finished = asyncio.Event()
+
+        async def capture_execute(
+            session_id: str,
+            config_dict: dict[str, Any],
+            session_manager,
+            user_email: str = "",
+            coverage_policy: str = "allow_partial",
+            regeneration_claim: Any | None = None,
+        ) -> None:
+            captured_pipeline_configs.append(config_dict)
+            await _finish_stub_execution(
+                session_manager,
+                session_id,
+                regeneration_claim,
+                {"status": "completed", "completed_steps": []},
+            )
+            finished.set()
+
+        monkeypatch.setattr(
+            pipeline_router, "execute_pipeline_async", capture_execute, raising=True
+        )
+        monkeypatch.setattr(
+            pipeline_router.config, "renderer_backend", "warp", raising=True
+        )
+
+        regen_r = await client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": [
+                    "build_dataset_usd",
+                    "build_dataset_prepare_dataset",
+                    "predict",
+                    "apply",
+                    "render",
+                ]
+            },
+        )
+
+        assert regen_r.status_code == 202
+        await asyncio.wait_for(finished.wait(), timeout=2)
+        steps = captured_pipeline_configs[0]["steps"]
+        assert steps["build_dataset_usd"]["renderer"]["backend"] == "warp"
+        assert steps["render"]["backend"] == "warp"
+
     async def test_predict_regeneration_uses_only_current_run_evidence(
         self,
         client,

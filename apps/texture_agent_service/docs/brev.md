@@ -75,7 +75,19 @@ The validated FLUX endpoint uses:
 
 Copy only `NGC_API_KEY` and `HF_TOKEN` to the remote NIM env file; do not copy
 the full local `.env`. FLUX NIM needs `NGC_API_KEY` for the container pull and
-`HF_TOKEN` for model weight access.
+`HF_TOKEN` for model weight access. Export both from an approved secret source
+before running this block. If they exist only in the repo `.env`, activate the
+repo `.venv` and render the planner instead; it parses only those two keys.
+
+```bash
+source .venv/bin/activate
+python scripts/brev_agent_services.py --service texture --preset hybrid --name wu-ta \
+  --image-gen-node-name wu-ta-image-gen
+```
+
+Before sending credentials, verify the node's SSH host-key fingerprint through
+an independently authenticated Brev/provider channel and install that exact
+key in `~/.ssh/known_hosts`.
 
 ```bash
 brev create wu-ta-image-gen --dry-run --type g6e.xlarge --min-disk 500
@@ -100,31 +112,70 @@ PY
    sudo nvidia-ctk runtime configure --runtime=docker --set-as-default && \
    sudo systemctl restart docker && \
    sudo chmod -R u+rwX,g+rwX,o-rwx /opt/dlami/nvme/nim-cache"
-umask 077
-if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
-fi
-test -n "$NGC_API_KEY"
-test -n "$HF_TOKEN"
-printf 'NGC_API_KEY=%s\nHF_TOKEN=%s\n' "$NGC_API_KEY" "$HF_TOKEN" > /tmp/wu-ngc-nim.env
-brev copy /tmp/wu-ngc-nim.env wu-ta-image-gen:/home/ubuntu/.ngc-nim.env
-rm -f /tmp/wu-ngc-nim.env
-brev exec wu-ta-image-gen \
-  "chmod 600 /home/ubuntu/.ngc-nim.env && \
-   set -a; . /home/ubuntu/.ngc-nim.env; set +a; \
+(
+  set -e -o pipefail
+  if [ -z "${NGC_API_KEY:-}" ]; then
+    echo "NGC_API_KEY is required" >&2
+    exit 1
+  fi
+  if [ -z "${HF_TOKEN:-}" ]; then
+    echo "HF_TOKEN is required" >&2
+    exit 1
+  fi
+  validate_credential() {
+    if [ -z "$2" ]; then
+      echo "$1 is required" >&2
+      return 1
+    fi
+    cleaned="$(printf %s "$2" | tr -d "\r\n")"
+    if [ "$cleaned" != "$2" ]; then
+      echo "$1 must be a single-line value" >&2
+      return 1
+    fi
+  }
+  validate_credential NGC_API_KEY "$NGC_API_KEY"
+  validate_credential HF_TOKEN "$HF_TOKEN"
+  ssh_options=(
+    -o BatchMode=yes
+    -o ConnectTimeout=10
+    -o StrictHostKeyChecking=yes
+    -o "UserKnownHostsFile=$HOME/.ssh/known_hosts"
+  )
+  if ! ssh "${ssh_options[@]}" wu-ta-image-gen true; then
+    echo "A trusted SSH host key for wu-ta-image-gen is required before sending credentials" >&2
+    exit 1
+  fi
+  printf "NGC_API_KEY=%s\nHF_TOKEN=%s\n" "$NGC_API_KEY" "$HF_TOKEN" | \
+    ssh "${ssh_options[@]}" wu-ta-image-gen '
+      set -e
+      umask 077
+      destination="$HOME/.ngc-nim.env"
+      tmp_env="$(mktemp "${destination}.XXXXXX")"
+      cleanup() { rm -f -- "$tmp_env"; }
+      trap cleanup EXIT
+      trap "exit 1" HUP INT TERM
+      cat > "$tmp_env"
+      chmod 600 "$tmp_env"
+      mv -f -- "$tmp_env" "$destination"
+      trap - EXIT HUP INT TERM
+    '
+  ssh "${ssh_options[@]}" wu-ta-image-gen \
+  "chmod 600 \"\$HOME/.ngc-nim.env\" && \
+   NGC_API_KEY=\"\$(sed -n 's/^NGC_API_KEY=//p' \"\$HOME/.ngc-nim.env\")\" && \
+   test -n \"\$NGC_API_KEY\" && \
    printf '%s\n' \"\$NGC_API_KEY\" | \
      docker login nvcr.io -u '\$oauthtoken' --password-stdin"
-brev exec wu-ta-image-gen \
+  ssh "${ssh_options[@]}" wu-ta-image-gen \
   "docker rm -f flux-image-gen >/dev/null 2>&1 || true; \
-   docker run -d --name flux-image-gen --gpus all --ipc=host -p 8000:8000 \
-     --env-file /home/ubuntu/.ngc-nim.env \
+   docker run -d --name flux-image-gen --gpus all --shm-size=32g -p 8000:8000 \
+     --env-file \"\$HOME/.ngc-nim.env\" \
      -e NIM_CACHE_PATH=/opt/nim/.cache \
      -v /opt/dlami/nvme/nim-cache:/opt/nim/.cache \
      nvcr.io/nim/black-forest-labs/flux.2-klein-4b:1.0.1-variant"
-brev exec wu-ta-image-gen "curl -fsS http://localhost:8000/v1/health/ready"
-brev port-forward wu-ta-image-gen -p 8005:8000
+  brev exec wu-ta-image-gen \
+    'for attempt in $(seq 1 60); do curl -fsS http://localhost:8000/v1/health/ready && exit 0; sleep 20; done; exit 1'
+  brev port-forward wu-ta-image-gen -p 8005:8000
+)
 ```
 
 Use `/v1/health/ready` for FLUX readiness; `/v1/models` returned 404 for the
@@ -144,6 +195,6 @@ Run planner-generated dry-runs first:
 brev create <name> --dry-run ...
 ```
 
-Only run planner-generated `brev create`, `brev copy`, `brev exec`, and
-`brev port-forward` commands after the dry-run output shows acceptable capacity
-and price.
+Only run planner-generated `brev create`, `brev exec`, `brev port-forward`,
+direct `ssh`, and credential-streaming `bash -lc` commands after the dry-run
+output shows acceptable capacity and price.

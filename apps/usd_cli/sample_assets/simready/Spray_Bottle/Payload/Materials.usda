@@ -1,0 +1,53 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "spray_bottle"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "spray_bottle"
+{
+    def Scope "Materials"
+    {
+        def Material "Spray_Bottle_Plastic" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Spray_Bottle_Plastic>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "bottle_body" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spray_bottle/Materials/Spray_Bottle_Plastic>
+        }
+
+        over "spray_hanlde" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spray_bottle/Materials/Spray_Bottle_Plastic>
+        }
+
+        over "spray_nozzle" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spray_bottle/Materials/Spray_Bottle_Plastic>
+        }
+
+        over "spray_handle_tube" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spray_bottle/Materials/Spray_Bottle_Plastic>
+        }
+    }
+}

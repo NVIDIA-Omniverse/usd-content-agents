@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -92,10 +93,13 @@ async def test_issue31_service_ladder_smoke_matches_cli_validation_contract(
     pipeline_router.set_session_manager(manager)
     sessions_router.set_session_manager(manager)
     init_event_bus(manager).clear_session_state(session_id)
+    uploaded_path = session_dir / "input" / "ladder.usd"
+    uploaded_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(_ladder_path(), uploaded_path)
 
     config = {
         "project": {"name": "issue31_service_smoke", "session_id": session_id},
-        "input": {"usd_path": str(_ladder_path())},
+        "input": {"usd_path": str(uploaded_path)},
         "texture": {
             "backend": "simple_image_gen",
             "image_gen": {"backend": "test"},
@@ -107,7 +111,7 @@ async def test_issue31_service_ladder_smoke_matches_cli_validation_contract(
         },
         "material_textures": {
             "Aluminum_Matte": {
-                "prompt": "deterministic rusty matte aluminum",
+                "prompt": "deterministic aged matte aluminum",
                 "opacity": 0.85,
             }
         },

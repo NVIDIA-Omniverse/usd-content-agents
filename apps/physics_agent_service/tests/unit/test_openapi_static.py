@@ -31,6 +31,55 @@ def _normalize_description(description: str) -> str:
     return " ".join(description.replace("``", "`").split())
 
 
+def test_output_usd_static_contract_includes_zip_bundle() -> None:
+    content = _load_openapi()["paths"]["/artifacts/{session_id}/output-usd"]["get"][
+        "responses"
+    ]["200"]["content"]
+
+    assert content["application/zip"]["schema"] == {
+        "type": "string",
+        "format": "binary",
+    }
+
+
+def test_external_runtime_routes_are_not_exposed(app) -> None:
+    from physics_agent.tuning.backend import SUPPORTED_ENGINES
+
+    external_engine_names = {"external", "external_runtime", "byor"}
+    assert external_engine_names.isdisjoint(SUPPORTED_ENGINES)
+
+    for spec in (_load_openapi(), app.openapi()):
+        assert not any("external" in path.lower() for path in spec["paths"])
+        assert not any(
+            name.startswith("External") for name in spec["components"]["schemas"]
+        )
+        for path in ("/tune", "/refine"):
+            schema = _multipart_schema(spec, path=path, method="post")
+            assert {
+                "approval_digest",
+                "qualification_dir",
+                "fixed_params",
+                "runtime",
+                "fingerprint_paths",
+            }.isdisjoint(schema["properties"])
+            engine = schema["properties"]["engine"]
+            engine_enum = engine.get("enum")
+            assert engine_enum is not None
+            assert set(engine_enum) == set(SUPPORTED_ENGINES)
+            assert external_engine_names.isdisjoint(engine_enum)
+
+
+def test_static_openapi_includes_live_tune_objective_fields(app) -> None:
+    static_schemas = _load_openapi()["components"]["schemas"]
+    live_schemas = app.openapi()["components"]["schemas"]
+
+    for schema_name in ("TuneStatus", "TuneResults"):
+        assert (
+            static_schemas[schema_name]["properties"]["best_objective"]
+            == (live_schemas[schema_name]["properties"]["best_objective"])
+        )
+
+
 def test_render_backend_enums_match_live_contract() -> None:
     from ...service.main import app
 
@@ -204,7 +253,6 @@ def test_static_openapi_documents_tune_route_family() -> None:
         "seed",
         "enable_judge",
         "judge_max_iterations",
-        "reference_video_frames",
         "judge_reference_frames",
         "judge_generated_frames",
     ):
@@ -213,9 +261,13 @@ def test_static_openapi_documents_tune_route_family() -> None:
     assert "botorch" in properties["optimizer"]["description"]
     assert properties["seed"]["default"] == 42
     assert properties["enable_judge"]["default"] is True
-    assert properties["reference_video_frames"]["default"] == 8
     assert properties["judge_reference_frames"]["default"] == 8
     assert properties["judge_generated_frames"]["default"] == 16
+    assert {
+        "reference_videos",
+        "reference_video_descriptions",
+        "reference_video_frames",
+    }.isdisjoint(properties)
 
 
 def test_static_openapi_documents_refine_route_family() -> None:
@@ -268,10 +320,10 @@ def test_static_openapi_documents_refine_route_family() -> None:
         "max_iterations",
         "score_threshold",
         "seed",
-        "reference_video_frames",
         "judge_reference_frames",
         "judge_generated_frames",
         "visual_evidence_enabled",
+        "visual_evidence_timeout_seconds",
         "llm_timeout_seconds",
     ):
         assert field in properties
@@ -279,7 +331,12 @@ def test_static_openapi_documents_refine_route_family() -> None:
     assert properties["max_iterations"]["maximum"] == 12
     assert properties["score_threshold"]["default"] == 0.9
     assert properties["seed"]["default"] == 42
-    assert properties["reference_video_frames"]["default"] == 8
     assert properties["judge_reference_frames"]["default"] == 8
     assert properties["judge_generated_frames"]["default"] == 16
     assert properties["visual_evidence_enabled"]["default"] is True
+    assert properties["visual_evidence_timeout_seconds"]["default"] == 600.0
+    assert {
+        "reference_videos",
+        "reference_video_descriptions",
+        "reference_video_frames",
+    }.isdisjoint(properties)

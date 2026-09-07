@@ -18,6 +18,14 @@ import os
 import sys
 import time
 import traceback
+from typing import Any
+
+if __package__:
+    from .so_export import _normalize_dependency_roots, export_stage_portably
+    from .so_export import export_layer_for as _export_layer_for
+else:  # copied beside ``so_export.py`` in the ABI-isolated subprocess
+    from so_export import _normalize_dependency_roots, export_stage_portably
+    from so_export import export_layer_for as _export_layer_for
 
 # ---------------------------------------------------------------------------
 # Correspondence map helpers (pxr-only, no omni.usd / carb)
@@ -234,7 +242,76 @@ def build_correspondence_map(
 # ---------------------------------------------------------------------------
 
 
-def main():
+def export_layer_for(stage: Any) -> Any:
+    """Compatibility facade for the shared worker-safe export decision."""
+    return _export_layer_for(stage)
+
+
+def _parse_operation_result(result: Any) -> tuple[bool, str | None, Any]:
+    """Normalize the supported Scene Optimizer operation return values."""
+    if isinstance(result, tuple):
+        if len(result) != 3:
+            return (
+                False,
+                "Scene Optimizer executeOperation returned an invalid tuple "
+                f"of length {len(result)}; expected 3",
+                None,
+            )
+
+        success, error, output = result
+        if not isinstance(success, bool):
+            return (
+                False,
+                "Scene Optimizer executeOperation returned a non-boolean "
+                f"success value: {success!r}",
+                output,
+            )
+        if error is not None and not isinstance(error, str):
+            return (
+                False,
+                "Scene Optimizer executeOperation returned a non-string "
+                f"error value: {error!r}",
+                output,
+            )
+        if not success and not error:
+            error = "Scene Optimizer operation reported failure"
+        return success, error, output
+
+    # Some synchronous pybind releases expose executeOperation as void. An
+    # exception remains authoritative failure; None preserves compatibility
+    # with that contract and downstream USD validation still gates admission.
+    if result is None:
+        return True, None, None
+
+    # Older bindings may return a bare bool. Only True is an unambiguous
+    # legacy success; False and all other shapes must fail closed.
+    if result is True:
+        return True, None, None
+    if result is False:
+        return False, "Scene Optimizer operation reported failure", None
+    return (
+        False,
+        "Scene Optimizer executeOperation returned an unsupported result "
+        f"of type {type(result).__name__}",
+        None,
+    )
+
+
+def _json_safe_operation_output(value: Any) -> Any:
+    """Retain native diagnostics without making manifest publication fragile."""
+    if value is None:
+        return None
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError, OverflowError):
+        return {
+            "serializable": False,
+            "type": type(value).__name__,
+        }
+    return value
+
+
+def main() -> None:
     if len(sys.argv) < 2:
         sys.stderr.write("Usage: so_worker.py '<json_params>'\n")
         sys.exit(1)
@@ -257,7 +334,12 @@ def main():
     try:
         missing = [
             key
-            for key in ("input_usd_path", "output_usd_path", "operations")
+            for key in (
+                "input_usd_path",
+                "output_usd_path",
+                "approved_dependency_roots",
+                "operations",
+            )
             if key not in params
         ]
         if missing:
@@ -265,6 +347,10 @@ def main():
 
         input_usd_path = params["input_usd_path"]
         output_usd_path = params["output_usd_path"]
+        approved_dependency_roots = [
+            str(root)
+            for root in _normalize_dependency_roots(params["approved_dependency_roots"])
+        ]
         operations = params["operations"]
 
         from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
@@ -289,7 +375,28 @@ def main():
         for op_name, op_params in operations:
             op_start = time.time()
             try:
-                so.executeOperation(op_name, ctx, op_params)
+                native_result = so.executeOperation(op_name, ctx, op_params)
+                op_success, op_error, op_output = _parse_operation_result(native_result)
+                operation_metadata = {
+                    "name": op_name,
+                    "success": op_success,
+                    "result_contract": (
+                        "legacy_void"
+                        if native_result is None
+                        else "structured_or_boolean"
+                    ),
+                }
+                if op_error:
+                    operation_metadata["error"] = op_error
+                if op_output is not None:
+                    operation_metadata["output"] = _json_safe_operation_output(
+                        op_output
+                    )
+
+                if not op_success:
+                    operation_metadata["time"] = time.time() - op_start
+                    results.append(operation_metadata)
+                    break
 
                 # Track correspondence after each relevant operation
                 if op_name == "splitMeshes":
@@ -311,13 +418,8 @@ def main():
                 else:
                     meshes_before_op = capture_mesh_paths(stage)
 
-                results.append(
-                    {
-                        "name": op_name,
-                        "success": True,
-                        "time": time.time() - op_start,
-                    }
-                )
+                operation_metadata["time"] = time.time() - op_start
+                results.append(operation_metadata)
             except Exception:  # noqa: BLE001 — must catch all to write manifest
                 results.append(
                     {
@@ -335,7 +437,11 @@ def main():
         # leaves the stage in an unknown state that could produce a
         # corrupted USD file.
         if not any_failed:
-            if not stage.GetRootLayer().Export(output_usd_path):
+            if not export_stage_portably(
+                stage,
+                output_usd_path,
+                approved_dependency_roots=approved_dependency_roots,
+            ):
                 raise RuntimeError(f"Failed to export USD stage: {output_usd_path}")
 
         ctx.remove_stage()

@@ -65,6 +65,10 @@ _TOP_K_TRIALS = 5
 # prompt does not balloon when callers paste a paragraph-length prompt.
 _GOAL_TEXT_MAX = 500
 
+# Environment invariants are inputs to the optimization problem, not variables
+# the refiner may alter while searching for better physical parameters.
+_IMMUTABLE_TARGET_KEYS = ("gravity",)
+
 
 class RefineError(RuntimeError):
     """Internal sentinel raised inside ``_extract_json_object`` when the
@@ -146,6 +150,14 @@ def _build_system_prompt(
         if {"contact_ke", "contact_kd"}.issubset(set(supported_param_keys))
         else ""
     )
+    friction_guidance = (
+        "\nWhen ``static_friction`` and ``dynamic_friction`` are both present, "
+        "they MUST use the same bound mode: either omit min and max for both, "
+        "or provide min and max for both. Never mix automatic and explicit "
+        "bounds across the pair.\n"
+        if {"static_friction", "dynamic_friction"}.issubset(set(supported_param_keys))
+        else ""
+    )
 
     template = """You are a physics-tuning scenario refiner.
 
@@ -159,13 +171,17 @@ Your job is to author a REFINED scenario that is more likely to satisfy
 the user's goal on the next sweep. You may:
 
 * widen or tighten parameter [min, max] bounds,
-* tweak target keys (drop_height_m, duration_s, gravity, sample_fps,
-  cameras, camera_ground_bias_fraction, vlm_check, record_video, ...),
+* omit both min and max to reset that parameter to bounds derived from the
+  authored USD value,
+* tweak target keys (drop_height_m, duration_s, sample_fps,
+  cameras, camera_ground_bias_fraction, vlm_check, record_frames, ...),
   IMPORTANT: when refining, carry forward target keys you don't intend
   to change — emitting a target dict without ``camera_ground_bias_fraction``
   (or any other previously-set key) causes the next iteration to revert
   to that key's default behavior, silently regressing whatever the
   prior iteration relied on. Re-emit unchanged keys verbatim.
+  Gravity is an environment invariant: preserve ``target.gravity`` exactly
+  when present, and do not add it when it is absent.
 * swap the metric to a more goal-aligned one — but ONLY when the input
   scenario's ``name`` is ``"drop_settle"``, and only pick from the
   closed registry: "settle_distance" or "max_bounce_height". For
@@ -175,9 +191,12 @@ the user's goal on the next sweep. You may:
 * add or remove tunable parameters from the supported set
   ({supported_params}).
 {contact_guidance}
+{friction_guidance}
 
 You MUST keep the scenario kind ("name") unchanged from the input. You
-MUST emit a non-empty parameters list, with min<=max for every entry.
+MUST emit a non-empty parameters list. A parameter may contain only its
+name to request authored-value-derived bounds; otherwise emit both min and max
+with min<=max.
 
 Respond with strict JSON ONLY (no markdown, no preamble, no trailing
 prose). Top-level shape:
@@ -188,7 +207,9 @@ prose). Top-level shape:
       "metric": <string>,  // drop_settle: "settle_distance" | "max_bounce_height";
                            // freeform: keep input value verbatim
       "target": {...},
-      "parameters": [{"name": "<string>", "min": <float>, "max": <float>}, ...]
+      "parameters": [{"name": "<string>", "min": <float>,
+                      "max": <float>}, ...]
+                    // omit both min and max together for automatic bounds
     },
     "reasoning": "<= 500 char human-readable summary of your changes"
   }
@@ -200,6 +221,7 @@ change the scenario "name".
         template.replace("{backend_context}", backend_context)
         .replace("{supported_params}", supported_params)
         .replace("{contact_guidance}", contact_guidance)
+        .replace("{friction_guidance}", friction_guidance)
     )
 
 
@@ -225,14 +247,17 @@ def _coerce_jsonable_number(v: Any) -> Any:
 
 def _scenario_to_dict(scenario: Scenario) -> dict[str, Any]:
     """Round-trip a :class:`Scenario` into a YAML-friendly dict."""
+    parameters: list[dict[str, Any]] = []
+    for parameter in scenario.params:
+        entry: dict[str, Any] = {"name": parameter.name}
+        if parameter.name not in scenario.auto_bound_fields:
+            entry.update(min=parameter.min_value, max=parameter.max_value)
+        parameters.append(entry)
     out: dict[str, Any] = {
         "name": scenario.name,
         "metric": scenario.metric,
         "target": dict(scenario.target),
-        "parameters": [
-            {"name": p.name, "min": p.min_value, "max": p.max_value}
-            for p in scenario.params
-        ],
+        "parameters": parameters,
     }
     if scenario.extra:
         for k, v in scenario.extra.items():
@@ -268,7 +293,7 @@ def _preserve_omitted_target_keys(
     The LLM's refined ``target`` dict fully replaces the current one
     downstream — so any key the model didn't re-author is gone for the
     rest of the refine loop. That's surprising for keys like
-    ``camera_ground_bias_fraction``, ``record_video``, ``sample_fps``,
+    ``camera_ground_bias_fraction``, ``record_frames``, ``sample_fps``,
     etc., where the user set a value the model wasn't asked to change.
 
     Preserve every current target key the refined dict does not
@@ -293,6 +318,37 @@ def _preserve_omitted_target_keys(
     for k, v in current_scenario.target.items():
         if k not in refined_target:
             refined_target[k] = v
+
+
+def _restore_immutable_target_keys(
+    *,
+    current_scenario: Scenario,
+    refined_dict: dict[str, Any],
+) -> None:
+    """Reject LLM changes to environment-level target settings."""
+    refined_target = refined_dict.get("target")
+    if not isinstance(refined_target, dict):
+        return
+
+    for key in _IMMUTABLE_TARGET_KEYS:
+        if key in current_scenario.target:
+            current_value = current_scenario.target[key]
+            if refined_target.get(key) != current_value:
+                logger.warning(
+                    "scenario_refine attempted to change immutable target key "
+                    "%r from %r to %r; snapping back to current.",
+                    key,
+                    current_value,
+                    refined_target.get(key),
+                )
+            refined_target[key] = current_value
+        elif key in refined_target:
+            logger.warning(
+                "scenario_refine attempted to add immutable target key %r; "
+                "removing it.",
+                key,
+            )
+            del refined_target[key]
 
 
 def _summarise_history(history_summary: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -602,6 +658,10 @@ def run_scenario_refine(
         refined_dict=refined_dict,
     )
     _preserve_omitted_target_keys(
+        current_scenario=current_scenario,
+        refined_dict=refined_dict,
+    )
+    _restore_immutable_target_keys(
         current_scenario=current_scenario,
         refined_dict=refined_dict,
     )

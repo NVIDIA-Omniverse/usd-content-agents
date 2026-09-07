@@ -6,11 +6,13 @@ from __future__ import annotations
 
 import math
 import re
+import sys
 from typing import Any
 
 LARGE_COMPONENT_MAX_DIMENSION_M = 5.0
 LARGE_COMPONENT_VOLUME_M3 = 5.0
 HIGH_MASS_KG = 500.0
+MAX_IMPLIED_FILL_FACTOR = 1.5
 MASS_SCALE_SUSPICIOUS_CODE = "mass_scale_suspicious"
 VALID_MASS_SCALE_POLICIES = frozenset({"warn", "skip_mass", "fail"})
 
@@ -140,12 +142,13 @@ def build_mass_scale_quality_warnings(
     dataset_entry: dict[str, Any] | None,
     output_key: str = "classification",
 ) -> list[dict[str, Any]]:
-    """Detect mass predictions that look suspiciously driven by bad asset scale.
+    """Detect mass predictions inconsistent with geometric scale or density.
 
-    These checks intentionally warn instead of modifying mass. A source USD can be
-    physically large, but when a single component bbox is many meters across and
-    the predicted mass is hundreds of kilograms, users should verify units/scale
-    before treating the authored MassAPI value as simulation-ready.
+    These checks intentionally warn instead of modifying mass. The existing
+    large-component check catches likely unit/scale problems, while the implied
+    fill-factor check catches impossible mass/density/volume combinations at any
+    scale. Users should verify the prediction and source USD units before treating
+    the authored MassAPI value as simulation-ready.
     """
 
     bbox = extract_bbox_metrics_meters(dataset_entry)
@@ -170,12 +173,28 @@ def build_mass_scale_quality_warnings(
     if density is not None:
         details["density_kg_m3"] = density
 
-    if density and mass_kg is not None and volume_m3 and volume_m3 > 0:
-        details["implied_fill_factor"] = mass_kg / (density * volume_m3)
+    implied_fill_factor: float | None = None
+    if (
+        mass_kg is not None
+        and mass_kg >= 0
+        and density is not None
+        and density > 0
+        and volume_m3 is not None
+        and volume_m3 > 0
+    ):
+        capacity_kg = density * volume_m3
+        if capacity_kg == 0:
+            implied_fill_factor = 0.0 if mass_kg == 0 else sys.float_info.max
+        else:
+            implied_fill_factor = mass_kg / capacity_kg
+            if not math.isfinite(implied_fill_factor):
+                implied_fill_factor = sys.float_info.max
+        details["implied_fill_factor"] = implied_fill_factor
     details["thresholds"] = {
         "large_component_max_dimension_m": LARGE_COMPONENT_MAX_DIMENSION_M,
         "large_component_volume_m3": LARGE_COMPONENT_VOLUME_M3,
         "high_mass_kg": HIGH_MASS_KG,
+        "max_implied_fill_factor": MAX_IMPLIED_FILL_FACTOR,
     }
 
     scale_is_large = (
@@ -183,6 +202,13 @@ def build_mass_scale_quality_warnings(
         and max_dimension_m >= LARGE_COMPONENT_MAX_DIMENSION_M
     ) or (volume_m3 is not None and volume_m3 >= LARGE_COMPONENT_VOLUME_M3)
     mass_is_high = mass_kg is not None and mass_kg >= HIGH_MASS_KG
+    # Sparse, hollow, or rotated geometry can occupy an arbitrarily small share
+    # of its axis-aligned bbox, so only the physically impossible upper side is
+    # guarded here.
+    fill_factor_is_too_high = (
+        implied_fill_factor is not None
+        and implied_fill_factor > MAX_IMPLIED_FILL_FACTOR
+    )
 
     if scale_is_large and mass_is_high:
         warnings.append(
@@ -193,6 +219,20 @@ def build_mass_scale_quality_warnings(
                     "Predicted mass is very high and the component bounding box is "
                     "many meters across. Verify source USD units/scale before using "
                     "this mass in simulation."
+                ),
+                "details": details,
+            }
+        )
+    elif fill_factor_is_too_high:
+        warnings.append(
+            {
+                "code": MASS_SCALE_SUSPICIOUS_CODE,
+                "severity": "warning",
+                "message": (
+                    "Predicted mass requires more material than fits inside the "
+                    "component bounding box at the predicted density. Verify the "
+                    "mass, density, and source USD units/scale before using this "
+                    "mass in simulation."
                 ),
                 "details": details,
             }

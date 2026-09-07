@@ -13,21 +13,29 @@ import re
 import stat
 import subprocess
 import sys
+import threading
+import time
+import tomllib
 import unittest.mock
+import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import pytest
 
 from world_understanding.functions.graphics.render_ovrtx import (
     _DAEMON_SCRIPT,
     _NATIVE_DISPLAYCOLOR_PROBE_ENV,
+    _OVRTX_RUNTIME_LOCK_FILE,
+    _OVRTX_VERSION,
     _WORKER_SCRIPT,
     DEFAULT_NUM_SENSOR_UPDATES,
     _build_render_products_usda,
     _build_visibility_frame_updates,
     _copy_exported_relative_assets,
     _ensure_lights,
+    _export_scene_for_ovrtx_ipc,
     _frame_from_image_filename,
     _map_sensor_to_render_var,
     _native_displaycolor_probe_enabled,
@@ -38,6 +46,12 @@ from world_understanding.functions.graphics.render_ovrtx import (
     _probe_mean_abs_rgb_diff,
     _run_sample_attribute_probe,
 )
+
+# Deadlines are derived as ``deadline - time.monotonic()``. When both clock
+# reads land in the same tick the remainder equals the caller's budget exactly
+# and can float a few ULPs above it, so bound assertions allow that slack while
+# still rejecting any real overrun.
+_DEADLINE_SLACK_S = 1e-6
 
 
 def _make_time_sampled_compliance_stage():
@@ -231,6 +245,7 @@ class TestParseFrames:
     def test_single_frame(self):
         assert _parse_frames("0") == [0]
         assert _parse_frames("42") == [42]
+        assert _parse_frames("1.5") == [1.5]
 
     def test_frame_from_image_filename_prefers_encoded_frame_number(self):
         assert (
@@ -263,7 +278,7 @@ class TestParseFrames:
             == 1
         )
 
-    def test_frame_from_image_filename_rejects_negative_encoded_frame(self):
+    def test_frame_from_image_filename_accepts_negative_encoded_frame(self):
         assert (
             _frame_from_image_filename(
                 "cam0_f-1.png",
@@ -271,7 +286,7 @@ class TestParseFrames:
                 frame_list=[10, 20],
                 image_file_count=2,
             )
-            == 20
+            == -1
         )
 
     def test_frame_from_image_filename_accepts_extensionless_name(self):
@@ -285,13 +300,29 @@ class TestParseFrames:
             == 42
         )
 
+    def test_frame_from_image_filename_preserves_fractional_frame_number(self):
+        assert (
+            _frame_from_image_filename(
+                "cam0_f1.5.png",
+                image_index=0,
+                frame_list=[1.5],
+                image_file_count=1,
+            )
+            == 1.5
+        )
+
     def test_frame_range(self):
         assert _parse_frames("0:3") == [0, 1, 2, 3]
         assert _parse_frames("5:7") == [5, 6, 7]
 
     def test_comma_separated(self):
         assert _parse_frames("0,5,10") == [0, 5, 10]
-        assert _parse_frames("10,0,5") == [0, 5, 10]  # sorted
+        assert _parse_frames("10,0,5") == [10, 0, 5]
+        assert _parse_frames("5,1.5,-2") == [5, 1.5, -2]
+        assert _parse_frames("1.5,1.5") == [1.5, 1.5]
+
+    def test_fractional_frame_range(self):
+        assert _parse_frames("0.25:2.75") == [0.25, 1.25, 2.25, 2.75]
 
     def test_single_frame_range(self):
         assert _parse_frames("3:3") == [3]
@@ -598,7 +629,7 @@ class TestOvRTXSampleAttributeProbeHelpers:
         )
 
         assert result["ovrtx_version"] == "0.3.0.312916"
-        assert "expected 0.3.0.312915" in result["ovrtx_version_warning"]
+        assert "expected 0.4.1.364340" in result["ovrtx_version_warning"]
         assert result["gpu"] == "fake gpu"
         assert len(result["variants"]) == 6
         assert len(calls) == 6
@@ -684,8 +715,10 @@ class TestOvRTXCoverageEdges:
 
         path_value = os.pathsep.join(["", str(file_entry), str(directory_entry)])
 
+        # A host-qualified file URL is a UNC location; each platform spells it
+        # with its own separator (``\\server\share`` on Windows).
         assert str(render_ovrtx._local_asset_path("file://server/share/tex.png")) == (
-            "//server/share/tex.png"
+            r"\\server\share\tex.png" if os.name == "nt" else "//server/share/tex.png"
         )
         assert render_ovrtx._sanitize_ovrtx_path_env(path_value).split(os.pathsep) == [
             "",
@@ -904,7 +937,9 @@ class TestOvRTXCoverageEdges:
         monkeypatch.setattr(render_ovrtx.subprocess, "run", fake_run_fallback)
         assert render_ovrtx._ovrtx_import_probe_succeeds(python_path, venv_dir)
         assert len(calls) == 2
-        assert str(site_dir) in calls[1][2]
+        # The probe embeds the directory as a Python literal, so Windows
+        # separators arrive backslash-escaped rather than raw.
+        assert repr(str(site_dir)) in calls[1][2]
 
     def test_unlocked_python_uses_cached_and_existing_runtime_paths(
         self, tmp_path, monkeypatch
@@ -1022,7 +1057,10 @@ class TestOvRTXCoverageEdges:
         )
 
         assert render_ovrtx._get_ovrtx_python_unlocked(venv_dir) == str(python_path)
-        assert (site_dir / "library").is_symlink()
+        # Provisioning symlinks the MaterialX data library, falling back to a
+        # copy on Windows where unprivileged symlink creation is refused.
+        materialx_library = site_dir / "library"
+        assert materialx_library.is_symlink() or materialx_library.is_dir()
 
     def test_unlocked_python_removes_partial_uv_runtime_on_lock_install_failure(
         self, tmp_path, monkeypatch
@@ -1360,9 +1398,11 @@ class TestOvRTXCoverageEdges:
         monkeypatch.setattr(
             render_ovrtx,
             "_local_asset_path",
-            lambda value: BadLocalPath()
-            if value == "bad.png"
-            else original_local_asset_path(value),
+            lambda value: (
+                BadLocalPath()
+                if value == "bad.png"
+                else original_local_asset_path(value)
+            ),
         )
 
         export_dir = tmp_path / "render"
@@ -1474,7 +1514,7 @@ class TestOvRTXCoverageEdges:
         monkeypatch.setattr(
             render_ovrtx._OvRTXDaemon,
             "_read_stdout_line",
-            lambda self, timeout_s, phase: "",
+            lambda self, timeout_s, phase, **kwargs: "",
         )
 
         daemon = render_ovrtx._OvRTXDaemon(
@@ -1526,7 +1566,7 @@ class TestOvRTXCoverageEdges:
         monkeypatch.setattr(
             render_ovrtx._OvRTXDaemon,
             "_read_stdout_line",
-            lambda self, timeout_s, phase: ready_line,
+            lambda self, timeout_s, phase, **kwargs: ready_line,
         )
 
         daemon = render_ovrtx._OvRTXDaemon(
@@ -1574,17 +1614,21 @@ class TestOvRTXCoverageEdges:
             ovrtx_python=str(tmp_path / "python"),
             daemon_script_path=str(tmp_path / "daemon.py"),
         )
-        daemon._process = FakeProcess()
+        process = FakeProcess()
+        daemon._process = process
         monkeypatch.setattr(
             daemon,
             "_start",
             unittest.mock.Mock(side_effect=AssertionError("already running")),
         )
+        monkeypatch.setattr(daemon, "_write_stdin_line", lambda *args, **kwargs: None)
         daemon.ensure_running()
 
         with caplog.at_level(logging.DEBUG, logger=render_ovrtx.__name__):
-            daemon._drain_stderr()
-        assert "native warning" in caplog.text
+            daemon._drain_stderr(process)
+        # Stderr content is retained in memory only and never logged.
+        assert "native warning" in list(daemon._stderr_tail)
+        assert "native warning" not in caplog.text
 
         monkeypatch.setattr(daemon, "_read_stdout_line", lambda timeout, phase: "")
         with pytest.raises(RuntimeError, match="died during render"):
@@ -1612,12 +1656,8 @@ class TestOvRTXCoverageEdges:
                 return next(self.lines)
 
         class FakeStdin:
-            def __init__(self, *, broken: bool = False) -> None:
-                self.broken = broken
-
             def write(self, data: str) -> None:
-                if self.broken:
-                    raise BrokenPipeError("closed")
+                return None
 
             def flush(self) -> None:
                 return None
@@ -1639,6 +1679,10 @@ class TestOvRTXCoverageEdges:
                 return 0
 
         monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        # Exercise the selector reader on every host: the fakes model a POSIX
+        # pipe descriptor, and the worker-thread reader has its own coverage in
+        # TestOvRTXDaemonThreadedPipeIO.
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", True)
         daemon = render_ovrtx._OvRTXDaemon(
             ovrtx_python=str(tmp_path / "python"),
             daemon_script_path=str(tmp_path / "daemon.py"),
@@ -1653,8 +1697,13 @@ class TestOvRTXCoverageEdges:
         daemon._kill_process()
         assert daemon._process is None
 
-        broken_proc = FakeProcess(stdin=FakeStdin(broken=True))
+        broken_proc = FakeProcess()
         daemon._process = broken_proc
+        monkeypatch.setattr(
+            daemon,
+            "_write_stdin_line",
+            unittest.mock.Mock(side_effect=BrokenPipeError("closed")),
+        )
         daemon.shutdown()
         assert broken_proc.killed
         assert daemon._process is None
@@ -1667,6 +1716,7 @@ class TestOvRTXCoverageEdges:
 
         slow_proc = SlowProcess()
         daemon._process = slow_proc
+        monkeypatch.setattr(daemon, "_write_stdin_line", lambda *args, **kwargs: None)
         daemon.shutdown()
         assert slow_proc.killed
         assert daemon._process is None
@@ -1713,6 +1763,9 @@ class TestOvRTXCoverageEdges:
         )
         daemon._process = FakeProcess()
         monkeypatch.setattr(render_ovrtx.selectors, "DefaultSelector", NoEventSelector)
+        # NoEventSelector stands in for a POSIX pipe wait; force that branch so
+        # the assertion holds on hosts where selectors cannot poll pipes.
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", True)
 
         with pytest.raises(TimeoutError):
             daemon._read_stdout_line(0.001, "render")
@@ -1737,6 +1790,98 @@ class TestOvRTXCoverageEdges:
             daemon._kill_process()
         assert "Failed to kill OvRTX daemon subprocess" in caplog.text
         assert daemon._process is None
+
+    def test_zero_budget_kill_reaps_subprocess_asynchronously(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        reaped = threading.Event()
+
+        class FakeProcess:
+            pid = 1234
+
+            def __init__(self) -> None:
+                self.killed = False
+                self.wait_timeouts: list[float | None] = []
+
+            def poll(self):
+                return None
+
+            def kill(self) -> None:
+                self.killed = True
+
+            def wait(self, timeout=None):
+                self.wait_timeouts.append(timeout)
+                reaped.set()
+                return 0
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = FakeProcess()
+        daemon._process = process
+
+        daemon._kill_process(timeout_s=0.0)
+
+        assert process.killed is True
+        assert daemon._process is None
+        assert reaped.wait(timeout=1.0)
+        assert process.wait_timeouts == [None]
+
+    def test_timed_out_kill_logs_failed_async_reap(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        class StuckProcess:
+            pid = 1234
+
+            def __init__(self) -> None:
+                self.killed = False
+                self.wait_timeouts: list[float | None] = []
+
+            def poll(self):
+                return None
+
+            def kill(self) -> None:
+                self.killed = True
+
+            def wait(self, timeout=None):
+                self.wait_timeouts.append(timeout)
+                raise subprocess.TimeoutExpired("ovrtx", timeout)
+
+        class ImmediateThread:
+            def __init__(self, *, target, name: str, daemon: bool) -> None:
+                del name, daemon
+                self._target = target
+
+            def start(self) -> None:
+                self._target()
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = StuckProcess()
+        daemon._process = process
+        monkeypatch.setattr(render_ovrtx.threading, "Thread", ImmediateThread)
+
+        with caplog.at_level(logging.ERROR, logger=render_ovrtx.__name__):
+            daemon._kill_process(timeout_s=0.25)
+
+        assert process.killed is True
+        assert process.wait_timeouts == [0.25, None]
+        assert daemon._process is None
+        assert "Failed to reap killed OvRTX daemon subprocess" in caplog.text
 
     def test_daemon_read_timeout_breaks_when_deadline_has_passed(
         self, tmp_path, monkeypatch
@@ -1857,7 +2002,8 @@ class TestOvRTXCoverageEdges:
             cameras=["/Camera", "/Empty"],
             frames="5",
             sensors=["depth"],
-            num_sensor_updates=1,
+            num_sensor_updates=7,
+            render_mode="pt",
             daemon=fake_daemon,
         )
 
@@ -1865,6 +2011,21 @@ class TestOvRTXCoverageEdges:
         assert result["failed_cameras"] == 1
         assert result["results"][0]["sensors"]["depth"][5].tolist() == [[5.0]]
         assert result["results"][1]["error"] == "No images produced"
+        assert {
+            key: result["results"][0][key]
+            for key in (
+                "ovrtx_render_mode",
+                "ovrtx_num_sensor_updates",
+                "active_aov",
+            )
+        } == {
+            "ovrtx_render_mode": "pt",
+            "ovrtx_num_sensor_updates": 7,
+            "active_aov": "LdrColor",
+        }
+        assert result["results"][1]["ovrtx_render_mode"] == "pt"
+        assert result["results"][1]["ovrtx_num_sensor_updates"] == 7
+        assert result["results"][1]["active_aov"] == "LdrColor"
         assert dump_path.exists()
         assert not (dump_path.parent / "combined.usda").exists()
 
@@ -1998,9 +2159,7 @@ class TestOvRTXCoverageEdges:
 
         assert result["successful_cameras"] == 1
 
-    def test_render_all_cameras_logs_copied_assets_and_subprocess_stdout_failure(
-        self, monkeypatch
-    ):
+    def test_render_all_cameras_subprocess_failure_is_value_free(self, monkeypatch):
         from pxr import Usd, UsdLux
 
         from world_understanding.functions.graphics import render_ovrtx
@@ -2023,7 +2182,7 @@ class TestOvRTXCoverageEdges:
             ),
         )
 
-        with pytest.raises(RuntimeError, match="stdout details"):
+        with pytest.raises(RuntimeError, match="OvRTX subprocess failed") as exc:
             render_ovrtx.render_all_cameras(
                 stage=stage,
                 image_width=2,
@@ -2033,6 +2192,11 @@ class TestOvRTXCoverageEdges:
                 num_sensor_updates=1,
                 daemon=None,
             )
+        # Worker output text never reaches the raised message; only exit
+        # code and output sizes are reported.
+        assert "stdout details" not in str(exc.value)
+        assert "exit code 2" in str(exc.value)
+        assert "withheld from logs" in str(exc.value)
 
     def test_render_all_cameras_cleanup_ignores_rmtree_error(
         self, tmp_path, monkeypatch
@@ -2735,6 +2899,64 @@ class TestOvRTXVenvPythonPath:
         assert render_ovrtx._get_ovrtx_python(venv_dir) == "python-after-lock"
         assert lock_paths
 
+    @pytest.mark.parametrize("auto_provision", [False, True])
+    def test_python_resolution_forwards_runtime_deadline(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        auto_provision: bool,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        deadline = time.monotonic() + 10.0
+        unlocked_calls: list[tuple[Path, float | None]] = []
+        lock_timeouts: list[float] = []
+
+        class DummyLock:
+            def __init__(self, path: str, timeout: float) -> None:
+                del path
+                lock_timeouts.append(timeout)
+
+            def __enter__(self) -> "DummyLock":
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+        def fake_unlocked(
+            locked_venv_dir: Path,
+            *,
+            deadline_monotonic: float | None = None,
+        ) -> str:
+            unlocked_calls.append((locked_venv_dir, deadline_monotonic))
+            return "/fake/ovrtx/python"
+
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "1" if auto_provision else "0")
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda *_args: False,
+        )
+        monkeypatch.setattr(render_ovrtx, "FileLock", DummyLock)
+        monkeypatch.setattr(render_ovrtx, "_get_ovrtx_python_unlocked", fake_unlocked)
+
+        assert (
+            render_ovrtx._get_ovrtx_python(
+                venv_dir,
+                deadline_monotonic=deadline,
+            )
+            == "/fake/ovrtx/python"
+        )
+        assert unlocked_calls == [(venv_dir, deadline)]
+        if auto_provision:
+            assert len(lock_timeouts) == 1
+            assert 0.0 < lock_timeouts[0] <= 10.0
+        else:
+            assert lock_timeouts == []
+
     def test_interrupted_custom_provisioning_marker_allows_cleanup(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -2879,6 +3101,55 @@ class TestOvRTXVenvPythonPath:
 
         assert rmtree_calls == []
         assert python_path.exists()
+        assert render_ovrtx._ovrtx_managed_marker_matches_runtime_lock(venv_dir)
+
+    def test_render_deadline_probe_timeout_preserves_managed_runtime(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python", None)
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+        monkeypatch.setenv("WU_OVRTX_AUTO_PROVISION", "1")
+        venv_dir = tmp_path / "managed_ovrtx_venv"
+        python_path = render_ovrtx._ovrtx_venv_python_path(venv_dir)
+        python_path.parent.mkdir(parents=True)
+        python_path.write_text("")
+        self._write_managed_marker(render_ovrtx, venv_dir)
+        runtime_file = venv_dir / "healthy-runtime.txt"
+        runtime_file.write_text("preserve", encoding="utf-8")
+        rmtree_calls: list[Path] = []
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_cached_ovrtx_python_ready",
+            lambda unused_python_path, unused_venv_dir: False,
+        )
+
+        def deadline_timeout(*args: Any, **kwargs: Any) -> None:
+            raise subprocess.TimeoutExpired(args[0], timeout=kwargs["timeout"])
+
+        monkeypatch.setattr(render_ovrtx.subprocess, "run", deadline_timeout)
+        monkeypatch.setattr(
+            render_ovrtx.shutil,
+            "rmtree",
+            lambda path, ignore_errors=False: rmtree_calls.append(Path(path)),
+        )
+
+        with pytest.raises(
+            TimeoutError,
+            match="runtime version probe exceeded the render deadline",
+        ):
+            render_ovrtx._get_ovrtx_python_unlocked(
+                venv_dir,
+                deadline_monotonic=time.monotonic() + 1.0,
+            )
+
+        assert rmtree_calls == []
+        assert python_path.exists()
+        assert runtime_file.read_text(encoding="utf-8") == "preserve"
         assert render_ovrtx._ovrtx_managed_marker_matches_runtime_lock(venv_dir)
 
     def test_get_ovrtx_python_expands_default_runtime_path(
@@ -4163,6 +4434,9 @@ class TestEnsureLights:
         custom_hdri.parent.mkdir(parents=True)
         custom_hdri.write_bytes(b"fake-hdr")
         monkeypatch.setenv("HOME", str(home_dir))
+        # ``expanduser`` reads USERPROFILE on Windows and ignores HOME, so both
+        # have to point at the fake home for the ``~`` expansion under test.
+        monkeypatch.setenv("USERPROFILE", str(home_dir))
         monkeypatch.setenv("WU_OVRTX_DEFAULT_HDRI", str(custom_hdri))
         monkeypatch.delenv("WU_OVRTX_DEFAULT_HDRI_INTENSITY", raising=False)
 
@@ -4248,7 +4522,466 @@ class TestEnsureLights:
 
 
 class TestCopyExportedRelativeAssets:
-    """Test local texture mirroring for exported OVRTX stages."""
+    """Test local render-asset staging for exported OVRTX stages."""
+
+    def test_rewrites_local_mdl_assets_to_distinct_same_host_paths(
+        self,
+        tmp_path,
+    ):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_a = tmp_path / "a" / "Materials"
+        source_b = tmp_path / "b" / "Materials"
+        source_a.mkdir(parents=True)
+        source_b.mkdir(parents=True)
+        mdl_a = source_a / "Surface.mdl"
+        mdl_b = source_b / "Surface.mdl"
+        mdl_a.write_text("mdl-a", encoding="utf-8")
+        mdl_b.write_text("mdl-b", encoding="utf-8")
+        (source_a / "Support.mdl").write_text("support-a", encoding="utf-8")
+        (source_b / "Support.mdl").write_text("support-b", encoding="utf-8")
+
+        stage = Usd.Stage.CreateNew(str(tmp_path / "scene.usda"))
+        for name, mdl_path in (
+            ("A", "a/Materials/Surface.mdl"),
+            ("B", "b/Materials/Surface.mdl"),
+        ):
+            shader = UsdShade.Shader.Define(stage, f"/World/Looks/{name}")
+            shader.GetPrim().CreateAttribute(
+                "info:mdl:sourceAsset",
+                Sdf.ValueTypeNames.Asset,
+            ).Set(Sdf.AssetPath(mdl_path))
+        builtin = UsdShade.Shader.Define(stage, "/World/Looks/Builtin")
+        builtin.GetPrim().CreateAttribute(
+            "info:mdl:sourceAsset",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("OmniPBR.mdl"))
+        stage.GetRootLayer().Save()
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        stage.GetRootLayer().Export(str(exported_stage_path))
+
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 0
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        exported_a = (
+            exported.GetPrimAtPath("/World/Looks/A")
+            .attributes["info:mdl:sourceAsset"]
+            .default.path
+        )
+        exported_b = (
+            exported.GetPrimAtPath("/World/Looks/B")
+            .attributes["info:mdl:sourceAsset"]
+            .default.path
+        )
+        exported_builtin = (
+            exported.GetPrimAtPath("/World/Looks/Builtin")
+            .attributes["info:mdl:sourceAsset"]
+            .default.path
+        )
+        assert exported_a == mdl_a.resolve().as_posix()
+        assert exported_b == mdl_b.resolve().as_posix()
+        assert Path(exported_a).read_text(encoding="utf-8") == "mdl-a"
+        assert Path(exported_b).read_text(encoding="utf-8") == "mdl-b"
+        assert (
+            Path(exported_a).with_name("Support.mdl").read_text(encoding="utf-8")
+            == "support-a"
+        )
+        assert (
+            Path(exported_b).with_name("Support.mdl").read_text(encoding="utf-8")
+            == "support-b"
+        )
+        assert exported_builtin == "OmniPBR.mdl"
+        assert not (export_dir / "mdl_materials").exists()
+
+    def test_extracts_complete_usdz_for_mdl_without_mutating_source(self, tmp_path):
+        from pxr import Sdf, Usd, UsdShade
+
+        from world_understanding.utils.usd.package import (
+            write_usdz_package_from_directory,
+        )
+
+        package_source = tmp_path / "package-source"
+        materials_dir = package_source / "Materials"
+        resources_dir = package_source / "Resources"
+        materials_dir.mkdir(parents=True)
+        resources_dir.mkdir()
+        (materials_dir / "Surface.mdl").write_text(
+            "mdl 1.7; import .::Support::*;\n",
+            encoding="utf-8",
+        )
+        (materials_dir / "Support.mdl").write_text(
+            "mdl 1.7;\n",
+            encoding="utf-8",
+        )
+        (resources_dir / "albedo.png").write_bytes(b"texture-resource")
+        source_stage = Usd.Stage.CreateNew(str(package_source / "asset.usda"))
+        shader = UsdShade.Shader.Define(source_stage, "/World/Looks/Surface")
+        shader.GetPrim().CreateAttribute(
+            "info:mdl:sourceAsset",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("./Materials/Surface.mdl"))
+        shader.GetPrim().CreateAttribute(
+            "inputs:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("./Resources/albedo.png"))
+        source_stage.GetRootLayer().Save()
+
+        package_path = tmp_path / "asset.usdz"
+        write_usdz_package_from_directory(
+            package_source,
+            Path("asset.usda"),
+            package_path,
+        )
+        original_package_bytes = package_path.read_bytes()
+        stage = Usd.Stage.Open(str(package_path))
+        assert stage is not None
+        original_attr = stage.GetAttributeAtPath(
+            "/World/Looks/Surface.info:mdl:sourceAsset"
+        )
+        assert original_attr.Get().path == "./Materials/Surface.mdl"
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        assert _export_scene_for_ovrtx_ipc(stage, exported_stage_path)
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 2
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        exported_mdl_path = (
+            exported.GetPrimAtPath("/World/Looks/Surface")
+            .attributes["info:mdl:sourceAsset"]
+            .default.path
+        )
+        exported_texture_path = (
+            exported.GetPrimAtPath("/World/Looks/Surface")
+            .attributes["inputs:file"]
+            .default.path
+        )
+        assert exported_mdl_path.startswith("package_assets/mdl/")
+        assert exported_texture_path.startswith("package_assets/textures/")
+        localized_mdl = export_dir / exported_mdl_path
+        extracted_package = localized_mdl.parents[1]
+        assert localized_mdl.is_file()
+        assert (extracted_package / "Materials" / "Support.mdl").is_file()
+        assert (extracted_package / "Resources" / "albedo.png").read_bytes() == (
+            b"texture-resource"
+        )
+        assert (export_dir / exported_texture_path).read_bytes() == b"texture-resource"
+        assert package_path.read_bytes() == original_package_bytes
+        assert original_attr.Get().path == "./Materials/Surface.mdl"
+
+    @pytest.mark.parametrize("asset_kind", ["mdl", "texture"])
+    def test_localizes_shared_package_outside_stage_root(self, tmp_path, asset_kind):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_root = tmp_path / "source"
+        source_root.mkdir()
+        external_package = tmp_path / "external.usdz"
+        member = "Surface.mdl" if asset_kind == "mdl" else "albedo.png"
+        with zipfile.ZipFile(external_package, "w") as package:
+            if asset_kind == "mdl":
+                package.writestr("root.usda", "#usda 1.0\n")
+            package.writestr(member, b"asset")
+
+        stage = Usd.Stage.CreateNew(str(source_root / "scene.usda"))
+        shader = UsdShade.Shader.Define(stage, "/World/Looks/Surface")
+        attribute = "info:mdl:sourceAsset" if asset_kind == "mdl" else "inputs:file"
+        shader.GetPrim().CreateAttribute(attribute, Sdf.ValueTypeNames.Asset).Set(
+            Sdf.AssetPath(f"{external_package}[{member}]")
+        )
+        stage.GetRootLayer().Save()
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        assert _export_scene_for_ovrtx_ipc(stage, exported_stage_path)
+
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 1
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        localized_path = (
+            exported.GetPrimAtPath("/World/Looks/Surface")
+            .attributes[attribute]
+            .default.path
+        )
+        assert localized_path.startswith("package_assets/")
+        assert (export_dir / localized_path).is_file()
+
+    @pytest.mark.parametrize("asset_kind", ["mdl", "texture"])
+    @pytest.mark.parametrize("remote_scheme", ["https", "omniverse"])
+    def test_localizes_local_package_but_preserves_remote_package_uri(
+        self,
+        tmp_path,
+        asset_kind,
+        remote_scheme,
+    ):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_root = tmp_path / "source"
+        source_root.mkdir()
+        package_path = source_root / "local.usdz"
+        member = "Surface.mdl" if asset_kind == "mdl" else "albedo.png"
+        with zipfile.ZipFile(package_path, "w") as package:
+            if asset_kind == "mdl":
+                package.writestr("root.usda", "#usda 1.0\n")
+            package.writestr(member, b"asset")
+
+        stage = Usd.Stage.CreateNew(str(source_root / "scene.usda"))
+        attribute = "info:mdl:sourceAsset" if asset_kind == "mdl" else "inputs:file"
+        local_shader = UsdShade.Shader.Define(stage, "/World/Looks/Local")
+        local_shader.GetPrim().CreateAttribute(
+            attribute,
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath(f"./local.usdz[{member}]"))
+        remote_asset = f"{remote_scheme}://example.invalid/remote.usdz[{member}]"
+        remote_shader = UsdShade.Shader.Define(stage, "/World/Looks/Remote")
+        remote_shader.GetPrim().CreateAttribute(
+            attribute,
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath(remote_asset))
+        stage.GetRootLayer().Save()
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        assert _export_scene_for_ovrtx_ipc(stage, exported_stage_path)
+
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 1
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        local_path = (
+            exported.GetPrimAtPath("/World/Looks/Local")
+            .attributes[attribute]
+            .default.path
+        )
+        exported_remote = (
+            exported.GetPrimAtPath("/World/Looks/Remote")
+            .attributes[attribute]
+            .default.path
+        )
+        assert local_path.startswith("package_assets/")
+        assert (export_dir / local_path).is_file()
+        assert exported_remote == remote_asset
+
+    @pytest.mark.parametrize("topology", ["instance", "variant"])
+    def test_localizes_usdz_assets_against_exported_layer_topology(
+        self,
+        tmp_path,
+        topology,
+    ):
+        from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+        from world_understanding.utils.usd.package import (
+            write_usdz_package_from_directory,
+        )
+
+        package_source = tmp_path / "package-source"
+        materials_dir = package_source / "Materials"
+        textures_dir = package_source / "Textures"
+        materials_dir.mkdir(parents=True)
+        textures_dir.mkdir()
+        (materials_dir / "Surface.mdl").write_text("mdl 1.7;\n", encoding="utf-8")
+        (textures_dir / "albedo.png").write_bytes(b"texture")
+        source_stage = Usd.Stage.CreateNew(str(package_source / "asset.usda"))
+
+        def author_assets(shader):
+            shader.GetPrim().CreateAttribute(
+                "info:mdl:sourceAsset",
+                Sdf.ValueTypeNames.Asset,
+            ).Set(Sdf.AssetPath("./Materials/Surface.mdl"))
+            shader.GetPrim().CreateAttribute(
+                "inputs:file",
+                Sdf.ValueTypeNames.Asset,
+            ).Set(Sdf.AssetPath("./Textures/albedo.png"))
+
+        if topology == "instance":
+            shader = UsdShade.Shader.Define(source_stage, "/Prototype/Shader")
+            author_assets(shader)
+            instance = UsdGeom.Xform.Define(source_stage, "/Instance")
+            instance.GetPrim().GetReferences().AddInternalReference("/Prototype")
+            instance.GetPrim().SetInstanceable(True)
+            expected_prim_path = "/Prototype/Shader"
+        else:
+            root = UsdGeom.Xform.Define(source_stage, "/Root")
+            variants = root.GetPrim().GetVariantSets().AddVariantSet("look")
+            variants.AddVariant("selected")
+            variants.SetVariantSelection("selected")
+            with variants.GetVariantEditContext():
+                shader = UsdShade.Shader.Define(source_stage, "/Root/Shader")
+                author_assets(shader)
+            expected_prim_path = "/Root{look=selected}Shader"
+        source_stage.GetRootLayer().Save()
+
+        package_path = tmp_path / f"{topology}.usdz"
+        write_usdz_package_from_directory(
+            package_source,
+            Path("asset.usda"),
+            package_path,
+        )
+        stage = Usd.Stage.Open(str(package_path))
+        assert stage is not None
+        export_dir = tmp_path / f"render-{topology}"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        assert _export_scene_for_ovrtx_ipc(stage, exported_stage_path)
+
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 2
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        prim_spec = exported.GetPrimAtPath(expected_prim_path)
+        mdl_path = prim_spec.attributes["info:mdl:sourceAsset"].default.path
+        texture_path = prim_spec.attributes["inputs:file"].default.path
+        assert mdl_path.startswith("package_assets/mdl/")
+        assert texture_path.startswith("package_assets/textures/")
+        assert (export_dir / mdl_path).is_file()
+        assert (export_dir / texture_path).read_bytes() == b"texture"
+
+    def test_localizes_direct_variant_owner_assets_without_collision(
+        self, tmp_path: Path
+    ) -> None:
+        from pxr import Sdf, Usd, UsdGeom
+
+        from world_understanding.utils.usd.package import (
+            write_usdz_package_from_directory,
+        )
+
+        package_source = tmp_path / "package-source"
+        textures_dir = package_source / "Textures"
+        textures_dir.mkdir(parents=True)
+        (textures_dir / "red.png").write_bytes(b"red")
+        (textures_dir / "blue.png").write_bytes(b"blue")
+        source_stage = Usd.Stage.CreateNew(str(package_source / "asset.usda"))
+        root = UsdGeom.Xform.Define(source_stage, "/Root").GetPrim()
+        variants = root.GetVariantSets().AddVariantSet("look")
+        for variant_name in ("red", "blue"):
+            variants.AddVariant(variant_name)
+            variants.SetVariantSelection(variant_name)
+            with variants.GetVariantEditContext():
+                root.CreateAttribute("inputs:file", Sdf.ValueTypeNames.Asset).Set(
+                    Sdf.AssetPath(f"./Textures/{variant_name}.png")
+                )
+        source_stage.GetRootLayer().Save()
+
+        package_path = tmp_path / "variants.usdz"
+        write_usdz_package_from_directory(
+            package_source,
+            Path("asset.usda"),
+            package_path,
+        )
+        stage = Usd.Stage.Open(str(package_path))
+        assert stage is not None
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        assert _export_scene_for_ovrtx_ipc(stage, exported_stage_path)
+
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 2
+        )
+
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        for variant_name in ("red", "blue"):
+            prim_spec = exported.GetPrimAtPath(f"/Root{{look={variant_name}}}")
+            texture_path = prim_spec.attributes["inputs:file"].default.path
+            assert (export_dir / texture_path).read_bytes() == variant_name.encode()
+
+    def test_preserves_same_host_mdl_dependency_tree(self, tmp_path):
+        from pxr import Sdf, Usd, UsdShade
+
+        source_root = tmp_path / "source"
+        source_root.mkdir()
+        mdl_root = tmp_path / "mdl_library"
+        mdl_dir = mdl_root / "Products" / "Glass"
+        templates_dir = mdl_root / "Templates"
+        mdl_dir.mkdir(parents=True)
+        templates_dir.mkdir()
+        mdl_path = mdl_dir / "Frosted.mdl"
+        mdl_path.write_text(
+            "mdl 1.7;\nimport ..::..::Templates::GlassWithVolume::*;\n",
+            encoding="utf-8",
+        )
+        (templates_dir / "GlassWithVolume.mdl").write_text(
+            "mdl 1.7;\n",
+            encoding="utf-8",
+        )
+        stage = Usd.Stage.CreateNew(str(source_root / "scene.usda"))
+        relative_shader = UsdShade.Shader.Define(stage, "/World/Looks/Relative")
+        relative_shader.GetPrim().CreateAttribute(
+            "info:mdl:sourceAsset",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath("../mdl_library/Products/Glass/Frosted.mdl"))
+        absolute_shader = UsdShade.Shader.Define(stage, "/World/Looks/Absolute")
+        absolute_shader.GetPrim().CreateAttribute(
+            "info:mdl:sourceAsset",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(Sdf.AssetPath(mdl_path.as_posix()))
+        stage.GetRootLayer().Save()
+
+        export_dir = tmp_path / "render"
+        export_dir.mkdir()
+        exported_stage_path = export_dir / "stage.usdc"
+        assert _export_scene_for_ovrtx_ipc(stage, exported_stage_path)
+
+        assert (
+            _copy_exported_relative_assets(
+                stage,
+                export_dir,
+                exported_stage_path=exported_stage_path,
+            )
+            == 0
+        )
+
+        assert not (export_dir / "mdl_materials").exists()
+        exported = Sdf.Layer.FindOrOpen(str(exported_stage_path))
+        expected_path = Sdf.AssetPath(mdl_path.resolve().as_posix())
+        for shader_path in ("/World/Looks/Relative", "/World/Looks/Absolute"):
+            attr = exported.GetPrimAtPath(shader_path).attributes[
+                "info:mdl:sourceAsset"
+            ]
+            assert attr.default == expected_path
 
     def test_copies_relative_texture_assets_to_export_dir(self, tmp_path):
         from pxr import Sdf, Usd, UsdShade
@@ -4491,6 +5224,10 @@ class TestOvRTXDaemonResourceLimits:
             with pytest.raises(ValueError, match="must be a non-negative integer"):
                 render_ovrtx._parse_nonnegative_int_env("TEST_OVRTX_LIMIT", 7)
 
+    @pytest.mark.skipif(
+        not hasattr(os, "sysconf"),
+        reason="RSS sampling reads /proc/<pid>/statm and os.sysconf page size",
+    )
     def test_linux_process_rss_bytes_reads_statm_and_handles_bad_data(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -4513,6 +5250,10 @@ class TestOvRTXDaemonResourceLimits:
         statm.unlink()
         assert render_ovrtx._linux_process_rss_bytes(42, proc_root=proc_root) is None
 
+    @pytest.mark.skipif(
+        not hasattr(os, "sysconf"),
+        reason="RSS sampling reads /proc/<pid>/statm and os.sysconf page size",
+    )
     def test_linux_process_rss_bytes_rejects_invalid_page_size(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -4524,6 +5265,264 @@ class TestOvRTXDaemonResourceLimits:
         monkeypatch.setattr(render_ovrtx.os, "sysconf", lambda _name: 0)
 
         assert render_ovrtx._linux_process_rss_bytes(42, proc_root=tmp_path) is None
+
+
+class TestOvRTXDaemonThreadedPipeIO:
+    """Cover the pipe I/O used where ``selectors`` cannot wait on a pipe.
+
+    ``select()`` accepts sockets only on Windows, so the daemon reads and writes
+    its protocol pipes on worker threads there. These run on every host so the
+    fallback keeps coverage on Linux CI.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolate_runtime_caches(self, monkeypatch):
+        """Keep the fake interpreters here out of the process-wide caches.
+
+        Constructing a daemon records its interpreter in the module-level
+        provisioning caches. These tests pass paths that do not exist, so
+        leaking them makes later provisioning tests resolve a bogus runtime.
+        """
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx, "_ovrtx_python_cache", {})
+        monkeypatch.setattr(render_ovrtx, "_verified_ovrtx_python_cache", set())
+        monkeypatch.setattr(render_ovrtx, "_verified_managed_ovrtx_python_cache", set())
+
+    @staticmethod
+    def _spawn(code: str) -> subprocess.Popen:
+        return subprocess.Popen(
+            [sys.executable, "-c", code],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def test_chunk_reader_delivers_output_then_reports_eof(self):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        process = self._spawn("print('ready', flush=True)")
+        try:
+            reader = render_ovrtx._PipeChunkReader(
+                process.stdout.fileno(),
+                name="test-stdout",
+            )
+            payload = b""
+            while b"\n" not in payload:
+                chunk = reader.read(30.0)
+                assert chunk, f"expected daemon output, got {chunk!r}"
+                payload += chunk
+            assert payload.startswith(b"ready")
+            # The child has exited, so the next read must report EOF, not block.
+            assert reader.read(30.0) == b""
+        finally:
+            process.kill()
+            process.wait(timeout=30)
+
+    def test_untimed_reader_waits_through_a_poll_that_returns_no_chunk(
+        self, tmp_path, monkeypatch
+    ):
+        """A silent poll must keep waiting, not invent a line.
+
+        The untimed read has no caller deadline, so a poll that expires with
+        no bytes is normal and must loop rather than return.
+        """
+        from types import SimpleNamespace
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", False)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        chunks = [None, b'{"status": "ready"}\n']
+
+        class _StubReader:
+            def read(self, timeout_s):
+                return chunks.pop(0)
+
+        daemon._stdout_reader = _StubReader()
+        daemon._process = SimpleNamespace(
+            stdout=SimpleNamespace(fileno=lambda: -1), pid=0
+        )
+        assert daemon._read_stdout_line_untimed() == '{"status": "ready"}\n'
+        assert not chunks, "the silent poll must have been consumed first"
+
+    def test_threaded_reader_reports_timeout_when_the_deadline_already_passed(
+        self, tmp_path, monkeypatch
+    ):
+        """An expired deadline returns at once without touching the pipe."""
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+
+        class _StubReader:
+            def read(self, timeout_s):
+                raise AssertionError("must not read once the deadline passed")
+
+        daemon._stdout_reader = _StubReader()
+        assert daemon._read_stdout_line_via_reader(-1, time.monotonic() - 1.0) is None
+
+    def test_chunk_reader_reports_timeout_while_child_stays_silent(self):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        process = self._spawn("import time; time.sleep(60)")
+        try:
+            reader = render_ovrtx._PipeChunkReader(
+                process.stdout.fileno(),
+                name="test-stdout",
+            )
+            assert reader.read(0.25) is None
+        finally:
+            process.kill()
+            process.wait(timeout=30)
+
+    def test_threaded_reader_returns_one_line_then_times_out(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", False)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = self._spawn(
+            'import time\nprint(\'{"status": "ready"}\', flush=True)\ntime.sleep(60)\n'
+        )
+        daemon._process = process
+        try:
+            assert json.loads(daemon._read_stdout_line(30.0, "startup")) == {
+                "status": "ready"
+            }
+            # The child is alive but silent, so the deadline must win and the
+            # daemon must be killed rather than waited on forever.
+            with pytest.raises(TimeoutError):
+                daemon._read_stdout_line(0.25, "render")
+        finally:
+            process.kill()
+            process.wait(timeout=30)
+
+    def test_threaded_writer_delivers_payload_and_bounds_a_stalled_pipe(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", False)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = self._spawn(
+            "import sys\nline = sys.stdin.readline()\n"
+            "print(line.strip(), flush=True)\nimport time; time.sleep(60)\n"
+        )
+        daemon._process = process
+        try:
+            daemon._write_stdin_line(
+                '{"command": "ping"}',
+                deadline=time.monotonic() + 30.0,
+                phase="render",
+            )
+            assert json.loads(daemon._read_stdout_line(30.0, "render")) == {
+                "command": "ping"
+            }
+        finally:
+            process.kill()
+            process.wait(timeout=30)
+
+    def test_untimed_read_uses_the_worker_thread_off_posix(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", False)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = self._spawn(
+            'import time\nprint(\'{"status": "ready"}\', flush=True)\ntime.sleep(60)\n'
+        )
+        daemon._process = process
+        try:
+            # timeout_s <= 0 means "block until the line arrives".
+            assert json.loads(daemon._read_stdout_line(0, "startup")) == {
+                "status": "ready"
+            }
+        finally:
+            process.kill()
+            process.wait(timeout=30)
+
+    def test_threaded_writer_reraises_the_worker_failure(self, tmp_path, monkeypatch):
+        """A broken pipe on the worker must surface to the caller, not be lost."""
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", False)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = unittest.mock.Mock()
+        process.stdin.fileno.return_value = 42
+        process.poll.return_value = None
+        daemon._process = process
+
+        def refuse(_descriptor, _payload):
+            raise BrokenPipeError("daemon stdin closed")
+
+        monkeypatch.setattr(render_ovrtx.os, "write", refuse)
+        with pytest.raises(BrokenPipeError, match="daemon stdin closed"):
+            daemon._write_stdin_line(
+                '{"command": "render"}',
+                deadline=time.monotonic() + 30.0,
+                phase="render",
+            )
+
+    def test_threaded_writer_kills_daemon_when_the_deadline_has_passed(
+        self, tmp_path, monkeypatch
+    ):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        monkeypatch.setattr(render_ovrtx.atexit, "register", lambda func: None)
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", False)
+        daemon = render_ovrtx._OvRTXDaemon(
+            ovrtx_python=str(tmp_path / "python"),
+            daemon_script_path=str(tmp_path / "daemon.py"),
+        )
+        process = unittest.mock.Mock()
+        process.stdin.fileno.return_value = 42
+        process.poll.return_value = None
+        daemon._process = process
+
+        never_returns = threading.Event()
+
+        def _blocked_write(_descriptor, _payload):
+            never_returns.wait(30.0)
+            return 0
+
+        monkeypatch.setattr(render_ovrtx.os, "write", _blocked_write)
+        killed = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_kill_process", killed)
+        try:
+            with pytest.raises(TimeoutError):
+                daemon._write_stdin_line(
+                    '{"command": "render"}',
+                    deadline=time.monotonic() + 0.25,
+                    phase="render",
+                )
+            killed.assert_called_once_with(timeout_s=0.0)
+        finally:
+            never_returns.set()
 
 
 class TestOvRTXDaemonLifecycle:
@@ -4573,6 +5572,559 @@ class TestOvRTXDaemonLifecycle:
         assert daemon._is_running()
         daemon.shutdown()
         assert not daemon._is_running()
+
+    @pytest.mark.parametrize("timeout_s", [0.0, -1.0, float("nan"), float("inf")])
+    def test_render_rejects_nonpositive_or_nonfinite_timeout(
+        self,
+        tmp_path,
+        timeout_s: float,
+    ) -> None:
+        import sys
+
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+
+        with pytest.raises(ValueError, match="positive and finite"):
+            daemon.render(self._render_params(tmp_path), timeout_s=timeout_s)
+
+        assert not daemon._is_running()
+
+    def test_render_rejects_invalid_configured_timeout(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        import sys
+
+        monkeypatch.setenv("OVRTX_DAEMON_RENDER_TIMEOUT", "0")
+        script = self._make_fake_daemon_script(tmp_path)
+        daemon = _OvRTXDaemon(ovrtx_python=sys.executable, daemon_script_path=script)
+
+        with pytest.raises(ValueError, match="positive and finite"):
+            daemon.render(self._render_params(tmp_path))
+
+        assert not daemon._is_running()
+
+    @pytest.mark.parametrize("configured_timeout", ["0", "-1", "nan"])
+    def test_start_rejects_invalid_configured_timeout(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        configured_timeout: str,
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_START_TIMEOUT", configured_timeout)
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+
+        with pytest.raises(ValueError, match="positive and finite"):
+            daemon.ensure_running(timeout_s=1.0)
+
+        assert not daemon._is_running()
+
+    def test_render_deadline_clamps_infinite_configured_start_timeout(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_START_TIMEOUT", "inf")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=self._make_fake_daemon_script(tmp_path),
+        )
+
+        manifest = daemon.render(self._render_params(tmp_path), timeout_s=5.0)
+
+        assert [entry["camera"] for entry in manifest] == ["/Camera"]
+
+        daemon.shutdown()
+
+    def test_render_deadline_bounds_infinite_configured_start_timeout(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_START_TIMEOUT", "inf")
+        script = tmp_path / "hung_startup_daemon.py"
+        script.write_text("import time\ntime.sleep(60)\n", encoding="utf-8")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(script),
+        )
+
+        started = time.monotonic()
+        with pytest.raises(TimeoutError, match="startup timed out"):
+            daemon.render(self._render_params(tmp_path), timeout_s=0.2)
+
+        assert time.monotonic() - started < 2.0
+        assert not daemon._is_running()
+
+    def test_unbounded_start_rejects_infinite_configured_timeout(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_START_TIMEOUT", "inf")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+
+        with pytest.raises(ValueError, match="positive and finite"):
+            daemon.ensure_running()
+
+        assert not daemon._is_running()
+
+    @pytest.mark.parametrize(
+        "deadline_monotonic",
+        [float("nan"), float("inf"), -float("inf")],
+    )
+    def test_start_rejects_nonfinite_absolute_deadline(
+        self,
+        tmp_path: Path,
+        deadline_monotonic: float,
+    ) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+
+        with pytest.raises(ValueError, match="deadline must be finite"):
+            daemon._start(deadline_monotonic=deadline_monotonic)
+
+        assert not daemon._is_running()
+
+    def test_start_rejects_timeout_and_deadline_together(self, tmp_path: Path) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+
+        with pytest.raises(ValueError, match="timeout or deadline"):
+            daemon._start(timeout_s=1.0, deadline_monotonic=time.monotonic() + 1.0)
+
+        assert not daemon._is_running()
+
+    def test_explicit_render_deadline_bounds_fresh_daemon_startup(
+        self, tmp_path
+    ) -> None:
+        script = tmp_path / "hung_startup_daemon.py"
+        script.write_text("import time\ntime.sleep(60)\n", encoding="utf-8")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(script),
+        )
+
+        started = time.monotonic()
+        with pytest.raises(TimeoutError, match="startup timed out"):
+            daemon.render(self._render_params(tmp_path), timeout_s=0.2)
+
+        assert time.monotonic() - started < 2.0
+        assert not daemon._is_running()
+
+    def test_render_deadline_bounds_daemon_request_dispatch(self, tmp_path) -> None:
+        script = tmp_path / "nonreading_daemon.py"
+        script.write_text(
+            "import json, sys, time\n"
+            "sys.stdout.write(json.dumps({'status': 'ready'}) + '\\n')\n"
+            "sys.stdout.flush()\n"
+            "time.sleep(60)\n",
+            encoding="utf-8",
+        )
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(script),
+        )
+        daemon.ensure_running(timeout_s=5.0)
+        params = self._render_params(tmp_path)
+        params["dispatch_padding"] = "x" * (2 * 1024 * 1024)
+
+        started = time.monotonic()
+        with pytest.raises(
+            TimeoutError,
+            match="request dispatch exceeded the render deadline",
+        ):
+            daemon.render(params, timeout_s=0.2)
+
+        assert time.monotonic() - started < 2.0
+        assert not daemon._is_running()
+
+    def test_request_dispatch_retries_blocking_write_and_tolerates_fd_restore_race(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=self._make_fake_daemon_script(tmp_path),
+        )
+        process = unittest.mock.Mock()
+        process.stdin.fileno.return_value = 42
+        daemon._process = process
+
+        selector = unittest.mock.Mock()
+        selector.select.return_value = [(42, render_ovrtx.selectors.EVENT_WRITE)]
+        monkeypatch.setattr(
+            render_ovrtx.selectors,
+            "DefaultSelector",
+            lambda: selector,
+        )
+        # This asserts the non-blocking selector write retry, so pin that branch
+        # rather than the worker-thread writer used where pipes cannot select.
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", True)
+        monkeypatch.setattr(render_ovrtx.os, "get_blocking", lambda _fd: True)
+        set_blocking = unittest.mock.Mock(side_effect=[None, OSError("fd closed")])
+        monkeypatch.setattr(render_ovrtx.os, "set_blocking", set_blocking)
+        write = unittest.mock.Mock(
+            side_effect=[BlockingIOError(), len(b'{"command":"render"}\n')]
+        )
+        monkeypatch.setattr(render_ovrtx.os, "write", write)
+
+        daemon._write_stdin_line(
+            '{"command":"render"}',
+            deadline=time.monotonic() + 1.0,
+            phase="request dispatch",
+        )
+
+        assert write.call_count == 2
+        assert set_blocking.call_args_list == [
+            unittest.mock.call(42, False),
+            unittest.mock.call(42, True),
+        ]
+        selector.close.assert_called_once_with()
+
+    @pytest.mark.skipif(
+        os.name != "posix",
+        reason=(
+            "A child that closes stdout but keeps running only reports EOF to "
+            "the parent on POSIX. Windows keeps the pipe read pending, so the "
+            "same hang is classified by the startup deadline instead."
+        ),
+    )
+    def test_startup_stdout_eof_cleanup_stays_within_render_deadline(
+        self, tmp_path
+    ) -> None:
+        script = tmp_path / "closed_stdout_daemon.py"
+        script.write_text(
+            "import os, sys, time\nos.close(sys.stdout.fileno())\ntime.sleep(60)\n",
+            encoding="utf-8",
+        )
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(script),
+        )
+
+        started = time.monotonic()
+        with pytest.raises(RuntimeError, match="exited during init"):
+            daemon.render(self._render_params(tmp_path), timeout_s=2.0)
+
+        assert time.monotonic() - started < 5.0
+        assert not daemon._is_running()
+
+    def test_explicit_render_deadline_bounds_recycle_startup(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        marker = tmp_path / "first_start_complete"
+        script = tmp_path / "hung_recycle_daemon.py"
+        script.write_text(
+            "import json, pathlib, sys, time\n"
+            f"marker = pathlib.Path({str(marker)!r})\n"
+            "if marker.exists():\n"
+            "    time.sleep(60)\n"
+            "marker.write_text('ready', encoding='utf-8')\n"
+            "sys.stdout.write(json.dumps({'status': 'ready'}) + '\\n')\n"
+            "sys.stdout.flush()\n"
+            "for line in sys.stdin:\n"
+            "    request = json.loads(line)\n"
+            "    if request.get('command') == 'shutdown':\n"
+            "        break\n"
+            "    sys.stdout.write(json.dumps({'status': 'ok', 'manifest': []}) + '\\n')\n"
+            "    sys.stdout.flush()\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "1")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(script),
+        )
+        daemon.render(self._render_params(tmp_path))
+
+        started = time.monotonic()
+        with pytest.raises(TimeoutError, match="startup timed out"):
+            daemon.render(self._render_params(tmp_path), timeout_s=0.2)
+
+        assert time.monotonic() - started < 2.0
+        assert not daemon._is_running()
+
+    def test_recycle_startup_expiry_before_ready_wait_is_classified_as_timeout(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        real_time = render_ovrtx.time
+
+        class Clock:
+            now = 100.0
+
+            def monotonic(self) -> float:
+                return self.now
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(real_time, name)
+
+        clock = Clock()
+        monkeypatch.setattr(render_ovrtx, "time", clock)
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "1")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        previous_process = unittest.mock.Mock(pid=1001)
+        previous_process.poll.return_value = None
+        daemon._process = previous_process
+        daemon._completed_renders = 1
+
+        def shutdown_previous_process(*, deadline: float) -> None:
+            assert deadline == 100.2
+            daemon._process = None
+
+        monkeypatch.setattr(daemon, "_shutdown_locked", shutdown_previous_process)
+        monkeypatch.setattr(daemon, "_drain_stderr", lambda _process: None)
+        reap_subprocess = unittest.mock.Mock()
+        monkeypatch.setattr(render_ovrtx, "_reap_subprocess_async", reap_subprocess)
+
+        startup_process = unittest.mock.Mock(pid=1002, stderr=[])
+        startup_process.poll.return_value = None
+
+        def start_process(*args: Any, **kwargs: Any) -> unittest.mock.Mock:
+            clock.now = 100.3
+            return startup_process
+
+        monkeypatch.setattr(render_ovrtx.subprocess, "Popen", start_process)
+
+        with pytest.raises(TimeoutError, match="startup timed out"):
+            daemon.render(self._render_params(tmp_path), timeout_s=0.2)
+
+        startup_process.kill.assert_called_once_with()
+        reap_subprocess.assert_called_once_with(startup_process)
+        assert not daemon._is_running()
+
+    def test_ready_wait_expiry_uses_stable_startup_classification(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        real_time = render_ovrtx.time
+
+        class Clock:
+            now = 100.0
+
+            def monotonic(self) -> float:
+                return self.now
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(real_time, name)
+
+        clock = Clock()
+        monkeypatch.setattr(render_ovrtx, "time", clock)
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_ovrtx_site_dir_env_for_python",
+            lambda *args, **kwargs: None,
+        )
+        reap_subprocess = unittest.mock.Mock()
+        monkeypatch.setattr(render_ovrtx, "_reap_subprocess_async", reap_subprocess)
+        startup_process = unittest.mock.Mock(pid=1002, stderr=[])
+        startup_process.poll.return_value = None
+        monkeypatch.setattr(
+            render_ovrtx.subprocess,
+            "Popen",
+            unittest.mock.Mock(return_value=startup_process),
+        )
+        stderr_thread = unittest.mock.Mock()
+        start_thread = unittest.mock.Mock(return_value=stderr_thread)
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        monkeypatch.setattr(
+            render_ovrtx,
+            "threading",
+            unittest.mock.Mock(Thread=start_thread),
+        )
+
+        def expire_ready_wait(
+            timeout_s: float,
+            phase: str,
+            *,
+            timeout_handler: Callable[[], NoReturn],
+        ) -> NoReturn:
+            assert timeout_s == pytest.approx(0.2)
+            assert phase == "startup"
+            clock.now = 100.3
+            timeout_handler()
+
+        monkeypatch.setattr(daemon, "_read_stdout_line", expire_ready_wait)
+
+        with pytest.raises(
+            TimeoutError,
+            match=(
+                r"startup timed out during ready wait after 0\.3s "
+                r"\(startup budget 0\.2s\)"
+            ),
+        ):
+            daemon.ensure_running(timeout_s=0.2)
+
+        start_thread.assert_called_once_with(
+            target=daemon._drain_stderr,
+            args=(startup_process, daemon._stderr_tail),
+            daemon=True,
+        )
+        stderr_thread.start.assert_called_once_with()
+        startup_process.kill.assert_called_once_with()
+        reap_subprocess.assert_called_once_with(startup_process)
+        assert not daemon._is_running()
+
+    def test_recycle_startup_expiry_before_launch_is_classified_as_timeout(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        real_time = render_ovrtx.time
+
+        class Clock:
+            now = 100.0
+
+            def monotonic(self) -> float:
+                return self.now
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(real_time, name)
+
+        clock = Clock()
+        monkeypatch.setattr(render_ovrtx, "time", clock)
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RENDERS", "1")
+        monkeypatch.setenv("OVRTX_DAEMON_MAX_RSS_BYTES", "0")
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        previous_process = unittest.mock.Mock(pid=1001)
+        previous_process.poll.return_value = None
+        daemon._process = previous_process
+        daemon._completed_renders = 1
+
+        def shutdown_previous_process(*, deadline: float) -> None:
+            assert deadline == 100.2
+            clock.now = 100.3
+            daemon._process = None
+
+        monkeypatch.setattr(daemon, "_shutdown_locked", shutdown_previous_process)
+        start_process = unittest.mock.Mock(
+            side_effect=AssertionError("expired startup must not launch a subprocess")
+        )
+        monkeypatch.setattr(render_ovrtx.subprocess, "Popen", start_process)
+
+        with pytest.raises(
+            TimeoutError,
+            match="startup timed out before launch because the caller deadline",
+        ):
+            daemon.render(self._render_params(tmp_path), timeout_s=0.2)
+
+        start_process.assert_not_called()
+        assert not daemon._is_running()
+
+    def test_startup_environment_expiry_is_classified_before_launch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        real_time = render_ovrtx.time
+
+        class Clock:
+            now = 100.0
+
+            def monotonic(self) -> float:
+                return self.now
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(real_time, name)
+
+        clock = Clock()
+        monkeypatch.setattr(render_ovrtx, "time", clock)
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+
+        def prepare_site_dir(*args: Any, **kwargs: Any) -> None:
+            clock.now = 100.3
+
+        monkeypatch.setattr(
+            render_ovrtx,
+            "_ovrtx_site_dir_env_for_python",
+            prepare_site_dir,
+        )
+        start_process = unittest.mock.Mock(
+            side_effect=AssertionError("expired startup must not launch a subprocess")
+        )
+        monkeypatch.setattr(render_ovrtx.subprocess, "Popen", start_process)
+
+        with pytest.raises(
+            TimeoutError,
+            match="startup timed out before launch after 0.3s of environment setup",
+        ):
+            daemon.ensure_running(timeout_s=0.2)
+
+        start_process.assert_not_called()
+        assert not daemon._is_running()
+
+    def test_recycle_broken_pipe_cleanup_uses_remaining_deadline(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class FakeProcess:
+            pid = 12345
+            stdout = None
+            stderr: list[str] = []
+
+            def __init__(self) -> None:
+                self.stdin = unittest.mock.Mock()
+                self.killed = False
+                self.wait_timeouts: list[float] = []
+
+            def poll(self) -> None:
+                return None
+
+            def kill(self) -> None:
+                self.killed = True
+
+            def wait(self, *, timeout: float) -> int:
+                self.wait_timeouts.append(timeout)
+                return 0
+
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        process = FakeProcess()
+        daemon._process = process
+        restart_deadlines: list[float] = []
+        monkeypatch.setattr(
+            daemon,
+            "_start",
+            lambda *, deadline_monotonic: restart_deadlines.append(deadline_monotonic),
+        )
+        monkeypatch.setattr(
+            daemon,
+            "_write_stdin_line",
+            unittest.mock.Mock(side_effect=BrokenPipeError("closed")),
+        )
+        deadline = time.monotonic() + 0.2
+
+        daemon._recycle_before_render("completed_render_limit", deadline=deadline)
+
+        assert process.killed is True
+        assert process.wait_timeouts
+        assert 0.0 <= process.wait_timeouts[0] <= 0.2
+        assert restart_deadlines == [deadline]
+        process.stdin.write.assert_not_called()
 
     def test_completed_render_limit_recycles_before_next_request(
         self, tmp_path, monkeypatch: pytest.MonkeyPatch
@@ -4701,6 +6253,170 @@ class TestOvRTXDaemonLifecycle:
         assert daemon._process.pid == replacement_pid
         daemon.shutdown()
 
+    def test_ensure_running_forwards_request_timeout(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        start = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_start", start)
+
+        daemon.ensure_running(timeout_s=1.25)
+
+        start.assert_called_once_with(timeout_s=1.25)
+
+    def test_expired_request_deadline_terminates_daemon(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        kill_process = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_kill_process", kill_process)
+
+        with pytest.raises(TimeoutError, match="response exceeded"):
+            daemon._remaining_request_timeout(
+                time.monotonic() - 1.0,
+                "response",
+                terminate_on_expiry=True,
+            )
+
+        kill_process.assert_called_once_with(timeout_s=0.0)
+
+    def test_render_lock_wait_is_bounded_by_request_deadline(self, tmp_path) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        assert daemon._lock.acquire(blocking=False)
+        started = time.monotonic()
+        try:
+            with pytest.raises(
+                TimeoutError,
+                match="render lock exceeded the render deadline",
+            ):
+                daemon.render(self._render_params(tmp_path), timeout_s=0.05)
+        finally:
+            daemon._lock.release()
+
+        assert time.monotonic() - started < 0.5
+        assert daemon._process is None
+
+    def test_expired_shutdown_deadline_skips_graceful_wait(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        process = unittest.mock.Mock()
+        process.poll.return_value = None
+        process.stdin = unittest.mock.Mock()
+        daemon._process = process
+        kill_process = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_kill_process", kill_process)
+
+        daemon._shutdown_locked(deadline=time.monotonic() - 1.0)
+
+        kill_process.assert_called_once_with(timeout_s=0.0)
+        process.wait.assert_not_called()
+        daemon._process = None
+
+    def test_shutdown_dispatch_that_consumes_deadline_skips_graceful_wait(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        process = unittest.mock.Mock()
+        process.poll.return_value = None
+        daemon._process = process
+        kill_process = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_kill_process", kill_process)
+        monkeypatch.setattr(daemon, "_write_stdin_line", lambda *args, **kwargs: None)
+        monkeypatch.setattr(
+            render_ovrtx.time, "monotonic", unittest.mock.Mock(side_effect=[0.0, 2.0])
+        )
+
+        daemon._shutdown_locked(deadline=1.0)
+
+        kill_process.assert_called_once_with(timeout_s=0.0)
+        process.wait.assert_not_called()
+
+    def test_public_shutdown_bounds_hung_process_wait(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        process = unittest.mock.Mock()
+        process.poll.return_value = None
+        process.stdin = unittest.mock.Mock()
+        process.wait.side_effect = subprocess.TimeoutExpired("ovrtx", 0.01)
+        daemon._process = process
+        kill_process = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_kill_process", kill_process)
+        monkeypatch.setattr(daemon, "_write_stdin_line", lambda *args, **kwargs: None)
+
+        started = time.monotonic()
+        daemon.shutdown(timeout_s=0.01)
+        elapsed = time.monotonic() - started
+
+        assert process.wait.call_args.kwargs["timeout"] <= 0.01 + _DEADLINE_SLACK_S
+        assert kill_process.call_args.kwargs["timeout_s"] <= 0.01 + _DEADLINE_SLACK_S
+        assert elapsed < 0.1
+
+    def test_public_shutdown_bounds_nonreading_daemon_dispatch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from world_understanding.functions.graphics import render_ovrtx
+
+        daemon = _OvRTXDaemon(
+            ovrtx_python=sys.executable,
+            daemon_script_path=str(tmp_path / "unused.py"),
+        )
+        process = unittest.mock.Mock()
+        process.poll.return_value = None
+        process.stdin.fileno.return_value = 42
+        daemon._process = process
+
+        selector = unittest.mock.Mock()
+        selector.select.return_value = []
+        monkeypatch.setattr(
+            render_ovrtx.selectors,
+            "DefaultSelector",
+            lambda: selector,
+        )
+        monkeypatch.setattr(render_ovrtx.os, "get_blocking", lambda _fd: True)
+        monkeypatch.setattr(render_ovrtx.os, "set_blocking", lambda _fd, _value: None)
+        # The assertions below inspect the selector write wait, so pin that
+        # branch instead of the worker-thread writer.
+        monkeypatch.setattr(render_ovrtx, "_SELECTOR_SUPPORTS_PIPES", True)
+        kill_process = unittest.mock.Mock()
+        monkeypatch.setattr(daemon, "_kill_process", kill_process)
+
+        started = time.monotonic()
+        with pytest.raises(
+            TimeoutError,
+            match="shutdown dispatch exceeded the render deadline",
+        ):
+            daemon.shutdown(timeout_s=0.05)
+        elapsed = time.monotonic() - started
+
+        process.stdin.write.assert_not_called()
+        process.stdin.flush.assert_not_called()
+        assert 0.0 < selector.select.call_args.args[0] <= 0.05 + _DEADLINE_SLACK_S
+        selector.close.assert_called_once_with()
+        kill_process.assert_called_once_with(timeout_s=0.0)
+        assert elapsed < 0.5
+
     def test_start_passes_site_dir_for_explicit_venv(
         self, tmp_path, monkeypatch: pytest.MonkeyPatch
     ):
@@ -4732,7 +6448,7 @@ class TestOvRTXDaemonLifecycle:
         monkeypatch.setattr(
             render_ovrtx._OvRTXDaemon,
             "_read_stdout_line",
-            lambda self, timeout_s, phase: json.dumps({"status": "ready"}),
+            lambda self, timeout_s, phase, **kwargs: json.dumps({"status": "ready"}),
         )
 
         daemon = _OvRTXDaemon(
@@ -4771,7 +6487,7 @@ class TestOvRTXDaemonLifecycle:
         monkeypatch.setattr(
             render_ovrtx._OvRTXDaemon,
             "_read_stdout_line",
-            lambda self, timeout_s, phase: json.dumps({"status": "ready"}),
+            lambda self, timeout_s, phase, **kwargs: json.dumps({"status": "ready"}),
         )
 
         daemon = _OvRTXDaemon(
@@ -5635,6 +7351,144 @@ class TestOvRTXTimeSampledSupport:
             "mtlx_connected": False,
         }
 
+    def test_render_all_cameras_flattens_relative_sublayer_for_ipc_export(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        from PIL import Image
+        from pxr import Usd, UsdGeom, UsdLux
+
+        package_dir = tmp_path / "packages"
+        package_dir.mkdir()
+        package_path = package_dir / "model.usda"
+        package_stage = Usd.Stage.CreateNew(str(package_path))
+        world = UsdGeom.Xform.Define(package_stage, "/World")
+        package_stage.SetDefaultPrim(world.GetPrim())
+        UsdGeom.Cube.Define(package_stage, "/World/ComposedCube")
+        package_stage.GetRootLayer().Save()
+
+        variant_dir = tmp_path / "variants"
+        variant_dir.mkdir()
+        scene_path = variant_dir / "variant.usda"
+        scene_stage = Usd.Stage.CreateNew(str(scene_path))
+        UsdGeom.Camera.Define(scene_stage, "/Camera")
+        UsdLux.DomeLight.Define(scene_stage, "/World/Light")
+        scene_stage.GetRootLayer().subLayerPaths.append("../packages/model.usda")
+        scene_stage.GetRootLayer().Save()
+
+        stage = Usd.Stage.Open(str(scene_path))
+        assert stage is not None
+
+        def fake_run(cmd, **kwargs):
+            params = _worker_params_from_command(cmd)
+            exported_stage = Usd.Stage.Open(params["usd_path"])
+            assert exported_stage is not None
+            assert exported_stage.GetPrimAtPath("/World/ComposedCube").IsValid()
+
+            output_dir = Path(params["output_dir"])
+            image_name = "camera_0.png"
+            Image.new("RGBA", (16, 16), (100, 120, 140, 255)).save(
+                output_dir / image_name
+            )
+            (output_dir / "manifest.json").write_text(
+                json.dumps(
+                    [
+                        {
+                            "camera": "/Camera",
+                            "image_files": [image_name],
+                            "sensor_files": {},
+                            "frame_count": 1,
+                        }
+                    ]
+                )
+            )
+            return unittest.mock.Mock(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+            lambda venv_dir=None: "/fake/python",
+        )
+        monkeypatch.setattr(
+            "world_understanding.functions.graphics.render_ovrtx.subprocess.run",
+            fake_run,
+        )
+
+        from world_understanding.functions.graphics.render_ovrtx import (
+            render_all_cameras,
+        )
+
+        result = render_all_cameras(
+            stage=stage,
+            image_width=16,
+            image_height=16,
+            cameras=["/Camera"],
+            frames="0",
+            num_sensor_updates=1,
+        )
+
+        assert result["successful_cameras"] == 1
+
+    def test_ipc_export_preserves_session_layer_opinions(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        from pxr import Usd, UsdGeom
+
+        stage = Usd.Stage.CreateInMemory()
+        world = UsdGeom.Xform.Define(stage, "/World")
+        stage.SetDefaultPrim(world.GetPrim())
+        with Usd.EditContext(stage, stage.GetSessionLayer()):
+            UsdGeom.Cube.Define(stage, "/World/SessionCube")
+
+        destination = tmp_path / "ipc.usda"
+        assert _export_scene_for_ovrtx_ipc(stage, destination)
+
+        reopened = Usd.Stage.Open(str(destination), load=Usd.Stage.LoadNone)
+        assert reopened is not None
+        assert reopened.GetPrimAtPath("/World/SessionCube").IsValid()
+        assert not stage.GetRootLayer().GetPrimAtPath("/World/SessionCube")
+
+    def test_ipc_export_preserves_unloaded_payload_with_sublayers(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        from pxr import Usd, UsdGeom
+
+        payload_path = tmp_path / "payload.usda"
+        payload_stage = Usd.Stage.CreateNew(str(payload_path))
+        payload_root = UsdGeom.Xform.Define(payload_stage, "/Payload")
+        payload_stage.SetDefaultPrim(payload_root.GetPrim())
+        UsdGeom.Cube.Define(payload_stage, "/Payload/Cube")
+        payload_stage.GetRootLayer().Save()
+
+        sublayer_path = tmp_path / "looks.usda"
+        sublayer_stage = Usd.Stage.CreateNew(str(sublayer_path))
+        UsdGeom.Scope.Define(sublayer_stage, "/Looks")
+        sublayer_stage.GetRootLayer().Save()
+
+        root_path = tmp_path / "root.usda"
+        root_stage = Usd.Stage.CreateNew(str(root_path))
+        world = UsdGeom.Xform.Define(root_stage, "/World")
+        root_stage.SetDefaultPrim(world.GetPrim())
+        world.GetPrim().GetPayloads().AddPayload("payload.usda", "/Payload")
+        root_stage.GetRootLayer().subLayerPaths.append("looks.usda")
+        root_stage.GetRootLayer().Save()
+
+        stage = Usd.Stage.Open(str(root_path), load=Usd.Stage.LoadNone)
+        assert stage is not None
+        assert not stage.GetPrimAtPath("/World").IsLoaded()
+        destination = tmp_path / "ipc.usda"
+
+        assert _export_scene_for_ovrtx_ipc(stage, destination)
+
+        assert not stage.GetPrimAtPath("/World").IsLoaded()
+        reopened = Usd.Stage.Open(str(destination))
+        assert reopened is not None
+        assert reopened.GetPrimAtPath("/Looks").IsValid()
+        assert reopened.GetPrimAtPath("/World").HasPayload()
+        assert reopened.GetPrimAtPath("/World/Cube").IsValid()
+
     def test_render_all_cameras_preview_surface_target_adds_fallback_for_sublayered_material(
         self, monkeypatch, tmp_path
     ):
@@ -5852,8 +7706,9 @@ class TestRenderAllCamerasBackwardCompat:
             ) as mock_run,
         ):
             # Make subprocess.run return a failure so we can catch it quickly
+            worker_secret = "login failed for " + "hun" + "ter2"
             mock_run.return_value = unittest.mock.Mock(
-                returncode=1, stdout="", stderr="test"
+                returncode=1, stdout="worker stdout", stderr=worker_secret
             )
             from pxr import Usd
 
@@ -5862,8 +7717,15 @@ class TestRenderAllCamerasBackwardCompat:
                 render_all_cameras,
             )
 
-            with pytest.raises(RuntimeError, match="OvRTX subprocess failed"):
+            with pytest.raises(RuntimeError, match="OvRTX subprocess failed") as exc:
                 render_all_cameras(stage=stage, daemon=None)
+
+            # The raised/logged message is value-free: worker stdout/stderr
+            # text never appears, only exit code and output sizes.
+            assert worker_secret not in str(exc.value)
+            assert "worker stdout" not in str(exc.value)
+            assert "exit code 1" in str(exc.value)
+            assert "withheld from logs" in str(exc.value)
 
             mock_run.assert_called_once()
             assert (
@@ -5871,6 +7733,123 @@ class TestRenderAllCamerasBackwardCompat:
                 == "/fake/site-packages"
             )
             assert mock_run.call_args.kwargs["env"]["DISPLAY"] == ":0"
+
+    @pytest.mark.parametrize("timeout_s", [0.0, -1.0, float("nan"), float("inf")])
+    def test_render_all_cameras_rejects_invalid_timeout(self, timeout_s: float) -> None:
+        from world_understanding.functions.graphics.render_ovrtx import (
+            render_all_cameras,
+        )
+
+        with pytest.raises(ValueError, match="positive and finite"):
+            render_all_cameras(
+                stage=object(),
+                daemon_render_timeout_s=timeout_s,
+            )
+
+    def test_one_shot_subprocess_honors_render_timeout(self, monkeypatch):
+        monkeypatch.setenv(
+            "WU_OVRTX_DEFAULT_HDRI", "https://example.invalid/StinsonBeach.hdr"
+        )
+        monkeypatch.delenv("DISPLAY", raising=False)
+        with (
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+                return_value="/fake/python",
+            ),
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx._ovrtx_site_dir_env_for_python",
+                return_value="/fake/site-packages",
+            ),
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx.subprocess.run",
+                side_effect=subprocess.TimeoutExpired("ovrtx", timeout=2.5),
+            ) as mock_run,
+        ):
+            from pxr import Usd
+
+            from world_understanding.functions.graphics.render_ovrtx import (
+                render_all_cameras,
+            )
+
+            stage = Usd.Stage.CreateInMemory()
+            with pytest.raises(TimeoutError, match="timed out after 2.5s"):
+                render_all_cameras(
+                    stage=stage,
+                    daemon=None,
+                    daemon_render_timeout_s=2.5,
+                )
+
+            assert 0.0 < mock_run.call_args.kwargs["timeout"] <= 2.5
+
+    def test_one_shot_subprocess_timeout_formats_unbounded_budget(self, monkeypatch):
+        monkeypatch.setenv(
+            "WU_OVRTX_DEFAULT_HDRI", "https://example.invalid/StinsonBeach.hdr"
+        )
+        monkeypatch.delenv("DISPLAY", raising=False)
+        with (
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+                return_value="/fake/python",
+            ),
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx._ovrtx_site_dir_env_for_python",
+                return_value="/fake/site-packages",
+            ),
+            unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx.subprocess.run",
+                side_effect=subprocess.TimeoutExpired("ovrtx", timeout=None),
+            ) as mock_run,
+        ):
+            from pxr import Usd
+
+            from world_understanding.functions.graphics.render_ovrtx import (
+                render_all_cameras,
+            )
+
+            stage = Usd.Stage.CreateInMemory()
+            with pytest.raises(TimeoutError, match="timed out after unbounded"):
+                render_all_cameras(stage=stage, daemon=None)
+
+            assert mock_run.call_args.kwargs["timeout"] is None
+
+    def test_render_deadline_is_recomputed_after_preprocessing(self, monkeypatch):
+        monkeypatch.setenv(
+            "WU_OVRTX_DEFAULT_HDRI", "https://example.invalid/StinsonBeach.hdr"
+        )
+        from pxr import Usd
+
+        from world_understanding.functions.graphics import render_ovrtx
+
+        original_build = render_ovrtx._build_render_products_usda
+
+        def slow_build(*args, **kwargs):
+            time.sleep(0.03)
+            return original_build(*args, **kwargs)
+
+        monkeypatch.setattr(render_ovrtx, "_build_render_products_usda", slow_build)
+        monkeypatch.setattr(
+            render_ovrtx, "_get_ovrtx_python", lambda **_kwargs: "/fake/python"
+        )
+        run = unittest.mock.Mock()
+        monkeypatch.setattr(render_ovrtx.subprocess, "run", run)
+
+        with pytest.raises(TimeoutError, match="render preprocessing exceeded"):
+            render_ovrtx.render_all_cameras(
+                stage=Usd.Stage.CreateInMemory(),
+                daemon=None,
+                daemon_render_timeout_s=0.01,
+            )
+
+        run.assert_not_called()
+
+    def test_expired_absolute_render_deadline_fails_before_setup(self):
+        from world_understanding.functions.graphics import render_ovrtx
+
+        with pytest.raises(TimeoutError, match="render setup exceeded"):
+            render_ovrtx.render_all_cameras(
+                stage=object(),
+                render_deadline_monotonic=time.monotonic() - 1.0,
+            )
 
     def test_old_positional_daemon_and_base_dir_tail_still_binds(
         self, tmp_path, monkeypatch
@@ -5927,7 +7906,7 @@ class TestRenderAllCamerasBackwardCompat:
             tmp_path,
         )
 
-        fake_daemon.ensure_running.assert_called_once_with()
+        fake_daemon.ensure_running.assert_not_called()
         fake_daemon.render.assert_called_once()
         params = fake_daemon.render.call_args.args[0]
         assert params["material_target"] == "auto"
@@ -5987,7 +7966,7 @@ class TestRenderAllCamerasBackwardCompat:
             material_target="openpbr",
         )
 
-        fake_daemon.ensure_running.assert_called_once_with()
+        fake_daemon.ensure_running.assert_not_called()
         fake_daemon.render.assert_called_once()
         params = fake_daemon.render.call_args.args[0]
         assert params["material_target"] == "openpbr_materialx"
@@ -6044,13 +8023,45 @@ class TestOvRTXBackendCreatesDaemon:
             backend = OvRTXRenderingBackend(ovrtx_venv_dir=str(venv_dir))
             assert hasattr(backend, "_daemon")
             assert isinstance(backend._daemon, _OvRTXDaemon)
+            assert backend.num_sensor_updates == 32
+            assert backend.render_mode == "rt2"
             daemon_script_path = Path(backend._daemon._daemon_script_path)
             assert daemon_script_path.parent == runtime_dir
             assert daemon_script_path.is_file()
-            assert stat.S_IMODE(runtime_dir.stat().st_mode) == 0o700
-            assert stat.S_IMODE(daemon_script_path.stat().st_mode) == 0o600
+            if os.name == "posix":
+                assert stat.S_IMODE(runtime_dir.stat().st_mode) == 0o700
+                assert stat.S_IMODE(daemon_script_path.stat().st_mode) == 0o600
             backend.__del__()
             assert not daemon_script_path.exists()
+
+    def test_backend_forwards_runtime_setup_deadline(self, tmp_path, monkeypatch):
+        from world_understanding.functions.graphics.rendering import (
+            OvRTXRenderingBackend,
+        )
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        venv_dir.mkdir()
+        runtime_dir = tmp_path / "runtime"
+        deadline = time.monotonic() + 10.0
+        get_python = unittest.mock.Mock(return_value="/fake/python")
+        monkeypatch.setenv("WU_OVRTX_RUNTIME_DIR", str(runtime_dir))
+
+        with unittest.mock.patch(
+            "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+            get_python,
+        ):
+            backend = OvRTXRenderingBackend(
+                ovrtx_venv_dir=str(venv_dir),
+                setup_deadline_monotonic=deadline,
+            )
+
+        try:
+            get_python.assert_called_once_with(
+                venv_dir=venv_dir,
+                deadline_monotonic=deadline,
+            )
+        finally:
+            backend.__del__()
 
     def test_backend_uses_private_runtime_dir_by_default(self, tmp_path, monkeypatch):
         """Default daemon scripts should not use predictable shared /tmp paths."""
@@ -6069,10 +8080,46 @@ class TestOvRTXBackendCreatesDaemon:
             daemon_script_path = Path(backend._daemon._daemon_script_path)
             runtime_dir = daemon_script_path.parent
             assert runtime_dir.name.startswith("wu_ovrtx_")
-            assert stat.S_IMODE(runtime_dir.stat().st_mode) == 0o700
-            assert stat.S_IMODE(daemon_script_path.stat().st_mode) == 0o600
+            if os.name == "posix":
+                assert stat.S_IMODE(runtime_dir.stat().st_mode) == 0o700
+                assert stat.S_IMODE(daemon_script_path.stat().st_mode) == 0o600
             backend.__del__()
             assert not runtime_dir.exists()
+
+    @pytest.mark.skipif(
+        os.name != "posix",
+        reason="umask and POSIX mode bits do not govern directory privacy here",
+    )
+    def test_new_explicit_runtime_dir_is_private_under_restrictive_umask(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """An owner-clearing umask must not leave a newly created runtime unusable."""
+        from world_understanding.functions.graphics.rendering import (
+            OvRTXRenderingBackend,
+        )
+
+        venv_dir = tmp_path / "ovrtx_venv"
+        venv_dir.mkdir()
+        runtime_dir = tmp_path / "runtime"
+        monkeypatch.setenv("WU_OVRTX_RUNTIME_DIR", str(runtime_dir))
+        previous_umask = os.umask(0o700)
+        try:
+            with unittest.mock.patch(
+                "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
+                return_value="/fake/python",
+            ):
+                backend = OvRTXRenderingBackend(ovrtx_venv_dir=str(venv_dir))
+        finally:
+            os.umask(previous_umask)
+
+        try:
+            assert stat.S_IMODE(runtime_dir.stat().st_mode) == 0o700
+            daemon_script_path = Path(backend._daemon._daemon_script_path)
+            assert stat.S_IMODE(daemon_script_path.stat().st_mode) == 0o600
+        finally:
+            backend.__del__()
 
     def test_backend_rejects_symlink_runtime_dir(self, tmp_path, monkeypatch):
         """Explicit runtime dir must not be a symlink into a shared location."""
@@ -6085,7 +8132,12 @@ class TestOvRTXBackendCreatesDaemon:
         target_dir = tmp_path / "target"
         target_dir.mkdir()
         runtime_link = tmp_path / "runtime-link"
-        runtime_link.symlink_to(target_dir, target_is_directory=True)
+        try:
+            runtime_link.symlink_to(target_dir, target_is_directory=True)
+        except OSError as error:
+            # Windows only grants SeCreateSymbolicLinkPrivilege to elevated
+            # sessions or Developer Mode, so the hostile input cannot be built.
+            pytest.skip(f"cannot create a directory symlink here: {error}")
         monkeypatch.setenv("WU_OVRTX_RUNTIME_DIR", str(runtime_link))
         with unittest.mock.patch(
             "world_understanding.functions.graphics.render_ovrtx._get_ovrtx_python",
@@ -6094,6 +8146,14 @@ class TestOvRTXBackendCreatesDaemon:
             with pytest.raises(RuntimeError, match="must not be a symlink"):
                 OvRTXRenderingBackend(ovrtx_venv_dir=str(venv_dir))
 
+    @pytest.mark.skipif(
+        os.name != "posix",
+        reason=(
+            "Group/world accessibility is expressed in POSIX mode bits, which "
+            "Windows does not implement. An operator-supplied runtime directory "
+            "is not privacy-checked there until an ACL equivalent exists."
+        ),
+    )
     def test_backend_rejects_shared_runtime_dir(self, tmp_path, monkeypatch):
         """Explicit runtime dir must already be private if it exists."""
         from world_understanding.functions.graphics.rendering import (
@@ -6149,6 +8209,15 @@ class TestOvRTXBackendNumSensorUpdatesPrecedence:
 
         kwargs = mock_render.call_args.kwargs
         assert kwargs["num_sensor_updates"] == 7
+
+    def test_backend_exposes_configured_daemon_render_timeout(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OVRTX_DAEMON_RENDER_TIMEOUT", "73.5")
+
+        backend = self._make_backend(num_sensor_updates=7, tmp_path=tmp_path)
+
+        assert backend.daemon_render_timeout_s == 73.5
 
     def test_explicit_value_overrides_instance_default(self, tmp_path):
         """An explicit num_sensor_updates must beat the instance-level value."""
@@ -6492,3 +8561,47 @@ class TestOvRTXIntegrationMultipleCameras:
         assert result["total_cameras"] == 2
         assert result["successful_cameras"] == 2
         assert len(result["results"]) == 2
+
+
+def test_every_ovrtx_pin_agrees_with_the_module_constant() -> None:
+    """The wu pin is written in four places; drift in any one breaks the runtime.
+
+    ``_OVRTX_VERSION`` gates the provisioned venv: when the installed wheel
+    reports a different version the runtime is torn down and rebuilt, so a bump
+    that moves the lock and leaves the constant behind deletes the venv after
+    every provision, on every host, while the suite stays green.
+    ``ovrtx_runtime_profile.in`` is the compile source a lock regeneration
+    reads and is referenced by nothing else, so a stale pin there silently
+    restores the previous wheel the next time the lock is regenerated.
+    """
+    lock = tomllib.loads(_OVRTX_RUNTIME_LOCK_FILE.read_text(encoding="utf-8"))
+    locked = {package["name"]: package for package in lock["packages"]}
+    assert locked["ovrtx"]["version"] == _OVRTX_VERSION, (
+        f"{_OVRTX_RUNTIME_LOCK_FILE.name} locks {locked['ovrtx']['version']} but "
+        f"_OVRTX_VERSION is {_OVRTX_VERSION!r}; every provision would delete the "
+        "venv it just built"
+    )
+
+    profile = _OVRTX_RUNTIME_LOCK_FILE.with_name("ovrtx_runtime_profile.in")
+    profile_pins = sorted(
+        set(
+            re.findall(
+                r"ovrtx-([0-9][^-]*)-py3-none-",
+                profile.read_text(encoding="utf-8"),
+            )
+        )
+    )
+    assert profile_pins == [_OVRTX_VERSION], (
+        f"{profile.name} pins {profile_pins} but _OVRTX_VERSION is "
+        f"{_OVRTX_VERSION!r}; regenerating the lock from this file would revert "
+        "the runtime"
+    )
+
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    declared = pyproject["project"]["optional-dependencies"]["ovrtx"]
+    assert declared == [f"ovrtx=={_OVRTX_VERSION}"], (
+        f"pyproject.toml declares {declared} for the ovrtx extra but "
+        f"_OVRTX_VERSION is {_OVRTX_VERSION!r}; installing the extra would "
+        "fetch a wheel the runtime then rejects"
+    )

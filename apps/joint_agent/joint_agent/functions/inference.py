@@ -27,6 +27,9 @@ from world_understanding.functions.models.vision_language_models import (
 )
 from world_understanding.utils.token_tracking import TokenTracker
 
+from joint_agent.functions.provider_response_conformance import (
+    evaluate_stage1_response,
+)
 from joint_agent.functions.stage1_schema import normalize_stage1_prediction_payload
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ def classify_asset(
     max_retries: int = 3,
     output_key: str = "classification",
     token_tracker: TokenTracker | None = None,
+    on_provider_attempt: Any | None = None,
 ) -> dict[str, Any]:
     """Classify an asset using Vision-Language Model.
 
@@ -61,6 +65,8 @@ def classify_asset(
         max_retries: Maximum number of retry attempts for VLM/LLM calls (default: 3)
         output_key: Key name for the classification result (default: "classification")
         token_tracker: Optional TokenTracker to collect usage statistics
+        on_provider_attempt: Optional callback receiving each raw provider
+            transport-attempt outcome before Stage 1 normalization.
 
     Returns:
         Dict with output_key and "original_response" keys
@@ -107,6 +113,7 @@ def classify_asset(
         max_retries=max_retries,
         output_key=output_key,
         token_tracker=token_tracker,
+        on_attempt=on_provider_attempt,
     )
     return normalize_stage1_prediction_payload(response, output_key=output_key)
 
@@ -127,6 +134,7 @@ def batch_classify_assets(
     max_retries: int = 3,
     output_key: str = "classification",
     token_tracker: TokenTracker | None = None,
+    on_provider_attempt: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Process multiple classification tasks in batch with optional parallel execution.
 
@@ -149,6 +157,8 @@ def batch_classify_assets(
         max_retries: Maximum number of retry attempts
         output_key: Key name for the classification result (default: "classification")
         token_tracker: Optional TokenTracker to collect usage statistics
+        on_provider_attempt: Optional callback function(entry_id, attempt)
+            receiving each raw transport attempt before normalization.
 
     Returns:
         List of dictionaries containing:
@@ -190,31 +200,36 @@ def batch_classify_assets(
     def _normalize_result(result: dict[str, Any]) -> dict[str, Any]:
         normalized = dict(result)
         if normalized.get("status") == "success":
-            normalized["vlm_response"] = normalize_stage1_prediction_payload(
+            evaluation = evaluate_stage1_response(
                 normalized.get("vlm_response"),
                 output_key=output_key,
             )
+            if not evaluation.accepted:
+                error_message = (
+                    "stage 1 classification has no parseable source response"
+                    if evaluation.reason == "missing_stage1_source_contract"
+                    else "stage 1 classification violates contract"
+                )
+                return {
+                    **normalized,
+                    "vlm_response": None,
+                    "status": "error",
+                    "error": error_message,
+                    "contract_reason": evaluation.reason,
+                    "contract_diagnostics": dict(evaluation.diagnostics),
+                }
+            normalized["vlm_response"] = evaluation.normalized
         return normalized
 
     def _on_progress(entry_id: str, response: Any) -> None:
-        if on_progress:
-            on_progress(
-                entry_id,
-                normalize_stage1_prediction_payload(
-                    response,
-                    output_key=output_key,
-                ),
-            )
+        evaluation = evaluate_stage1_response(response, output_key=output_key)
+        if on_progress and evaluation.accepted:
+            on_progress(entry_id, evaluation.normalized)
 
     def _on_prediction(entry_id: str, response: Any) -> None:
-        if on_prediction:
-            on_prediction(
-                entry_id,
-                normalize_stage1_prediction_payload(
-                    response,
-                    output_key=output_key,
-                ),
-            )
+        evaluation = evaluate_stage1_response(response, output_key=output_key)
+        if on_prediction and evaluation.accepted:
+            on_prediction(entry_id, evaluation.normalized)
 
     def _on_result(result: dict[str, Any], entry: dict[str, Any]) -> None:
         if on_result:
@@ -237,6 +252,7 @@ def batch_classify_assets(
         max_retries=max_retries,
         output_key=output_key,
         token_tracker=token_tracker,
+        on_attempt=on_provider_attempt,
     )
     return [_normalize_result(result) for result in results]
 

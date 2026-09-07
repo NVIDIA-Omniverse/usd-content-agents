@@ -72,6 +72,7 @@ def test_apply_textures_small_helper_edges(tmp_path: Path) -> None:
     shader = UsdShade.Shader.Define(stage, "/Root/Looks/Steel/no_file")
     shader.CreateIdAttr("UsdUVTexture")
 
+    at._require_nonvariant_edit(Usd.Prim(), purpose="invalid prim no-op")
     assert at._clone_material(stage, "/Root/Looks/Steel", "Steel_clone") == (
         "/Root/Looks/Steel_clone"
     )
@@ -153,6 +154,133 @@ def test_apply_textures_small_helper_edges(tmp_path: Path) -> None:
     assert at._shared_preview_texture_uses_packed_orm({}) is False
 
 
+def test_material_clone_and_binding_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+    stage = Usd.Stage.CreateNew(str(tmp_path / "fail-closed.usda"))
+    UsdGeom.Xform.Define(stage, "/Root")
+    UsdGeom.Scope.Define(stage, "/Root/Looks")
+    material = UsdShade.Material.Define(stage, "/Root/Looks/Steel")
+    target = UsdGeom.Cube.Define(stage, "/Root/Mesh").GetPrim()
+
+    monkeypatch.setattr(Sdf, "CopySpec", lambda *_args: False)
+    with pytest.raises(RuntimeError, match="Failed to clone material"):
+        at._clone_material(stage, "/Root/Looks/Steel", "Steel_clone")
+
+    class RejectedBinding:
+        @staticmethod
+        def Apply(_prim):  # noqa: N802 - mirrors the USD API
+            return RejectedBinding()
+
+        def Bind(self, _material):  # noqa: N802 - mirrors the USD API
+            return False
+
+    monkeypatch.setattr(at.UsdShade, "MaterialBindingAPI", RejectedBinding)
+    with pytest.raises(RuntimeError, match="Failed to bind material"):
+        at._bind_material_or_raise(stage, target, str(material.GetPath()))
+
+
+def test_material_clone_rejects_flattened_instance_proxy_source(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdShade
+
+    prototype_path = tmp_path / "prototype.usda"
+    prototype = Usd.Stage.CreateNew(str(prototype_path))
+    UsdGeom.Xform.Define(prototype, "/Prototype")
+    UsdGeom.Scope.Define(prototype, "/Prototype/Looks")
+    UsdShade.Material.Define(prototype, "/Prototype/Looks/Paint")
+    assert prototype.GetRootLayer().Save()
+
+    source_path = tmp_path / "source.usda"
+    source = Usd.Stage.CreateNew(str(source_path))
+    UsdGeom.Xform.Define(source, "/World")
+    instance = UsdGeom.Xform.Define(source, "/World/Instance").GetPrim()
+    assert instance.GetReferences().AddReference(prototype_path.name, "/Prototype")
+    assert instance.SetInstanceable(True)
+    assert source.GetRootLayer().Save()
+
+    flattened = Usd.Stage.Open(source.Flatten())
+    material_path = "/World/Instance/Looks/Paint"
+    assert flattened.GetPrimAtPath(material_path).IsInstanceProxy()
+    with pytest.raises(RuntimeError, match="composed material spec"):
+        at._clone_material(flattened, material_path, "Paint_clone")
+
+
+def test_material_clone_uses_unique_internal_instance_source(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdGeom, UsdShade
+
+    stage = Usd.Stage.CreateNew(str(tmp_path / "internal-instance.usda"))
+    UsdGeom.Xform.Define(stage, "/Root")
+    prototype = UsdGeom.Xform.Define(stage, "/Root/Prototype")
+    body = UsdGeom.Cube.Define(stage, "/Root/Prototype/Body")
+    UsdGeom.Scope.Define(stage, "/Root/Prototype/Looks")
+    material = UsdShade.Material.Define(stage, "/Root/Prototype/Looks/Paint")
+    UsdShade.MaterialBindingAPI.Apply(body.GetPrim()).Bind(material)
+    instance = UsdGeom.Xform.Define(stage, "/Root/Instance").GetPrim()
+    assert instance.GetReferences().AddInternalReference(prototype.GetPath())
+    assert instance.SetInstanceable(True)
+
+    alias_path = "/Root/Instance/Looks/Paint"
+    alias = stage.GetPrimAtPath(alias_path)
+    assert alias.IsInstanceProxy()
+    canonical_path = str(alias.GetPrimInPrototype().GetPath())
+    info = MaterialInfo(
+        prim_path=canonical_path,
+        name="Paint",
+        bound_prim_paths=["/Root/Instance/Body"],
+        material_alias_paths=[alias_path],
+    )
+
+    clone_source = at._material_clone_source_path(stage, info)
+    assert clone_source == "/Root/Prototype/Looks/Paint"
+    clone_path = at._clone_material(stage, clone_source, "Paint_selected")
+    editable_body = at._editable_prim_for_path(stage, "/Root/Instance/Body")
+    at._bind_material_or_raise(stage, editable_body, clone_path)
+
+    assert stage.GetPrimAtPath("/Root/Instance").IsInstanceable()
+    bound = UsdShade.MaterialBindingAPI(
+        stage.GetPrimAtPath("/Root/Instance/Body")
+    ).ComputeBoundMaterial()[0]
+    assert bound.GetPath() == "/Root/Instance/Looks/Paint_selected"
+
+
+def test_material_clone_preserves_existing_parent_specifier(tmp_path: Path) -> None:
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+
+    stage = Usd.Stage.CreateNew(str(tmp_path / "root-material.usda"))
+    UsdGeom.Xform.Define(stage, "/Root")
+    UsdGeom.Scope.Define(stage, "/Root/Looks")
+    UsdShade.Material.Define(stage, "/Root/Looks/Paint")
+
+    assert at._clone_material(stage, "/Root/Looks/Paint", "Paint_selected")
+    assert (
+        stage.GetRootLayer().GetPrimAtPath("/Root/Looks").specifier == Sdf.SpecifierDef
+    )
+
+
+def test_apply_preflight_rejects_unplanned_unit_without_exact_prim_target() -> None:
+    from pxr import Usd, UsdGeom, UsdShade
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/Root")
+    UsdGeom.Scope.Define(stage, "/Root/Looks")
+    UsdShade.Material.Define(stage, "/Root/Looks/Steel")
+    UsdGeom.Mesh.Define(stage, "/Root/Mesh")
+    units = [
+        _unit("Steel_A", prim_path="/Root/Mesh"),
+        _unit("Steel_B"),
+    ]
+
+    with pytest.raises(RuntimeError, match="has no exact prim target"):
+        at._require_nonvariant_apply_plan(stage, {"Steel": units}, None)
+
+
 def test_preview_graph_shader_reserves_after_hundred_name_collisions(
     tmp_path: Path,
 ) -> None:
@@ -219,7 +347,7 @@ def test_localize_stage_texture_reference_defensive_edges(
             raise AssertionError("instance proxies are skipped before attrs")
 
     class InstanceProxyStage:
-        def Traverse(self):
+        def Traverse(self, predicate=None):
             return [InstanceProxyPrim()]
 
     assert (
@@ -687,7 +815,7 @@ def test_apply_pbr_and_run_resume_per_prim_edges(tmp_path: Path) -> None:
 
     assert len(result["output_usd_paths"]) == 1
     assert set(result["blended_textures"]) == {"Steel_A", "Steel_B"}
-    assert result["apply_textures_stats"]["applied_count"] == 2
+    assert result["apply_textures_stats"]["applied_count"] == 1
 
 
 def test_cached_apply_rejects_partial_blended_map_cache(tmp_path: Path) -> None:
@@ -834,6 +962,12 @@ def test_apply_per_material_writes_alias_material_paths(tmp_path: Path) -> None:
 
 
 def test_apply_pbr_deinstances_regular_instance_material(tmp_path: Path) -> None:
+    """A referenceless instanceable prim keeps the pre-#916 handling.
+
+    It composes no prototype, so it cannot produce the dual composed path that
+    the packaging guard refuses; only instance proxies take the source-resolving
+    path added for #916.
+    """
     from pxr import Usd, UsdShade
 
     stage = Usd.Stage.CreateNew(str(tmp_path / "input.usda"))

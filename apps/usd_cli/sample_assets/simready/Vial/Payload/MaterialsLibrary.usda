@@ -1,0 +1,95 @@
+#usda 1.0
+(
+    "Material Library for vial. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "tn__Plastic__Matte_Green001_jUk0o2o0" (
+        displayName = "Plastic_-_Matte_(Green).001"
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.057805583, 0.304987, 0.06480331)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0.inputs:ior>
+            float inputs:metallic.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0.inputs:metallic>
+            float inputs:opacity.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0.inputs:opacity>
+            float inputs:roughness.connect = </Materials/tn__Plastic__Matte_Green001_jUk0o2o0.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1" (
+        displayName = "Plastic_-_Translucent_Glossy_(Gray).001"
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.83779305, 0.83779305, 0.83779305)
+        float inputs:ior = 1.52
+        float inputs:metallic = 0
+        float inputs:opacity = 0.025
+        float inputs:roughness = 0.2
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1.inputs:ior>
+            float inputs:metallic.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1.inputs:metallic>
+            float inputs:opacity.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1.inputs:opacity>
+            float inputs:roughness.connect = </Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "tn__Surface__Matte001_hPY0" (
+        displayName = "Surface_-_Matte.001"
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.4507861, 0.4507861, 0.4507861)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/tn__Surface__Matte001_hPY0/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/tn__Surface__Matte001_hPY0/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/tn__Surface__Matte001_hPY0.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/tn__Surface__Matte001_hPY0.inputs:ior>
+            float inputs:metallic.connect = </Materials/tn__Surface__Matte001_hPY0.inputs:metallic>
+            float inputs:opacity.connect = </Materials/tn__Surface__Matte001_hPY0.inputs:opacity>
+            float inputs:roughness.connect = </Materials/tn__Surface__Matte001_hPY0.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+}

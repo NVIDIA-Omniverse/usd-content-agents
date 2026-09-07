@@ -8,7 +8,6 @@ from typing import Any
 
 from world_understanding.rendering_backend_contract import rendering_backend_subset
 
-DEFAULT_VALIDATION_RENDERING_BACKEND = "remote"
 VALIDATION_RENDERING_BACKEND_NAMES: tuple[str, ...] = rendering_backend_subset(
     "remote",
     "ovrtx",
@@ -19,10 +18,10 @@ SUPPORTED_RENDER_BACKENDS: frozenset[str] = frozenset(
 
 
 def normalize_validation_rendering_backend(backend: Any) -> Any:
-    """Normalize Validation's legacy selector spelling without hiding bad types."""
+    """Normalize selector spelling without choosing a rendering provider."""
     if backend is None:
-        return DEFAULT_VALIDATION_RENDERING_BACKEND
+        return None
     if not isinstance(backend, str):
         return backend
     normalized = backend.strip().lower()
-    return normalized or DEFAULT_VALIDATION_RENDERING_BACKEND
+    return normalized or None

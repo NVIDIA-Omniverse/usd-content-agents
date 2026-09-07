@@ -26,7 +26,8 @@ from texture_agent.planning import (
     TexturePlanUnit,
 )
 
-from ...service.routers import pipeline_router
+from ...service.routers import pipeline_router, sessions_router
+from ...service.runtime.bus import EventBus
 from ...service.session.manager import SessionManager
 from ...service.storage import LocalSessionStore
 
@@ -95,6 +96,25 @@ def _plan_with_unit() -> TexturePlan:
     )
 
 
+def test_complete_plan_cache_rejects_plan_without_selected_units(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "texture_plan.json"
+    plan_path.write_text(_plan().model_dump_json(), encoding="utf-8")
+
+    assert (
+        asyncio.run(
+            pipeline_router._has_complete_plan_unit_texture_cache(
+                object(),  # type: ignore[arg-type]
+                "session-id",
+                tmp_path,
+                plan_path,
+            )
+        )
+        is False
+    )
+
+
 def test_default_config_records_plan_only_and_operator_override() -> None:
     config = pipeline_router.build_default_pipeline_config(
         session_id="sid",
@@ -120,7 +140,14 @@ def test_default_config_records_plan_only_and_operator_override() -> None:
     }
 
 
-def test_default_config_derives_cap_from_engine_and_uv_policy() -> None:
+def test_default_config_derives_cap_from_engine_and_uv_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        pipeline_router.config,
+        "texture_endpoint_allowed_urls",
+        "http://simple-texture.test",
+    )
     simple_remote = pipeline_router.build_default_pipeline_config(
         session_id="sid",
         usd_path="/private/sessions/sid/input/scene.usd",
@@ -173,6 +200,7 @@ def test_pipeline_openapi_documents_planning_fields() -> None:
         "explicit_material_paths_json",
         "explicit_prim_paths_json",
         "operator_override_cap",
+        "texture_size",
     }.issubset(fields)
     assert "/pipeline/{session_id}/plan" in schema["paths"]
     assert "404" in schema["paths"]["/pipeline/{session_id}/plan"]["get"]["responses"]
@@ -180,6 +208,37 @@ def test_pipeline_openapi_documents_planning_fields() -> None:
         "texture_plan"
         in schema["components"]["schemas"]["PipelineStatus"]["properties"]
     )
+    regenerate_fields = schema["components"]["schemas"]["RegenerateRequest"][
+        "properties"
+    ]
+    execution_id_schema = regenerate_fields["execution_id"]["anyOf"][0]
+    assert execution_id_schema == {
+        "type": "string",
+        "maxLength": 32,
+        "minLength": 32,
+        "pattern": "^[0-9a-f]{32}$",
+    }
+    assert (
+        "execution_id"
+        in schema["components"]["schemas"]["PipelineStatus"]["properties"]
+    )
+
+
+def test_static_openapi_documents_execution_id() -> None:
+    openapi_path = Path(__file__).resolve().parents[2] / "openapi.yaml"
+    schema = pipeline_router.yaml.safe_load(openapi_path.read_text(encoding="utf-8"))
+    schemas = schema["components"]["schemas"]
+
+    execution_id_schema = schemas["RegenerateRequest"]["properties"]["execution_id"][
+        "anyOf"
+    ][0]
+    assert execution_id_schema == {
+        "type": "string",
+        "maxLength": 32,
+        "minLength": 32,
+        "pattern": "^[0-9a-f]{32}$",
+    }
+    assert "execution_id" in schemas["PipelineStatus"]["properties"]
 
 
 def test_get_plan_returns_validated_artifact(tmp_path: Path) -> None:
@@ -449,8 +508,14 @@ def _install_regenerate_stubs(
         def clear_session_state(self, sid: str) -> None:
             captured["cleared"] = sid
 
-        async def seed_pending_session(self, sid: str) -> None:
+        async def seed_pending_session(
+            self,
+            sid: str,
+            *,
+            execution_id: str | None = None,
+        ) -> None:
             captured["seeded"] = sid
+            captured.setdefault("seeded_execution_ids", []).append(execution_id)
 
     class _Registry:
         async def register(
@@ -477,6 +542,238 @@ def _install_regenerate_stubs(
     monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: _Bus())
     monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: _Registry())
     monkeypatch.setattr(pipeline_router, "execute_pipeline_async", _execute)
+
+
+def test_regenerate_execution_id_survives_pending_and_terminal_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager, session_id = _seed_regenerate_session(tmp_path)
+    bus = EventBus(manager)
+
+    class _Registry:
+        running = False
+        register_count = 0
+
+        def is_running(self, sid: str) -> bool:
+            assert sid == session_id
+            return self.running
+
+        async def register(
+            self,
+            sid: str,
+            coro: Any,
+            *args: Any,
+            on_finished: Any = None,
+            **kwargs: Any,
+        ) -> None:
+            assert sid == session_id
+            self.register_count += 1
+            self.running = True
+            coro.close()
+            if on_finished is not None:
+                on_finished()
+
+    registry = _Registry()
+
+    def _execute(**kwargs: Any) -> Any:
+        async def _noop() -> None:
+            return None
+
+        return _noop()
+
+    monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: registry)
+    monkeypatch.setattr(pipeline_router, "execute_pipeline_async", _execute)
+    pipeline_router.set_session_manager(manager)
+    sessions_router.set_session_manager(manager)
+    app = FastAPI()
+    app.include_router(pipeline_router.router)
+
+    first_execution_id = "a" * 32
+    second_execution_id = "b" * 32
+    with TestClient(app) as client:
+        response = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": ["generate_prompts"],
+                "execution_id": first_execution_id,
+            },
+        )
+        assert response.status_code == 202, response.text
+        metadata = manager.get_session_metadata(session_id)
+        assert metadata is not None
+        assert metadata["execution_id"] == first_execution_id
+        first_request_digest = metadata["execution_request_digest"]
+        assert isinstance(first_request_digest, str)
+        assert len(first_request_digest) == 64
+        assert bus.get_snapshot(session_id)["execution_id"] == first_execution_id
+        assert registry.register_count == 1
+
+        pending = client.get(f"/pipeline/{session_id}/status")
+        assert pending.status_code == 200, pending.text
+        assert pending.json()["status"] == "pending"
+        assert pending.json()["execution_id"] == first_execution_id
+
+        active_replay = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": ["generate_prompts"],
+                "execution_id": first_execution_id,
+            },
+        )
+        assert active_replay.status_code == 202, active_replay.text
+        assert active_replay.json()["status"] == "pending"
+        assert registry.register_count == 1
+
+        conflict = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": ["generate_textures"],
+                "execution_id": first_execution_id,
+            },
+        )
+        assert conflict.status_code == 409, conflict.text
+        assert "different regeneration request" in conflict.json()["detail"]
+        assert registry.register_count == 1
+
+        registry.running = False
+        manager.update_session(session_id, {"status": "completed"})
+        terminal = client.get(f"/pipeline/{session_id}/status")
+        assert terminal.status_code == 200, terminal.text
+        assert terminal.json()["status"] == "completed"
+        assert terminal.json()["execution_id"] == first_execution_id
+
+        terminal_replay = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": ["generate_prompts"],
+                "execution_id": first_execution_id,
+            },
+        )
+        assert terminal_replay.status_code == 202, terminal_replay.text
+        assert terminal_replay.json()["status"] == "completed"
+        assert registry.register_count == 1
+
+        replaced = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": ["generate_prompts"],
+                "execution_id": second_execution_id,
+            },
+        )
+        assert replaced.status_code == 202, replaced.text
+        metadata = manager.get_session_metadata(session_id)
+        assert metadata is not None
+        assert metadata["execution_id"] == second_execution_id
+        assert metadata["execution_request_digest"] == first_request_digest
+        assert bus.get_snapshot(session_id)["execution_id"] == second_execution_id
+        assert registry.register_count == 2
+
+        registry.running = False
+        manager.update_session(session_id, {"status": "completed"})
+        stale_replay = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={
+                "steps": ["generate_prompts"],
+                "execution_id": first_execution_id,
+            },
+        )
+        assert stale_replay.status_code == 409, stale_replay.text
+        assert "superseded regeneration request" in stale_replay.json()["detail"]
+        assert registry.register_count == 2
+        metadata = manager.get_session_metadata(session_id)
+        assert metadata is not None
+        assert metadata["execution_request_digests"] == {
+            first_execution_id: first_request_digest,
+            second_execution_id: first_request_digest,
+        }
+
+        reset = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json={"steps": ["generate_prompts"]},
+        )
+        assert reset.status_code == 202, reset.text
+        metadata = manager.get_session_metadata(session_id)
+        assert metadata is not None
+        assert metadata["execution_id"] is None
+        assert metadata["execution_request_digest"] is None
+        assert bus.get_snapshot(session_id)["execution_id"] is None
+        assert registry.register_count == 3
+
+
+def test_regenerate_requeues_owned_orphan_when_worker_lock_is_free(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager, session_id = _seed_regenerate_session(tmp_path)
+    bus = EventBus(manager)
+    execution_id = "e" * 32
+    request_payload = {
+        "steps": ["generate_prompts"],
+        "execution_id": execution_id,
+    }
+    request = pipeline_router.RegenerateRequest.model_validate(request_payload)
+    request_digest = pipeline_router._regenerate_request_digest(request)
+    manager.update_session(
+        session_id,
+        {
+            "status": "pending",
+            "execution_id": execution_id,
+            "execution_request_digest": request_digest,
+        },
+    )
+
+    class _Registry:
+        running = False
+        register_count = 0
+
+        def is_running(self, sid: str) -> bool:
+            assert sid == session_id
+            return self.running
+
+        async def register(
+            self,
+            sid: str,
+            coro: Any,
+            *args: Any,
+            on_finished: Any = None,
+            **kwargs: Any,
+        ) -> None:
+            assert sid == session_id
+            self.register_count += 1
+            self.running = True
+            coro.close()
+            if on_finished is not None:
+                on_finished()
+
+    registry = _Registry()
+
+    def _execute(**kwargs: Any) -> Any:
+        async def _noop() -> None:
+            return None
+
+        return _noop()
+
+    monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: registry)
+    monkeypatch.setattr(pipeline_router, "execute_pipeline_async", _execute)
+    pipeline_router.set_session_manager(manager)
+    app = FastAPI()
+    app.include_router(pipeline_router.router)
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/pipeline/{session_id}/regenerate",
+            json=request_payload,
+        )
+
+    assert response.status_code == 202, response.text
+    assert registry.register_count == 1
+    metadata = manager.get_session_metadata(session_id)
+    assert metadata is not None
+    assert metadata["execution_id"] == execution_id
+    assert metadata["execution_request_digest"] == request_digest
 
 
 def test_apply_cache_local_io_is_offloaded_from_event_loop(
@@ -708,6 +1005,7 @@ def test_apply_textures_regenerate_respects_disabled_implicit_prepare_uvs(
     config_path = manager.get_session_dir(session_id) / "input" / "config.yaml"
     stored_config = pipeline_router.yaml.safe_load(config_path.read_text())
     stored_config.setdefault("steps", {})["prepare_uvs"] = {"enabled": False}
+    stored_config.setdefault("texture", {})["max_texture_units"] = 128
     config_path.write_text(
         pipeline_router.yaml.safe_dump(stored_config),
         encoding="utf-8",

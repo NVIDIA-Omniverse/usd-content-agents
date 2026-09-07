@@ -70,6 +70,7 @@ from ..models.responses import (
 )
 from ..runtime import get_event_bus, get_job_registry
 from ..session.manager import SessionManager
+from ..storage import SessionGenerationConflictError
 from ..workers.predict_executor import (
     _dataset_jsonl_has_resolvable_images,
     execute_predict_async,
@@ -288,6 +289,13 @@ class _PredictInputsTransaction:
         self.active = False
         if failed:
             raise RuntimeError("Predict input rollback failed")
+
+
+def _require_predict_upload(usd_file: UploadFile | None) -> UploadFile:
+    """Fail closed if upload-source selection loses its multipart payload."""
+    if usd_file is None:
+        raise HTTPException(status_code=400, detail="USD upload is missing")
+    return usd_file
 
 
 async def _execute_predict_after_commit(
@@ -913,8 +921,7 @@ async def create_predict(
         # has_usd_file (computed above) treats UploadFile with an empty
         # filename as "no file", matching what FastAPI hands us when the
         # multipart field is absent.
-        if usd_file is None:
-            raise HTTPException(status_code=400, detail="USD upload is missing")
+        usd_file = _require_predict_upload(usd_file)
         session_id = str(uuid.uuid4())
         session_dir = await manager.create_session(session_id)
         session_created_here = True
@@ -1130,10 +1137,15 @@ async def create_predict(
         session_dataset_target = session_dir / "cache" / "dataset" / "dataset.jsonl"
         input_transaction: _PredictInputsTransaction | None = None
         metadata_snapshot: dict[str, Any] | None = None
+        generation_started = False
         start_gate = asyncio.Event()
         try:
             existing = await manager.get_session_metadata(session_id)
-            if not isinstance(existing, dict):
+            if not isinstance(existing, dict) or not {
+                "session_id",
+                "created_at",
+                "status",
+            }.issubset(existing):
                 log_durable_failure(
                     logger,
                     "predict_metadata_snapshot_failed",
@@ -1145,6 +1157,11 @@ async def create_predict(
                     detail=_PREDICT_START_FAILED_DETAIL,
                 )
             metadata_snapshot = deepcopy(existing)
+            if not session_created_here:
+                begin_generation = getattr(manager, "begin_generation", None)
+                if begin_generation is not None:
+                    await begin_generation(session_id)
+                generation_started = True
             existing_config_value = existing.get("config")
             existing_config = (
                 existing_config_value if isinstance(existing_config_value, dict) else {}
@@ -1163,15 +1180,21 @@ async def create_predict(
             # Register a gated coroutine before the pending metadata transition.
             # The worker cannot mutate files/status until every startup surface is
             # committed and the gate is opened below.
-            await reservation.start(
-                _execute_predict_after_commit(
-                    start_gate,
-                    session_id=session_id,
-                    config_dict=predict_config,
-                    manager=manager,
-                    dataset_path=resolved_dataset_path,
-                )
+            worker = _execute_predict_after_commit(
+                start_gate,
+                session_id=session_id,
+                config_dict=predict_config,
+                manager=manager,
+                dataset_path=resolved_dataset_path,
             )
+            maintain_lease = getattr(manager, "maintain_generation_lease", None)
+            if maintain_lease is None:
+                await reservation.start(worker)
+            else:
+                await reservation.start(
+                    worker,
+                    wait_heartbeat=maintain_lease,
+                )
             await manager.update_session(
                 session_id,
                 {
@@ -1233,7 +1256,7 @@ async def create_predict(
                             phase=FailurePhase.ROLLBACK,
                             retryable=True,
                         )
-                if metadata_snapshot is not None:
+                if generation_started and metadata_snapshot is not None:
                     try:
                         await manager.restore_session_metadata(
                             session_id,
@@ -1249,6 +1272,8 @@ async def create_predict(
 
             if isinstance(exc, asyncio.CancelledError):
                 raise
+            if isinstance(exc, SessionGenerationConflictError):
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
             if isinstance(exc, HTTPException):
                 raise
             raise HTTPException(
@@ -1277,7 +1302,11 @@ async def get_predict_status(session_id: str) -> PipelineStatus:
     event_bus = get_event_bus()
     manager = get_session_manager()
 
-    snapshot = event_bus.get_snapshot(session_id)
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    )
     if snapshot:
         metadata = snapshot
         preview_images = snapshot.get("preview_images", [])
@@ -1468,7 +1497,11 @@ async def stream_predict_events(session_id: str) -> EventSourceResponse:
     event_bus = get_event_bus()
     manager = get_session_manager()
 
-    snapshot = event_bus.get_snapshot(session_id)
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    )
     if snapshot is None:
         if not await manager.session_exists(session_id):
             raise HTTPException(status_code=404, detail="Session not found")

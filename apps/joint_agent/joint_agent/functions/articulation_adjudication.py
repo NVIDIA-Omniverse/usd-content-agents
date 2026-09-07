@@ -10,11 +10,13 @@ import logging
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from world_understanding.utils.credentials import redact_sensitive_config
 from world_understanding.utils.llm_parsing import (
     iter_json_dicts_from_llm_response,
     iter_json_dicts_in_text_order,
@@ -24,6 +26,13 @@ from joint_agent.functions.articulation_candidates import (
     READY_FOR_RIGGER_INPUT_STATUS,
     REVIEW_REQUIRED_STATUS,
     Stage2EvidenceItem,
+)
+from joint_agent.functions.articulation_endpoint_identity import (
+    ArticulationEndpointIdentityIndex,
+    build_articulation_endpoint_identity_index,
+)
+from joint_agent.functions.provider_response_conformance import (
+    raw_provider_response_evidence,
 )
 
 ADJUDICATION_SCHEMA_VERSION: Literal["joint-agent-articulation-adjudication-v0"] = (
@@ -51,6 +60,8 @@ _TOPOLOGY_FIELDS = (
 _TOPOLOGY_AXIS_VALUES = frozenset({"x", "+x", "-x", "y", "+y", "-y", "z", "+z", "-z"})
 _TOPOLOGY_MOVING_JOINT_TYPES = frozenset({"revolute", "prismatic", "spherical"})
 _TOPOLOGY_CORRECTIVE_RETRY_TOKEN_CAP = 16_384
+_TOPOLOGY_DIAGNOSTIC_RESPONSE_MAX_BYTES = 4096
+_TOPOLOGY_DIAGNOSTIC_MAX_ISSUES = 16
 _TOPOLOGY_CORRECTIVE_RETRY_SUFFIX = """
 
 CORRECTIVE RETRY: The previous output was rejected. Regenerate the entire answer
@@ -147,6 +158,98 @@ class ArticulationTopologyReconciliationDocument(BaseModel):
     links: list[ArticulationTopologyLink] = Field(min_length=1)
 
 
+class ArticulationTopologyValidationIssue(BaseModel):
+    """Value-free validation evidence for one rejected response field."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    field_path: str = Field(min_length=1, max_length=256)
+    rejected_value_class: str = Field(min_length=1, max_length=64)
+    reason: str = Field(min_length=1, max_length=256)
+
+
+class ArticulationTopologyResponseEvidence(BaseModel):
+    """Bounded, redacted evidence bound to one complete provider response."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    response_bytes: int = Field(ge=0)
+    retained_response: str = Field(max_length=_TOPOLOGY_DIAGNOSTIC_RESPONSE_MAX_BYTES)
+    retained_response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    retained_bytes: int = Field(ge=0, le=_TOPOLOGY_DIAGNOSTIC_RESPONSE_MAX_BYTES)
+    truncated: bool
+    redacted: bool
+
+
+class ArticulationTopologyAttemptDiagnostic(BaseModel):
+    """Attempt-scoped parse or validation rejection evidence."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    attempt: Literal["initial", "corrective_retry"]
+    attempt_number: int = Field(ge=1, le=2)
+    failure_stage: Literal["parse", "validation"]
+    error_type: str = Field(min_length=1, max_length=128)
+    issues: tuple[ArticulationTopologyValidationIssue, ...] = Field(
+        min_length=1,
+        max_length=_TOPOLOGY_DIAGNOSTIC_MAX_ISSUES,
+    )
+    response_evidence: ArticulationTopologyResponseEvidence
+
+
+class ArticulationTopologyReconciliationDiagnostics(BaseModel):
+    """Typed terminal or accepted diagnostics for bounded reconciliation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    outcome: Literal["accepted", "failed"]
+    failure_stage: (
+        Literal[
+            "request",
+            "invocation",
+            "parse",
+            "validation",
+            "replay",
+            "reinference",
+        ]
+        | None
+    ) = None
+    error_type: str | None = Field(default=None, max_length=128)
+    attempts: tuple[ArticulationTopologyAttemptDiagnostic, ...] = Field(
+        default=(), max_length=2
+    )
+
+    @model_validator(mode="after")
+    def _validate_outcome(self) -> ArticulationTopologyReconciliationDiagnostics:
+        if self.outcome == "accepted" and (
+            self.failure_stage is not None or self.error_type is not None
+        ):
+            raise ValueError("accepted reconciliation diagnostics cannot fail")
+        if self.outcome == "failed" and (
+            self.failure_stage is None or self.error_type is None
+        ):
+            raise ValueError("failed reconciliation diagnostics require a cause")
+        return self
+
+
+class ArticulationTopologyReconciliationResult(BaseModel):
+    """Shared typed Joint domain result used by fixed-pipeline and agentic callers."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    reconciliation: ArticulationTopologyReconciliationDocument | None = None
+    diagnostics: ArticulationTopologyReconciliationDiagnostics
+
+    @model_validator(mode="after")
+    def _validate_result(self) -> ArticulationTopologyReconciliationResult:
+        if (self.reconciliation is not None) != (
+            self.diagnostics.outcome == "accepted"
+        ):
+            raise ValueError("reconciliation payload must match the typed outcome")
+        return self
+
+
 class ArticulationAdjudicationArtifact(BaseModel):
     """Stable shared artifact envelope for both adjudication paths."""
 
@@ -154,6 +257,9 @@ class ArticulationAdjudicationArtifact(BaseModel):
 
     schema_version: Literal["joint-agent-articulation-adjudication-artifact-v1"]
     topology_reconciliation: ArticulationTopologyReconciliationDocument | None = None
+    topology_reconciliation_diagnostics: (
+        ArticulationTopologyReconciliationDiagnostics | None
+    ) = None
     adjudications: list[ArticulationConflictAdjudication] = Field(default_factory=list)
 
 
@@ -162,6 +268,74 @@ class ArticulationTopologyReconciliationRequest(NamedTuple):
 
     prompt: str
     images: list[str]
+
+
+class ArticulationTopologyEvidenceGroup(NamedTuple):
+    """One indivisible source-backed physical-link evidence group."""
+
+    owner_path: str | None
+    member_prims: tuple[str, ...]
+    representative_prim: str
+
+
+class ArticulationTopologyEvidencePlan(NamedTuple):
+    """Deterministic evidence units used by preflight and request construction."""
+
+    grouping_mode: Literal["source_prim", "rigid_body_owner"]
+    groups: tuple[ArticulationTopologyEvidenceGroup, ...]
+    endpoint_identities: ArticulationEndpointIdentityIndex | None = None
+
+    @property
+    def required_image_budget(self) -> int:
+        """Return the minimum complete-evidence image count."""
+        return len(self.groups)
+
+
+class ArticulationTopologyReconciliationPreflightError(ValueError):
+    """Typed terminal failure for an incompatible reconciliation dataset/config."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str,
+        source_prediction_count: int | None,
+        configured_max_images: int,
+        required_image_budget: int | None = None,
+        grouping_mode: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        status: dict[str, Any] = {
+            "requested": True,
+            "attempted": False,
+            "accepted": False,
+            "outcome": "failed",
+            "failure_stage": "preflight",
+            "error_type": type(self).__name__,
+            "reason": reason,
+            "configured_max_images": configured_max_images,
+        }
+        if source_prediction_count is not None:
+            status["source_prediction_count"] = source_prediction_count
+        if required_image_budget is not None:
+            status["required_image_budget"] = required_image_budget
+            status["authoritative_group_count"] = required_image_budget
+        if grouping_mode is not None:
+            status["grouping_mode"] = grouping_mode
+        self.status = status
+
+
+class ArticulationTopologyReconciliationTerminalError(RuntimeError):
+    """Typed outer-pipeline failure for requested reconciliation failure."""
+
+    def __init__(self, status: Mapping[str, Any]) -> None:
+        self.status = deepcopy(dict(status))
+        stage = str(self.status.get("failure_stage", "unknown"))
+        error_type = str(self.status.get("error_type", "RuntimeError"))
+        super().__init__(
+            "Requested topology reconciliation failed terminally at "
+            f"{stage} ({error_type})"
+        )
 
 
 def build_articulation_conflict_adjudication_prompt(
@@ -313,8 +487,19 @@ def build_articulation_topology_reconciliation_request(
         dataset_entries=dataset_rows,
     )
     source_vocabulary = sorted(_topology_source_vocabulary(source_ids, metadata_index))
-    image_records = _topology_image_records(
+    evidence_plan = _topology_evidence_plan(source_ids, metadata_index)
+    endpoint_identities = build_articulation_endpoint_identity_index(
         source_ids,
+        metadata_index,
+    )
+    if require_images and max_images < evidence_plan.required_image_budget:
+        raise ValueError(
+            "max_images must cover every authoritative topology evidence group; "
+            f"configured {max_images}, required {evidence_plan.required_image_budget} "
+            f"for {evidence_plan.grouping_mode}"
+        )
+    image_records = _topology_image_records(
+        evidence_plan.groups,
         dataset_index=dataset_index,
         image_base_dir=image_base_dir,
         max_images=max_images,
@@ -329,6 +514,47 @@ def build_articulation_topology_reconciliation_request(
         prim_path: _topology_prompt_metadata(metadata_index.get(prim_path, {}))
         for prim_path in source_ids
     }
+    prompt_groups = [
+        {
+            "owner_path": group.owner_path,
+            "member_prims": list(group.member_prims),
+            "representative_prim": group.representative_prim,
+        }
+        for group in evidence_plan.groups
+    ]
+    prompt_endpoint_identities = [
+        {
+            "path": path,
+            "canonical_path": endpoint_identities.canonical_by_path.get(path),
+            "ambiguous_candidate_paths": list(
+                endpoint_identities.ambiguous_candidates_by_path.get(path, ())
+            ),
+        }
+        for path in endpoint_identities.vocabulary
+    ]
+    grouping_rules = (
+        "- Authoritative rigid-body owner groups are indivisible. Emit exactly one "
+        "fixed or moving link per supplied owner group; member_prims must equal that "
+        "group's complete member_prims without additions, omissions, splitting, or "
+        "cross-group substitution.\n"
+        "- For each moving owner group, anchor_prim must equal its supplied "
+        "representative_prim and body1 must equal its owner_path. body0 must equal "
+        "the owner_path of another supplied group. If every supplied group moves, "
+        "exactly one root moving group instead uses a shared external path from its "
+        "supplied endpoint vocabulary.\n"
+        if evidence_plan.grouping_mode == "rigid_body_owner"
+        else (
+            "- For a flat multi-member moving link, use the member whose final path "
+            "component is shortest as anchor_prim and body1; break equal-length "
+            "ties lexicographically by exact path. This is only a deterministic "
+            "representative choice after membership is resolved, not semantic "
+            "path-name inference.\n"
+            "- body1 must equal anchor_prim.\n"
+            "- A multi-member fixed link must contain direct siblings beneath one "
+            "non-root supplied Xform, and no fixed-member namespace may overlap "
+            "another link member by ancestry in either direction.\n"
+        )
+    )
     prompt = (
         "Reconcile the complete physical-link membership and simple-joint topology "
         "for this one asset in a single response.\n\n"
@@ -342,20 +568,13 @@ def build_articulation_topology_reconciliation_request(
         "role and may never use body or unknown. If images do not resolve an unknown "
         "role, return low confidence so the reconciliation fails closed.\n"
         "- Every moving link has exactly one anchor_prim chosen from its members.\n"
-        "- For a flat multi-member moving link, use the member whose final path "
-        "component is shortest as anchor_prim and body1; break equal-length "
-        "ties lexicographically by exact path. This is only a deterministic "
-        "representative choice after membership is resolved, not semantic "
-        "path-name inference.\n"
-        "- body1 must equal anchor_prim. body0 and body1 must be exact paths from "
+        f"{grouping_rules}"
+        "- body0 and body1 must be exact paths from "
         "the supplied endpoint vocabulary.\n"
-        "- Emit at most one fixed link. A multi-member fixed link must contain "
-        "direct siblings beneath one non-root supplied Xform, and no fixed-member "
-        "namespace may overlap another link member by ancestry in either "
-        "direction.\n"
+        "- Emit at most one fixed link.\n"
         "- Use an anchor from another reconciled moving link as body0 for a nested "
-        "joint. A root moving link must use a fixed member or the fixed members' "
-        "shared direct-parent Xform as body0.\n"
+        "joint in source-prim mode. A root source-prim moving link must use a fixed "
+        "member or the fixed members' shared direct-parent Xform as body0.\n"
         "- Preserve every supplied compound edge that matches the selected topology.\n"
         "- A raw compound edge whose axis is unknown is a partial constraint: keep "
         "its body0, body1, and joint type exactly and resolve a concrete axis. Do "
@@ -394,6 +613,11 @@ def build_articulation_topology_reconciliation_request(
         "}\n\n"
         "Exact endpoint vocabulary:\n"
         f"{json.dumps(source_vocabulary, indent=2, ensure_ascii=False)}\n\n"
+        "Source-derived canonical endpoint identities:\n"
+        f"{json.dumps(prompt_endpoint_identities, indent=2, ensure_ascii=False)}\n\n"
+        f"Evidence grouping mode: {evidence_plan.grouping_mode}\n\n"
+        "Authoritative topology evidence groups:\n"
+        f"{json.dumps(prompt_groups, indent=2, ensure_ascii=False)}\n\n"
         "Authoritative source structure by prediction prim:\n"
         f"{json.dumps(prompt_metadata, indent=2, ensure_ascii=False)}\n\n"
         "Current Stage 2 candidate document:\n"
@@ -409,6 +633,19 @@ def build_articulation_topology_reconciliation_request(
     )
 
 
+class ArticulationTopologyResponseValidationError(ValueError):
+    """A response rejection with bounded, value-free structured issues."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        issues: Sequence[ArticulationTopologyValidationIssue],
+    ) -> None:
+        super().__init__(message)
+        self.issues = tuple(issues[:_TOPOLOGY_DIAGNOSTIC_MAX_ISSUES])
+
+
 def parse_articulation_topology_reconciliation_response(
     response_text: str,
 ) -> ArticulationTopologyReconciliationDocument:
@@ -418,11 +655,23 @@ def parse_articulation_topology_reconciliation_response(
         if "links" in candidate:
             last_candidate = candidate
     if last_candidate is None:
-        raise ValueError("Model response did not contain topology reconciliation JSON")
+        raise ArticulationTopologyResponseValidationError(
+            "Model response did not contain topology reconciliation JSON",
+            issues=(
+                ArticulationTopologyValidationIssue(
+                    field_path="$.response",
+                    rejected_value_class="string",
+                    reason="topology_document_missing",
+                ),
+            ),
+        )
     try:
         return ArticulationTopologyReconciliationDocument.model_validate(last_candidate)
     except ValidationError as exc:
-        raise ValueError(f"Invalid topology reconciliation response: {exc}") from exc
+        raise ArticulationTopologyResponseValidationError(
+            "Invalid topology reconciliation response",
+            issues=_pydantic_topology_validation_issues(exc),
+        ) from exc
 
 
 def reconcile_articulation_topology_with_model(
@@ -442,7 +691,7 @@ def reconcile_articulation_topology_with_model(
     temperature: float = 0.0,
     max_tokens: int = 8192,
     output_key: str = "classification",
-    diagnostics: dict[str, str] | None = None,
+    diagnostics: dict[str, Any] | None = None,
 ) -> ArticulationTopologyReconciliationDocument | None:
     """Return a fully validated topology from at most two asset-wide attempts.
 
@@ -451,37 +700,60 @@ def reconcile_articulation_topology_with_model(
     with the same evidence and a bounded larger output budget. Request-construction
     and model-invocation failures do not retry.
 
-    ``diagnostics`` is an optional, response-free status sink for callers that need
-    to distinguish request construction, model invocation, response parsing, and
-    topology validation failures. It never contains prompt or model response text.
+    ``diagnostics`` receives the typed result diagnostics as JSON-compatible data.
+    Rejected provider responses are redacted, byte-bounded, and digest-bound; the
+    request prompt is never retained.
     """
-
-    def record_diagnostics(
-        outcome: str,
-        *,
-        failure_stage: str | None = None,
-        error_type: str | None = None,
-    ) -> None:
-        if diagnostics is None:
-            return
+    result = reconcile_articulation_topology_with_model_result(
+        model=model,
+        candidate_document=candidate_document,
+        source_predictions=source_predictions,
+        source_metadata=source_metadata,
+        dataset_entries=dataset_entries,
+        image_base_dir=image_base_dir,
+        max_images=max_images,
+        require_images=require_images,
+        use_images=use_images,
+        min_confidence=min_confidence,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        output_key=output_key,
+    )
+    if diagnostics is not None:
         diagnostics.clear()
-        diagnostics["outcome"] = outcome
-        if failure_stage is not None:
-            diagnostics["failure_stage"] = failure_stage
-        if error_type is not None:
-            diagnostics["error_type"] = error_type
+        dumped = result.diagnostics.model_dump(mode="json")
+        dumped["outcome"] = (
+            "validated" if result.diagnostics.outcome == "accepted" else "failed"
+        )
+        diagnostics.update({key: value for key, value in dumped.items() if value})
+    return result.reconciliation
 
+
+def reconcile_articulation_topology_with_model_result(
+    *,
+    model: Any,
+    candidate_document: Mapping[str, Any],
+    source_predictions: Iterable[Mapping[str, Any]],
+    source_metadata: Iterable[Mapping[str, Any]]
+    | Mapping[str, Mapping[str, Any]]
+    | None = None,
+    dataset_entries: Iterable[Mapping[str, Any]] | None = None,
+    image_base_dir: str | Path | None = None,
+    max_images: int = 64,
+    require_images: bool = True,
+    use_images: bool = True,
+    min_confidence: Literal["high", "medium", "low"] = "high",
+    temperature: float = 0.0,
+    max_tokens: int = 8192,
+    output_key: str = "classification",
+) -> ArticulationTopologyReconciliationResult:
+    """Run the shared typed Joint reconciliation domain method."""
     if min_confidence != "high":
         _LOGGER.warning(
             "Topology reconciliation requires a high-confidence gate; keeping "
             "candidates review-required"
         )
-        record_diagnostics(
-            "failed",
-            failure_stage="request",
-            error_type="ValueError",
-        )
-        return None
+        return _failed_topology_result(failure_stage="request", error_type="ValueError")
     prediction_rows = [deepcopy(dict(row)) for row in source_predictions]
     dataset_rows = [dict(row) for row in dataset_entries or ()]
     metadata_index = _normalize_topology_source_metadata(
@@ -505,23 +777,20 @@ def reconcile_articulation_topology_with_model(
             "review-required (%s)",
             type(exc).__name__,
         )
-        record_diagnostics(
-            "failed",
-            failure_stage="request",
-            error_type=type(exc).__name__,
+        return _failed_topology_result(
+            failure_stage="request", error_type=type(exc).__name__
         )
-        return None
     if require_images and not request.images:
         _LOGGER.warning(
             "Topology reconciliation requires source images; keeping candidates "
             "review-required"
         )
-        record_diagnostics(
-            "failed",
-            failure_stage="request",
-            error_type="ValueError",
-        )
-        return None
+        return _failed_topology_result(failure_stage="request", error_type="ValueError")
+    endpoint_identities = build_articulation_endpoint_identity_index(
+        _source_prediction_ids(prediction_rows),
+        metadata_index,
+    )
+    rejected_attempts: list[ArticulationTopologyAttemptDiagnostic] = []
     max_attempts = 2
     for attempt in range(1, max_attempts + 1):
         attempt_prompt = request.prompt
@@ -547,17 +816,24 @@ def reconcile_articulation_topology_with_model(
                 "keeping candidates review-required (%s)",
                 type(exc).__name__,
             )
-            record_diagnostics(
-                "failed",
+            return _failed_topology_result(
                 failure_stage="invocation",
-                error_type=type(exc).__name__,
+                error_type=_topology_error_type(exc),
+                attempts=rejected_attempts,
             )
-            return None
         try:
             reconciliation = parse_articulation_topology_reconciliation_response(
                 response_text
             )
         except Exception as exc:
+            rejected_attempts.append(
+                _topology_attempt_diagnostic(
+                    attempt=attempt,
+                    failure_stage="parse",
+                    error=exc,
+                    response_text=response_text,
+                )
+            )
             if attempt < max_attempts:
                 _LOGGER.warning(
                     "Topology reconciliation response could not be parsed; "
@@ -570,13 +846,16 @@ def reconcile_articulation_topology_with_model(
                 "bounded retry; keeping candidates review-required (%s)",
                 type(exc).__name__,
             )
-            record_diagnostics(
-                "failed",
+            return _failed_topology_result(
                 failure_stage="parse",
-                error_type=type(exc).__name__,
+                error_type=_topology_error_type(exc),
+                attempts=rejected_attempts,
             )
-            return None
         try:
+            reconciliation = _canonicalize_topology_endpoint_identities(
+                reconciliation,
+                endpoint_identities=endpoint_identities,
+            )
             _validate_topology_reconciliation(
                 reconciliation,
                 source_predictions=prediction_rows,
@@ -602,6 +881,14 @@ def reconcile_articulation_topology_with_model(
                     "topology reconciliation must retain at least one moving link"
                 )
         except Exception as exc:
+            rejected_attempts.append(
+                _topology_attempt_diagnostic(
+                    attempt=attempt,
+                    failure_stage="validation",
+                    error=exc,
+                    response_text=response_text,
+                )
+            )
             if attempt < max_attempts:
                 _LOGGER.warning(
                     "Topology reconciliation response failed validation; retrying "
@@ -614,15 +901,228 @@ def reconcile_articulation_topology_with_model(
                 "bounded retry; keeping candidates review-required (%s)",
                 type(exc).__name__,
             )
-            record_diagnostics(
-                "failed",
+            return _failed_topology_result(
                 failure_stage="validation",
-                error_type=type(exc).__name__,
+                error_type=_topology_error_type(exc),
+                attempts=rejected_attempts,
             )
-            return None
-        record_diagnostics("validated")
-        return reconciliation
+        return ArticulationTopologyReconciliationResult(
+            reconciliation=reconciliation,
+            diagnostics=ArticulationTopologyReconciliationDiagnostics(
+                outcome="accepted",
+                attempts=tuple(rejected_attempts),
+            ),
+        )
     raise AssertionError("bounded topology reconciliation loop did not terminate")
+
+
+def _failed_topology_result(
+    *,
+    failure_stage: Literal["request", "invocation", "parse", "validation"],
+    error_type: str,
+    attempts: Sequence[ArticulationTopologyAttemptDiagnostic] = (),
+) -> ArticulationTopologyReconciliationResult:
+    return ArticulationTopologyReconciliationResult(
+        diagnostics=ArticulationTopologyReconciliationDiagnostics(
+            outcome="failed",
+            failure_stage=failure_stage,
+            error_type=error_type,
+            attempts=tuple(attempts),
+        )
+    )
+
+
+def _pydantic_topology_validation_issues(
+    error: ValidationError,
+) -> tuple[ArticulationTopologyValidationIssue, ...]:
+    issues: list[ArticulationTopologyValidationIssue] = []
+    for detail in error.errors(
+        include_url=False,
+        include_context=False,
+        include_input=True,
+    )[:_TOPOLOGY_DIAGNOSTIC_MAX_ISSUES]:
+        location = detail.get("loc", ())
+        field_path = "$"
+        for part in location:
+            field_path += f"[{part}]" if isinstance(part, int) else f".{part}"
+        issues.append(
+            ArticulationTopologyValidationIssue(
+                field_path=field_path,
+                rejected_value_class=_rejected_value_class(detail.get("input")),
+                reason=str(detail.get("type") or "schema_validation_failed")[:256],
+            )
+        )
+    return tuple(issues) or (
+        ArticulationTopologyValidationIssue(
+            field_path="$",
+            rejected_value_class="document",
+            reason="schema_validation_failed",
+        ),
+    )
+
+
+def _rejected_value_class(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, Mapping):
+        return "object"
+    if isinstance(value, list | tuple):
+        return "array"
+    if isinstance(value, int | float):
+        return "number"
+    return type(value).__name__[:64] or "unknown"
+
+
+def _topology_attempt_diagnostic(
+    *,
+    attempt: int,
+    failure_stage: Literal["parse", "validation"],
+    error: Exception,
+    response_text: str,
+) -> ArticulationTopologyAttemptDiagnostic:
+    if isinstance(error, ArticulationTopologyResponseValidationError):
+        issues = error.issues
+    else:
+        safe_reason = redact_sensitive_config(str(error))
+        if not isinstance(safe_reason, str) or not safe_reason:
+            safe_reason = "topology_validation_failed"
+        issues = (
+            ArticulationTopologyValidationIssue(
+                field_path="$.links",
+                rejected_value_class="document",
+                reason=safe_reason[:256],
+            ),
+        )
+    return ArticulationTopologyAttemptDiagnostic(
+        attempt="initial" if attempt == 1 else "corrective_retry",
+        attempt_number=attempt,
+        failure_stage=failure_stage,
+        error_type=_topology_error_type(error),
+        issues=issues,
+        response_evidence=_bounded_topology_response_evidence(response_text),
+    )
+
+
+def _topology_error_type(error: Exception) -> str:
+    if isinstance(error, ArticulationTopologyResponseValidationError):
+        return "ValueError"
+    return type(error).__name__
+
+
+def _bounded_topology_response_evidence(
+    response_text: str,
+) -> ArticulationTopologyResponseEvidence:
+    return ArticulationTopologyResponseEvidence.model_validate(
+        asdict(
+            raw_provider_response_evidence(
+                response_text,
+                max_retained_bytes=_TOPOLOGY_DIAGNOSTIC_RESPONSE_MAX_BYTES,
+            )
+        )
+    )
+
+
+def _canonicalize_topology_endpoint_identities(
+    document: ArticulationTopologyReconciliationDocument,
+    *,
+    endpoint_identities: ArticulationEndpointIdentityIndex,
+) -> ArticulationTopologyReconciliationDocument:
+    """Canonicalize response endpoints through the shared source identity index."""
+    links: list[ArticulationTopologyLink] = []
+    link_by_member = {
+        member: link for link in document.links for member in link.member_prims
+    }
+    for link_index, link in enumerate(document.links):
+        updates: dict[str, Any] = {}
+        if link.kind == "moving":
+            for field_name in ("body0", "body1"):
+                value = getattr(link, field_name)
+                if value is None:
+                    raise ArticulationTopologyResponseValidationError(
+                        "Topology endpoint is required for a moving link",
+                        issues=(
+                            ArticulationTopologyValidationIssue(
+                                field_path=f"$.links[{link_index}].{field_name}",
+                                rejected_value_class="null",
+                                reason="missing_required_endpoint",
+                            ),
+                        ),
+                    )
+                resolution = endpoint_identities.resolve((value,))
+                if resolution.outcome == "resolved":
+                    updates[field_name] = resolution.canonical_path
+                elif resolution.outcome == "ambiguous" and not (
+                    field_name == "body0"
+                    and _ambiguous_body0_is_fixed_root(
+                        resolution.candidate_paths,
+                        link_by_member=link_by_member,
+                    )
+                ):
+                    raise ArticulationTopologyResponseValidationError(
+                        "Topology endpoint alias is ambiguous",
+                        issues=(
+                            ArticulationTopologyValidationIssue(
+                                field_path=f"$.links[{link_index}].{field_name}",
+                                rejected_value_class="string",
+                                reason="ambiguous_source_owner_alias",
+                            ),
+                        ),
+                    )
+            if endpoint_identities.structure_mode == "hierarchy":
+                if link.anchor_prim is None:
+                    raise ArticulationTopologyResponseValidationError(
+                        "Topology anchor is required for a hierarchy moving link",
+                        issues=(
+                            ArticulationTopologyValidationIssue(
+                                field_path=f"$.links[{link_index}].anchor_prim",
+                                rejected_value_class="null",
+                                reason="missing_required_endpoint",
+                            ),
+                        ),
+                    )
+                anchor_resolution = endpoint_identities.resolve((link.anchor_prim,))
+                if anchor_resolution.outcome == "resolved":
+                    updates["anchor_prim"] = anchor_resolution.canonical_path
+                elif anchor_resolution.outcome == "ambiguous":
+                    raise ArticulationTopologyResponseValidationError(
+                        "Topology anchor alias is ambiguous",
+                        issues=(
+                            ArticulationTopologyValidationIssue(
+                                field_path=f"$.links[{link_index}].anchor_prim",
+                                rejected_value_class="string",
+                                reason="ambiguous_source_owner_alias",
+                            ),
+                        ),
+                    )
+        superseded: list[ArticulationTopologyCompoundEdge] = []
+        for edge in link.superseded_compound_edges:
+            superseded.append(_canonicalized_compound_edge(edge, endpoint_identities))
+        if superseded != link.superseded_compound_edges:
+            updates["superseded_compound_edges"] = superseded
+        links.append(link.model_copy(update=updates) if updates else link)
+    return document.model_copy(update={"links": links})
+
+
+def _ambiguous_body0_is_fixed_root(
+    candidate_paths: Sequence[str],
+    *,
+    link_by_member: Mapping[str, ArticulationTopologyLink],
+) -> bool:
+    """Accept only a complete fixed root or document-wide external root."""
+    candidate_path_set = set(candidate_paths)
+    if candidate_path_set and candidate_path_set == set(link_by_member):
+        return True
+    root_link_ids: set[str] = set()
+    for candidate_path in candidate_path_set:
+        candidate_link = link_by_member.get(candidate_path)
+        if candidate_link is None or candidate_link.kind != "fixed":
+            return False
+        root_link_ids.add(candidate_link.link_id)
+    return bool(candidate_path_set) and len(root_link_ids) == 1
 
 
 def apply_articulation_topology_reconciliation(
@@ -630,8 +1130,18 @@ def apply_articulation_topology_reconciliation(
     reconciliation: ArticulationTopologyReconciliationDocument | Mapping[str, Any],
     *,
     output_key: str = "classification",
+    source_metadata: Iterable[Mapping[str, Any]]
+    | Mapping[str, Mapping[str, Any]]
+    | None = None,
+    evidence_plan: ArticulationTopologyEvidencePlan | None = None,
+    compact_owner_receipts: bool = True,
 ) -> list[dict[str, Any]]:
-    """Overlay a validated topology while retaining original values in history."""
+    """Overlay validated topology while retaining original values in history.
+
+    Provide either source metadata or a precomputed evidence plan, not both.
+    Owner receipts are compact by default and must use one receipt shape for the
+    complete document so metadata-less recovery remains deterministic.
+    """
     document = (
         reconciliation
         if isinstance(reconciliation, ArticulationTopologyReconciliationDocument)
@@ -649,6 +1159,32 @@ def apply_articulation_topology_reconciliation(
         raise ValueError(
             "topology reconciliation must cover each source prediction exactly once"
         )
+    if source_metadata is not None and evidence_plan is not None:
+        raise ValueError("provide source_metadata or evidence_plan, not both")
+    endpoint_identities: ArticulationEndpointIdentityIndex | None = None
+    if source_metadata is not None:
+        metadata_index = _normalize_topology_source_metadata(
+            source_metadata,
+            dataset_entries=(),
+        )
+        source_ids = _source_prediction_ids(rows)
+        endpoint_identities = build_articulation_endpoint_identity_index(
+            source_ids,
+            metadata_index,
+        )
+        evidence_plan = _topology_evidence_plan(source_ids, metadata_index)
+    elif evidence_plan is not None:
+        endpoint_identities = evidence_plan.endpoint_identities
+    evidence_group_by_link_id: dict[str, ArticulationTopologyEvidenceGroup] = {}
+    if evidence_plan is not None and evidence_plan.grouping_mode == "rigid_body_owner":
+        _validate_authoritative_owner_link_groups(document, evidence_plan)
+        group_by_members = {
+            frozenset(group.member_prims): group for group in evidence_plan.groups
+        }
+        evidence_group_by_link_id = {
+            link.link_id: group_by_members[frozenset(link.member_prims)]
+            for link in document.links
+        }
     limits_by_link_id = _reconciled_link_limits(
         rows,
         document,
@@ -658,6 +1194,7 @@ def apply_articulation_topology_reconciliation(
         rows,
         document,
         output_key=output_key,
+        endpoint_identities=endpoint_identities,
     )
     topology_document_sha256 = _topology_document_sha256(document)
 
@@ -762,25 +1299,43 @@ def apply_articulation_topology_reconciliation(
         if not isinstance(history, list):
             history = []
             provenance["topology_reconciliation_history"] = history
-        history.append(
-            {
-                "schema_version": TOPOLOGY_RECONCILIATION_SCHEMA_VERSION,
-                "source": "llm_adjudicated",
-                "topology_document_sha256": topology_document_sha256,
-                "link_id": link.link_id,
-                "confidence": link.confidence,
-                "rationale": link.rationale,
-                "superseded_compound_edges": [
-                    edge.model_dump(mode="json")
-                    for edge in link.superseded_compound_edges
-                ],
-                "reconciled_link": link.model_dump(mode="json"),
-                "original_payload": original_payload,
-                "original_provenance_present": isinstance(previous_provenance, Mapping),
-                "original_field_sources": original_field_sources,
-                "original_values": original_values,
-            }
-        )
+        evidence_group = evidence_group_by_link_id.get(link.link_id)
+        history_entry: dict[str, Any] = {
+            "schema_version": TOPOLOGY_RECONCILIATION_SCHEMA_VERSION,
+            "source": "llm_adjudicated",
+            "topology_document_sha256": topology_document_sha256,
+            "link_id": link.link_id,
+            "original_payload": original_payload,
+            "original_provenance_present": isinstance(previous_provenance, Mapping),
+            "original_field_sources": original_field_sources,
+            "original_values": original_values,
+        }
+        # Owner membership is complete but can be arbitrarily large. Persist the
+        # document-bound manifest once on the deterministic representative and
+        # let every other member reference it by link_id + document digest.
+        if (
+            evidence_group is None
+            or not compact_owner_receipts
+            or prim_path == evidence_group.representative_prim
+        ):
+            history_entry.update(
+                {
+                    "confidence": link.confidence,
+                    "rationale": link.rationale,
+                    "superseded_compound_edges": [
+                        edge.model_dump(mode="json")
+                        for edge in link.superseded_compound_edges
+                    ],
+                    "reconciled_link": link.model_dump(mode="json"),
+                }
+            )
+            if evidence_group is not None:
+                history_entry["topology_evidence_group"] = {
+                    "owner_path": evidence_group.owner_path,
+                    "member_prims": list(evidence_group.member_prims),
+                    "representative_prim": evidence_group.representative_prim,
+                }
+        history.append(history_entry)
         row[output_key] = payload
         result.append(row)
     return result
@@ -798,7 +1353,12 @@ def recover_articulation_topology_reconciliation_from_history(
     try:
         rows = [dict(row) for row in source_predictions]
         source_ids = _source_prediction_ids(rows)
-        links_by_id: dict[str, ArticulationTopologyLink] = {}
+        receipt_rows_by_link_id: dict[
+            str, list[tuple[str, Mapping[str, Any], Mapping[str, Any]]]
+        ] = {}
+        link_manifests_by_link_id: dict[str, ArticulationTopologyLink] = {}
+        manifest_counts_by_link_id: Counter[str] = Counter()
+        evidence_groups_by_link_id: dict[str, ArticulationTopologyEvidenceGroup] = {}
         document_digests: set[str] = set()
         for row in rows:
             prim_path = str(row.get("id", ""))
@@ -823,35 +1383,167 @@ def recover_articulation_topology_reconciliation_from_history(
                 or latest.get("schema_version")
                 != TOPOLOGY_RECONCILIATION_SCHEMA_VERSION
                 or latest.get("source") != "llm_adjudicated"
-                or not isinstance(latest.get("reconciled_link"), Mapping)
                 or not isinstance(latest.get("topology_document_sha256"), str)
+                or not isinstance(latest.get("link_id"), str)
             ):
                 return None
             document_digests.add(str(latest["topology_document_sha256"]))
-            link = ArticulationTopologyLink.model_validate(latest["reconciled_link"])
+            link_id = str(latest["link_id"])
+            receipt_rows_by_link_id.setdefault(link_id, []).append(
+                (prim_path, payload, latest)
+            )
+            raw_reconciled_link = latest.get("reconciled_link")
+            if raw_reconciled_link is not None:
+                if not isinstance(raw_reconciled_link, Mapping):
+                    return None
+                link = ArticulationTopologyLink.model_validate(raw_reconciled_link)
+                if link_id != link.link_id:
+                    return None
+                previous = link_manifests_by_link_id.get(link.link_id)
+                if previous is not None and previous != link:
+                    return None
+                link_manifests_by_link_id.setdefault(link.link_id, link)
+                manifest_counts_by_link_id[link.link_id] += 1
+            raw_evidence_group = latest.get("topology_evidence_group")
+            if raw_evidence_group is not None:
+                if (
+                    not isinstance(raw_evidence_group, Mapping)
+                    or raw_reconciled_link is None
+                ):
+                    return None
+                owner_path = raw_evidence_group.get("owner_path")
+                member_prims = raw_evidence_group.get("member_prims")
+                representative_prim = raw_evidence_group.get("representative_prim")
+                if (
+                    not isinstance(owner_path, str)
+                    or not owner_path.startswith("/")
+                    or not isinstance(member_prims, list)
+                    or not member_prims
+                    or any(
+                        not isinstance(member, str) or not member.startswith("/")
+                        for member in member_prims
+                    )
+                    or len(set(member_prims)) != len(member_prims)
+                    or not isinstance(representative_prim, str)
+                    or representative_prim not in member_prims
+                ):
+                    return None
+                evidence_group = ArticulationTopologyEvidenceGroup(
+                    owner_path=owner_path,
+                    member_prims=tuple(member_prims),
+                    representative_prim=representative_prim,
+                )
+                previous_group = evidence_groups_by_link_id.get(link.link_id)
+                if previous_group is not None and previous_group != evidence_group:
+                    return None
+                evidence_groups_by_link_id.setdefault(link.link_id, evidence_group)
+
+        receipt_endpoint_identities = (
+            _endpoint_identities_from_owner_evidence_groups(
+                tuple(evidence_groups_by_link_id.values())
+            )
+            if evidence_groups_by_link_id
+            else None
+        )
+        links: list[ArticulationTopologyLink] = []
+        compact_owner_receipts = bool(evidence_groups_by_link_id)
+        for link_id, receipt_rows in receipt_rows_by_link_id.items():
+            receipt_link = link_manifests_by_link_id.get(link_id)
+            if receipt_link is None:
+                return None
+            manifest_count = manifest_counts_by_link_id[link_id]
+            receipt_evidence_group = evidence_groups_by_link_id.get(link_id)
+            if receipt_evidence_group is None:
+                if manifest_count != len(receipt_rows):
+                    return None
+                compact_owner_receipts = False
+            elif manifest_count == 1:
+                manifest_prim = next(
+                    prim_path
+                    for prim_path, _, latest in receipt_rows
+                    if latest.get("reconciled_link") is not None
+                )
+                if manifest_prim != receipt_evidence_group.representative_prim:
+                    return None
+            elif manifest_count == len(receipt_rows):
+                compact_owner_receipts = False
+            else:
+                return None
+            receipt_prims = [prim_path for prim_path, _, _ in receipt_rows]
             if (
-                latest.get("link_id") != link.link_id
-                or prim_path not in link.member_prims
-                or not _payload_matches_reconciled_link(prim_path, payload, link)
+                len(receipt_prims) != len(set(receipt_prims))
+                or set(receipt_prims) != set(receipt_link.member_prims)
+                or any(
+                    not _payload_matches_reconciled_link(
+                        prim_path,
+                        payload,
+                        receipt_link,
+                        endpoint_identities=receipt_endpoint_identities,
+                    )
+                    for prim_path, payload, _ in receipt_rows
+                )
             ):
                 return None
-            previous = links_by_id.get(link.link_id)
-            if previous is not None and previous != link:
-                return None
-            links_by_id.setdefault(link.link_id, link)
-
-        links = list(links_by_id.values())
-        if sum(len(link.member_prims) for link in links) != len(source_ids):
-            return None
-        if {member for link in links for member in link.member_prims} != set(
-            source_ids
-        ):
-            return None
+            links.append(receipt_link)
         document = ArticulationTopologyReconciliationDocument(
             schema_version=TOPOLOGY_RECONCILIATION_SCHEMA_VERSION,
             links=links,
         )
-        _validate_recovered_topology_graph(document)
+        metadata_index: dict[str, dict[str, Any]] | None = None
+        evidence_plan: ArticulationTopologyEvidencePlan | None = None
+        structure_mode: str | None = None
+        if source_metadata is not None:
+            metadata_index = _normalize_topology_source_metadata(
+                source_metadata,
+                dataset_entries=(),
+            )
+            structure_modes = {
+                _topology_structure_mode(metadata_index[prim_path])
+                for prim_path in source_ids
+            }
+            if len(structure_modes) != 1 or "unknown" in structure_modes:
+                return None
+            [structure_mode] = structure_modes
+            evidence_plan = _topology_evidence_plan(source_ids, metadata_index)
+            if evidence_groups_by_link_id:
+                expected_groups = {
+                    frozenset(group.member_prims): group
+                    for group in evidence_plan.groups
+                }
+                if any(
+                    evidence_groups_by_link_id.get(link.link_id)
+                    != expected_groups.get(frozenset(link.member_prims))
+                    for link in document.links
+                ):
+                    return None
+        elif evidence_groups_by_link_id:
+            groups: list[ArticulationTopologyEvidenceGroup] = []
+            for link in sorted(document.links, key=lambda item: item.link_id):
+                group = evidence_groups_by_link_id.get(link.link_id)
+                if (
+                    group is None
+                    or group.owner_path is None
+                    or set(group.member_prims) != set(link.member_prims)
+                    or group.representative_prim
+                    != _representative_group_member(
+                        group.owner_path,
+                        group.member_prims,
+                    )
+                    or (link.kind == "moving" and link.body1 != group.owner_path)
+                ):
+                    return None
+                groups.append(group)
+            evidence_plan = ArticulationTopologyEvidencePlan(
+                grouping_mode="rigid_body_owner",
+                groups=tuple(groups),
+                endpoint_identities=receipt_endpoint_identities,
+            )
+            structure_mode = "rigid_body"
+        _validate_recovered_topology_graph(
+            document,
+            structure_mode=structure_mode,
+            evidence_plan=evidence_plan,
+        )
         if document_digests != {_topology_document_sha256(document)}:
             return None
         original_rows = _restore_topology_reconciliation_once(
@@ -862,17 +1554,15 @@ def recover_articulation_topology_reconciliation_from_history(
             original_rows,
             document,
             output_key=output_key,
+            evidence_plan=(evidence_plan if evidence_groups_by_link_id else None),
+            compact_owner_receipts=compact_owner_receipts,
         )
         if any(
             current.get(output_key) != reproduced.get(output_key)
             for current, reproduced in zip(rows, reproduced_rows, strict=True)
         ):
             return None
-        if source_metadata is not None:
-            metadata_index = _normalize_topology_source_metadata(
-                source_metadata,
-                dataset_entries=(),
-            )
+        if metadata_index is not None:
             _validate_topology_reconciliation(
                 document,
                 source_predictions=original_rows,
@@ -973,7 +1663,18 @@ def _topology_document_sha256(
 
 def _validate_recovered_topology_graph(
     document: ArticulationTopologyReconciliationDocument,
+    *,
+    structure_mode: str | None = None,
+    evidence_plan: ArticulationTopologyEvidencePlan | None = None,
 ) -> None:
+    moving_links = [link for link in document.links if link.kind == "moving"]
+    if structure_mode is None:
+        if not moving_links:
+            raise ValueError("recovered topology has no moving links")
+        # A rigid-body receipt must carry its authoritative evidence groups.
+        # Geometry alone cannot establish ownership, so metadata-less expanded
+        # receipts retain the hierarchy gate and reject distinct owner endpoints.
+        structure_mode = "hierarchy"
     member_to_link: dict[str, ArticulationTopologyLink] = {}
     moving_body_to_link: dict[str, ArticulationTopologyLink] = {}
     link_ids: set[str] = set()
@@ -987,7 +1688,7 @@ def _validate_recovered_topology_graph(
         link_ids.add(link.link_id)
         if link.confidence != "high":
             raise ValueError("recovered topology is below the confidence gate")
-        _validate_topology_link_shape(link, structure_mode="hierarchy")
+        _validate_topology_link_shape(link, structure_mode=structure_mode)
         for member in link.member_prims:
             if member in member_to_link:
                 raise ValueError("recovered topology repeats source membership")
@@ -998,7 +1699,11 @@ def _validate_recovered_topology_graph(
                 raise ValueError("recovered topology repeats a moving body")
             moving_body_to_link[link.body1] = link
 
-    _validate_owned_core_fixed_projection_compatibility(document)
+    _validate_owned_core_fixed_projection_compatibility(
+        document,
+        structure_mode=structure_mode,
+        evidence_plan=evidence_plan,
+    )
 
     endpoint_to_link = {**member_to_link, **moving_body_to_link}
     moving_parent_by_link_id: dict[str, str] = {}
@@ -1010,8 +1715,13 @@ def _validate_recovered_topology_graph(
         if parent_link is link:
             raise ValueError("recovered topology is self-parented")
         if parent_link is not None and parent_link.kind == "moving":
-            if parent_link.anchor_prim != link.body0:
-                raise ValueError("recovered nested parent is not its link anchor")
+            expected_parent = (
+                parent_link.anchor_prim
+                if structure_mode == "hierarchy"
+                else parent_link.body1
+            )
+            if expected_parent != link.body0:
+                raise ValueError("recovered nested parent identity is invalid")
             moving_parent_by_link_id[link.link_id] = parent_link.link_id
     _validate_acyclic_moving_parent_graph(moving_parent_by_link_id)
 
@@ -1020,6 +1730,8 @@ def _payload_matches_reconciled_link(
     prim_path: str,
     payload: Mapping[str, Any],
     link: ArticulationTopologyLink,
+    *,
+    endpoint_identities: ArticulationEndpointIdentityIndex | None = None,
 ) -> bool:
     if link.kind == "fixed":
         expected: dict[str, Any] = {
@@ -1086,7 +1798,10 @@ def _payload_matches_reconciled_link(
         return all(
             isinstance(raw_edge, Mapping)
             and _compound_edge_matches_link(
-                _normalize_raw_compound_edge(raw_edge),
+                _canonicalized_compound_edge(
+                    _normalize_raw_compound_edge(raw_edge),
+                    endpoint_identities,
+                ),
                 link,
             )
             for raw_edge in raw_edges
@@ -1438,44 +2153,89 @@ def _candidate_image_records(
 
 
 def _topology_image_records(
-    source_prediction_ids: Sequence[str],
+    evidence_groups: Sequence[ArticulationTopologyEvidenceGroup | str],
     *,
     dataset_index: Mapping[str, Mapping[str, Any]],
     image_base_dir: str | Path | None,
     max_images: int,
     require_complete: bool,
 ) -> _CandidateImageRecords:
-    """Select one resolved render per prim before adding any extra views."""
-    if require_complete and max_images < len(source_prediction_ids):
+    """Select one representative render per evidence group before extra views."""
+    normalized_groups = tuple(
+        group
+        if isinstance(group, ArticulationTopologyEvidenceGroup)
+        else ArticulationTopologyEvidenceGroup(
+            owner_path=None,
+            member_prims=(group,),
+            representative_prim=group,
+        )
+        for group in evidence_groups
+    )
+    if require_complete and max_images < len(normalized_groups):
         raise ValueError(
-            "max_images must allow at least one source render per prediction prim"
+            "max_images must allow at least one render per authoritative topology "
+            "evidence group"
         )
     base_dir = Path(image_base_dir) if image_base_dir else None
-    entries_by_prim: dict[str, list[tuple[Mapping[str, Any], _ResolvedMediaPath]]] = {}
-    for prim_path in source_prediction_ids:
-        prim_render_entries: list[tuple[Mapping[str, Any], _ResolvedMediaPath]] = []
-        reference_entries: list[tuple[Mapping[str, Any], _ResolvedMediaPath]] = []
-        dataset_entry = dataset_index.get(prim_path)
-        if dataset_entry is not None:
+    entries_by_group: list[
+        tuple[
+            ArticulationTopologyEvidenceGroup,
+            list[tuple[str, Mapping[str, Any], _ResolvedMediaPath]],
+        ]
+    ] = []
+    for group in normalized_groups:
+        member_order = (
+            (group.representative_prim,)
+            if group.owner_path is not None
+            else (
+                group.representative_prim,
+                *(
+                    member
+                    for member in group.member_prims
+                    if member != group.representative_prim
+                ),
+            )
+        )
+        render_entries: list[tuple[str, Mapping[str, Any], _ResolvedMediaPath]] = []
+        reference_entries: list[tuple[str, Mapping[str, Any], _ResolvedMediaPath]] = []
+        representative_renders: list[
+            tuple[str, Mapping[str, Any], _ResolvedMediaPath]
+        ] = []
+        for prim_path in member_order:
+            dataset_entry = dataset_index.get(prim_path)
+            if dataset_entry is None:
+                continue
             for image_entry in _iter_dataset_image_entries(dataset_entry):
                 media_path = _resolve_media_path(image_entry.get("path"), base_dir)
-                if media_path is not None and Path(media_path.resolved_path).is_file():
-                    target = (
-                        reference_entries
-                        if str(image_entry.get("type", "")).strip().lower()
-                        == "reference"
-                        else prim_render_entries
-                    )
-                    target.append((image_entry, media_path))
-        if require_complete and not prim_render_entries:
-            raise ValueError(f"source prediction {prim_path!r} has no resolved render")
-        entries_by_prim[prim_path] = [*prim_render_entries, *reference_entries]
+                if media_path is None or not Path(media_path.resolved_path).is_file():
+                    continue
+                record = (prim_path, image_entry, media_path)
+                if str(image_entry.get("type", "")).strip().lower() == "reference":
+                    reference_entries.append(record)
+                else:
+                    render_entries.append(record)
+                    if prim_path == group.representative_prim:
+                        representative_renders.append(record)
+        if require_complete and not representative_renders:
+            group_id = group.owner_path or group.representative_prim
+            raise ValueError(
+                f"topology evidence group {group_id!r} has no resolved "
+                f"representative render for {group.representative_prim!r}"
+            )
+        primary = representative_renders[:1]
+        remaining_renders = [
+            record for record in render_entries if record not in primary
+        ]
+        entries_by_group.append(
+            (group, [*primary, *remaining_renders, *reference_entries])
+        )
 
     records: list[dict[str, Any]] = []
     paths: list[str] = []
     image_index_by_path: dict[str, int] = {}
 
     def add(
+        group: ArticulationTopologyEvidenceGroup,
         prim_path: str,
         entry: Mapping[str, Any],
         media_path: _ResolvedMediaPath,
@@ -1491,39 +2251,41 @@ def _topology_image_records(
             {
                 "image_index": image_index,
                 "source_prediction_id": prim_path,
+                "source_prediction_ids": list(group.member_prims),
+                "source_owner_path": group.owner_path,
+                "representative_prim": group.representative_prim,
                 "path": media_path.prompt_path,
                 "type": entry.get("type"),
                 "metadata": entry.get("metadata", {}),
             }
         )
 
-    for prim_path in source_prediction_ids:
-        resolved_entries = entries_by_prim[prim_path]
+    for group, resolved_entries in entries_by_group:
         if resolved_entries:
-            add(prim_path, *resolved_entries[0])
+            add(group, *resolved_entries[0])
     if require_complete:
         primary_paths = [
-            entries_by_prim[prim_path][0][1].resolved_path
-            for prim_path in source_prediction_ids
+            resolved_entries[0][2].resolved_path
+            for _, resolved_entries in entries_by_group
         ]
         if len(set(primary_paths)) != len(primary_paths):
             raise ValueError(
-                "each source prediction requires a distinct prim-specific render"
+                "each authoritative topology evidence group requires a distinct "
+                "representative render"
             )
-    if require_complete and {
-        record["source_prediction_id"] for record in records
-    } != set(source_prediction_ids):
-        raise ValueError("not every source prediction received an attached render")
+    if require_complete and len(records) != len(normalized_groups):
+        raise ValueError(
+            "not every topology evidence group received an attached render"
+        )
 
     max_extra_views = max(
-        (len(entries) - 1 for entries in entries_by_prim.values()),
+        (len(entries) - 1 for _, entries in entries_by_group),
         default=0,
     )
     for view_index in range(1, max_extra_views + 1):
-        for prim_path in source_prediction_ids:
-            resolved_entries = entries_by_prim[prim_path]
+        for group, resolved_entries in entries_by_group:
             if view_index < len(resolved_entries):
-                add(prim_path, *resolved_entries[view_index])
+                add(group, *resolved_entries[view_index])
     return _CandidateImageRecords(records=records, paths=paths)
 
 
@@ -1670,11 +2432,184 @@ def _topology_source_vocabulary(
             )
     if len(modes) != 1:
         raise ValueError("source structure modes conflict within one asset")
-    if modes != {"hierarchy"}:
-        raise ValueError(
-            "v0 topology reconciliation requires authoritative source hierarchy"
-        )
     return vocabulary
+
+
+def _representative_group_member(
+    owner_path: str,
+    member_prims: Sequence[str],
+) -> str:
+    if owner_path in member_prims:
+        return owner_path
+    return min(member_prims, key=_deterministic_member_key)
+
+
+def _endpoint_identities_from_owner_evidence_groups(
+    groups: Sequence[ArticulationTopologyEvidenceGroup],
+) -> ArticulationEndpointIdentityIndex:
+    """Rebuild exact member-to-owner identities from durable owner receipts."""
+    vocabulary: set[str] = set()
+    canonical_by_path: dict[str, str] = {}
+    owner_by_prediction_path: dict[str, str] = {}
+    for group in groups:
+        owner_path = group.owner_path
+        if owner_path is None:
+            raise ValueError("rigid-body evidence group requires an owner path")
+        vocabulary.add(owner_path)
+        for member in group.member_prims:
+            prior_identity = canonical_by_path.get(member)
+            if prior_identity is not None and prior_identity != owner_path:
+                raise ValueError("owner evidence groups contain conflicting identities")
+            vocabulary.add(member)
+            canonical_by_path[member] = owner_path
+            owner_by_prediction_path[member] = owner_path
+        prior_owner_identity = canonical_by_path.get(owner_path)
+        if prior_owner_identity is not None and prior_owner_identity != owner_path:
+            raise ValueError("owner evidence groups contain a chained identity")
+        canonical_by_path[owner_path] = owner_path
+    return ArticulationEndpointIdentityIndex(
+        structure_mode="rigid_body",
+        vocabulary=tuple(sorted(vocabulary)),
+        canonical_by_path=canonical_by_path,
+        ambiguous_candidates_by_path={},
+        owner_by_prediction_path=owner_by_prediction_path,
+    )
+
+
+def _deterministic_member_key(member: str) -> tuple[int, str, str]:
+    leaf = member.rsplit("/", 1)[-1]
+    return len(leaf), leaf, member
+
+
+def _topology_evidence_plan(
+    source_ids: Sequence[str],
+    metadata_index: Mapping[str, Mapping[str, Any]],
+) -> ArticulationTopologyEvidencePlan:
+    """Build exact evidence groups from authoritative source structure."""
+    _topology_source_vocabulary(source_ids, metadata_index)
+    endpoint_identities = build_articulation_endpoint_identity_index(
+        source_ids,
+        metadata_index,
+    )
+    modes = {
+        _topology_structure_mode(metadata_index[prim_path]) for prim_path in source_ids
+    }
+    [structure_mode] = modes
+    if structure_mode == "hierarchy":
+        return ArticulationTopologyEvidencePlan(
+            grouping_mode="source_prim",
+            groups=tuple(
+                ArticulationTopologyEvidenceGroup(
+                    owner_path=None,
+                    member_prims=(prim_path,),
+                    representative_prim=prim_path,
+                )
+                for prim_path in source_ids
+            ),
+            endpoint_identities=endpoint_identities,
+        )
+
+    members_by_owner: dict[str, list[str]] = {}
+    canonical_endpoints: set[str] | None = None
+    for prim_path in source_ids:
+        structure = _source_structure_payload(metadata_index[prim_path])
+        owner_path = _rigid_body_owner(metadata_index[prim_path])
+        endpoints = set(
+            _absolute_string_list(structure.get("rigid_body_endpoint_paths"))
+        )
+        if not endpoints:
+            raise ValueError(
+                f"authoritative rigid-body endpoint vocabulary is missing for {prim_path}"
+            )
+        if canonical_endpoints is None:
+            canonical_endpoints = endpoints
+        elif endpoints != canonical_endpoints:
+            raise ValueError(
+                "authoritative rigid-body endpoint vocabularies conflict within "
+                "one asset"
+            )
+        if owner_path is None:
+            raise ValueError(
+                f"authoritative rigid-body owner is missing for {prim_path}"
+            )
+        if owner_path not in endpoints:
+            raise ValueError(
+                f"authoritative rigid-body owner {owner_path!r} for {prim_path!r} "
+                "is stale or outside the endpoint vocabulary"
+            )
+        members_by_owner.setdefault(owner_path, []).append(prim_path)
+
+    groups: list[ArticulationTopologyEvidenceGroup] = []
+    for owner_path in sorted(members_by_owner):
+        members = tuple(sorted(members_by_owner[owner_path]))
+        groups.append(
+            ArticulationTopologyEvidenceGroup(
+                owner_path=owner_path,
+                member_prims=members,
+                representative_prim=_representative_group_member(owner_path, members),
+            )
+        )
+    accounted_members = [member for group in groups for member in group.member_prims]
+    if sorted(accounted_members) != sorted(source_ids):
+        raise ValueError(
+            "authoritative rigid-body owner groups do not account for every source "
+            "prediction exactly once"
+        )
+    return ArticulationTopologyEvidencePlan(
+        grouping_mode="rigid_body_owner",
+        groups=tuple(groups),
+        endpoint_identities=endpoint_identities,
+    )
+
+
+def preflight_articulation_topology_reconciliation(
+    dataset_entries: Iterable[Mapping[str, Any]],
+    *,
+    source_metadata: Iterable[Mapping[str, Any]]
+    | Mapping[str, Mapping[str, Any]]
+    | None = None,
+    max_images: int,
+    require_images: bool = True,
+) -> ArticulationTopologyEvidencePlan:
+    """Reject structurally incompatible topology evidence before Stage 1 cost."""
+    dataset_rows = [dict(row) for row in dataset_entries]
+    source_prediction_count = len(dataset_rows)
+    if max_images < 0:
+        raise ArticulationTopologyReconciliationPreflightError(
+            "Topology reconciliation preflight requires max_images to be non-negative",
+            reason="invalid_configuration",
+            source_prediction_count=source_prediction_count,
+            configured_max_images=max_images,
+        )
+    try:
+        source_ids = _source_prediction_ids(dataset_rows)
+        metadata_index = _normalize_topology_source_metadata(
+            source_metadata if source_metadata is not None else dataset_rows,
+            dataset_entries=dataset_rows,
+        )
+        plan = _topology_evidence_plan(source_ids, metadata_index)
+    except (TypeError, ValueError) as exc:
+        raise ArticulationTopologyReconciliationPreflightError(
+            "Topology reconciliation preflight rejected invalid authoritative "
+            f"membership: {exc}",
+            reason="invalid_authoritative_membership",
+            source_prediction_count=source_prediction_count,
+            configured_max_images=max_images,
+        ) from exc
+    if require_images and max_images < plan.required_image_budget:
+        raise ArticulationTopologyReconciliationPreflightError(
+            "Topology reconciliation evidence budget is incompatible with the "
+            f"authoritative {plan.grouping_mode} groups: configured max_images="
+            f"{max_images}, required_image_budget={plan.required_image_budget}. "
+            "Increase max_images to at least the required budget or provide a "
+            "dataset with fewer authoritative physical-link owners.",
+            reason="evidence_budget_exceeded",
+            source_prediction_count=source_prediction_count,
+            configured_max_images=max_images,
+            required_image_budget=plan.required_image_budget,
+            grouping_mode=plan.grouping_mode,
+        )
+    return plan
 
 
 def _topology_prompt_prediction(
@@ -1693,7 +2628,6 @@ def _topology_prompt_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
     structure = _source_structure_payload(metadata)
     allowed_fields = (
         "structure_provenance",
-        "rigid_body_endpoint_paths",
         "rigid_body_owner_path",
         "rigid_body_owner_resolution",
         "rigid_body_hierarchy_gap_paths",
@@ -1734,6 +2668,11 @@ def _validate_topology_reconciliation(
         _topology_structure_mode(source_metadata[prim_path]) for prim_path in source_ids
     }
     [structure_mode] = modes
+    evidence_plan = _topology_evidence_plan(source_ids, source_metadata)
+    endpoint_identities = build_articulation_endpoint_identity_index(
+        source_ids,
+        source_metadata,
+    )
 
     link_ids: set[str] = set()
     member_to_link: dict[str, ArticulationTopologyLink] = {}
@@ -1769,7 +2708,12 @@ def _validate_topology_reconciliation(
         missing = sorted(source_id_set - set(member_to_link))
         raise ValueError(f"topology reconciliation omits source prims: {missing}")
 
-    _validate_owned_core_fixed_projection_compatibility(reconciliation)
+    _validate_authoritative_owner_link_groups(reconciliation, evidence_plan)
+    _validate_owned_core_fixed_projection_compatibility(
+        reconciliation,
+        structure_mode=structure_mode,
+        evidence_plan=evidence_plan,
+    )
 
     endpoint_to_link = dict(member_to_link)
     endpoint_to_link.update(moving_body_to_link)
@@ -1796,8 +2740,15 @@ def _validate_topology_reconciliation(
         if parent_link is link:
             raise ValueError(f"topology link {link.link_id!r} is self-parented")
         if parent_link is not None and parent_link.kind == "moving":
-            if parent_link.anchor_prim != link.body0:
-                raise ValueError(f"nested parent {link.body0!r} is not its link anchor")
+            expected_parent = (
+                parent_link.anchor_prim
+                if structure_mode == "hierarchy"
+                else parent_link.body1
+            )
+            if expected_parent != link.body0:
+                raise ValueError(
+                    f"nested parent {link.body0!r} does not preserve its link identity"
+                )
             moving_parent_by_link_id[link.link_id] = parent_link.link_id
         _validate_source_assembly_containment(
             link,
@@ -1811,14 +2762,16 @@ def _validate_topology_reconciliation(
         source_predictions,
         vocabulary=vocabulary,
         output_key=output_key,
+        endpoint_identities=endpoint_identities,
     )
-    moving_members = {
-        member
+    moving_targets = {
+        target
         for link in reconciliation.links
         if link.kind == "moving"
-        for member in link.member_prims
+        for target in (*link.member_prims, link.body1)
+        if target is not None
     }
-    unassigned_edge_body1s = set(incoming_edges) - moving_members
+    unassigned_edge_body1s = set(incoming_edges) - moving_targets
     if unassigned_edge_body1s:
         raise ValueError(
             "compound edges target fixed or unassigned links: "
@@ -1830,8 +2783,9 @@ def _validate_topology_reconciliation(
         assert link.body0 is not None and link.body1 is not None
         relevant_edges = [
             edge
-            for member in link.member_prims
-            for edge in incoming_edges.get(member, ())
+            for target in dict.fromkeys((*link.member_prims, link.body1))
+            if target is not None
+            for edge in incoming_edges.get(target, ())
         ]
         _validate_semantically_compatible_compound_edges(
             relevant_edges,
@@ -1891,11 +2845,20 @@ def _canonicalize_flat_topology_anchors(
     normalization of any anchor they reference.
     """
     source_ids = _source_prediction_ids(source_predictions)
+    if {
+        _topology_structure_mode(source_metadata[prim_path]) for prim_path in source_ids
+    } == {"rigid_body"}:
+        return reconciliation
     vocabulary = _topology_source_vocabulary(source_ids, source_metadata)
+    endpoint_identities = build_articulation_endpoint_identity_index(
+        source_ids,
+        source_metadata,
+    )
     incoming_edges = _validated_incoming_compound_edges(
         source_predictions,
         vocabulary=vocabulary,
         output_key=output_key,
+        endpoint_identities=endpoint_identities,
     )
     partial_edge_endpoints = {
         endpoint
@@ -1915,14 +2878,7 @@ def _canonicalize_flat_topology_anchors(
         ):
             continue
         assert link.anchor_prim is not None
-        canonical_anchor = min(
-            link.member_prims,
-            key=lambda member: (
-                len(member.rsplit("/", 1)[-1]),
-                member.rsplit("/", 1)[-1],
-                member,
-            ),
-        )
+        canonical_anchor = min(link.member_prims, key=_deterministic_member_key)
         if canonical_anchor != link.anchor_prim:
             replacements[link.anchor_prim] = canonical_anchor
 
@@ -1964,6 +2920,63 @@ def _canonicalize_flat_topology_anchors(
     return reconciliation.model_copy(update={"links": links})
 
 
+def _validate_authoritative_owner_link_groups(
+    document: ArticulationTopologyReconciliationDocument,
+    evidence_plan: ArticulationTopologyEvidencePlan,
+) -> None:
+    """Keep authored rigid-body memberships indivisible and identity-stable."""
+    if evidence_plan.grouping_mode != "rigid_body_owner":
+        return
+    expected_by_members = {
+        frozenset(group.member_prims): group for group in evidence_plan.groups
+    }
+    owner_paths = {
+        group.owner_path
+        for group in evidence_plan.groups
+        if group.owner_path is not None
+    }
+    seen_groups: set[frozenset[str]] = set()
+    external_root_links: list[ArticulationTopologyLink] = []
+    for link in document.links:
+        member_set = frozenset(link.member_prims)
+        group = expected_by_members.get(member_set)
+        if group is None:
+            raise ValueError(
+                f"topology link {link.link_id!r} splits, merges, or substitutes "
+                "authoritative rigid-body owner membership"
+            )
+        if member_set in seen_groups:
+            raise ValueError("topology reconciliation repeats an owner group")
+        seen_groups.add(member_set)
+        if link.kind != "moving":
+            continue
+        if link.anchor_prim != group.representative_prim:
+            raise ValueError(
+                f"topology link {link.link_id!r} replaces deterministic owner "
+                "representative identity"
+            )
+        if link.body1 != group.owner_path:
+            raise ValueError(
+                f"topology link {link.link_id!r} body1 does not match its "
+                "authoritative rigid-body owner"
+            )
+        if link.body0 not in owner_paths:
+            external_root_links.append(link)
+    if external_root_links:
+        if any(link.kind == "fixed" for link in document.links):
+            raise ValueError(
+                "topology reconciliation with a fixed owner cannot use an external "
+                "moving root"
+            )
+        if len(external_root_links) != 1:
+            raise ValueError(
+                "moving-only topology reconciliation must use exactly one external "
+                "root endpoint"
+            )
+    if seen_groups != set(expected_by_members):
+        raise ValueError("topology reconciliation omits an authoritative owner group")
+
+
 def _validate_topology_link_shape(
     link: ArticulationTopologyLink,
     *,
@@ -1995,7 +3008,7 @@ def _validate_topology_link_shape(
         raise ValueError(f"moving link {link.link_id!r} has no supported moving role")
     if link.anchor_prim not in link.member_prims:
         raise ValueError(f"moving link {link.link_id!r} anchor is not a member")
-    if link.body1 != link.anchor_prim:
+    if structure_mode == "hierarchy" and link.body1 != link.anchor_prim:
         raise ValueError(
             f"moving link {link.link_id!r} body1 must equal its sole anchor"
         )
@@ -2005,14 +3018,13 @@ def _validate_topology_link_shape(
         raise ValueError(f"moving link {link.link_id!r} has unsupported joint type")
     if link.axis_hint not in _TOPOLOGY_AXIS_VALUES:
         raise ValueError(f"moving link {link.link_id!r} has unresolved axis")
-    if structure_mode != "hierarchy":
-        raise ValueError(
-            "v0 topology reconciliation requires row-local hierarchy body1 anchors"
-        )
 
 
 def _validate_owned_core_fixed_projection_compatibility(
     document: ArticulationTopologyReconciliationDocument,
+    *,
+    structure_mode: str,
+    evidence_plan: ArticulationTopologyEvidencePlan | None = None,
 ) -> None:
     """Require topology that the owned-core fixed projection can represent."""
     fixed_links = [link for link in document.links if link.kind == "fixed"]
@@ -2050,16 +3062,25 @@ def _validate_owned_core_fixed_projection_compatibility(
                     )
 
     fixed_aliases = {*fixed_link.member_prims, fixed_parent}
-    moving_anchors = {
-        link.anchor_prim
+    if evidence_plan is not None:
+        fixed_members = set(fixed_link.member_prims)
+        fixed_aliases.update(
+            group.owner_path
+            for group in evidence_plan.groups
+            if group.owner_path is not None and set(group.member_prims) == fixed_members
+        )
+    moving_parent_aliases = {
+        link.anchor_prim if structure_mode == "hierarchy" else link.body1
         for link in document.links
-        if link.kind == "moving" and link.anchor_prim is not None
+        if link.kind == "moving"
+        and link.anchor_prim is not None
+        and link.body1 is not None
     }
     for link in document.links:
         if link.kind != "moving":
             continue
         assert link.body0 is not None
-        if link.body0 in moving_anchors:
+        if link.body0 in moving_parent_aliases:
             continue
         if link.body0 not in fixed_aliases:
             raise ValueError(
@@ -2178,11 +3199,27 @@ def _canonical_axis(value: Any) -> str:
     return axis[1:] if axis.startswith("+") else axis
 
 
+def _canonicalized_compound_edge(
+    edge: ArticulationTopologyCompoundEdge,
+    endpoint_identities: ArticulationEndpointIdentityIndex | None,
+) -> ArticulationTopologyCompoundEdge:
+    """Canonicalize one edge through the same shared identity boundary."""
+    if endpoint_identities is None:
+        return edge
+    updates: dict[str, str] = {}
+    for field_name in ("body0", "body1"):
+        resolution = endpoint_identities.resolve((getattr(edge, field_name),))
+        if resolution.outcome == "resolved" and resolution.canonical_path is not None:
+            updates[field_name] = resolution.canonical_path
+    return edge.model_copy(update=updates) if updates else edge
+
+
 def _validated_incoming_compound_edges(
     source_predictions: Sequence[Mapping[str, Any]],
     *,
     vocabulary: set[str],
     output_key: str,
+    endpoint_identities: ArticulationEndpointIdentityIndex | None = None,
 ) -> dict[str, list[ArticulationTopologyCompoundEdge]]:
     incoming: dict[str, list[ArticulationTopologyCompoundEdge]] = {}
     all_edges: list[ArticulationTopologyCompoundEdge] = []
@@ -2193,6 +3230,7 @@ def _validated_incoming_compound_edges(
             if not isinstance(raw_edge, Mapping):
                 raise ValueError("compound edge must be an object")
             edge = _normalize_raw_compound_edge(raw_edge)
+            edge = _canonicalized_compound_edge(edge, endpoint_identities)
             body0 = edge.body0
             body1 = edge.body1
             if body0 not in vocabulary or body1 not in vocabulary or body0 == body1:
@@ -2240,11 +3278,19 @@ def _preserved_matching_compound_edges(
     document: ArticulationTopologyReconciliationDocument,
     *,
     output_key: str,
+    endpoint_identities: ArticulationEndpointIdentityIndex | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Move matching raw edges to their reconciled anchor without rewriting them."""
     link_by_member = {
         member: link for link in document.links for member in link.member_prims
     }
+    link_by_member.update(
+        {
+            link.body1: link
+            for link in document.links
+            if link.kind == "moving" and link.body1 is not None
+        }
+    )
     edge_records: list[
         tuple[
             ArticulationTopologyCompoundEdge,
@@ -2260,6 +3306,7 @@ def _preserved_matching_compound_edges(
             if not isinstance(raw_edge, Mapping):
                 raise ValueError("compound edge must be an object")
             edge = _normalize_raw_compound_edge(raw_edge)
+            edge = _canonicalized_compound_edge(edge, endpoint_identities)
             target_link = link_by_member.get(edge.body1)
             if target_link is None or target_link.kind != "moving":
                 raise ValueError("compound edge targets a fixed or unassigned link")

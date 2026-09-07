@@ -66,11 +66,11 @@ class ConfigValidator:
             get_step_defaults,
         )
         key_schema["steps"]["predict"]["report"] = {}
-        # The structure-analysis step accepts ``llm`` as the legacy/API-facing
-        # alias for its model configuration. Keep it in the diagnostic schema
-        # without adding it to defaults, where a default ``vlm`` would take
-        # precedence over a caller-provided ``llm`` during config merging.
+        # Keep supported non-default structure inputs in the diagnostic schema.
+        # A default ``vlm`` would take precedence over a caller-provided ``llm``;
+        # a default articulation intent would hide whether intent was omitted.
         key_schema["steps"]["analyze_structure"]["llm"] = {}
+        key_schema["steps"]["analyze_structure"]["articulation_intended"] = False
         warn_unknown_nested_config_keys(
             config,
             key_schema,
@@ -219,6 +219,15 @@ class ConfigValidator:
                 raise ValueError(
                     "infer_articulation_candidates.candidate_joint_types "
                     "must be a list of strings"
+                )
+            enable_source_backed_v1_breadth = step_config.get(
+                "enable_source_backed_v1_breadth",
+                False,
+            )
+            if not isinstance(enable_source_backed_v1_breadth, bool):
+                raise ValueError(
+                    "infer_articulation_candidates."
+                    "enable_source_backed_v1_breadth must be a boolean"
                 )
             adjudication = step_config.get("adjudication", {})
             if adjudication is not None and not isinstance(adjudication, dict):
@@ -383,7 +392,11 @@ class ConfigValidator:
                         "apply_joint_rigger.joint_rigger_template must be a "
                         "non-empty string"
                     )
-            for bool_key in ("apply_masses", "apply_collision"):
+            for bool_key in (
+                "apply_masses",
+                "apply_collision",
+                "enable_source_backed_v1_breadth",
+            ):
                 if bool_key not in step_config:
                     continue
                 value = step_config[bool_key]
@@ -399,6 +412,21 @@ class ConfigValidator:
                 raise ValueError(
                     "apply_joint_rigger owned_core is topology-only; apply_masses "
                     "and apply_collision must both be false"
+                )
+            if (
+                step_config.get("enable_source_backed_v1_breadth", False)
+                and adapter != "owned_core"
+            ):
+                raise ValueError(
+                    "apply_joint_rigger.enable_source_backed_v1_breadth requires "
+                    "adapter: owned_core"
+                )
+            if step_config.get(
+                "enable_source_backed_v1_breadth", False
+            ) and not step_config.get("predictions_path"):
+                raise ValueError(
+                    "apply_joint_rigger.enable_source_backed_v1_breadth requires "
+                    "predictions_path"
                 )
 
         if step_name == "author_physics_schemas":

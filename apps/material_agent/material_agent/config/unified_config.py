@@ -17,6 +17,9 @@ from world_understanding.agentic.config import (
     log_config_source,
 )
 from world_understanding.agentic.tasks import Task
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_model_config,
+)
 from world_understanding.utils.credentials import (
     ensure_no_inline_secrets,
     redact_sensitive_config,
@@ -629,7 +632,16 @@ class UnifiedPipelineConfigTask(Task):
             Merged step configuration
         """
         defaults = get_step_defaults(step_name)
-        return self._deep_merge(defaults, user_config)
+        merged = self._deep_merge(defaults, user_config)
+        if step_name in {"benchmark", "generate_material_library", "predict"}:
+            vlm = merged.get("vlm")
+            user_vlm = user_config.get("vlm")
+            if isinstance(vlm, dict):
+                resolve_reasoning_effort_for_model_config(
+                    vlm,
+                    user_vlm if isinstance(user_vlm, dict) else None,
+                )
+        return merged
 
     def _deep_merge(
         self, defaults: dict[str, Any], user_config: dict[str, Any]

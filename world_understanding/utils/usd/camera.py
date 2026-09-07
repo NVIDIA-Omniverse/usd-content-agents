@@ -252,6 +252,7 @@ def compute_camera_framing_position_corners(
     target_x: float | None = None,
     target_y: float | None = None,
     target_z: float | None = None,
+    up_axis: str = "z",
 ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     """
     Computes the position of a camera that fully frames a box from a corner
@@ -281,6 +282,7 @@ def compute_camera_framing_position_corners(
         target_x: Override look-at target X position (scene units)
         target_y: Override look-at target Y position (scene units)
         target_z: Override look-at target Z position (scene units)
+        up_axis: Preferred image-up world axis, ``"z"`` or ``"y"``.
 
     Returns:
         camera_position: (x, y, z) position of the camera
@@ -293,15 +295,17 @@ def compute_camera_framing_position_corners(
     center_y = (bbox_min[1] + bbox_max[1]) / 2.0
     center_z = (bbox_min[2] + bbox_max[2]) / 2.0
 
-    # Compute box size for FoV
-    size_x = bbox_max[0] - bbox_min[0]
-    size_y = bbox_max[1] - bbox_min[1]
-    size_z = bbox_max[2] - bbox_min[2]
-
-    # Apply margins
-    size_x *= margin
-    size_y *= margin
-    size_z *= margin
+    # Compute the margin-expanded box used for framing. Keep the real box for
+    # clipping; this expanded box only controls image-space padding.
+    size_x = (bbox_max[0] - bbox_min[0]) * margin
+    size_y = (bbox_max[1] - bbox_min[1]) * margin
+    size_z = (bbox_max[2] - bbox_min[2]) * margin
+    dimensions = (size_x, size_y, size_z)
+    if (
+        any(not math.isfinite(dimension) or dimension < 0 for dimension in dimensions)
+        or max(dimensions) == 0
+    ):
+        raise ValueError("Bounding box is degenerate (zero size)")
 
     # Apply max_scene_size limit if specified
     if max_scene_size is not None:
@@ -313,33 +317,72 @@ def compute_camera_framing_position_corners(
     fov_x = 2 * math.atan(horizontal_aperture / (2 * focal_length))
     fov_y = 2 * math.atan(vertical_aperture / (2 * focal_length))
 
-    # Compute the bounding "cube" that encompasses the bounding box of the target
-    cube_size = max(size_x, size_y, size_z)
-    half = cube_size / 2.0
+    direction_norm = math.sqrt(sx * sx + sy * sy + sz * sz)
+    if direction_norm == 0:
+        raise ValueError("Camera direction cannot be the zero vector")
+    forward = (sx / direction_norm, sy / direction_norm, sz / direction_norm)
 
-    # Project the box diagonal onto the image plane
-    cube_diag = cube_size * math.sqrt(3)
-    proj_diag = cube_diag / math.sqrt(2)
+    preferred_up = (0.0, 1.0, 0.0) if up_axis.lower() == "y" else (0.0, 0.0, 1.0)
+    fallback_up = (0.0, 0.0, 1.0) if up_axis.lower() == "y" else (0.0, 1.0, 0.0)
+    if abs(sum(a * b for a, b in zip(preferred_up, forward, strict=True))) > 0.999999:
+        preferred_up = fallback_up
 
-    # Compute required distance so that the projected diagonal fits in the FoV
-    min_fov = min(fov_x, fov_y)
-    required_distance = (proj_diag / 2.0) / math.tan(min_fov / 2.0)
-    required_distance = max(required_distance, min_distance)
+    right = (
+        preferred_up[1] * forward[2] - preferred_up[2] * forward[1],
+        preferred_up[2] * forward[0] - preferred_up[0] * forward[2],
+        preferred_up[0] * forward[1] - preferred_up[1] * forward[0],
+    )
+    right_norm = math.sqrt(sum(component * component for component in right))
+    if right_norm == 0:
+        raise ValueError("Camera direction is parallel to both up-axis choices")
+    right = tuple(component / right_norm for component in right)
+    camera_up = (
+        forward[1] * right[2] - forward[2] * right[1],
+        forward[2] * right[0] - forward[0] * right[2],
+        forward[0] * right[1] - forward[1] * right[0],
+    )
 
-    # Place the camera along the weighted direction vector from center
-    x = center_x + sx * half
-    y = center_y + sy * half
-    z = center_z + sz * half
-
-    # Move the camera out from the corner along the vector from center to corner
-    corner_vec = [x - center_x, y - center_y, z - center_z]
-    norm = math.sqrt(sum(c**2 for c in corner_vec))
-    if norm == 0:
-        raise ValueError("Bounding box is degenerate (zero size)")
-    unit_vec = [c / norm for c in corner_vec]
-    camera_x = x + unit_vec[0] * required_distance
-    camera_y = y + unit_vec[1] * required_distance
-    camera_z = z + unit_vec[2] * required_distance
+    # Fit the actual projected box rather than a cube based on its longest
+    # dimension. The cube approximation wastes most of the frame for elongated
+    # assets (tools, cables, rails) and can make their corner evidence tiny.
+    tan_half_x = math.tan(fov_x / 2.0)
+    tan_half_y = math.tan(fov_y / 2.0)
+    half_sizes = (size_x / 2.0, size_y / 2.0, size_z / 2.0)
+    required_distance = 0.0
+    maximum_forward_extent = 0.0
+    for offset_x in (-half_sizes[0], half_sizes[0]):
+        for offset_y in (-half_sizes[1], half_sizes[1]):
+            for offset_z in (-half_sizes[2], half_sizes[2]):
+                offset = (offset_x, offset_y, offset_z)
+                forward_extent = sum(
+                    component * axis
+                    for component, axis in zip(offset, forward, strict=True)
+                )
+                horizontal_extent = abs(
+                    sum(
+                        component * axis
+                        for component, axis in zip(offset, right, strict=True)
+                    )
+                )
+                vertical_extent = abs(
+                    sum(
+                        component * axis
+                        for component, axis in zip(offset, camera_up, strict=True)
+                    )
+                )
+                maximum_forward_extent = max(maximum_forward_extent, forward_extent)
+                required_distance = max(
+                    required_distance,
+                    forward_extent + horizontal_extent / tan_half_x,
+                    forward_extent + vertical_extent / tan_half_y,
+                )
+    required_distance = max(
+        required_distance,
+        maximum_forward_extent + min_distance,
+    )
+    camera_x = center_x + forward[0] * required_distance
+    camera_y = center_y + forward[1] * required_distance
+    camera_z = center_z + forward[2] * required_distance
 
     # Apply per-axis overrides
     if cam_x is not None:
@@ -545,7 +588,7 @@ def _setup_side_view_camera(
 
         if near_clip_final is None:
             # Near plane slightly closer than scene front
-            near_clip_final = max(0.01, dist_to_front * (1.0 - near_clip_margin))
+            near_clip_final = max(1e-6, dist_to_front * (1.0 - near_clip_margin))
 
         if far_clip_final is None:
             # Far plane slightly farther than scene back
@@ -553,8 +596,9 @@ def _setup_side_view_camera(
 
     # Ensure near < far
     if near_clip_final >= far_clip_final:
-        # Add 10% or 0.01, whichever is larger
-        near_adjust = max(0.01, abs(near_clip_final) * 0.1)
+        # Keep the fallback valid for tiny model-space assets. An absolute
+        # 0.01 floor can move the near plane behind a millimeter-scale scene.
+        near_adjust = max(1e-6, abs(near_clip_final) * 0.1)
         far_clip_final = near_clip_final + near_adjust
 
     # Set the final clipping range
@@ -850,6 +894,7 @@ def _setup_corner_view_camera(
         target_x=target_x,
         target_y=target_y,
         target_z=target_z,
+        up_axis=str(UsdGeom.GetStageUpAxis(stage)),
     )
 
     # Create a transform op for the camera
@@ -957,13 +1002,13 @@ def _setup_corner_view_camera(
         min_depth = min(depths)
         max_depth = max(depths)
         if near_clip_final is None:
-            near_clip_final = max(0.01, min_depth * (1.0 - near_clip_margin))
+            near_clip_final = max(1e-6, min_depth * (1.0 - near_clip_margin))
         if far_clip_final is None:
             far_clip_final = max_depth * (1.0 + far_clip_margin)
 
     # Ensure near < far
     if near_clip_final >= far_clip_final:
-        near_adjust = max(0.01, abs(near_clip_final) * 0.1)
+        near_adjust = max(1e-6, abs(near_clip_final) * 0.1)
         far_clip_final = near_clip_final + near_adjust
 
     # Set the final clipping range

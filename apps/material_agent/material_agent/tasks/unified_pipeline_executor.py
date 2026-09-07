@@ -19,11 +19,13 @@ from typing import Any
 from world_understanding.agentic.base_pipeline_executor import (
     BasePipelineExecutor,
     is_valid_pipeline_checkpoint_structure,
+    record_step_failure,
+    record_terminal_step_failure,
+    reject_terminal_pipeline_resume,
     remove_legacy_pipeline_temp_with_safe_diagnostics,
     safe_diagnostic_steps,
     safe_diagnostic_text,
     safe_exception_category,
-    safe_step_failure_message,
 )
 from world_understanding.agentic.config import (
     clone_config_containers,
@@ -36,6 +38,13 @@ from world_understanding.utils.credentials import (
     path_exists_with_safe_diagnostics,
     redact_sensitive_config,
     redact_sensitive_path,
+)
+from world_understanding.utils.model_timeout import (
+    raise_for_terminal_vlm_timeout_result,
+)
+from world_understanding.utils.render_failure_diagnostics import (
+    PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY,
+    trusted_pipeline_failure_diagnostic,
 )
 
 from material_agent.materials import (
@@ -82,6 +91,7 @@ _SALIENT_FALLBACK_COLORS = frozenset(_SALIENT_FALLBACK_COLOR_ALIASES)
 def _build_runtime_pipeline_context(context: dict[str, Any]) -> dict[str, Any]:
     """Return a per-invocation context with isolated mutable step configs."""
     runtime_context = dict(context)
+    runtime_context.pop(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY, None)
     step_configs = context.get("step_configs")
     if isinstance(step_configs, dict):
         runtime_context["step_configs"] = clone_config_containers(step_configs)
@@ -95,6 +105,18 @@ def _propagate_runtime_outputs(
     caller_context.update(
         {key: value for key, value in runtime_context.items() if key != "step_configs"}
     )
+
+
+def _capture_pipeline_failure_diagnostic(
+    destination: dict[str, Any], source: dict[str, Any]
+) -> None:
+    """Carry only an exact code-owned failure marker across a workflow boundary."""
+    destination.pop(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY, None)
+    diagnostic = trusted_pipeline_failure_diagnostic(
+        source.get(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY)
+    )
+    if diagnostic is not None:
+        destination[PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY] = diagnostic
 
 
 def _unlink_with_safe_diagnostics(path: Path, *, label: str) -> bool:
@@ -198,6 +220,10 @@ def _build_child_workflow_context(
         vlm_config = child_config.get("vlm")
         if isinstance(vlm_config, dict):
             step_context["vlm_config"] = vlm_config
+
+    # Resume is a trusted invocation control, not YAML-owned configuration.
+    if step_name in {"predict", "benchmark"}:
+        step_context["resume"] = bool(parent_context.get("resume", False))
 
     # A YAML config must never replace the trusted runtime listener.
     step_context.pop("event_listener", None)
@@ -1872,13 +1898,13 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         step_config: dict[str, Any],
         context: dict[str, Any],
     ) -> dict[str, Any]:
-        from material_agent.tasks.create_materials import CreateMaterialsTask
+        from material_agent.tasks.create_materials import AuthorMaterialsTask
 
         task_context = dict(step_config)
         for key in ("cancel_checker", "event_listener"):
             if key in context:
                 task_context[key] = context[key]
-        result = CreateMaterialsTask().run(task_context)
+        result = AuthorMaterialsTask().run(task_context)
         return self._extract_step_outputs("create_materials", result)
 
     def _clean_pipeline_artifacts(
@@ -1933,6 +1959,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         # graph so retries or concurrent callers can safely reuse their source
         # config.  Opaque renderer/runtime leaves retain identity.
         caller_context = context
+        caller_context.pop(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY, None)
         context = _build_runtime_pipeline_context(caller_context)
 
         # Get event listener (or logger fallback)
@@ -1981,6 +2008,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         pipeline_state = _load_pipeline_state(
             working_dir, session_id, project_name, resume
         )
+        reject_terminal_pipeline_resume(pipeline_state, resume=bool(resume))
         self._activate_generated_material_library(
             pipeline_state.get("step_outputs", {}).get("generate_material_library"),
             context,
@@ -2134,7 +2162,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 raise
 
             except Exception as error:
-                safe_error = safe_step_failure_message(error)
+                # Persist a session-local, secret-scrubbed traceback so the
+                # real cause stays diagnosable. Every public surface (log
+                # line, event, checkpoint, raised message) below remains
+                # value-free exactly as before.
+                safe_error = record_step_failure(working_dir, step_name, error)
+                _capture_pipeline_failure_diagnostic(caller_context, context)
                 # If optimize_usd fails, skip it and continue with the
                 # original USD rather than aborting the whole pipeline.
                 if step_name == "optimize_usd":
@@ -2162,6 +2195,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     continue
 
                 logger.error("✗ Step '%s' failed: %s", safe_step_name, safe_error)
+                record_terminal_step_failure(pipeline_state, step_name, error)
                 pipeline_state["failed_steps"].append(step_name)
                 pipeline_state.setdefault("step_errors", {})[step_name] = safe_error
                 pipeline_state["current_step"] = None
@@ -2242,6 +2276,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         """
         # Match the synchronous path's caller-owned config isolation.
         caller_context = context
+        caller_context.pop(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY, None)
         context = _build_runtime_pipeline_context(caller_context)
 
         # Get event listener (or logger fallback)
@@ -2290,6 +2325,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         pipeline_state = _load_pipeline_state(
             working_dir, session_id, project_name, resume
         )
+        reject_terminal_pipeline_resume(pipeline_state, resume=bool(resume))
         self._activate_generated_material_library(
             pipeline_state.get("step_outputs", {}).get("generate_material_library"),
             context,
@@ -2443,7 +2479,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 raise
 
             except Exception as error:
-                safe_error = safe_step_failure_message(error)
+                # Persist a session-local, secret-scrubbed traceback so the
+                # real cause stays diagnosable. Every public surface (log
+                # line, event, checkpoint, raised message) below remains
+                # value-free exactly as before.
+                safe_error = record_step_failure(working_dir, step_name, error)
+                _capture_pipeline_failure_diagnostic(caller_context, context)
                 # If optimize_usd fails, skip it and continue with the
                 # original USD rather than aborting the whole pipeline.
                 if step_name == "optimize_usd":
@@ -2471,6 +2512,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     continue
 
                 logger.error("✗ Step '%s' failed: %s", safe_step_name, safe_error)
+                record_terminal_step_failure(pipeline_state, step_name, error)
                 pipeline_state["failed_steps"].append(step_name)
                 pipeline_state.setdefault("step_errors", {})[step_name] = safe_error
                 pipeline_state["current_step"] = None
@@ -2560,6 +2602,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         Returns:
             Dictionary with relevant outputs
         """
+        context.pop(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY, None)
+
         # Auto-wire outputs from previous steps if needed
         step_outputs = pipeline_state.get("step_outputs", {})
 
@@ -2578,7 +2622,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired input_usd_path for optimize_usd "
                         "from validate_input fix: %s",
-                        fixed_path,
+                        safe_diagnostic_text(fixed_path),
                     )
                 elif (
                     step_name
@@ -2598,7 +2642,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         "fix (optimize_usd not in pipeline): %s",
                         input_key,
                         step_name,
-                        fixed_path,
+                        safe_diagnostic_text(fixed_path),
                     )
 
         # Auto-wire optimized USD for steps that consume USD files
@@ -2627,7 +2671,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         "Auto-wired %s for %s from optimize_usd: %s",
                         input_key,
                         step_name,
-                        optimized_usd_path,
+                        safe_diagnostic_text(optimized_usd_path),
                     )
                     step_config[input_key] = str(optimized_usd_path)
             elif "optimize_usd_skipped_original_input" in pipeline_state:
@@ -2641,7 +2685,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         "Auto-wired %s for %s to original (optimize_usd skipped): %s",
                         input_key,
                         step_name,
-                        original_usd,
+                        safe_diagnostic_text(original_usd),
                     )
                     step_config[input_key] = str(original_usd)
 
@@ -2657,7 +2701,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if original_usd_path:
                         logger.info(
                             "Auto-wired input_usd_path back to original after restore_usd: %s",
-                            original_usd_path,
+                            safe_diagnostic_text(original_usd_path),
                         )
                         step_config["input_usd_path"] = str(original_usd_path)
 
@@ -2669,7 +2713,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired predictions_path for %s from restore_usd: %s",
                         step_name,
-                        restored_predictions_path,
+                        safe_diagnostic_text(restored_predictions_path),
                     )
                     step_config["predictions_path"] = str(restored_predictions_path)
             else:
@@ -2680,7 +2724,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired predictions_path for %s from create_materials: %s",
                         step_name,
-                        created_predictions_path,
+                        safe_diagnostic_text(created_predictions_path),
                     )
                     step_config["predictions_path"] = str(created_predictions_path)
 
@@ -2822,12 +2866,13 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if not predictions_path.exists():
                         logger.warning(
                             "predictions_path not found at %s - evaluate step may fail",
-                            predictions_path,
+                            safe_diagnostic_text(predictions_path),
                         )
 
                 if predictions_path:
                     logger.info(
-                        "Auto-wired predictions_path to evaluate: %s", predictions_path
+                        "Auto-wired predictions_path to evaluate: %s",
+                        safe_diagnostic_text(predictions_path),
                     )
                     step_config["predictions_path"] = str(predictions_path)
 
@@ -2847,11 +2892,14 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if not dataset_path.exists():
                         logger.warning(
                             "dataset_path not found at %s - ground truth may not be available",
-                            dataset_path,
+                            safe_diagnostic_text(dataset_path),
                         )
 
                 if dataset_path:
-                    logger.info("Auto-wired dataset_path to evaluate: %s", dataset_path)
+                    logger.info(
+                        "Auto-wired dataset_path to evaluate: %s",
+                        safe_diagnostic_text(dataset_path),
+                    )
                     step_config["dataset_path"] = str(dataset_path)
 
             # Auto-wire system_prompt_file
@@ -2870,20 +2918,24 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if not vlm_prompt_path.exists():
                         logger.debug(
                             "system_prompt_file not found at %s - will not be included in report",
-                            vlm_prompt_path,
+                            safe_diagnostic_text(vlm_prompt_path),
                         )
                         vlm_prompt_path = None
 
                 if vlm_prompt_path:
                     logger.info(
-                        "Auto-wired system_prompt_file to evaluate: %s", vlm_prompt_path
+                        "Auto-wired system_prompt_file to evaluate: %s",
+                        safe_diagnostic_text(vlm_prompt_path),
                     )
                     step_config["system_prompt_file"] = str(vlm_prompt_path)
 
             # Auto-wire output_dir from working_dir
             if "output_dir" not in step_config:
                 output_dir = working_dir / "evaluation"
-                logger.info("Auto-wired output_dir to evaluate: %s", output_dir)
+                logger.info(
+                    "Auto-wired output_dir to evaluate: %s",
+                    safe_diagnostic_text(output_dir),
+                )
                 step_config["output_dir"] = str(output_dir)
 
         # Auto-wire outputs from restore_usd/apply/refine step for render step
@@ -2917,7 +2969,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired input_usd_path to render from %s: %s",
                         source_step,
-                        usd_path,
+                        safe_diagnostic_text(usd_path),
                     )
                     step_config["input_usd_path"] = str(usd_path)
 
@@ -2935,7 +2987,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["original_usd_path"] = str(original_usd_path)
                     logger.info(
                         "Auto-wired original_usd_path from optimize_usd: %s",
-                        original_usd_path,
+                        safe_diagnostic_text(original_usd_path),
                     )
             else:
                 # Fallback to path_resolver if optimize_usd didn't run
@@ -2944,7 +2996,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["original_usd_path"] = str(path_resolver.input_usd)
                     logger.info(
                         "Auto-wired original_usd_path from input: %s",
-                        path_resolver.input_usd,
+                        safe_diagnostic_text(path_resolver.input_usd),
                     )
 
             # Auto-wire predictions — prefer harmonized > validated > raw
@@ -2969,7 +3021,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
                 if predictions_path:
                     logger.info(
-                        "Auto-wired predictions_path to restore: %s", predictions_path
+                        "Auto-wired predictions_path to restore: %s",
+                        safe_diagnostic_text(predictions_path),
                     )
                     step_config["predictions_path"] = str(predictions_path)
                 else:
@@ -2983,7 +3036,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 )
                 logger.info(
                     "Auto-wired output_predictions_path to restore: %s",
-                    output_predictions_path,
+                    safe_diagnostic_text(output_predictions_path),
                 )
                 step_config["output_predictions_path"] = str(output_predictions_path)
 
@@ -3005,7 +3058,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 else:
                     logger.warning(
                         "No optimization metadata found at %s - restore_usd may not work correctly",
-                        optimization_metadata_path,
+                        safe_diagnostic_text(optimization_metadata_path),
                     )
 
         # Auto-wire validate_output with output USD and original USD paths
@@ -3021,7 +3074,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["input_usd_path"] = str(usd_path)
                     logger.info(
                         "Auto-wired input_usd_path to validate_output from refine: %s",
-                        usd_path,
+                        safe_diagnostic_text(usd_path),
                     )
             elif "apply" in step_outputs:
                 usd_path = step_outputs["apply"].get("output_usd_path")
@@ -3029,7 +3082,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["input_usd_path"] = str(usd_path)
                     logger.info(
                         "Auto-wired input_usd_path to validate_output from apply: %s",
-                        usd_path,
+                        safe_diagnostic_text(usd_path),
                     )
 
             # Auto-wire original USD path for baseline comparison
@@ -3041,7 +3094,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         step_config["original_usd_path"] = str(original)
                         logger.info(
                             "Auto-wired original_usd_path to validate_output: %s",
-                            original,
+                            safe_diagnostic_text(original),
                         )
                 else:
                     # Fall back to path_resolver's original input
@@ -3056,7 +3109,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                             step_config["original_usd_path"] = str(resolved)
                             logger.info(
                                 "Auto-wired original_usd_path to validate_output from config: %s",
-                                resolved,
+                                safe_diagnostic_text(resolved),
                             )
 
             # Inject cached baseline from validate_input (avoids re-validating input).
@@ -3076,7 +3129,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "validate_input used fix — baseline will be "
                         "re-validated from fixed input: %s",
-                        fixed_path,
+                        safe_diagnostic_text(fixed_path),
                     )
                 else:
                     baseline_result = vi_outputs.get("validation_result")
@@ -3215,6 +3268,10 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 f"Step '{step_name}' did not complete successfully - workflow returned empty result"
             )
 
+        _capture_pipeline_failure_diagnostic(context, result)
+
+        raise_for_terminal_vlm_timeout_result(result)
+
         # Check if workflow encountered errors
         if result.get("error") or result.get("workflow_terminated"):
             failed_task = result.get("failed_task", "unknown")
@@ -3259,6 +3316,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
         Returns:
             Dictionary with relevant outputs
         """
+        context.pop(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY, None)
+
         # Auto-wire outputs from previous steps if needed
         step_outputs = pipeline_state.get("step_outputs", {})
 
@@ -3277,7 +3336,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired input_usd_path for optimize_usd "
                         "from validate_input fix: %s",
-                        fixed_path,
+                        safe_diagnostic_text(fixed_path),
                     )
                 elif (
                     step_name
@@ -3297,7 +3356,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         "fix (optimize_usd not in pipeline): %s",
                         input_key,
                         step_name,
-                        fixed_path,
+                        safe_diagnostic_text(fixed_path),
                     )
 
         # Auto-wire optimized USD for steps that consume USD files
@@ -3326,7 +3385,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         "Auto-wired %s for %s from optimize_usd: %s",
                         input_key,
                         step_name,
-                        optimized_usd_path,
+                        safe_diagnostic_text(optimized_usd_path),
                     )
                     step_config[input_key] = str(optimized_usd_path)
             elif "optimize_usd_skipped_original_input" in pipeline_state:
@@ -3340,7 +3399,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         "Auto-wired %s for %s to original (optimize_usd skipped): %s",
                         input_key,
                         step_name,
-                        original_usd,
+                        safe_diagnostic_text(original_usd),
                     )
                     step_config[input_key] = str(original_usd)
 
@@ -3356,7 +3415,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if original_usd_path:
                         logger.info(
                             "Auto-wired input_usd_path back to original after restore_usd: %s",
-                            original_usd_path,
+                            safe_diagnostic_text(original_usd_path),
                         )
                         step_config["input_usd_path"] = str(original_usd_path)
 
@@ -3368,7 +3427,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired predictions_path for %s from restore_usd: %s",
                         step_name,
-                        restored_predictions_path,
+                        safe_diagnostic_text(restored_predictions_path),
                     )
                     step_config["predictions_path"] = str(restored_predictions_path)
             else:
@@ -3379,7 +3438,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired predictions_path for %s from create_materials: %s",
                         step_name,
-                        created_predictions_path,
+                        safe_diagnostic_text(created_predictions_path),
                     )
                     step_config["predictions_path"] = str(created_predictions_path)
 
@@ -3521,12 +3580,13 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if not predictions_path.exists():
                         logger.warning(
                             "predictions_path not found at %s - evaluate step may fail",
-                            predictions_path,
+                            safe_diagnostic_text(predictions_path),
                         )
 
                 if predictions_path:
                     logger.info(
-                        "Auto-wired predictions_path to evaluate: %s", predictions_path
+                        "Auto-wired predictions_path to evaluate: %s",
+                        safe_diagnostic_text(predictions_path),
                     )
                     step_config["predictions_path"] = str(predictions_path)
 
@@ -3546,11 +3606,14 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if not dataset_path.exists():
                         logger.warning(
                             "dataset_path not found at %s - ground truth may not be available",
-                            dataset_path,
+                            safe_diagnostic_text(dataset_path),
                         )
 
                 if dataset_path:
-                    logger.info("Auto-wired dataset_path to evaluate: %s", dataset_path)
+                    logger.info(
+                        "Auto-wired dataset_path to evaluate: %s",
+                        safe_diagnostic_text(dataset_path),
+                    )
                     step_config["dataset_path"] = str(dataset_path)
 
             # Auto-wire system_prompt_file
@@ -3569,20 +3632,24 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     if not vlm_prompt_path.exists():
                         logger.debug(
                             "system_prompt_file not found at %s - will not be included in report",
-                            vlm_prompt_path,
+                            safe_diagnostic_text(vlm_prompt_path),
                         )
                         vlm_prompt_path = None
 
                 if vlm_prompt_path:
                     logger.info(
-                        "Auto-wired system_prompt_file to evaluate: %s", vlm_prompt_path
+                        "Auto-wired system_prompt_file to evaluate: %s",
+                        safe_diagnostic_text(vlm_prompt_path),
                     )
                     step_config["system_prompt_file"] = str(vlm_prompt_path)
 
             # Auto-wire output_dir from working_dir
             if "output_dir" not in step_config:
                 output_dir = working_dir / "evaluation"
-                logger.info("Auto-wired output_dir to evaluate: %s", output_dir)
+                logger.info(
+                    "Auto-wired output_dir to evaluate: %s",
+                    safe_diagnostic_text(output_dir),
+                )
                 step_config["output_dir"] = str(output_dir)
 
         # Auto-wire outputs from restore_usd/apply/refine step for render step
@@ -3616,7 +3683,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "Auto-wired input_usd_path to render from %s: %s",
                         source_step,
-                        usd_path,
+                        safe_diagnostic_text(usd_path),
                     )
                     step_config["input_usd_path"] = str(usd_path)
 
@@ -3634,7 +3701,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["original_usd_path"] = str(original_usd_path)
                     logger.info(
                         "Auto-wired original_usd_path from optimize_usd: %s",
-                        original_usd_path,
+                        safe_diagnostic_text(original_usd_path),
                     )
             else:
                 # Fallback to path_resolver if optimize_usd didn't run
@@ -3643,7 +3710,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["original_usd_path"] = str(path_resolver.input_usd)
                     logger.info(
                         "Auto-wired original_usd_path from input: %s",
-                        path_resolver.input_usd,
+                        safe_diagnostic_text(path_resolver.input_usd),
                     )
 
             # Auto-wire predictions — prefer harmonized > validated > raw
@@ -3668,7 +3735,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
                 if predictions_path:
                     logger.info(
-                        "Auto-wired predictions_path to restore: %s", predictions_path
+                        "Auto-wired predictions_path to restore: %s",
+                        safe_diagnostic_text(predictions_path),
                     )
                     step_config["predictions_path"] = str(predictions_path)
                 else:
@@ -3682,7 +3750,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 )
                 logger.info(
                     "Auto-wired output_predictions_path to restore: %s",
-                    output_predictions_path,
+                    safe_diagnostic_text(output_predictions_path),
                 )
                 step_config["output_predictions_path"] = str(output_predictions_path)
 
@@ -3704,7 +3772,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 else:
                     logger.warning(
                         "No optimization metadata found at %s - restore_usd may not work correctly",
-                        optimization_metadata_path,
+                        safe_diagnostic_text(optimization_metadata_path),
                     )
 
         # Auto-wire validate_output with output USD and original USD paths
@@ -3720,7 +3788,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["input_usd_path"] = str(usd_path)
                     logger.info(
                         "Auto-wired input_usd_path to validate_output from refine: %s",
-                        usd_path,
+                        safe_diagnostic_text(usd_path),
                     )
             elif "apply" in step_outputs:
                 usd_path = step_outputs["apply"].get("output_usd_path")
@@ -3728,7 +3796,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_config["input_usd_path"] = str(usd_path)
                     logger.info(
                         "Auto-wired input_usd_path to validate_output from apply: %s",
-                        usd_path,
+                        safe_diagnostic_text(usd_path),
                     )
 
             # Auto-wire original USD path for baseline comparison
@@ -3740,7 +3808,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                         step_config["original_usd_path"] = str(original)
                         logger.info(
                             "Auto-wired original_usd_path to validate_output: %s",
-                            original,
+                            safe_diagnostic_text(original),
                         )
                 else:
                     # Fall back to path_resolver's original input
@@ -3755,7 +3823,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                             step_config["original_usd_path"] = str(resolved)
                             logger.info(
                                 "Auto-wired original_usd_path to validate_output from config: %s",
-                                resolved,
+                                safe_diagnostic_text(resolved),
                             )
 
             # Inject cached baseline from validate_input (avoids re-validating input).
@@ -3775,7 +3843,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     logger.info(
                         "validate_input used fix — baseline will be "
                         "re-validated from fixed input: %s",
-                        fixed_path,
+                        safe_diagnostic_text(fixed_path),
                     )
                 else:
                     baseline_result = vi_outputs.get("validation_result")
@@ -3941,6 +4009,10 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             raise RuntimeError(
                 f"Step '{step_name}' did not complete successfully - workflow returned empty result"
             )
+
+        _capture_pipeline_failure_diagnostic(context, result)
+
+        raise_for_terminal_vlm_timeout_result(result)
 
         # Check if workflow encountered errors
         if result.get("error") or result.get("workflow_terminated"):

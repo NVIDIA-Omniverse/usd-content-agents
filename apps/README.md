@@ -1,6 +1,12 @@
 # Content Agents Applications
 
-The public applications are organized by agent and deployment surface:
+The directories below contain the explicit fixed pipeline applications and service
+interfaces. In Content Agents 0.6, unqualified supported asset tasks start from
+the repository root with `content-workflow-cli`; choose an `apps/*_agent`
+interface when the user explicitly needs YAML configuration, the fixed pipeline step
+sequence, Python APIs, benchmarks, or REST compatibility.
+
+The fixed pipeline applications are organized by agent and deployment surface:
 
 | Agent | Local CLI and configuration | REST service | Release scope |
 |---|---|---|---|

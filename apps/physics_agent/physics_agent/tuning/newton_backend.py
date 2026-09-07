@@ -47,8 +47,12 @@ class NewtonBackend:
         # CLI --help etc. The simulator constructor is light but newton's
         # first kernel compile is slow — held back until ``evaluate``.
         self._simulator: NewtonSimulator | None = None
+        self._ground_clearance_support_cache: dict[str, dict[str, Any]] = {}
         self.judge_callback: Any | None = None
         self.final_state_judge: Any | None = None
+        # Extra TRUSTED roots for per-trial scene export (set externally
+        # by run_tune from TuneInput.approved_dependency_roots).
+        self.extra_approved_dependency_roots: tuple[Path, ...] = ()
 
     def _get_simulator(self) -> NewtonSimulator:
         if self._simulator is None:
@@ -99,10 +103,22 @@ class NewtonBackend:
             )
         evaluator = resolve(scenario.name)
         kwargs: dict[str, Any] = {"simulator": self._get_simulator()}
+        if scenario.name in {"freeform", "drop_settle"}:
+            kwargs["extra_approved_dependency_roots"] = tuple(
+                self.extra_approved_dependency_roots
+            )
         if scenario.name == "freeform":
             kwargs["judge_callback"] = self.judge_callback
         elif scenario.name == "drop_settle":
             kwargs["final_state_judge"] = self.final_state_judge
+            kwargs["ground_clearance_support_cache"] = (
+                self._ground_clearance_support_cache
+            )
+            # Use the unchanged tuning input rather than a trial's patched USD
+            # so geometry support is selected once for the whole tune session.
+            kwargs["ground_clearance_support_cache_key"] = (
+                f"physics_usd:{Path(physics_usd).resolve()}"
+            )
         return evaluator(
             params=dict(params),
             scenario=scenario,
@@ -118,3 +134,6 @@ class NewtonBackend:
         if self._simulator is not None:
             self._simulator.shutdown()
             self._simulator = None
+        cache = getattr(self, "_ground_clearance_support_cache", None)
+        if cache is not None:
+            cache.clear()

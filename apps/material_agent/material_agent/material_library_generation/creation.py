@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import struct
 import threading
@@ -14,8 +13,13 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from material_agent.material_library_generation.authoring import (
+    MaterialAuthoringOperation,
+    MaterialAuthoringRequest,
+    MaterialPackageAuthoringError,
+    MaterialRecipeSemantics,
+    write_material_package_files,
+)
 from material_agent.material_library_generation.creation_contract import (
     MATERIAL_CREATION_MANIFEST_NAME,
     MATERIAL_CREATION_SCHEMA_VERSION,
@@ -50,7 +54,6 @@ from material_agent.material_library_generation.usd_authoring import (
     MaterialAuthoringError,
     inspect_material_library_authoring,
     require_material_authoring_prerequisites,
-    write_material_library_usd,
 )
 from material_agent.material_profiles import normalize_material_profile
 
@@ -114,13 +117,8 @@ def _authoring_creation_error(
     *,
     backend: str,
 ) -> MaterialCreationError:
-    prerequisite = error.code == "OPENPBR_MATERIALX_AUTHORING_UNAVAILABLE"
     return MaterialCreationError(
-        (
-            MaterialCreationErrorCode.BACKEND_UNAVAILABLE
-            if prerequisite
-            else MaterialCreationErrorCode.INVALID_OUTPUT
-        ),
+        MaterialCreationErrorCode.INVALID_OUTPUT,
         str(error),
         backend=backend,
         retryable=False,
@@ -129,7 +127,7 @@ def _authoring_creation_error(
                 code=error.code,
                 message=str(error),
                 severity=MaterialDiagnosticSeverity.ERROR,
-                phase="authoring_preflight" if prerequisite else "authoring_validation",
+                phase="authoring_validation",
                 retryable=False,
                 details=error.to_dict()["details"],
             ),
@@ -205,24 +203,28 @@ def create_material_package(
         )
         _validate_backend_result(result, request, backend, conditioning=conditioning)
         packaged_artifacts = _packaged_artifacts(result, layout)
-        generated = _generated_material(request, packaged_artifacts)
-
-        authoring_evidence: dict[str, Any] = {}
-        write_material_library_usd(
-            layout.material_usd_path,
-            (generated,),
-            material_profile=normalized_material_profile,
-            authoring_evidence=authoring_evidence,
-        )
         material_list_entry = CreatedMaterialListEntry.for_request(
             request,
             creation_manifest=Path(MATERIAL_CREATION_MANIFEST_NAME),
             provenance=result.provenance,
         )
-        _write_materials_manifest(
-            layout.materials_manifest_path,
-            layout.material_usd_path,
-            material_list_entry,
+        generated = _generated_material(request, packaged_artifacts)
+        authored_package = write_material_package_files(
+            MaterialAuthoringRequest(
+                operation=MaterialAuthoringOperation.CREATE,
+                recipe=request.recipe,
+                textures=generated.textures,
+                target_prim_paths=request.target_prim_paths,
+                material_profile=normalized_material_profile,
+                recipe_semantics=MaterialRecipeSemantics.GENERATION_HINTS,
+            ),
+            layout.package_dir,
+            material_list_entry=material_list_entry.to_dict(),
+        )
+        authoring_evidence = inspect_material_library_authoring(
+            authored_package.material_usd_path,
+            (generated,),
+            material_profile=normalized_material_profile,
         )
         validation = _validate_created_material_package(layout, packaged_artifacts)
         created = CreatedMaterial(
@@ -249,10 +251,17 @@ def create_material_package(
         if created_package_dir:
             shutil.rmtree(layout.package_dir, ignore_errors=True)
         raise
-    except MaterialAuthoringError as exc:
+    except (MaterialAuthoringError, MaterialPackageAuthoringError) as exc:
         if created_package_dir:
             shutil.rmtree(layout.package_dir, ignore_errors=True)
-        raise _authoring_creation_error(exc, backend=backend.name) from exc
+        if isinstance(exc, MaterialAuthoringError):
+            raise _authoring_creation_error(exc, backend=backend.name) from exc
+        raise MaterialCreationError(
+            MaterialCreationErrorCode.INVALID_OUTPUT,
+            str(exc),
+            backend=backend.name,
+            retryable=False,
+        ) from exc
     except Exception as exc:
         if created_package_dir:
             shutil.rmtree(layout.package_dir, ignore_errors=True)
@@ -419,20 +428,6 @@ def _generated_material(
             orm=paths[MaterialChannel.ORM],
         ),
     )
-
-
-def _write_materials_manifest(
-    manifest_path: Path,
-    library_path: Path,
-    entry: CreatedMaterialListEntry,
-) -> None:
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    data = {
-        "library_path": _relative_path(library_path, manifest_path.parent),
-        "entries": [entry.to_dict()],
-    }
-    with manifest_path.open("w", encoding="utf-8") as stream:
-        yaml.safe_dump(data, stream, sort_keys=False)
 
 
 def _validate_created_material_package(
@@ -777,10 +772,6 @@ def _validate_package_path(path: Path, package_dir: Path) -> None:
             f"Material package path is outside the package directory: {path}",
             retryable=False,
         ) from exc
-
-
-def _relative_path(path: Path, base_dir: Path) -> str:
-    return os.path.relpath(path.resolve(), base_dir.resolve()).replace("\\", "/")
 
 
 def _png_chunk(kind: bytes, payload: bytes) -> bytes:

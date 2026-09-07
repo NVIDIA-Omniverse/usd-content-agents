@@ -1128,6 +1128,9 @@ def test_asset_resolution_helpers_cover_file_urls_and_missing_paths(
         )
         assert material_utils._safe_exists("bad-path") is False
     assert material_utils._is_non_local_asset_uri("https://example.com/a.mdl")
+    assert material_utils._is_non_local_asset_uri("omniverse://server/a.mdl")
+    assert not material_utils._is_non_local_asset_uri("file:///tmp/a.mdl")
+    assert not material_utils._is_non_local_asset_uri(r"C:\assets\a.mdl")
 
 
 def test_mdl_asset_discovery_covers_remote_empty_and_stringified_values(
@@ -1243,6 +1246,7 @@ def test_package_texture_localization_covers_skip_and_extract_errors(
     class _FakeRootLayer:
         realPath = ""
         identifier = ""
+        rootPrims: list[object] = []
 
     class _FakeInstanceProxyPrim:
         def IsInstanceProxy(self) -> bool:
@@ -1393,6 +1397,9 @@ def test_texture_asset_discovery_covers_duplicates_and_stringified_values(
         def Get(self) -> object:
             return self._value
 
+        def GetTimeSamples(self) -> list[float]:
+            return []
+
         def GetName(self) -> str:
             return "inputs:file"
 
@@ -1411,7 +1418,7 @@ def test_texture_asset_discovery_covers_duplicates_and_stringified_values(
             return [_FakeTexturePrim(None), _FakeTexturePrim(_PathRaises())]
 
         def GetRootLayer(self) -> object:
-            return types.SimpleNamespace(realPath="")
+            return types.SimpleNamespace(realPath="", rootPrims=[])
 
     assert material_utils.get_local_texture_file_assets(
         _FakeTextureStage(),

@@ -22,7 +22,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -39,8 +39,15 @@ all = [
 [project.scripts]
 joint-agent = "joint_agent.cli:app"
 
+[project.entry-points."content_agent_workflows.asset_leaf_runtime_bundles"]
+articulation = "content_agent_workflows.articulation.asset_leaf_adapter:articulation_asset_leaf_runtime_bundle"
+
 [tool.hatch.build.targets.wheel]
 packages = ["joint_agent"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"joint_agent/data/joint_capability_manifest.json" = "joint_agent/data/joint_capability_manifest.json"
+"joint_agent/data/dynamic_qualification_profile_registry_v1.json" = "joint_agent/data/dynamic_qualification_profile_registry_v1.json"
 
 [tool.ruff]
 # Match world-understanding's ruff configuration
@@ -100,6 +107,9 @@ branch = true
 omit = [
     "*/tests/*",
     "*/__init__.py",
+    # This execve-only -I/-S supervisor cannot load in-process coverage hooks;
+    # its packaged behavior is exercised through the bounded client tests.
+    "*/internal/articulation_v2_static_gate3_process_supervisor.py",
 ]
 
 [tool.coverage.report]

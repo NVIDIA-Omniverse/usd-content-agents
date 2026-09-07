@@ -48,11 +48,13 @@ def test_generate_texture_prompts_uses_fallback_when_llm_raises() -> None:
         def invoke(self, _messages):
             raise RuntimeError("boom")
 
+    fallback_material_names: set[str] = set()
     result = prompt_generation.generate_texture_prompts(
         materials=[_make_material("Paint_Blue")],
         llm=BrokenLLM(),
         user_prompt="weathered",
         default_opacity=0.72,
+        fallback_material_names=fallback_material_names,
     )
 
     # Fallback template leads with the user's aesthetic direction and
@@ -64,6 +66,7 @@ def test_generate_texture_prompts_uses_fallback_when_llm_raises() -> None:
             "opacity": 0.72,
         }
     }
+    assert fallback_material_names == {"Paint_Blue"}
 
 
 def test_fallback_prompt_without_user_prompt() -> None:
@@ -88,6 +91,7 @@ def test_generate_texture_prompts_normalizes_result(monkeypatch) -> None:
         def invoke(self, _messages):
             return SimpleNamespace(content="{json}")
 
+    fallback_material_names: set[str] = set()
     result = prompt_generation.generate_texture_prompts(
         materials=[
             _make_material("Steel_Panel"),
@@ -96,6 +100,7 @@ def test_generate_texture_prompts_normalizes_result(monkeypatch) -> None:
         llm=FakeLLM(),
         user_prompt="factory fresh",
         default_opacity=0.8,
+        fallback_material_names=fallback_material_names,
     )
 
     assert result["Steel_Panel"] == {"prompt": "brushed steel", "opacity": 1.0}
@@ -103,6 +108,7 @@ def test_generate_texture_prompts_normalizes_result(monkeypatch) -> None:
         "factory fresh, applied to plastic handle"
     )
     assert result["Plastic_Handle"]["opacity"] == 0.3
+    assert fallback_material_names == {"Plastic_Handle"}
 
 
 def test_generate_texture_prompts_uses_fallback_when_parse_fails(monkeypatch) -> None:

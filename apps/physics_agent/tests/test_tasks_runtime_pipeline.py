@@ -62,6 +62,8 @@ class MemoryObjectStore:
 
 
 class FakeVLM:
+    has_bounded_request_timeout = True
+
     def __init__(self, response: str = "") -> None:
         self.response = response
         self.calls: list[dict[str, object]] = []

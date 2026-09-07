@@ -10,6 +10,10 @@ from typing import BinaryIO, Protocol
 METADATA_KEY = "session.json"
 
 
+class SessionStoragePathError(RuntimeError):
+    """Raised when the configured local session-storage path is unsafe."""
+
+
 def _prune_local_snapshot(
     local_dir: Path,
     prefix: str,

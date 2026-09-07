@@ -91,17 +91,49 @@ def test_create_remote_backend_forwards_only_remote_options(
             "base_url": "https://render.example",
             "timeout": 5,
             "material_target": "preview_surface",
+            "num_sensor_updates": 64,
+            "render_mode": "pt",
             "device": "ignored",
         },
     )
 
     assert isinstance(backend, _Backend)
     assert backend.kwargs == {
-        "api_key": "test-key",
+        "api_key": "",
         "base_url": "https://render.example",
         "timeout": 5,
         "material_target": "preview_surface",
+        "num_sensor_updates": 64,
+        "render_mode": "pt",
     }
+
+
+def test_create_remote_backend_forwards_ngc_key_only_to_nvidia_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("NGC_API_KEY", "test-key")
+    monkeypatch.setattr(factory, "RemoteRenderingBackend", _Backend)
+
+    backend = factory.create_rendering_backend(
+        "remote",
+        {"base_url": "https://renderer.invocation.api.nvcf.nvidia.com"},
+    )
+
+    assert isinstance(backend, _Backend)
+    assert backend.kwargs["api_key"] == "test-key"
+
+
+def test_create_remote_backend_does_not_forward_ngc_key_to_render_endpoint_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("NGC_API_KEY", "test-key")
+    monkeypatch.setenv("RENDER_ENDPOINT", "http://local-renderer:8000")
+    monkeypatch.setattr(factory, "RemoteRenderingBackend", _Backend)
+
+    backend = factory.create_rendering_backend("remote")
+
+    assert isinstance(backend, _Backend)
+    assert backend.kwargs["api_key"] == ""
 
 
 def test_create_warp_backend_uses_defaults_and_overrides(

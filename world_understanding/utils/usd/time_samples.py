@@ -25,6 +25,7 @@ pre-baked into the recording.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -38,6 +39,18 @@ _POSE7_LEN = 7
 # Velocity layout: 6 floats = [vx, vy, vz, wx, wy, wz]. Matches ovphysx
 # ``TensorType.RIGID_BODY_VELOCITY`` shape (N, 6).
 _VEL6_LEN = 6
+
+
+def _seconds_to_timecode(seconds: float, timecodes_per_second: float) -> float:
+    """Convert seconds while removing multiplication-only frame noise."""
+
+    timecode = float(seconds) * timecodes_per_second
+    if not math.isfinite(timecode):
+        return timecode
+    nearest_frame = round(timecode)
+    if abs(timecode - nearest_frame) <= 8 * math.ulp(timecode):
+        return float(nearest_frame)
+    return timecode
 
 
 def add_pose_velocity_trajectory(
@@ -97,11 +110,6 @@ def add_pose_velocity_trajectory(
     # — the standard SRT composition.
     pose_op_types = {
         UsdGeom.XformOp.TypeTranslate,
-        # Axis-translate ops (e.g. ``xformOp:translate:x``) would stack
-        # on top of the time-sampled translate and create a double offset.
-        UsdGeom.XformOp.TypeTranslateX,
-        UsdGeom.XformOp.TypeTranslateY,
-        UsdGeom.XformOp.TypeTranslateZ,
         UsdGeom.XformOp.TypeOrient,
         UsdGeom.XformOp.TypeTransform,
         UsdGeom.XformOp.TypeRotateX,
@@ -114,14 +122,28 @@ def add_pose_velocity_trajectory(
         UsdGeom.XformOp.TypeRotateZXY,
         UsdGeom.XformOp.TypeRotateZYX,
     }
+    # Genuine single-axis translate ops (``xformOp:translateX/Y/Z``) are pose
+    # ops too: preserved in the tail they would re-apply the body's authored
+    # local offset on top of the simulator's world-space pose on every sampled
+    # frame. Their enum members only exist on newer USD builds (24.08 cannot
+    # even parse such ops), so resolve them defensively.
+    pose_op_types.update(
+        axis_type
+        for name in ("TypeTranslateX", "TypeTranslateY", "TypeTranslateZ")
+        if (axis_type := getattr(UsdGeom.XformOp, name, None)) is not None
+    )
     existing = list(xformable.GetOrderedXformOps())
     translate_op = None
     orient_op = None
     preserved_ops: list[Any] = []
     for op in existing:
         t = op.GetOpType()
-        if t == UsdGeom.XformOp.TypeTranslate and translate_op is None:
-            translate_op = op
+        if t == UsdGeom.XformOp.TypeTranslate:
+            # USD exposes one TypeTranslate enum. Custom/suffixed translate
+            # ops such as ``xformOp:translate:x`` report that same type; only
+            # reuse the canonical vector op that the trajectory reader expects.
+            if str(op.GetOpName()) == "xformOp:translate" and translate_op is None:
+                translate_op = op
         elif t == UsdGeom.XformOp.TypeOrient and orient_op is None:
             orient_op = op
         elif t not in pose_op_types:
@@ -174,8 +196,10 @@ def add_pose_velocity_trajectory(
             raise ValueError(f"vel6 must be length {_VEL6_LEN}, got {len(vel6)}")
         px, py, pz, qx, qy, qz, qw = (float(v) for v in pose7)
         vx, vy, vz, wx, wy, wz = (float(v) for v in vel6)
-        # Convert seconds → USD timecode using the stage's playback rate.
-        tc = Usd.TimeCode(float(time) * tcps)
+        # Convert seconds to USD timecode using the stage's playback rate.
+        # Values mathematically on a frame boundary are snapped within a
+        # narrow ULP bound so frame/fps does not author 31.000000000000004.
+        tc = Usd.TimeCode(_seconds_to_timecode(float(time), tcps))
 
         translate_op.Set(Gf.Vec3d(px, py, pz), time=tc)
         orient_op.Set(Gf.Quatf(qw, Gf.Vec3f(qx, qy, qz)), time=tc)

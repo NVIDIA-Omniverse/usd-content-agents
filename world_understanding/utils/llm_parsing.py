@@ -9,6 +9,8 @@ import re
 from collections.abc import Collection, Iterator, Mapping, Sequence
 from typing import Any
 
+from world_understanding.utils.response_content import extract_text_content
+
 logger = logging.getLogger(__name__)
 
 _OPTIONAL_LIST_PREFIX = r"(?:#{1,6}\s*)?(?:(?:[-*+]|\d+[.)]|\(\d+\))\s*)?"
@@ -941,7 +943,7 @@ def iter_json_dicts_in_text_order(response_text: str) -> Iterator[dict[str, Any]
 
 
 def extract_json_from_llm_response(
-    response_text: str,
+    response_text: Any,
     expected_keys: Collection[str] | None = None,
     *,
     log_failures: bool = True,
@@ -964,6 +966,7 @@ def extract_json_from_llm_response(
     Returns:
         Parsed JSON as a dictionary, or None if parsing fails
     """
+    response_text = extract_text_content(response_text)
     if not response_text:
         if log_failures:
             logger.error("Empty response text provided")

@@ -11,6 +11,7 @@ from world_understanding.functions.physics.joint_rigger.author import (
     TOPOLOGY_AUTHOR_VERSION,
     OwnedTopologyBackend,
     author_joint_topology,
+    validate_v2_articulation_roots,
 )
 from world_understanding.functions.physics.joint_rigger.combined import (
     COMBINED_AUTHOR_NAME,
@@ -28,6 +29,8 @@ from world_understanding.functions.physics.joint_rigger.facade import (
     JointRiggerPostCommitCleanupError,
     author_joint_rig,
     author_joint_rig_from_factory,
+    require_joint_rigger_authoring_platform,
+    validate_diagnostic_decisions,
 )
 from world_understanding.functions.physics.joint_rigger.models import (
     DIAGNOSTICS_SCHEMA_VERSION,
@@ -79,6 +82,7 @@ from world_understanding.functions.physics.joint_rigger.reference import (
 )
 from world_understanding.functions.physics.joint_rigger.rigid_links import (
     RIGID_LINK_AUTHORING_VERSION,
+    validate_authored_rigid_links,
 )
 from world_understanding.functions.physics.joint_rigger.schemas import (
     author_physics_schemas,
@@ -162,14 +166,18 @@ __all__ = [
     "capture_joint_rigger_stage_snapshot",
     "extract_reference_input",
     "identify_usd_artifact",
+    "require_joint_rigger_authoring_platform",
     "local_usd_dependency_paths",
     "physics_schema_counts",
     "sidecar_dependency_bundle_sha256",
     "validate_authored_joint_rig_with_physics",
     "validate_authored_joint_topology",
     "validate_authored_physics_schemas",
+    "validate_authored_rigid_links",
+    "validate_diagnostic_decisions",
     "validate_joint_rigger_stage_preservation",
     "validate_joint_topology_plan",
     "validate_physics_plan_evidence",
+    "validate_v2_articulation_roots",
     "write_reference_input",
 ]

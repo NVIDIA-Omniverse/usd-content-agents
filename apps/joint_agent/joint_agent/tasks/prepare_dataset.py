@@ -202,9 +202,13 @@ def _load_rigid_body_source_index(
     usd_model_file = dataset_metadata.get("usd_model_file")
     if not isinstance(usd_model_file, str) or not usd_model_file.strip():
         return _RigidBodySourceIndex()
-    usd_model_path = Path(usd_model_file)
-    if not usd_model_path.is_absolute():
-        usd_model_path = usd_input_dir / usd_model_path
+    relative_path = Path(usd_model_file)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise ValueError("usd_model_file must stay within the dataset directory")
+    dataset_root = usd_input_dir.resolve(strict=True)
+    usd_model_path = (dataset_root / relative_path).resolve(strict=True)
+    if not usd_model_path.is_relative_to(dataset_root):
+        raise ValueError("usd_model_file must stay within the dataset directory")
     with usd_model_path.open(encoding="utf-8") as f:
         usd_model_data = json.load(f)
     if not isinstance(usd_model_data, Mapping):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import IO
 
@@ -13,6 +13,7 @@ from world_understanding.utils.artifacts import (
     ArtifactPathError,
     append_bytes_to_confined,
     confined_artifact_exists,
+    confined_directory_identity,
     copy_open_file_to_confined,
     delete_confined_file,
     is_pipeline_temp_path,
@@ -36,7 +37,7 @@ from world_understanding.utils.session_paths import (
     is_safe_session_id,
 )
 
-from .base import SessionStore
+from .base import METADATA_KEY, SessionStoragePathError, SessionStore
 
 logger = logging.getLogger(__name__)
 
@@ -63,13 +64,16 @@ class LocalSessionStore(SessionStore):
 
     async def init_session(self, session_id: str) -> None:
         self._session_dir(session_id)
-        with open_confined_directory(self.root, create=True) as root_descriptor:
-            with open_confined_directory_at(
-                root_descriptor,
-                session_id,
-                create=True,
-            ):
-                pass
+        try:
+            with open_confined_directory(self.root, create=True) as root_descriptor:
+                with open_confined_directory_at(
+                    root_descriptor,
+                    session_id,
+                    create=True,
+                ):
+                    pass
+        except ArtifactPathError as exc:
+            raise SessionStoragePathError("Session storage root is unsafe") from exc
 
     async def delete_session(self, session_id: str) -> None:
         for attempt in range(3):
@@ -86,6 +90,19 @@ class LocalSessionStore(SessionStore):
                     retryable=True,
                 )
                 await asyncio.sleep(0.5 * (attempt + 1))
+
+    async def delete_session_if_terminal(self, session_id: str) -> bool:
+        """Delete a local session only while its metadata is terminal."""
+        metadata = await self.get_json(session_id, METADATA_KEY)
+        if metadata is None or metadata.get("status") not in {
+            "ready",
+            "completed",
+            "failed",
+            "cancelled",
+        }:
+            return False
+        await self.delete_session(session_id)
+        return True
 
     async def list_sessions(self, use_cache: bool = True) -> list[str]:
         """List all session IDs in the local store.
@@ -211,6 +228,22 @@ class LocalSessionStore(SessionStore):
             return None
         return json.loads(data)
 
+    async def update_json(
+        self,
+        session_id: str,
+        key: str,
+        updater: Callable[[dict], dict | None],
+    ) -> dict | None:
+        """Update a local JSON document within the manager's session lock."""
+        current = await self.get_json(session_id, key)
+        if current is None:
+            return None
+        updated = updater(dict(current))
+        if updated is None:
+            return current
+        await self.put_json(session_id, key, updated)
+        return updated
+
     async def append_event(self, session_id: str, event: dict) -> None:
         line = (json.dumps(event) + "\n").encode("utf-8")
         with open_confined_directory(
@@ -241,26 +274,40 @@ class LocalSessionStore(SessionStore):
         return None
 
     async def sync_to_local(
-        self, session_id: str, local_session_dir: str, prefix: str = ""
+        self,
+        session_id: str,
+        local_session_dir: str,
+        prefix: str | Sequence[str] = "",
     ) -> int:
         """Copy files from store to local dir (no-op if they are the same path)."""
         store_dir = self._read_session_dir(session_id)
         if store_dir is None:
             return 0
-        return self._copy_local_snapshot(
-            store_dir,
-            Path(local_session_dir),
-            prefix,
+        prefixes = (prefix,) if isinstance(prefix, str) else tuple(prefix)
+        return sum(
+            self._copy_local_snapshot(
+                store_dir,
+                Path(local_session_dir),
+                item,
+            )
+            for item in prefixes
         )
 
     async def sync_from_local(
-        self, session_id: str, local_session_dir: str, prefix: str = ""
+        self,
+        session_id: str,
+        local_session_dir: str,
+        prefix: str | Sequence[str] = "",
     ) -> int:
         """Copy files from local dir to store (no-op if they are the same path)."""
-        return self._copy_local_snapshot(
-            Path(local_session_dir),
-            self._session_dir(session_id),
-            prefix,
+        prefixes = (prefix,) if isinstance(prefix, str) else tuple(prefix)
+        return sum(
+            self._copy_local_snapshot(
+                Path(local_session_dir),
+                self._session_dir(session_id),
+                item,
+            )
+            for item in prefixes
         )
 
     @staticmethod
@@ -277,12 +324,9 @@ class LocalSessionStore(SessionStore):
                     destination_dir,
                     create=True,
                 ) as destination_descriptor:
-                    source_identity = os.fstat(source_descriptor)
-                    destination_identity = os.fstat(destination_descriptor)
-                    if (
-                        source_identity.st_dev == destination_identity.st_dev
-                        and source_identity.st_ino == destination_identity.st_ino
-                    ):
+                    if confined_directory_identity(
+                        source_descriptor
+                    ) == confined_directory_identity(destination_descriptor):
                         return 0
                     count = 0
                     for artifact in iter_open_regular_files(

@@ -5,6 +5,12 @@ runs prompt-driven or config-driven checks over USD, image, video, render, and
 physics-evidence artifacts, then writes stable request, plan, and result JSON
 reports with per-template verdicts.
 
+> **Content Agents 0.6 routing:** this package is the fixed pipeline, deterministic
+> validation interface. Start unqualified content-validation tasks from the
+> repository root with the agentic Content Workflow. Use `validation-agent`
+> when its fixed templates, config contract, Python API, or CI-oriented reports
+> are explicitly required.
+
 Validation Agent V1 is scoped to local CLI and Python contracts for release
 0.5. It does not ship a REST service, OpenAPI spec, or hosted deployment
 surface in this release.
@@ -26,6 +32,13 @@ The V1 template allowlist is:
 - `physics_sane`: deterministic USD physics authoring sanity checks.
 - `physical_behavior`: evidence-backed behavior validation from existing
   rollout, video, simulation, or Physics Agent refine artifacts.
+
+For one-outer-reasoner agentic use, the separate public
+`content-workflow-validation` skill exposes focused prepare/check/finalize and
+outer-assessment operations while preserving these V1 request, result, issue,
+and template contracts. It does not replace this fixed-pipeline config/prompt CLI.
+See [`content-workflow-validation`](../../.agents/skills/content-workflow-validation/SKILL.md)
+in the repository-root skill tree.
 
 ## Installation
 
@@ -139,7 +152,7 @@ policy:
   visual_evidence_mode: canonical_usd
   look_right_vlm:
     backend: nim
-    model: google/gemma-4-31b-it
+    model: moonshotai/kimi-k3
   reference_image_paths:
     - reference.png
 project:
@@ -151,7 +164,9 @@ project:
 `render.backend` is omitted. If both are present they must identify the same
 backend; conflicting values are rejected instead of silently selecting one.
 Backend spelling is trimmed and matched case-insensitively for compatibility,
-and an omitted or blank value defaults to `remote`.
+and an omitted or blank value selects no backend. A USD visual check without an
+explicit backend fails closed with `render.backend_required`; configure
+`remote` or `ovrtx` explicitly when runtime rendering is intended.
 
 Paths in configs are resolved relative to the config file directory unless they
 are absolute. Direct `validate` input paths and `--reference-image` paths are

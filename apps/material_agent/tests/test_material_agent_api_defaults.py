@@ -14,8 +14,10 @@ from material_agent.api.defaults import (
     DEFAULT_LLM_BACKEND,
     DEFAULT_LLM_MODEL,
     DEFAULT_VLM_BACKEND,
+    DEFAULT_VLM_JUDGE_MODEL,
     DEFAULT_VLM_MAX_WORKERS,
     DEFAULT_VLM_MODEL,
+    DEFAULT_VLM_REASONING_EFFORT,
     PREDICT_DEFAULTS,
     apply_defaults,
     get_apply_config_with_defaults,
@@ -85,6 +87,13 @@ class TestPredictDefaults:
         assert "llm" in PREDICT_DEFAULTS
         assert PREDICT_DEFAULTS["vlm"]["backend"] == DEFAULT_VLM_BACKEND
         assert PREDICT_DEFAULTS["vlm"]["model"] == DEFAULT_VLM_MODEL
+        assert DEFAULT_VLM_MODEL == "moonshotai/kimi-k3"
+        assert DEFAULT_VLM_JUDGE_MODEL == DEFAULT_VLM_MODEL
+        assert DEFAULT_LLM_MODEL == "moonshotai/kimi-k3"
+        assert DEFAULT_JUDGE_MODEL == DEFAULT_LLM_MODEL
+        assert DEFAULT_VLM_REASONING_EFFORT == "max"
+        assert PREDICT_DEFAULTS["vlm"]["reasoning_effort"] == "max"
+        assert BENCHMARK_DEFAULTS["vlm"]["reasoning_effort"] == "max"
 
     def test_get_predict_config_with_defaults_minimal(self):
         """Test minimal predict config gets defaults."""
@@ -98,6 +107,7 @@ class TestPredictDefaults:
         assert "vlm" in full
         assert full["vlm"]["backend"] == DEFAULT_VLM_BACKEND
         assert full["vlm"]["model"] == DEFAULT_VLM_MODEL
+        assert full["vlm"]["reasoning_effort"] == "max"
         assert full["max_workers"] == DEFAULT_VLM_MAX_WORKERS
 
     def test_get_predict_config_with_partial_vlm(self):
@@ -110,6 +120,7 @@ class TestPredictDefaults:
         assert full["vlm"]["model"] == "custom-model"
         # VLM backend default added
         assert full["vlm"]["backend"] == DEFAULT_VLM_BACKEND
+        assert "reasoning_effort" not in full["vlm"]
 
 
 class TestBenchmarkDefaults:

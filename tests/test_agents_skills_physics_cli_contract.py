@@ -7,7 +7,15 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKILL_PATH = REPO_ROOT / ".agents" / "skills" / "physics-agent-cli" / "SKILL.md"
+SKILL_PATH = (
+    REPO_ROOT
+    / ".agents"
+    / "skills"
+    / "fixed-pipeline"
+    / "references"
+    / "physics-agent-cli"
+    / "reference.md"
+)
 
 
 def _skill_text() -> str:
@@ -135,12 +143,16 @@ def test_cli_preserves_the_supported_linux_and_wsl2_runtime_policy() -> None:
     text = _normalized(_skill_text())
 
     assert "Requires Linux, a Linux container, or WSL2" in text
-    assert "Official runtime targets are Linux, Linux containers, and WSL2." in text
-    assert "Native Windows shell execution is not supported" in text
-    assert "direct the user to WSL2 or Linux" in text
+    assert "The fixed pipeline supports Linux and Windows." in text
+    assert "On Windows it runs under WSL2 with the `warp` backend only." in text
+    assert 'uv pip install -e ".[warp]" -e apps/physics_agent' in text
+    assert "my_lightbulb_wsl2.yaml" in text
+    assert (
+        "Native Windows execution and local OVRTX under WSL2 are not supported" in text
+    )
     assert "Windows PowerShell:" not in text
     assert r".\.venv\Scripts\Activate.ps1" not in text
 
 
 def test_cli_skill_version_tracks_the_contract_revision() -> None:
-    assert 'version: "0.1.2"' in _skill_text()
+    assert 'version: "0.1.4"' in _skill_text()

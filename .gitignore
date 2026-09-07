@@ -24,6 +24,7 @@ MANIFEST
 # Virtual environments
 .env
 .venv
+.venv-root-tests
 env/
 venv/
 ENV/
@@ -55,6 +56,7 @@ dmypy.json
 .ruff_cache/
 
 # Project specific
+runs/
 # Block top-level `assets/` content but allow descent into `assets/images/`
 # (a `assets/` blanket rule prevents Git from descending at all, so a leaf
 # negation can't re-include any file underneath — using `assets/*` keeps the
@@ -93,6 +95,10 @@ assets/*
 !apps/material_agent/data/materials/**/*.usdc
 !apps/material_agent/data/materials/**/*.usdz
 !apps/validation_agent/examples/fixtures/steel_scaffold_behavior/*.usda
+!agentic/examples/articulation/drawer/drawer.usda
+!agentic/examples/geometry/quickstart/smoke_bracket.usda
+!agentic/examples/mesh-segmentation/basic/fused_cart.usda
+!agentic/examples/scene/material-pass/mini_workcell.usda
 !apps/material_agent/data/materials/**/*.png
 !apps/material_agent/data/materials/**/*.jpg
 !apps/material_agent/data/materials/**/*.jpeg
@@ -138,6 +144,9 @@ output/
 cache/
 artifacts/
 _*
+!agentic/packages/geometry_authoring_connectors/geometry_authoring_connectors/_artifacts.py
+!agentic/packages/geometry_authoring_connectors/geometry_authoring_connectors/_formats.py
+!agentic/packages/geometry_authoring_connectors/geometry_authoring_connectors/_http.py
 !__init__.py
 !world_understanding/__main__.py
 !apps/material_agent/material_agent/__main__.py
@@ -153,6 +162,7 @@ _*
 !.gitattributes
 !.python-version
 !apps/validation_agent/examples/.gitignore
+!apps/content_agents_dashboard/web/.stylelintrc.json
 !.build-resources/
 .build-resources/*
 !.build-resources/.gitkeep
@@ -173,7 +183,7 @@ _*
 !.agents/skills/
 !.agents/schemas/
 !.agents/schemas/**
-!.agents/skills/material-agent-cli/evals/fixtures/prefailed-resume/.pipeline_state.json
+!.agents/skills/fixed-pipeline/references/material-agent-cli/evals/fixtures/prefailed-resume/.pipeline_state.json
 .claude/*
 !.claude/skills
 !.claude/settings.json
@@ -185,6 +195,8 @@ _*
 agentic/.agents/*
 !agentic/.agents/skills/
 !agentic/.agents/skills/**
+agentic/.agents/skills/**/__pycache__/
+agentic/.agents/skills/**/*.py[cod]
 !agentic/.build-resources
 !agentic/.claude/
 agentic/.claude/*
@@ -232,7 +244,27 @@ local_test_with_minio.sh
 # Script generated
 .data/
 .benchmark/
-apps/content_workbench/docs/internal/*.html
+
+# Local scratch clone preserved from the pre-integration checkout
+/usd-cli.local/
+
+# usd-cli per-project state dir (daemon logs, renders, checkpoints);
+# STATE_DIR_NAME in apps/usd_cli/src/usd_core/config.py
+/.usd-cli/
 simready_assets
 simready_batch
 isaac-sim
+
+# Exact ordinary usd-cli source is tracked atomically by this repository.
+# Keep this terminal exception after the broad asset/notebook/private-name rules.
+!/apps/usd_cli/
+!/apps/usd_cli/**
+
+# Local usd-cli integration review notes. These reference internal-only paths,
+# so tracking them leaks those references into the public staging copy and trips
+# the reference-leak guard in tests/test_copy_to_staging.py. Keep them untracked
+# rather than relying on nobody running `git add -A`.
+/usd-cli-integration-merge-readiness-remediation-plan.md
+/usd-cli-review-findings.md
+/usd-cli-review-remediation-plan.md
+/pr819-blocking-tracker.md

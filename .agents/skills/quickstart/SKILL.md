@@ -1,335 +1,237 @@
 ---
 name: quickstart
-description: Start one NVIDIA Content Agents REST service locally with Docker Compose. Use when the user asks for /quickstart, local POC setup, or single-service Material, Physics, Joint, or Texture startup.
-version: "0.1.0"
-author: NVIDIA Content Agents
+description: Set up and route NVIDIA Content Agents through the default Agentic Content Workflow from the repository root. Use when the user asks for /quickstart, first-run setup, an unqualified supported content task, or prerequisite checks. Route an explicitly requested fixed pipeline CLI, REST, config, benchmark, or deployment through the fixed-pipeline umbrella without treating it as the default.
+version: "0.2.4"
+author: NVIDIA Omniverse
 tags:
   - content-agents
   - quickstart
-  - docker
-  - local-deploy
+  - agentic
+  - routing
 tools:
   - Shell
-  - Docker
-  - curl
   - Filesystem
-compatibility: Requires Docker daemon, Docker Compose v2.24+, curl, and repo-root .env provider credentials.
+  - curl
+compatibility: Requires a native Linux or WSL2 repository checkout with Python 3.12 and uv. Native Windows execution is unsupported in the 0.6 release. Child-agent workflows additionally require Node.js, npm, and runner credentials; each capability requires only its documented services.
+metadata:
+  author: NVIDIA Omniverse
+  tags:
+    - content-agents
+    - quickstart
+    - agentic
+    - routing
 ---
 
 # Content Agents Quickstart
 
 ## When to Use
 
-- Use when the user asks for `/quickstart` or help starting a local
-  Content Agents proof of concept.
-- Use when the user wants exactly one Material, Physics, Joint, or Texture REST
-  service from this repository's compose files.
-- Use when the user needs a safe preflight, startup, health-check, and
-  follow-up-command handoff for a local service.
-
-## Scope
-
-This skill starts one local Content Agents REST service from the repo root.
-It is a thin wrapper over the existing per-agent Docker Compose files; do
-not create a new compose stack for this workflow. Material Agent is the
-recommended first POC.
-
-- Start one target at a time: `material`, `physics`, `joint`, or `texture`.
-- Use `deploy-collection` when the user wants to run Material, Physics, Joint,
-  and Texture together or configure shared dependency endpoints.
-- Use the service-specific deploy skills for local NIM sidecars, image-gen
-  sidecars, embedding sidecars, multi-GPU layouts, or deliberate port changes.
+- Set up Content Agents for the first time from the repository root.
+- Choose the supported workflow for a user request.
+- Check agent, usd-cli, model, render, or service prerequisites.
+- Route an explicit fixed pipeline request without changing its meaning.
 
 ## Limitations
 
-- Keep secrets out of chat. Tell the user to edit `.env`; never ask them to
-  paste API keys.
-- Always use the repo-root `.env` file and keep `--env-file .env` in compose
-  commands.
-- Stop before startup when `.env` was just created or is missing. The user
-  must edit provider credentials before any compose command starts services.
-- Do not create a new compose stack for this workflow.
-- Do not hold the Shell tool in long build or warm-up loops. Start detached,
-  run only a short bounded health pass, and return clear follow-up commands
-  when the service is still building or warming.
+- Agentic workflows support native Linux and WSL2. Native Windows execution is
+  unsupported in the 0.6 release.
+- Local usd-cli OVRTX rendering supports compatible native Linux NVIDIA
+  RTX/Vulkan hosts. WSL2 cannot run local OVRTX; Agentic rendering there uses a
+  remote OVRTX service configured through usd-cli.
+- Keep secrets in `.env` or the environment. Never print or commit them.
+- Never silently fall back to fixed pipeline when agentic setup is blocked.
+
+## Routing
+
+`/quickstart` means Agentic by default. Never select or start a fixed pipeline
+unless the user explicitly asks for that interface.
+
+Use the agentic Content Workflow for supported, unqualified asset requests.
+The established application workflows under `apps/` are the fixed pipeline.
+Invoke `$fixed-pipeline` only when the user explicitly requests it, names one
+of its runtime commands or services, asks for its YAML configuration, or needs
+its benchmark/dataset compatibility. The umbrella loads the narrowest bundled
+reference; those references are not independently discoverable skills.
+
+| Intent | Route |
+|---|---|
+| Convert an asset to USD | `content-workflow-cli convert-to-usd` |
+| Assign or refine materials | `content-workflow-material` / `content-workflow-cli materials assign` |
+| Generate scoped textures | `content-workflow-texture`; use focused `content-workflow-cli texture prepare` through `texture publish` operations |
+| Author and validate physics | `content-workflow-physics` / `content-workflow-cli physics apply` |
+| Segment a fused mesh | `content-workflow-mesh-segmentation` / `content-workflow-cli mesh-segmentation run` |
+| Validate against a prompt | `content-workflow-cli validate run` |
+| Validate/conform SimReady profile | `content-workflow-simready` / `content-workflow-cli simready ...` |
+| Process a composed scene | `content-workflow-cli scene run` |
+| Compose Joint through validation | `content-workflow-asset` / `content-workflow-cli asset run` |
+| Explicit `material-agent` or Material REST | `$fixed-pipeline`; load `material-agent-cli` or `material-agent-client` reference |
+| Explicit `physics-agent` or Physics REST | `$fixed-pipeline`; load `physics-agent-cli` or `physics-agent-client` reference |
+| Explicit fixed pipeline Joint/Texture/Validation CLI | `$fixed-pipeline`; load the corresponding CLI reference |
+| Start a fixed pipeline local service | `$fixed-pipeline`; load the corresponding deployment reference |
+
+### Routing Examples
+
+| Request | Required mode |
+|---|---|
+| “Assign materials to this asset.” | Agentic |
+| “Use the agentic workflow for this asset.” | Agentic |
+| “Inspect the scene and refine the material result.” | Agentic |
+| “Use the fixed pipeline material pipeline.” | Fixed pipeline |
+| “Run `material-agent` with this YAML.” | Fixed pipeline |
+| “Submit this asset to the Material REST service.” | Fixed pipeline |
+| “Run the material benchmark dataset.” | Fixed pipeline |
+| “Compare agentic and fixed pipeline material results.” | Both, separately labeled |
+| Agentic prerequisite is unavailable | Stop with remediation; no fallback |
 
 ## Instructions
 
-1. Infer the target from the user request, or ask for `material`, `physics`,
-   `joint`, or `texture` when unclear.
-2. Check prerequisites and create `.env` from `.env_example` only when the
-   template exists.
-3. Run the preflight commands and stop before startup when Docker, Compose,
-   `.env`, required GPU/toolkit checks, or running-container conflicts are not
-   resolved.
-4. Start only after conflicts are resolved by stopping the owning stack or by
-   restarting the selected target. If the user keeps an overlapping stack
-   running, skip startup for the new target.
-5. Start the selected compose stack with the matching prefix from the target
-   table. Use a background handoff for first builds or any shell tool with a
-   short timeout budget.
-6. Run one short bounded health pass, including OVRTX for Material or Physics.
-7. Return the service URL, docs URL, startup state, health result, and exact
-   follow-up commands from the output format.
+1. Stay at the repository root.
+2. Check the supported platform and required commands.
+3. Run the root setup script.
+4. Activate `.venv` and verify the selected runner's authentication.
+5. Run `content-workflow-cli preflight --help` and the command-specific
+   preflight or `--help` before an expensive workflow.
+6. Use root `runs/<descriptive-name>` for output unless the user supplied a
+   path.
+7. Report the selected mode, prerequisites, command, output directory, and
+   recovery command.
 
 ## Prerequisites
 
-- Docker daemon reachable.
-- Docker Compose v2.24+.
-- Repo-root `.env` with the provider key for the selected backend. The default
-  public backend usually needs `NVIDIA_API_KEY`.
-- Joint also needs `RENDER_ENDPOINT`; its public Compose path uses remote
-  rendering and does not require a local render GPU.
-- Material and Physics require an RTX-capable NVIDIA render GPU plus NVIDIA
-  Container Toolkit because their compose files start OVRTX.
-- Recommended render-GPU capacity: Material is a 48 GB-class target and
-  Physics is a 16 GB-class target. Smaller RTX GPUs, including 24 GB or 32 GB
-  cards, may still be valid for small-scene POCs; warn the user and ask before
-  proceeding rather than blocking solely on VRAM.
-- A100, H100, H200, and V100 are model-serving GPUs, not render-GPU targets for
-  this quickstart. Joint and Texture can run CPU-only with hosted dependencies.
+- Native Linux or WSL2 for Agentic workflows. On a Windows host, run the
+  workflow inside WSL2.
+- Python 3.12 and `uv`. Node.js and npm are additionally required only for
+  workflows that launch Codex or Claude child agents; direct-only setup can use
+  `--without-child-runners`.
+- On Linux/WSL2, default setup also requires `unzip` for Scene Optimizer build
+  resources. Install it with `sudo apt-get update && sudo apt-get install -y
+  unzip`, or use `--skip-build-resources` when those resources are not needed.
+- On Linux, a C++17 compiler, CMake, Ninja, and outbound HTTPS for workflows
+  that need the fresh exact-OCP/Geometry provider build. It downloads
+  approximately 55 MB of pinned source archives and performs a substantial
+  native compilation.
+- Codex authentication or Claude credentials.
+- The installed usd-cli for workflows that inspect or author USD, plus a local
+  or configured remote OVRTX renderer when visual evidence is required.
 
-If `.env` is missing, create it only when the template exists:
+## Setup
 
-```bash
-if [ -f .env ]; then
-  echo "ENV_FILE=present"
-elif [ -f .env_example ]; then
-  cp .env_example .env
-  echo "ENV_FILE=created; edit .env with one provider key before starting"
-else
-  echo "ENV_FILE=missing; create .env manually with provider keys"
-fi
-```
-
-Treat `ENV_FILE=created` and `ENV_FILE=missing` as hard stops. Tell the user to
-edit the repo-root `.env`, then rerun this quickstart after credentials are in
-place.
-
-## Preflight
-
-Run this from the repo root and parse the `KEY=VALUE` lines:
+On Linux/WSL2:
 
 ```bash
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  echo "DOCKER=ok"
-else
-  echo "DOCKER=missing_or_unreachable"
-fi
+uname -s
+command -v uv
+uv python find 3.12
 
-if docker compose version >/dev/null 2>&1; then
-  compose_version="$(docker compose version --short 2>/dev/null)"
-  compose_version="${compose_version#v}"
-  compose_major="${compose_version%%.*}"
-  compose_rest="${compose_version#*.}"
-  compose_minor="${compose_rest%%.*}"
-  if ! [ "$compose_major" -eq "$compose_major" ] 2>/dev/null || ! [ "$compose_minor" -eq "$compose_minor" ] 2>/dev/null; then
-    echo "COMPOSE=unparseable (${compose_version}; need 2.24+)"
-  elif [ "$compose_major" -gt 2 ] 2>/dev/null || { [ "$compose_major" -eq 2 ] 2>/dev/null && [ "$compose_minor" -ge 24 ] 2>/dev/null; }; then
-    echo "COMPOSE=ok (${compose_version})"
-  else
-    echo "COMPOSE=too_old (${compose_version}; need 2.24+)"
-  fi
-elif command -v docker-compose >/dev/null 2>&1; then
-  echo "COMPOSE=legacy_v1"
-else
-  echo "COMPOSE=missing"
-fi
+# Required for default build-resource setup; omit with --skip-build-resources:
+command -v unzip
 
-if nvidia-smi >/dev/null 2>&1; then
-  gpu_mem_mib="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk 'BEGIN { max = 0 } $1 + 0 > max { max = $1 + 0 } END { if (max > 0) printf "%.0f", max }')"
-  gpu_names="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | paste -sd '|' -)"
-  echo "GPU=yes"
-  echo "GPU_VRAM_MIB_MAX=${gpu_mem_mib:-unknown}"
-  echo "GPU_NAMES=${gpu_names:-unknown}"
-  if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q '"nvidia"'; then
-    echo "CONTAINER_TOOLKIT=ok"
-  elif command -v nvidia-container-cli >/dev/null 2>&1 || command -v nvidia-container-runtime >/dev/null 2>&1; then
-    echo "CONTAINER_TOOLKIT=installed_not_registered"
-  else
-    echo "CONTAINER_TOOLKIT=missing"
-  fi
-else
-  echo "GPU=no"
-  echo "GPU_VRAM_MIB_MAX=0"
-  echo "GPU_NAMES=none"
-  echo "CONTAINER_TOOLKIT=skipped"
-fi
+# Required only for workflows that launch a Codex or Claude child agent:
+command -v node
+command -v npm
 
-echo "RUNNING_CONTAINERS=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^(material-agent-service|physics-agent-service|joint-agent-service|texture-agent-service|ovrtx-rendering-api|physics-ovrtx-rendering-api|ovrtx_rendering_api-ovrtx-rendering-api-1|vlm-nim|llm-nim|image-gen-nim)$' | paste -sd ',' -)"
+./scripts/setup_content_agent.sh
+source .venv/bin/activate
+content-workflow-cli auth status --sandbox-smoke
+content-workflow-cli --help
 ```
 
-Stop before startup when Docker or Compose is not ready. For Material or
-Physics, also stop when there is no NVIDIA GPU, the NVIDIA Container Toolkit is
-missing or not registered, or `GPU_NAMES` contains A100, H100, H200, or V100.
-If VRAM is unknown or below the recommended capacity, warn the user and ask
-whether to continue with a small-scene POC.
+Native Windows is not a supported 0.6 setup path. On a Windows host, enter WSL2
+and use the Linux commands above.
 
-If `RUNNING_CONTAINERS` is non-empty, ask whether to stop the owning stack or
-restart the selected target. Ports overlap across the per-agent compose files;
-do not start a new target while overlapping containers continue to bind those
-ports. If the user chooses to leave the existing stack running, skip startup and
-report the existing-stack state.
-
-## Target Table
-
-| Target | Prefix | Base URL | Health | Docs |
-|---|---|---|---|---|
-| Material | `docker compose --env-file .env -f apps/material_agent_service/docker-compose.yml` | `http://localhost:8000` | `http://localhost:8000/health` | `http://localhost:8000/docs` |
-| Physics | `docker compose --env-file .env -f apps/physics_agent_service/docker-compose.yml` | `http://localhost:8000` | `http://localhost:8000/health` | `http://localhost:8000/docs` |
-| Joint (0.5 Research Preview) | `docker compose --env-file .env -f apps/joint_agent_service/docker-compose.yml` | `http://localhost:8000` | `http://localhost:8000/health` | `http://localhost:8000/docs` |
-| Texture | `docker compose --env-file .env -f apps/texture_agent_service/docker-compose.yml` | `http://localhost:8001` | `http://localhost:8001/health` | `http://localhost:8001/docs` |
-
-Infer the target from the user request. If unclear, ask:
-
-```text
-Which agent should I start: material (recommended), physics, joint, or texture?
-```
-
-## Start
-
-Show a concise summary, then start the selected prefix.
-
-Use the foreground form only when the images are already built or the Shell
-tool timeout is known to be long enough for the first build:
+Verify the installed low-level tool. Before an expensive workflow, let the
+workflow run its own OVRTX readiness probe, or run the same probe explicitly.
+On native Linux:
 
 ```bash
-<PREFIX> up -d --build
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+usd-cli --version
+usd-cli render-probe --require-engine ovrtx \
+  --output-dir .local-runs/usd-cli-readiness
 ```
 
-For first builds or short Shell tool timeouts, hand off the compose build in the
-background and return immediately. Store transient logs under `logs/quickstart`
-because that path is already ignored by git.
+To use a local OVRTX runtime when one is not already provisioned, explicitly
+allow the one-time download before the daemon starts, then run the same probe:
+
+On native Linux:
 
 ```bash
-STARTUP_ROOT="logs/quickstart/<target>"
-STARTUP_DIR="$STARTUP_ROOT/$(date +%Y%m%d-%H%M%S)"
-STARTUP_LOG="$STARTUP_DIR/compose.log"
-STARTUP_PID="$STARTUP_DIR/compose.pid"
-STARTUP_LATEST="$STARTUP_ROOT/latest"
-mkdir -p "$STARTUP_DIR" || { echo "STARTUP=blocked; cannot create $STARTUP_DIR"; exit 1; }
-printf '%s\n' "$STARTUP_DIR" > "$STARTUP_LATEST" || { echo "STARTUP=blocked; cannot write $STARTUP_LATEST"; exit 1; }
-nohup sh -c '<PREFIX> up -d --build' > "$STARTUP_LOG" 2>&1 &
-pid="$!"
-printf '%s\n' "$pid" > "$STARTUP_PID" || { echo "STARTUP=blocked; cannot write $STARTUP_PID"; exit 1; }
-disown "$pid" 2>/dev/null || true
-echo "STARTUP=background pid=$pid log=$STARTUP_LOG"
+export WU_OVRTX_AUTO_PROVISION=1
+usd-cli server stop  # required after changing the variable for a running daemon
+usd-cli render-probe --require-engine ovrtx \
+  --output-dir .local-runs/usd-cli-readiness
 ```
 
-First build can take around 10 minutes. Material and Physics can take several
-more minutes while OVRTX warms up. Do not wait through that whole period inside
-one Shell tool call.
+The initial probe deliberately exits after reporting `auto-install STARTED`;
+rerun that exact command while it reports `auto-install in progress`. The
+workflow readiness check polls those transitional states within its configured
+timeout. For Geometry's reviewed hash-locked provision-only path, see
+`agentic/docs/geometry_quickstart.md`.
 
-## Check
+The workflow manages one usd-cli sidecar for its session. Do not manually start
+a second sidecar for the same run. Docker, Compose, container-GPU, and service
+port checks belong to the selected `$fixed-pipeline` deployment reference; do
+not require them for an Agentic workflow that does not use those services.
 
-Run a short bounded check. If a background build is still running, report
-`STARTUP=building` and return the log command instead of blocking.
+For direct conversion, Texture, Validation, or SimReady work that will not
+launch Codex or Claude, omit Node/npm SDK setup. On Linux/WSL2:
 
 ```bash
-<PREFIX> ps
-
-STARTUP_ROOT="logs/quickstart/<target>"
-STARTUP_LATEST="$STARTUP_ROOT/latest"
-STARTUP_DIR="$(cat "$STARTUP_LATEST" 2>/dev/null || true)"
-if [ -z "$STARTUP_DIR" ] || [ ! -d "$STARTUP_DIR" ]; then
-  STARTUP_DIR="$(find "$STARTUP_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tail -n 1)"
-fi
-STARTUP_LOG="${STARTUP_DIR:+$STARTUP_DIR/compose.log}"
-# STARTUP_PID is the PID-file path; pid below is the running process ID.
-STARTUP_PID="${STARTUP_DIR:+$STARTUP_DIR/compose.pid}"
-
-if [ -n "$STARTUP_PID" ] && [ -f "$STARTUP_PID" ]; then
-  pid="$(cat "$STARTUP_PID" 2>/dev/null || true)"
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    echo "STARTUP=building pid=$pid log=$STARTUP_LOG"
-    echo "LOG_COMMAND=tail -f $STARTUP_LOG"
-    exit 0
-  fi
-fi
-
-healthy=no
-for i in 1 2 3 4 5 6; do
-  if curl -fsS --max-time 5 <HEALTH_URL>; then
-    healthy=yes
-    break
-  fi
-  sleep 10
-done
-
-if [ "$healthy" = yes ]; then
-  echo "SERVICE_HEALTH=healthy"
-else
-  echo "SERVICE_HEALTH=starting_or_unhealthy"
-  if [ -s "$STARTUP_LOG" ]; then
-    echo "STARTUP_LOG=$STARTUP_LOG"
-    tail -n 80 "$STARTUP_LOG"
-  fi
-  <PREFIX> logs --no-color --tail=80 || true
-fi
+./scripts/setup_content_agent.sh --without-child-runners
 ```
 
-For Material or Physics, also run a bounded OVRTX check. If it is not healthy
-yet, report it as warming unless logs show a clear error. OVRTX and Texture both
-use port 8001; if Texture owns that port, report a port conflict instead of
-counting `http://localhost:8001/health` as healthy for OVRTX.
+If authentication is missing:
 
 ```bash
-ovrtx=warming
-ovrtx_body=""
-for i in 1 2 3 4 5 6; do
-  ovrtx_body="$(curl -fsS --max-time 5 http://localhost:8001/health 2>/dev/null || true)"
-  if printf '%s\n' "$ovrtx_body" | grep -Eq '"gpu_initialized"[[:space:]]*:[[:space:]]*true'; then
-    ovrtx=healthy
-    break
-  fi
-  sleep 10
-done
-echo "OVRTX_HEALTH=$ovrtx"
-if [ "$ovrtx" != healthy ] && [ -n "$ovrtx_body" ]; then
-  echo "OVRTX_HEALTH_BODY=$ovrtx_body"
-fi
+content-workflow-cli auth login
 ```
+
+For an existing remote OVRTX service, configure usd-cli before launching the
+workflow:
+
+```bash
+usd-cli remote configure https://gpu-host.example.test:8000
+```
+
+Do not pass a backend URL to `content-workflow-cli`; backend selection remains
+a low-level usd-cli configuration detail.
+
+## First Workflow
+
+Run commands from the repository root. The ladder example is the first public
+smoke test, not the boundary of the agentic product:
+
+```bash
+content-workflow-cli materials assign \
+  --usd apps/material_agent/data/examples/ladder/sources/usd/ladder.usd \
+  --reference-image apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg \
+  --reference-image apps/material_agent/data/examples/ladder/sources/images/ladder_reference_2.jpeg \
+  --materials-yaml apps/material_agent/data/materials/material_libs_default/materials.yaml \
+  --output-dir runs/ladder-agentic
+```
+
+Use `content-workflow-cli --help` and the routing table for other supported
+capabilities.
 
 ## Output Format
 
-Report a concise summary with:
+Return:
 
-- Selected target and compose prefix.
-- Service URL and docs URL.
-- Startup state: `blocked`, `not_started`, `background_building`, `warming`,
-  `healthy`, or `unhealthy`.
-- Health result, including OVRTX health for Material or Physics.
-- Any blocker found during preflight, including `.env` creation or unresolved
-  port conflicts.
-- Log file path or log command when startup is still building or warming.
-
-Then return these follow-up commands:
-
-```bash
-<PREFIX> logs -f
-<PREFIX> ps
-<PREFIX> down
-<PREFIX> down -v
-```
-
-When stopping a stack that was already running, use the compose file that owns
-the running container. If ownership is ambiguous, inspect:
-
-```bash
-docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' <container-name>
-```
+- workflow: `agentic` or `fixed-pipeline`;
+- setup/preflight status;
+- exact command;
+- root-relative run directory;
+- canonical output and evidence summary when available;
+- unresolved prerequisites or decisions;
+- exact resume or safe-restart command.
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `DOCKER=missing_or_unreachable` | Docker is not installed, not running, or not reachable by the current user. | Stop and ask the user to start Docker or fix daemon access before retrying. |
-| `COMPOSE=too_old` or `COMPOSE=legacy_v1` | Docker Compose is older than v2.24 or only legacy `docker-compose` is installed. | Ask the user to install Docker Compose v2.24+ and rerun preflight. |
-| `ENV_FILE=created` or `ENV_FILE=missing` | The repo-root `.env` still needs provider credentials. | Stop startup, tell the user to edit `.env`, then rerun this skill. |
-| Material or Physics reports no GPU/toolkit | The selected target needs the local render stack from Prerequisites. | Stop startup and explain that Joint or Texture can run CPU-only with hosted dependencies. |
-| Joint cannot render | `RENDER_ENDPOINT` is missing or unavailable. | Set a reachable remote renderer endpoint in the repo-root `.env`, then retry. |
-| Material or Physics reports low or unknown VRAM | Small-scene POCs may work, but the target is below recommended capacity. | Warn the user and ask before continuing; do not block solely on VRAM. |
-| Service health stays unhealthy after the short check | The service is still building, warming, or a dependency is misconfigured. | Report the current state and show `<PREFIX> ps`, `curl -fsS <HEALTH_URL>`, and `<PREFIX> logs --no-color --tail=80`. |
-| OVRTX is not immediately healthy | OVRTX can warm up after the service process starts. | Report `OVRTX_HEALTH=warming` and provide the logs command unless logs show a clear failure. |
-| Texture is running while checking Material or Physics OVRTX | Texture and OVRTX both use port 8001. | Report the port owner conflict instead of counting `http://localhost:8001/health` as OVRTX healthy. |
-| Ports conflict with another stack | The per-agent compose files share ports. | Stop or restart the owning stack before starting the new target; if the user leaves it running, skip startup. |
+| Symptom | Action |
+|---|---|
+| `content-workflow-cli` missing | Run `./scripts/setup_content_agent.sh` on native Linux/WSL2, activate `.venv`, and retry. |
+| Authentication missing | Run `content-workflow-cli auth login`; do not request secrets in chat. |
+| Login exists but the auth probe says the model requires a newer Codex | Upgrade the Codex app/CLI, then rerun `content-workflow-cli auth status`. |
+| usd-cli unavailable | Rerun setup and activate `.venv`; for rendering, provision local OVRTX only on native Linux, or configure a remote OVRTX service on WSL2, then rerun `usd-cli render-probe --require-engine ovrtx`. |
+| Native Windows or macOS workflow error | Run the workflow on native Linux or inside WSL2; do not fall back to fixed pipeline automatically. |
+| Explicit fixed pipeline request | Invoke `$fixed-pipeline`, load its named CLI, client, or deployment reference, and preserve the requested interface. |

@@ -17,6 +17,7 @@ from world_understanding.functions.models import backends as _backends  # noqa: 
 from world_understanding.functions.models.backends import registry as backend_registry
 from world_understanding.functions.models.backends.registry import (
     chat_backend_requires_api_key,
+    chat_backend_supports,
     image_gen_backend_requires_api_key,
     register_chat_backend,
     register_image_gen_backend,
@@ -79,6 +80,11 @@ def isolated_backend_registries(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         backend_registry,
+        "_chat_backend_capabilities",
+        dict(backend_registry._chat_backend_capabilities),
+    )
+    monkeypatch.setattr(
+        backend_registry,
         "_image_gen_backends",
         dict(backend_registry._image_gen_backends),
     )
@@ -126,11 +132,17 @@ def test_public_chat_registration_affects_runtime_selection(
     def create_custom_chat(prefix: str = "Custom: ", **_kwargs: Any) -> EchoChatModel:
         return create_echo_chat_model(prefix=prefix)
 
-    registry.register("custom-chat", create_custom_chat, requires_api_key=False)
+    registry.register(
+        "custom-chat",
+        create_custom_chat,
+        requires_api_key=False,
+        capabilities=frozenset({"reasoning_effort"}),
+    )
 
     assert registry.get_factory("custom-chat") is create_custom_chat
     assert backend_registry.get_chat_factory("custom-chat") is create_custom_chat
     assert chat_backend_requires_api_key("custom-chat") is False
+    assert chat_backend_supports("custom-chat", "reasoning_effort") is True
     selected = create_chat_model(backend="custom-chat", prefix="Selected: ")
     assert isinstance(selected, EchoChatModel)
     assert selected.prefix == "Selected: "
@@ -144,6 +156,7 @@ def test_public_chat_registration_affects_runtime_selection(
         registry.register("custom-chat", create_custom_chat)
     assert "already registered" in caplog.text
     assert chat_backend_requires_api_key("custom-chat") is False
+    assert chat_backend_supports("custom-chat", "reasoning_effort") is True
 
 
 def test_public_image_generation_registration_affects_runtime_selection(
@@ -191,15 +204,24 @@ def test_authoritative_overwrite_preserves_or_explicitly_changes_auth_metadata(
     echo_factory = backend_registry.get_chat_factory("echo")
     nim_image_factory = backend_registry.get_image_gen_factory("nim")
 
-    register_chat_backend("echo", echo_factory)
+    register_chat_backend(
+        "echo",
+        echo_factory,
+        capabilities=frozenset({"reasoning_effort"}),
+    )
     register_image_gen_backend("nim", nim_image_factory)
     assert chat_backend_requires_api_key("echo") is False
+    assert chat_backend_supports("echo", "reasoning_effort") is True
     assert image_gen_backend_requires_api_key("nim") is True
 
     register_chat_backend("echo", echo_factory, requires_api_key=True)
     register_image_gen_backend("nim", nim_image_factory, requires_api_key=False)
     assert chat_backend_requires_api_key("echo") is True
+    assert chat_backend_supports("echo", "reasoning_effort") is True
     assert image_gen_backend_requires_api_key("nim") is False
+
+    register_chat_backend("echo", echo_factory, capabilities=frozenset())
+    assert chat_backend_supports("echo", "reasoning_effort") is False
 
 
 @pytest.mark.parametrize("wrap_factory", [False, True], ids=["direct", "lambda"])

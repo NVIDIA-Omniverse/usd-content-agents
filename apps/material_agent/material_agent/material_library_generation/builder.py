@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,7 @@ def build_generated_material_library(
     *,
     texture_settings: TextureGenerationSettings | None = None,
     image_model: Any | None = None,
+    source_albedo_paths: Mapping[str, str | Path] | None = None,
     prototype_materials_data: dict[str, Any] | None = None,
     prototype_materials_path: str | Path | None = None,
     prototype_min_score: float = 0.75,
@@ -47,6 +49,25 @@ def build_generated_material_library(
     """Generate textures, author USD, and write `materials.yaml` for a plan."""
     plan.validate()
     material_profile = normalize_material_profile(material_profile)
+    source_albedo_paths = dict(source_albedo_paths or {})
+    effective_texture_settings = texture_settings or TextureGenerationSettings()
+    material_ids = {recipe.material_id for recipe in plan.materials}
+    unknown_source_ids = sorted(set(source_albedo_paths) - material_ids)
+    if unknown_source_ids:
+        raise ValueError(
+            "source_albedo_paths contains unknown material ids: "
+            + ", ".join(unknown_source_ids)
+        )
+    conflicting_source_ids = sorted(
+        recipe.material_id
+        for recipe in plan.materials
+        if recipe.material_id in source_albedo_paths
+        and (image_model is not None or effective_texture_settings.backend)
+    )
+    if conflicting_source_ids:
+        raise ValueError(
+            "source_albedo_path cannot be combined with an image model or backend"
+        )
     package_dir = Path(package_dir)
     textures_dir = package_dir / "textures"
     package_dir.mkdir(parents=True, exist_ok=True)
@@ -69,6 +90,7 @@ def build_generated_material_library(
             textures_dir / recipe.material_id,
             settings=texture_settings,
             image_model=image_model,
+            source_albedo_path=source_albedo_paths.get(recipe.material_id),
         )
         prototype_source = None
         prototype_match = select_material_prototype(

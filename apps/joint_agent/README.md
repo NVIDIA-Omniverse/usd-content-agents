@@ -6,6 +6,12 @@
 > successful publication does not prove simulation readiness or dynamic
 > behavior.
 
+> **Content Agents 0.6 routing:** this package is the fixed pipeline, config-driven
+> articulation workflow. Start unqualified articulation tasks from the
+> repository root with the default reviewed agentic workflow. Use `joint-agent`
+> when fixed pipeline steps, YAML configuration, benchmark compatibility,
+> Python APIs, or the matching REST contract are explicitly required.
+
 Articulation analysis and topology authoring for USD-family assets.
 
 ## Overview
@@ -21,8 +27,10 @@ export NVIDIA_API_KEY="YOUR_NVIDIA_API_KEY"
 export RENDER_ENDPOINT="http://renderer.example:8000"
 ```
 
-The public template defaults to `nim`, `google/gemma-4-31b-it`, and remote
+The public template defaults to `nim`, `moonshotai/kimi-k3`, and remote
 rendering through `RENDER_ENDPOINT`.
+Joint uses Kimi-K3 for both text-only `analyze_structure` hierarchy analysis
+and multimodal prediction or topology-adjudication calls.
 
 The prediction VLM requests up to 24,576 output tokens by default. Set
 `JA_VLM_MAX_TOKENS` to override that default for CLI/config-driven runs. Known
@@ -97,10 +105,23 @@ retry with the same evidence and a bounded larger output budget, so plan for at
 most two calls and the corresponding model latency and token/image cost.
 
 Only a high-confidence, complete fixed/moving-link partition that passes strict
-Stage 2 reinference is accepted. The partition may contain at most one fixed
+Stage 2 reinference is accepted. When the prepared dataset carries authoritative
+rigid-body ownership, every source prediction is bound exactly once to an
+indivisible owner group and one deterministic representative render is sent per
+owner. The complete membership is included in the request and restored to the
+owner-level Stage 2 candidate; members may not be omitted, duplicated, moved
+between groups, or silently sampled away. Hierarchy-only datasets retain one
+evidence group per prediction prim. The partition may contain at most one fixed
 link; multi-member fixed links must be direct siblings beneath one non-root
 parent, with no fixed-member namespace overlapping another link member by
-ancestry in either direction, so the owned-core projection can consume them.
+ancestry in either direction. For authoritative owner groups, the reconciliation
+receipt preserves the fixed owner's path and owned-core consumes that path as an
+exact fixed-body alias when rendered members are direct siblings below one
+shared intermediate Xform. When every owner moves, exactly one root uses a supplied authoritative
+external endpoint and the remaining owners form an acyclic tree beneath it.
+Each owner-level link/evidence manifest is stored once on its
+deterministic representative; all other member histories keep document-bound
+link references, so prediction JSONL size remains linear in source membership.
 For a flat multi-member moving link, the member with the shortest final path
 component is the deterministic anchor/body1 representative; exact path order
 breaks equal-length ties. This is an identity-only choice after membership is
@@ -112,6 +133,15 @@ incomplete or ambiguous model output after that retry, or any remaining
 structural conflict fails closed: the original state is preserved, unresolved
 candidates stay review-required, and no partial topology correction is
 accepted.
+The unified BYOA pipeline requires source images and compares the authoritative
+group count with `max_images` before prediction when Stage 1 is included, or
+before reconciliation-model provisioning on a Stage-2-only rerun. An invalid
+owner partition or unavailable dataset fails typed preflight; a group count
+above the budget reports the required budget. Preflight merges
+`prim_metadata_path` with the prepared dataset using the same dataset-first
+structure precedence as Stage 2.
+A requested reconciliation failure is also terminal
+for the outer pipeline rather than being reported as success.
 An accepted decision is recorded in
 `.joint-agent-byoa/articulation_candidates/articulation_candidate_adjudications.json`
 with schema `joint-agent-articulation-adjudication-artifact-v1`. On a later run,
@@ -137,6 +167,7 @@ outputs are never auto-wired into that pairing.
 Without an explicit prediction path or consistency/raw output, owned-core
 retains candidate-only behavior; an explicit optimized-namespace prediction
 path is preserved. Neither path falls back to an external rigger.
+The optional external `usd_joint_rigger` package is not loaded by either path.
 
 Enabled CLI/YAML configurations must set `adapter` explicitly. The REST service
 uses a separate request contract where omitting the adapter selects
@@ -168,15 +199,29 @@ Empty, all-unready, or policy-blocked inputs publish compatibility
 diagnostics without a generated package. The 0.5 owned bridge supports
 revolute and prismatic candidates; spherical candidates fail closed.
 
+<!-- joint-capability-manifest:start -->
+## Joint capability support
+
+The checked-in capability manifest is the source of truth. The 0.5 public surface remains limited to the rows below; other recognized or internal authorer types are gated.
+
+| Type | Highest product level | Contract | Static status | Dynamic status |
+| --- | --- | --- | --- | --- |
+| prismatic | authorable | joint-agent-articulation-v1 | fail | not_run |
+| revolute | authorable | joint-agent-articulation-v1 | fail | not_run |
+
+A completed static run can still retain validator findings; dynamic behavior is a separate qualification lane.
+<!-- joint-capability-manifest:end -->
+
 ## Gate 3A And Gate 3B
 
-The bundled `joint-agent-validation` skill runs two optional static checks on
-the final USDZ. Gate 3A uses Isaac Sim Asset Validator:
+The `$fixed-pipeline` umbrella's `joint-agent-validation` reference describes
+two optional static checks on the final USDZ. Gate 3A uses Isaac Sim Asset
+Validator:
 
 ```bash
 mkdir -p ./joint-validation
 "$ISAAC_SIM_PYTHON" \
-  .agents/skills/joint-agent-validation/scripts/run_gate3a.py \
+  .agents/skills/fixed-pipeline/references/joint-agent-validation/scripts/run_gate3a.py \
   .joint-agent-byoa/joint_rigger/rigged.usdz \
   --report ./joint-validation/gate3a.json
 ```

@@ -94,6 +94,28 @@ def _load_unified_config():
     return unified_config
 
 
+def test_step_model_override_re_resolves_reasoning_effort() -> None:
+    task = _load_unified_config().UnifiedPipelineConfigTask()
+
+    overridden = task._merge_step_config(
+        "predict",
+        {"vlm": {"backend": "nim", "model": "nvidia/cosmos-reason2-8b"}},
+    )
+    assert "reasoning_effort" not in overridden["vlm"]
+
+    explicit = task._merge_step_config(
+        "predict",
+        {
+            "vlm": {
+                "backend": "nim",
+                "model": "moonshotai/kimi-k3",
+                "reasoning_effort": "low",
+            }
+        },
+    )
+    assert explicit["vlm"]["reasoning_effort"] == "low"
+
+
 def test_run_loads_config_from_file_and_injects_session_id(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -1147,3 +1169,78 @@ def test_log_summary_includes_optional_description_and_library(tmp_path: Path) -
     logged = " ".join(" ".join(map(str, call.args)) for call in info.call_args_list)
     assert "Detailed project" in logged
     assert "/materials/library.usd" in logged
+
+
+def test_run_logs_validation_and_path_resolution_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unified_config = _load_unified_config()
+    task = unified_config.UnifiedPipelineConfigTask()
+    monkeypatch.setattr(
+        task.validator,
+        "validate",
+        lambda config: (_ for _ in ()).throw(ValueError("invalid")),
+    )
+    with pytest.raises(ValueError, match="invalid"):
+        task.run({"config_dict": {"project": {"name": "demo"}}})
+
+    task = unified_config.UnifiedPipelineConfigTask()
+    monkeypatch.setattr(task.validator, "validate", lambda config: None)
+    monkeypatch.setattr(
+        unified_config,
+        "ProjectPathResolver",
+        lambda *args: (_ for _ in ()).throw(FileNotFoundError("missing")),
+    )
+    with pytest.raises(FileNotFoundError, match="missing"):
+        task.run({"config_dict": {"project": {"name": "demo"}}})
+
+
+def test_build_step_configs_reuses_prepared_prompt(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    unified_config = _load_unified_config()
+    task = unified_config.UnifiedPipelineConfigTask()
+    task.validator = type(
+        "_Validator",
+        (),
+        {"validate_step_requirements": staticmethod(lambda *args: None)},
+    )()
+    monkeypatch.setattr(task, "_merge_step_config", lambda *args: {})
+    monkeypatch.setattr(task, "_autowire_paths", lambda name, config, *args: config)
+    monkeypatch.setattr(
+        unified_config,
+        "render_system_prompt_from_prepare_config",
+        lambda config: "trusted prompt",
+    )
+
+    built = task._build_step_configs(
+        ["build_dataset_prepare_dataset", "predict"],
+        {"steps": {}},
+        _Resolver(tmp_path),
+        None,
+    )
+
+    assert built["predict"]["system_prompt"] == "trusted prompt"
+
+
+def test_autowire_renderer_unexpected_error_is_value_free(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    unified_config = _load_unified_config()
+    task = unified_config.UnifiedPipelineConfigTask()
+    monkeypatch.setattr(
+        unified_config,
+        "RendererConfig",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("backend detail")),
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        task._autowire_paths(
+            "build_dataset_usd",
+            {"renderer": {"rendering_modes": ["rgb"]}},
+            _Resolver(tmp_path),
+            None,
+            {},
+        )
+    assert str(exc_info.value) == "Unable to create renderer configuration"
+    assert "backend detail" not in repr(exc_info.value)

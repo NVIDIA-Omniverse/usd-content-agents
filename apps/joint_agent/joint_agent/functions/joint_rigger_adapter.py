@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import errno
 import importlib
+import importlib.metadata
 import inspect
 import json
 import ntpath
@@ -14,7 +15,9 @@ import os
 import re
 import shutil
 import tempfile
-from collections.abc import Mapping
+import threading
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, cast
 
@@ -23,6 +26,7 @@ from world_understanding.functions.physics.joint_rigger import (
     JointRiggerArtifactTargets,
     JointRiggerContractError,
     JointRiggerResultV1,
+    require_joint_rigger_authoring_platform,
 )
 from world_understanding.utils.usd.package import (
     UsdzPackageError,
@@ -45,6 +49,10 @@ from joint_agent.joint_rigger_options import (
     SUPPORTED_CANDIDATE_READINESS_POLICIES,
     SUPPORTED_INTERNAL_JOINT_RIGGER_ADAPTERS,
     SUPPORTED_MISSING_DEPENDENCY_POLICIES,
+    USD_JOINT_RIGGER_HANDOFF_VERSION,
+    USD_JOINT_RIGGER_SOURCE_COMMIT,
+    USD_JOINT_RIGGER_SOURCE_TREE,
+    USD_JOINT_RIGGER_SOURCE_VERSION,
     CandidateReadinessPolicy,
     InternalJointRiggerAdapterName,
     MissingDependencyPolicy,
@@ -101,6 +109,23 @@ _PRUNABLE_PACKAGE_DEPENDENCY_EXTENSIONS = (
 # outside this window remain unresolved and must never trigger preservation.
 _UDIM_TILE_MIN = 1001
 _UDIM_TILE_MAX = 1100
+_USD_JOINT_RIGGER_ENV_LOCK = threading.Lock()
+_USD_JOINT_RIGGER_MANAGED_ENV_KEYS = (
+    "USD_JOINT_RIGGER_TEMPLATE",
+    "USD_JOINT_RIGGER_TEMPLATE_DIR",
+    "USD_JOINT_RIGGER_MODEL_UP",
+    "USD_JOINT_RIGGER_MODEL_FORWARD",
+    "USD_JOINT_RIGGER_FIX_PIVOTS",
+    "ASSET_AGENT_REPAIR_PREDICTIONS",
+)
+_STRUCTURED_JOINT_HINT_FIELDS = (
+    "is_articulation_candidate",
+    "joint_type_hint",
+    "axis_hint",
+    "parent_hint",
+    "child_hint",
+    "rigger_evidence",
+)
 
 
 def apply_joint_rigger(
@@ -119,6 +144,7 @@ def apply_joint_rigger(
     joint_rigger_template: str = DEFAULT_USD_JOINT_RIGGER_TEMPLATE,
     apply_masses: bool | None = None,
     apply_collision: bool | None = None,
+    enable_source_backed_v1_breadth: bool = False,
 ) -> dict[str, Any]:
     """Apply a Joint Rigger adapter boundary.
 
@@ -127,6 +153,11 @@ def apply_joint_rigger(
     ``owned_core`` consumes predictions when supplied so exact Stage 1 rigid-link
     membership and Stage 2 topology enter the shared first-class V1/V2 contract
     path.
+
+    ``enable_source_backed_v1_breadth`` is the internal Joint 0.6 opt-in for the
+    source-backed articulation-v1 shapes. It is only carried by the
+    prediction-backed ``owned_core`` path; every other combination fails closed
+    so an unsupported request is never silently narrowed to the 0.5 surface.
     """
     input_path = Path(input_usd_path)
     predictions = Path(predictions_path) if predictions_path is not None else None
@@ -168,6 +199,22 @@ def apply_joint_rigger(
         )
     if adapter in CANDIDATE_REQUIRED_JOINT_RIGGER_ADAPTERS and candidates is None:
         raise ValueError(f"{adapter} requires articulation_candidates_path")
+    if type(enable_source_backed_v1_breadth) is not bool:
+        raise TypeError("enable_source_backed_v1_breadth must be a bool")
+    if enable_source_backed_v1_breadth:
+        if adapter != "owned_core":
+            raise ValueError(
+                "enable_source_backed_v1_breadth requires the owned_core adapter; "
+                f"got {adapter}"
+            )
+        if predictions is None:
+            # The candidate-edge owned-core path never projects Stage 1
+            # evidence, so it cannot honour the source-backed shapes.
+            raise ValueError(
+                "enable_source_backed_v1_breadth requires predictions_path"
+            )
+    if adapter == "owned_core":
+        require_joint_rigger_authoring_platform()
     _validate_distinct_artifact_paths(
         input_usd_path=input_path,
         predictions_path=predictions,
@@ -256,6 +303,7 @@ def apply_joint_rigger(
                     artifact_targets=targets,
                     candidate_readiness=readiness,
                     allow_ready_subset=has_mixed_readiness,
+                    enable_source_backed_v1_breadth=enable_source_backed_v1_breadth,
                 )
         except InitialNoReadyJointCandidatesError:
             if readiness["ready_candidate_count"] != 0:
@@ -348,39 +396,48 @@ def apply_joint_rigger(
             ),
         )
 
+    # Verify the WU-owned source declaration before invalidating any previous
+    # artifact set. A malformed or drifted provenance sidecar is a preflight
+    # failure, not an authoring attempt.
+    backend_identity = _usd_joint_rigger_backend_identity(module)
     _clear_stale_apply_artifacts(
         output_usd_path=output_path,
         diagnostics_path=diagnostics,
         validation_path=validation,
     )
 
-    runner = getattr(module, "apply_joint_rigger", None)
-    if callable(runner):
-        result = _run_native_usd_joint_rigger(
-            runner=runner,
-            input_usd_path=input_path,
-            predictions_path=predictions,
-            output_usd_path=output_path,
-            diagnostics_path=diagnostics,
-            validation_path=validation,
-            articulation_candidates_path=candidates,
-            joint_rigger_template=joint_rigger_template,
-            apply_masses=apply_masses,
-            apply_collision=apply_collision,
-        )
-    else:
-        result = _run_usd_joint_rigger_handoff_adapter(
-            module=module,
-            input_usd_path=input_path,
-            predictions_path=predictions,
-            output_usd_path=output_path,
-            diagnostics_path=diagnostics,
-            validation_path=validation,
-            articulation_candidates_path=candidates,
-            template_name=joint_rigger_template,
-            apply_masses=apply_masses,
-            apply_collision=apply_collision,
-        )
+    with _managed_usd_joint_rigger_environment(
+        template_name=joint_rigger_template
+    ) as template_selection:
+        runner = getattr(module, "apply_joint_rigger", None)
+        if callable(runner):
+            result = _run_native_usd_joint_rigger(
+                runner=runner,
+                input_usd_path=input_path,
+                predictions_path=predictions,
+                output_usd_path=output_path,
+                diagnostics_path=diagnostics,
+                validation_path=validation,
+                articulation_candidates_path=candidates,
+                joint_rigger_template=joint_rigger_template,
+                apply_masses=apply_masses,
+                apply_collision=apply_collision,
+            )
+        else:
+            result = _run_usd_joint_rigger_handoff_adapter(
+                module=module,
+                input_usd_path=input_path,
+                predictions_path=predictions,
+                output_usd_path=output_path,
+                diagnostics_path=diagnostics,
+                validation_path=validation,
+                articulation_candidates_path=candidates,
+                template_name=joint_rigger_template,
+                apply_masses=apply_masses,
+                apply_collision=apply_collision,
+                backend_identity=backend_identity,
+                template_selection=template_selection,
+            )
     if not isinstance(result, dict):
         raise RuntimeError(
             "usd_joint_rigger.apply_joint_rigger returned non-dict result"
@@ -393,6 +450,8 @@ def apply_joint_rigger(
         diagnostics_path=diagnostics,
         validation_path=validation,
         readiness=readiness,
+        backend_identity=backend_identity,
+        template_selection=template_selection,
     )
     real_adapter_warnings = [
         *output_warnings,
@@ -621,6 +680,186 @@ def _normalized_real_adapter_status(status: Any) -> str:
     return str(status).strip().lower() if status else ""
 
 
+@contextmanager
+def _managed_usd_joint_rigger_environment(
+    *,
+    template_name: str,
+) -> Iterator[dict[str, Any]]:
+    """Select package templates without consulting process or user overrides.
+
+    The pinned source scans ``$HOME/.usd_joint_rigger`` after its built-in
+    catalog and lets that directory shadow templates by name. The Joint Agent
+    limited preview instead supplies the template name explicitly and points
+    the override scan at a fresh empty directory. Other source environment
+    switches that can alter axes, pivot repair, or prediction repair are
+    cleared for the complete source call. Environment mutation is serialized
+    because ``os.environ`` is process-global.
+    """
+
+    with _USD_JOINT_RIGGER_ENV_LOCK:
+        saved = {
+            key: os.environ[key]
+            for key in _USD_JOINT_RIGGER_MANAGED_ENV_KEYS
+            if key in os.environ
+        }
+        ignored_overrides = tuple(sorted(saved))
+        with tempfile.TemporaryDirectory(
+            prefix="wu-joint-rigger-template-overrides-"
+        ) as empty_template_dir:
+            for key in _USD_JOINT_RIGGER_MANAGED_ENV_KEYS:
+                os.environ.pop(key, None)
+            os.environ["USD_JOINT_RIGGER_TEMPLATE"] = template_name
+            os.environ["USD_JOINT_RIGGER_TEMPLATE_DIR"] = empty_template_dir
+            try:
+                yield {
+                    "mode": "world_understanding_managed_builtin",
+                    "template_name": template_name,
+                    "user_home_shadowing_enabled": False,
+                    "environment_overrides_ignored": list(ignored_overrides),
+                }
+            finally:
+                for key in _USD_JOINT_RIGGER_MANAGED_ENV_KEYS:
+                    os.environ.pop(key, None)
+                os.environ.update(saved)
+
+
+def _usd_joint_rigger_backend_identity(module: Any) -> dict[str, Any]:
+    module_file = getattr(module, "__file__", None)
+    module_path = (
+        Path(module_file).resolve()
+        if isinstance(module_file, str) and module_file
+        else None
+    )
+    observed_version = _non_empty_string(getattr(module, "__version__", None))
+    if observed_version is None:
+        try:
+            observed_version = importlib.metadata.version("usd-joint-rigger")
+        except importlib.metadata.PackageNotFoundError:
+            observed_version = None
+    if (
+        module_path is not None
+        and observed_version is not None
+        and observed_version != USD_JOINT_RIGGER_SOURCE_VERSION
+    ):
+        raise RuntimeError(
+            "The imported usd_joint_rigger source version does not match the "
+            "World Understanding pin: "
+            f"observed={observed_version!r}, "
+            f"expected={USD_JOINT_RIGGER_SOURCE_VERSION!r}"
+        )
+    identity = {
+        "distribution": "usd-joint-rigger",
+        "observed_version": observed_version,
+        "expected_version": USD_JOINT_RIGGER_SOURCE_VERSION,
+        "source_commit": USD_JOINT_RIGGER_SOURCE_COMMIT,
+        "source_tree": USD_JOINT_RIGGER_SOURCE_TREE,
+        "source_identity_kind": "world_understanding_declared_pin",
+        "handoff_version": USD_JOINT_RIGGER_HANDOFF_VERSION,
+    }
+    provenance_record = (
+        _load_usd_joint_rigger_source_provenance(module)
+        if module_path is not None
+        else None
+    )
+    if provenance_record is not None:
+        provenance, _provenance_path = provenance_record
+        upstream = provenance["upstream"]
+        identity.update(
+            {
+                "source_commit": upstream["commit"],
+                "source_tree": upstream["tree"],
+                "runtime_package_tree": upstream.get("runtime_package_tree"),
+                "source_identity_kind": "world_understanding_upstream_sidecar",
+                "provenance_schema_version": provenance["schema_version"],
+                "provenance_path": "packages/usd_joint_rigger.upstream.json",
+                "module_source_root": "packages/usd_joint_rigger/src",
+            }
+        )
+    return identity
+
+
+def _load_usd_joint_rigger_source_provenance(
+    module: Any,
+) -> tuple[dict[str, Any], Path] | None:
+    """Read and verify the WU-owned source-intake sidecar when available."""
+
+    candidates: list[Path] = []
+    module_file = getattr(module, "__file__", None)
+    module_path = None
+    if isinstance(module_file, str) and module_file:
+        module_path = Path(module_file).resolve()
+        for parent in module_path.parents:
+            candidates.append(parent / "usd_joint_rigger.upstream.json")
+    adapter_path = Path(__file__).resolve()
+    if len(adapter_path.parents) > 4:
+        candidates.append(
+            adapter_path.parents[4] / "packages/usd_joint_rigger.upstream.json"
+        )
+
+    unique_candidates = tuple(dict.fromkeys(candidates))
+    provenance_path = next(
+        (
+            path
+            for path in unique_candidates
+            if path.is_file()
+            and (
+                module_path is None
+                or module_path.is_relative_to(
+                    (path.parent / "usd_joint_rigger/src").resolve()
+                )
+            )
+        ),
+        None,
+    )
+    if provenance_path is None:
+        if module_path is not None:
+            raise RuntimeError(
+                "Imported usd_joint_rigger module is not under the "
+                "World Understanding sidecar-bound source tree: "
+                f"{module_path}"
+            )
+        return None
+    try:
+        payload = json.loads(provenance_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            "Could not read the World Understanding usd_joint_rigger source "
+            f"provenance sidecar: {exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(
+            "World Understanding usd_joint_rigger source provenance must be a "
+            "JSON object"
+        )
+    upstream = payload.get("upstream")
+    if not isinstance(upstream, Mapping):
+        raise RuntimeError(
+            "World Understanding usd_joint_rigger source provenance is missing "
+            "upstream identity"
+        )
+    expected = {
+        "schema_version": "world-understanding-upstream-source-v1",
+        "package": "usd-joint-rigger",
+        "version": USD_JOINT_RIGGER_SOURCE_VERSION,
+    }
+    for field, value in expected.items():
+        if payload.get(field) != value:
+            raise RuntimeError(
+                "World Understanding usd_joint_rigger source provenance mismatch: "
+                f"{field}={payload.get(field)!r}, expected {value!r}"
+            )
+    for field, value in {
+        "commit": USD_JOINT_RIGGER_SOURCE_COMMIT,
+        "tree": USD_JOINT_RIGGER_SOURCE_TREE,
+    }.items():
+        if upstream.get(field) != value:
+            raise RuntimeError(
+                "World Understanding usd_joint_rigger source provenance mismatch: "
+                f"upstream.{field}={upstream.get(field)!r}, expected {value!r}"
+            )
+    return payload, provenance_path.resolve()
+
+
 def _run_native_usd_joint_rigger(
     *,
     runner: Any,
@@ -678,6 +917,22 @@ def _callable_parameter_names(callable_obj: Any) -> tuple[str, ...]:
     return tuple(signature.parameters)
 
 
+def _call_with_supported_kwargs(
+    callable_obj: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    """Call a pinned-source entry point without requiring newer kwargs."""
+
+    if _callable_accepts_kwargs(callable_obj):
+        return callable_obj(*args, **kwargs)
+    accepted = set(_callable_parameter_names(callable_obj))
+    return callable_obj(
+        *args,
+        **{key: value for key, value in kwargs.items() if key in accepted},
+    )
+
+
 def _clear_stale_apply_artifacts(
     *,
     output_usd_path: Path,
@@ -711,6 +966,8 @@ def _run_usd_joint_rigger_handoff_adapter(
     template_name: str,
     apply_masses: bool,
     apply_collision: bool,
+    backend_identity: dict[str, Any],
+    template_selection: dict[str, Any],
 ) -> dict[str, Any]:
     create_joints = getattr(module, "create_joints", None)
     if not callable(create_joints):
@@ -743,6 +1000,17 @@ def _run_usd_joint_rigger_handoff_adapter(
         deinstanced_prim_count = _deinstance_stage_for_handoff(stage)
 
         warnings: list[str] = list(prediction_metadata["warnings"])
+        if (
+            backend_identity["observed_version"] is not None
+            and backend_identity["observed_version"]
+            != backend_identity["expected_version"]
+        ):
+            warnings.append(
+                "usd_joint_rigger runtime version does not match the declared "
+                "limited-preview source pin: "
+                f"observed={backend_identity['observed_version']!r}, "
+                f"expected={backend_identity['expected_version']!r}"
+            )
         if deinstanced_prim_count:
             warnings.append(
                 "usd_joint_rigger provisional handoff de-instanced "
@@ -754,7 +1022,17 @@ def _run_usd_joint_rigger_handoff_adapter(
         try:
             joint_errors.extend(
                 _coerce_messages(
-                    create_joints(stage, predictions, template_name=template_name)
+                    _call_with_supported_kwargs(
+                        create_joints,
+                        stage,
+                        predictions,
+                        template_name=template_name,
+                        reshape=True,
+                        flatten=False,
+                        fix_pivots=False,
+                        articulation=True,
+                        repair_predictions=False,
+                    )
                 )
             )
         except Exception as exc:
@@ -862,9 +1140,12 @@ def _run_usd_joint_rigger_handoff_adapter(
             "authored_joint_paths": authored_joint_paths,
             "prediction_format": prediction_metadata["format"],
             "prediction_count": prediction_metadata["prediction_count"],
-            "role_normalized_prediction_count": prediction_metadata[
-                "role_normalized_prediction_count"
-            ],
+            # Retained as a compatibility diagnostic. WP-M2 never rewrites
+            # component_name from role, so this value is always zero.
+            "role_normalized_prediction_count": 0,
+            "backend_identity": backend_identity,
+            "template_selection": template_selection,
+            "capabilities": prediction_metadata["capabilities"],
         }
     )
     validation = _base_validation(
@@ -1371,12 +1652,13 @@ def _load_handoff_predictions(
     if not isinstance(predictions, dict):
         raise RuntimeError("usd_joint_rigger prediction conversion returned non-dict")
 
-    role_normalized_count = _normalize_prediction_roles_for_handoff(predictions)
+    capability_metadata = _inspect_handoff_prediction_capabilities(predictions)
     return predictions, {
         "format": prediction_format,
         "prediction_count": raw_count,
-        "role_normalized_prediction_count": role_normalized_count,
-        "warnings": [],
+        "role_normalized_prediction_count": 0,
+        "capabilities": capability_metadata["capabilities"],
+        "warnings": capability_metadata["warnings"],
     }
 
 
@@ -1406,26 +1688,116 @@ def _read_jsonl_predictions(raw_text: str, predictions_path: Path) -> list[Any]:
     return raw_list
 
 
-def _normalize_prediction_roles_for_handoff(predictions: dict[str, Any]) -> int:
-    normalized_count = 0
+def _inspect_handoff_prediction_capabilities(
+    predictions: dict[str, Any],
+) -> dict[str, Any]:
+    """Describe which pinned-source prediction paths can be exercised.
+
+    This function is deliberately read-only. The pinned source consumes
+    ``classification.role`` directly, then may fall back to legacy
+    ``component_name`` phrase rules and finally template defaults. WP-M2 keeps
+    those compatibility paths observable instead of making them indistinct by
+    copying role into component_name.
+    """
+
+    direct_role_count = 0
+    legacy_component_name_fallback_count = 0
+    missing_role_fallback_count = 0
+    unknown_role_count = 0
+    top_level_role_only_count = 0
+    structured_hint_prediction_count = 0
+    structured_hint_field_counts = dict.fromkeys(_STRUCTURED_JOINT_HINT_FIELDS, 0)
+
     for entry in predictions.values():
         if not isinstance(entry, dict):
+            missing_role_fallback_count += 1
             continue
         classification = entry.get("classification")
-        if not isinstance(classification, dict):
-            continue
-        role = _non_empty_string(
-            classification.get("role"),
-        ) or _non_empty_string(entry.get("role"))
-        if not role or role.casefold() == "unknown":
-            continue
-        component_name = _non_empty_string(classification.get("component_name"))
-        if component_name and component_name != role:
-            classification.setdefault("semantic_component_name", component_name)
-        if classification.get("component_name") != role:
-            classification["component_name"] = role
-            normalized_count += 1
-    return normalized_count
+        classification_payload = (
+            classification if isinstance(classification, dict) else {}
+        )
+        role = _non_empty_string(classification_payload.get("role"))
+        component_name = _non_empty_string(classification_payload.get("component_name"))
+        if role is not None and role.casefold() != "unknown":
+            direct_role_count += 1
+        else:
+            if role is not None and role.casefold() == "unknown":
+                unknown_role_count += 1
+            top_level_role = _non_empty_string(entry.get("role"))
+            if top_level_role is not None and top_level_role.casefold() != "unknown":
+                top_level_role_only_count += 1
+            if component_name is not None:
+                legacy_component_name_fallback_count += 1
+            else:
+                missing_role_fallback_count += 1
+
+        has_structured_hint = False
+        for field in _STRUCTURED_JOINT_HINT_FIELDS:
+            value = classification_payload.get(field, entry.get(field))
+            if value is None:
+                continue
+            structured_hint_field_counts[field] += 1
+            has_structured_hint = True
+        if has_structured_hint:
+            structured_hint_prediction_count += 1
+
+    warnings = [
+        "Limited-preview usd_joint_rigger authoring consumes "
+        "classification.role for role mapping only; structured joint hints "
+        "are not consumed and the output is not #579 structured-authoring "
+        "evidence."
+    ]
+    if legacy_component_name_fallback_count:
+        warnings.append(
+            f"{legacy_component_name_fallback_count} prediction(s) lack a usable "
+            "classification.role and may use the legacy component_name phrase-rule "
+            "fallback."
+        )
+    if missing_role_fallback_count:
+        warnings.append(
+            f"{missing_role_fallback_count} prediction(s) lack both a usable "
+            "classification.role and component_name; the source may use an unknown "
+            "or template-default role fallback."
+        )
+    if top_level_role_only_count:
+        warnings.append(
+            f"{top_level_role_only_count} prediction(s) provide role only at the "
+            "top level; the pinned source direct-role path requires "
+            "classification.role."
+        )
+
+    return {
+        "capabilities": {
+            "handoff_version": USD_JOINT_RIGGER_HANDOFF_VERSION,
+            "classification_role": {
+                "consumed": True,
+                "field": "classification.role",
+                "direct_prediction_count": direct_role_count,
+                "unknown_prediction_count": unknown_role_count,
+            },
+            "legacy_component_name_fallback": {
+                "possible": True,
+                "prediction_count": legacy_component_name_fallback_count,
+            },
+            "missing_role_fallback": {
+                "possible": True,
+                "prediction_count": missing_role_fallback_count,
+                "top_level_role_only_prediction_count": top_level_role_only_count,
+            },
+            "structured_joint_hints": {
+                "consumed": False,
+                "fields": list(_STRUCTURED_JOINT_HINT_FIELDS),
+                "prediction_count": structured_hint_prediction_count,
+                "field_counts": structured_hint_field_counts,
+                "issue_579_evidence": False,
+                "reason": (
+                    "The limited-preview template handoff does not consume exact "
+                    "joint type, endpoint, axis, compound-edge, or limit facts."
+                ),
+            },
+        },
+        "warnings": warnings,
+    }
 
 
 def _non_empty_string(value: Any) -> str | None:
@@ -1484,6 +1856,8 @@ def _augment_real_adapter_artifacts(
     diagnostics_path: Path,
     validation_path: Path,
     readiness: dict[str, Any],
+    backend_identity: dict[str, Any],
+    template_selection: dict[str, Any],
 ) -> list[str]:
     return [
         warning
@@ -1492,11 +1866,15 @@ def _augment_real_adapter_artifacts(
                 diagnostics_path,
                 "diagnostics",
                 readiness,
+                backend_identity,
+                template_selection,
             ),
             _augment_json_artifact_with_readiness(
                 validation_path,
                 "validation",
                 readiness,
+                backend_identity,
+                template_selection,
             ),
         )
         if warning
@@ -1507,6 +1885,8 @@ def _augment_json_artifact_with_readiness(
     path: Path,
     artifact_label: str,
     readiness: dict[str, Any],
+    backend_identity: dict[str, Any] | None = None,
+    template_selection: dict[str, Any] | None = None,
 ) -> str | None:
     if not path.exists():
         return (
@@ -1528,6 +1908,10 @@ def _augment_json_artifact_with_readiness(
         )
 
     payload["candidate_readiness"] = readiness
+    if backend_identity is not None:
+        payload["backend_identity"] = backend_identity
+    if template_selection is not None:
+        payload["template_selection"] = template_selection
     if readiness["warnings"]:
         payload["warnings"] = _merge_warnings(
             payload.get("warnings", []),
@@ -1755,6 +2139,23 @@ def _write_readiness_blocked_result(
     }
 
 
+def _reject_duplicate_candidate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate keys so readiness cannot be read from a shadowed value.
+
+    The strict Stage 2 loaders already reject duplicates, but adapters that
+    consume only this readiness verdict never re-parse the document. Without
+    this hook a second ``candidates`` member would let an unready candidate be
+    reported ready to those adapters while the bytes still show the original.
+    """
+
+    document: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"Duplicate JSON key in Stage 2 document: {key}")
+        document[key] = value
+    return document
+
+
 def _evaluate_candidate_readiness(
     *,
     articulation_candidates_path: Path | None,
@@ -1800,7 +2201,10 @@ def _evaluate_candidate_readiness(
         )
         assert candidate_bytes is not None
         readiness["articulation_candidates_sha256"] = candidate_sha256
-        candidate_document = json.loads(candidate_bytes)
+        candidate_document = json.loads(
+            candidate_bytes,
+            object_pairs_hook=_reject_duplicate_candidate_keys,
+        )
     except (OSError, UnicodeError, JointRiggerArtifactError) as exc:
         error = (
             f"articulation candidates file could not be read: "
@@ -1811,6 +2215,21 @@ def _evaluate_candidate_readiness(
         error = (
             f"articulation candidates file is invalid JSON: "
             f"{articulation_candidates_path}: {exc.msg}"
+        )
+        return _candidate_readiness_error(readiness, policy, error)
+    except ValueError as exc:
+        # The duplicate-key hook raises a plain ValueError, which the
+        # JSONDecodeError arm above does not catch. Without this it would
+        # escape as an unhandled crash instead of a readiness error.
+        #
+        # This arm is deliberately broad and assumes the only ValueError
+        # reachable inside the try is a parse failure: the surrounding calls
+        # raise OSError, UnicodeError, or JointRiggerArtifactError. A future
+        # change that raises ValueError for another reason here would be
+        # mislabelled as invalid JSON, so keep that assumption in view.
+        error = (
+            f"articulation candidates file is invalid JSON: "
+            f"{articulation_candidates_path}: {exc}"
         )
         return _candidate_readiness_error(readiness, policy, error)
 

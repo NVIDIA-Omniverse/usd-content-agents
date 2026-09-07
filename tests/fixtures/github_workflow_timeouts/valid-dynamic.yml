@@ -1,0 +1,13 @@
+name: valid dynamic workflow
+on: push
+jobs:
+  deployment-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ github.event_name == 'schedule' && 15 || 120 }}
+    steps:
+      - name: Install tools
+        timeout-minutes: 10
+        run: echo install
+      - name: Test deployment
+        timeout-minutes: ${{ github.event_name == 'schedule' && 10 || 105 }}
+        run: echo test

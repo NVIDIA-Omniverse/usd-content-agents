@@ -33,6 +33,7 @@ from physics_agent.tuning.runner import (
     _validate_inputs,
     _visual_evidence_fail_closed_error,
 )
+from physics_agent.tuning.scenario import ScenarioParseError
 from physics_agent.tuning.types import Scenario, TrialRecord, TunableParam, TuneInput
 from physics_agent.tuning.visual_evidence import JudgeVisualEvidence
 
@@ -158,10 +159,23 @@ def test_scenario_override_and_backend_helper_edges(tmp_path: Path) -> None:
     with pytest.raises(TuningError, match="did not parse to a mapping"):
         _load_scenario_override_dict(non_mapping)
 
-    assert _explicit_scenario_param_names({"parameters": {}}) == set()
-    assert _explicit_scenario_param_names({"parameters": ["skip", {"name": "x"}]}) == {
-        "x"
-    }
+    with pytest.raises(
+        ScenarioParseError,
+        match="'parameters' must be a list, got dict",
+    ):
+        _explicit_scenario_param_names({"parameters": {}})
+    with pytest.raises(
+        ScenarioParseError,
+        match=r"parameters\[0\] must be a mapping, got str",
+    ):
+        _explicit_scenario_param_names({"parameters": ["skip"]})
+    assert _explicit_scenario_param_names(
+        {
+            "parameters": [
+                {"name": "mass_scale", "min": 0.5, "max": 2.0},
+            ]
+        }
+    ) == {"mass_scale"}
     assert _backend_param_keys_for_interpreter(None) is None
     assert (
         _backend_param_keys_for_interpreter(
@@ -201,6 +215,51 @@ def test_evaluate_one_malformed_backend_results(
     )
     assert trial.failed is True
     assert error_fragment in (trial.error or "")
+
+
+@pytest.mark.parametrize("objective", ["bad", float("nan")])
+def test_evaluate_one_rejects_malformed_objective(
+    tmp_path: Path,
+    objective: Any,
+) -> None:
+    backend = SimpleNamespace(
+        evaluate=lambda **_kwargs: {"score": 0.25, "objective_value": objective}
+    )
+    trial = _evaluate_one(
+        backend,
+        _scenario(),
+        {"restitution": 0.5},
+        tmp_path / "physics.usda",
+        seed=1,
+        trial_index=3,
+    )
+    assert trial.failed is True
+    assert "objective_value" in (trial.error or "")
+
+
+def test_evaluate_one_preserves_raw_objective_separately_from_score(
+    tmp_path: Path,
+) -> None:
+    backend = SimpleNamespace(
+        evaluate=lambda **_kwargs: {
+            "score": -0.4,
+            "objective_value": 0.4,
+            "first_bounce_height": 0.4,
+        }
+    )
+    trial = _evaluate_one(
+        backend,
+        _scenario(),
+        {"restitution": 0.5},
+        tmp_path / "physics.usda",
+        seed=1,
+        trial_index=3,
+    )
+    assert trial.failed is False
+    assert trial.score == -0.4
+    assert trial.objective_value == 0.4
+    assert "objective_value" not in trial.backend_metrics
+    assert trial.backend_metrics["first_bounce_height"] == 0.4
 
 
 def test_runner_camera_discovery_and_render_edges(
@@ -296,7 +355,7 @@ def test_runner_camera_discovery_and_render_edges(
 
     invalid_scenario = replace(
         _scenario(),
-        target={"duration_s": 1.0, "video_renderer": ""},
+        target={"duration_s": 1.0, "frame_renderer": ""},
     )
     with pytest.raises(ValueError, match="Unknown rendering backend"):
         _render_best_trial_for_visual_judge(
@@ -418,7 +477,11 @@ def test_do_run_tune_error_paths_without_backend_work(
     def zero_trial_runner(*_args: Any, **_kwargs: Any) -> None:
         return None
 
-    monkeypatch.setattr(runner_mod, "get_runner", lambda _name: zero_trial_runner)
+    zero_trial_workflow = runner_mod.TuneWorkflow(
+        _params(tmp_path).optimizer_settings,
+        resolve_optimizer=lambda name: name,
+        get_optimizer_runner=lambda _name: zero_trial_runner,
+    )
     with pytest.raises(TuningError, match="zero trials"):
         _do_run_tune_inner(
             params=_params(tmp_path),
@@ -427,7 +490,7 @@ def test_do_run_tune_error_paths_without_backend_work(
             scenario=_scenario(),
             cancel_check=lambda: False,
             physics_usd=tmp_path / "physics.usda",
-            optimizer_used="random",
+            tune_workflow=zero_trial_workflow,
             backend=SimpleNamespace(),
         )
 
@@ -438,7 +501,11 @@ def test_do_run_tune_error_paths_without_backend_work(
     ) -> None:
         evaluate({"restitution": 0.5})
 
-    monkeypatch.setattr(runner_mod, "get_runner", lambda _name: cancelling_runner)
+    cancelling_workflow = runner_mod.TuneWorkflow(
+        _params(tmp_path).optimizer_settings,
+        resolve_optimizer=lambda name: name,
+        get_optimizer_runner=lambda _name: cancelling_runner,
+    )
     cancelled = _do_run_tune_inner(
         params=_params(tmp_path),
         output_dir=tmp_path / "cancelled",
@@ -446,7 +513,7 @@ def test_do_run_tune_error_paths_without_backend_work(
         scenario=_scenario(),
         cancel_check=lambda: True,
         physics_usd=tmp_path / "physics.usda",
-        optimizer_used="random",
+        tune_workflow=cancelling_workflow,
         backend=SimpleNamespace(),
     )
     assert cancelled.cancelled is True

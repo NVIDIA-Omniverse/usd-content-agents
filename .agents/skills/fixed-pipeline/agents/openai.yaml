@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline"
+  short_description: "Run established app pipelines and services"
+  default_prompt: "Use $fixed-pipeline to run an explicitly requested app CLI, REST service, benchmark, or deployment workflow."

@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover - static typing only
     from physics_agent.tuning.simulator import Simulator
     from physics_agent.tuning.types import Scenario
 
-from physics_agent.tuning.video_rendering import resolve_video_renderer
+from physics_agent.tuning.frame_rendering import resolve_frame_renderer
 
 logger = logging.getLogger(__name__)
 
@@ -140,8 +140,12 @@ def _add_ground_clearance_to_summary(
     bbox_min = _as_vec3(scene_info.get("bbox_min_local_stage"))
     if bbox_min is None:
         return
+    bbox_scale = _as_vec3(scene_info.get("bbox_local_stage_scale")) or (1.0, 1.0, 1.0)
+    bbox_min = tuple(bbox_min[index] * bbox_scale[index] for index in range(3))
     up_idx = _world_up_axis(scene_info.get("world_up"))
     bbox_max = _as_vec3(scene_info.get("bbox_max_local_stage"))
+    if bbox_max is not None:
+        bbox_max = tuple(bbox_max[index] * bbox_scale[index] for index in range(3))
     clearance_tolerance_stage = (
         _ground_clearance_tolerance(bbox_min, bbox_max)
         if bbox_max is not None
@@ -358,6 +362,7 @@ def evaluate(
     work_dir: Path | None = None,
     judge_callback: JudgeCallback | None = None,
     weights: dict[str, float] | None = None,
+    extra_approved_dependency_roots: tuple[Path, ...] = (),
 ) -> dict[str, Any]:
     """Run one freeform tune trial against a physics simulator.
 
@@ -379,10 +384,17 @@ def evaluate(
     from physics_agent.tuning.usd_patch import patch_physics_usd
 
     target = dict(scenario.target or {})
-    record_video_mode = str(target.get("record_video", "off")).lower()
-    record_video_on = record_video_mode in {"end_of_tune", "always"}
-    needs_render = (judge_callback is not None) or record_video_on
-    video_renderer = resolve_video_renderer(target) if needs_render else None
+    record_frames_mode = str(target.get("record_frames", "off")).lower()
+    record_frames_on = record_frames_mode == "always"
+    end_of_tune_deferred = record_frames_mode == "end_of_tune"
+    if end_of_tune_deferred:
+        logger.warning(
+            "freeform: record_frames='end_of_tune' cannot run in the per-trial "
+            "evaluator; suppressing per-trial renders so the outer refinement "
+            "orchestrator can replay only the winning trial"
+        )
+    needs_render = (judge_callback is not None) or record_frames_on
+    frame_renderer = resolve_frame_renderer(target) if needs_render else None
 
     work = (
         Path(work_dir)
@@ -414,6 +426,14 @@ def evaluate(
         patched_path,
         scene_path,
         target=target,
+        # Flattened patch output may retain file-backed paths anchored at the
+        # original input. Bound copying to that trusted input root and this
+        # trial's own generated-artifact root.
+        approved_dependency_roots=(
+            Path(physics_usd).parent,
+            patched_path.parent,
+            *extra_approved_dependency_roots,
+        ),
     )
 
     # 3. Simulator evaluate with the LLM-authored initial conditions.
@@ -469,16 +489,15 @@ def evaluate(
         summary, observations
     )
 
-    # 6. Optional video rendering and VLM judge.
+    # 6. Optional PNG-frame rendering and VLM judge.
     #
-    # Rendering produces inspection-ready PNG/mp4 evidence and is the
+    # Rendering produces inspection-ready PNG evidence and is the
     # input to the optional VLM judge. The two are independent triggers:
-    # ``record_video`` ("off" / "always", default "off") writes the
-    # render artifacts unconditionally on every trial it fires; the VLM
-    # judge runs only when ``judge_callback`` was passed and rendering
-    # produced frames. Without a record_video opt-in, the VLM judge
-    # itself implicitly forces a render so existing behavior is
-    # preserved when callers wire up the callback.
+    # ``record_frames="always"`` writes render artifacts on every trial;
+    # ``end_of_tune`` is deliberately deferred because this evaluator cannot
+    # identify the winning trial. The VLM judge runs only when
+    # ``judge_callback`` was passed and rendering produced frames. Without an
+    # active record_frames opt-in, the callback itself forces a render.
     #
     # Rendering belongs to ``world_understanding.functions.graphics``;
     # imported lazily so freeform stays usable when the helper isn't
@@ -489,7 +508,15 @@ def evaluate(
     vlm_reasoning: str = ""
     frames: list[Path] = []
     vlm_available = False
-    video_block: dict[str, Any] | None = None
+    frame_block: dict[str, Any] | None = (
+        {
+            "mode": record_frames_mode,
+            "status": "skipped",
+            "reason": "winning-trial rendering is owned by the outer orchestrator",
+        }
+        if end_of_tune_deferred
+        else None
+    )
     if needs_render and recording_path is not None:
         try:
             from world_understanding.functions.graphics import (
@@ -505,31 +532,31 @@ def evaluate(
                     f"VLM unavailable: {skip_reason}; freeform falls back to "
                     "programmatic-only scoring."
                 )
-            if record_video_on:
-                video_block = {
-                    "mode": record_video_mode,
+            if record_frames_on:
+                frame_block = {
+                    "mode": record_frames_mode,
                     "status": "skipped",
                     "reason": skip_reason,
                 }
 
         if render_time_sampled_usd is not None:
-            assert video_renderer is not None
+            assert frame_renderer is not None
             try:
                 frames = render_time_sampled_usd(
                     recording_path,
                     trial_dir / "render",
-                    renderer=video_renderer,
+                    renderer=frame_renderer,
                     cameras=scene_info.get("camera_paths"),
                     fps=sample_fps,
                     max_duration_seconds=duration_s or 2.0,
-                    image_width=int(target.get("video_image_width", 512)),
-                    image_height=int(target.get("video_image_height", 512)),
-                    num_sensor_updates=int(target.get("video_sensor_updates", 32)),
-                    render_mode=str(target.get("video_render_mode", "rt2")),
+                    image_width=int(target.get("frame_image_width", 512)),
+                    image_height=int(target.get("frame_image_height", 512)),
+                    num_sensor_updates=int(target.get("frame_sensor_updates", 32)),
+                    render_mode=str(target.get("frame_render_mode", "rt2")),
                 )
-                if record_video_on:
-                    video_block = {
-                        "mode": record_video_mode,
+                if record_frames_on:
+                    frame_block = {
+                        "mode": record_frames_mode,
                         "status": "ok" if frames else "no_frames",
                         "render_dir": str(trial_dir / "render"),
                         "frame_count": len(frames),
@@ -558,9 +585,9 @@ def evaluate(
                 if judge_callback is not None:
                     vlm_reasoning = f"VLM unavailable: {type(exc).__name__}: {exc}"
                     vlm_available = False
-                if record_video_on:
-                    video_block = {
-                        "mode": record_video_mode,
+                if record_frames_on:
+                    frame_block = {
+                        "mode": record_frames_mode,
                         "status": "failed",
                         "error_type": type(exc).__name__,
                         "error": str(exc),
@@ -581,6 +608,7 @@ def evaluate(
 
     out: dict[str, Any] = {
         "score": float(score),
+        "objective_value": float(combined_clamped),
         "combined_score": float(combined_clamped),
         "programmatic_score": float(programmatic_score),
         "programmatic_critique": prog_critique,
@@ -596,8 +624,8 @@ def evaluate(
         "weights_used": used_weights,
         "metric": str(scenario.metric),
     }
-    if video_block is not None:
-        out["record_video"] = video_block
+    if frame_block is not None:
+        out["record_frames"] = frame_block
     return out
 
 

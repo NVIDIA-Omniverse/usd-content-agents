@@ -42,8 +42,18 @@ def test_extract_project_unproject_and_json_roundtrip(tmp_path: Path) -> None:
         image_height=None,
         time_code=0,
     )
+    stage = Usd.Stage.Open(str(usd_path))
+    from_stage = usd_camera.extract_camera_parameters_from_stage(
+        stage,
+        "/World/Camera",
+        image_width=1000,
+        image_height=500,
+        time_code=0,
+        xform_cache=UsdGeom.XformCache(Usd.TimeCode(0)),
+    )
 
     assert params["projection"] == "perspective"
+    assert from_stage == params
     assert params["image_height"] == 500
     assert params["near"] == pytest.approx(0.25)
     assert params["far"] == pytest.approx(500.0)
@@ -51,6 +61,15 @@ def test_extract_project_unproject_and_json_roundtrip(tmp_path: Path) -> None:
     assert params["K"][0][2] == pytest.approx(450.0)
     assert params["fov_x_rad"] == pytest.approx(2.0 * math.atan(0.4))
     assert len(params["camera_world_transform"]) == 4
+
+    with pytest.raises(ValueError, match="xform_cache time does not match"):
+        usd_camera.extract_camera_parameters_from_stage(
+            stage,
+            "/World/Camera",
+            image_width=1000,
+            time_code=1,
+            xform_cache=UsdGeom.XformCache(Usd.TimeCode(0)),
+        )
 
     u, v, depth = usd_camera.project_point([0, 0, -10], params)
     assert depth == pytest.approx(-10.0)

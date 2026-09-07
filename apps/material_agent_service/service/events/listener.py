@@ -303,13 +303,10 @@ class FastAPIEventListener(EventListener):
             )
 
         elif event_type == "step.failed" or event_type == "task.failed":
-            return ProgressEvent(
-                session_id=self.session_id,
-                step=step_name,
-                state=StepState.FAILED,
-                message=data.get("error") or data.get("message", f"Failed {step_name}"),
-                extra=data,
-            )
+            # Child workflows emit provisional failures before the service has
+            # persisted its redacted terminal diagnostic and evidence. The
+            # executor emits the sole authoritative FAILED event afterwards.
+            return None
 
         # Workflow events
         elif event_type == "workflow.completed":
@@ -320,14 +317,10 @@ class FastAPIEventListener(EventListener):
             return None
 
         elif event_type == "workflow.failed":
-            # Emit failure event
-            return ProgressEvent(
-                session_id=self.session_id,
-                step=self.current_step or "unknown",
-                state=StepState.FAILED,
-                message=data.get("error") or data.get("message", "Pipeline failed"),
-                extra=data,
-            )
+            # See the step.failed case above. Publishing this provisional event
+            # would race the durable terminal metadata and overwrite known
+            # diagnostics with a generic workflow error.
+            return None
 
         elif event_type in ("workflow.started", "workflow.executing"):
             # These are logged automatically via info/error methods

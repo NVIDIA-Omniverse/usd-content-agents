@@ -94,17 +94,25 @@ def main() -> int:
     generated = result.get("generated_textures") or {}
     diagnostics = result.get("diagnostics") or []
     degraded = set((result.get("metadata") or {}).get("degraded_channels") or [])
-    if not generated.get("normal") and "normal" not in degraded:
-        print("normal is absent but metadata.degraded_channels does not include it.")
+    normal_uri = (maps.get("normal") or {}).get("uri")
+    orm_uri = (maps.get("orm") or {}).get("uri")
+    if bool(generated.get("normal")) != bool(normal_uri):
+        print("generated_textures.normal and maps.normal.uri are inconsistent.")
         return 10
-    if not generated.get("orm") and "orm" not in degraded:
-        print("orm is absent but metadata.degraded_channels does not include it.")
+    if not args.require_orm and bool(generated.get("orm")) != bool(orm_uri):
+        print("generated_textures.orm and maps.orm.uri are inconsistent.")
         return 11
-    if degraded and not any(
-        item.get("code") == "STEP1X_MAPS_DEGRADED" for item in diagnostics
-    ):
+    degradation_diagnostics = [
+        item for item in diagnostics if item.get("code") == "STEP1X_MAPS_DEGRADED"
+    ]
+    if degraded and not degradation_diagnostics:
         print("degraded output is missing STEP1X_MAPS_DEGRADED diagnostic.")
         return 12
+    diagnostic_channels = {
+        str(channel)
+        for item in degradation_diagnostics
+        for channel in (item.get("channels") or [])
+    }
     if args.require_orm:
         orm = maps.get("orm") or {}
         if not generated.get("orm"):
@@ -122,6 +130,12 @@ def main() -> int:
         if "orm" in degraded:
             print("--require-orm set but metadata.degraded_channels includes orm.")
             return 17
+    if diagnostic_channels != degraded:
+        print(
+            "STEP1X_MAPS_DEGRADED diagnostic channels do not match "
+            "metadata.degraded_channels."
+        )
+        return 18
     return 0
 
 

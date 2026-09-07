@@ -9,13 +9,13 @@ import shutil
 from dataclasses import dataclass
 from numbers import Integral
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
-_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
-_VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}
-DEFAULT_REFERENCE_VIDEO_FRAMES = 8
+REFERENCE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 DEFAULT_JUDGE_REFERENCE_FRAMES = 8
 DEFAULT_JUDGE_GENERATED_FRAMES = 16
+DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS = 600.0
 MAX_VISUAL_JUDGE_FRAMES = 64
 
 
@@ -93,81 +93,59 @@ class JudgeVisualEvidence:
 def has_reference_media(
     *,
     reference_images: list[Path] | tuple[Path, ...] | None = None,
-    reference_videos: list[Path] | tuple[Path, ...] | None = None,
 ) -> bool:
-    """Return True when callers supplied any reference images or videos."""
-    return bool(reference_images) or bool(reference_videos)
+    """Return True when callers supplied any reference images."""
+    return bool(reference_images)
 
 
 def prepare_reference_media(
     *,
     reference_images: list[Path] | tuple[Path, ...] | None = None,
-    reference_videos: list[Path] | tuple[Path, ...] | None = None,
     reference_descriptions: list[str] | tuple[str, ...] | None = None,
-    reference_video_descriptions: list[str] | tuple[str, ...] | None = None,
     output_dir: Path,
-    frames_per_video: int = DEFAULT_REFERENCE_VIDEO_FRAMES,
 ) -> JudgeVisualEvidence:
-    """Copy reference images/videos and extract video frames for VLM judging.
+    """Copy reference images for VLM judging.
 
-    The helper owns ``reference_media/images``, ``reference_media/videos``,
-    and ``reference_frames`` below ``output_dir``; each call replaces those
-    managed subdirectories so stale media from a previous run cannot leak
-    into the current judge request.
+    The helper owns ``reference_media/images`` below ``output_dir``; each call
+    replaces that managed subdirectory so stale media from a previous run
+    cannot leak into the current judge request.
     """
-    frames_per_video = validate_visual_frame_count(
-        "frames_per_video",
-        frames_per_video,
-    )
     image_paths = _coerce_paths(reference_images)
-    video_paths = _coerce_paths(reference_videos)
     image_descriptions = _coerce_descriptions(
         "reference_descriptions", reference_descriptions, len(image_paths)
     )
-    video_descriptions = _coerce_descriptions(
-        "reference_video_descriptions",
-        reference_video_descriptions,
-        len(video_paths),
-    )
-    if not image_paths and not video_paths:
+    if not image_paths:
         return JudgeVisualEvidence()
 
     ref_root = Path(output_dir) / "reference_media"
     image_out = ref_root / "images"
-    video_out = ref_root / "videos"
-    frame_root = Path(output_dir) / "reference_frames"
-    for media_dir in (image_out, video_out, frame_root):
-        if media_dir.exists():
-            shutil.rmtree(media_dir)
-    pairs: list[tuple[str, Path]] = []
-
-    for idx, src in enumerate(image_paths, 1):
-        _validate_file(src, _IMAGE_EXTENSIONS, "reference image")
-        dest = image_out / f"reference_image_{idx:02d}{src.suffix.lower()}"
-        _copy_file(src, dest)
-        caption = _caption("Reference Image", idx, image_descriptions[idx - 1])
-        pairs.append((caption, dest))
-
-    if video_paths:
-        from world_understanding.functions.cv.video_frames import extract_frames
-
-        for idx, src in enumerate(video_paths, 1):
-            _validate_file(src, _VIDEO_EXTENSIONS, "reference video")
-            dest = video_out / f"reference_video_{idx:02d}{src.suffix.lower()}"
-            _copy_file(src, dest)
-            frames = extract_frames(
-                dest,
-                frame_root / f"video_{idx:02d}",
-                n=frames_per_video,
+    managed_root = image_out.resolve()
+    for src in image_paths:
+        validate_reference_image_path(src)
+        if src.resolve().is_relative_to(managed_root):
+            raise ValueError(
+                "reference images must not be inside the managed "
+                f"reference_media/images directory: {src}"
             )
-            description = video_descriptions[idx - 1]
-            for frame_idx, frame_path in enumerate(frames, 1):
-                label = f"Reference Video {idx} - Frame {frame_idx}"
-                timestamp = _frame_timestamp_label(frame_path)
-                if timestamp:
-                    label += f" ({timestamp})"
-                caption = _caption_label(label, description)
-                pairs.append((caption, frame_path))
+
+    # Stage every copy before replacing the managed directory. A missing input
+    # or copy failure therefore preserves the prior evidence set instead of
+    # deleting it and leaving a partial replacement behind.
+    ref_root.mkdir(parents=True, exist_ok=True)
+    staged: list[tuple[str, str]] = []
+    with TemporaryDirectory(prefix=".images-", dir=ref_root) as staging_value:
+        staging = Path(staging_value)
+        for idx, src in enumerate(image_paths, 1):
+            filename = f"reference_image_{idx:02d}{src.suffix.lower()}"
+            _copy_file(src, staging / filename)
+            caption = _caption("Reference Image", idx, image_descriptions[idx - 1])
+            staged.append((caption, filename))
+
+        if image_out.exists():
+            shutil.rmtree(image_out)
+        staging.replace(image_out)
+
+    pairs = [(caption, image_out / filename) for caption, filename in staged]
 
     return JudgeVisualEvidence(reference_image_caption_pairs=tuple(pairs))
 
@@ -309,7 +287,10 @@ def resolve_default_judge_vlm() -> Any:
     )
     if vlm_config.get("base_url"):
         kwargs["base_url"] = vlm_config["base_url"]
-    if backend_supports_reasoning_effort(backend):
+    if vlm_config.get("reasoning_effort") and backend_supports_reasoning_effort(
+        backend,
+        str(vlm_config.get("model") or ""),
+    ):
         kwargs["reasoning_effort"] = vlm_config["reasoning_effort"]
     api_key = get_api_key_for_model_config(backend, vlm_config, "VLM")
     if api_key:
@@ -383,17 +364,20 @@ def _coerce_paths(value: list[Path] | tuple[Path, ...] | None) -> list[Path]:
     return [Path(p) for p in value]
 
 
-def backend_supports_reasoning_effort(backend: str) -> bool:
-    """Return whether a VLM backend accepts a reasoning_effort kwarg."""
-    import world_understanding.functions.models.backends  # noqa: F401
-    from world_understanding.functions.models.backends.registry import (
-        vlm_backend_supports,
+def backend_supports_reasoning_effort(
+    backend: str,
+    model: str | None = None,
+) -> bool:
+    """Return whether a VLM backend/model accepts a reasoning_effort kwarg."""
+    from world_understanding.functions.models.token_limits import (
+        backend_supports_reasoning_effort as shared_backend_supports_reasoning_effort,
     )
 
-    try:
-        return vlm_backend_supports(str(backend).lower(), "reasoning_effort")
-    except ValueError:
-        return False
+    return shared_backend_supports_reasoning_effort(
+        backend,
+        model_name=model,
+        interface="vlm",
+    )
 
 
 def _coerce_descriptions(
@@ -421,6 +405,17 @@ def _validate_file(path: Path, extensions: set[str], label: str) -> None:
             f"Unsupported {label} extension {path.suffix!r}; "
             f"expected one of {sorted(extensions)}"
         )
+
+
+def validate_reference_image_path(
+    path: str | Path,
+    *,
+    label: str = "reference image",
+) -> Path:
+    """Require one existing regular file with a public image suffix."""
+    candidate = Path(path)
+    _validate_file(candidate, REFERENCE_IMAGE_EXTENSIONS, label)
+    return candidate
 
 
 def _copy_file(src: Path, dest: Path) -> None:
@@ -509,15 +504,17 @@ def _paste_section(
 __all__ = [
     "DEFAULT_JUDGE_GENERATED_FRAMES",
     "DEFAULT_JUDGE_REFERENCE_FRAMES",
-    "DEFAULT_REFERENCE_VIDEO_FRAMES",
+    "DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS",
     "JudgeVisualEvidence",
     "MAX_VISUAL_JUDGE_FRAMES",
+    "REFERENCE_IMAGE_EXTENSIONS",
     "generated_frame_caption",
     "has_reference_media",
     "prepare_reference_media",
     "resolve_default_judge_vlm",
     "sample_evenly",
     "sample_visual_evidence_items",
+    "validate_reference_image_path",
     "validate_visual_frame_count",
     "write_comparison_contact_sheet",
 ]

@@ -1,0 +1,170 @@
+#usda 1.0
+(
+    "Material Library for cube. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "red" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (1, 0, 0)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/red/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/red/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/red.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/red.inputs:ior>
+            float inputs:metallic.connect = </Materials/red.inputs:metallic>
+            float inputs:opacity.connect = </Materials/red.inputs:opacity>
+            float inputs:roughness.connect = </Materials/red.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "green" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0, 1, 0)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/green/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/green/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/green.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/green.inputs:ior>
+            float inputs:metallic.connect = </Materials/green.inputs:metallic>
+            float inputs:opacity.connect = </Materials/green.inputs:opacity>
+            float inputs:roughness.connect = </Materials/green.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "blue" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0, 0, 1)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/blue/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/blue/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/blue.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/blue.inputs:ior>
+            float inputs:metallic.connect = </Materials/blue.inputs:metallic>
+            float inputs:opacity.connect = </Materials/blue.inputs:opacity>
+            float inputs:roughness.connect = </Materials/blue.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "yellow" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (1, 1, 0)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/yellow/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/yellow/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/yellow.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/yellow.inputs:ior>
+            float inputs:metallic.connect = </Materials/yellow.inputs:metallic>
+            float inputs:opacity.connect = </Materials/yellow.inputs:opacity>
+            float inputs:roughness.connect = </Materials/yellow.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "cyan" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0, 1, 1)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/cyan/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/cyan/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/cyan.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/cyan.inputs:ior>
+            float inputs:metallic.connect = </Materials/cyan.inputs:metallic>
+            float inputs:opacity.connect = </Materials/cyan.inputs:opacity>
+            float inputs:roughness.connect = </Materials/cyan.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "magenta" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (1, 0, 1)
+        float inputs:ior = 1
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/magenta/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/magenta/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/magenta.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/magenta.inputs:ior>
+            float inputs:metallic.connect = </Materials/magenta.inputs:metallic>
+            float inputs:opacity.connect = </Materials/magenta.inputs:opacity>
+            float inputs:roughness.connect = </Materials/magenta.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+}

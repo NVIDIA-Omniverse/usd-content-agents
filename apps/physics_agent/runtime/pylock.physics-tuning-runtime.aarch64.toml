@@ -29,18 +29,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/23/00/cac3e309b2f66518d
 wheels = [{ url = "https://files.pythonhosted.org/packages/b6/70/c419a361b09ccb618b5165daa919003ccdd9c148356f7ff71a710db6bcf0/gpytorch-1.15.2-py3-none-any.whl", upload-time = 2026-02-28T01:12:52Z, size = 291209, hashes = { sha256 = "2112fdc7c0c0bf56a7f2444663cfc80fdfc3e19724399d6303a83d8efdd71e9e" } }]
 
 [[packages]]
-name = "imageio"
-version = "2.37.2"
-sdist = { url = "https://files.pythonhosted.org/packages/a3/6f/606be632e37bf8d05b253e8626c2291d74c691ddc7bcdf7d6aaf33b32f6a/imageio-2.37.2.tar.gz", upload-time = 2025-11-04T14:29:39Z, size = 389600, hashes = { sha256 = "0212ef2727ac9caa5ca4b2c75ae89454312f440a756fcfc8ef1993e718f50f8a" } }
-wheels = [{ url = "https://files.pythonhosted.org/packages/fb/fe/301e0936b79bcab4cacc7548bf2853fc28dced0a578bab1f7ef53c9aa75b/imageio-2.37.2-py3-none-any.whl", upload-time = 2025-11-04T14:29:37Z, size = 317646, hashes = { sha256 = "ad9adfb20335d718c03de457358ed69f141021a333c40a53e57273d8a5bd0b9b" } }]
-
-[[packages]]
-name = "imageio-ffmpeg"
-version = "0.6.0"
-sdist = { url = "https://files.pythonhosted.org/packages/44/bd/c3343c721f2a1b0c9fc71c1aebf1966a3b7f08c2eea8ed5437a2865611d6/imageio_ffmpeg-0.6.0.tar.gz", upload-time = 2025-01-16T21:34:32Z, size = 25210, hashes = { sha256 = "e2556bed8e005564a9f925bb7afa4002d82770d6b08825078b7697ab88ba1755" } }
-wheels = [{ url = "https://files.pythonhosted.org/packages/33/e7/1925bfbc563c39c1d2e82501d8372734a5c725e53ac3b31b4c2d081e895b/imageio_ffmpeg-0.6.0-py3-none-manylinux2014_aarch64.whl", upload-time = 2025-01-16T21:33:53Z, size = 25632706, hashes = { sha256 = "1d47bebd83d2c5fc770720d211855f208af8a596c82d17730aa51e815cdee6dc" } }]
-
-[[packages]]
 name = "jinja2"
 version = "3.1.6"
 sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz", upload-time = 2025-03-05T20:05:02Z, size = 245115, hashes = { sha256 = "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d" } }
@@ -105,12 +93,6 @@ name = "opt-einsum"
 version = "3.4.0"
 sdist = { url = "https://files.pythonhosted.org/packages/8c/b9/2ac072041e899a52f20cf9510850ff58295003aa75525e58343591b0cbfb/opt_einsum-3.4.0.tar.gz", upload-time = 2024-09-26T14:33:24Z, size = 63004, hashes = { sha256 = "96ca72f1b886d148241348783498194c577fa30a8faac108586b14f1ba4473ac" } }
 wheels = [{ url = "https://files.pythonhosted.org/packages/23/cd/066e86230ae37ed0be70aae89aabf03ca8d9f39c8aea0dec8029455b5540/opt_einsum-3.4.0-py3-none-any.whl", upload-time = 2024-09-26T14:33:23Z, size = 71932, hashes = { sha256 = "69bb92469f86a1565195ece4ac0323943e83477171b91d24c35afe028a90d7cd" } }]
-
-[[packages]]
-name = "pillow"
-version = "12.3.0"
-sdist = { url = "https://files.pythonhosted.org/packages/1c/3d/bb7fca845737cf9d7dbde16ed1843984665ff2e0a518f5db43e77ec540b9/pillow-12.3.0.tar.gz", upload-time = 2026-07-01T11:56:38Z, size = 47025035, hashes = { sha256 = "3b8182a766685eaa002637e28b4ec8d6b18819a0c71f579bf0dbaa5830297cce" } }
-wheels = [{ url = "https://files.pythonhosted.org/packages/25/27/ac8f99618ffd3dde21db0f4d4b1d2ab00c0880595bfd17df103f7f39fd0c/pillow-12.3.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", upload-time = 2026-07-01T11:54:11Z, size = 6266838, hashes = { sha256 = "d9c7f76c0673154f044e9d78c8655fb4213f6ca31a836df48b40fe5d187717b9" } }]
 
 [[packages]]
 name = "pyre-extensions"

@@ -126,6 +126,7 @@ class TestNIMChatModel:
         mock_nvidia.assert_called_once_with(
             model=_DEFAULT_NIM_MODEL,
             nvidia_api_key="test_key",
+            max_tokens=16384,
         )
 
     @patch("langchain_nvidia_ai_endpoints.ChatNVIDIA")

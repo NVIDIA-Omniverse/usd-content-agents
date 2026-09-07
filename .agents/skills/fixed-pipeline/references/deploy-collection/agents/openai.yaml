@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Content Agents"
+  short_description: "Fixed pipeline multi-service deployment"
+  default_prompt: "Use $fixed-pipeline to deploy the full Content Agents package with CPU-only agent services, shared OVRTX rendering, configurable model endpoints, and optional Brev-hosted dependencies."

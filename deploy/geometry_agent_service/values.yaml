@@ -1,0 +1,131 @@
+# Multiple replicas require workspace.kind=pvc with an existing shared claim.
+replicaCount: 1
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Supply exactly one. Inline values are intended only for local development.
+existingApiKeySecretName: ""
+apiKey: ""
+
+service:
+  type: ClusterIP
+  port: 8776
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  path: /
+  tlsSecretName: ""
+
+workspace:
+  kind: emptyDir
+  existingClaim: ""
+  size: 20Gi
+  storageClassName: ""
+
+render:
+  backend: ovrtx
+  remoteBaseUrl: ""
+  existingApiKeySecretName: ""
+  apiKeySecretKey: api-key
+  # Only for an operator-controlled remote sidecar; never use for public endpoints.
+  allowUnauthenticatedIdentity: false
+
+# The service image does not bundle a simulation runtime. Set this only when
+# the deployment supplies the corresponding runtime environment.
+runtime:
+  defaultEngine: none
+
+# One optional provider-neutral authoring worker. The worker owns its runtime;
+# this chart receives only digest-bound source bundles over HTTPS.
+delegatedAuthoring:
+  enabled: false
+  providerId: ""
+  providerLabel: Delegated authoring worker
+  endpointUrl: ""
+  rightsAssertion: ""
+  existingTokenSecretName: ""
+  tokenSecretKey: bearer-token
+  supportedFormats: [step, stl, usd, usda]
+  supportsImage: true
+  supportsRevision: true
+  supportsExport: true
+  returnsNativeSource: true
+
+build123d:
+  enabled: false
+  endpointUrl: ""
+  rightsAssertion: ""
+  existingTokenSecretName: ""
+  tokenSecretKey: bearer-token
+  supportedFormats: [step]
+  supportsText: true
+  supportsImage: false
+  supportsRevision: false
+  supportsExport: false
+  supportsSemanticParameters: false
+  supportsParameterDefinitions: false
+  supportsSemanticParts: false
+  supportsProviderAssertions: false
+  maxFamilyVariants: 0
+
+# Delegates to a separately operated worker. No ForgeCAD package or runtime is
+# included in this chart or service image.
+forgecadAuthoring:
+  enabled: false
+  endpointUrl: ""
+  rightsAssertion: ""
+  automatedUseAuthorized: false
+  existingTokenSecretName: ""
+  tokenSecretKey: bearer-token
+  supportedFormats: [step]
+  supportsText: true
+  supportsImage: false
+  supportsRevision: false
+  supportsExport: false
+  supportsSemanticParameters: false
+  supportsParameterDefinitions: false
+  supportsSemanticParts: false
+  supportsProviderAssertions: false
+  maxFamilyVariants: 0
+  returnsNativeSource: false
+  connectTimeoutSeconds: 10
+  readTimeoutSeconds: 300
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10000
+  runAsGroup: 10000
+  fsGroup: 10000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    cpu: "4"
+    memory: 8Gi

@@ -68,6 +68,7 @@ def _result(
     n_trials: int = 2,
     best_params: dict[str, float] | None = None,
     best_score: object = 0.2,
+    best_objective: object = 0.3,
     artifacts: dict | None = None,
     error: str | None = None,
 ) -> SimpleNamespace:
@@ -76,6 +77,7 @@ def _result(
         cancelled=cancelled,
         best_params=best_params if best_params is not None else {"mass_scale": 1.2},
         best_score=best_score,
+        best_objective=best_objective,
         n_trials=n_trials,
         optimizer_used="botorch",
         engine_used="fake",
@@ -90,9 +92,10 @@ def test_tune_metadata_helpers_cover_edges() -> None:
     assert executor._finite_best_score(float("inf")) is None
     assert executor._finite_best_score("1.5") == 1.5
 
-    result = _result(best_score=float("nan"))
+    result = _result(best_score=float("nan"), best_objective=float("inf"))
     metadata = executor._tune_results_metadata(result)
     assert metadata["best_score"] is None
+    assert metadata["best_objective"] is None
     assert metadata["best_params"] == {"mass_scale": 1.2}
 
     assert executor._has_partial_tune_results(_result(n_trials=1)) is True
@@ -270,11 +273,12 @@ async def test_execute_tune_success_cancelled_failed_and_sync_warnings(
     manager = await _execute(tmp_path / "success", monkeypatch, _result())
     assert manager.metadata["status"] == "completed"
     assert manager.metadata["results"]["best_score"] == 0.2
-    assert manager.sync_calls == ["tune/"]
+    assert manager.metadata["results"]["best_objective"] == 0.3
+    assert manager.sync_calls == [("input/", "tune/")]
     assert manager.metadata["artifact_manifest"] == ["tune/best_params.json"]
-    assert manager.operations.index("sync:tune/") < manager.operations.index(
-        "status:completed"
-    )
+    assert manager.operations.index(
+        "sync:('input/', 'tune/')"
+    ) < manager.operations.index("status:completed")
 
     manager = _Manager(tmp_path / "sync-fail")
     manager.fail_sync = True
@@ -474,3 +478,37 @@ async def test_execute_tune_emits_terminal_events_when_snapshot_exists(
     while not queue.empty():
         events.append(await queue.get())
     assert any(event.extra and event.extra.get("tune_ready") for event in events)
+
+
+@pytest.mark.asyncio
+async def test_tune_terminal_commit_legacy_cancelled_path(tmp_path: Path) -> None:
+    manager = _Manager(tmp_path)
+    manager.cancelled = True
+    assert not await executor._commit_terminal_unless_cancelled(
+        manager,
+        "sid",
+        {"status": "completed"},
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("result_failed", [True, False])
+async def test_tune_terminal_outcome_loses_atomic_cancellation_race(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    result_failed: bool,
+) -> None:
+    manager = _Manager(tmp_path / ("failed" if result_failed else "completed"))
+
+    async def reject(_session_id: str, _updates: dict) -> bool:
+        return False
+
+    manager.update_session_if_not_cancelled = reject  # type: ignore[attr-defined]
+    result = (
+        _result(success=False, error="judge failed", n_trials=1)
+        if result_failed
+        else _result()
+    )
+    await _execute(tmp_path / "run", monkeypatch, result, manager=manager)
+    assert manager.metadata["status"] == "cancelled"
+    assert manager.metadata["can_cancel"] is False

@@ -87,6 +87,7 @@ def _stub_tune_executor(monkeypatch: pytest.MonkeyPatch):
                             "trial_index": i,
                             "params": {"mass_scale": 1.0 + 0.1 * i},
                             "score": 0.5 - 0.1 * i,
+                            "objective_value": 0.5 - 0.1 * i,
                             "failed": False,
                         }
                     )
@@ -109,7 +110,11 @@ def _stub_tune_executor(monkeypatch: pytest.MonkeyPatch):
                         "seed": seed,
                     },
                     "n_trials": min(max_trials, 3),
-                    "best": {"params": best_params, "score": best_score},
+                    "best": {
+                        "params": best_params,
+                        "score": best_score,
+                        "objective_value": best_score,
+                    },
                 }
             )
         )
@@ -134,6 +139,7 @@ def _stub_tune_executor(monkeypatch: pytest.MonkeyPatch):
                 "results": {
                     "best_params": best_params,
                     "best_score": best_score,
+                    "best_objective": best_score,
                     "n_trials": min(max_trials, 3),
                     "optimizer_used": optimizer if optimizer != "auto" else "botorch",
                     "engine_used": engine,
@@ -567,6 +573,7 @@ class TestTuneStatus:
         body = final.json()
         assert body["status"] == "completed"
         assert body["session_id"] == sid
+        assert body["best_objective"] == body["best_score"]
 
 
 @pytest.mark.api
@@ -595,6 +602,7 @@ class TestTuneResults:
         assert body["session_id"] == sid
         assert body["status"] == "completed"
         assert "best_params" in body
+        assert body["best_objective"] == body["best_score"]
         assert "download_urls" in body
         assert "best_params" in body["download_urls"]
         assert "tuned_usd" in body["download_urls"]
@@ -626,6 +634,7 @@ class TestTuneResults:
                 "results": {
                     "best_params": {"mass_scale": 1.2},
                     "best_score": 0.25,
+                    "best_objective": 0.4,
                     "n_trials": 3,
                     "optimizer_used": "random",
                     "engine_used": "fake",
@@ -644,6 +653,7 @@ class TestTuneResults:
         assert body["status"] == "failed"
         assert body["error_message"] == "Visual judge evidence preparation failed"
         assert body["best_params"] == {"mass_scale": 1.2}
+        assert body["best_objective"] == 0.4
         assert body["n_trials"] == 3
         assert body["download_urls"]["best_params"] == (
             f"/tune/{sid}/artifacts/best_params.json"
@@ -727,12 +737,14 @@ class TestTuneStatusCoercion:
         assert meta is not None
         results = dict(meta.get("results") or {})
         results["best_score"] = float("inf")
+        results["best_objective"] = float("inf")
         await manager.update_session(sid, {"results": results})
 
         final = await client.get(f"/tune/{sid}/status")
         assert final.status_code == 200, final.text
         # Status must serialise; inf is coerced to null.
         assert final.json()["best_score"] is None
+        assert final.json()["best_objective"] is None
 
 
 @pytest.mark.api

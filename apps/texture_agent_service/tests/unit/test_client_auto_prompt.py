@@ -64,6 +64,14 @@ class _FakeStatusHttp:
         return response
 
 
+def test_client_uses_nvcf_version_header(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NVCF_INVOKE_VERSION_ID", "version-under-test")
+
+    client = TextureAgentClient("http://texture.test")
+
+    assert client._http.headers["Function-Version-Id"] == "version-under-test"
+
+
 @pytest.mark.parametrize(
     ("auto_prompt_enabled", "expected"),
     [
@@ -112,6 +120,11 @@ def test_client_start_pipeline_serializes_projection_backend_fields() -> None:
         texture_endpoint="http://projection-backend",
         backend_engine="fake_projection",
         backend_custom_parameters={"variant": "success_full_pbr"},
+        external_authoring={
+            "schema_version": "texture-agent-external-authoring.v1",
+            "adapter_id": "fake-headless-dcc",
+            "workflow": "paint",
+        },
         detail_policy="surface_only",
         reference_image_uris=["file:///ref.png"],
         turntable_video_uri="file:///turntable.mp4",
@@ -136,6 +149,9 @@ def test_client_start_pipeline_serializes_projection_backend_fields() -> None:
     assert json.loads(data["backend_custom_parameters_json"]) == {
         "variant": "success_full_pbr"
     }
+    assert json.loads(data["external_authoring_json"])["adapter_id"] == (
+        "fake-headless-dcc"
+    )
     assert data["detail_policy"] == "surface_only"
     assert json.loads(data["reference_image_uris_json"]) == ["file:///ref.png"]
     assert data["turntable_video_uri"] == "file:///turntable.mp4"

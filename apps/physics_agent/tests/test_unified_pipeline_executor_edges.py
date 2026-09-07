@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    make_terminal_vlm_timeout_marker,
+)
 
 from physics_agent.tasks.unified_pipeline_executor import UnifiedPipelineExecutorTask
 
@@ -226,6 +230,45 @@ async def test_executor_cooperatively_stops_after_active_threaded_step(
     assert result["pipeline_results"] == {"predict": {}}
 
 
+def test_executor_honors_cancellation_before_start_and_after_final_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executor = UnifiedPipelineExecutorTask()
+    cancelled_before_start = threading.Event()
+    cancelled_before_start.set()
+
+    result = executor.run(
+        {
+            "steps_to_run": ["predict"],
+            "step_configs": {"predict": {}},
+            "working_dir": tmp_path / "before-start",
+            "cancel_event": cancelled_before_start,
+        }
+    )
+    assert result["pipeline_cancelled"] is True
+    assert result["pipeline_results"] == {}
+
+    cancelled_during_final_step = threading.Event()
+
+    def execute_final_step(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        cancelled_during_final_step.set()
+        return {"predictions_path": "predictions.jsonl"}
+
+    monkeypatch.setattr(executor, "_execute_step", execute_final_step)
+    result = executor.run(
+        {
+            "steps_to_run": ["predict"],
+            "step_configs": {"predict": {}},
+            "working_dir": tmp_path / "final-step",
+            "cancel_event": cancelled_during_final_step,
+        }
+    )
+    assert result["pipeline_cancelled"] is True
+    assert result["pipeline_results"] == {
+        "predict": {"predictions_path": "predictions.jsonl"}
+    }
+
+
 def test_executor_preserves_completed_outputs_when_later_step_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -253,9 +296,83 @@ def test_executor_preserves_completed_outputs_when_later_step_fails(
     }
 
 
+def test_terminal_identify_timeout_blocks_resume_until_clean_restart(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import physics_agent.workflows as workflows
+
+    workflow = _Workflow(
+        {
+            "error": "Task execution failed",
+            "failed_task": "IdentifyAsset",
+            TERMINAL_VLM_TIMEOUT_CONTEXT_KEY: make_terminal_vlm_timeout_marker(
+                "IdentifyAsset"
+            ),
+            "workflow_terminated": True,
+        }
+    )
+    factory_calls = 0
+
+    def workflow_factory() -> _Workflow:
+        nonlocal factory_calls
+        factory_calls += 1
+        return workflow
+
+    monkeypatch.setattr(
+        workflows,
+        "create_identify_asset_workflow_from_config",
+        workflow_factory,
+    )
+    working_dir = tmp_path / "terminal-identify"
+    context = {
+        "steps_to_run": ["identify_asset"],
+        "step_configs": {"identify_asset": {}},
+        "working_dir": working_dir,
+        "working_dir_base": tmp_path,
+    }
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "Pipeline failed at step 'identify_asset': "
+            "NonRetryableVLMTimeoutError during step execution"
+        ),
+    ):
+        UnifiedPipelineExecutorTask().run(dict(context))
+
+    checkpoint_path = working_dir / ".pipeline_state.json"
+    failed_checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    assert failed_checkpoint["completed_steps"] == []
+    assert failed_checkpoint["failed_steps"] == ["identify_asset"]
+    assert failed_checkpoint[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == (
+        make_terminal_vlm_timeout_marker("identify_asset")
+    )
+    assert factory_calls == 1
+
+    with pytest.raises(RuntimeError, match="Pipeline resume is blocked"):
+        UnifiedPipelineExecutorTask().run({**context, "resume": True})
+    assert factory_calls == 1
+
+    workflow.result = {
+        "identification": {"asset_type": "vehicle"},
+        "identification_path": "identification.json",
+    }
+    restarted = UnifiedPipelineExecutorTask().run(
+        {**context, "resume": True, "clean": True}
+    )
+
+    assert factory_calls == 2
+    assert restarted["pipeline_state"] == "completed"
+    clean_checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    assert clean_checkpoint["completed_steps"] == ["identify_asset"]
+    assert TERMINAL_VLM_TIMEOUT_CONTEXT_KEY not in clean_checkpoint
+
+
 def test_execute_step_autowire_and_workflow_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     executor = UnifiedPipelineExecutorTask()
     context = {"working_dir": tmp_path}
@@ -371,6 +488,68 @@ def test_execute_step_autowire_and_workflow_errors(
         None,
         {"step_outputs": {}},
     ) == {"output_usd_path": "out.usda"}
+
+    vomp_result = {
+        "output_usd_path": "vomp.usda",
+        "provenance_path": "vomp.json",
+        "vomp_npz_path": "materials.npz",
+        "vomp_artifact_dir": "evidence",
+        "vomp_worker_manifest_path": "manifest.json",
+        "vomp_worker_log_path": "worker.log",
+        "vomp_sample_count": 42,
+    }
+    vomp_workflow = _Workflow(vomp_result)
+    monkeypatch.setattr(
+        workflows,
+        "create_vomp_mass_workflow_from_config",
+        lambda: vomp_workflow,
+    )
+    assert (
+        executor._execute_step(
+            "vomp_mass",
+            {"usd_path": "input.usda"},
+            context,
+            None,
+            {"step_outputs": {"apply_physics": {"output_usd_path": "physics.usda"}}},
+        )
+        == vomp_result
+    )
+    assert vomp_workflow.contexts[-1]["config_dict"]["usd_path"] == "physics.usda"
+
+    executor._execute_step(
+        "vomp_mass",
+        {"usd_path": "input.usda"},
+        context,
+        None,
+        {"step_outputs": {"optimize_usd": {"optimized_usd_path": "optimized.usda"}}},
+    )
+    assert vomp_workflow.contexts[-1]["config_dict"]["usd_path"] == "optimized.usda"
+
+    executor._execute_step(
+        "vomp_mass",
+        {"usd_path": "input.usda"},
+        context,
+        None,
+        {
+            "step_outputs": {
+                "apply_physics": {},
+                "optimize_usd": {"optimized_usd_path": "fallback.usda"},
+            }
+        },
+    )
+    assert vomp_workflow.contexts[-1]["config_dict"]["usd_path"] == "fallback.usda"
+    assert "apply_physics produced no output_usd_path" in caplog.text
+
+    caplog.clear()
+    executor._execute_step(
+        "vomp_mass",
+        {"usd_path": "input.usda"},
+        context,
+        None,
+        {"step_outputs": {}},
+    )
+    assert vomp_workflow.contexts[-1]["config_dict"]["usd_path"] == "input.usda"
+    assert "using the configured usd_path" in caplog.text
 
 
 def test_make_yaml_safe_and_runtime_config_edges(tmp_path: Path) -> None:
@@ -507,7 +686,9 @@ def test_failure_and_resume_never_persist_runtime_config(
     )
 
     legacy_temp = working_dir / ".pipeline_temp"
-    legacy_temp.mkdir()
+    # The failed run above may already have created .pipeline_temp for its
+    # session-local step-failure debug log.
+    legacy_temp.mkdir(exist_ok=True)
     (legacy_temp / "predict.yaml").write_text(
         "api_key: pre-fix-secret\n", encoding="utf-8"
     )

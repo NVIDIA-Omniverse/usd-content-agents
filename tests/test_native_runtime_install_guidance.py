@@ -12,13 +12,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OVRTX_LOCK = "world_understanding/functions/graphics/pylock.ovrtx-runtime.toml"
 OVPHYSX_LOCK = "apps/physics_agent/runtime/pylock.ovphysx-runtime.toml"
 OVPHYSX_ARM64_LOCK = "apps/physics_agent/runtime/pylock.ovphysx-runtime.aarch64.toml"
+OVPHYSX_WINDOWS_LOCK = "apps/physics_agent/runtime/pylock.ovphysx-runtime-windows.toml"
 
 _GUIDANCE_ROOTS = (
     REPO_ROOT / "world_understanding",
     REPO_ROOT / "apps/physics_agent",
     REPO_ROOT / "apps/ovrtx_rendering_api",
-    REPO_ROOT / ".agents/skills/physics-agent-cli",
-    REPO_ROOT / ".agents/skills/deploy-ovrtx-docker",
+    REPO_ROOT / ".agents/skills/fixed-pipeline/references/physics-agent-cli",
+    REPO_ROOT / ".agents/skills/fixed-pipeline/references/deploy-ovrtx-docker",
 )
 _GUIDANCE_SUFFIXES = frozenset({".md", ".py", ".sh"})
 _OVRTX_REPRO = REPO_ROOT / "apps/ovrtx_rendering_api/tests/renders/ovrtx_bug_repro.py"
@@ -73,6 +74,7 @@ def test_native_runtime_bootstrap_hints_name_the_reviewed_locks() -> None:
         text = path.read_text(encoding="utf-8")
         assert OVPHYSX_LOCK in text, path
         assert OVPHYSX_ARM64_LOCK in text, path
+        assert OVPHYSX_WINDOWS_LOCK in text, path
 
     locked_commands = (*ovphysx_guidance[2:], _OVRTX_REPRO)
     for path in locked_commands:
@@ -80,6 +82,6 @@ def test_native_runtime_bootstrap_hints_name_the_reviewed_locks() -> None:
         assert "--require-hashes" in text, path
         assert "--no-deps" in text, path
         if path != _OVRTX_REPRO:
-            assert ".wu-ovphysx-runtime-ready" in text, path
+            assert ".usd-cli-ovphysx-ready" in text, path
 
     assert OVRTX_LOCK in _OVRTX_REPRO.read_text(encoding="utf-8")

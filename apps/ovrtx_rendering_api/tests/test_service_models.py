@@ -11,18 +11,197 @@ stays request-schema-compatible with Kit.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
+import yaml
 from pydantic import ValidationError
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility
+    import tomli as tomllib
 
 # service/ is on sys.path via [tool.pytest.ini_options].pythonpath.
 from service.models import (
     CameraParameters,
     FrameRange,
+    ProtocolV3CameraDef,
+    ProtocolV3RenderUploadParams,
     RenderRequest,
     RenderResponse,
     RenderSettings,
 )
+from service.protocol import PROTOCOL_VERSION
+from usd_core.remote_protocol import PROTOCOL_VERSION as USD_CLI_PROTOCOL_VERSION
+
+
+def test_protocol_version_is_owned_by_package_usd_cli() -> None:
+    assert PROTOCOL_VERSION == USD_CLI_PROTOCOL_VERSION == 3
+
+
+def test_protocol_v3_render_probe_payload_is_accepted() -> None:
+    params = ProtocolV3RenderUploadParams(
+        cameras=["/World/Camera"],
+        image_width=64,
+        image_height=64,
+        mode="quality",
+        compression="gzip",
+        frames=[0.0],
+        camera_defs=[
+            ProtocolV3CameraDef(
+                path="/World/Camera",
+                matrix=[1.0, 0.0, 0.0, 0.0] * 4,
+                clipping_range=[0.1, 1000.0],
+            )
+        ],
+    )
+
+    assert params.cameras == ["/World/Camera"]
+    assert params.compression == "gzip"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"compression": "zstd"},
+        {"frames": []},
+        {"frames": [float("nan")]},
+        {"cameras": [f"/World/Camera_{index}" for index in range(9)]},
+        {"image_width": 4096, "image_height": 4096, "frames": list(range(17))},
+        {"unexpected": True},
+    ],
+)
+def test_protocol_v3_render_probe_payload_fails_closed(payload: dict) -> None:
+    base = {"cameras": ["/World/Camera"], "image_width": 64, "image_height": 64}
+
+    with pytest.raises(ValidationError):
+        ProtocolV3RenderUploadParams(**{**base, **payload})
+
+
+def test_protocol_v3_render_probe_preserves_fractional_and_duplicate_frames() -> None:
+    params = ProtocolV3RenderUploadParams(
+        cameras=["/World/Camera"], frames=[5.0, 1.5, 1.5]
+    )
+
+    assert params.frames == [5.0, 1.5, 1.5]
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("matrix", [1.0] * 15 + [float("inf")]),
+        ("clipping_range", [10.0, 1.0]),
+    ],
+)
+def test_protocol_v3_camera_definition_fails_closed(field: str, value: list) -> None:
+    payload = {
+        "path": "/World/Camera",
+        "matrix": [1.0, 0.0, 0.0, 0.0] * 4,
+        field: value,
+    }
+
+    with pytest.raises(ValidationError):
+        ProtocolV3CameraDef(**payload)
+
+
+def test_openapi_num_sensor_updates_matches_model_bounds() -> None:
+    schema = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "openapi.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    property_schema = schema["components"]["schemas"]["RenderSettings"]["properties"][
+        "num_sensor_updates"
+    ]
+
+    assert property_schema == {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "nullable": True,
+    }
+
+
+def test_standalone_image_installs_exact_checkout_usd_cli_protocol() -> None:
+    app_root = Path(__file__).resolve().parents[1]
+    project = tomllib.loads((app_root / "pyproject.toml").read_text(encoding="utf-8"))[
+        "project"
+    ]
+    dependencies = project["dependencies"]
+    dockerfile = (app_root / "Dockerfile").read_text(encoding="utf-8")
+
+    assert project["requires-python"] == ">=3.11,<3.13"
+    assert "usd-cli==0.0.1" in dependencies
+    assert "python-multipart>=0.0.9" in dependencies
+    assert "COPY apps/usd_cli /app/apps/usd_cli" in dockerfile
+    assert "cd /app/apps/usd_cli && uv pip install -e . --no-config --no-sources" in (
+        dockerfile
+    )
+
+
+def test_openapi_retryable_incomplete_output_contract_is_required() -> None:
+    schema = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "openapi.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    response_schema = schema["components"]["schemas"]["IncompleteRenderResponse"]
+    retry_after = schema["paths"]["/render"]["post"]["responses"]["503"]["headers"][
+        "Retry-After"
+    ]
+
+    assert schema["paths"]["/render"]["post"]["responses"]["503"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/IncompleteRenderResponse"}
+    assert set(response_schema["required"]) == {
+        "status",
+        "error",
+        "images",
+        "error_code",
+        "retryable",
+        "requested_output_count",
+        "output_count",
+        "missing_output_count",
+        "missing_camera_count",
+    }
+    assert response_schema["properties"]["status"]["enum"] == ["exception"]
+    assert response_schema["properties"]["error_code"]["enum"] == [
+        "incomplete_render_output"
+    ]
+    assert response_schema["properties"]["retryable"]["enum"] == [True]
+    assert retry_after["required"] is True
+
+
+def test_openapi_protocol_v3_contract_matches_package_owned_floor() -> None:
+    schema = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "openapi.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    live = schema["components"]["schemas"]["LiveResponse"]
+    upload = schema["components"]["schemas"]["ProtocolV3RenderUploadParams"]
+    item = schema["components"]["schemas"]["ProtocolV3RenderResultItem"]
+    health = schema["components"]["schemas"]["HealthResponse"]
+
+    assert "503" not in schema["paths"]["/live"]["get"]["responses"]
+    assert schema["paths"]["/render/upload"]["post"]["responses"]["503"]
+    assert live["properties"]["protocol_version"]["enum"] == [3]
+    assert live["properties"]["features"]["maxItems"] == 0
+    assert live["properties"]["features"]["items"] == {"type": "string"}
+    assert "protocol_version" in health["required"]
+    assert health["properties"]["protocol_version"]["enum"] == [3]
+    assert "nullable" not in health["properties"]["protocol_version"]
+    assert upload["properties"]["compression"]["enum"] == ["none", "gzip"]
+    assert upload["properties"]["frames"]["items"] == {"type": "number"}
+    assert "uniqueItems" not in upload["properties"]["frames"]
+    assert set(item["required"]) == {
+        "camera",
+        "image_base64",
+        "ovrtx_render_mode",
+        "ovrtx_num_sensor_updates",
+        "active_aov",
+    }
 
 
 class TestCameraParameters:
@@ -41,6 +220,11 @@ class TestCameraParameters:
         cp = CameraParameters(width=w, height=h)
         assert cp.width == w
         assert cp.height == h
+
+    @pytest.mark.parametrize("w,h", [(0, 1), (1, 0), (8193, 1), (1, 8193)])
+    def test_rejects_unbounded_resolutions(self, w, h):
+        with pytest.raises(ValidationError):
+            CameraParameters(width=w, height=h)
 
 
 class TestFrameRange:
@@ -136,6 +320,10 @@ class TestRenderSettingsDefaults:
         assert RenderSettings(num_sensor_updates=1).num_sensor_updates == 1
         assert RenderSettings(num_sensor_updates=500).num_sensor_updates == 500
         assert RenderSettings(num_sensor_updates=5000).num_sensor_updates == 5000
+
+    def test_num_sensor_updates_rejects_unbounded_work(self):
+        with pytest.raises(ValidationError):
+            RenderSettings(num_sensor_updates=5001)
 
 
 class TestRenderRequest:

@@ -24,8 +24,34 @@ except ModuleNotFoundError as exc:
 class _FakeVLM:
     model_name = "fake-vlm"
 
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
     def generate_with_image_caption_pairs(self, **kwargs: Any) -> str:
+        self.calls.append(kwargs)
         return "{}"
+
+
+def test_identify_asset_forwards_vlm_reasoning_config(tmp_path) -> None:
+    vlm = _FakeVLM()
+    context = {
+        "vlm": vlm,
+        "vlm_config": {
+            "backend": "nim",
+            "model": "moonshotai/kimi-k3",
+            "temperature": 1.0,
+            "max_tokens": 2048,
+            "reasoning_effort": "max",
+        },
+        "composition_images": ["preview.png"],
+        "output_dir": str(tmp_path),
+    }
+
+    IdentifyAssetTask().run(context)
+
+    assert vlm.calls[0]["temperature"] == 1.0
+    assert vlm.calls[0]["max_tokens"] == 2048
+    assert vlm.calls[0]["reasoning_effort"] == "max"
 
 
 @pytest.mark.parametrize(

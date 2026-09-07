@@ -4,7 +4,42 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ErrorDetail(BaseModel):
+    """Standard FastAPI error payload returned by input failures."""
+
+    detail: str = Field(description="Human-readable error detail")
+
+
+S3_INPUT_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": (
+            "Missing or invalid input source, including an unsupported USD extension."
+        ),
+        "model": ErrorDetail,
+    },
+    403: {
+        "description": (
+            "Client S3 URI rejected by the configured bucket allowlist, "
+            "or S3 access denied."
+        ),
+        "model": ErrorDetail,
+    },
+    404: {
+        "description": "Client-supplied S3 object was not found.",
+        "model": ErrorDetail,
+    },
+    413: {
+        "description": "S3 object exceeds the configured upload size limit.",
+        "model": ErrorDetail,
+    },
+    502: {
+        "description": "Failed to download the client-supplied S3 object.",
+        "model": ErrorDetail,
+    },
+}
 
 
 class StepProgress(BaseModel):
@@ -77,6 +112,50 @@ class MaterialCoverage(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class DiagnosticEvidenceNames(BaseModel):
+    """Fixed filenames in a renderer-failure evidence bundle."""
+
+    report: Literal["report.json"]
+    samples: list[str] = Field(default_factory=list, max_length=4)
+
+
+class PipelineErrorDiagnostic(BaseModel):
+    """Stable, redacted terminal pipeline diagnostic."""
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    schema_version: str = Field(alias="schema")
+    code: str = Field(min_length=1, max_length=96)
+    phase: str
+    retryable: bool
+    failed_step: str | None = None
+    renderer_backend: Literal["warp", "ovrtx", "remote", "mock", "unknown"] | None = (
+        None
+    )
+    checked_count: int | None = Field(default=None, ge=1, le=1_000_000)
+    blank_count: int | None = Field(default=None, ge=1, le=1_000_000)
+    blank_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    render_modes: list[str] = Field(default_factory=list, max_length=6)
+    samples: list[dict[str, Any]] = Field(default_factory=list, max_length=4)
+    evidence: DiagnosticEvidenceNames | None = None
+
+
+class FailureEvidenceFile(BaseModel):
+    """One downloadable renderer-failure evidence file."""
+
+    name: str
+    url: str
+
+
+class FailureEvidence(BaseModel):
+    """Evidence retained for the lifetime of a failed session."""
+
+    report: FailureEvidenceFile
+    samples: list[FailureEvidenceFile] = Field(default_factory=list, max_length=4)
+    retention: Literal["until_session_expiry_or_deletion"]
+
+
 class PipelineStatus(BaseModel):
     """Enhanced pipeline execution status with progress."""
 
@@ -97,6 +176,12 @@ class PipelineStatus(BaseModel):
     coverage: MaterialCoverage | None = Field(
         default=None, description="Material prediction and binding readiness"
     )
+    error: str | None = Field(
+        default=None, description="Stable terminal error code for failed sessions"
+    )
+    failed_step: str | None = None
+    error_diagnostic: PipelineErrorDiagnostic | None = None
+    failure_evidence: FailureEvidence | None = None
 
 
 class StageTimings(BaseModel):
@@ -178,6 +263,8 @@ class PipelineError(BaseModel):
     coverage: MaterialCoverage | None = Field(
         default=None, description="Material prediction and binding readiness"
     )
+    error_diagnostic: PipelineErrorDiagnostic | None = None
+    failure_evidence: FailureEvidence | None = None
 
 
 class SessionCreated(BaseModel):

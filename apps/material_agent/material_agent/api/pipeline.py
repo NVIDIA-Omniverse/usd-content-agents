@@ -16,6 +16,10 @@ from world_understanding.utils.model_auth import (
     is_model_authentication_error,
     public_model_failure_message,
 )
+from world_understanding.utils.render_failure_diagnostics import (
+    PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY,
+    trusted_pipeline_failure_diagnostic,
+)
 from world_understanding.utils.result_projection import (
     project_result_metadata,
     retain_safe_result_text,
@@ -80,6 +84,7 @@ class PipelineOutput(SecretSafeReprMixin, APIResult):
     completed_steps: list[str] = field(default_factory=list)
     skipped_steps: list[str] = field(default_factory=list)
     raw_result: dict[str, Any] | None = None
+    error_diagnostic: dict[str, Any] | None = None
 
 
 async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
@@ -243,10 +248,20 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
 
         # Check for workflow errors even if result exists
         if result.get("error") or result.get("workflow_terminated"):
+            known_failure = trusted_pipeline_failure_diagnostic(
+                result.get(PIPELINE_FAILURE_DIAGNOSTIC_CONTEXT_KEY)
+            )
+            error_diagnostic = (
+                known_failure.to_dict() if known_failure is not None else None
+            )
             failure_message = (
-                MODEL_AUTHENTICATION_FAILURE_MESSAGE
-                if is_model_authentication_error(result.get("error"))
-                else _PIPELINE_FAILURE_MESSAGE
+                error_diagnostic["code"]
+                if error_diagnostic is not None
+                else (
+                    MODEL_AUTHENTICATION_FAILURE_MESSAGE
+                    if is_model_authentication_error(result.get("error"))
+                    else _PIPELINE_FAILURE_MESSAGE
+                )
             )
             failed_task = result.get("failed_task", "unknown")
             safe_failed_task = (
@@ -271,6 +286,8 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
             safe_result = project_result_metadata(result)
             safe_result["error"] = failure_message
             safe_result["failed_task"] = safe_failed_task
+            if error_diagnostic is not None:
+                safe_result["error_diagnostic"] = error_diagnostic
             safe_pipeline_results = safe_result.get("pipeline_results", {})
             if not isinstance(safe_pipeline_results, dict):
                 safe_pipeline_results = {}
@@ -282,6 +299,7 @@ async def arun_pipeline(params: PipelineInput) -> PipelineOutput:
                 completed_steps=completed_steps,
                 skipped_steps=safe_skip_steps,
                 raw_result=safe_result,
+                error_diagnostic=error_diagnostic,
             )
 
         # Pipeline succeeded. Keep the workflow context raw while tasks execute,

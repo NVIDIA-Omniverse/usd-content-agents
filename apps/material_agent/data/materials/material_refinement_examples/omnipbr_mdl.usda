@@ -1,0 +1,32 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Scope "Looks"
+    {
+        def Material "NeutralSatinPolymer"
+        {
+            token outputs:mdl:displacement.connect = </World/Looks/NeutralSatinPolymer/Shader.outputs:out>
+            token outputs:mdl:surface.connect = </World/Looks/NeutralSatinPolymer/Shader.outputs:out>
+            token outputs:mdl:volume.connect = </World/Looks/NeutralSatinPolymer/Shader.outputs:out>
+
+            def Shader "Shader"
+            {
+                uniform token info:implementationSource = "sourceAsset"
+                uniform asset info:mdl:sourceAsset = @OmniPBR.mdl@
+                uniform token info:mdl:sourceAsset:subIdentifier = "OmniPBR"
+                color3f inputs:diffuse_color_constant = (0.28, 0.3, 0.32)
+                float inputs:metallic_constant = 0
+                float inputs:reflection_roughness_constant = 0.38
+                token outputs:out (
+                    renderType = "material"
+                )
+            }
+        }
+    }
+}

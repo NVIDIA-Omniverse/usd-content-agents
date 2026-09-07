@@ -20,7 +20,7 @@ services:
 
       # VLM/LLM configuration
       - JA_VLM_BACKEND=${JA_VLM_BACKEND:-nim}
-      - JA_VLM_MODEL=${JA_VLM_MODEL:-google/gemma-4-31b-it}
+      - JA_VLM_MODEL=${JA_VLM_MODEL:-moonshotai/kimi-k3}
       - JA_VLM_TEMPERATURE=${JA_VLM_TEMPERATURE:-1.0}
 
     volumes:

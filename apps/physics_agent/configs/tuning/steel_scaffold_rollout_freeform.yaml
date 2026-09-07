@@ -31,11 +31,11 @@ target:
     - "the scaffold does not fall through the floor"
   cameras: ["+x+y+z"]
   camera_ground_bias_fraction: 0.6
-  record_video: "end_of_tune"
-  video_image_width: 512
-  video_image_height: 512
-  video_sensor_updates: 32
-  video_render_mode: "rt2"
+  record_frames: "end_of_tune"
+  frame_image_width: 512
+  frame_image_height: 512
+  frame_sensor_updates: 32
+  frame_render_mode: "rt2"
 
 judge:
   temperature: 0.0

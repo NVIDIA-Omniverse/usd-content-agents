@@ -2,3 +2,13 @@
 apps/material_agent_service/service/routers/sessions_router.py whitespace=cr-at-eol
 # Treat this historical CRLF integration script as valid in Git whitespace checks.
 apps/material_agent/tests/test_concurrency_integration.py whitespace=cr-at-eol
+# This tracked Helm template uses CRLF; keep Git's other whitespace checks active.
+deploy/material_agent_service/templates/deployment.yaml whitespace=cr-at-eol
+# Preserve the exact imported upstream blob while exempting its intentional
+# terminal blank line from the repository-wide `git diff --check` gate.
+apps/usd_cli/internal/example_tasks/Dockerfile.sandbox whitespace=-blank-at-eof
+# These promoted native patch inputs are byte-locked to reviewed release evidence.
+agentic/packages/openvdb_runtime/native/native-patches/onetbb/0001-disable-optional-runtime-loaders.patch whitespace=-blank-at-eol,-blank-at-eof
+agentic/packages/openvdb_runtime/native/patches/0004-bounded-volume-to-mesh.patch whitespace=-blank-at-eol,-blank-at-eof
+# Preserve the reviewed upstream legal text byte-for-byte.
+# Unified-diff context uses a single space to represent an unchanged blank line.

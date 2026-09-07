@@ -2,6 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 """Generated material library helpers for Material Agent."""
 
+from material_agent.material_library_generation.authoring import (
+    MATERIAL_AUTHORING_MANIFEST_NAME,
+    MATERIAL_AUTHORING_SCHEMA_VERSION,
+    MaterialAuthoringOperation,
+    MaterialAuthoringRequest,
+    MaterialPackage,
+    MaterialPackageAuthoringError,
+    MaterialRecipeSemantics,
+    MaterialRepresentationPolicy,
+    SourceMaterialReference,
+    author_material_package,
+    load_material_package,
+    write_material_package_files,
+)
 from material_agent.material_library_generation.builder import (
     build_generated_material_library,
 )
@@ -77,6 +91,13 @@ from material_agent.material_library_generation.schema import (
     make_material_id,
     make_usd_identifier,
 )
+from material_agent.material_library_generation.source_graph import (
+    MaterialGraphEdit,
+    MaterialGraphEditError,
+    MaterialGraphInfo,
+    inspect_material_graph,
+    write_edited_material_graphs,
+)
 from material_agent.material_library_generation.texture_generation import (
     TextureGenerationSettings,
     generate_texture_maps,
@@ -111,6 +132,8 @@ __all__ = [
     "GeneratedMaterial",
     "GeneratedMaterialLibrary",
     "IntendedPart",
+    "MATERIAL_AUTHORING_MANIFEST_NAME",
+    "MATERIAL_AUTHORING_SCHEMA_VERSION",
     "MATERIAL_CREATION_MANIFEST_NAME",
     "MATERIAL_CREATION_SCHEMA_VERSION",
     "MATERIAL_CONDITIONING_MANIFEST_NAME",
@@ -120,6 +143,8 @@ __all__ = [
     "MATERIAL_LIBRARY_NAME",
     "MATERIAL_LIST_MANIFEST_NAME",
     "MaterialAction",
+    "MaterialAuthoringOperation",
+    "MaterialAuthoringRequest",
     "MaterialArtifactLayout",
     "MaterialCreationBackendRegistry",
     "MaterialChannel",
@@ -145,6 +170,13 @@ __all__ = [
     "MaterialDiagnosticSeverity",
     "MaterialPrototype",
     "MaterialGenerationPlan",
+    "MaterialGraphEdit",
+    "MaterialGraphEditError",
+    "MaterialGraphInfo",
+    "MaterialPackage",
+    "MaterialPackageAuthoringError",
+    "MaterialRecipeSemantics",
+    "MaterialRepresentationPolicy",
     "MaterialRecipe",
     "NormalConvention",
     "ORMPacking",
@@ -165,9 +197,12 @@ __all__ = [
     "VideoMatGenBackendConfig",
     "VideoMatGenMaterialCreationBackend",
     "build_generated_material_library",
+    "author_material_package",
     "create_material_package",
     "generate_texture_maps",
     "intended_part_prim_path_hints",
+    "inspect_material_graph",
+    "load_material_package",
     "load_material_prototypes_from_data",
     "load_material_prototypes_from_manifest",
     "make_material_id",
@@ -175,7 +210,10 @@ __all__ = [
     "prepare_material_conditioning",
     "score_material_prototype",
     "select_material_prototype",
+    "SourceMaterialReference",
     "validate_generated_material_library",
+    "write_edited_material_graphs",
+    "write_material_package_files",
 ]
 
 _LAZY_STEP1X_EXPORTS = {

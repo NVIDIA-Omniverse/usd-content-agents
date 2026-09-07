@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Material Agent Brev"
-  short_description: "Run the hybrid Brev material-agent deployment."
-  default_prompt: "Use $deploy-material-agent-brev to deploy or smoke-test Material Agent with Brev-hosted OVRTX rendering and a Qwen VLM endpoint."

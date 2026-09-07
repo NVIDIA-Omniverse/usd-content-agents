@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from collections.abc import Callable, Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import httpx
 import pytest
@@ -21,6 +22,7 @@ DEFAULT_MATERIAL_PATH = "/RootNode/Looks/Aluminum_Matte"
 DEFAULT_PROMPT = "deterministic scuffed aluminum projection"
 DEFAULT_SEED = 11631
 DEFAULT_TEXTURE_SIZE = 16
+DEFAULT_EXTERNAL_ADAPTER_ID = "fake-headless-dcc"
 
 FULL_PBR_VARIANTS = {"success", "success_full_pbr"}
 ALBEDO_ONLY_VARIANTS = {
@@ -120,11 +122,22 @@ def projection_submitter() -> Callable[..., dict[str, Any]]:
 class FakeProjectionBackend:
     """HTTP fake implementing the issue #116 normalized projection contract."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        authoring_preflight: dict[str, Any] | None = None,
+    ) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
         self.jobs: dict[str, dict[str, Any]] = {}
         self.requests: list[dict[str, Any]] = []
+        self.preflight_requests: list[dict[str, Any]] = []
+        self.authoring_preflight = (
+            authoring_preflight
+            if authoring_preflight is not None
+            else default_external_authoring_preflight()
+        )
         self._state_lock = threading.Lock()
         self._server: _ProjectionHTTPServer | None = None
         self._thread: threading.Thread | None = None
@@ -141,7 +154,10 @@ class FakeProjectionBackend:
 
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self) -> None:  # noqa: N802
-                if self.path != "/v1/texture-variations":
+                if self.path not in {
+                    "/v1/texture-variations",
+                    "/v1/texture-authoring/preflight",
+                }:
                     self.send_error(404)
                     return
                 try:
@@ -152,6 +168,11 @@ class FakeProjectionBackend:
                         raise ValueError("Request body must be a JSON object")
                 except Exception as exc:
                     self.send_error(400, explain=str(exc))
+                    return
+                if self.path == "/v1/texture-authoring/preflight":
+                    with backend._state_lock:
+                        backend.preflight_requests.append(payload)
+                    self._send_json(backend.authoring_preflight)
                     return
                 self._send_json(backend._create_job(payload))
 
@@ -247,6 +268,7 @@ class FakeProjectionBackend:
                 seed=seed,
                 size=size,
                 source_asset_uri=source_asset_uri,
+                request_payload=payload,
             )
 
         with self._state_lock:
@@ -261,6 +283,7 @@ class FakeProjectionBackend:
         seed: int,
         size: int,
         source_asset_uri: str,
+        request_payload: dict[str, Any],
     ) -> dict[str, Any]:
         job_dir = self.root / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -376,6 +399,67 @@ class FakeProjectionBackend:
         preview = _write_pattern(
             job_dir / "projection_preview.png", size, channel="albedo", seed=seed + 1
         )
+        auxiliary_artifacts: dict[str, Any] = {
+            "masks": [
+                {
+                    "label": "target_coverage",
+                    "uri": mask.as_uri(),
+                    "mime_type": "image/png",
+                }
+            ],
+            "debug_previews": [
+                {
+                    "label": "projection_preview",
+                    "uri": preview.as_uri(),
+                    "mime_type": "image/png",
+                }
+            ],
+            "geometry": geometry,
+        }
+        metadata = _metadata(
+            variant=variant,
+            seed=seed,
+            size=size,
+            capabilities=capabilities,
+            coverage=coverage,
+            degraded_channels=degraded_channels,
+        )
+        external_authoring = request_payload.get("external_authoring")
+        if isinstance(external_authoring, dict):
+            project = job_dir / "authoring_project.fake"
+            project.write_text(
+                "deterministic fake authoring project\n", encoding="utf-8"
+            )
+            auxiliary_artifacts["external_authoring"] = {
+                "project": [
+                    {
+                        "uri": project.as_uri(),
+                        "sha256": _sha256_file(project),
+                    }
+                ]
+            }
+            metadata["external_authoring"] = {
+                "schema_version": "texture-agent-external-authoring-result.v1",
+                "spec_digest": external_authoring.get("spec_digest"),
+                "adapter_id": external_authoring.get("adapter_id"),
+                "adapter_version": self.authoring_preflight.get("adapter_version"),
+                "workflow": external_authoring.get("workflow"),
+                "tool_name": self.authoring_preflight.get("tool_name"),
+                "tool_version": self.authoring_preflight.get("tool_version"),
+                "headless": True,
+                "license_status": self.authoring_preflight.get("license_status"),
+                "deployment_mode": self.authoring_preflight.get("deployment_mode"),
+                "environment_digest": self.authoring_preflight.get(
+                    "environment_digest"
+                ),
+                "seed": seed,
+                "source_asset_sha256": _sha256_source_uri(source_asset_uri),
+                "output_sha256": {
+                    channel: _sha256_file(_path_from_file_uri(record["uri"]))
+                    for channel, record in maps.items()
+                },
+            }
+
         return _status_response(
             job_id=job_id,
             status="completed",
@@ -383,31 +467,8 @@ class FakeProjectionBackend:
             variant_asset_uri=source_asset_uri,
             generated_textures=generated_textures,
             maps=maps,
-            auxiliary_artifacts={
-                "masks": [
-                    {
-                        "label": "target_coverage",
-                        "uri": mask.as_uri(),
-                        "mime_type": "image/png",
-                    }
-                ],
-                "debug_previews": [
-                    {
-                        "label": "projection_preview",
-                        "uri": preview.as_uri(),
-                        "mime_type": "image/png",
-                    }
-                ],
-                "geometry": geometry,
-            },
-            metadata=_metadata(
-                variant=variant,
-                seed=seed,
-                size=size,
-                capabilities=capabilities,
-                coverage=coverage,
-                degraded_channels=degraded_channels,
-            ),
+            auxiliary_artifacts=auxiliary_artifacts,
+            metadata=metadata,
             diagnostics=diagnostics,
         )
 
@@ -555,6 +616,47 @@ def _write_pattern(path: Path, size: int, *, channel: str, seed: int) -> Path:
                 pixels[x, y] = (255 if value > 32 else 0, value, 255 - value)
     image.save(path, format="PNG")
     return path
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _path_from_file_uri(uri: str) -> Path:
+    parsed = urlparse(uri)
+    if parsed.scheme != "file" or parsed.netloc not in ("", "localhost"):
+        raise ValueError(f"Expected local file URI, got {uri!r}")
+    return Path(unquote(parsed.path))
+
+
+def _sha256_source_uri(uri: str) -> str:
+    return _sha256_file(_path_from_file_uri(uri))
+
+
+def default_external_authoring_preflight(
+    *,
+    ready: bool = True,
+    license_status: str = "valid",
+) -> dict[str, Any]:
+    return {
+        "schema_version": "texture-agent-external-authoring-capabilities.v1",
+        "ready": ready,
+        "adapter_id": DEFAULT_EXTERNAL_ADAPTER_ID,
+        "adapter_version": "1.0.0",
+        "tool_name": "Fake Headless DCC",
+        "tool_version": "2026.1",
+        "headless": True,
+        "license_status": license_status,
+        "deployment_mode": "remote_headless",
+        "environment_digest": "sha256:" + "a" * 64,
+        "supported_workflows": ["paint", "designer_graph", "hybrid"],
+        "supported_map_channels": ["albedo", "normal", "orm"],
+        "supported_auxiliary_artifacts": ["project", "graph", "preset", "log"],
+        "seed_control": True,
+        "deterministic_parameters": True,
+        "normalized_output": "texture_variation_maps",
+        "diagnostics": [],
+    }
 
 
 def _map(

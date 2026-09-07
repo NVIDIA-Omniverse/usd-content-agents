@@ -6,8 +6,9 @@ import asyncio
 import json
 import logging
 import time
+from concurrent.futures import wait
 from pathlib import Path
-from threading import Event
+from threading import Barrier, Event, local
 from types import SimpleNamespace
 from typing import Any, NoReturn
 
@@ -40,6 +41,9 @@ from world_understanding.functions.classification.inference import (
     classify_object,
     classify_objects_multi_prim,
     get_fibonacci_delay,
+)
+from world_understanding.functions.models.vision_language_models import (
+    NonRetryableVLMTimeoutError,
 )
 from world_understanding.utils.model_auth import (
     MODEL_AUTHENTICATION_FAILURE_MESSAGE,
@@ -129,6 +133,17 @@ def test_classify_object_aborts_auth_failure_without_provider_body(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     provider_body = "401 bearer-secret provider response and SDK internals"
+    attempts: list[dict[str, Any]] = []
+    callback_exception_state: list[
+        tuple[BaseException | None, BaseException | None, Any]
+    ] = []
+
+    def capture_attempt(attempt: dict[str, Any]) -> None:
+        attempts.append(attempt)
+        error = attempt["error"]
+        callback_exception_state.append(
+            (error.__cause__, error.__context__, error.__traceback__)
+        )
 
     with (
         caplog.at_level(logging.ERROR),
@@ -140,10 +155,228 @@ def test_classify_object_aborts_auth_failure_without_provider_body(
             images=["front.png"],
             llm=object(),
             max_retries=1,
+            on_attempt=capture_attempt,
         )
 
     assert str(exc_info.value) == MODEL_AUTHENTICATION_FAILURE_MESSAGE
     assert provider_body not in caplog.text
+    assert len(attempts) == 1
+    assert attempts[0]["attempt_number"] == 1
+    assert attempts[0]["outcome"] == "transport_error"
+    assert isinstance(attempts[0]["error"], ModelAuthenticationFailure)
+    assert attempts[0]["error"] is exc_info.value
+    assert attempts[0]["error"].__cause__ is None
+    assert attempts[0]["error"].__context__ is None
+    assert callback_exception_state == [(None, None, None)]
+    assert provider_body not in str(attempts[0]["error"])
+    assert attempts[0].get("raw_response") is None
+
+
+def test_sequential_batch_preserves_sanitized_auth_attempt_identity() -> None:
+    attempts: list[tuple[str, dict[str, Any]]] = []
+
+    with pytest.raises(ModelAuthenticationFailure) as exc_info:
+        batch_classify_objects(
+            vlm=_SequenceVLM([_AuthenticationError("401 hidden provider body")]),
+            entries=[
+                {
+                    "id": "auth",
+                    "text": "auth",
+                    "images": [PILImage.new("RGB", (1, 1))],
+                }
+            ],
+            llm=object(),
+            max_workers=None,
+            max_retries=1,
+            on_attempt=lambda entry_id, attempt: attempts.append((entry_id, attempt)),
+        )
+
+    assert len(attempts) == 1
+    assert attempts[0][0] == "auth"
+    assert attempts[0][1]["error"] is exc_info.value
+    assert attempts[0][1]["error"].__cause__ is None
+    assert attempts[0][1]["error"].__context__ is None
+
+
+def test_parallel_batch_preserves_sanitized_auth_attempt_identity() -> None:
+    attempts: list[tuple[str, dict[str, Any]]] = []
+
+    with pytest.raises(ModelAuthenticationFailure) as exc_info:
+        batch_classify_objects(
+            vlm=_SequenceVLM([_AuthenticationError("401 hidden provider body")]),
+            entries=[
+                {
+                    "id": "auth",
+                    "text": "auth",
+                    "images": [PILImage.new("RGB", (1, 1))],
+                }
+            ],
+            llm=object(),
+            max_workers=2,
+            max_retries=1,
+            on_attempt=lambda entry_id, attempt: attempts.append((entry_id, attempt)),
+        )
+
+    assert len(attempts) == 1
+    assert attempts[0][0] == "auth"
+    assert attempts[0][1]["error"] is exc_info.value
+    assert attempts[0][1]["error"].__cause__ is None
+    assert attempts[0][1]["error"].__context__ is None
+
+
+def test_parallel_batch_auth_abort_preserves_first_journal_bound_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    journal_bound_error = ModelAuthenticationFailure()
+    sibling_error = ModelAuthenticationFailure()
+    first_attempt_recorded = Event()
+    attempts: list[tuple[str, dict[str, Any]]] = []
+
+    def fake_classify_object(**kwargs: Any) -> NoReturn:
+        if kwargs["text"] == "auth":
+            kwargs["on_attempt"](
+                {
+                    "attempt_number": 1,
+                    "outcome": "transport_error",
+                    "error": journal_bound_error,
+                }
+            )
+            first_attempt_recorded.set()
+            raise journal_bound_error
+        assert first_attempt_recorded.wait(timeout=1)
+        time.sleep(0.05)
+        raise sibling_error
+
+    def sibling_first(futures: Any) -> Any:
+        ordered = list(futures)
+        wait(ordered)
+        yield from reversed(ordered)
+
+    monkeypatch.setattr(inference_module, "classify_object", fake_classify_object)
+    monkeypatch.setattr(inference_module, "as_completed", sibling_first)
+
+    with pytest.raises(ModelAuthenticationFailure) as caught:
+        batch_classify_objects(
+            vlm=object(),
+            entries=[
+                {"id": "auth", "text": "auth"},
+                {"id": "sibling", "text": "sibling"},
+            ],
+            llm=object(),
+            max_workers=2,
+            max_retries=1,
+            on_attempt=lambda entry_id, attempt: attempts.append((entry_id, attempt)),
+        )
+
+    assert caught.value is journal_bound_error
+    assert attempts == [
+        (
+            "auth",
+            {
+                "attempt_number": 1,
+                "outcome": "transport_error",
+                "error": journal_bound_error,
+            },
+        )
+    ]
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+
+
+def test_parallel_batch_does_not_raise_one_auth_exception_from_two_workers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth_errors = [ModelAuthenticationFailure(), ModelAuthenticationFailure()]
+    both_workers_ready = Barrier(2)
+    observed_worker_errors: list[BaseException] = []
+
+    def fake_classify_object(**kwargs: Any) -> NoReturn:
+        index = int(str(kwargs["text"]).removeprefix("auth-"))
+        both_workers_ready.wait(timeout=1)
+        raise auth_errors[index]
+
+    def inspect_completed(futures: Any) -> Any:
+        ordered = list(futures)
+        wait(ordered)
+        observed_worker_errors.extend(
+            error for future in ordered if (error := future.exception()) is not None
+        )
+        yield from ordered
+
+    monkeypatch.setattr(inference_module, "classify_object", fake_classify_object)
+    monkeypatch.setattr(inference_module, "as_completed", inspect_completed)
+
+    with pytest.raises(ModelAuthenticationFailure) as caught:
+        batch_classify_objects(
+            vlm=object(),
+            entries=[
+                {"id": "auth-0", "text": "auth-0"},
+                {"id": "auth-1", "text": "auth-1"},
+            ],
+            llm=object(),
+            max_workers=2,
+            max_retries=1,
+        )
+
+    assert len(observed_worker_errors) == 2
+    assert len({id(error) for error in observed_worker_errors}) == 2
+    assert caught.value in auth_errors
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+
+
+def test_parallel_fallback_transport_exhaustion_is_per_entry() -> None:
+    attempts: list[tuple[str, dict[str, Any]]] = []
+
+    class _FailingParser:
+        def invoke(self, messages: list[Any], **kwargs: Any) -> NoReturn:
+            raise TimeoutError("fallback parser unavailable")
+
+    results = batch_classify_objects(
+        vlm=_SequenceVLM(
+            ["unstructured and undecidable", "unstructured and undecidable"]
+        ),
+        entries=[
+            {
+                "id": "one",
+                "text": "one",
+                "images": [PILImage.new("RGB", (1, 1))],
+            },
+            {
+                "id": "two",
+                "text": "two",
+                "images": [PILImage.new("RGB", (1, 1))],
+            },
+        ],
+        llm=_FailingParser(),
+        max_workers=2,
+        max_retries=1,
+        on_attempt=lambda entry_id, attempt: attempts.append((entry_id, attempt)),
+    )
+
+    assert {result["id"] for result in results} == {"one", "two"}
+    assert all(result["status"] == "success" for result in results)
+    assert all(
+        result["vlm_response"]
+        == {
+            "class": "Error during parsing",
+            "original_response": "unstructured and undecidable",
+        }
+        for result in results
+    )
+    assert sorted(
+        (
+            entry_id,
+            attempt.get("request_kind", "initial"),
+            attempt["outcome"],
+        )
+        for entry_id, attempt in attempts
+    ) == [
+        ("one", "contract_correction", "transport_error"),
+        ("one", "initial", "response_received"),
+        ("two", "contract_correction", "transport_error"),
+        ("two", "initial", "response_received"),
+    ]
 
 
 def test_parallel_batch_cancels_queued_work_after_auth_failure(
@@ -184,6 +417,32 @@ def test_parallel_batch_cancels_queued_work_after_auth_failure(
         )
 
     assert set(calls) == {"auth", "sibling"}
+
+
+@pytest.mark.parametrize("max_workers", [None, 2])
+def test_batch_provider_attempt_callback_failure_propagates(
+    monkeypatch: pytest.MonkeyPatch,
+    max_workers: int | None,
+) -> None:
+    def fail_from_attempt_callback(**_kwargs: Any) -> NoReturn:
+        raise inference_module._AttemptCallbackError("evidence persistence failed")
+
+    monkeypatch.setattr(inference_module, "classify_object", fail_from_attempt_callback)
+
+    with pytest.raises(
+        inference_module._AttemptCallbackError,
+        match="evidence persistence failed",
+    ):
+        batch_classify_objects(
+            vlm=object(),
+            entries=[
+                {"id": "one", "text": "classify"},
+                {"id": "two", "text": "classify"},
+            ],
+            llm=object(),
+            max_workers=max_workers,
+            max_retries=1,
+        )
 
 
 @pytest.mark.asyncio
@@ -1161,6 +1420,26 @@ def test_parser_and_timeout_helpers_cover_edge_branches(monkeypatch):
         )
         == "ok"
     )
+    bounded_owner = SimpleNamespace(has_bounded_request_timeout=True)
+    assert (
+        _call_sync_with_timeout(
+            lambda: "backend-bounded",
+            timeout_seconds=0.001,
+            operation_name="backend bounded sync op",
+            timeout_owner=bounded_owner,
+        )
+        == "backend-bounded"
+    )
+
+    def _sync_provider_timeout():
+        raise TimeoutError("sync provider timed out")
+
+    with pytest.raises(TimeoutError, match="sync provider timed out"):
+        _call_sync_with_timeout(
+            _sync_provider_timeout,
+            timeout_seconds=1.0,
+            operation_name="sync provider",
+        )
 
     async def _async_ok():
         return "async-ok"
@@ -1173,6 +1452,33 @@ def test_parser_and_timeout_helpers_cover_edge_branches(monkeypatch):
         )
         == "async-ok"
     )
+
+    async def _backend_bounded_async():
+        return "backend-bounded-async"
+
+    assert (
+        asyncio.run(
+            _call_async_with_timeout(
+                _backend_bounded_async(),
+                timeout_seconds=0.001,
+                operation_name="backend bounded async op",
+                timeout_owner=bounded_owner,
+            )
+        )
+        == "backend-bounded-async"
+    )
+
+    async def _async_provider_timeout():
+        raise TimeoutError("async provider timed out")
+
+    with pytest.raises(TimeoutError, match="async provider timed out"):
+        asyncio.run(
+            _call_async_with_timeout(
+                _async_provider_timeout(),
+                timeout_seconds=1.0,
+                operation_name="async provider",
+            )
+        )
 
     async def _async_slow():
         await asyncio.sleep(0.01)
@@ -1190,6 +1496,32 @@ def test_parser_and_timeout_helpers_cover_edge_branches(monkeypatch):
         '{"class": "parsed"}'
     )
     assert gpt5_parser.calls == [{"max_completion_tokens": 7}]
+
+    responses_parser = _RetryingChatParser(
+        content=[
+            {"type": "reasoning", "summary": []},
+            {"type": "text", "text": '{"class": "responses"}'},
+        ],
+        model="openai/openai/gpt-5.6-sol",
+    )
+    responses_parser.use_responses_api = True
+    assert (
+        _invoke_parser_with_chat_model(responses_parser, [], max_tokens=1)
+        == '{"class": "responses"}'
+    )
+    assert responses_parser.calls == [{}]
+    assert (
+        asyncio.run(_ainvoke_parser_with_chat_model(responses_parser, [], max_tokens=1))
+        == '{"class": "responses"}'
+    )
+    assert responses_parser.async_calls == [{}]
+
+    reasoning_only_parser = _RetryingChatParser(
+        content=[{"type": "reasoning", "summary": []}],
+        model="openai/openai/gpt-5.6-sol",
+    )
+    assert _invoke_parser_with_chat_model(reasoning_only_parser, [], max_tokens=1) == ""
+    assert reasoning_only_parser.calls == [{}]
 
     retry_parser = _RetryingChatParser(
         content=123,
@@ -1320,15 +1652,19 @@ def test_classify_object_retries_pairs_tracks_tokens_and_fallbacks(monkeypatch):
         text="classify it",
         images=["front.png"],
         llm=object(),
-        invoke_kwargs={"temperature": 0.2, "max_completion_tokens": 4},
+        invoke_kwargs={
+            "temperature": 0.2,
+            "max_completion_tokens": 4,
+            "reasoning_effort": "max",
+        },
         image_prompts=["front view"],
         max_retries=2,
     )
 
     assert result["class"] == "chair"
     assert [call["max_tokens"] for call in vlm.pair_calls] == [4, 8]
+    assert [call["reasoning_effort"] for call in vlm.pair_calls] == ["max", "max"]
     assert tracker.get_stats()["invocation_count"] == 0
-
     vlm_with_tracker = _SequenceVLM(
         ['{"class": "table"}'],
         token_usage=usage,
@@ -1357,14 +1693,285 @@ def test_classify_object_retries_pairs_tracks_tokens_and_fallbacks(monkeypatch):
     )
     assert fallback["class"] == "loose answer"
 
+    attempts: list[dict[str, Any]] = []
     retry_after_error = classify_object(
         vlm=_SequenceVLM([RuntimeError("temporary"), '{"class": "after-error"}']),
         text="classify it",
         images=["front.png"],
         llm=object(),
         max_retries=2,
+        on_attempt=attempts.append,
     )
     assert retry_after_error["class"] == "after-error"
+    assert [attempt["outcome"] for attempt in attempts] == [
+        "transport_error",
+        "response_received",
+    ]
+    assert attempts[0]["attempt_number"] == 1
+    assert isinstance(attempts[0]["error"], RuntimeError)
+    assert attempts[1]["attempt_number"] == 2
+    assert attempts[1]["raw_response"] == '{"class": "after-error"}'
+
+    with pytest.raises(RuntimeError, match="evidence write failed"):
+        classify_object(
+            vlm=_SequenceVLM(['{"class": "unrecorded"}']),
+            text="classify it",
+            images=["front.png"],
+            llm=object(),
+            on_attempt=lambda _attempt: (_ for _ in ()).throw(
+                RuntimeError("evidence write failed")
+            ),
+        )
+
+
+def test_sync_classification_does_not_retry_unverified_remote_timeout(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+
+    single_vlm = _SequenceVLM(
+        [
+            NonRetryableVLMTimeoutError("remote completion unverified"),
+            '{"class": "unsafe retry"}',
+        ]
+    )
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        classify_object(
+            vlm=single_vlm,
+            text="classify it",
+            images=["front.png"],
+            llm=object(),
+            max_retries=2,
+        )
+    assert len(single_vlm.calls) == 1
+
+    multi_vlm = _SequenceVLM(
+        [
+            NonRetryableVLMTimeoutError("remote completion unverified"),
+            '{"a": {"class": "unsafe retry"}}',
+        ]
+    )
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        classify_objects_multi_prim(
+            vlm=multi_vlm,
+            object_ids=["a"],
+            text="classify it",
+            images=["front.png"],
+            llm=object(),
+            max_retries=2,
+        )
+    assert len(multi_vlm.calls) == 1
+
+    parser_vlm = _SequenceVLM(
+        [
+            NonRetryableVLMTimeoutError("remote completion unverified"),
+            '{"class": "unsafe retry"}',
+        ]
+    )
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        classify_object(
+            vlm=_SequenceVLM(["unstructured and undecidable"]),
+            text="classify it",
+            images=["front.png"],
+            llm=parser_vlm,
+            max_retries=2,
+        )
+    assert len(parser_vlm.calls) == 1
+
+    multi_parser_vlm = _SequenceVLM(
+        [
+            NonRetryableVLMTimeoutError("remote completion unverified"),
+            '{"a": {"class": "unsafe retry"}}',
+        ]
+    )
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        _parse_multi_prim_response(
+            vlm_response="not json",
+            object_ids=["a"],
+            output_key="class",
+            llm=multi_parser_vlm,
+            system_prompt="system",
+            text="classify it",
+            max_retries=2,
+        )
+    assert len(multi_parser_vlm.calls) == 1
+
+
+def test_batch_classification_propagates_unverified_remote_timeout(monkeypatch):
+    def raise_terminal_timeout(**_kwargs):
+        raise NonRetryableVLMTimeoutError("remote completion unverified")
+
+    monkeypatch.setattr(inference_module, "classify_object", raise_terminal_timeout)
+    entries = [
+        {
+            "id": "a",
+            "text": "classify it",
+            "images": [PILImage.new("RGB", (1, 1))],
+        }
+    ]
+
+    for max_workers in (None, 2):
+        with pytest.raises(NonRetryableVLMTimeoutError):
+            batch_classify_objects(
+                vlm=_SequenceVLM([]),
+                entries=entries,
+                llm=object(),
+                max_workers=max_workers,
+            )
+
+
+def test_classify_object_records_fallback_parser_provider_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+    attempts: list[dict[str, Any]] = []
+
+    parsed = classify_object(
+        vlm=_SequenceVLM(["unstructured and undecidable"]),
+        text="classify it",
+        images=["front.png"],
+        llm=_RetryingChatParser(content='{"class": "parsed"}'),
+        max_retries=1,
+        on_attempt=attempts.append,
+    )
+
+    assert parsed["class"] == "parsed"
+    assert [attempt["outcome"] for attempt in attempts] == [
+        "response_received",
+        "response_received",
+    ]
+    assert attempts[1]["request_kind"] == "contract_correction"
+    assert attempts[1]["raw_response"] == '{"class": "parsed"}'
+
+
+def test_classify_object_propagates_fallback_parser_recorder_failure() -> None:
+    attempts: list[dict[str, Any]] = []
+
+    def record_attempt(attempt: dict[str, Any]) -> None:
+        attempts.append(attempt)
+        if attempt.get("request_kind") == "contract_correction":
+            raise RuntimeError("fallback evidence write failed")
+
+    with pytest.raises(inference_module._AttemptCallbackError) as caught:
+        classify_object(
+            vlm=_SequenceVLM(["unstructured and undecidable"]),
+            text="classify it",
+            images=["front.png"],
+            llm=_RetryingChatParser(content='{"class": "parsed"}'),
+            max_retries=1,
+            on_attempt=record_attempt,
+        )
+
+    assert [attempt["outcome"] for attempt in attempts] == [
+        "response_received",
+        "response_received",
+    ]
+    assert isinstance(caught.value.__cause__, RuntimeError)
+    assert str(caught.value.__cause__) == "fallback evidence write failed"
+
+
+def test_classify_object_records_fallback_parser_auth_failure() -> None:
+    provider_body = "401 hidden fallback parser provider body"
+    attempts: list[dict[str, Any]] = []
+
+    class _FailingParser:
+        model = "parser"
+
+        def invoke(self, messages: list[Any], **kwargs: Any) -> NoReturn:
+            raise _AuthenticationError(provider_body)
+
+    with pytest.raises(ModelAuthenticationFailure) as caught:
+        classify_object(
+            vlm=_SequenceVLM(["unstructured and undecidable"]),
+            text="classify it",
+            images=["front.png"],
+            llm=_FailingParser(),
+            max_retries=1,
+            on_attempt=attempts.append,
+        )
+
+    assert [attempt["outcome"] for attempt in attempts] == [
+        "response_received",
+        "transport_error",
+    ]
+    assert attempts[1]["request_kind"] == "contract_correction"
+    assert attempts[1]["error"] is caught.value
+    assert provider_body not in str(caught.value)
+
+
+def test_classify_object_records_fallback_parser_transport_exhaustion() -> None:
+    parser_error = RuntimeError("fallback parser unavailable")
+    attempts: list[dict[str, Any]] = []
+
+    class _FailingParser:
+        def invoke(self, messages: list[Any], **kwargs: Any) -> NoReturn:
+            raise parser_error
+
+    result = classify_object(
+        vlm=_SequenceVLM(["unstructured and undecidable"]),
+        text="classify it",
+        images=["front.png"],
+        llm=_FailingParser(),
+        max_retries=1,
+        on_attempt=attempts.append,
+    )
+
+    assert [attempt["outcome"] for attempt in attempts] == [
+        "response_received",
+        "transport_error",
+    ]
+    assert attempts[1]["request_kind"] == "contract_correction"
+    assert attempts[1]["error"] is parser_error
+    assert result == {
+        "class": "Error during parsing",
+        "original_response": "unstructured and undecidable",
+    }
+
+
+def test_classify_object_propagates_attempt_carrier_only_after_final_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+    discarded_carrier = RuntimeError("discarded receipt carrier")
+    attempts: list[dict[str, Any]] = []
+
+    def record_recovered_attempt(attempt: dict[str, Any]) -> BaseException | None:
+        attempts.append(attempt)
+        if attempt["outcome"] == "transport_error":
+            return discarded_carrier
+        return None
+
+    recovered = classify_object(
+        vlm=_SequenceVLM([RuntimeError("temporary"), '{"class": "recovered"}']),
+        text="classify it",
+        images=["front.png"],
+        llm=object(),
+        max_retries=2,
+        on_attempt=record_recovered_attempt,
+    )
+
+    assert recovered["class"] == "recovered"
+    assert [attempt["outcome"] for attempt in attempts] == [
+        "transport_error",
+        "response_received",
+    ]
+
+    final_carriers = [RuntimeError("first carrier"), RuntimeError("final carrier")]
+
+    def record_exhausted_attempt(_attempt: dict[str, Any]) -> BaseException:
+        return final_carriers.pop(0)
+
+    with pytest.raises(inference_module._AttemptCallbackError) as caught:
+        classify_object(
+            vlm=_SequenceVLM([RuntimeError("first"), RuntimeError("final")]),
+            text="classify it",
+            images=["front.png"],
+            llm=object(),
+            max_retries=2,
+            on_attempt=record_exhausted_attempt,
+        )
+
+    assert final_carriers == []
+    assert isinstance(caught.value.__cause__, RuntimeError)
+    assert str(caught.value.__cause__) == "final carrier"
 
 
 def test_classify_object_parser_fallback_failure_modes(monkeypatch):
@@ -1622,13 +2229,18 @@ def test_classify_objects_multi_prim_retries_and_pairs(monkeypatch):
         text="text",
         images=["front.png"],
         llm=object(),
-        invoke_kwargs={"temperature": 0.3, "max_tokens": 6},
+        invoke_kwargs={
+            "temperature": 0.3,
+            "max_tokens": 6,
+            "reasoning_effort": "max",
+        },
         image_prompts=["caption"],
         token_tracker=tracker,
         max_retries=1,
     )
     assert result["a"]["class"] == "chair"
     assert pair_vlm.pair_calls[0]["max_tokens"] == 6
+    assert pair_vlm.pair_calls[0]["reasoning_effort"] == "max"
     assert tracker.get_stats()["invocation_count"] == 1
 
     retry_vlm = _SequenceVLM(["", '{"a": {"class": "after-empty"}}'])
@@ -1638,12 +2250,16 @@ def test_classify_objects_multi_prim_retries_and_pairs(monkeypatch):
         text="text",
         images=["front.png"],
         llm=object(),
-        invoke_kwargs={"max_completion_tokens": 4},
+        invoke_kwargs={"max_completion_tokens": 4, "reasoning_effort": "high"},
         image_prompts=["caption", "extra"],
         max_retries=2,
     )
     assert retry_result["a"]["class"] == "after-empty"
     assert [call["max_tokens"] for call in retry_vlm.calls] == [4, 8]
+    assert [call["reasoning_effort"] for call in retry_vlm.calls] == [
+        "high",
+        "high",
+    ]
 
     error_retry_vlm = _SequenceVLM(
         [RuntimeError("temporary"), '{"a": {"class": "after-error"}}']
@@ -1676,14 +2292,54 @@ async def test_async_classify_object_retry_and_fallback_branches(monkeypatch):
         text="classify it",
         images=["front.png"],
         llm=object(),
-        invoke_kwargs={"temperature": 0.2, "max_tokens": 4},
+        invoke_kwargs={
+            "temperature": 0.2,
+            "max_tokens": 4,
+            "reasoning_effort": "max",
+        },
         image_prompts=["caption"],
         token_tracker=tracker,
         max_retries=2,
     )
     assert result["class"] == "async-chair"
     assert [call["max_tokens"] for call in vlm.async_pair_calls] == [4, 8]
+    assert [call["reasoning_effort"] for call in vlm.async_pair_calls] == [
+        "max",
+        "max",
+    ]
     assert tracker.get_stats()["invocation_count"] == 2
+
+    terminal_vlm = _SequenceVLM(
+        [
+            NonRetryableVLMTimeoutError("remote completion unverified"),
+            '{"class": "unsafe retry"}',
+        ]
+    )
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        await async_classify_object(
+            vlm=terminal_vlm,
+            text="classify it",
+            images=["front.png"],
+            llm=object(),
+            max_retries=2,
+        )
+    assert len(terminal_vlm.async_calls) == 1
+
+    terminal_parser_vlm = _SequenceVLM(
+        [
+            NonRetryableVLMTimeoutError("remote completion unverified"),
+            '{"class": "unsafe retry"}',
+        ]
+    )
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        await async_classify_object(
+            vlm=_SequenceVLM(["unstructured and undecidable"]),
+            text="classify it",
+            images=["front.png"],
+            llm=terminal_parser_vlm,
+            max_retries=2,
+        )
+    assert len(terminal_parser_vlm.async_calls) == 1
 
     with pytest.raises(ValueError, match="empty or None images"):
         await async_classify_object(
@@ -1721,6 +2377,32 @@ async def test_async_classify_object_retry_and_fallback_branches(monkeypatch):
         "class": "Error during parsing",
         "original_response": "unstructured and undecidable",
     }
+
+
+@pytest.mark.asyncio
+async def test_async_batch_propagates_unverified_remote_timeout(monkeypatch):
+    async def raise_terminal_timeout(**_kwargs):
+        raise NonRetryableVLMTimeoutError("remote completion unverified")
+
+    monkeypatch.setattr(
+        inference_module,
+        "async_classify_object",
+        raise_terminal_timeout,
+    )
+
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        await inference_module.async_batch_classify_objects(
+            vlm=_SequenceVLM([]),
+            entries=[
+                {
+                    "id": "a",
+                    "text": "classify it",
+                    "images": [PILImage.new("RGB", (1, 1))],
+                }
+            ],
+            llm=object(),
+            max_workers=2,
+        )
 
 
 @pytest.mark.asyncio
@@ -1974,18 +2656,27 @@ def test_batch_duration_and_string_preview_branches(monkeypatch, tmp_path):
     assert metadata == [{"vlm_prompt": "caption"}]
 
 
-def test_parallel_duration_image_variants_and_string_preview(monkeypatch, tmp_path):
+def test_parallel_duration_image_variants_and_string_preview(
+    monkeypatch, tmp_path, caplog
+):
     existing = tmp_path / "existing.png"
     existing.write_bytes(b"x")
     pil_image = PILImage.new("RGB", (1, 1))
 
-    perf_values = iter([0.0, 3700.0, 3700.0, 3701.0])
-    monkeypatch.setattr(inference_module, "perf_counter", lambda: next(perf_values))
+    thread_clock = local()
+
+    def fake_perf_counter():
+        call_count = getattr(thread_clock, "call_count", 0)
+        thread_clock.call_count = call_count + 1
+        return 0.0 if call_count % 2 == 0 else 3700.0
+
+    monkeypatch.setattr(inference_module, "perf_counter", fake_perf_counter)
     monkeypatch.setattr(
         inference_module,
         "classify_object",
         lambda **kwargs: f"parallel-{kwargs['text']}",
     )
+    caplog.set_level(logging.INFO, logger=inference_module.__name__)
 
     results = batch_classify_objects(
         vlm=object(),
@@ -2015,6 +2706,7 @@ def test_parallel_duration_image_variants_and_string_preview(monkeypatch, tmp_pa
     assert by_id["path"]["vlm_response"] == "parallel-path"
     assert by_id["invalid"]["status"] == "error"
     assert "Unsupported image types" in by_id["invalid"]["error"]
+    assert "remaining≈2:03:20" in caplog.text
 
 
 def test_multi_prim_remaining_parse_branches(monkeypatch):

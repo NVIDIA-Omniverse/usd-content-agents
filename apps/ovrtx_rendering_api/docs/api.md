@@ -12,8 +12,10 @@ USD rendering service using the OVRTX local RTX renderer. Drop-in replacement fo
 
 - [Authentication](#authentication)
 - [Endpoints](#endpoints)
+  - [`GET /live`](#get-live)
   - [`GET /health`](#get-health)
   - [`POST /render`](#post-render)
+  - [`POST /render/upload`](#post-renderupload)
 - [Data Models](#data-models)
 - [Error Handling](#error-handling)
 
@@ -27,6 +29,28 @@ No authentication. The service is intended to run on a trusted internal network 
 
 ## Endpoints
 
+### `GET /live`
+
+Package-owned `usd-cli` protocol identity for the standalone single-GPU
+service. A compatible image returns HTTP 200 with exact protocol v3 and no
+optional transport features, so clients use the bounded gzip/none multipart
+floor:
+
+```json
+{
+  "status": "alive",
+  "protocol_version": 3,
+  "engine": "ovrtx",
+  "renderer": "ovrtx",
+  "max_body_bytes": 73400320,
+  "max_scene_bytes": 587202560,
+  "features": []
+}
+```
+
+Standalone and dispatcher modes implement this transport and report the same
+package-owned protocol version.
+
 ### `GET /health`
 
 Health check including GPU initialization state.
@@ -39,6 +63,7 @@ Health check including GPU initialization state.
   "service": "ovrtx-rendering-api",
   "version": "0.1.0",
   "renderer": "ovrtx",
+  "protocol_version": 3,
   "gpu_initialized": true,
   "daemon_pid": 123,
   "daemon_completed_renders": 12,
@@ -62,6 +87,7 @@ same endpoint also reports aggregate capacity and per-worker state:
   "service": "ovrtx-rendering-api",
   "version": "0.1.0",
   "renderer": "ovrtx",
+  "protocol_version": 3,
   "gpu_initialized": true,
   "renderer_initialized": true,
   "daemon_running": true,
@@ -135,11 +161,45 @@ The response structure is `images[frame_number][camera_path][sensor_name] = base
 - The endpoint is a synchronous Python function (not `async def`). A single
   OVRTX worker serializes renders internally; dispatcher mode runs one
   single-flight worker per GPU behind the public endpoint.
-- The `url` field accepts `file://`, `http://`/`https://`, and `s3://` schemes. S3 URLs require the container to have AWS credentials available.
+- For one standalone OVRTX worker, callers should use
+  `max_concurrent_requests: 1` and
+  `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS=1`. Increase concurrency only to the
+  number of ready dispatcher workers reported by `/health`.
+- The `url` field accepts `file://`, `http://`/`https://`, and `s3://` schemes. S3 URLs require both AWS credentials and an exact bucket match in `OVRTX_S3_ALLOWED_BUCKETS`; empty rejects all S3 intake before AWS access.
 - Large `frame_range` requests are run sequentially inside one worker. For
   parallelism on a multi-GPU host, set `OVRTX_GPU_WORKERS` to a worker count
   (`2`) or explicit GPU id list (`0,1`). Leave it unset for legacy
   single-worker behavior.
+
+Client-supplied S3 URLs are fail-closed. Configure
+`OVRTX_S3_ALLOWED_BUCKETS` with comma- or whitespace-separated exact bucket
+names to opt in; an empty or unset value rejects all S3 intake before the
+renderer constructs an AWS session or uses service credentials.
+
+### `POST /render/upload`
+
+The package-owned `usd-cli` remote protocol-v3 path. The multipart request has
+one binary USDZ `file` part and one `params` JSON string. Parameters bind one to
+eight camera prim paths, bounded image dimensions and frames, `fast` or
+`quality` intent, `none` or `gzip` compression, and optional exact camera
+definitions. Unknown fields and unsafe or oversized uploads are rejected.
+The ASGI receive layer rejects the whole multipart request before form parsing
+once it exceeds the advertised `max_body_bytes` plus 1 MiB reserved for bounded
+parameters and framing; the endpoint separately enforces `max_body_bytes` on
+the file part itself.
+Frames are finite USD time codes. Their values, order, and multiplicity are
+preserved through the OVRTX backend call and on the corresponding response
+items.
+
+`mode` preserves the package-owned wire contract, but the standalone service's
+`OVRTX_RENDER_MODE` instance policy is authoritative. The response always
+reports the exact OVRTX mode that executed, so a client never has to infer
+whether its `fast` or `quality` intent was overridden by deployment policy.
+
+Each response item contains the camera, optional requested frame, PNG bytes as
+base64, and the exact OVRTX render mode, sensor-update count, and active AOV
+reported by the renderer. Missing image coverage or execution metadata fails
+closed. The legacy JSON `/render` contract remains unchanged.
 
 ---
 
@@ -185,6 +245,12 @@ The response structure is `images[frame_number][camera_path][sensor_name] = base
 | `status` | `"success" \| "exception"` | Overall result. |
 | `error` | `string \| null` | Error message if `status == "exception"`. |
 | `images` | nested map | `images[frame][camera][sensor] = base64 string` (PNG). |
+| `error_code` | `string \| null` | Stable error identifier; `incomplete_render_output` for missing coverage. |
+| `retryable` | `bool` | Whether the caller may retry with bounded backoff. |
+| `requested_output_count` | `int \| null` | Requested camera/frame color-output count. |
+| `output_count` | `int \| null` | Non-empty requested color outputs returned. |
+| `missing_output_count` | `int \| null` | Requested color outputs omitted. |
+| `missing_camera_count` | `int \| null` | Requested cameras affected by omissions. |
 
 ### `HealthResponse`
 
@@ -194,6 +260,7 @@ The response structure is `images[frame_number][camera_path][sensor_name] = base
 | `service` | string | Service name. |
 | `version` | string | Service API version. |
 | `renderer` | string | Renderer backend name (`ovrtx`). |
+| `protocol_version` | `int` | Package-owned protocol version in standalone and dispatcher modes. |
 | `gpu_initialized` | bool | Single-worker readiness, or at least one ready worker in dispatcher mode. |
 | `renderer_initialized` | bool | Renderer initialization state. |
 | `daemon_running` | bool | OVRTX daemon process state. |
@@ -211,7 +278,13 @@ The response structure is `images[frame_number][camera_path][sensor_name] = base
 
 ## Error Handling
 
-Errors are returned in the response body with `status: "exception"`. The HTTP status is still `200` to match the Kit rendering-api contract. Clients should inspect the JSON `status` field.
+Most compatibility errors are returned in the response body with
+`status: "exception"` and HTTP 200. Missing camera/frame outputs are different:
+the service retries once after single-flight daemon recovery, then returns HTTP
+503 with `error_code: "incomplete_render_output"` and `retryable: true` if
+coverage is still incomplete. Clients should retry 503 responses with bounded
+backoff and must verify that every requested camera/frame has a non-empty color
+payload.
 
 Common error cases:
 

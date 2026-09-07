@@ -101,6 +101,7 @@ class IdentifyAssetConfigTask(Task):
             "backend": renderer_raw.get("backend", "remote"),
             "image_width": renderer_raw.get("image_width", 512),
             "image_height": renderer_raw.get("image_height", 512),
+            "max_concurrent_requests": renderer_raw.get("max_concurrent_requests", 4),
             "cameras": renderer_raw.get(
                 "cameras", ["+x+y+z", "-x+y+z", "-x-y+z", "+x-y+z"]
             ),

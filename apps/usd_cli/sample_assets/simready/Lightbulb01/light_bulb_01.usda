@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "light_bulb_01"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "light_bulb_01" (
+    prepend apiSchemas = ["GeomModelAPI"]
+    assetInfo = {
+        string name = "light_bulb_01"
+    }
+    kind = "component"
+    prepend payload = @./Payload/Contents.usda@
+)
+{
+    float3[] extentsHint = [(-0.029999, -0.029999, 0.001221), (0.029999, 0.029999, 0.105088)]
+}

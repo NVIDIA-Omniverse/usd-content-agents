@@ -124,8 +124,6 @@ def grounding_dino_tool(inputs: GroundingDinoInput) -> GroundingDinoOutput:
             "NVIDIA API key required. Set via parameter or NVIDIA_API_KEY env var."
         )
 
-    # Set the API key in environment for the underlying function
-    os.environ["NVIDIA_API_KEY"] = api_key
     try:
         # Call the function
         result = detect_objects_with_grounding_dino(

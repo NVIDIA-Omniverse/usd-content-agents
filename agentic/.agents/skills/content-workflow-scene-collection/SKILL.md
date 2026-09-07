@@ -1,9 +1,17 @@
 ---
 name: content-workflow-scene-collection
 description: Collect validated decomposed-asset task results back onto original OpenUSD topology through domain-specific projection, representative propagation, conflict harmonization, independent domain layers, composition, and a sealed Workflow 3 handoff. Use after asset-task processing or when repairing collection for material, physics, articulation, geometry, or mixed-domain outputs.
+metadata:
+  author: NVIDIA Omniverse
 ---
 
 # content-workflow-scene-collection
+
+> **Workflow-owned collection:** Projection, propagation, harmonization,
+> domain layers, topology validation, and the sealed Workflow 3 handoff remain
+> in `content_agent_workflows.scene_collection`. Use usd-cli as frozen
+> in the large-scene request only for low-level inspection, authored edits, and
+> OVRTX render evidence.
 
 Route and validate durable collection while leaving authoring semantics to each
 domain collector. Do not treat collection as a generic file merge.
@@ -38,8 +46,9 @@ domain collector. Do not treat collection as a generic file merge.
 5. Compose requested domain layers only after their independent validators
    pass. Run topology preservation and required cross-domain validation. Final
    renders and VQA must evaluate the composed scene against the same task
-   guidance used to produce the per-asset results. Turn that guidance into a
-   short observable checklist and record pass/fail evidence for each item.
+   guidance used to produce the per-asset results. Use the configured scene
+   backend and required OVRTX renderer for this evidence. Turn that guidance
+   into a short observable checklist and record pass/fail evidence for each item.
    Blankness, topology preservation, and valid bindings are not visual
    acceptance. Do not complete collection while a prominent requested color,
    transparency treatment, named exception, or negative constraint visibly
@@ -55,7 +64,7 @@ only when every required collector and requested validation policy passes.
 Seal the draft and return it to the umbrella skill:
 
 ```bash
-content-workflow-large-scene seal-result \
+content-workflow-cli scene phase seal-result \
   --phase collection \
   --result RUN/03-collection/collection_result.json
 ```
@@ -64,7 +73,7 @@ For the implemented material collector, write a typed `CollectionRequest` and
 run:
 
 ```bash
-python -m content_agent_workflows.scene_collection \
+content-workflow-cli scene collect \
   --request RUN/03-collection/request.json
 ```
 

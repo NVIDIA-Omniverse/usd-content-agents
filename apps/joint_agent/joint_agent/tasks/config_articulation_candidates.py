@@ -87,6 +87,14 @@ class ArticulationCandidatesConfigTask(Task):
             raise ValueError(
                 "infer_articulation_candidates.adjudication must be a dictionary"
             )
+        # Internal Joint 0.6 opt-in. The released 0.5 default keeps Stage 2 on
+        # the public revolute/prismatic surface. The type is already enforced by
+        # `validate_step_requirements` above, which raises the same message for
+        # the same input, so re-checking it here would be unreachable.
+        enable_source_backed_v1_breadth = config.get(
+            "enable_source_backed_v1_breadth",
+            False,
+        )
 
         context.update(
             {
@@ -104,6 +112,7 @@ class ArticulationCandidatesConfigTask(Task):
                     "candidate_joint_types",
                     ["revolute", "prismatic", "spherical"],
                 ),
+                "enable_source_backed_v1_breadth": enable_source_backed_v1_breadth,
                 "adjudication_config": dict(adjudication_config),
             }
         )

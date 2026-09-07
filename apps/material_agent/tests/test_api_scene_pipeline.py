@@ -828,6 +828,13 @@ def test_scene_pipeline_input_and_helper_edge_cases(
     assert loaded_path == config_path.resolve()
     assert base_dir == tmp_path
 
+    nonflattened_config = _scene_config(tmp_path)
+    nonflattened_config["scene"]["extract"]["flatten"] = False
+    with pytest.raises(ValueError, match="population masks are runtime-only"):
+        _load_scene_config(
+            ScenePipelineInput(config=nonflattened_config, config_base_dir=tmp_path)
+        )
+
     bad_config_path = tmp_path / "bad_scene_config.yaml"
     bad_config_path.write_text("- not\n- a mapping\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Scene config must contain a mapping"):

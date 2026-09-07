@@ -19,6 +19,7 @@ class FailurePhase(StrEnum):
     PERSISTENCE_VERIFICATION = "persistence_verification"
     ROLLBACK = "rollback"
     PIPELINE_EXECUTION = "pipeline_execution"
+    RENDERING = "rendering"
 
 
 @dataclass(frozen=True)

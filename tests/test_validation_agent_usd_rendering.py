@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from collections.abc import Sequence
 from pathlib import Path
@@ -20,16 +21,21 @@ from world_understanding.validation.usd_rendering import (
     _ASSET_KEY_DIGEST_CHARS,
     _ASSET_KEY_STEM_CHARS,
     DEFAULT_RUNTIME_RENDER_VIEWS,
+    _add_view_camera,
     _asset_path_component,
+    _camera_projection,
     _create_render_backend,
     _create_rendering_backend_from_factory,
     _entry_image_path,
     _entry_images,
     _image_artifact_issue,
+    _isolate_render_prims,
     _json_scalar,
     _json_value,
     _optional_bool,
+    _optional_float,
     _optional_int,
+    _optional_string_sequence,
     _reset_asset_output_dir,
     _same_file,
     _save_entry_images,
@@ -177,11 +183,124 @@ def test_expand_runtime_render_views_treats_string_as_single_view() -> None:
         "+z",
         "-z",
     )
+    assert expand_runtime_render_views("review_6") == (
+        "+x",
+        "-x",
+        "+y",
+        "-y",
+        "+z",
+        "+x+y+z",
+    )
 
 
 def test_expand_runtime_render_views_skips_empty_views_and_defaults() -> None:
     assert expand_runtime_render_views(("", "front")) == ("front",)
     assert expand_runtime_render_views(()) == DEFAULT_RUNTIME_RENDER_VIEWS
+
+
+def test_view_camera_filmback_matches_render_aspect_ratio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_side_camera(stage: object, **kwargs: object) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "world_understanding.utils.usd.camera.add_side_view_camera",
+        fake_side_camera,
+    )
+
+    _add_view_camera(
+        object(),
+        label="front",
+        direction="+y",
+        image_width=1800,
+        image_height=1200,
+    )
+
+    assert captured["horizontal_aperture"] == pytest.approx(36.0)
+    assert captured["vertical_aperture"] == pytest.approx(24.0)
+
+
+def test_view_camera_uses_explicit_focus_prim_and_margin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    focus_prim = object()
+
+    def fake_focused_side_camera(prim: object, **kwargs: object) -> None:
+        captured["prim"] = prim
+        captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "world_understanding.utils.usd.camera.add_focused_side_view_camera",
+        fake_focused_side_camera,
+    )
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering._expand_camera_clipping_to_visible_geometry",
+        lambda *_args: None,
+    )
+
+    _add_view_camera(
+        object(),
+        label="interaction",
+        direction="+x",
+        image_width=1200,
+        image_height=1200,
+        focus_prim=focus_prim,
+        margin=3.5,
+    )
+
+    assert captured["prim"] is focus_prim
+    assert captured["margin"] == pytest.approx(3.5)
+
+
+def test_view_camera_orthographic_filmback_preserves_render_aspect_ratio() -> None:
+    from pxr import Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Cube.Define(stage, "/World/Cube")
+
+    camera_path = _add_view_camera(
+        stage,
+        label="front",
+        direction="+y",
+        image_width=1800,
+        image_height=900,
+        margin=1.2,
+        projection="orthographic",
+    )
+
+    camera = UsdGeom.Camera.Get(stage, camera_path)
+    assert camera.GetProjectionAttr().Get() == UsdGeom.Tokens.orthographic
+    horizontal = float(camera.GetHorizontalApertureAttr().Get())
+    vertical = float(camera.GetVerticalApertureAttr().Get())
+    assert horizontal / vertical == pytest.approx(2.0)
+    assert horizontal >= 48.0
+
+
+def test_camera_projection_policy_rejects_unknown_values() -> None:
+    assert _camera_projection({}) == "perspective"
+    assert _camera_projection({"render_camera_projection": "ORTHOGRAPHIC"}) == (
+        "orthographic"
+    )
+    with pytest.raises(ValueError, match="render_camera_projection"):
+        _camera_projection({"render_camera_projection": "fisheye"})
+
+
+def test_isolate_render_prims_hides_geometry_outside_selected_subtree() -> None:
+    from pxr import Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/World")
+    keep = UsdGeom.Cube.Define(stage, "/World/Keep/Cube").GetPrim()
+    drop = UsdGeom.Cube.Define(stage, "/World/Drop/Cube").GetPrim()
+
+    _isolate_render_prims(stage, ("/World/Keep",))
+
+    assert UsdGeom.Imageable(keep).ComputeVisibility() != UsdGeom.Tokens.invisible
+    assert UsdGeom.Imageable(drop).ComputeVisibility() == UsdGeom.Tokens.invisible
 
 
 def test_optional_bool_parses_bool_like_policy_values() -> None:
@@ -201,21 +320,83 @@ def test_optional_bool_rejects_invalid_non_bool_policy_values() -> None:
         _optional_bool({"value": 1}, "value", False)
 
 
-def test_render_usd_visual_evidence_reports_unavailable_without_endpoint(
+def test_focus_render_policy_values_are_strict() -> None:
+    assert _optional_float({"margin": 2}, "margin", 1.2) == pytest.approx(2.0)
+    assert _optional_string_sequence({"parts": "/World/A"}, "parts") == ("/World/A",)
+    assert _optional_string_sequence({"parts": ["/World/A", "/World/B"]}, "parts") == (
+        "/World/A",
+        "/World/B",
+    )
+    with pytest.raises(ValueError, match="must be absolute"):
+        _optional_string_sequence({"parts": ["World/A"]}, "parts")
+    with pytest.raises(ValueError, match="must be positive"):
+        _optional_float({"margin": 0}, "margin", 1.2)
+    with pytest.raises(ValueError, match="must be nonnegative"):
+        _optional_float({"intensity": -1}, "intensity", 1.0, allow_zero=True)
+
+    for value in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="must be positive"):
+            _optional_float({"margin": value}, "margin", 1.2)
+        with pytest.raises(ValueError, match="must be nonnegative"):
+            _optional_float({"intensity": value}, "intensity", 1.0, allow_zero=True)
+
+
+def test_render_usd_visual_evidence_requires_explicit_backend_without_side_effects(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     monkeypatch.delenv("RENDER_ENDPOINT", raising=False)
     monkeypatch.delenv("NVCF_RENDER_FUNCTION_ID", raising=False)
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering."
+        "_create_rendering_backend_from_factory",
+        lambda *_args, **_kwargs: pytest.fail("factory must not be called"),
+    )
+    working_dir = tmp_path / "run"
+
+    result = render_usd_visual_evidence(
+        usd_paths=[tmp_path / "missing.usda"],
+        working_dir=working_dir,
+        policy={},
+    )
+
+    assert result["status"] == "failed"
+    assert result["backend"] is None
+    assert result["issues"][0]["code"] == "render.backend_required"
+    assert result["issues"][0]["details"] == {
+        "reason": "backend_not_selected",
+        "render_backend": None,
+        "supported_render_backends": ["remote", "ovrtx"],
+    }
+    assert result["image_paths"] == []
+    assert not working_dir.exists()
+
+
+def test_render_usd_visual_evidence_reports_unavailable_without_remote_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv("RENDER_ENDPOINT", raising=False)
+    monkeypatch.delenv("NVCF_RENDER_FUNCTION_ID", raising=False)
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering."
+        "_create_rendering_backend_from_factory",
+        lambda *_args, **_kwargs: pytest.fail("factory must not be called"),
+    )
 
     result = render_usd_visual_evidence(
         usd_paths=[tmp_path / "missing.usda"],
         working_dir=tmp_path / "run",
-        policy={},
+        policy={"render_backend": "remote"},
     )
 
     assert result["status"] == "unavailable"
+    assert result["backend"] == "remote"
     assert result["issues"][0]["code"] == "render.renderer_unavailable"
+    assert result["issues"][0]["details"] == {
+        "render_backend": "remote",
+        "required_env": ["RENDER_ENDPOINT", "NVCF_RENDER_FUNCTION_ID"],
+    }
     assert result["image_paths"] == []
 
 
@@ -237,7 +418,7 @@ def test_render_usd_visual_evidence_reports_renderer_import_failure(
     result = render_usd_visual_evidence(
         usd_paths=[tmp_path / "asset.usda"],
         working_dir=tmp_path / "run",
-        policy={},
+        policy={"render_backend": "remote"},
     )
 
     assert result["status"] == "unavailable"
@@ -276,6 +457,54 @@ def test_render_usd_visual_evidence_reports_remote_backend_init_failure(
         == "Remote rendering backend is unavailable: renderer setup failed"
     )
     assert result["issues"][0]["details"] == {"exception_type": "RuntimeError"}
+
+
+def test_create_remote_render_backend_applies_no_redirect_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeRemoteRenderingBackend:
+        def __init__(
+            self,
+            *,
+            base_url: str,
+            api_key: str | None = None,
+            allow_redirects: bool = True,
+            num_sensor_updates: int | None = None,
+            render_mode: str | None = None,
+        ) -> None:
+            captured["base_url"] = base_url
+            captured["api_key"] = api_key
+            captured["allow_redirects"] = allow_redirects
+            captured["num_sensor_updates"] = num_sensor_updates
+            captured["render_mode"] = render_mode
+
+    monkeypatch.setattr(
+        "world_understanding.functions.graphics.rendering_backend_factory."
+        "RemoteRenderingBackend",
+        FakeRemoteRenderingBackend,
+    )
+
+    backend = _create_render_backend(
+        "remote",
+        {
+            "render_base_url": "http://renderer.example",
+            "render_api_key": "",
+            "render_allow_redirects": False,
+            "render_ovrtx_num_sensor_updates": 64,
+            "render_ovrtx_mode": "pt",
+        },
+    )
+
+    assert isinstance(backend, FakeRemoteRenderingBackend)
+    assert captured == {
+        "base_url": "http://renderer.example",
+        "api_key": "",
+        "allow_redirects": False,
+        "num_sensor_updates": 64,
+        "render_mode": "pt",
+    }
 
 
 def test_render_usd_visual_evidence_reports_ovrtx_renderer_import_failure(
@@ -427,6 +656,9 @@ def test_render_usd_visual_evidence_writes_stubbed_renderer_outputs(
                         "images": [_valid_image()],
                         "frame_count": 1,
                         "status": "success",
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 64,
+                        "active_aov": "LdrColor",
                     }
                 ]
             }
@@ -452,6 +684,124 @@ def test_render_usd_visual_evidence_writes_stubbed_renderer_outputs(
     assert Path(image_paths[0]).is_file()
     assert result["render_response"]["results"][0]["camera"] == "front"
     assert result["render_response"]["results"][0]["images"] == image_paths
+    assert result["render_response"]["results"][0]["ovrtx_render_mode"] == "pt"
+    assert result["render_response"]["results"][0]["ovrtx_num_sensor_updates"] == 64
+    assert result["render_response"]["results"][0]["active_aov"] == "LdrColor"
+
+
+def test_render_usd_visual_evidence_frames_isolated_context_instead_of_focus(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdGeom
+
+    usd_path = tmp_path / "asset.usda"
+    stage = Usd.Stage.CreateNew(str(usd_path))
+    UsdGeom.Xform.Define(stage, "/World")
+    UsdGeom.Cube.Define(stage, "/World/Keep/Cube")
+    UsdGeom.Cube.Define(stage, "/World/Drop/Cube")
+    stage.GetRootLayer().Save()
+    monkeypatch.setenv("RENDER_ENDPOINT", "http://renderer.example")
+    captured_focus: list[object | None] = []
+
+    def add_camera(
+        _stage: object,
+        *,
+        label: str,
+        focus_prim: object | None,
+        **_kwargs: object,
+    ) -> str:
+        captured_focus.append(focus_prim)
+        return f"/ValidationAgentCameras/{label}"
+
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering._add_view_camera",
+        add_camera,
+    )
+
+    class FakeRemoteRenderingBackend:
+        def __init__(self, *, base_url: str) -> None:
+            assert base_url == "http://renderer.example"
+
+        def render(
+            self, prepared_stage: object, **_kwargs: object
+        ) -> dict[str, object]:
+            assert isinstance(prepared_stage, Usd.Stage)
+            dropped = prepared_stage.GetPrimAtPath("/World/Drop/Cube")
+            assert (
+                UsdGeom.Imageable(dropped).ComputeVisibility()
+                == UsdGeom.Tokens.invisible
+            )
+            return {
+                "results": [
+                    {
+                        "camera": "/ValidationAgentCameras/front",
+                        "images": [_valid_image()],
+                        "frame_count": 1,
+                        "status": "success",
+                    }
+                ]
+            }
+
+    _install_backend_factory(monkeypatch, "remote", FakeRemoteRenderingBackend)
+
+    result = render_usd_visual_evidence(
+        usd_paths=[usd_path],
+        working_dir=tmp_path / "run",
+        policy={
+            "render_backend": "remote",
+            "expected_cameras": ["front"],
+            "render_focus_prim_path": "/World/Keep",
+            "render_isolate_prim_paths": "/World/Keep",
+            "render_frame_isolated_context": True,
+        },
+    )
+
+    assert result["status"] == "completed"
+    assert captured_focus == [None]
+    assert result["metadata"]["stage_preparation"][0] == {
+        "usd_path": str(usd_path),
+        "usd_sha256": hashlib.sha256(usd_path.read_bytes()).hexdigest(),
+        "backend": "remote",
+        "flattened": True,
+        "material_normalized": True,
+        "asset_base_dir": str(tmp_path),
+        "up_axis": "Y",
+        "meters_per_unit": 0.01,
+        "isolate_prim_paths": ["/World/Keep"],
+        "focus_prim_path": "/World/Keep",
+        "frame_isolated_context": True,
+    }
+
+
+def test_render_usd_visual_evidence_rejects_missing_focus_prim(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    usd_path = _write_test_usd(tmp_path / "asset.usda")
+    monkeypatch.setenv("RENDER_ENDPOINT", "http://renderer.example")
+
+    class FakeRemoteRenderingBackend:
+        def __init__(self, *, base_url: str) -> None:
+            assert base_url == "http://renderer.example"
+
+        def render(self, *_args: object, **_kwargs: object) -> object:
+            raise AssertionError("render must not run with a missing focus prim")
+
+    _install_backend_factory(monkeypatch, "remote", FakeRemoteRenderingBackend)
+
+    result = render_usd_visual_evidence(
+        usd_paths=[usd_path],
+        working_dir=tmp_path / "run",
+        policy={
+            "render_backend": "remote",
+            "render_focus_prim_path": "/World/Missing",
+        },
+    )
+
+    assert result["status"] == "failed"
+    assert result["issues"][0]["code"] == "render.runtime_render_failed"
+    assert "render focus prim does not exist" in result["issues"][0]["message"]
 
 
 def test_asset_path_component_stays_compact_for_verbose_render_artifacts(
@@ -595,6 +945,7 @@ def test_render_usd_visual_evidence_flattens_stage_before_remote_render(
     assert result["metadata"]["stage_preparation"] == [
         {
             "usd_path": str(usd_path),
+            "usd_sha256": hashlib.sha256(usd_path.read_bytes()).hexdigest(),
             "backend": "remote",
             "flattened": True,
             "material_normalized": True,
@@ -603,6 +954,268 @@ def test_render_usd_visual_evidence_flattens_stage_before_remote_render(
             "meters_per_unit": 0.01,
         }
     ]
+
+
+def test_render_usd_visual_evidence_can_add_neutral_studio_lighting(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    usd_path = _write_test_usd(tmp_path / "asset.usda")
+    monkeypatch.setenv("RENDER_ENDPOINT", "http://renderer.example")
+
+    class FakeRemoteRenderingBackend:
+        def __init__(self, *, base_url: str) -> None:
+            self.base_url = base_url
+
+        def render(
+            self,
+            stage: object,
+            *,
+            cameras: Sequence[str],
+            image_width: int,
+            image_height: int,
+            frames: str,
+            base_dir: str | Path | None = None,
+        ) -> dict[str, object]:
+            from pxr import Usd
+
+            assert isinstance(stage, Usd.Stage)
+            assert stage.GetPrimAtPath("/__WUStudioLighting/Dome").IsValid()
+            assert stage.GetPrimAtPath("/__WUStudioLighting/Key").IsValid()
+            assert stage.GetPrimAtPath("/__WUStudioLighting/Fill").IsValid()
+            assert stage.GetPrimAtPath("/__WUStudioLighting/Rim").IsValid()
+            return {
+                "results": [
+                    {
+                        "camera": cameras[0],
+                        "images": [_valid_image()],
+                        "frame_count": 1,
+                        "status": "success",
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering._create_rendering_backend_from_factory",
+        lambda _backend, config: FakeRemoteRenderingBackend(
+            base_url=str(config["base_url"])
+        ),
+    )
+
+    result = render_usd_visual_evidence(
+        usd_paths=[usd_path],
+        working_dir=tmp_path / "run",
+        policy={
+            "render_backend": "remote",
+            "expected_cameras": ["front"],
+            "render_studio_lighting": True,
+        },
+    )
+
+    assert result["status"] == "completed"
+    assert result["metadata"]["stage_preparation"][0]["studio_lighting"] is True
+    assert result["metadata"]["stage_preparation"][0]["studio_dome"] is True
+    assert result["metadata"]["stage_preparation"][0]["studio_dome_intensity"] == 350.0
+
+
+def test_neutral_studio_lighting_can_omit_visible_dome(tmp_path: Path) -> None:
+    from pxr import Usd
+
+    from world_understanding.validation.usd_rendering import (
+        _add_neutral_studio_lighting,
+    )
+
+    stage = Usd.Stage.Open(str(_write_test_usd(tmp_path / "asset.usda")))
+    _add_neutral_studio_lighting(stage, include_dome=False)
+
+    assert not stage.GetPrimAtPath("/__WUStudioLighting/Dome").IsValid()
+    assert stage.GetPrimAtPath("/__WUStudioLighting/Key").IsValid()
+    assert stage.GetPrimAtPath("/__WUStudioLighting/Fill").IsValid()
+    assert stage.GetPrimAtPath("/__WUStudioLighting/Rim").IsValid()
+
+
+def test_neutral_studio_lighting_accepts_bounded_dome_intensity(tmp_path: Path) -> None:
+    from pxr import Usd, UsdLux
+
+    from world_understanding.validation.usd_rendering import (
+        _add_neutral_studio_lighting,
+    )
+
+    stage = Usd.Stage.Open(str(_write_test_usd(tmp_path / "asset.usda")))
+    _add_neutral_studio_lighting(stage, dome_intensity=60.0)
+
+    dome = UsdLux.DomeLight.Get(stage, "/__WUStudioLighting/Dome")
+    assert dome.GetIntensityAttr().Get() == 60.0
+
+
+def test_neutral_studio_lighting_replaces_existing_rig(tmp_path: Path) -> None:
+    from pxr import Usd, UsdLux
+
+    from world_understanding.validation.usd_rendering import (
+        _add_neutral_studio_lighting,
+    )
+
+    stage = Usd.Stage.Open(str(_write_test_usd(tmp_path / "asset.usda")))
+    _add_neutral_studio_lighting(stage, dome_intensity=60.0)
+    _add_neutral_studio_lighting(stage, dome_intensity=25.0)
+
+    dome = UsdLux.DomeLight.Get(stage, "/__WUStudioLighting/Dome")
+    assert dome.GetIntensityAttr().Get() == 25.0
+
+
+def test_stage_preparation_allows_zero_to_disable_reflection_light(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd
+
+    from world_understanding.validation.usd_rendering import _prepare_stage_for_render
+
+    stage = Usd.Stage.Open(str(_write_test_usd(tmp_path / "asset.usda")))
+    prepared, metadata = _prepare_stage_for_render(
+        stage,
+        backend_name="ovrtx",
+        policy={
+            "render_studio_lighting": True,
+            "render_studio_reflection_safe": True,
+            "render_studio_reflection_intensity": 0,
+        },
+    )
+
+    assert metadata["studio_reflection_intensity"] == 0.0
+    assert not prepared.GetPrimAtPath("/__WUStudioLighting/TopReflection").IsValid()
+
+
+def test_reflection_safe_studio_lighting_hides_reflection_sources(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd, UsdLux
+
+    from world_understanding.validation.usd_rendering import (
+        _add_neutral_studio_lighting,
+    )
+
+    stage = Usd.Stage.Open(str(_write_test_usd(tmp_path / "asset.usda")))
+    _add_neutral_studio_lighting(
+        stage,
+        dome_intensity=20.0,
+        reflection_safe=True,
+        hdri_intensity=600.0,
+        reflection_intensity=100.0,
+    )
+
+    dome = UsdLux.DomeLight.Get(stage, "/__WUStudioLighting/Dome")
+    environment = UsdLux.DomeLight.Get(
+        stage,
+        "/__WUStudioLighting/Environment",
+    )
+    reflection = UsdLux.DistantLight.Get(
+        stage,
+        "/__WUStudioLighting/TopReflection",
+    )
+    assert dome.GetIntensityAttr().Get() == 20.0
+    assert environment.GetIntensityAttr().Get() == 600.0
+    assert environment.GetPrim().GetAttribute("inputs:texture:file").Get()
+    assert environment.GetPrim().GetAttribute("visibleInPrimaryRay").Get() is False
+    assert reflection.GetIntensityAttr().Get() == 100.0
+    assert reflection.GetPrim().GetAttribute("visibleInPrimaryRay").Get() is False
+
+
+def test_focused_camera_clipping_includes_visible_context_depth() -> None:
+    from pxr import Gf, Usd, UsdGeom
+
+    from world_understanding.validation.usd_rendering import _add_view_camera
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    focus = UsdGeom.Cube.Define(stage, "/Scene/Focus")
+    context = UsdGeom.Cube.Define(stage, "/Scene/Context")
+    context.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -8.0))
+
+    camera_path = _add_view_camera(
+        stage,
+        label="top",
+        direction="+z",
+        image_width=800,
+        image_height=600,
+        focus_prim=focus.GetPrim(),
+        margin=1.2,
+    )
+
+    camera = UsdGeom.Camera.Get(stage, camera_path)
+    transform = UsdGeom.Xformable(camera).ComputeLocalToWorldTransform(
+        Usd.TimeCode.Default()
+    )
+    camera_position = transform.ExtractTranslation()
+    view_direction = transform.TransformDir(Gf.Vec3d(0.0, 0.0, -1.0)).GetNormalized()
+    context_range = (
+        UsdGeom.BBoxCache(
+            Usd.TimeCode.Default(),
+            [UsdGeom.Tokens.default_],
+        )
+        .ComputeWorldBound(context.GetPrim())
+        .ComputeAlignedRange()
+    )
+    maximum_context_depth = max(
+        Gf.Dot(
+            Gf.Vec3d(x, y, z) - camera_position,
+            view_direction,
+        )
+        for x in (context_range.GetMin()[0], context_range.GetMax()[0])
+        for y in (context_range.GetMin()[1], context_range.GetMax()[1])
+        for z in (context_range.GetMin()[2], context_range.GetMax()[2])
+    )
+
+    assert camera.GetClippingRangeAttr().Get()[1] > maximum_context_depth
+
+
+def test_camera_framing_helpers_ignore_empty_bounds_and_missing_cameras() -> None:
+    from pxr import Usd, UsdGeom
+
+    from world_understanding.validation.usd_rendering import (
+        _expand_camera_clipping_to_visible_geometry,
+        _set_orthographic_camera_framing,
+    )
+
+    empty_stage = Usd.Stage.CreateInMemory()
+    _set_orthographic_camera_framing(
+        empty_stage,
+        "/MissingCamera",
+        focus_prim=None,
+        image_width=800,
+        image_height=600,
+        margin=1.2,
+    )
+    _expand_camera_clipping_to_visible_geometry(empty_stage, "/MissingCamera")
+
+    bounded_stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Cube.Define(bounded_stage, "/World/Cube")
+    _set_orthographic_camera_framing(
+        bounded_stage,
+        "/MissingCamera",
+        focus_prim=None,
+        image_width=800,
+        image_height=600,
+        margin=1.2,
+    )
+    _expand_camera_clipping_to_visible_geometry(bounded_stage, "/MissingCamera")
+
+
+def test_camera_clipping_ignores_geometry_behind_camera() -> None:
+    from pxr import Gf, Usd, UsdGeom
+
+    from world_understanding.validation.usd_rendering import (
+        _expand_camera_clipping_to_visible_geometry,
+    )
+
+    stage = Usd.Stage.CreateInMemory()
+    cube = UsdGeom.Cube.Define(stage, "/World/Cube")
+    cube.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 10.0))
+    camera = UsdGeom.Camera.Define(stage, "/Camera")
+    before = camera.GetClippingRangeAttr().Get()
+
+    _expand_camera_clipping_to_visible_geometry(stage, "/Camera")
+
+    assert camera.GetClippingRangeAttr().Get() == before
 
 
 def test_render_usd_visual_evidence_reports_missing_renderer_image_artifact(
@@ -941,51 +1554,27 @@ def test_render_usd_visual_evidence_uses_local_ovrtx_backend(
     assert Path(image_paths[0]).is_file()
 
 
-def test_render_usd_visual_evidence_blank_backend_uses_remote_default(
+def test_render_usd_visual_evidence_blank_backend_selects_no_provider(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    usd_path = _write_test_usd(tmp_path / "asset.usda")
-    monkeypatch.setenv("RENDER_ENDPOINT", "http://renderer.example")
-
-    class FakeRemoteRenderingBackend:
-        def __init__(self, *, base_url: str) -> None:
-            self.base_url = base_url
-
-        def render(
-            self,
-            stage: object,
-            *,
-            cameras: Sequence[str],
-            image_width: int,
-            image_height: int,
-            frames: str,
-            base_dir: str | Path | None = None,
-        ) -> dict[str, object]:
-            assert self.base_url == "http://renderer.example"
-            return {
-                "results": [
-                    {
-                        "camera": cameras[0],
-                        "images": [_valid_image()],
-                        "frame_count": 1,
-                        "status": "success",
-                    }
-                ]
-            }
-
-    _install_backend_factory(monkeypatch, "remote", FakeRemoteRenderingBackend)
+    monkeypatch.setattr(
+        "world_understanding.validation.usd_rendering."
+        "_create_rendering_backend_from_factory",
+        lambda *_args, **_kwargs: pytest.fail("factory must not be called"),
+    )
+    working_dir = tmp_path / "run"
 
     result = render_usd_visual_evidence(
-        usd_paths=[usd_path],
-        working_dir=tmp_path / "run",
+        usd_paths=[tmp_path / "asset.usda"],
+        working_dir=working_dir,
         policy={"render_backend": "   ", "expected_cameras": ["front"]},
     )
 
-    assert result["status"] == "completed"
-    assert result["backend"] == "remote"
-    assert result["metadata"]["backend"] == "remote"
-    assert result["metadata"]["base_url_configured"] is True
+    assert result["status"] == "failed"
+    assert result["backend"] is None
+    assert result["issues"][0]["code"] == "render.backend_required"
+    assert not working_dir.exists()
 
 
 def test_render_usd_visual_evidence_expands_fixed_six_view_group(
@@ -1056,7 +1645,7 @@ def test_render_usd_visual_evidence_expands_fixed_six_view_group(
     result = render_usd_visual_evidence(
         usd_paths=[usd_path],
         working_dir=tmp_path / "run",
-        policy={"expected_cameras": ["fixed_6"]},
+        policy={"render_backend": "remote", "expected_cameras": ["fixed_6"]},
     )
 
     assert result["status"] == "completed"
@@ -1073,6 +1662,34 @@ def test_render_usd_visual_evidence_expands_fixed_six_view_group(
         "+z",
         "-z",
     ]
+
+    expected_cameras[:] = [
+        "/ValidationAgentCameras/plus_x",
+        "/ValidationAgentCameras/minus_x",
+        "/ValidationAgentCameras/plus_y",
+        "/ValidationAgentCameras/minus_y",
+        "/ValidationAgentCameras/plus_z",
+        "/ValidationAgentCameras/plus_xplus_yplus_z",
+    ]
+    side_directions.clear()
+    corner_directions.clear()
+    review_result = render_usd_visual_evidence(
+        usd_paths=[usd_path],
+        working_dir=tmp_path / "review_run",
+        policy={"render_backend": "remote", "expected_cameras": ["review_6"]},
+    )
+
+    assert review_result["status"] == "completed"
+    assert review_result["metadata"]["views"] == [
+        "+x",
+        "-x",
+        "+y",
+        "-y",
+        "+z",
+        "+x+y+z",
+    ]
+    assert side_directions == ["+x", "-x", "+y", "-y", "-z"]
+    assert corner_directions == ["+x+y+z"]
 
 
 @pytest.mark.parametrize("backend_name", ("warp", "mock"))
@@ -1362,6 +1979,111 @@ def test_render_usd_visual_evidence_reports_usd_open_failure(
     assert result["issues"][0]["subject"] == str(usd_path)
 
 
+def test_render_usd_visual_evidence_rejects_source_replaced_during_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    usd_path = _write_test_usd(tmp_path / "asset.usda")
+    usd_sha256_before_open = hashlib.sha256(usd_path.read_bytes()).hexdigest()
+    monkeypatch.setenv("RENDER_ENDPOINT", "http://renderer.example")
+
+    class FakeRemoteRenderingBackend:
+        def __init__(self, *, base_url: str) -> None:
+            self.base_url = base_url
+
+        def render(self, *args: object, **kwargs: object) -> dict[str, object]:
+            raise AssertionError("render should not run with unstable USD input")
+
+    _install_backend_factory(monkeypatch, "remote", FakeRemoteRenderingBackend)
+    from pxr import Usd
+
+    open_stage = Usd.Stage.Open
+
+    def replace_after_open(path: str) -> object:
+        stage = open_stage(path)
+        usd_path.write_text('#usda 1.0\ndef Xform "Replacement" {}\n', encoding="utf-8")
+        return stage
+
+    monkeypatch.setattr(Usd.Stage, "Open", replace_after_open)
+
+    result = render_usd_visual_evidence(
+        usd_paths=[usd_path],
+        working_dir=tmp_path / "run",
+        policy={"render_backend": "remote", "expected_cameras": ["front"]},
+    )
+
+    assert result["status"] == "failed"
+    assert result["metadata"]["stage_preparation"] == []
+    assert result["issues"][0]["code"] == "render.usd_changed_during_open"
+    assert result["issues"][0]["details"] == {
+        "sha256_before_open": usd_sha256_before_open,
+        "sha256_after_open": hashlib.sha256(usd_path.read_bytes()).hexdigest(),
+    }
+
+
+@pytest.mark.parametrize("change_mode", ("mutate", "replace"))
+def test_render_usd_visual_evidence_rejects_source_changed_during_render(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    change_mode: str,
+) -> None:
+    usd_path = _write_test_usd(tmp_path / "asset.usda")
+    usd_sha256_before_render = hashlib.sha256(usd_path.read_bytes()).hexdigest()
+    monkeypatch.setenv("RENDER_ENDPOINT", "http://renderer.example")
+
+    class FakeRemoteRenderingBackend:
+        def __init__(self, *, base_url: str) -> None:
+            self.base_url = base_url
+
+        def render(
+            self,
+            stage: object,
+            *,
+            cameras: Sequence[str],
+            image_width: int,
+            image_height: int,
+            frames: str,
+            base_dir: str | Path | None = None,
+        ) -> dict[str, object]:
+            replacement_content = '#usda 1.0\ndef Xform "Replacement" {}\n'
+            if change_mode == "mutate":
+                usd_path.write_text(replacement_content, encoding="utf-8")
+            else:
+                replacement_path = tmp_path / "replacement.usda"
+                replacement_path.write_text(replacement_content, encoding="utf-8")
+                replacement_path.replace(usd_path)
+            return {
+                "results": [
+                    {
+                        "camera": cameras[0],
+                        "images": [_valid_image()],
+                        "frame_count": 1,
+                        "status": "success",
+                    }
+                ]
+            }
+
+    _install_backend_factory(monkeypatch, "remote", FakeRemoteRenderingBackend)
+
+    result = render_usd_visual_evidence(
+        usd_paths=[usd_path],
+        working_dir=tmp_path / "run",
+        policy={"render_backend": "remote", "expected_cameras": ["front"]},
+    )
+
+    assert result["status"] == "failed"
+    assert result["image_paths"] == []
+    assert result["metadata"]["render_invocation_count"] == 1
+    assert result["render_response"]["cameras"] == []
+    assert result["render_response"]["results"] == []
+    assert result["issues"][0]["code"] == "render.usd_changed_during_render"
+    assert result["issues"][0]["details"] == {
+        "sha256_before_render": usd_sha256_before_render,
+        "sha256_after_render": hashlib.sha256(usd_path.read_bytes()).hexdigest(),
+    }
+    assert not list((tmp_path / "run" / "renders").rglob("*.png"))
+
+
 def test_render_usd_visual_evidence_handles_asset_output_prepare_issue(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -1492,6 +2214,26 @@ def test_usd_rendering_small_helpers_cover_fallback_edges(
     assert issue is None
     assert reset_dir.is_dir()
     assert stale_file.is_dir()
+
+    external_output = tmp_path / "external-render-output"
+    external_asset = external_output / "asset"
+    external_asset.mkdir(parents=True)
+    sentinel = external_asset / "sentinel.txt"
+    sentinel.write_text("keep\n", encoding="utf-8")
+    linked_output_root = tmp_path / "linked-renders"
+    linked_output_root.symlink_to(
+        external_output,
+        target_is_directory=True,
+    )
+    reset_dir, issue = _reset_asset_output_dir(
+        linked_output_root,
+        asset_key="asset",
+        usd_path=tmp_path / "asset.usda",
+    )
+    assert reset_dir == linked_output_root / "asset"
+    assert issue is not None
+    assert issue["code"] == "render.output_dir_prepare_failed"
+    assert sentinel.read_text(encoding="utf-8") == "keep\n"
 
     output_path = tmp_path / "output.png"
     output_path.write_text("existing", encoding="utf-8")

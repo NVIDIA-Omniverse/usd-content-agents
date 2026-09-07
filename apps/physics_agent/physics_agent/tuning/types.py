@@ -12,11 +12,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from world_understanding.optimization.contracts import (
+    OptimizerSettings,
+    TrialRecord,
+    TunableParam,
+)
+from world_understanding.optimization.contracts import (
+    ReplicaRecord as ReplicaRecord,
+)
+from world_understanding.optimization.contracts import (
+    TuningObjective as TuningObjective,
+)
+
 from physics_agent.api.types import APIResult
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
     DEFAULT_JUDGE_REFERENCE_FRAMES,
-    DEFAULT_REFERENCE_VIDEO_FRAMES,
 )
 
 # Scenario kinds.
@@ -43,9 +54,10 @@ SUPPORTED_PARAM_KEYS: tuple[str, ...] = (
     "contact_kd",
 )
 
-# Parameter-specific reasonable bounds — used as fallbacks when a scenario
-# YAML omits min/max for a parameter. These are widely-applicable physical
-# defaults and intentionally conservative.
+# Legacy numeric placeholders used while a parsed scenario still has unresolved
+# bounds. They are not optimizer defaults: ``Scenario.auto_bound_fields`` marks
+# omitted fields and binding resolution replaces them from the authored USD
+# before any trial runs.
 DEFAULT_PARAM_BOUNDS: dict[str, tuple[float, float]] = {
     "mass_scale": (0.5, 2.0),
     "static_friction": (0.05, 1.5),
@@ -57,31 +69,6 @@ DEFAULT_PARAM_BOUNDS: dict[str, tuple[float, float]] = {
 
 
 @dataclass(frozen=True)
-class TunableParam:
-    """A single tunable parameter — name + closed [min, max] interval."""
-
-    name: str
-    min_value: float
-    max_value: float
-
-    def __post_init__(self) -> None:
-        if self.name not in SUPPORTED_PARAM_KEYS:
-            raise ValueError(
-                f"Unsupported tunable parameter {self.name!r}. "
-                f"Supported keys: {sorted(SUPPORTED_PARAM_KEYS)}"
-            )
-        if self.min_value > self.max_value:
-            raise ValueError(
-                f"Parameter {self.name!r} has min_value > max_value "
-                f"({self.min_value} > {self.max_value})"
-            )
-
-    def clip(self, value: float) -> float:
-        """Clip a value into the allowed range."""
-        return max(self.min_value, min(self.max_value, float(value)))
-
-
-@dataclass(frozen=True)
 class Scenario:
     """A parsed tuning scenario YAML."""
 
@@ -90,6 +77,14 @@ class Scenario:
     target: dict[str, Any]
     metric: str
     extra: dict[str, Any] = field(default_factory=dict)
+    auto_bound_fields: dict[str, frozenset[str]] = field(default_factory=dict)
+    """Parameters whose bounds were omitted by the scenario author.
+
+    The parser still supplies temporary numeric bounds so ``Scenario`` remains a
+    valid shared optimization search space. Each entry must mark both ``min``
+    and ``max``; binding resolution replaces both with bounds derived from the
+    authored USD values before the optimizer runs.
+    """
 
     def __post_init__(self) -> None:
         if self.name not in SUPPORTED_SCENARIOS:
@@ -101,39 +96,36 @@ class Scenario:
             raise ValueError(
                 f"Scenario {self.name!r} must define at least one tunable parameter"
             )
+        unsupported = sorted(
+            param.name
+            for param in self.params
+            if param.name not in SUPPORTED_PARAM_KEYS
+        )
+        if unsupported:
+            raise ValueError(
+                f"Unsupported tunable parameter(s) {unsupported}. "
+                f"Supported keys: {sorted(SUPPORTED_PARAM_KEYS)}"
+            )
         # Reject duplicate param names — silent override would be bug-prone.
         names = [p.name for p in self.params]
         if len(set(names)) != len(names):
             raise ValueError(
                 f"Scenario {self.name!r} has duplicate parameter names: {names}"
             )
+        unknown_auto_params = sorted(set(self.auto_bound_fields) - set(names))
+        if unknown_auto_params:
+            raise ValueError(
+                "auto_bound_fields references unknown parameter(s): "
+                f"{unknown_auto_params}"
+            )
+        for name, fields in self.auto_bound_fields.items():
+            if fields != frozenset({"min", "max"}):
+                raise ValueError(
+                    f"auto_bound_fields[{name!r}] must contain both 'min' and 'max'"
+                )
 
     def param_dict(self) -> dict[str, TunableParam]:
         return {p.name: p for p in self.params}
-
-
-@dataclass
-class TrialRecord:
-    """One optimizer trial — params evaluated + scalar score from the backend."""
-
-    trial_index: int
-    params: dict[str, float]
-    score: float
-    backend_metrics: dict[str, Any] = field(default_factory=dict)
-    duration_seconds: float = 0.0
-    failed: bool = False
-    error: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "trial_index": self.trial_index,
-            "params": self.params,
-            "score": self.score,
-            "backend_metrics": self.backend_metrics,
-            "duration_seconds": self.duration_seconds,
-            "failed": self.failed,
-            "error": self.error,
-        }
 
 
 @dataclass
@@ -167,6 +159,19 @@ class TuneInput:
     output_dir: Path
     """Directory where best_params.json, history.jsonl, etc. are written."""
 
+    approved_dependency_roots: list[Path] | None = None
+    """Additional TRUSTED filesystem roots for per-trial scene export.
+
+    Scene builders copy file-backed dependencies (textures, materials)
+    into each trial scene and refuse anything outside their approved
+    roots (the input USD's own directory plus the trial's
+    generated-artifact directory). A caller evaluating a broker-private
+    snapshot of a USD whose references still point at the original run
+    directory must name that SOURCE directory here - relocating the
+    trusted bytes into a child-writable directory to widen the default
+    root is not an option. Callers own the trust decision; paths are
+    used as-is."""
+
     scenario: Path | dict[str, Any] | None = None
     """Scenario YAML path or pre-parsed dict.
 
@@ -192,22 +197,11 @@ class TuneInput:
     with judging enabled, the runner compares these against the rendered
     best-trial image sequence."""
 
-    reference_videos: list[Path] | None = None
-    """Optional reference videos for the visual/VLM judge. Videos are
-    frame-extracted at intake and then treated as captioned reference
-    images."""
-
     reference_descriptions: list[str] | None = None
     """Optional descriptions parallel to ``reference_images``."""
 
-    reference_video_descriptions: list[str] | None = None
-    """Optional descriptions parallel to ``reference_videos``."""
-
-    reference_video_frames: int = DEFAULT_REFERENCE_VIDEO_FRAMES
-    """Number of frames to extract from each reference video for visual judging."""
-
     judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES
-    """Max reference images/video frames to send to the VLM judge."""
+    """Max reference images to send to the VLM judge."""
 
     judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES
     """Max generated render frames to send to the VLM judge."""
@@ -301,10 +295,20 @@ class TuneInput:
     verbose: bool = False
     """Verbose progress logging."""
 
+    @property
+    def optimizer_settings(self) -> OptimizerSettings:
+        """Return the shared optimizer configuration for this tune request."""
+
+        return OptimizerSettings(
+            name=self.optimizer,
+            max_trials=self.max_trials,
+            seed=self.seed,
+        )
+
 
 @dataclass
-class TuneOutput(APIResult):
-    """Output from the tuning API."""
+class OptimizationOutput(APIResult):
+    """Fields shared by built-in and external optimization results."""
 
     output_dir: Path | None = None
     """Resolved output directory containing the artifacts."""
@@ -315,14 +319,14 @@ class TuneOutput(APIResult):
     best_score: float = float("inf")
     """Score of the best trial (lower is better)."""
 
+    best_objective: float | None = None
+    """Raw best objective before any maximize-to-minimize conversion."""
+
     n_trials: int = 0
     """Number of trials actually evaluated (failed trials count)."""
 
     optimizer_used: str = ""
     """Optimizer name actually used (``auto`` is resolved here)."""
-
-    engine_used: str = ""
-    """Engine name actually used."""
 
     history: list[TrialRecord] = field(default_factory=list)
     """All trial records in evaluation order."""
@@ -332,6 +336,14 @@ class TuneOutput(APIResult):
 
     cancelled: bool = False
     """True if the run terminated early due to a cancel signal."""
+
+
+@dataclass
+class TuneOutput(OptimizationOutput):
+    """Output from the built-in tuning API."""
+
+    engine_used: str = ""
+    """Engine name actually used."""
 
     needs_refinement: bool = False
     """True when the VLM judge returned ``decision == "continue"`` (i.e.

@@ -56,7 +56,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--update-foundation",
         action="store_true",
-        help="Fetch/update a managed Foundation checkout before checking it.",
+        help=(
+            "Prepare a missing checkout for the selected immutable Foundation ref. "
+            "Existing managed checkouts are never updated in place."
+        ),
     )
     parser.add_argument("--report", type=Path)
     args = parser.parse_args(argv)

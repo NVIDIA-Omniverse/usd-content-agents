@@ -25,7 +25,10 @@ from dotenv import load_dotenv
 # Load .env before API modules cache environment-derived settings at import time.
 load_dotenv()
 
-__version__ = "0.1.0"
+# Keep version lookup after .env initialization and before API module imports.
+from .utils import get_version  # noqa: E402
+
+__version__ = get_version()
 __package__ = "physics_agent"
 
 # Core API exports

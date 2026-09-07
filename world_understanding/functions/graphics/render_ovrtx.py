@@ -12,14 +12,16 @@ an isolated subprocess using a separate virtual environment that has ovrtx
 installed without another ``pxr`` provider. The main process exports the stage
 to a temp file and the subprocess does the actual rendering.
 
-Requires: ovrtx == 0.3.0.312915
+Requires: ovrtx == 0.4.1.364340
 """
 
 import atexit
 import hashlib
 import json
 import logging
+import math
 import os
+import queue
 import re
 import selectors
 import shutil
@@ -28,11 +30,13 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Iterable
+from collections import deque
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib import resources as importlib_resources
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn, TextIO, cast
 from urllib.parse import unquote, urlparse
 
 import numpy as np
@@ -177,6 +181,26 @@ _OVRTX_PROVISIONING_MARKER = ".wu-managed-ovrtx-venv.provisioning"
 _OVRTX_PROVISION_LOCK_TIMEOUT_S = 600
 _OVRTX_PROVISION_LOCK_TIMEOUT_SECONDS = _OVRTX_PROVISION_LOCK_TIMEOUT_S
 
+
+def _remaining_deadline_timeout(
+    deadline_monotonic: float | None,
+    phase: str,
+    *,
+    maximum: float | None = None,
+) -> float | None:
+    """Return the bounded time left for one OVRTX setup/render phase."""
+
+    if deadline_monotonic is None:
+        return maximum
+    deadline = float(deadline_monotonic)
+    if not math.isfinite(deadline):
+        raise ValueError("OVRTX absolute deadline must be finite")
+    remaining = deadline - time.monotonic()
+    if remaining <= 0.0:
+        raise TimeoutError(f"OVRTX {phase} exceeded the render deadline")
+    return remaining if maximum is None else min(remaining, maximum)
+
+
 # Cached path to the ovrtx venv Python executable
 _ovrtx_python: str | None = None
 _ovrtx_python_cache: dict[Path, str] = {}
@@ -203,6 +227,7 @@ DEFAULT_NUM_SENSOR_UPDATES = 32
 # ground-truth mode. rt2 is available as an override for callers that
 # want real-time-path-tracing speed, but pt is the quality-parity target.
 DEFAULT_RENDER_MODE = "rt2"
+_ACTIVE_COLOR_AOV = "LdrColor"
 
 # Bound the lifetime of the native renderer process. ``reset_stage()`` clears
 # USD scene state, but it does not guarantee that OVRTX/Vulkan allocations are
@@ -273,8 +298,8 @@ _RTX_PT_SAMPLES_ATTR = "omni:rtx:pt:samplesPerPixel"
 _RTX_RT_ACCUMULATION_ATTR = "omni:rtx:rt:accumulationLimit"
 
 
-def _parse_frames(frames: str) -> list[int]:
-    """Parse a frames string into a list of integer frame numbers.
+def _parse_frames(frames: str) -> list[int | float]:
+    """Parse a frames string into ordered USD time codes.
 
     Supports three formats:
     - Single frame: "0", "42"
@@ -285,7 +310,7 @@ def _parse_frames(frames: str) -> list[int]:
         frames: Frame specification string.
 
     Returns:
-        Sorted list of integer frame numbers.
+        Time codes in caller-requested order. Integral values remain integers.
 
     Raises:
         ValueError: If the frames string cannot be parsed.
@@ -298,24 +323,44 @@ def _parse_frames(frames: str) -> list[int]:
         >>> _parse_frames("0,5,10")
         [0, 5, 10]
     """
+
+    def _time_code(value: str) -> int | float:
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ValueError(f"Invalid frame time code: {value!r}")
+        return int(parsed) if parsed.is_integer() else parsed
+
     frames = frames.strip()
 
     if ":" in frames:
         parts = frames.split(":")
         if len(parts) != 2:
             raise ValueError(f"Invalid frame range: '{frames}'. Expected 'start:end'.")
-        start = int(parts[0])
-        end = int(parts[1])
-        return list(range(start, end + 1))
+        start = _time_code(parts[0])
+        end = _time_code(parts[1])
+        if isinstance(start, int) and isinstance(end, int):
+            return list(range(start, end + 1))
+        if end < start:
+            return []
+        selected: list[int | float] = [start]
+        next_frame = float(start) + 1.0
+        while next_frame < float(end):
+            selected.append(_time_code(str(next_frame)))
+            next_frame += 1.0
+        if selected[-1] != end:
+            selected.append(end)
+        return selected
     elif "," in frames:
-        return sorted(int(f.strip()) for f in frames.split(",") if f.strip())
+        return [
+            _time_code(value.strip()) for value in frames.split(",") if value.strip()
+        ]
     else:
-        return [int(frames)]
+        return [_time_code(frames)]
 
 
 def _build_visibility_frame_updates(
     visibility_schedule: dict[str, dict[str, str]],
-    frames: list[int],
+    frames: list[int | float],
 ) -> dict[str, dict[str, str]]:
     """Collapse full-frame visibility samples to per-frame deltas.
 
@@ -549,10 +594,11 @@ def _map_sensor_to_render_var(sensor_name: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 # Pre-built ovrtx from NVIDIA PyPI (includes native libovrtx-dynamic.so).
-_OVRTX_VERSION = "0.3.0.312915"
+_OVRTX_VERSION = "0.4.1.364340"
 # This PEP 751 lock is the only install source for the isolated worker. Its
-# exact wheel URLs and SHA-256 digests keep provisioning independent of package
-# index state and of the main application's OpenUSD environment.
+# exact OVRTX/ovstage/Warp profile, wheel URLs, and SHA-256 digests keep
+# provisioning independent of package index state and of the main application's
+# OpenUSD environment. The complete profile is also safe to share with usd-cli.
 _OVRTX_RUNTIME_LOCK_FILE = Path(__file__).with_name("pylock.ovrtx-runtime.toml")
 _OVRTX_BUNDLED_PYTHON_LIBRARY_GLOB = "libpython*.so*"
 _OVRTX_PROBE_PREFIX = "WU_OVRTX_VERSION="
@@ -615,7 +661,7 @@ def _ovrtx_target_fallback_site_dir(venv_dir: Path) -> Path:
 
 
 def _ovrtx_runtime_lock_args(lock_file: Path | None = None) -> list[str]:
-    """Return fail-closed ``uv pip install`` args for the reviewed lock."""
+    """Return fail-closed install args for the reviewed shared runtime profile."""
     lock_file = lock_file or _OVRTX_RUNTIME_LOCK_FILE
     return [
         "--require-hashes",
@@ -831,7 +877,12 @@ def _parse_ovrtx_probe_stdout(stdout: str) -> str | None:
     return None
 
 
-def _probe_ovrtx_version(python_path: Path, venv_dir: Path) -> str | None:
+def _probe_ovrtx_version(
+    python_path: Path,
+    venv_dir: Path,
+    *,
+    deadline_monotonic: float | None = None,
+) -> str | None:
     """Return the installed ovrtx distribution version, if importable."""
     env = _ovrtx_subprocess_env()
     env.pop("PYTHONPATH", None)
@@ -842,33 +893,45 @@ def _probe_ovrtx_version(python_path: Path, venv_dir: Path) -> str | None:
         version_path = Path(version_file.name)
 
     try:
-        probe = subprocess.run(
-            [
-                str(python_path),
-                "-c",
-                (
-                    "import sys\n"
-                    "from importlib import metadata\n"
-                    "import ovrtx\n"
-                    "_version = metadata.version('ovrtx')\n"
-                    "with open(sys.argv[1], 'w', encoding='utf-8') as _f:\n"
-                    f"    _f.write({_OVRTX_PROBE_PREFIX!r} + _version + '\\n')\n"
+        try:
+            probe = subprocess.run(
+                [
+                    str(python_path),
+                    "-c",
+                    (
+                        "import sys\n"
+                        "from importlib import metadata\n"
+                        "import ovrtx\n"
+                        "_version = metadata.version('ovrtx')\n"
+                        "with open(sys.argv[1], 'w', encoding='utf-8') as _f:\n"
+                        f"    _f.write({_OVRTX_PROBE_PREFIX!r} + _version + '\\n')\n"
+                    ),
+                    str(version_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=_remaining_deadline_timeout(
+                    deadline_monotonic,
+                    "runtime version probe",
+                    maximum=30.0,
                 ),
-                str(version_path),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-            env=env,
-        )
+                check=False,
+                env=env,
+            )
+        except subprocess.TimeoutExpired as exc:
+            if deadline_monotonic is not None:
+                raise TimeoutError(
+                    "OVRTX runtime version probe exceeded the render deadline"
+                ) from exc
+            raise
         if probe.returncode != 0:
             logger.warning(
-                "ovrtx import probe failed for %s in %s (exit %s): %s",
+                "ovrtx import probe failed for %s in %s (exit %s; "
+                "stderr %d char(s) withheld from logs)",
                 python_path,
                 venv_dir,
                 probe.returncode,
-                probe.stderr[-500:],
+                len(probe.stderr or ""),
             )
             return None
 
@@ -898,9 +961,14 @@ def _cached_ovrtx_python_matches(python_path: Path, venv_dir: Path) -> bool:
     return False
 
 
-def _get_ovrtx_python(venv_dir: Path | None = None) -> str:
+def _get_ovrtx_python(
+    venv_dir: Path | None = None,
+    *,
+    deadline_monotonic: float | None = None,
+) -> str:
     """Return the ovrtx Python path, serializing runtime provisioning."""
     global _ovrtx_python
+    _remaining_deadline_timeout(deadline_monotonic, "runtime setup")
     venv_dir = (venv_dir or _OVRTX_VENV_DIR).expanduser()
     cache_key = _ovrtx_runtime_cache_key(venv_dir)
     python_path = _ovrtx_venv_python_path(venv_dir)
@@ -923,14 +991,34 @@ def _get_ovrtx_python(venv_dir: Path | None = None) -> str:
             return _ovrtx_python
 
     if not _ovrtx_auto_provision_enabled():
-        return _get_ovrtx_python_unlocked(venv_dir)
+        if deadline_monotonic is None:
+            return _get_ovrtx_python_unlocked(venv_dir)
+        return _get_ovrtx_python_unlocked(
+            venv_dir,
+            deadline_monotonic=deadline_monotonic,
+        )
 
     lock_path = _ovrtx_provision_lock_path(venv_dir)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with FileLock(str(lock_path), timeout=_OVRTX_PROVISION_LOCK_TIMEOUT_S):
-            return _get_ovrtx_python_unlocked(venv_dir)
+        lock_timeout = _remaining_deadline_timeout(
+            deadline_monotonic,
+            "runtime provisioning lock",
+            maximum=float(_OVRTX_PROVISION_LOCK_TIMEOUT_S),
+        )
+        assert lock_timeout is not None
+        with FileLock(str(lock_path), timeout=lock_timeout):
+            if deadline_monotonic is None:
+                return _get_ovrtx_python_unlocked(venv_dir)
+            return _get_ovrtx_python_unlocked(
+                venv_dir,
+                deadline_monotonic=deadline_monotonic,
+            )
     except Timeout as exc:
+        if deadline_monotonic is not None and time.monotonic() >= deadline_monotonic:
+            raise TimeoutError(
+                "OVRTX runtime provisioning lock exceeded the render deadline"
+            ) from exc
         raise RuntimeError(
             f"Timed out waiting for OVRTX runtime provisioning lock: {lock_path}"
         ) from exc
@@ -965,12 +1053,17 @@ def _ovrtx_import_probe_succeeds(python_path: Path, venv_dir: Path) -> bool:
     return probe.returncode == 0
 
 
-def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
+def _get_ovrtx_python_unlocked(
+    venv_dir: Path | None = None,
+    *,
+    deadline_monotonic: float | None = None,
+) -> str:
     """Return the path to the Python executable in the ovrtx venv.
 
-    If the venv does not exist, it is created and ovrtx + dependencies
-    are installed into it. The venv intentionally does NOT have another
-    ``pxr`` provider to avoid native library conflicts.
+    If the venv does not exist, it is created and the exact qualified
+    OVRTX/ovstage/Warp profile plus compatibility dependencies are installed
+    into it. The venv intentionally does NOT have another ``pxr`` provider to
+    avoid native library conflicts.
 
     Args:
         venv_dir: Override directory for the venv. Defaults to
@@ -983,6 +1076,7 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
         RuntimeError: If venv creation or package installation fails.
     """
     global _ovrtx_python
+    _remaining_deadline_timeout(deadline_monotonic, "runtime setup")
     venv_dir = (venv_dir or _OVRTX_VENV_DIR).expanduser()
     cache_key = _ovrtx_runtime_cache_key(venv_dir)
     cached_python = _ovrtx_python_cache.get(cache_key)
@@ -1045,7 +1139,15 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
             # historical exact-OVRTX-version probe without deleting them solely
             # because their dependency set is externally managed.
             try:
-                version = _probe_ovrtx_version(python_path, venv_dir)
+                version = (
+                    _probe_ovrtx_version(python_path, venv_dir)
+                    if deadline_monotonic is None
+                    else _probe_ovrtx_version(
+                        python_path,
+                        venv_dir,
+                        deadline_monotonic=deadline_monotonic,
+                    )
+                )
                 if version == _OVRTX_VERSION:
                     if not managed_runtime:
                         _ovrtx_python = str(python_path)
@@ -1117,6 +1219,11 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
                         _OVRTX_VERSION,
                         venv_dir,
                     )
+            except TimeoutError:
+                # A caller-supplied render deadline says nothing about the
+                # health of this shared runtime. Preserve the venv so a later
+                # request with sufficient budget can validate and reuse it.
+                raise
             except subprocess.TimeoutExpired as exc:
                 _clear_ovrtx_runtime_state()
                 if not managed_runtime:
@@ -1208,6 +1315,11 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
         ) as lock_snapshot:
             lock_snapshot.write(runtime_lock)
             lock_snapshot_path = type(_OVRTX_RUNTIME_LOCK_FILE)(lock_snapshot.name)
+        run_checked_kwargs = (
+            {}
+            if deadline_monotonic is None
+            else {"deadline_monotonic": deadline_monotonic}
+        )
         _run_checked(
             [
                 uv_bin,
@@ -1218,6 +1330,7 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
                 sys.executable,
             ],
             "uv venv creation",
+            **run_checked_kwargs,
         )
         _run_checked(
             [
@@ -1229,6 +1342,7 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
                 *_ovrtx_runtime_lock_args(lock_snapshot_path),
             ],
             "locked OVRTX runtime install",
+            **run_checked_kwargs,
         )
     except Exception:
         _remove_ovrtx_venv(venv_dir)
@@ -1258,7 +1372,15 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
         break
 
     try:
-        version = _probe_ovrtx_version(python_path, venv_dir)
+        version = (
+            _probe_ovrtx_version(python_path, venv_dir)
+            if deadline_monotonic is None
+            else _probe_ovrtx_version(
+                python_path,
+                venv_dir,
+                deadline_monotonic=deadline_monotonic,
+            )
+        )
     except subprocess.TimeoutExpired as exc:
         _remove_ovrtx_venv(venv_dir)
         raise RuntimeError("Installed ovrtx import probe timed out") from exc
@@ -1296,12 +1418,30 @@ def _get_ovrtx_python_unlocked(venv_dir: Path | None = None) -> str:
     return _ovrtx_python
 
 
-def _run_checked(cmd: list[str], label: str) -> None:
+def _run_checked(
+    cmd: list[str],
+    label: str,
+    *,
+    deadline_monotonic: float | None = None,
+) -> None:
     """Run a command and raise RuntimeError on failure."""
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_remaining_deadline_timeout(
+                deadline_monotonic,
+                label,
+            ),
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(f"OVRTX {label} exceeded the render deadline") from exc
     if result.returncode != 0:
         raise RuntimeError(
-            f"{label} failed (exit {result.returncode}): {result.stderr[-500:]}"
+            f"{label} failed (exit {result.returncode}; "
+            f"stderr {len(result.stderr or '')} char(s) withheld from logs)"
         )
 
 
@@ -1311,18 +1451,29 @@ def _copy_exported_relative_assets(
     base_dir: str | Path | None = None,
     exported_stage_path: str | Path | None = None,
 ) -> int:
-    """Copy local texture assets next to an exported render stage.
+    """Stage local MDL and texture dependencies beside an exported render stage.
 
     ``render_all_cameras`` exports the caller's stage into an OVRTX IPC temp
-    directory before the isolated daemon opens it. Texture paths in that
-    exported layer are interpreted from the new temp directory, not the
-    original stage directory, so extracted ZIP/USDZ bundles and prepared stages
-    with host-absolute texture refs lose their textures unless we mirror those
-    files here and rewrite the exported layer to the mirrored paths.
+    directory before the isolated daemon opens it. Asset paths in that exported
+    layer are interpreted from the new temp directory, not the original stage
+    or USDZ package. Mirror ordinary texture files, retain same-host absolute
+    paths for ordinary MDL modules, fully extract packages containing MDL source
+    (to retain non-USD MDL imports/resources), and rewrite only the exported
+    render layer. The caller's stage and source assets remain unchanged.
     """
-    from pxr import Sdf
+    from pxr import Sdf, Usd, UsdUtils
 
-    from world_understanding.utils.usd.material import get_local_texture_file_assets
+    from world_understanding.utils.usd.material import (
+        PackageMdlLocalizationError,
+        PackageTextureLocalizationError,
+        get_local_mdl_assets,
+        get_local_texture_file_assets,
+        get_sdf_attribute_owner_path,
+        iter_sdf_layer_attribute_specs,
+        localize_package_mdl_assets_for_render,
+        localize_package_texture_assets_for_render,
+    )
+    from world_understanding.utils.usd.package import split_package_member_asset_path
 
     if base_dir is not None:
         resolved_base_dir = Path(base_dir)
@@ -1333,7 +1484,57 @@ def _copy_exported_relative_assets(
         else:
             resolved_base_dir = Path.cwd()
 
+    export_dir = export_dir.resolve()
     relative_source_by_path: dict[str, Path] = {}
+
+    def is_within(path: Path, root: Path) -> bool:
+        try:
+            path.relative_to(root)
+        except ValueError:
+            return False
+        return True
+
+    def stage_has_package_member_assets() -> bool:
+        def value_is_packaged(value: object) -> bool:
+            if isinstance(value, Sdf.AssetPath):
+                for candidate in (
+                    str(getattr(value, "path", "") or ""),
+                    str(getattr(value, "resolvedPath", "") or ""),
+                ):
+                    package_identity = split_package_member_asset_path(candidate)
+                    if package_identity is not None:
+                        return not _is_remote_asset_path(package_identity[0])
+                return False
+            if isinstance(value, Sdf.AssetPathArray):
+                return any(value_is_packaged(item) for item in value)
+            return False
+
+        for prim in stage.Traverse():
+            for attr in prim.GetAttributes():
+                if attr.GetTypeName() not in (
+                    Sdf.ValueTypeNames.Asset,
+                    Sdf.ValueTypeNames.AssetArray,
+                ):
+                    continue
+                if value_is_packaged(attr.Get()):
+                    return True
+                if any(value_is_packaged(attr.Get(t)) for t in attr.GetTimeSamples()):
+                    return True
+        root_layer = stage.GetRootLayer()
+        for attr_spec in iter_sdf_layer_attribute_specs(root_layer):
+            if attr_spec.typeName not in (
+                Sdf.ValueTypeNames.Asset,
+                Sdf.ValueTypeNames.AssetArray,
+            ):
+                continue
+            if value_is_packaged(attr_spec.default):
+                return True
+            if any(
+                value_is_packaged(root_layer.QueryTimeSample(attr_spec.path, t))
+                for t in root_layer.ListTimeSamplesForPath(attr_spec.path)
+            ):
+                return True
+        return False
 
     def digest_relative_path(source: Path) -> Path:
         digest = hashlib.sha256(str(source.resolve()).encode("utf-8")).hexdigest()[:12]
@@ -1358,7 +1559,7 @@ def _copy_exported_relative_assets(
         relative_source_by_path[candidate.as_posix()] = resolved_source
         return candidate
 
-    def resolved_texture_path(asset_path: str) -> str | None:
+    def resolved_asset_path(asset_path: str) -> str | None:
         if not asset_path or _is_remote_asset_path(asset_path):  # pragma: no cover
             return None
         path = _local_asset_path(asset_path)
@@ -1370,10 +1571,99 @@ def _copy_exported_relative_assets(
             return None
         return str(resolved) if resolved.is_file() else None
 
-    copied = 0
-    localized_by_resolved: dict[str, str] = {}
-    localized_by_attr: dict[tuple[str, str], str] = {}
-    for asset in get_local_texture_file_assets(stage, base_dir=resolved_base_dir):
+    texture_assets = get_local_texture_file_assets(
+        stage,
+        base_dir=resolved_base_dir,
+    )
+    mdl_assets = get_local_mdl_assets(stage, base_dir=resolved_base_dir)
+    package_texture_root = export_dir / "package_assets" / "textures"
+    package_mdl_root = export_dir / "package_assets" / "mdl"
+    localized_package_texture_count = 0
+    localized_package_mdl_count = 0
+    exported_opinion_keys: set[tuple[str, str, float | None]] | None = None
+    if stage_has_package_member_assets():
+        try:
+            # Match _export_scene_for_ovrtx_ipc(): layer-stack flattening keeps
+            # variants, instance topology, and unloaded composition arcs while
+            # anchoring package-relative asset paths to their outer USDZ. A
+            # composed-stage flatten invents prototype paths that do not exist
+            # in the actual OVRTX export and cannot be rewritten there.
+            localization_layer = UsdUtils.FlattenLayerStack(stage)
+        except Exception as exc:
+            raise RuntimeError(
+                "Unable to clone the USD stage for local OVRTX asset localization"
+            ) from exc
+        if localization_layer is None:
+            raise RuntimeError(
+                "Unable to clone the USD stage for local OVRTX asset localization"
+            )
+        localization_stage = Usd.Stage.Open(localization_layer)
+        if localization_stage is None:
+            raise RuntimeError(
+                "Unable to open the USD clone for local OVRTX asset localization"
+            )
+        localized_package_mdl_count = localize_package_mdl_assets_for_render(
+            localization_stage,
+            package_mdl_root,
+            base_dir=resolved_base_dir,
+            strict=True,
+        )
+        localized_package_texture_count = localize_package_texture_assets_for_render(
+            localization_stage,
+            package_texture_root,
+            base_dir=resolved_base_dir,
+            strict=True,
+            layer_specs_only=True,
+        )
+        if exported_stage_path is not None and not localization_layer.Export(
+            str(exported_stage_path)
+        ):
+            raise RuntimeError(
+                "Unable to export the package-localized USD layer for local OVRTX"
+            )
+        exported_opinion_keys = set()
+        for attr_spec in iter_sdf_layer_attribute_specs(localization_layer):
+            prim_path = str(get_sdf_attribute_owner_path(attr_spec))
+            exported_opinion_keys.add((prim_path, attr_spec.name, None))
+            exported_opinion_keys.update(
+                (prim_path, attr_spec.name, time_code)
+                for time_code in localization_layer.ListTimeSamplesForPath(
+                    attr_spec.path
+                )
+            )
+        if localized_package_mdl_count:
+            mdl_assets.extend(
+                asset
+                for asset in get_local_mdl_assets(
+                    localization_stage,
+                    base_dir=resolved_base_dir,
+                )
+                if asset.get("resolved_path")
+                and is_within(
+                    Path(str(asset["resolved_path"])).resolve(),
+                    package_mdl_root.resolve(),
+                )
+            )
+        if localized_package_texture_count:
+            texture_assets.extend(
+                asset
+                for asset in get_local_texture_file_assets(
+                    localization_stage,
+                    base_dir=resolved_base_dir,
+                    deduplicate=False,
+                )
+                if asset.get("resolved_path")
+                and is_within(
+                    Path(str(asset["resolved_path"])).resolve(),
+                    package_texture_root.resolve(),
+                )
+            )
+
+    staged = localized_package_texture_count + localized_package_mdl_count
+    localized_texture_by_resolved: dict[str, str] = {}
+    localized_texture_by_attr: dict[tuple[str, str, float | None], str] = {}
+    package_texture_attrs: set[tuple[str, str, float | None]] = set()
+    for asset in texture_assets:
         if not asset.get("is_local") or not asset.get("resolved_path"):
             continue
 
@@ -1385,73 +1675,149 @@ def _copy_exported_relative_assets(
         if not source.is_file():
             continue
 
-        relative_path = localized_relative_path(asset_path, source)
-        destination = export_dir / relative_path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.resolve() != source.resolve():
-            shutil.copy2(source, destination)
-            copied += 1
+        resolved_source = source.resolve()
+        if is_within(resolved_source, export_dir):
+            relative_path = resolved_source.relative_to(export_dir)
+        else:
+            relative_path = localized_relative_path(asset_path, source)
+            destination = export_dir / relative_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.resolve() != resolved_source:
+                shutil.copy2(source, destination)
+                staged += 1
 
         rel_path_string = relative_path.as_posix()
-        resolved_source = str(source.resolve())
-        localized_by_resolved[resolved_source] = rel_path_string
-        localized_by_attr[(str(asset["prim_path"]), str(asset["attr_name"]))] = (
-            rel_path_string
+        resolved_source_string = str(resolved_source)
+        localized_texture_by_resolved[resolved_source_string] = rel_path_string
+        attr_key = (
+            str(asset["prim_path"]),
+            str(asset["attr_name"]),
+            asset.get("time_code"),
         )
+        localized_texture_by_attr[attr_key] = rel_path_string
+        if is_within(resolved_source, package_texture_root.resolve()) and (
+            exported_opinion_keys is None or attr_key in exported_opinion_keys
+        ):
+            package_texture_attrs.add(attr_key)
 
-    if exported_stage_path is None or not localized_by_resolved:
-        return copied
+    localized_mdl_by_resolved: dict[str, str] = {}
+    localized_mdl_by_attr: dict[tuple[str, str, float | None], str] = {}
+    package_mdl_attrs: set[tuple[str, str, float | None]] = set()
+    for asset in mdl_assets:
+        if not asset.get("is_local") or not asset.get("resolved_path"):
+            continue
+        source = Path(str(asset["resolved_path"])).resolve()
+        if not source.is_file():
+            continue
+
+        is_packaged_mdl = is_within(source, package_mdl_root.resolve())
+        if is_packaged_mdl:
+            render_path = source.relative_to(export_dir).as_posix()
+        else:
+            # The local daemon has the same host filesystem access as this
+            # process. Keep the original MDL tree reachable so parent-relative
+            # imports continue to resolve after the USD layer moves to export_dir.
+            render_path = source.as_posix()
+
+        localized_mdl_by_resolved[str(source)] = render_path
+        attr_key = (
+            str(asset["shader_path"]),
+            "info:mdl:sourceAsset",
+            asset.get("time_code"),
+        )
+        localized_mdl_by_attr[attr_key] = render_path
+        if is_packaged_mdl and (
+            exported_opinion_keys is None or attr_key in exported_opinion_keys
+        ):
+            package_mdl_attrs.add(attr_key)
+
+    if exported_stage_path is None or not (
+        localized_texture_by_resolved or localized_mdl_by_resolved
+    ):
+        return staged
 
     layer = Sdf.Layer.FindOrOpen(str(exported_stage_path))
     if layer is None:
         logger.warning(
-            "Could not reopen exported OVRTX stage for texture path localization: %s",
+            "Could not reopen exported OVRTX stage for asset localization: %s",
             exported_stage_path,
         )
-        return copied
+        return staged
 
     updated = 0
-
-    def update_prim_spec(prim_spec: Any) -> None:
-        nonlocal updated
-        prim_path = str(prim_spec.path)
-        for attr_name in list(prim_spec.attributes.keys()):
-            attr_spec = prim_spec.attributes[attr_name]
-            value = attr_spec.default
+    rewritten_package_texture_attrs: set[tuple[str, str, float | None]] = set()
+    rewritten_package_mdl_attrs: set[tuple[str, str, float | None]] = set()
+    for attr_spec in iter_sdf_layer_attribute_specs(layer):
+        prim_path = str(get_sdf_attribute_owner_path(attr_spec))
+        attr_name = attr_spec.name
+        opinions: list[tuple[float | None, Any]] = [(None, attr_spec.default)]
+        opinions.extend(
+            (time_code, layer.QueryTimeSample(attr_spec.path, time_code))
+            for time_code in layer.ListTimeSamplesForPath(attr_spec.path)
+        )
+        for time_code, value in opinions:
             if not isinstance(value, Sdf.AssetPath):
                 continue
-            asset_path = value.path if hasattr(value, "path") else str(value)
+            asset_path = str(getattr(value, "path", "") or "")
             if not asset_path or _is_remote_asset_path(asset_path):
                 continue
-
-            new_path = localized_by_attr.get((prim_path, attr_name))
-            if new_path is None:
-                resolved = resolved_texture_path(asset_path)
-                new_path = (
-                    localized_by_resolved.get(resolved)
-                    if resolved is not None
-                    else None
-                )
+            attr_key = (prim_path, attr_name, time_code)
+            if attr_name == "info:mdl:sourceAsset":
+                new_path = localized_mdl_by_attr.get(attr_key)
+                if new_path is None:
+                    resolved = resolved_asset_path(asset_path)
+                    new_path = (
+                        localized_mdl_by_resolved.get(resolved)
+                        if resolved is not None
+                        else None
+                    )
+            else:
+                new_path = localized_texture_by_attr.get(attr_key)
+                if new_path is None:
+                    resolved = resolved_asset_path(asset_path)
+                    new_path = (
+                        localized_texture_by_resolved.get(resolved)
+                        if resolved is not None
+                        else None
+                    )
             if new_path is None or asset_path == new_path:
                 continue
-
-            attr_spec.default = Sdf.AssetPath(new_path)
+            replacement = Sdf.AssetPath(new_path)
+            if time_code is None:
+                attr_spec.default = replacement
+            else:
+                layer.SetTimeSample(attr_spec.path, time_code, replacement)
+            if attr_key in package_mdl_attrs:
+                rewritten_package_mdl_attrs.add(attr_key)
+            if attr_key in package_texture_attrs:
+                rewritten_package_texture_attrs.add(attr_key)
             updated += 1
 
-        for child in prim_spec.nameChildren:
-            update_prim_spec(child)
-
-    for prim in layer.rootPrims:
-        update_prim_spec(prim)
+    missing_package_mdl_rewrites = package_mdl_attrs - rewritten_package_mdl_attrs
+    if missing_package_mdl_rewrites:
+        raise PackageMdlLocalizationError(
+            "Localized USDZ package MDL attributes were not rewritten in the "
+            "local OVRTX export: "
+            f"{sorted(missing_package_mdl_rewrites, key=repr)!r}"
+        )
+    missing_package_texture_rewrites = (
+        package_texture_attrs - rewritten_package_texture_attrs
+    )
+    if missing_package_texture_rewrites:
+        raise PackageTextureLocalizationError(
+            "Localized USDZ package texture attributes were not rewritten in the "
+            "local OVRTX export: "
+            f"{sorted(missing_package_texture_rewrites, key=repr)!r}"
+        )
 
     if updated:
         layer.Save()
         logger.info(
-            "Localized %d exported OVRTX texture asset path(s) to render temp paths",
+            "Localized %d exported OVRTX asset path(s) to render temp paths",
             updated,
         )
 
-    return copied
+    return staged
 
 
 # ---------------------------------------------------------------------------
@@ -1849,6 +2215,87 @@ if __name__ == "__main__":
 '''
 
 
+def _reap_subprocess_async(process: subprocess.Popen[str]) -> None:
+    """Wait for a killed child without extending an exhausted render deadline."""
+
+    def reap() -> None:
+        try:
+            process.wait()
+        except Exception:
+            logger.exception("Failed to reap killed OvRTX daemon subprocess")
+
+    threading.Thread(
+        target=reap,
+        name=f"ovrtx-reaper-{getattr(process, 'pid', 'unknown')}",
+        daemon=True,
+    ).start()
+
+
+# Bounded ring buffer of recent daemon stderr lines, surfaced at WARNING when
+# the daemon exits abnormally so a crash traceback is never silently dropped.
+_OVRTX_STDERR_TAIL_LINES = 50
+# Byte-oriented bounds so a huge or newline-free stderr record cannot grow the
+# tail (or the WARNING that publishes it) without limit: each retained record
+# is capped, oversized records are drained in bounded chunks without being
+# accumulated, and the retained tail is additionally capped in total size.
+_OVRTX_STDERR_MAX_RECORD_CHARS = 2048
+_OVRTX_STDERR_MAX_TAIL_TOTAL_CHARS = 16384
+_OVRTX_STDERR_TRUNCATION_MARKER = " [record truncated]"
+
+# ``select()`` accepts sockets only on Windows, so registering a subprocess
+# pipe descriptor with ``selectors.DefaultSelector`` raises
+# ``OSError: [WinError 10038]``. Where the selector cannot carry pipe I/O, the
+# daemon falls back to bounded blocking reads and writes on worker threads.
+_SELECTOR_SUPPORTS_PIPES = os.name == "posix"
+
+_PIPE_READ_CHUNK_BYTES = 4096
+# Long enough that an untimed read still behaves as "block until data", short
+# enough that a dead pump thread cannot wedge the caller forever.
+_UNTIMED_PIPE_READ_POLL_S = 30.0
+
+
+class _PipeChunkReader:
+    """Drain one subprocess pipe on a worker thread.
+
+    Used only where ``selectors`` cannot wait on a pipe descriptor. The pump
+    owns the descriptor exclusively, so every read for the owning process must
+    go through this reader to avoid two consumers racing for the same bytes.
+    """
+
+    def __init__(self, descriptor: int, *, name: str) -> None:
+        self._chunks: queue.Queue[bytes | None] = queue.Queue()
+        self._thread = threading.Thread(
+            target=self._pump,
+            args=(descriptor,),
+            name=name,
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _pump(self, descriptor: int) -> None:
+        try:
+            while True:
+                chunk = os.read(descriptor, _PIPE_READ_CHUNK_BYTES)
+                if not chunk:
+                    break
+                self._chunks.put(chunk)
+        except (OSError, ValueError):  # pragma: no cover - teardown race boundary
+            # The descriptor was closed underneath us by process teardown.
+            # Provoking this deliberately means closing a descriptor another
+            # thread is blocked reading, which hangs rather than raising.
+            pass
+        finally:
+            self._chunks.put(None)
+
+    def read(self, timeout_s: float) -> bytes | None:
+        """Return the next chunk, ``b""`` at EOF, or ``None`` on timeout."""
+        try:
+            chunk = self._chunks.get(timeout=max(0.0, timeout_s))
+        except queue.Empty:
+            return None
+        return b"" if chunk is None else chunk
+
+
 class _OvRTXDaemon:
     """Manages a persistent OvRTX renderer subprocess.
 
@@ -1871,7 +2318,9 @@ class _OvRTXDaemon:
         self._log_level = log_level
         self._process: subprocess.Popen[str] | None = None
         self._stderr_thread: threading.Thread | None = None
+        self._stderr_tail: deque[str] = deque(maxlen=_OVRTX_STDERR_TAIL_LINES)
         self._stdout_buffer = b""
+        self._stdout_reader: _PipeChunkReader | None = None
         self._lock = threading.Lock()
         self._start_timeout_s = float(
             os.environ.get("OVRTX_DAEMON_START_TIMEOUT", "600")
@@ -1901,16 +2350,25 @@ class _OvRTXDaemon:
     def _is_running(self) -> bool:
         return self._process is not None and self._process.poll() is None
 
-    def ensure_running(self) -> None:
+    @property
+    def render_timeout_s(self) -> float:
+        """Return the configured end-to-end daemon render deadline."""
+
+        return self._render_timeout_s
+
+    def ensure_running(self, *, timeout_s: float | None = None) -> None:
         """Start the daemon if it is not already running."""
         with self._lock:
             if self._is_running():
                 return
-            self._start()
+            if timeout_s is None:
+                self._start()
+            else:
+                self._start(timeout_s=timeout_s)
             # A render-limit recycle may have stopped the old process and then
-            # failed while starting its replacement. Production callers invoke
-            # ensure_running() before render(), so acknowledge that pending
-            # recycle here once the later replacement reaches ready.
+            # failed while starting its replacement. A later health check may
+            # call ensure_running(), so acknowledge the pending recycle once the
+            # replacement reaches ready.
             self._record_successful_pending_recycle()
 
     def lifecycle_snapshot(self) -> dict[str, int | str | None]:
@@ -1929,8 +2387,62 @@ class _OvRTXDaemon:
             "daemon_pending_recycle_reason": self._recycle_reason(rss_bytes),
         }
 
-    def _start(self) -> None:
+    def _start(
+        self,
+        *,
+        timeout_s: float | None = None,
+        deadline_monotonic: float | None = None,
+    ) -> None:
         """Launch the daemon subprocess and wait for its *ready* signal."""
+        if timeout_s is not None and deadline_monotonic is not None:
+            raise ValueError("Specify a startup timeout or deadline, not both")
+
+        started_at = time.monotonic()
+        configured_timeout_s = self._start_timeout_s
+        if math.isnan(configured_timeout_s) or configured_timeout_s <= 0.0:
+            raise ValueError("OvRTX daemon startup timeout must be positive and finite")
+        if timeout_s is not None:
+            request_timeout_s = float(timeout_s)
+            if not math.isfinite(request_timeout_s) or request_timeout_s <= 0.0:
+                raise ValueError(
+                    "OvRTX daemon startup timeout must be positive and finite"
+                )
+            startup_timeout_s = min(configured_timeout_s, request_timeout_s)
+        elif deadline_monotonic is not None:
+            request_deadline = float(deadline_monotonic)
+            if not math.isfinite(request_deadline):
+                raise ValueError("OvRTX daemon startup deadline must be finite")
+            request_timeout_s = request_deadline - started_at
+            if request_timeout_s <= 0.0:
+                self._raise_startup_timeout(
+                    started_at=started_at,
+                    timeout_s=0.0,
+                    spawned=False,
+                    deadline_overshoot_s=-request_timeout_s,
+                )
+            startup_timeout_s = min(configured_timeout_s, request_timeout_s)
+        else:
+            startup_timeout_s = configured_timeout_s
+
+        if not math.isfinite(startup_timeout_s) or startup_timeout_s <= 0.0:
+            raise ValueError("OvRTX daemon startup timeout must be positive and finite")
+        startup_deadline = started_at + startup_timeout_s
+
+        # A daemon that crashed while idle (between renders) is only observed
+        # here, when the next request restarts it. Surface its final stderr
+        # tail (scrubbed, at WARNING) before the tail buffer is replaced for
+        # the new process below, so the idle-crash traceback is never lost.
+        previous_process = self._process
+        if previous_process is not None:
+            previous_returncode = previous_process.poll()
+            if previous_returncode is not None:
+                self._warn_stderr_tail(
+                    "exited while idle",
+                    previous_returncode,
+                    deadline=startup_deadline,
+                )
+                self._process = None
+
         env = _ovrtx_subprocess_env()
         # Remove PYTHONPATH so the isolated ovrtx venv doesn't pick up
         # the app's pxr/OpenUSD bindings (which conflict with ovrtx's bundled USD).
@@ -1945,9 +2457,17 @@ class _OvRTXDaemon:
         if site_dir_env is not None:
             env["_WU_OVRTX_SITE_DIR"] = site_dir_env
 
+        if startup_deadline <= time.monotonic():
+            self._raise_startup_timeout(
+                started_at=started_at,
+                timeout_s=startup_timeout_s,
+                spawned=False,
+            )
+
         logger.info("Starting OvRTX daemon subprocess …")
         self._stdout_buffer = b""
-        self._process = subprocess.Popen(
+        self._stdout_reader = None
+        process = subprocess.Popen(
             [self._ovrtx_python, self._daemon_script_path],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -1955,26 +2475,62 @@ class _OvRTXDaemon:
             text=True,
             env=env,
         )
+        self._process = process
 
-        # Background thread to drain stderr so the pipe never fills up
-        self._stderr_thread = threading.Thread(target=self._drain_stderr, daemon=True)
+        # Background thread to drain stderr so the pipe never fills up. Each
+        # process gets its own tail buffer so a still-draining thread for a
+        # previous process cannot interleave lines into the new daemon's tail.
+        stderr_tail: deque[str] = deque(maxlen=_OVRTX_STDERR_TAIL_LINES)
+        self._stderr_tail = stderr_tail
+        self._stderr_thread = threading.Thread(
+            target=self._drain_stderr,
+            args=(process, stderr_tail),
+            daemon=True,
+        )
         self._stderr_thread.start()
 
         # Wait for the "ready" JSON line. Do not let a wedged daemon pin
         # service startup forever; kill it so the next request can retry cleanly.
-        ready_line = self._read_stdout_line(self._start_timeout_s, "startup")
+        remaining_startup_timeout_s = startup_deadline - time.monotonic()
+        if remaining_startup_timeout_s <= 0.0:
+            self._raise_startup_timeout(
+                started_at=started_at,
+                timeout_s=startup_timeout_s,
+                spawned=True,
+            )
+        ready_line = self._read_stdout_line(
+            remaining_startup_timeout_s,
+            "startup",
+            timeout_handler=lambda: self._raise_startup_timeout(
+                started_at=started_at,
+                timeout_s=startup_timeout_s,
+                spawned=True,
+                ready_wait_started=True,
+            ),
+        )
         if not ready_line:
-            rc = self._process.wait(timeout=10)
-            self._process = None
-            self._stdout_buffer = b""
+            rc = self._process.poll()
+            self._warn_stderr_tail("exited during init", rc, deadline=startup_deadline)
+            if rc is None:
+                self._kill_process(
+                    timeout_s=self._bounded_cleanup_timeout(startup_deadline)
+                )
+            else:
+                self._process = None
+                self._stdout_buffer = b""
+                self._stdout_reader = None
             raise RuntimeError(f"OvRTX daemon exited during init (exit code {rc})")
         try:
             msg = json.loads(ready_line)
         except json.JSONDecodeError as exc:
-            self._kill_process()
+            self._kill_process(
+                timeout_s=self._bounded_cleanup_timeout(startup_deadline)
+            )
             raise RuntimeError("OvRTX daemon returned invalid startup JSON") from exc
         if msg.get("status") != "ready":
-            self._kill_process()
+            self._kill_process(
+                timeout_s=self._bounded_cleanup_timeout(startup_deadline)
+            )
             raise RuntimeError(f"OvRTX daemon unexpected init msg: {msg}")
         # Do not clear lifecycle state until the replacement process has
         # actually reached the ready protocol state.
@@ -1982,12 +2538,173 @@ class _OvRTXDaemon:
         self._last_rss_bytes = _linux_process_rss_bytes(self._process.pid)
         logger.info("OvRTX daemon ready (pid %d)", self._process.pid)
 
-    def _drain_stderr(self) -> None:
-        """Read stderr lines and send them to the logger."""
-        proc = self._process
-        assert proc is not None and proc.stderr is not None
-        for line in proc.stderr:
-            logger.debug("[ovrtx-daemon] %s", line.rstrip())
+    def _raise_startup_timeout(
+        self,
+        *,
+        started_at: float,
+        timeout_s: float,
+        spawned: bool,
+        deadline_overshoot_s: float | None = None,
+        ready_wait_started: bool = False,
+    ) -> NoReturn:
+        """Terminate startup and report one stable lifecycle classification."""
+        bounded_timeout_s = max(0.0, timeout_s)
+        elapsed_s = max(0.0, time.monotonic() - started_at)
+        if ready_wait_started:
+            detail = (
+                f"during ready wait after {elapsed_s:.1f}s "
+                f"(startup budget {bounded_timeout_s:.1f}s)"
+            )
+        elif spawned:
+            detail = (
+                f"after subprocess launch before ready wait at {elapsed_s:.1f}s "
+                f"(startup budget {bounded_timeout_s:.1f}s)"
+            )
+        elif deadline_overshoot_s is not None:
+            detail = (
+                "before launch because the caller deadline was already exhausted "
+                f"by {max(0.0, deadline_overshoot_s):.1f}s"
+            )
+        else:
+            detail = (
+                f"before launch after {elapsed_s:.1f}s of environment setup "
+                f"(startup budget {bounded_timeout_s:.1f}s)"
+            )
+        if spawned:
+            logger.error(
+                "OvRTX daemon startup timed out %s; killing subprocess",
+                detail,
+            )
+        else:
+            logger.error("OvRTX daemon startup timed out %s", detail)
+        self._kill_process(timeout_s=0.0)
+        raise TimeoutError(f"OvRTX daemon startup timed out {detail}")
+
+    def _drain_stderr(
+        self,
+        proc: subprocess.Popen[str],
+        tail: deque[str] | None = None,
+    ) -> None:
+        """Drain stderr into a bounded in-memory tail without logging text.
+
+        Log records are a value-free public diagnostic surface, and daemon
+        stderr is arbitrary text that no scrubber can prove credential-safe
+        (per AGENTS.md security rules). Stderr content is therefore NEVER
+        logged — not even at DEBUG. The bounded ``tail`` is retained in
+        memory only so an abnormal exit can report value-free statistics
+        (line/char counts, truncation) via :meth:`_warn_stderr_tail`.
+
+        The tail is bounded in bytes as well as lines: records are read in
+        bounded chunks (never accumulating an oversized or newline-free
+        record in memory), each retained record is capped at
+        ``_OVRTX_STDERR_MAX_RECORD_CHARS``, and the tail as a whole is capped
+        at ``_OVRTX_STDERR_MAX_TAIL_TOTAL_CHARS``.
+        """
+        assert proc.stderr is not None
+        if tail is None:
+            tail = self._stderr_tail
+        tail_total_chars = sum(len(retained) for retained in tail)
+        for stripped in self._bounded_stderr_records(proc.stderr):
+            if tail.maxlen is not None and len(tail) == tail.maxlen and tail:
+                tail_total_chars -= len(tail[0])
+            tail.append(stripped)
+            tail_total_chars += len(stripped)
+            while tail and tail_total_chars > _OVRTX_STDERR_MAX_TAIL_TOTAL_CHARS:
+                tail_total_chars -= len(tail.popleft())
+
+    @staticmethod
+    def _bounded_stderr_records(stream: object) -> Iterator[str]:
+        """Yield stderr records with per-record and chunked-read bounds.
+
+        Real daemon pipes are read via ``readline`` with an explicit size
+        limit so a newline-free record is consumed in bounded chunks and only
+        its first ``_OVRTX_STDERR_MAX_RECORD_CHARS`` characters are retained
+        (with a truncation marker). Iterable test doubles without
+        ``readline`` fall back to iteration with the same retained-size cap.
+        """
+        readline = getattr(stream, "readline", None)
+        if readline is None:
+            for line in stream:  # type: ignore[attr-defined]
+                stripped = line.rstrip()
+                if len(stripped) > _OVRTX_STDERR_MAX_RECORD_CHARS:
+                    stripped = (
+                        stripped[:_OVRTX_STDERR_MAX_RECORD_CHARS]
+                        + _OVRTX_STDERR_TRUNCATION_MARKER
+                    )
+                yield stripped
+            return
+        while True:
+            record = readline(_OVRTX_STDERR_MAX_RECORD_CHARS)
+            if not record:
+                return
+            truncated = len(record) >= _OVRTX_STDERR_MAX_RECORD_CHARS and (
+                not record.endswith("\n")
+            )
+            if truncated:
+                # Drain the remainder of the oversized record in bounded
+                # chunks without retaining it.
+                while True:
+                    rest = readline(_OVRTX_STDERR_MAX_RECORD_CHARS)
+                    if not rest or rest.endswith("\n"):
+                        break
+            stripped = record.rstrip()
+            if truncated:
+                stripped += _OVRTX_STDERR_TRUNCATION_MARKER
+            yield stripped
+
+    def _warn_stderr_tail(
+        self,
+        event: str,
+        returncode: int | None,
+        *,
+        deadline: float | None = None,
+    ) -> None:
+        """Report value-free stderr-tail statistics after an abnormal exit.
+
+        Daemon stderr is arbitrary text that cannot be proven credential-safe,
+        so its content is never published on any log surface. This WARNING
+        carries only value-free structured fields: the event, the exit code,
+        and retained line/char/truncation counts.
+
+        Args:
+            event: Short description of the abnormal daemon event.
+            returncode: Daemon exit code, if known.
+            deadline: Optional active ``time.monotonic()`` deadline. When
+                set, the drain-thread join is clamped to the remaining time
+                so this diagnostic never overruns the caller's deadline.
+        """
+        # Give the drain thread a brief, bounded chance to flush the final
+        # stderr lines (a dying daemon's traceback arrives right before EOF)
+        # without overrunning any active caller deadline.
+        stderr_thread = self._stderr_thread
+        if stderr_thread is not None and stderr_thread.is_alive():
+            join_timeout_s = 0.5
+            if deadline is not None:
+                join_timeout_s = min(
+                    join_timeout_s, max(0.0, deadline - time.monotonic())
+                )
+            stderr_thread.join(timeout=join_timeout_s)
+        tail_lines = list(self._stderr_tail)
+        if not tail_lines:
+            logger.warning(
+                "OvRTX daemon %s (exit code %s); no stderr output was captured",
+                event,
+                returncode,
+            )
+            return
+        truncated_records = sum(
+            1 for line in tail_lines if line.endswith(_OVRTX_STDERR_TRUNCATION_MARKER)
+        )
+        logger.warning(
+            "OvRTX daemon %s (exit code %s); retained stderr tail: "
+            "%d line(s), %d char(s), %d truncated record(s). Stderr text is "
+            "withheld from logs (value-free diagnostics only).",
+            event,
+            returncode,
+            len(tail_lines),
+            sum(len(line) for line in tail_lines),
+            truncated_records,
+        )
 
     # ------------------------------------------------------------------
     # Render
@@ -2020,7 +2737,42 @@ class _OvRTXDaemon:
         self._last_recycle_reason = reason
         self._pending_recycle_reason = None
 
-    def _recycle_before_render(self, reason: str) -> None:
+    def _remaining_request_timeout(
+        self,
+        deadline: float,
+        phase: str,
+        *,
+        terminate_on_expiry: bool = False,
+    ) -> float:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0.0:
+            if terminate_on_expiry:
+                self._kill_process(timeout_s=0.0)
+            raise TimeoutError(f"OvRTX daemon {phase} exceeded the render deadline")
+        return remaining
+
+    @contextmanager
+    def _bounded_render_lock(self, deadline: float) -> Iterator[None]:
+        """Acquire the daemon lock without exceeding this render's deadline."""
+
+        lock_timeout_s = self._remaining_request_timeout(deadline, "render lock")
+        if not self._lock.acquire(timeout=lock_timeout_s):
+            raise TimeoutError("OvRTX daemon render lock exceeded the render deadline")
+        try:
+            self._remaining_request_timeout(deadline, "render lock")
+            yield
+        finally:
+            self._lock.release()
+
+    @staticmethod
+    def _bounded_cleanup_timeout(
+        deadline: float,
+        *,
+        maximum_s: float = 5.0,
+    ) -> float:
+        return min(maximum_s, max(0.0, deadline - time.monotonic()))
+
+    def _recycle_before_render(self, reason: str, *, deadline: float) -> None:
         logger.warning(
             "Recycling OvRTX daemon before render "
             "(reason=%s, completed_renders=%d, rss_bytes=%s)",
@@ -2029,20 +2781,137 @@ class _OvRTXDaemon:
             self._last_rss_bytes,
         )
         self._pending_recycle_reason = reason
-        self._shutdown_locked()
-        self._start()
+        self._shutdown_locked(deadline=deadline)
+        self._start(deadline_monotonic=deadline)
         self._record_successful_pending_recycle()
 
-    def render(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+    def _write_stdin_line(
+        self,
+        line: str,
+        *,
+        deadline: float,
+        phase: str,
+    ) -> None:
+        """Write one daemon protocol line without exceeding the request deadline."""
+
+        assert self._process is not None
+        assert self._process.stdin is not None
+        process = self._process
+        fd = process.stdin.fileno()
+        payload = (line + "\n").encode("utf-8")
+        if _SELECTOR_SUPPORTS_PIPES:
+            self._write_stdin_payload_via_selector(
+                fd,
+                payload,
+                deadline=deadline,
+                phase=phase,
+            )
+            return
+        self._write_stdin_payload_via_thread(
+            fd,
+            payload,
+            deadline=deadline,
+            phase=phase,
+        )
+
+    def _write_stdin_payload_via_selector(
+        self,
+        descriptor: int,
+        payload: bytes,
+        *,
+        deadline: float,
+        phase: str,
+    ) -> None:
+        """Write the daemon request with a non-blocking selector loop."""
+        pending = memoryview(payload)
+        was_blocking = os.get_blocking(descriptor)
+        selector = selectors.DefaultSelector()
+        try:
+            os.set_blocking(descriptor, False)
+            selector.register(descriptor, selectors.EVENT_WRITE)
+            while pending:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0.0 or not selector.select(remaining):
+                    self._kill_process(timeout_s=0.0)
+                    raise TimeoutError(
+                        f"OvRTX daemon {phase} exceeded the render deadline"
+                    )
+                try:
+                    written = os.write(descriptor, pending)
+                except BlockingIOError:
+                    continue
+                if written <= 0:
+                    raise BrokenPipeError("OvRTX daemon stdin accepted no bytes")
+                pending = pending[written:]
+        finally:
+            selector.close()
+            try:
+                os.set_blocking(descriptor, was_blocking)
+            except OSError:
+                pass
+
+    def _write_stdin_payload_via_thread(
+        self,
+        descriptor: int,
+        payload: bytes,
+        *,
+        deadline: float,
+        phase: str,
+    ) -> None:
+        """Write the daemon request on a worker thread bounded by the deadline.
+
+        Used where ``selectors`` cannot wait on a pipe. A blocking write cannot
+        be cancelled, so an overrun kills the daemon and leaves the worker to
+        unblock when its descriptor closes.
+        """
+        failure: list[BaseException] = []
+
+        def _write() -> None:
+            pending = memoryview(payload)
+            try:
+                while pending:
+                    written = os.write(descriptor, pending)
+                    if written <= 0:
+                        raise BrokenPipeError("OvRTX daemon stdin accepted no bytes")
+                    pending = pending[written:]
+            except BaseException as error:  # surfaced on the calling thread
+                failure.append(error)
+
+        writer = threading.Thread(
+            target=_write,
+            name=f"ovrtx-stdin-{getattr(self._process, 'pid', 'unknown')}",
+            daemon=True,
+        )
+        writer.start()
+        writer.join(max(0.0, deadline - time.monotonic()))
+        if writer.is_alive():
+            self._kill_process(timeout_s=0.0)
+            raise TimeoutError(f"OvRTX daemon {phase} exceeded the render deadline")
+        if failure:
+            raise failure[0]
+
+    def render(
+        self,
+        params: dict[str, Any],
+        *,
+        timeout_s: float | None = None,
+    ) -> list[dict[str, Any]]:
         """Send a render request and return the manifest.
 
         If the daemon is not running (or has crashed), it is (re)started
         automatically.
         """
-        with self._lock:
+        effective_timeout_s = (
+            self._render_timeout_s if timeout_s is None else float(timeout_s)
+        )
+        if not math.isfinite(effective_timeout_s) or effective_timeout_s <= 0.0:
+            raise ValueError("OvRTX daemon render timeout must be positive and finite")
+        deadline = time.monotonic() + effective_timeout_s
+
+        with self._bounded_render_lock(deadline):
             if not self._is_running():
                 logger.warning("OvRTX daemon not running — restarting")
-                self._start()
+                self._start(deadline_monotonic=deadline)
                 self._record_successful_pending_recycle()
 
             # Sample the child immediately before dispatch while the daemon
@@ -2055,7 +2924,7 @@ class _OvRTXDaemon:
                 self._last_rss_bytes = current_rss_bytes
             recycle_reason = self._recycle_reason(self._last_rss_bytes)
             if recycle_reason is not None:
-                self._recycle_before_render(recycle_reason)
+                self._recycle_before_render(recycle_reason, deadline=deadline)
 
             assert self._process is not None
             assert self._process.stdin is not None
@@ -2063,19 +2932,41 @@ class _OvRTXDaemon:
 
             request = {"command": "render", **params}
             try:
-                self._process.stdin.write(json.dumps(request) + "\n")
-                self._process.stdin.flush()
+                request_json = json.dumps(request)
+                self._remaining_request_timeout(
+                    deadline,
+                    "request serialization",
+                    terminate_on_expiry=True,
+                )
+                self._write_stdin_line(
+                    request_json,
+                    deadline=deadline,
+                    phase="request dispatch",
+                )
+            except TimeoutError:
+                raise
             except (BrokenPipeError, OSError) as exc:
-                rc = self._process.poll()
-                self._kill_process()
+                rc = self._process.poll() if self._process is not None else None
+                self._warn_stderr_tail(
+                    "pipe failed before render response", rc, deadline=deadline
+                )
+                self._kill_process(timeout_s=self._bounded_cleanup_timeout(deadline))
                 raise RuntimeError(
                     f"OvRTX daemon pipe failed before render response (exit code {rc})"
                 ) from exc
 
-            response_line = self._read_stdout_line(self._render_timeout_s, "render")
+            response_line = self._read_stdout_line(
+                self._remaining_request_timeout(
+                    deadline,
+                    "render",
+                    terminate_on_expiry=True,
+                ),
+                "render",
+            )
             if not response_line:
                 rc = self._process.poll() if self._process is not None else None
-                self._kill_process()
+                self._warn_stderr_tail("died during render", rc, deadline=deadline)
+                self._kill_process(timeout_s=self._bounded_cleanup_timeout(deadline))
                 raise RuntimeError(f"OvRTX daemon died during render (exit code {rc})")
             response = json.loads(response_line)
             self._completed_renders += 1
@@ -2092,7 +2983,13 @@ class _OvRTXDaemon:
         manifest: list[dict[str, Any]] = response["manifest"]
         return manifest
 
-    def _read_stdout_line(self, timeout_s: float, phase: str) -> str:
+    def _read_stdout_line(
+        self,
+        timeout_s: float,
+        phase: str,
+        *,
+        timeout_handler: Callable[[], NoReturn] | None = None,
+    ) -> str:
         """Read one daemon stdout line with a timeout.
 
         ``readline()`` on a subprocess pipe blocks indefinitely if the daemon
@@ -2103,52 +3000,119 @@ class _OvRTXDaemon:
         """
         assert self._process is not None
         assert self._process.stdout is not None
+        stdout = cast(TextIO, self._process.stdout)
 
         buffered_line = self._pop_stdout_line()
         if buffered_line is not None:
             return buffered_line
 
         if timeout_s <= 0:
-            if self._stdout_buffer:
-                prefix = self._stdout_buffer.decode(errors="replace")
-                self._stdout_buffer = b""
-                return prefix + self._process.stdout.readline()
-            return self._process.stdout.readline()
+            return self._read_stdout_line_untimed()
 
-        fd = self._process.stdout.fileno()
+        fd = stdout.fileno()
         deadline = time.monotonic() + timeout_s
-        selector = selectors.DefaultSelector()
-        try:
-            selector.register(fd, selectors.EVENT_READ)
-            while True:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    break
+        if _SELECTOR_SUPPORTS_PIPES:
+            line = self._read_stdout_line_via_selector(fd, deadline)
+        else:
+            line = self._read_stdout_line_via_reader(fd, deadline)
+        if line is not None:
+            return line
 
-                events = selector.select(remaining)
-                if not events:
-                    break
-
-                chunk = os.read(fd, 4096)
-                if not chunk:
-                    line = self._stdout_buffer.decode(errors="replace")
-                    self._stdout_buffer = b""
-                    return line
-
-                self._stdout_buffer += chunk
-                buffered_line = self._pop_stdout_line()
-                if buffered_line is not None:
-                    return buffered_line
-        finally:
-            selector.close()
+        if timeout_handler is not None:
+            timeout_handler()
 
         logger.error(
             "OvRTX daemon %s timed out after %.1fs; killing subprocess",
             phase,
             timeout_s,
         )
-        self._kill_process()
+        self._kill_process(timeout_s=0.0)
         raise TimeoutError(f"OvRTX daemon {phase} timed out after {timeout_s:.1f}s")
+
+    def _ensure_stdout_reader(self, descriptor: int) -> _PipeChunkReader:
+        """Return the worker-thread reader that owns the daemon stdout pipe."""
+        reader = self._stdout_reader
+        if reader is None:
+            pid = getattr(self._process, "pid", "unknown")
+            reader = _PipeChunkReader(descriptor, name=f"ovrtx-stdout-{pid}")
+            self._stdout_reader = reader
+        return reader
+
+    def _read_stdout_line_untimed(self) -> str:
+        """Block until the next stdout line or EOF, with no caller deadline."""
+        assert self._process is not None
+        assert self._process.stdout is not None
+        stdout = cast(TextIO, self._process.stdout)
+
+        if _SELECTOR_SUPPORTS_PIPES:
+            if self._stdout_buffer:
+                prefix = self._stdout_buffer.decode(errors="replace")
+                self._stdout_buffer = b""
+                return prefix + stdout.readline()
+            return stdout.readline()
+
+        reader = self._ensure_stdout_reader(stdout.fileno())
+        while True:
+            chunk = reader.read(_UNTIMED_PIPE_READ_POLL_S)
+            if chunk is None:
+                continue
+            line = self._consume_stdout_chunk(chunk)
+            if line is not None:
+                return line
+
+    def _read_stdout_line_via_selector(
+        self,
+        descriptor: int,
+        deadline: float,
+    ) -> str | None:
+        """Wait for one stdout line using ``selectors``; ``None`` on timeout."""
+        selector = selectors.DefaultSelector()
+        try:
+            selector.register(descriptor, selectors.EVENT_READ)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
+                if not selector.select(remaining):
+                    return None
+                line = self._consume_stdout_chunk(
+                    os.read(descriptor, _PIPE_READ_CHUNK_BYTES)
+                )
+                if line is not None:
+                    return line
+        finally:
+            selector.close()
+
+    def _read_stdout_line_via_reader(
+        self,
+        descriptor: int,
+        deadline: float,
+    ) -> str | None:
+        """Wait for one stdout line using the pump thread; ``None`` on timeout."""
+        reader = self._ensure_stdout_reader(descriptor)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            chunk = reader.read(remaining)
+            if chunk is None:
+                return None
+            line = self._consume_stdout_chunk(chunk)
+            if line is not None:
+                return line
+
+    def _consume_stdout_chunk(self, chunk: bytes) -> str | None:
+        """Buffer one stdout chunk and return a completed line when ready.
+
+        An empty chunk means EOF, which flushes whatever partial text remains
+        so the caller can classify the daemon's exit.
+        """
+        if not chunk:
+            line = self._stdout_buffer.decode(errors="replace")
+            self._stdout_buffer = b""
+            return line
+        self._stdout_buffer += chunk
+        return self._pop_stdout_line()
 
     def _pop_stdout_line(self) -> str | None:
         if b"\n" not in self._stdout_buffer:
@@ -2156,57 +3120,117 @@ class _OvRTXDaemon:
         line, self._stdout_buffer = self._stdout_buffer.split(b"\n", 1)
         return (line + b"\n").decode(errors="replace")
 
-    def _kill_process(self) -> None:
+    def _kill_process(self, *, timeout_s: float = 5.0) -> None:
         proc = self._process
         if proc is None:
             return
+        killed = False
+        reap_async = False
         try:
             if proc.poll() is None:
                 proc.kill()
-                proc.wait(timeout=5)
+                killed = True
+                if timeout_s > 0.0:
+                    try:
+                        proc.wait(timeout=timeout_s)
+                    except subprocess.TimeoutExpired:
+                        reap_async = True
+                else:
+                    reap_async = True
         except Exception:
+            reap_async = killed
             logger.exception("Failed to kill OvRTX daemon subprocess")
         finally:
+            if reap_async:
+                _reap_subprocess_async(proc)
             self._process = None
             self._stdout_buffer = b""
+            self._stdout_reader = None
 
     # ------------------------------------------------------------------
     # Shutdown
     # ------------------------------------------------------------------
 
-    def _shutdown_locked(self) -> None:
+    def _shutdown_locked(self, *, deadline: float | None = None) -> None:
         """Stop the current daemon while the caller owns ``self._lock``."""
         if not self._is_running():
             self._process = None
             self._stdout_buffer = b""
+            self._stdout_reader = None
             return
         assert self._process is not None
         assert self._process.stdin is not None
+        explicit_deadline = deadline is not None
+        shutdown_deadline = (
+            deadline if deadline is not None else time.monotonic() + 10.0
+        )
+        if shutdown_deadline <= time.monotonic():
+            self._kill_process(timeout_s=0.0)
+            return
         try:
-            self._process.stdin.write(json.dumps({"command": "shutdown"}) + "\n")
-            self._process.stdin.flush()
-            self._process.wait(timeout=10)
+            self._write_stdin_line(
+                json.dumps({"command": "shutdown"}),
+                deadline=shutdown_deadline,
+                phase="shutdown dispatch",
+            )
+            wait_timeout_s = min(
+                10.0,
+                max(0.0, shutdown_deadline - time.monotonic()),
+            )
+            if wait_timeout_s <= 0.0:
+                self._kill_process(timeout_s=0.0)
+            else:
+                self._process.wait(timeout=wait_timeout_s)
+        except TimeoutError:
+            if explicit_deadline:
+                raise
         except (BrokenPipeError, OSError):
-            self._kill_process()
+            self._kill_process(
+                timeout_s=self._bounded_cleanup_timeout(shutdown_deadline)
+            )
         except subprocess.TimeoutExpired:
-            self._process.kill()
-            self._process.wait(timeout=5)
+            self._kill_process(
+                timeout_s=self._bounded_cleanup_timeout(shutdown_deadline)
+            )
         finally:
             logger.info("OvRTX daemon shut down")
             self._process = None
             self._stdout_buffer = b""
+            self._stdout_reader = None
 
-    def shutdown(self) -> None:
-        """Gracefully shut down the daemon subprocess."""
-        with self._lock:
-            self._shutdown_locked()
+    def shutdown(self, *, timeout_s: float | None = None) -> None:
+        """Shut down the daemon, optionally within one monotonic deadline."""
+        if timeout_s is None:
+            with self._lock:
+                self._shutdown_locked()
+            return
+
+        shutdown_timeout_s = float(timeout_s)
+        if not math.isfinite(shutdown_timeout_s) or shutdown_timeout_s < 0.0:
+            raise ValueError(
+                "OvRTX daemon shutdown timeout must be finite and non-negative"
+            )
+        deadline = time.monotonic() + shutdown_timeout_s
+        acquired = (
+            self._lock.acquire(blocking=False)
+            if shutdown_timeout_s == 0.0
+            else self._lock.acquire(timeout=shutdown_timeout_s)
+        )
+        if not acquired:
+            raise TimeoutError(
+                "OvRTX daemon shutdown lock exceeded the render deadline"
+            )
+        try:
+            self._shutdown_locked(deadline=deadline)
+        finally:
+            self._lock.release()
 
 
 def _world_understanding_resource_path(*parts: str) -> Path:
     """Return a filesystem path for a bundled world_understanding resource."""
     resource = importlib_resources.files("world_understanding").joinpath(*parts)
     try:
-        return Path(resource)
+        return Path(cast(Any, resource))
     except TypeError:
         return Path(str(resource))
 
@@ -2697,6 +3721,31 @@ def _ensure_lights(stage: "Usd.Stage", venv_dir: Path | None = None) -> None:
     )
 
 
+def _export_scene_for_ovrtx_ipc(stage: "Usd.Stage", destination: str | Path) -> bool:
+    """Export a renderable scene whose composition survives IPC relocation."""
+
+    from pxr import UsdUtils
+
+    root_layer = stage.GetRootLayer()
+    ignored_identifiers = {root_layer.identifier}
+    session_layer = stage.GetSessionLayer()
+    has_session_opinions = bool(session_layer is not None and not session_layer.empty)
+    if session_layer is not None:
+        ignored_identifiers.add(session_layer.identifier)
+    composed_layers = [
+        layer
+        for layer in stage.GetUsedLayers(includeClipLayers=True)
+        if layer.identifier not in ignored_identifiers
+    ]
+    if not composed_layers and not has_session_opinions:
+        return bool(root_layer.Export(str(destination)))
+    # Flatten the layer stack, not the composed stage. This retains unloaded
+    # payload/reference arcs while folding sublayers and session opinions into
+    # one relocatable layer with resolved asset paths.
+    flattened = UsdUtils.FlattenLayerStack(stage)
+    return bool(flattened and flattened.Export(str(destination)))
+
+
 def render_all_cameras(
     stage: "Usd.Stage",
     image_width: int = 512,
@@ -2715,14 +3764,16 @@ def render_all_cameras(
     rtx_pt_samples_per_pixel: int | None = None,
     rtx_rt_accumulation_limit: int | None = None,
     material_target: str | None = "auto",
+    daemon_render_timeout_s: float | None = None,
+    render_deadline_monotonic: float | None = None,
 ) -> dict[str, Any]:
     """Render multiple cameras from a USD stage using OvRTX.
 
     This function exports the stage to a temp file, then launches an isolated
     subprocess using a separate ovrtx-only venv (without another pxr provider) that
     renders all cameras and saves images to a temp directory, which are then
-    loaded back in the main process. ``frames`` are USD frame numbers; the
-    subprocess converts each frame to seconds using the stage's
+    loaded back in the main process. ``frames`` are ordered USD time codes; the
+    subprocess converts each time code to seconds using the stage's
     ``timeCodesPerSecond`` before calling ``renderer.update_from_usd_time``.
     Authored time-sampled USD state is preserved in the exported stage except
     for time-sampled visibility, which is replayed through static per-frame
@@ -2743,7 +3794,8 @@ def render_all_cameras(
         image_width: Output image width in pixels.
         image_height: Output image height in pixels.
         cameras: List of camera prim paths. If None, uses ["/Camera"].
-        frames: Frame specification (e.g., "0", "0:10", "0,5,10").
+        frames: Ordered USD time-code specification (e.g., "0", "0:10",
+            "0.25,1.5,2.75").
         sensors: Optional sensor names (e.g., ["depth"]).
         ovrtx_renderer: Ignored (kept for API compatibility). Subprocess
             always creates its own renderer.
@@ -2794,12 +3846,30 @@ def render_all_cameras(
             authored/native material outputs, ``preview_surface`` requests the
             OVRTX PreviewSurface fallback overlay explicitly, and
             ``openpbr_materialx`` preserves native OpenPBR/MaterialX output.
+        daemon_render_timeout_s: Optional deadline for the render call. The
+            persistent path applies one deadline across daemon startup, recycle,
+            and response reading; the one-shot path applies it to the subprocess.
+            ``None`` uses the daemon default or leaves one-shot rendering unbounded.
+        render_deadline_monotonic: Optional absolute monotonic deadline shared
+            with caller-side backend setup. Internal callers should prefer this
+            when setup and preprocessing must consume the same render budget.
 
     Returns:
         Dict matching RenderingBackend.render() contract with keys:
             total_cameras, successful_cameras, failed_cameras,
             total_render_time, results (list of per-camera dicts).
     """
+    deadline = render_deadline_monotonic
+    if deadline is not None:
+        _remaining_deadline_timeout(deadline, "render setup")
+    if daemon_render_timeout_s is not None:
+        daemon_render_timeout_s = float(daemon_render_timeout_s)
+        if not math.isfinite(daemon_render_timeout_s) or daemon_render_timeout_s <= 0.0:
+            raise ValueError("OvRTX render timeout must be positive and finite")
+        relative_deadline = time.monotonic() + daemon_render_timeout_s
+        deadline = (
+            relative_deadline if deadline is None else min(deadline, relative_deadline)
+        )
     if cameras is None or len(cameras) == 0:
         cameras = ["/Camera"]
     if daemon is not None and (
@@ -2817,7 +3887,14 @@ def render_all_cameras(
 
     # Resolve the ovrtx venv Python (auto-provisions on first call)
     venv_path = Path(ovrtx_venv_dir) if ovrtx_venv_dir else None
-    ovrtx_python = _get_ovrtx_python(venv_dir=venv_path)
+    ovrtx_python = (
+        _get_ovrtx_python(venv_dir=venv_path)
+        if deadline is None
+        else _get_ovrtx_python(
+            venv_dir=venv_path,
+            deadline_monotonic=deadline,
+        )
+    )
     active_venv_path = _ovrtx_venv_dir_from_python_path(ovrtx_python, venv_path)
 
     # Create temp directory for IPC (exported USD + rendered images)
@@ -2866,7 +3943,6 @@ def render_all_cameras(
         # Export() sometimes rewrites asset URL paths in ways OvRTX
         # can't resolve (resulting in a black render). The sublayer
         # path preserves the URL verbatim. See _build_default_lights_usda.
-        root_layer = stage.GetRootLayer()
         had_default_lights = bool(stage.GetPrimAtPath("/OvRTXDefaultLights"))
         default_lights_layer_path: str | None = None
         if not _stage_has_lights(stage):
@@ -3012,9 +4088,14 @@ def render_all_cameras(
                 len(visibility_schedule),
             )
 
-        # Export the stage to a temp file (without render products).
+        # Export the stage to a temp file (without render products). A root
+        # layer with relative composition arcs cannot be copied verbatim into
+        # the IPC directory: its sublayers/references would resolve relative
+        # to the wrong directory and OVRTX would render an empty scene. Flatten
+        # only composed stages; simple stages retain the less destructive root
+        # export path.
         t_export = time.time()
-        if not root_layer.Export(tmp_usd_path):
+        if not _export_scene_for_ovrtx_ipc(stage, tmp_usd_path):
             raise RuntimeError("Failed to export USD stage to temp file")
         material_fallback_layer_path = os.path.join(
             tmp_dir,
@@ -3048,7 +4129,8 @@ def render_all_cameras(
         )
         if copied_assets:
             logger.info(
-                "Copied %d local texture asset(s) next to exported OVRTX stage",
+                "Staged %d local render asset dependency set(s) next to the "
+                "exported OVRTX stage",
                 copied_assets,
             )
 
@@ -3136,9 +4218,16 @@ def render_all_cameras(
                 len(cameras),
                 len(frame_list),
             )
-            daemon.ensure_running()
             t_render = time.time()
-            manifest = daemon.render(params)
+            render_timeout_s = _remaining_deadline_timeout(
+                deadline,
+                "render preprocessing",
+            )
+            manifest = (
+                daemon.render(params)
+                if render_timeout_s is None
+                else daemon.render(params, timeout_s=render_timeout_s)
+            )
             logger.debug("Daemon render completed in %.2fs", time.time() - t_render)
         else:
             # ---- One-shot subprocess path (backward compatible) ----
@@ -3165,20 +4254,39 @@ def render_all_cameras(
                 len(cameras),
                 len(frame_list),
             )
-            proc = subprocess.run(
-                [ovrtx_python, worker_path, json.dumps(params)],
-                capture_output=True,
-                text=True,
-                env=env,
-                check=False,
+            render_timeout_s = _remaining_deadline_timeout(
+                deadline,
+                "render preprocessing",
             )
+            try:
+                proc = subprocess.run(
+                    [ovrtx_python, worker_path, json.dumps(params)],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    check=False,
+                    timeout=render_timeout_s,
+                )
+            except subprocess.TimeoutExpired as exc:
+                timeout_label = (
+                    "unbounded"
+                    if render_timeout_s is None
+                    else f"{render_timeout_s:.1f}s"
+                )
+                raise TimeoutError(
+                    f"OvRTX subprocess render timed out after {timeout_label}"
+                ) from exc
 
             if proc.returncode != 0:
-                error_msg = f"OvRTX subprocess failed (exit code {proc.returncode})"
-                if proc.stdout:
-                    error_msg += f"\n--- stdout (last 1000) ---\n{proc.stdout[-1000:]}"
-                if proc.stderr:
-                    error_msg += f"\n--- stderr (last 2000) ---\n{proc.stderr[-2000:]}"
+                # Worker stdout/stderr is arbitrary text that cannot be
+                # proven credential-safe; keep the logged and raised message
+                # value-free (exit code and output sizes only), matching the
+                # daemon path's discipline.
+                error_msg = (
+                    f"OvRTX subprocess failed (exit code {proc.returncode}; "
+                    f"stdout {len(proc.stdout or '')} char(s), "
+                    f"stderr {len(proc.stderr or '')} char(s) withheld from logs)"
+                )
                 logger.error(error_msg)
                 raise RuntimeError(error_msg)
 
@@ -3186,9 +4294,10 @@ def render_all_cameras(
             manifest_path = os.path.join(tmp_dir, "manifest.json")
             if not os.path.exists(manifest_path):
                 raise RuntimeError(
-                    "OvRTX subprocess did not produce manifest. "
-                    f"stdout: {proc.stdout[-500:]}, "
-                    f"stderr: {proc.stderr[-500:]}"
+                    "OvRTX subprocess did not produce manifest "
+                    f"(exit code {proc.returncode}; "
+                    f"stdout {len(proc.stdout or '')} char(s), "
+                    f"stderr {len(proc.stderr or '')} char(s) withheld from logs)"
                 )
 
             with open(manifest_path, encoding="utf-8") as f:
@@ -3204,11 +4313,11 @@ def render_all_cameras(
 
         for cam_result in manifest:
             camera_images: list[Image.Image] = []
-            camera_sensors: dict[str, dict[int, np.ndarray]] = {
+            camera_sensors: dict[str, dict[int | float, np.ndarray]] = {
                 s: {} for s in (sensors or [])
             }
             camera_blank_frames: list[dict[str, Any]] = []
-            camera_image_frames: list[int] = []
+            camera_image_frames: list[int | float] = []
 
             # Load images
             image_files = cam_result["image_files"]
@@ -3246,7 +4355,13 @@ def render_all_cameras(
                 for frame_num_str, npy_fname in frame_files.items():
                     npy_path = os.path.join(tmp_dir, npy_fname)
                     if os.path.exists(npy_path):
-                        camera_sensors[sensor_name][int(frame_num_str)] = np.load(
+                        numeric_frame = float(frame_num_str)
+                        sensor_frame_key: int | float = (
+                            int(numeric_frame)
+                            if numeric_frame.is_integer()
+                            else numeric_frame
+                        )
+                        camera_sensors[sensor_name][sensor_frame_key] = np.load(
                             npy_path
                         )
 
@@ -3259,6 +4374,9 @@ def render_all_cameras(
                     "render_time": time.time() - total_start_time,
                     "frame_count": len(camera_images),
                     "image_frames": camera_image_frames,
+                    "ovrtx_render_mode": render_mode,
+                    "ovrtx_num_sensor_updates": num_sensor_updates,
+                    "active_aov": _ACTIVE_COLOR_AOV,
                 }
                 if camera_blank_frames:
                     result["warnings"] = [
@@ -3274,6 +4392,9 @@ def render_all_cameras(
                     "render_time": time.time() - total_start_time,
                     "frame_count": 0,
                     "error": "No images produced",
+                    "ovrtx_render_mode": render_mode,
+                    "ovrtx_num_sensor_updates": num_sensor_updates,
+                    "active_aov": _ACTIVE_COLOR_AOV,
                 }
 
             results.append(result)
@@ -3387,12 +4508,15 @@ def _frame_from_image_filename(
     image_filename: str,
     *,
     image_index: int,
-    frame_list: list[int],
+    frame_list: list[int | float],
     image_file_count: int,
-) -> int:
-    match = re.search(r"_f(\d+)(?:\.|_|$)", image_filename)
+) -> int | float:
+    match = re.search(
+        r"_f(-?(?:\d+(?:\.\d+)?|\.\d+))(?=\.png(?:$)|_|$)", image_filename
+    )
     if match:
-        return int(match.group(1))
+        numeric_frame = float(match.group(1))
+        return int(numeric_frame) if numeric_frame.is_integer() else numeric_frame
     if image_file_count == len(frame_list) and image_index < len(frame_list):
         return frame_list[image_index]
     return image_index

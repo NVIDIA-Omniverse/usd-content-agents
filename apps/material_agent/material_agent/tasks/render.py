@@ -431,8 +431,12 @@ class RenderTask(Task):
             "render_mode": "pt",
             **render_config,
         }
-        rendering_backend = create_rendering_backend(backend_type, backend_config)
-        listener.info(f"Using {backend_type} rendering backend")
+        rendering_backend = context.get("rendering_backend")
+        if rendering_backend is None:
+            rendering_backend = create_rendering_backend(backend_type, backend_config)
+            listener.info(f"Created {backend_type} rendering backend")
+        else:
+            listener.info(f"Using injected {backend_type} rendering backend")
         # Set up rendering configuration
         rendering_config = RenderingConfig(
             image_width=image_width,

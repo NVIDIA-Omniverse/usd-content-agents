@@ -1,0 +1,11 @@
+name: inverted retry failure
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Repository retry with inverted status
+        run: >-
+          ! bash ci/github/retry-network-command.sh --
+          python -m pip install example-tool

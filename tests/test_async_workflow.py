@@ -13,6 +13,11 @@ import pytest
 from world_understanding.agentic import workflows as workflows_module
 from world_understanding.agentic.tasks import CallableTask, Task
 from world_understanding.agentic.workflows import Workflow
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    NonRetryableVLMTimeoutError,
+    make_terminal_vlm_timeout_marker,
+)
 from world_understanding.utils.object_store import InMemoryObjectStore, ObjectStore
 from world_understanding.utils.result_projection import project_result_metadata
 
@@ -85,6 +90,16 @@ class _FailingTask(Task):
 
     async def arun(self, context, object_store=None):
         raise RuntimeError(self.message)
+
+
+class _TerminalTimeoutTask(Task):
+    name = "TerminalTimeoutTask"
+
+    def run(self, context, object_store=None):
+        raise NonRetryableVLMTimeoutError("provider detail must not survive")
+
+    async def arun(self, context, object_store=None):
+        raise NonRetryableVLMTimeoutError("provider detail must not survive")
 
 
 class _CredentialNamedTask(Task):
@@ -326,6 +341,21 @@ def test_workflow_failure_diagnostics_are_value_free_for_sync_and_async(
     )
     for sentinel in sentinels:
         assert sentinel not in diagnostic_surfaces
+
+
+@pytest.mark.parametrize("run_sync", [True, False])
+def test_workflow_preserves_terminal_timeout_semantics_without_error_value(
+    run_sync: bool,
+) -> None:
+    workflow = Workflow(tasks=[_TerminalTimeoutTask()], name="TerminalWorkflow")
+
+    result = workflow.run({}) if run_sync else asyncio.run(workflow.arun({}))
+
+    assert result["error"] == "Task execution failed"
+    assert result[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == make_terminal_vlm_timeout_marker(
+        "TerminalTimeoutTask"
+    )
+    assert "provider detail" not in repr(result)
 
 
 @pytest.mark.parametrize("run_sync", [True, False])

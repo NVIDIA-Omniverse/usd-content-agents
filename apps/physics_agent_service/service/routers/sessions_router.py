@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from ..runtime.registry import get_job_registry
-from ..session.manager import SessionManager
+from ..session.manager import SessionManager, SessionStoreDeletionError
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +85,31 @@ async def delete_session(session_id: str):
 
     # Cancel any running job first (local instance only)
     job_registry = get_job_registry()
+    metadata = await manager.get_session_metadata(session_id)
+    if (
+        metadata
+        and metadata.get("status") in {"pending", "running", "cancelling"}
+        and not job_registry.is_running(session_id)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Session is active on another worker and cannot be deleted here",
+        )
     if job_registry.is_running(session_id):
         await job_registry.cancel(session_id)
         await job_registry.wait_for_quiescence(session_id)
 
-    success = await manager.delete_session(session_id)
-    if not success:
+    # Recheck durable inactivity at deletion time. A rerun can start on
+    # another replica after the metadata read above; the store-side CAS must
+    # refuse to tombstone that newer generation.
+    try:
+        success = await manager.delete_terminal_session(session_id)
+    except SessionStoreDeletionError:
         raise HTTPException(status_code=500, detail="Failed to delete session")
+    if not success:
+        raise HTTPException(
+            status_code=409,
+            detail="Session became active and cannot be deleted",
+        )
 
     return None

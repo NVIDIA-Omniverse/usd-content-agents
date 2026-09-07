@@ -4,11 +4,15 @@ Runtime validation is the core review mechanism for physics authoring. It plays
 the same role that final rendering and visual quality assessment play in the
 material assignment workflow.
 
-For the agentic Workbench workflow, runtime validation has two layers:
+Runtime validation has two layers:
 
-- solver-backed evidence from ovphysx or another selected runtime;
+- solver-backed evidence from ovphysx or another selected runtime through the
+  usd-cli, producing a time-sampled `recording.usda` plus
+  trajectory metrics. The current OvPhysX integration runs on CPU and does not
+  require OVRTX or a GPU for simulation;
 - visual behavior review over frames rendered from the generated
-  `recording.usda`.
+  `recording.usda` through OVRTX with usd-cli. This render
+  and review layer requires OVRTX and a compatible GPU.
 
 The solver-backed layer is authoritative for hard failures. Visual review may
 turn an otherwise passing runtime result into a conditional result, but it must
@@ -40,8 +44,8 @@ T2 simulation match:
 
 T3 real comparison:
 
-- compare simulated behavior against user-supplied reference video, reference
-  images, measured data, or textual behavior requirements;
+- compare simulated behavior against user-supplied reference images, measured
+  data, or textual behavior requirements;
 - keep programmatic trajectory metrics authoritative when they directly measure
   the requested behavior, and use visual/VLM review only as supporting evidence.
 
@@ -62,11 +66,13 @@ authored asset. Scenario construction must honor stage units and up-axis, add a
 ground plane when needed, isolate the body under test, and preserve enough camera
 or recording evidence for audit.
 
-In the Workbench workflow, this solver interaction belongs behind the Workbench
-runtime-validation operation. ovphysx may run in an isolated daemon because of
-OpenUSD-version constraints, but that daemon is not an agent-facing API. The
-agent should call Workbench, then inspect returned reports, trajectories,
-recordings, failures, warnings, and repair hints.
+usd-cli owns only the raw solver operation. The current
+OvPhysX integration runs in an isolated CPU service because of OpenUSD-version
+constraints, but that service is not an agent-facing workflow API. The workflow
+inspects the returned report, trajectory metrics, `recording.usda`, failures,
+warnings, and repair hints, then applies its own policy and acceptance rules.
+OVRTX and a compatible GPU are separate requirements for rendering and visually
+reviewing the recording, not for the OvPhysX simulation itself.
 
 ## Metrics
 

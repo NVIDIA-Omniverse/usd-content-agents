@@ -10,6 +10,7 @@ replaced with a recording stub.
 from __future__ import annotations
 
 import threading
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from unittest.mock import Mock, patch
@@ -67,11 +68,33 @@ class _RecordingBackend:
         }
 
 
+RendererFixture = tuple[renderer_module.Renderer, _RecordingBackend]
+
+
 class _FakeStage:
     """Truthy placeholder so ``if not stage:`` does not short-circuit."""
 
     def __bool__(self) -> bool:
         return True
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"results": [None]},
+        {"results": [{"camera": None, "images": []}]},
+    ],
+)
+def test_backend_coverage_rejects_malformed_result_entries(
+    result: dict[str, Any],
+) -> None:
+    with pytest.raises(renderer_module.IncompleteRenderOutputError):
+        renderer_module._validate_backend_response_coverage(
+            result,
+            camera_paths=["/World/Camera"],
+            frame_start=0,
+            frame_end=0,
+        )
 
 
 class _FakeDaemon:
@@ -93,7 +116,7 @@ class _BackendWithDaemon:
 
 
 @pytest.fixture
-def renderer_with_stub_backend():
+def renderer_with_stub_backend() -> Iterator[RendererFixture]:
     """Produce a Renderer whose backend, stage open, and fetch are stubbed."""
     import types
 
@@ -114,6 +137,11 @@ def renderer_with_stub_backend():
 
     with (
         patch.object(renderer_module, "_fetch_usd", lambda _url, _path: None),
+        patch.object(
+            renderer_module,
+            "_validate_usd_asset_paths_confined",
+            lambda _path, *, intake_root: None,
+        ),
         patch.dict("sys.modules", {"pxr": pxr_mod}),
     ):
         yield r, backend
@@ -245,7 +273,63 @@ class TestMaterialTargetPrecedence:
         assert backend.last_material_target is None
 
 
+class TestExecutedOvrtxSettings:
+    def test_rejects_missing_camera_receipts(self):
+        assert renderer_module._executed_ovrtx_settings({"results": []}) is None
+
+    def test_rejects_non_mapping_camera_receipt(self):
+        assert renderer_module._executed_ovrtx_settings({"results": [None]}) is None
+
+    def test_rejects_disagreeing_camera_receipts(self):
+        assert (
+            renderer_module._executed_ovrtx_settings(
+                {
+                    "results": [
+                        {
+                            "ovrtx_render_mode": "pt",
+                            "ovrtx_num_sensor_updates": 64,
+                            "active_aov": "LdrColor",
+                        },
+                        {
+                            "ovrtx_render_mode": "rt2",
+                            "ovrtx_num_sensor_updates": 64,
+                            "active_aov": "LdrColor",
+                        },
+                    ]
+                }
+            )
+            is None
+        )
+
+
 class TestBlankRenderDetection:
+    def test_v1_response_returns_consistent_executed_ovrtx_settings(self):
+        image = Image.new("RGB", (2, 2), color=(8, 16, 32))
+        image.putpixel((1, 0), (64, 16, 32))
+        image.putpixel((0, 1), (8, 80, 32))
+        image.putpixel((1, 1), (8, 16, 96))
+        response = renderer_module._to_v1_response(
+            {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [image],
+                        "sensors": {},
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 64,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            },
+            requested_sensors=[],
+            ovrtx_sensors=[],
+            frame_start=0,
+        )
+
+        assert response["ovrtx_render_mode"] == "pt"
+        assert response["ovrtx_num_sensor_updates"] == 64
+        assert response["active_aov"] == "LdrColor"
+
     def test_all_blank_frames_return_success_with_warning_metadata(self):
         response = renderer_module._to_v1_response(
             {
@@ -486,7 +570,9 @@ class TestDaemonRecovery:
         assert backend.render_calls == 1
         r.recover.assert_not_called()  # type: ignore[attr-defined]
 
-    def test_reports_exception_when_recovery_fails(self, renderer_with_stub_backend):
+    def test_reports_exception_when_recovery_fails(
+        self, renderer_with_stub_backend: RendererFixture
+    ) -> None:
         r, backend = renderer_with_stub_backend
         backend.responses = [RuntimeError("OvRTX daemon pipe failed: broken pipe")]
         r.recover = Mock(return_value=False)  # type: ignore[method-assign]
@@ -503,4 +589,117 @@ class TestDaemonRecovery:
         assert response["status"] == "exception"
         assert response["error"] == "OVRTX daemon recovery failed"
         assert backend.render_calls == 1
+        r.recover.assert_called_once_with(force=True)  # type: ignore[attr-defined]
+
+    def test_incomplete_output_stays_typed_when_recovery_fails(
+        self, renderer_with_stub_backend: RendererFixture
+    ) -> None:
+        r, backend = renderer_with_stub_backend
+        backend.responses = [
+            {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [],
+                        "sensors": {},
+                    }
+                ]
+            }
+        ]
+        r.recover = Mock(return_value=False)  # type: ignore[method-assign]
+
+        response = r.render(
+            url="data:application/octet-stream;base64,AA==",
+            camera_paths=["/World/Camera"],
+            frame_start=0,
+            frame_end=0,
+            width=64,
+            height=64,
+        )
+
+        assert response["status"] == "exception"
+        assert response["error_code"] == "incomplete_render_output"
+        assert response["retryable"] is True
+        assert response["requested_output_count"] == 1
+        assert response["output_count"] == 0
+        assert backend.render_calls == 1
+        r.recover.assert_called_once_with(force=True)  # type: ignore[attr-defined]
+
+    def test_repeated_incomplete_output_fails_typed_and_retryable(
+        self, renderer_with_stub_backend: RendererFixture
+    ) -> None:
+        r, backend = renderer_with_stub_backend
+        incomplete = {
+            "results": [
+                {
+                    "camera": "/World/Camera",
+                    "images": [],
+                    "sensors": {},
+                }
+            ]
+        }
+        backend.responses = [incomplete, incomplete]
+        r.recover = Mock(return_value=True)  # type: ignore[method-assign]
+
+        response = r.render(
+            url="data:application/octet-stream;base64,AA==",
+            camera_paths=["/World/Camera"],
+            frame_start=0,
+            frame_end=0,
+            width=64,
+            height=64,
+        )
+
+        assert response == {
+            "status": "exception",
+            "error": (
+                "OVRTX returned incomplete color output coverage: "
+                "0/1 requested outputs present (missing=1, affected_cameras=1)"
+            ),
+            "error_code": "incomplete_render_output",
+            "retryable": True,
+            "requested_output_count": 1,
+            "output_count": 0,
+            "missing_output_count": 1,
+            "missing_camera_count": 1,
+            "images": {},
+        }
+        assert backend.render_calls == 2
+        r.recover.assert_called_once_with(force=True)  # type: ignore[attr-defined]
+
+    def test_fake_backend_endurance_recovers_and_returns_935_outputs(
+        self, renderer_with_stub_backend: RendererFixture
+    ) -> None:
+        r, backend = renderer_with_stub_backend
+        incomplete = {
+            "results": [
+                {
+                    "camera": "/World/Camera",
+                    "images": [],
+                    "sensors": {},
+                }
+            ]
+        }
+        backend.responses = [
+            *[_RecordingBackend.success_result() for _ in range(75)],
+            incomplete,
+        ]
+        r.recover = Mock(return_value=True)  # type: ignore[method-assign]
+
+        output_count = 0
+        for _request_index in range(935):
+            response = r.render(
+                url="data:application/octet-stream;base64,AA==",
+                camera_paths=["/World/Camera"],
+                frame_start=0,
+                frame_end=0,
+                width=64,
+                height=64,
+            )
+            assert response["status"] == "success"
+            assert response["images"]["0"]["/World/Camera"]["images"]
+            output_count += 1
+
+        assert output_count == 935
+        assert backend.render_calls == 936
         r.recover.assert_called_once_with(force=True)  # type: ignore[attr-defined]

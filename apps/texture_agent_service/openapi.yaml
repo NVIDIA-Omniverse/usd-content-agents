@@ -8,7 +8,7 @@ info:
     \ change)\n\nThe service ships with an NVIDIA-first default stack:\n\n| Role |\
     \ Default | Env var | Model |\n|---|---|---|---|\n| Image generation | `nim` |\
     \ `TA_IMAGE_GEN_BACKEND` | `black-forest-labs/flux_2-klein-4b` (build.nvidia.com)\
-    \ |\n| Auto-prompt LLM  | `nim` | `TA_LLM_BACKEND`       | `google/gemma-4-31b-it`\
+    \ |\n| Auto-prompt LLM  | `nim` | `TA_LLM_BACKEND`       | `moonshotai/kimi-k3`\
     \ (build.nvidia.com) |\n\nBoth honor `NVIDIA_API_KEY`. One key unlocks the whole\
     \ default path.\n\n> **PBR coherence trade-off \u2014 read before deploying.**\n\
     >\n> The cloud `nim` image-gen endpoint does not accept reference images, so\n\
@@ -209,7 +209,7 @@ info:
     \ Dockerfile                  # Service image\n\u251C\u2500\u2500 openapi.yaml\
     \                # API specification\n\u2514\u2500\u2500 pyproject.toml      \
     \        # Install metadata\n```\n"
-  version: 0.5.2
+  version: 0.6.0
 paths:
   /pipeline/upload-usd:
     post:
@@ -943,7 +943,18 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  auth_enforced:
+                    type: boolean
+                    description: >-
+                      Whether bearer-token enforcement is active on this
+                      server. True when the service's *_AGENT_TOKEN variable
+                      is set in its environment.
   /api:
     get:
       summary: Root Api Info
@@ -1044,17 +1055,30 @@ components:
           - type: string
           - type: 'null'
           title: Texture Endpoint
-          description: Texture variation backend endpoint for texture_backend='service'.
+          description: Operator-approved Texture Variation backend endpoint for texture_backend='service'.
         backend_engine:
           anyOf:
           - type: string
           - type: 'null'
           title: Backend Engine
           description: Projection backend engine/model route hint.
+        texture_size:
+          anyOf:
+          - type: integer
+            maximum: 16384.0
+            minimum: 64.0
+          - type: 'null'
+          title: Texture Size
+          description: Texture generation size override for this exact session.
         backend_custom_parameters_json:
           type: string
           title: Backend Custom Parameters Json
           description: Backend custom parameters JSON object.
+          default: ''
+        external_authoring_json:
+          type: string
+          title: External Authoring Json
+          description: Versioned external headless texture-authoring contract JSON object. Credentials are forbidden; the backend must pass capability preflight.
           default: ''
         detail_policy:
           anyOf:
@@ -1479,6 +1503,13 @@ components:
         session_id:
           type: string
           title: Session Id
+        execution_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Execution Id
+          description: Client execution identifier for the current run, when supplied
+            to the regeneration request.
         status:
           type: string
           title: Status
@@ -1587,6 +1618,17 @@ components:
           minItems: 1
           title: Steps
           description: Steps to re-run from cache (at least one)
+        execution_id:
+          anyOf:
+          - type: string
+            maxLength: 32
+            minLength: 32
+            pattern: ^[0-9a-f]{32}$
+          - type: 'null'
+          title: Execution Id
+          description: Optional client execution identifier used to reconcile an
+            accepted regeneration after a connection interruption. Must be exactly
+            32 lowercase hexadecimal characters.
         material_textures:
           anyOf:
           - additionalProperties:
@@ -2359,3 +2401,19 @@ components:
       - msg
       - type
       title: ValidationError
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Bearer token. The server enforces this ONLY when TEXTURE_AGENT_TOKEN is set in the
+        server's environment; when it is unset the service accepts
+        unauthenticated requests and every endpoint behaves as if no scheme
+        were declared. Send `Authorization: Bearer <token>`. Probe and
+        documentation endpoints (`/health`, `/api`, `/`, `/docs`,
+        `/openapi.json`) never require a token.
+
+security:
+  - {}
+  - bearerAuth: []

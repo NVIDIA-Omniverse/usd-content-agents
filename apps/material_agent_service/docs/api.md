@@ -2,6 +2,10 @@
 
 REST API for VLM-based material assignment to 3D USD files. The service accepts USD scene uploads, runs an async pipeline (optimize, render, build dataset, predict, apply, render final), and streams real-time progress via SSE.
 
+This is the explicit fixed pipeline REST interface in Content Agents 0.6. It retains
+the fixed Material Agent pipeline contract and does not invoke the default
+agentic Content Workflow.
+
 **Base URL:** `http://localhost:8000`
 **Interactive docs:** `GET /docs` (Swagger UI)
 **OpenAPI:** [`../openapi.yaml`](../openapi.yaml)
@@ -26,7 +30,48 @@ REST API for VLM-based material assignment to 3D USD files. The service accepts 
 
 ## Authentication
 
-No authentication is required by default. The service accepts all origins via permissive CORS.
+Unauthenticated by default. Set `MATERIAL_AGENT_TOKEN` **in the server's environment** to require
+`Authorization: Bearer <token>` on `/pipeline`, `/artifacts`, `/assets`, `/sessions`, and `/materials` endpoints; requests without a matching
+token get `401` with `WWW-Authenticate: Bearer`. When the variable is unset — the
+default — the service accepts unauthenticated requests and must run behind a trusted
+network boundary. `/health`, `/api`, `/`, `/docs`, and `/openapi.json` never require a
+token so liveness probes keep working, and `GET /health` reports `auth_enforced`.
+Set `WU_SERVICE_AUTH_REQUIRED=1` to refuse startup without a token.
+
+An empty or whitespace-only `MATERIAL_AGENT_TOKEN` counts as **unset**, so enforcement stays off.
+That is deliberate: Compose `${VAR:-}` passthrough and Helm `value: ""` defaults both
+deliver an empty string, and treating those as "enabled" would reject every request
+with a token nobody can supply.
+
+Under Docker Compose, set `MATERIAL_AGENT_TOKEN` in the repo-root `.env`, which every service
+loads via `env_file`. Do not add it to the compose `environment:` block: that
+section overrides `env_file`, and `${VAR:-}` interpolation would replace a
+configured token with an empty string and silently disable enforcement.
+
+CORS remains permissive (`allow_origins=["*"]`); the token is the access control.
+
+### Browser clients
+
+A browser cannot attach an `Authorization` header to an `EventSource` stream, an
+`<img>` source, or a download navigation, so header-only auth leaves those
+unusable. Exchange the token for a session cookie instead:
+
+```
+POST /auth/session
+Authorization: Bearer <token>
+→ 204, Set-Cookie: wu_service_session=...; HttpOnly; SameSite=Strict
+```
+
+The cookie is signed and expiring, and is **derived from** the token rather than
+containing it — rotating `MATERIAL_AGENT_TOKEN` invalidates every issued
+session, and a leaked cookie cannot be replayed as a bearer token. `SameSite=Strict`
+is what prevents cross-site use; `Secure` is set when the request arrives over
+HTTPS so plain-HTTP localhost development still works. `DELETE /auth/session`
+clears it.
+
+Once the cookie is set every subsequent request authenticates automatically,
+including SSE, images, and downloads — no further client changes are needed. A
+browser client should call this after its first `401` and then retry.
 
 ---
 
@@ -42,8 +87,9 @@ Health check. Includes backend credential readiness, image-generation readiness,
 {
   "status": "healthy",
   "service": "Material Agent Service",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "api_keys_configured": true,
+  "auth_enforced": false,
   "image_gen_configured": true,
   "max_active_sessions": 3
 }
@@ -82,22 +128,22 @@ Upload a USD file and create a new session. Use this when the USD lives on the c
 
 ### `POST /pipeline`
 
-Start a material assignment pipeline on an existing session.
+Start a material assignment pipeline from an existing session, an authorized S3
+USD, or an inline USD upload. Input precedence is `session_id`, then `s3_uri`,
+then `usd_file`.
 
-**Request body**
+Client S3 intake is fail-closed. The URI's exact bucket name must be listed in
+`MA_S3_ALLOWED_BUCKETS`; an empty allowlist rejects every `s3_uri`.
+Downloads reuse `MA_STORAGE_S3_REGION`, `MA_STORAGE_S3_ENDPOINT_URL`, and the
+configured `MA_STORAGE_S3_*` credentials when present, otherwise they use the
+standard AWS credential chain.
 
-```json
-{
-  "session_id": "abc123",
-  "materials_manifest": "default",
-  "vlm": {
-    "backend": "nim",
-    "model": "google/gemma-4-31b-it"
-  },
-  "reference_images": ["ref1.jpg"],
-  "generated_reference_id": "optional-generated-reference-id",
-  "reference_pdfs": []
-}
+**Request** `multipart/form-data`
+
+```bash
+curl -X POST http://localhost:8000/pipeline \
+  -F "s3_uri=s3://material-intake/scenes/chair.usda" \
+  -F "coverage_policy=strict"
 ```
 
 **Response** `202` — [`SessionCreated`](#sessioncreated)
@@ -191,6 +237,9 @@ The response includes a `reference_id`; pass it as `generated_reference_id` to
 ### `GET /pipeline/{session_id}/status`
 
 Get the current pipeline status — step progress, active step, completion fraction.
+Failed sessions also return a non-empty stable `error` code, `failed_step`, a
+redacted `error_diagnostic`, and `failure_evidence` links when bounded renderer
+evidence was retained.
 
 **Response** `200` — [`PipelineStatus`](#pipelinestatus)
 
@@ -351,6 +400,17 @@ List all preview images rendered during the pipeline.
 
 Download a specific preview image.
 
+### `GET /assets/{session_id}/failure-evidence`
+
+List the bounded diagnostic report and representative failed-render samples for
+a failed pipeline. These files are diagnostic evidence, not successful preview
+artifacts.
+
+### `GET /assets/{session_id}/failure-evidence/{file_name}`
+
+Download one file named by the failure-evidence listing. The service accepts
+only the report and hashed sample names recorded in terminal session metadata.
+
 ### `GET /assets/{session_id}/references`
 
 List reference images for the session.
@@ -445,10 +505,15 @@ data: {"step": "apply", "ended_at": "...", "success": true}
 
 event: pipeline_completed
 data: {"status": "completed"}
+
+event: progress
+data: {"state":"failed","step":"build_dataset_usd","message":"blank_dataset_renders","extra":{"pipeline_failed":true,"error_diagnostic":{"code":"blank_dataset_renders","phase":"rendering","failed_step":"build_dataset_usd","renderer_backend":"warp","checked_count":3,"blank_count":2,"threshold":0.5,"render_modes":["composition"]},"failure_evidence":{"report":{"name":"report.json","url":"/assets/session-id/failure-evidence/report.json"},"samples":[],"retention":"until_session_expiry_or_deletion"}}}
 ```
 
 Clients should reconnect on disconnect. Use
 `GET /pipeline/{session_id}/event-log` to replay persisted event history.
+The executor persists terminal metadata before emitting the terminal failure,
+so the SSE code and diagnostic agree with status polling.
 
 ---
 
@@ -459,8 +524,15 @@ Clients should reconnect on disconnect. Use
 | Field | Type | Description |
 |-------|------|-------------|
 | `session_id` | string | Unique session identifier. |
-| `status` | string | Initial status (usually `queued`). |
-| `created_at` | datetime | ISO timestamp. |
+| `status` | string | Endpoint-specific initial status. |
+| `message` | string | Human-readable summary of the session creation result. |
+| `estimated_duration_minutes` | integer \| null | Estimated completion time in minutes, when available. |
+
+Initial status is `pending` for `POST /pipeline` and
+`POST /pipeline/{session_id}/regenerate`, and `ready` for
+`POST /pipeline/upload-usd` and `POST /pipeline/open-usd`. The response does not
+include a `created_at` field; creation timestamps are part of other session and
+status resources, not `SessionCreated`.
 
 ### `PipelineStatus`
 
@@ -471,6 +543,18 @@ Clients should reconnect on disconnect. Use
 | `current_step` | `CurrentStepInfo \| null` | The step currently executing (if any). |
 | `completed_steps` | `list[CompletedStepInfo]` | Steps that have finished. |
 | `progress` | `OverallProgress` | Fraction of total steps completed. |
+| `error` | `string \| null` | Stable non-empty code for a terminal failure. |
+| `failed_step` | `string \| null` | Step that produced the terminal failure. |
+| `error_diagnostic` | `object \| null` | Bounded code-owned fields; never raw exception text, credentials, prompts, private paths, or tracebacks. |
+| `failure_evidence` | `object \| null` | Report/sample download links retained with the failed session. |
+
+### Failed-session lifecycle
+
+Integrations must read the terminal status and collect any failure report or
+sample URLs before deleting a failed session. Failure evidence remains available
+until normal session TTL expiry or an explicit `DELETE /sessions/{session_id}`;
+deletion removes the session and its evidence. The service cannot preserve
+artifacts after a downstream client explicitly deletes the session.
 
 ### `PipelineResults`
 
@@ -522,7 +606,8 @@ The service reads its configuration from environment variables at startup. See `
 | `ANTHROPIC_API_KEY` | Required if using `anthropic` backend |
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Required if using `gemini` backend |
 | `MA_SESSION_STORAGE_PATH` | Where session directories are written |
-| `MA_MAX_UPLOAD_SIZE_MB` | Max USD file size for `/pipeline/upload-usd` |
+| `MA_MAX_UPLOAD_SIZE_MB` | Max USD size for uploaded and S3 pipeline inputs |
+| `MA_S3_ALLOWED_BUCKETS` | Exact bucket names authorized for client `s3_uri` pipeline inputs; empty rejects all |
 | `MA_MAX_ACTIVE_SESSIONS` | Max concurrent pipelines, read when the registry starts. The source fallback is `3`; invalid or negative values fall back to `3`; `0` permits no active executions. The service image sets `8`; local OVRTX Compose sets `1`. |
 | `MA_MAX_RENDER_NUM_WORKERS` | Max accepted `render_num_workers` override; local OVRTX compose defaults to `1` |
 | `WU_NVCF_GLOBAL_MAX_CONCURRENT_REQUESTS` | Process-wide render request cap; local OVRTX compose defaults to `1` |
@@ -540,7 +625,7 @@ The service reads its configuration from environment variables at startup. See `
 | `MA_CLUSTER_EMBEDDING_BATCH_SIZE` | Default clustering embedding batch size |
 | `MA_CLUSTER_MIN_PRIMS` | Default minimum prim count before clustering runs |
 | `MA_CLUSTER_MAX_SIZE` | Default max prims per propagated representative prediction |
-| `MA_RENDERER_BACKEND` | `ovrtx` or `remote` |
+| `MA_RENDERER_BACKEND` | `remote` (default), `warp`, `ovrtx`, or `mock` (tests only); unknown values fail service startup |
 
 Prediction concurrency is request-scoped through the `vlm_max_workers` form
 field. Render concurrency is controlled separately by `render_num_workers` and

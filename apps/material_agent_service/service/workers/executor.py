@@ -12,7 +12,7 @@ import threading
 from collections.abc import Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any
 
 from material_agent.api import (
@@ -22,6 +22,7 @@ from material_agent.api import (
     arun_pipeline,
     arun_scene_pipeline,
 )
+from material_agent.config.schema import STEP_OUTPUT_DIRS
 from world_understanding.agentic.config import clone_config_containers
 from world_understanding.telemetry import get_current_span, traced
 from world_understanding.telemetry.attributes import MAAttributes
@@ -29,6 +30,9 @@ from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     durable_diagnostic,
     log_durable_failure,
+)
+from world_understanding.utils.render_failure_diagnostics import (
+    normalize_pipeline_failure_diagnostic,
 )
 from world_understanding.utils.result_projection import project_result_metadata
 
@@ -57,6 +61,13 @@ logger = logging.getLogger(__name__)
 
 _REGENERATION_LEASE_SECONDS = 300.0
 _REGENERATION_HEARTBEAT_SECONDS = 60.0
+_MAX_LOG_COUNT = 2_147_483_647
+_FAILURE_EVIDENCE_DIR_NAME = "failure_evidence"
+_BUILD_DATASET_USD_OUTPUT_DIR = str(STEP_OUTPUT_DIRS["build_dataset_usd"])
+_DEFAULT_FAILURE_EVIDENCE_SOURCE_DIR = (
+    Path("cache") / _BUILD_DATASET_USD_OUTPUT_DIR / _FAILURE_EVIDENCE_DIR_NAME
+)
+_FAILURE_EVIDENCE_PUBLIC_DIR = "failure_evidence"
 
 _STEP_DISPLAY_NAMES = {
     "optimize_usd": "Optimizing USD Scene",
@@ -70,6 +81,80 @@ _STEP_DISPLAY_NAMES = {
     "apply": "Applying Materials",
     "render": "Rendering Final Output",
 }
+
+
+def _bounded_log_count(value: Any) -> int:
+    """Return a non-negative integer suitable for a fixed-schema log field."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return min(_MAX_LOG_COUNT, max(0, value))
+    if isinstance(value, float) and value.is_integer():
+        return min(_MAX_LOG_COUNT, max(0, int(value)))
+    return 0
+
+
+def _log_scene_pipeline_stats(stats: dict[str, Any]) -> None:
+    """Log only bounded aggregate fields for a large-scene run."""
+    logger.info(
+        "Scene pipeline stats: assets_completed=%d assets_failed=%d "
+        "images_generated=%d validation_errors=%d validation_warnings=%d",
+        _bounded_log_count(stats.get("scene_assets_completed")),
+        _bounded_log_count(stats.get("scene_assets_failed")),
+        _bounded_log_count(stats.get("images_generated")),
+        _bounded_log_count(stats.get("scene_validation_errors")),
+        _bounded_log_count(stats.get("scene_validation_warnings")),
+    )
+
+
+def _log_pipeline_stats(stats: dict[str, Any]) -> None:
+    """Log only bounded aggregate fields for a standard pipeline run."""
+    logger.info(
+        "Pipeline stats: original_prims=%d prims_processed=%d "
+        "images_generated=%d predictions_made=%d materials_applied=%d",
+        _bounded_log_count(stats.get("original_prim_count")),
+        _bounded_log_count(stats.get("prims_processed")),
+        _bounded_log_count(stats.get("images_generated")),
+        _bounded_log_count(stats.get("predictions_made")),
+        _bounded_log_count(stats.get("materials_applied")),
+    )
+
+
+def _log_material_coverage(coverage: dict[str, Any]) -> None:
+    """Log only bounded aggregate fields from the coverage contract."""
+    logger.info(
+        "Pipeline material coverage: targets=%d prepared=%d predicted=%d "
+        "bound=%d unbound=%d",
+        _bounded_log_count(coverage.get("target_count")),
+        _bounded_log_count(coverage.get("prepared_count")),
+        _bounded_log_count(coverage.get("predicted_count")),
+        _bounded_log_count(coverage.get("bound_count")),
+        _bounded_log_count(coverage.get("unbound_count")),
+    )
+
+
+class _PersistedPipelineFailureError(RuntimeError):
+    """Signal a standard-run failure whose terminal contract is already durable."""
+
+
+def _authoritative_persisted_failure_time(
+    metadata: Mapping[str, Any] | None,
+) -> datetime | None:
+    """Return the timestamp for complete authoritative failure metadata."""
+    if not (
+        metadata
+        and metadata.get("status") == "failed"
+        and isinstance(metadata.get("error"), str)
+        and metadata.get("error")
+        and isinstance(metadata.get("error_diagnostic"), Mapping)
+        and isinstance(metadata.get("failed_at"), str)
+    ):
+        return None
+    try:
+        failed_at = datetime.fromisoformat(metadata["failed_at"].replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return failed_at if failed_at.tzinfo is not None else None
 
 
 def _current_run_completed_steps(
@@ -357,17 +442,183 @@ async def _carry_forward_regeneration_artifacts(
     return verified_validity
 
 
+async def _publish_failure_evidence(
+    session_manager: SessionManager,
+    session_id: str,
+    session_dir: Path,
+    diagnostic: Mapping[str, Any],
+    *,
+    source_dir: Path | None = None,
+    regeneration_claim: RegenerationClaim | None,
+    artifact_map: dict[str, str] | None,
+) -> dict[str, Any] | None:
+    """Publish only the fixed, allowlisted evidence named by a trusted diagnostic."""
+    raw_evidence = diagnostic.get("evidence")
+    if not isinstance(raw_evidence, Mapping):
+        return None
+    report_name = raw_evidence.get("report")
+    sample_names = raw_evidence.get("samples")
+    if report_name != "report.json" or not isinstance(sample_names, list):
+        return None
+
+    if source_dir is None:
+        source_dir = session_dir / _DEFAULT_FAILURE_EVIDENCE_SOURCE_DIR
+    session_root = session_dir.resolve()
+
+    async def publish(name: str, content_type: str) -> bool:
+        source = source_dir / name
+        try:
+            resolved_source = source.resolve(strict=True)
+        except OSError:
+            return False
+        if (
+            not resolved_source.is_relative_to(session_root)
+            or not resolved_source.is_file()
+        ):
+            return False
+        logical_key = f"{_FAILURE_EVIDENCE_PUBLIC_DIR}/{name}"
+        target_key = (
+            f"{regeneration_claim.artifact_prefix}/{logical_key}"
+            if regeneration_claim is not None
+            else logical_key
+        )
+        try:
+            await session_manager.put_file_to_store(
+                session_id,
+                target_key,
+                str(resolved_source),
+                content_type=content_type,
+            )
+        except Exception:
+            log_durable_failure(
+                logger,
+                "material_failure_evidence_publication_failed",
+                phase=FailurePhase.LOCAL_PUBLICATION,
+                retryable=True,
+            )
+            return False
+        if artifact_map is not None:
+            artifact_map[logical_key] = target_key
+        return True
+
+    if not await publish("report.json", "application/json"):
+        return None
+
+    published_samples: list[dict[str, str]] = []
+    for name in sample_names:
+        if type(name) is not str:
+            continue
+        if await publish(name, "image/png"):
+            published_samples.append(
+                {
+                    "name": name,
+                    "url": f"/assets/{session_id}/failure-evidence/{name}",
+                }
+            )
+
+    return {
+        "report": {
+            "name": "report.json",
+            "url": f"/assets/{session_id}/failure-evidence/report.json",
+        },
+        "samples": published_samples,
+        "retention": "until_session_expiry_or_deletion",
+    }
+
+
+def _diagnostic_for_published_failure_evidence(
+    diagnostic: Mapping[str, Any],
+    failure_evidence: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Advertise diagnostic evidence only when every named file was published."""
+    persisted = dict(diagnostic)
+    requested = diagnostic.get("evidence")
+    if not isinstance(requested, Mapping):
+        return persisted
+
+    published_report = (
+        failure_evidence.get("report")
+        if isinstance(failure_evidence, Mapping)
+        else None
+    )
+    published_samples = (
+        failure_evidence.get("samples")
+        if isinstance(failure_evidence, Mapping)
+        else None
+    )
+    requested_samples = requested.get("samples")
+    published_names: list[str] = []
+    if isinstance(published_samples, list):
+        for sample in published_samples:
+            if not isinstance(sample, Mapping) or type(sample.get("name")) is not str:
+                break
+            published_names.append(sample["name"])
+        else:
+            if (
+                isinstance(published_report, Mapping)
+                and published_report.get("name") == requested.get("report")
+                and isinstance(requested_samples, list)
+                and published_names == requested_samples
+            ):
+                return persisted
+
+    # ``error_diagnostic.evidence`` names the complete generated bundle, while
+    # ``failure_evidence`` is the authoritative published subset. Do not expose
+    # names that the assets API cannot serve after any publication failure.
+    persisted.pop("evidence", None)
+    return persisted
+
+
+def _failure_evidence_source_dir(
+    config_dict: Mapping[str, Any],
+    session_dir: Path,
+) -> Path:
+    """Resolve the render evidence directory from the pipeline's working dir.
+
+    Unified Material Agent configuration derives ``build_dataset_usd.output_dir``
+    from ``project.working_dir`` and ``STEP_OUTPUT_DIRS``. Mirror that exact
+    mapping here instead of assuming the service's default cache layout. The
+    publisher still resolves the resulting files and confines them to the
+    current session before reading anything.
+    """
+    project = config_dict.get("project")
+    raw_working_dir = (
+        project.get("working_dir") if isinstance(project, Mapping) else None
+    )
+    if not (
+        (type(raw_working_dir) is str and raw_working_dir)
+        or isinstance(raw_working_dir, PurePath)
+    ):
+        return session_dir / _DEFAULT_FAILURE_EVIDENCE_SOURCE_DIR
+
+    working_dir = Path(raw_working_dir)
+    if not working_dir.is_absolute():
+        # In-memory PipelineInput configs use cwd/config_dict.yaml as their
+        # implicit source anchor, so relative working dirs resolve from cwd.
+        working_dir = Path.cwd() / working_dir
+    return working_dir / _BUILD_DATASET_USD_OUTPUT_DIR / _FAILURE_EVIDENCE_DIR_NAME
+
+
 async def _emit_persisted_pipeline_failure(
     session_id: str,
     error: str,
     *,
     step: str,
+    error_diagnostic: Mapping[str, Any],
+    failure_evidence: Mapping[str, Any] | None = None,
     regeneration_claim: RegenerationClaim | None,
 ) -> None:
     """Emit the authoritative failure marker after metadata is persisted."""
     event_bus = get_event_bus()
     if event_bus.get_snapshot(session_id) is None:
         return
+
+    extra: dict[str, Any] = {
+        "pipeline_failed": True,
+        "error_diagnostic": dict(error_diagnostic),
+    }
+    if failure_evidence is not None:
+        extra["failure_evidence"] = dict(failure_evidence)
 
     try:
         await event_bus.emit_for_owner(
@@ -376,7 +627,7 @@ async def _emit_persisted_pipeline_failure(
                 step=step,
                 state=StepState.FAILED,
                 message=error,
-                extra={"pipeline_failed": True},
+                extra=extra,
             ),
             regeneration_claim=regeneration_claim,
         )
@@ -517,6 +768,23 @@ async def _monitor_regeneration_claim(
         await asyncio.sleep(_REGENERATION_HEARTBEAT_SECONDS)
 
 
+async def _stop_pipeline_cancellation_monitor(
+    monitor_task: asyncio.Task[None],
+    session_id: str,
+) -> None:
+    """Drain the monitor before terminal recovery performs interruptible I/O."""
+    monitor_task.cancel()
+    try:
+        await monitor_task
+    except asyncio.CancelledError:
+        pass
+    except Exception:  # pragma: no cover - monitor is defensive internally
+        logger.exception(
+            "Pipeline cancellation monitor failed during cleanup for %s",
+            session_id[:8],
+        )
+
+
 async def _update_pipeline_session(
     session_manager: SessionManager,
     session_id: str,
@@ -608,6 +876,7 @@ async def execute_pipeline_async(
     owner_task = asyncio.current_task()
     if owner_task is None:  # pragma: no cover - coroutine execution always has a task
         raise RuntimeError("Pipeline execution requires an active asyncio task")
+    execution_started_at = datetime.now(UTC)
     cancel_poll_task = asyncio.create_task(
         _monitor_regeneration_claim(
             session_manager,
@@ -631,7 +900,44 @@ async def execute_pipeline_async(
             coverage_policy=normalize_coverage_policy(coverage_policy),
             regeneration_claim=regeneration_claim,
         )
+    except _PersistedPipelineFailureError:
+        raise
     except asyncio.CancelledError:
+        await _stop_pipeline_cancellation_monitor(cancel_poll_task, session_id)
+        existing = await session_manager.get_session_metadata(session_id)
+        failed_at = _authoritative_persisted_failure_time(existing)
+        if failed_at is not None and failed_at >= execution_started_at:
+            assert existing is not None
+            error = existing["error"]
+            error_diagnostic = existing["error_diagnostic"]
+            assert isinstance(error, str)
+            assert isinstance(error_diagnostic, Mapping)
+            failed_step = existing.get("failed_step")
+            failure_evidence = existing.get("failure_evidence")
+            logger.info(
+                "Preserving authoritative pipeline failure for %s after cancellation",
+                session_id[:8],
+            )
+            # Cancellation may arrive between the terminal metadata CAS and
+            # its final event/quiescence writes. Finish that already-committed
+            # failure contract instead of relabeling it as cancelled.
+            await _emit_persisted_pipeline_failure(
+                session_id,
+                error,
+                step=failed_step if isinstance(failed_step, str) else "pipeline",
+                error_diagnostic=error_diagnostic,
+                failure_evidence=(
+                    failure_evidence if isinstance(failure_evidence, Mapping) else None
+                ),
+                regeneration_claim=regeneration_claim,
+            )
+            await _mark_standard_terminal_events_quiesced(
+                session_manager,
+                session_id,
+                regeneration_claim=regeneration_claim,
+                expected_status="failed",
+            )
+            raise _PersistedPipelineFailureError(error) from None
         logger.info(f"Pipeline cancelled for {session_id[:8]}")
         persisted = await _finalize_pipeline_session(
             session_manager,
@@ -656,6 +962,18 @@ async def execute_pipeline_async(
             )
         raise  # Re-raise so JobRegistry cleanup runs
     except Exception:
+        existing = await session_manager.get_session_metadata(session_id)
+        if _authoritative_persisted_failure_time(existing) is not None:
+            # A post-persistence action (for example, the event-quiescence
+            # marker) must never replace an already authoritative typed
+            # failure with a second generic code.
+            log_durable_failure(
+                logger,
+                "material_pipeline_post_failure_action_failed",
+                phase=FailurePhase.PERSISTENCE_VERIFICATION,
+                retryable=True,
+            )
+            raise
         diagnostic = durable_diagnostic(
             "material_pipeline_failed",
             phase=FailurePhase.PIPELINE_EXECUTION,
@@ -674,6 +992,7 @@ async def execute_pipeline_async(
                 "status": "failed",
                 "error": diagnostic.code,
                 "error_diagnostic": diagnostic.to_dict(),
+                "failed_step": "pipeline",
                 "failed_at": datetime.now(UTC).isoformat(),
             },
             regeneration_claim=regeneration_claim,
@@ -683,6 +1002,7 @@ async def execute_pipeline_async(
                 session_id,
                 diagnostic.code,
                 step="pipeline",
+                error_diagnostic=diagnostic.to_dict(),
                 regeneration_claim=regeneration_claim,
             )
             await _mark_standard_terminal_events_quiesced(
@@ -693,16 +1013,7 @@ async def execute_pipeline_async(
             )
         raise
     finally:
-        cancel_poll_task.cancel()
-        try:
-            await cancel_poll_task
-        except asyncio.CancelledError:
-            pass
-        except Exception:  # pragma: no cover - monitor is defensive internally
-            logger.exception(
-                "Pipeline cancellation monitor failed during cleanup for %s",
-                session_id[:8],
-            )
+        await _stop_pipeline_cancellation_monitor(cancel_poll_task, session_id)
 
 
 @traced("maa.scene_pipeline.execution")
@@ -763,6 +1074,7 @@ async def execute_scene_pipeline_async(
                 "status": "failed",
                 "error": diagnostic.code,
                 "error_diagnostic": diagnostic.to_dict(),
+                "failed_step": "scene_pipeline",
                 "failed_at": datetime.now(UTC).isoformat(),
             },
         )
@@ -770,6 +1082,7 @@ async def execute_scene_pipeline_async(
             session_id,
             diagnostic.code,
             step="scene_pipeline",
+            error_diagnostic=diagnostic.to_dict(),
             regeneration_claim=None,
         )
         raise
@@ -936,7 +1249,7 @@ async def _execute_scene_pipeline_inner(
             await cancel_poll_task
 
     stats = _extract_scene_stats(result)
-    logger.info("Scene pipeline stats for %s: %s", session_id[:8], stats)
+    _log_scene_pipeline_stats(stats)
     coverage = build_not_evaluated_material_coverage(
         policy=normalize_coverage_policy(coverage_policy),
         warning=(
@@ -1019,6 +1332,7 @@ async def _execute_scene_pipeline_inner(
                         message=diagnostic.code,
                         extra={
                             "pipeline_failed": True,
+                            "error_diagnostic": diagnostic.to_dict(),
                             "coverage": coverage,
                             **stats,
                         },
@@ -1281,43 +1595,60 @@ async def _execute_pipeline_inner(
         )
 
     if not result.success:
-        diagnostic = durable_diagnostic(
-            "material_pipeline_result_failed",
-            phase=FailurePhase.PIPELINE_EXECUTION,
-            retryable=False,
+        error_diagnostic = normalize_pipeline_failure_diagnostic(
+            getattr(result, "error_diagnostic", None)
+        )
+        if error_diagnostic is None:
+            generic_diagnostic = durable_diagnostic(
+                "material_pipeline_result_failed",
+                phase=FailurePhase.PIPELINE_EXECUTION,
+                retryable=False,
+            )
+            error_diagnostic = generic_diagnostic.to_dict()
+        error_code = str(error_diagnostic["code"])
+        failed_step = str(error_diagnostic.get("failed_step") or "pipeline")
+        failure_evidence = await _publish_failure_evidence(
+            session_manager,
+            session_id,
+            session_dir,
+            error_diagnostic,
+            source_dir=_failure_evidence_source_dir(config_dict, session_dir),
+            regeneration_claim=regeneration_claim,
+            artifact_map=published_artifacts,
+        )
+        error_diagnostic = _diagnostic_for_published_failure_evidence(
+            error_diagnostic,
+            failure_evidence,
         )
         failure_snapshot = get_event_bus().get_snapshot(session_id)
         failure_updates: dict[str, Any] = {
             "artifact_validity": artifact_validity,
+            "status": "failed",
+            "error": error_code,
+            "error_diagnostic": error_diagnostic,
+            "failed_step": failed_step,
+            "failed_at": datetime.now(UTC).isoformat(),
         }
+        if failure_evidence is not None:
+            failure_updates["failure_evidence"] = failure_evidence
         if artifact_validity["previews"] and failure_snapshot:
             failure_updates["preview_images"] = list(
                 failure_snapshot.get("preview_images") or []
             )
-        if regeneration_claim is None:
-            persisted = await _update_pipeline_session(
-                session_manager,
-                session_id,
-                failure_updates,
-                regeneration_claim=None,
-            )
-        else:
-            persisted = await _finalize_pipeline_session(
-                session_manager,
-                session_id,
-                {
-                    **failure_updates,
-                    "status": "failed",
-                    "error": diagnostic.code,
-                    "error_diagnostic": diagnostic.to_dict(),
-                    "failed_at": datetime.now(UTC).isoformat(),
-                },
-                regeneration_claim=regeneration_claim,
-                artifact_map=published_artifacts,
-            )
+        persisted = await _finalize_pipeline_session(
+            session_manager,
+            session_id,
+            failure_updates,
+            regeneration_claim=regeneration_claim,
+            artifact_map=published_artifacts,
+            remove_fields=(
+                () if failure_evidence is not None else ("failure_evidence",)
+            ),
+        )
         if not persisted:
             raise asyncio.CancelledError("Regeneration claim was superseded")
-        # Emit step spans before raising so they appear as children
+        # Emit step spans before the authoritative terminal event so they
+        # remain children of the pipeline span.
         _emit_step_spans(
             session_id=session_id,
             step_timings=telemetry_listener.get_step_timings(),
@@ -1326,19 +1657,23 @@ async def _execute_pipeline_inner(
         # Set failure status on root span
         if span:
             span.set_attribute(MAAttributes.PIPELINE_STATUS, "failed")
-        if regeneration_claim is not None:
-            # The regeneration claim was finalized above. Emit its sole
-            # authoritative failure marker now; raising would make the outer
-            # wrapper attempt a second finalization, see an inactive claim,
-            # and skip the terminal SSE event.
-            await _emit_persisted_pipeline_failure(
-                session_id,
-                diagnostic.code,
-                step="pipeline",
-                regeneration_claim=regeneration_claim,
-            )
-            return
-        raise RuntimeError(diagnostic.code)
+        await _emit_persisted_pipeline_failure(
+            session_id,
+            error_code,
+            step=failed_step,
+            error_diagnostic=error_diagnostic,
+            failure_evidence=failure_evidence,
+            regeneration_claim=regeneration_claim,
+        )
+        await _mark_standard_terminal_events_quiesced(
+            session_manager,
+            session_id,
+            regeneration_claim=regeneration_claim,
+            expected_status="failed",
+        )
+        if regeneration_claim is None:
+            raise _PersistedPipelineFailureError(error_code)
+        return
 
     # Extract stats from step results and save to session metadata
     # Debug: log available data
@@ -1348,13 +1683,13 @@ async def _execute_pipeline_inner(
         logger.info("Pipeline raw_result contains %d field(s)", len(result.raw_result))
 
     stats = _extract_stats_from_result(result, session_dir)
-    logger.info(f"Pipeline stats for {session_id[:8]}: {stats}")
+    _log_pipeline_stats(stats)
     coverage = build_material_coverage(
         result,
         session_dir,
         policy=normalize_coverage_policy(coverage_policy),
     )
-    logger.info("Pipeline material coverage for %s: %s", session_id[:8], coverage)
+    _log_material_coverage(coverage)
 
     # Calculate duration
     duration_seconds = 0
@@ -1397,7 +1732,7 @@ async def _execute_pipeline_inner(
     )
 
     if coverage["policy"] == "strict" and not coverage_is_release_ready(coverage):
-        error_message = (
+        coverage_detail = (
             "Strict material coverage qualification failed: "
             f"readiness={coverage['readiness_grade']}, "
             f"predictions={coverage['usable_prediction_count']} usable + "
@@ -1405,12 +1740,19 @@ async def _execute_pipeline_inner(
             f"targets, bindings={coverage['bound_count']} / "
             f"{coverage['target_count']}."
         )
+        logger.warning("%s", coverage_detail)
+        diagnostic = durable_diagnostic(
+            "material_coverage_validation_failed",
+            phase=FailurePhase.PIPELINE_EXECUTION,
+            retryable=False,
+        )
         persisted = await _finalize_pipeline_session(
             session_manager,
             session_id,
             {
                 "status": "failed",
-                "error": error_message,
+                "error": diagnostic.code,
+                "error_diagnostic": diagnostic.to_dict(),
                 "failed_step": "coverage_validation",
                 "results": stats,
                 "coverage": coverage,
@@ -1441,9 +1783,10 @@ async def _execute_pipeline_inner(
                         step="coverage_validation",
                         state=StepState.FAILED,
                         percent=100,
-                        message=error_message,
+                        message=diagnostic.code,
                         extra={
                             "pipeline_failed": True,
+                            "error_diagnostic": diagnostic.to_dict(),
                             "coverage": coverage,
                         },
                     ),

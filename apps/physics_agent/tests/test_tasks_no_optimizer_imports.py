@@ -35,6 +35,7 @@ FORBIDDEN: list[str] = [
     "torch",
     "ovphysx",
     "physics_agent.tuning.optimizers",
+    "world_understanding.optimization.optimizers",
 ]
 
 

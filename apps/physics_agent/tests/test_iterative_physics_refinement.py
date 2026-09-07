@@ -23,12 +23,17 @@ from typing import Any
 
 import pytest
 import yaml
+from world_understanding.functions.physics.ovphysx_daemon import (
+    OvPhysXDaemonUnavailableError,
+)
 
 from physics_agent.tasks.iterative_physics_refinement import (
     IterationRecord,
     IterativePhysicsRefinementTask,
     _compact_refine_history,
+    _safe_tune_exception_diagnostic,
 )
+from physics_agent.tuning.errors import TuningError
 from physics_agent.tuning.types import (
     Scenario,
     TrialRecord,
@@ -162,6 +167,17 @@ def _write_freeform_initial_yaml(tmp_path: Path) -> Path:
     return p
 
 
+def _write_authored_restitution_usd(tmp_path: Path, value: float) -> Path:
+    from pxr import Usd, UsdPhysics, UsdShade
+
+    path = tmp_path / "physics.usda"
+    stage = Usd.Stage.CreateNew(str(path))
+    material = UsdShade.Material.Define(stage, "/Material")
+    UsdPhysics.MaterialAPI.Apply(material.GetPrim()).CreateRestitutionAttr(value)
+    stage.GetRootLayer().Save()
+    return path
+
+
 class _DefaultJudgeVLM:
     def generate_with_image_caption_pairs(self, **_kwargs: Any) -> str:
         return json.dumps(
@@ -249,6 +265,7 @@ def test_approve_at_first_iteration_short_circuits(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,  # refine degrades; judge has no VLM
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     result = task.run({})
     assert len(result.iterations) == 1
@@ -265,6 +282,46 @@ def test_approve_at_first_iteration_short_circuits(tmp_path: Path) -> None:
     assert result.final_recording_error == (
         "winning trial did not persist recording_usd"
     )
+
+
+def test_iteration_persists_bounds_resolved_from_authored_usd(tmp_path: Path) -> None:
+    physics_usd = _write_authored_restitution_usd(tmp_path, 0.4)
+    fake = _FakeRunTune(
+        [
+            _make_tune_output(
+                tmp_path / "out" / "iter_1",
+                history=[_trial(0, 0.0, settle_distance=0.0)],
+                best_score=0.0,
+                best_params={"restitution": 0.4},
+            )
+        ]
+    )
+    task = IterativePhysicsRefinementTask(
+        user_prompt="preserve the authored response",
+        initial_scenario={
+            "name": "drop_settle",
+            "parameters": [{"name": "restitution"}],
+        },
+        physics_usd=physics_usd,
+        output_dir=tmp_path / "out",
+        engine="fake",
+        max_iterations=1,
+        run_tune_callable=fake,
+        visual_evidence_enabled=False,
+    )
+
+    task.run({})
+
+    persisted = yaml.safe_load(
+        (tmp_path / "out" / "iter_1" / "scenario.yaml").read_text(encoding="utf-8")
+    )
+    assert persisted["parameters"] == [
+        {
+            "name": "restitution",
+            "min": pytest.approx(0.4 / 1.1),
+            "max": pytest.approx(0.4 * 1.1),
+        }
+    ]
 
 
 def test_continue_then_approve_runs_refine_between(
@@ -346,6 +403,7 @@ def test_continue_then_approve_runs_refine_between(
         chat_model=object(),  # any non-None triggers the refine LLM path
         vlm_model=judge_vlm,
         run_tune_callable=fake_runner,
+        visual_evidence_enabled=False,
     )
     result = task.run({})
     assert len(fake_runner.calls) == 2
@@ -452,6 +510,7 @@ def test_compact_prior_history_written_and_passed_to_judge_and_refiner(
         chat_model=object(),
         vlm_model=judge_vlm,
         run_tune_callable=fake_runner,
+        visual_evidence_enabled=False,
     )
 
     result = task.run({})
@@ -573,6 +632,7 @@ def test_history_window_zero_disables_prompt_history_but_keeps_summary_audit(
         chat_model=object(),
         vlm_model=judge_vlm,
         run_tune_callable=fake_runner,
+        visual_evidence_enabled=False,
     )
 
     result = task.run({})
@@ -693,6 +753,7 @@ def test_max_iterations_terminates_loop(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,  # refine degrades silently
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     result = task.run({})
     assert len(result.iterations) == 2
@@ -744,6 +805,7 @@ def test_metric_value_extracted_from_history(tmp_path: Path) -> None:
         score_threshold=0.0,  # always approve
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     result = task.run({})
     assert len(result.iterations) == 1
@@ -775,6 +837,7 @@ def test_listener_context_keys(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     ctx: dict[str, Any] = {}
     task.run(ctx)
@@ -807,10 +870,18 @@ def test_error_summary_is_strict_json(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     from world_understanding.agentic.events import CollectingEventListener
 
-    listener = CollectingEventListener()
+    class _NoExceptionKwargsListener(CollectingEventListener):
+        """Fail if the task forwards traceback/logging kwargs to a listener."""
+
+        def error(self, message: str, **kwargs: Any) -> None:
+            assert kwargs == {}
+            super().error(message, **kwargs)
+
+    listener = _NoExceptionKwargsListener()
     result = task.run({"event_listener": listener})
     summary_path = tmp_path / "out" / "refine_summary.json"
     assert summary_path.exists()
@@ -819,13 +890,127 @@ def test_error_summary_is_strict_json(tmp_path: Path) -> None:
     parsed = json.loads(raw)
     assert parsed["termination_reason"] == "error"
     assert parsed["iterations"][0]["best_score"] is None
-    assert parsed["iterations"][0]["error"] == "Tune execution failed before judge."
-    assert result.iterations[0].error == "Tune execution failed before judge."
+    assert "RuntimeError" in parsed["iterations"][0]["error"]
+    assert result.iterations[0].error == parsed["iterations"][0]["error"]
     published = raw + repr(listener.logs) + repr(listener.events)
     assert sentinel not in published
     # The bareword "Infinity" must not appear anywhere in the file.
     assert "Infinity" not in raw
     assert "NaN" not in raw
+
+
+def test_bound_resolution_failure_preserves_history_and_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    initial = _write_initial_yaml(tmp_path)
+    resolution_calls = 0
+    unsafe_resolution_text = (
+        "automatic restitution bounds collapsed; "
+        "api_key=bound-resolution-secret-sentinel"
+    )
+
+    def fail_second_resolution(scenario: Scenario, **_kwargs: Any) -> Scenario:
+        nonlocal resolution_calls
+        resolution_calls += 1
+        if resolution_calls == 2:
+            raise TuningError(unsafe_resolution_text)
+        return scenario
+
+    monkeypatch.setattr(
+        "physics_agent.tasks.iterative_physics_refinement."
+        "resolve_scenario_parameter_bounds",
+        fail_second_resolution,
+    )
+
+    def continue_once(params: TuneInput) -> TuneOutput:
+        return _make_tune_output(
+            Path(params.output_dir),
+            history=[_trial(0, 0.5, settle_distance=0.5)],
+            best_score=0.5,
+            best_params={"restitution": 10.0, "mass_scale": 100.0},
+        )
+
+    fake = _FakeRunTune([continue_once])
+    task = IterativePhysicsRefinementTask(
+        user_prompt="make it bouncy",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=tmp_path / "out",
+        max_iterations=3,
+        score_threshold=0.7,
+        chat_model=None,
+        run_tune_callable=fake,
+        visual_evidence_enabled=False,
+    )
+
+    from world_understanding.agentic.events import CollectingEventListener
+
+    listener = CollectingEventListener()
+    ctx: dict[str, Any] = {"event_listener": listener}
+    result = task.run(ctx)
+
+    assert len(fake.calls) == 1
+    assert result.termination_reason == "error"
+    assert len(result.iterations) == 2
+    assert result.iterations[0].judge_decision == "continue"
+    assert result.iterations[1].judge_decision == "skipped"
+    assert result.iterations[1].error is not None
+    assert "Exception category: TuningError." in result.iterations[1].error
+    assert (tmp_path / "out" / "iter_2" / "scenario.yaml").exists()
+    summary = json.loads(
+        (tmp_path / "out" / "refine_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["termination_reason"] == "error"
+    assert len(summary["iterations"]) == 2
+    assert summary["iterations"][0]["judge_decision"] == "continue"
+    assert "Exception category: TuningError." in summary["iterations"][1]["error"]
+    assert ctx["judge_score"] is None
+    assert "Exception category: TuningError." in ctx["judge_reasoning"]
+    assert ctx["continue_iteration"] is False
+    published = (
+        repr(result.iterations)
+        + repr(summary)
+        + repr(listener.logs)
+        + repr(listener.events)
+        + repr(ctx["judge_reasoning"])
+    )
+    assert unsafe_resolution_text not in published
+
+
+def test_corrupt_usd_bound_resolution_is_recorded(tmp_path: Path) -> None:
+    corrupt_usd = tmp_path / "corrupt.usda"
+    corrupt_usd.write_bytes(b"not a usd stage")
+    fake = _FakeRunTune()
+    task = IterativePhysicsRefinementTask(
+        user_prompt="make it bouncy",
+        initial_scenario={
+            "name": "drop_settle",
+            "parameters": [{"name": "restitution"}],
+        },
+        physics_usd=corrupt_usd,
+        output_dir=tmp_path / "out",
+        max_iterations=1,
+        score_threshold=0.7,
+        chat_model=None,
+        run_tune_callable=fake,
+        visual_evidence_enabled=False,
+    )
+
+    result = task.run({})
+
+    assert fake.calls == []
+    assert result.termination_reason == "error"
+    assert len(result.iterations) == 1
+    assert result.iterations[0].error is not None
+    assert "Exception category: RuntimeError." in result.iterations[0].error
+    assert str(corrupt_usd) not in result.iterations[0].error
+    summary = json.loads(
+        (tmp_path / "out" / "refine_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["termination_reason"] == "error"
+    assert "Exception category: RuntimeError." in summary["iterations"][0]["error"]
+    assert str(corrupt_usd) not in summary["iterations"][0]["error"]
 
 
 def test_tune_failure_via_success_false_terminates_with_error(tmp_path: Path) -> None:
@@ -835,6 +1020,7 @@ def test_tune_failure_via_success_false_terminates_with_error(tmp_path: Path) ->
     judge over a junk history and possibly approving."""
     initial = _write_initial_yaml(tmp_path)
 
+    unsafe_tune_error = "backend rejected api_key=tune-output-secret-sentinel"
     failed_output = TuneOutput(
         success=False,
         output_dir=tmp_path / "out" / "iter_1",
@@ -847,7 +1033,7 @@ def test_tune_failure_via_success_false_terminates_with_error(tmp_path: Path) ->
         artifacts={},
         cancelled=False,
         needs_refinement=False,
-        error="all 30 trials failed",
+        error=unsafe_tune_error,
     )
     fake = _FakeRunTune([failed_output])
     task = IterativePhysicsRefinementTask(
@@ -859,14 +1045,127 @@ def test_tune_failure_via_success_false_terminates_with_error(tmp_path: Path) ->
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
-    result = task.run({})
+    from world_understanding.agentic.events import CollectingEventListener
+
+    listener = CollectingEventListener()
+    result = task.run({"event_listener": listener})
     assert result.termination_reason == "error"
     assert len(result.iterations) == 1
     assert result.iterations[0].judge_decision == "skipped"
-    assert result.iterations[0].error == "all 30 trials failed"
+    assert result.iterations[0].error == "Tune execution failed before judge."
+    summary = json.loads(
+        (tmp_path / "out" / "refine_summary.json").read_text(encoding="utf-8")
+    )
+    published = (
+        repr(result.iterations)
+        + repr(summary)
+        + repr(listener.logs)
+        + repr(listener.events)
+    )
+    assert unsafe_tune_error not in published
     # final_dir not promoted on error
     assert result.final_dir is None
+
+
+def test_tune_exception_records_exception_category(tmp_path: Path) -> None:
+    """A raised tune error remains actionable without exposing its text."""
+    initial = _write_initial_yaml(tmp_path)
+
+    def raise_tune_error(_params: TuneInput) -> TuneOutput:
+        raise RuntimeError("ovphysx daemon venv is unavailable; run uv venv")
+
+    task = IterativePhysicsRefinementTask(
+        user_prompt="goal",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=tmp_path / "out",
+        max_iterations=3,
+        score_threshold=0.7,
+        chat_model=None,
+        run_tune_callable=raise_tune_error,
+        visual_evidence_enabled=False,
+    )
+
+    result = task.run({})
+
+    assert result.termination_reason == "error"
+    assert len(result.iterations) == 1
+    error = result.iterations[0].error
+    assert error is not None
+    assert "RuntimeError" in error
+    assert "ovphysx daemon venv is unavailable; run uv venv" not in error
+    summary = json.loads(
+        (tmp_path / "out" / "refine_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["iterations"][0]["error"] == error
+
+
+def test_tune_exception_preserves_safe_ovphysx_remediation(tmp_path: Path) -> None:
+    """The allowlisted daemon error keeps its product-authored recovery steps."""
+    initial = _write_initial_yaml(tmp_path)
+    unsafe_instance_text = "provider rejected api_key=ovphysx-secret-sentinel"
+    daemon_error = OvPhysXDaemonUnavailableError(unsafe_instance_text)
+    remediation = OvPhysXDaemonUnavailableError.safe_remediation_message()
+    assert "uv venv --python" in remediation
+    assert "WU_OVPHYSX_VENV_DIR" in remediation
+    assert "If the daemon venv at" in remediation
+
+    def raise_daemon_error(_params: TuneInput) -> TuneOutput:
+        raise daemon_error
+
+    task = IterativePhysicsRefinementTask(
+        user_prompt="goal",
+        initial_scenario=initial,
+        physics_usd=tmp_path / "fake.usda",
+        output_dir=tmp_path / "out",
+        max_iterations=3,
+        score_threshold=0.7,
+        chat_model=None,
+        run_tune_callable=raise_daemon_error,
+        visual_evidence_enabled=False,
+    )
+
+    from world_understanding.agentic.events import CollectingEventListener
+
+    listener = CollectingEventListener()
+    result = task.run({"event_listener": listener})
+    summary = json.loads(
+        (tmp_path / "out" / "refine_summary.json").read_text(encoding="utf-8")
+    )
+
+    error = result.iterations[0].error
+    assert error is not None
+    assert remediation in error
+    assert remediation in summary["iterations"][0]["error"]
+    assert any(remediation in entry["message"] for entry in listener.logs)
+    assert unsafe_instance_text not in error
+    assert unsafe_instance_text not in summary["iterations"][0]["error"]
+    assert all(unsafe_instance_text not in entry["message"] for entry in listener.logs)
+
+
+def test_safe_tune_diagnostic_survives_remediation_resolution_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unsupported product-message platform cannot replace the task failure."""
+
+    def fail_to_resolve_remediation() -> str:
+        raise ValueError("unsupported architecture with secret-path sentinel")
+
+    monkeypatch.setattr(
+        OvPhysXDaemonUnavailableError,
+        "safe_remediation_message",
+        staticmethod(fail_to_resolve_remediation),
+    )
+
+    diagnostic = _safe_tune_exception_diagnostic(
+        OvPhysXDaemonUnavailableError("unsafe dynamic daemon detail")
+    )
+
+    assert diagnostic == "Exception category: OvPhysXDaemonUnavailableError."
+    assert "unsupported architecture" not in diagnostic
+    assert "unsafe dynamic daemon detail" not in diagnostic
 
 
 def test_tune_cancellation_terminates_with_cancelled(tmp_path: Path) -> None:
@@ -897,6 +1196,7 @@ def test_tune_cancellation_terminates_with_cancelled(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     result = task.run({})
     assert result.termination_reason == "cancelled"
@@ -937,6 +1237,7 @@ def test_per_iteration_seed_is_offset_to_avoid_artifact_collisions(
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     task.run({})
     assert len(seen_seeds) == 2
@@ -969,6 +1270,7 @@ def test_max_iterations_clears_continue_iteration_flag(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     ctx: dict[str, Any] = {}
     result = task.run(ctx)
@@ -1015,7 +1317,9 @@ def test_visual_judge_fail_closed_when_generated_render_missing(
     assert result.termination_reason == "error"
     assert len(result.iterations) == 1
     assert result.iterations[0].error is not None
-    assert "Judge VLM unavailable" in result.iterations[0].error
+    assert "did not persist recording_usd" in result.iterations[0].error
+    assert "simulation recording output" in result.iterations[0].error
+    assert "--no-visual-evidence" not in result.iterations[0].error
 
 
 def test_visual_judge_uses_rendered_best_trial_frames(
@@ -1115,7 +1419,7 @@ def test_visual_judge_uses_rendered_best_trial_frames(
         frame,
     )
     assert render_kwargs["max_duration_seconds"] == 3.0
-    assert render_kwargs["make_mp4"] is False
+    assert "make_mp4" not in render_kwargs
 
 
 def test_no_visual_evidence_keeps_render_but_judge_gets_no_images(
@@ -1182,6 +1486,7 @@ def test_no_visual_evidence_keeps_render_but_judge_gets_no_images(
 
     assert result.termination_reason == "approved"
     assert len(render_calls) == 1
+    assert "make_mp4" not in render_calls[0]
     assert len(vlm.calls) == 1
     assert vlm.calls[0]["image_caption_pairs"] == []
     payload = json.loads(
@@ -1193,9 +1498,15 @@ def test_no_visual_evidence_keeps_render_but_judge_gets_no_images(
     assert payload["extra"]["visual_evidence"] is None
 
 
+@pytest.mark.parametrize(
+    "write_scenario",
+    [_write_initial_yaml, _write_freeform_initial_yaml],
+    ids=["drop-settle", "freeform"],
+)
 def test_generated_visual_judge_renders_when_artifact_render_disabled(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    write_scenario: Any,
 ) -> None:
     class StubVLM:
         def __init__(self) -> None:
@@ -1208,7 +1519,7 @@ def test_generated_visual_judge_renders_when_artifact_render_disabled(
                 '"reasoning": "generated motion looks realistic"}'
             )
 
-    initial = _write_freeform_initial_yaml(tmp_path)
+    initial = write_scenario(tmp_path)
     recording = tmp_path / "recording.usda"
     recording.write_text("#usda 1.0\n", encoding="utf-8")
     frame = tmp_path / "frame_0001__t250.png"
@@ -1254,6 +1565,7 @@ def test_generated_visual_judge_renders_when_artifact_render_disabled(
 
     assert result.termination_reason == "approved"
     assert len(render_calls) == 1
+    assert "make_mp4" not in render_calls[0]
     assert len(vlm.calls) == 1
     assert vlm.calls[0]["image_caption_pairs"] == [
         ("Generated Physics Output - Frame 1 (t=0.250s):", frame)
@@ -1268,8 +1580,15 @@ def test_generated_visual_judge_renders_when_artifact_render_disabled(
     assert evidence["generated_images"][0]["path"] == str(frame)
 
 
+@pytest.mark.parametrize(
+    "write_scenario",
+    [_write_initial_yaml, _write_freeform_initial_yaml],
+    ids=["drop-settle", "freeform"],
+)
 def test_generated_visual_judge_preserves_render_error_without_reference(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    write_scenario: Any,
 ) -> None:
     class StubVLM:
         def __init__(self) -> None:
@@ -1282,12 +1601,31 @@ def test_generated_visual_judge_preserves_render_error_without_reference(
                 '"reasoning": "should not judge text-only"}'
             )
 
-    initial = _write_freeform_initial_yaml(tmp_path)
+    initial = write_scenario(tmp_path)
+    recording = tmp_path / "recording.usda"
+    recording.write_text("#usda 1.0\n", encoding="utf-8")
+    render_calls: list[dict[str, Any]] = []
+
+    def fail_render(*_args: Any, **kwargs: Any) -> list[Path]:
+        render_calls.append(kwargs)
+        raise RuntimeError("renderer unavailable")
+
+    monkeypatch.setattr(
+        "world_understanding.functions.graphics.render_time_sampled_usd",
+        fail_render,
+    )
     fake = _FakeRunTune(
         [
             _make_tune_output(
                 tmp_path / "out" / "iter_1",
-                history=[_trial(0, 0.0, settle_distance=0.0)],
+                history=[
+                    _trial(
+                        0,
+                        0.0,
+                        settle_distance=0.0,
+                        recording_usda=str(recording),
+                    )
+                ],
                 best_score=0.0,
                 best_params={"restitution": 0.1, "mass_scale": 1.0},
             )
@@ -1311,9 +1649,13 @@ def test_generated_visual_judge_preserves_render_error_without_reference(
     result = task.run({})
 
     assert result.termination_reason == "error"
+    assert len(render_calls) == 1
+    assert "make_mp4" not in render_calls[0]
     assert len(vlm.calls) == 0
     assert result.iterations[0].error is not None
-    assert "Judge VLM unavailable" in result.iterations[0].error
+    assert "Winning-trial visual evidence renderer failed" in result.iterations[0].error
+    assert "RuntimeError" in result.iterations[0].error
+    assert "--no-visual-evidence" in result.iterations[0].error
     payload = json.loads(
         (tmp_path / "out" / "iter_1" / "judge_result.json").read_text(encoding="utf-8")
     )
@@ -1321,11 +1663,12 @@ def test_generated_visual_judge_preserves_render_error_without_reference(
     evidence = payload["extra"]["visual_evidence"]
     assert evidence["reference_images"] == []
     assert evidence["generated_images"] == []
-    assert evidence["generated_error"] is not None
+    assert evidence["generated_error"] == "RuntimeError"
 
 
-def test_text_only_judge_still_runs_when_optional_render_missing(
+def test_visual_evidence_disabled_text_only_judge_does_not_require_render(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class StubVLM:
         def __init__(self) -> None:
@@ -1339,6 +1682,17 @@ def test_text_only_judge_still_runs_when_optional_render_missing(
             )
 
     initial = _write_initial_yaml(tmp_path)
+    render_calls: list[dict[str, Any]] = []
+
+    def fake_render_best_trial(*_args: Any, **kwargs: Any) -> tuple[list[Path], None]:
+        render_calls.append(kwargs)
+        return [], None
+
+    monkeypatch.setattr(
+        IterativePhysicsRefinementTask,
+        "_render_best_trial_into_iter_dir",
+        fake_render_best_trial,
+    )
     fake = _FakeRunTune(
         [
             _make_tune_output(
@@ -1360,17 +1714,19 @@ def test_text_only_judge_still_runs_when_optional_render_missing(
         chat_model=None,
         vlm_model=vlm,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
 
     result = task.run({})
 
     assert result.termination_reason == "approved"
+    assert render_calls == []
     assert len(vlm.calls) == 1
     assert vlm.calls[0]["image_caption_pairs"] == []
     judge_result_path = tmp_path / "out" / "iter_1" / "judge_result.json"
     payload = json.loads(judge_result_path.read_text(encoding="utf-8"))
     assert payload["llm_unavailable"] is False
-    assert payload["extra"]["visual_evidence_enabled"] is True
+    assert payload["extra"]["visual_evidence_enabled"] is False
     assert payload["extra"]["visual_evidence"] is None
 
 
@@ -1405,6 +1761,7 @@ def test_text_only_refine_fail_closed_when_judge_vlm_unavailable(
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
 
     result = task.run({})
@@ -1465,6 +1822,7 @@ def test_judge_llm_timeout_synthesises_unavailable_result(
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
         llm_timeout_seconds=0.3,
     )
     result = task.run({})
@@ -1532,7 +1890,8 @@ def test_reference_evidence_prep_timeout_fails_closed(
         reference_images=[reference],
         run_tune_callable=fake,
         render_winning_trial=False,
-        llm_timeout_seconds=0.2,
+        visual_evidence_timeout_seconds=0.2,
+        llm_timeout_seconds=5.0,
     )
 
     start = _time.monotonic()
@@ -1542,7 +1901,8 @@ def test_reference_evidence_prep_timeout_fails_closed(
     assert result.termination_reason == "error"
     assert len(result.iterations) == 1
     assert result.iterations[0].error is not None
-    assert "Judge VLM unavailable" in result.iterations[0].error
+    assert "Reference visual evidence preparation failed" in result.iterations[0].error
+    assert "--no-visual-evidence" not in result.iterations[0].error
 
     judge_result_path = tmp_path / "out" / "iter_1" / "judge_result.json"
     payload = json.loads(judge_result_path.read_text(encoding="utf-8"))
@@ -1591,7 +1951,8 @@ def test_winning_trial_render_timeout_fails_closed(
         reference_images=[reference],
         run_tune_callable=fake,
         render_winning_trial=False,
-        llm_timeout_seconds=0.2,
+        visual_evidence_timeout_seconds=0.2,
+        llm_timeout_seconds=5.0,
     )
 
     start = _time.monotonic()
@@ -1601,7 +1962,10 @@ def test_winning_trial_render_timeout_fails_closed(
     assert result.termination_reason == "error"
     assert len(result.iterations) == 1
     assert result.iterations[0].error is not None
-    assert "Judge VLM unavailable" in result.iterations[0].error
+    assert (
+        "Winning-trial visual evidence render timed out" in result.iterations[0].error
+    )
+    assert "--visual-evidence-timeout-seconds" in result.iterations[0].error
 
     judge_result_path = tmp_path / "out" / "iter_1" / "judge_result.json"
     payload = json.loads(judge_result_path.read_text(encoding="utf-8"))
@@ -1644,6 +2008,7 @@ def test_default_judge_vlm_setup_timeout_fails_closed(
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
         llm_timeout_seconds=0.2,
     )
 
@@ -1698,6 +2063,7 @@ def test_rerun_preserves_user_iter_named_dirs(tmp_path: Path) -> None:
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     task.run({})
 
@@ -1751,6 +2117,7 @@ def test_rerun_into_same_output_dir_clears_stale_iter_dirs(tmp_path: Path) -> No
         score_threshold=0.7,
         chat_model=None,
         run_tune_callable=fake,
+        visual_evidence_enabled=False,
     )
     task.run({})
 

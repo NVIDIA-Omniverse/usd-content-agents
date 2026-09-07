@@ -13,8 +13,6 @@ def test_preview_packages_import():
         "content_agent_workflows.common",
         "content_agent_workflows.material_assignment",
         "content_agent_workflows.texture",
-        "content_workbench",
-        "content_workbench_agent_client",
         "content_workflow_cli",
     ]
 

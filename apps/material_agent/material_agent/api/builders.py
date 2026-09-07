@@ -10,6 +10,10 @@ import copy
 from pathlib import Path
 from typing import Any
 
+from world_understanding.rendering_backend_contract import (
+    validate_rendering_backend_name,
+)
+
 from material_agent.api.defaults import (
     DEFAULT_CLUSTER_BATCH_SIZE,
     DEFAULT_CLUSTER_COMPLEXITY_THRESHOLDS,
@@ -24,6 +28,7 @@ from material_agent.api.defaults import (
     DEFAULT_CLUSTER_NIM_EMBEDDING_MODEL,
     DEFAULT_LLM_BACKEND,
     DEFAULT_LLM_MODEL,
+    DEFAULT_RENDER_BACKEND,
     DEFAULT_VLM_BACKEND,
     DEFAULT_VLM_MAX_TOKENS,
     DEFAULT_VLM_MAX_WORKERS,
@@ -307,6 +312,7 @@ def build_unified_pipeline_config(
     output_usd_path: str
     | Path
     | None = None,  # DEPRECATED - auto-derived from session_id
+    renderer_backend: str = DEFAULT_RENDER_BACKEND,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Build a minimal unified pipeline configuration.
@@ -325,6 +331,7 @@ def build_unified_pipeline_config(
         session_id: Session ID for tracking runs (auto-generated if None)
         working_dir: Working directory (default: .{session_id})
         output_usd_path: DEPRECATED - Output path is now auto-derived as .{session_id}/output/output.usd
+        renderer_backend: Canonical backend for every enabled USD rendering step
         **kwargs: Additional config parameters
 
     Returns:
@@ -341,6 +348,7 @@ def build_unified_pipeline_config(
     """
     from material_agent.config.schema import get_step_defaults
 
+    renderer_backend = validate_rendering_backend_name(renderer_backend)
     enabled_steps = enabled_steps or [
         "build_dataset_usd",
         "build_dataset_prepare_dataset",
@@ -432,6 +440,11 @@ def build_unified_pipeline_config(
         else:
             # For other steps, ensure they're enabled
             step_config["enabled"] = True
+
+        if step_name == "build_dataset_usd":
+            step_config["renderer"]["backend"] = renderer_backend
+        elif step_name in {"render_preview", "render"}:
+            step_config["backend"] = renderer_backend
 
         config["steps"][step_name] = step_config
 

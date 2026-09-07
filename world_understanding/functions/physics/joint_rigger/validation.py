@@ -140,8 +140,20 @@ def validate_authored_joint_topology(
     stage: Any,
     plan: JointRiggerPlanV1,
     diagnostics: JointRiggerDiagnosticsV1 | None = None,
+    *,
+    authored_joint_paths_by_id: Mapping[str, str] | None = None,
+    validate_joint_rigger_metadata: bool = True,
 ) -> None:
-    """Validate an already-authored stage against one exact shared plan."""
+    """Validate an already-authored stage against one exact shared plan.
+
+    ``authored_joint_paths_by_id`` is an exact-path adapter for transitional
+    backends that already own deterministic joint placement. It must cover the
+    plan exactly and every supplied path must remain directly under the owned
+    ``Joints`` scope; all other authored-graph validation remains unchanged.
+    Such an external author may set ``validate_joint_rigger_metadata=False``
+    only with exact paths and without Joint Rigger diagnostics; the caller must
+    validate its author-owned metadata separately.
+    """
 
     if not isinstance(plan, JointRiggerPlanV1):
         raise TypeError("plan must be a JointRiggerPlanV1")
@@ -150,12 +162,25 @@ def validate_authored_joint_topology(
         JointRiggerDiagnosticsV1,
     ):
         raise TypeError("diagnostics must be a JointRiggerDiagnosticsV1 or None")
+    if not validate_joint_rigger_metadata and (
+        authored_joint_paths_by_id is None or diagnostics is not None
+    ):
+        raise TypeError(
+            "external author metadata requires exact authored joint paths and "
+            "must be validated without Joint Rigger diagnostics"
+        )
     preflight = _preflight_topology_authoring(
         stage,
         plan,
         allow_existing_joint_paths=True,
+        authored_joint_paths_by_id=authored_joint_paths_by_id,
     )
-    _validate_authored_preflight(stage, preflight, diagnostics=diagnostics)
+    _validate_authored_preflight(
+        stage,
+        preflight,
+        diagnostics=diagnostics,
+        validate_joint_rigger_metadata=validate_joint_rigger_metadata,
+    )
 
 
 def _preflight_topology_authoring(
@@ -163,6 +188,7 @@ def _preflight_topology_authoring(
     plan: JointRiggerPlanV1,
     *,
     allow_existing_joint_paths: bool = False,
+    authored_joint_paths_by_id: Mapping[str, str] | None = None,
 ) -> _TopologyPreflight:
     """Resolve every authored fact before a stage can be mutated."""
 
@@ -199,15 +225,58 @@ def _preflight_topology_authoring(
         UsdPhysics=UsdPhysics,
     )
     joints_scope_path = default_path.AppendChild(_JOINT_SCOPE_NAME)
-    authored_paths = tuple(
-        _deterministic_joint_path(
-            default_path=default_path,
-            joint=joint,
-            Sdf=Sdf,
-            Tf=Tf,
+    if authored_joint_paths_by_id is None:
+        authored_paths = tuple(
+            _deterministic_joint_path(
+                default_path=default_path,
+                joint=joint,
+                Sdf=Sdf,
+                Tf=Tf,
+            )
+            for joint in plan.joints
         )
-        for joint in plan.joints
-    )
+    else:
+        joint_ids = tuple(joint.topology.joint_id for joint in plan.joints)
+        if len(joint_ids) != len(set(joint_ids)):
+            _fail(
+                "authored_graph_mismatch",
+                "authored joint path mapping requires unique plan joint ids",
+            )
+        supplied_paths = dict(authored_joint_paths_by_id)
+        if set(supplied_paths) != set(joint_ids):
+            _fail(
+                "authored_graph_mismatch",
+                "authored joint path mapping must exactly cover the plan: "
+                f"supplied={sorted(supplied_paths)}, expected={sorted(joint_ids)}",
+            )
+        resolved_paths: list[Any] = []
+        for joint_id in joint_ids:
+            raw_path = supplied_paths[joint_id]
+            if not isinstance(raw_path, str):
+                _fail(
+                    "invalid_joint_path",
+                    f"authored joint path for {joint_id!r} must be a string",
+                )
+            try:
+                joint_path = Sdf.Path(raw_path)
+            except Exception as exc:
+                _fail(
+                    "invalid_joint_path",
+                    f"authored joint path for {joint_id!r} is invalid: {exc}",
+                )
+            if (
+                not joint_path.IsAbsolutePath()
+                or not joint_path.IsPrimPath()
+                or joint_path.IsAbsoluteRootPath()
+                or joint_path.GetParentPath() != joints_scope_path
+            ):
+                _fail(
+                    "invalid_joint_path",
+                    f"authored joint path for {joint_id!r} must be a direct child "
+                    f"of {joints_scope_path}: {joint_path}",
+                )
+            resolved_paths.append(joint_path)
+        authored_paths = tuple(resolved_paths)
     if len(authored_paths) != len(set(authored_paths)):
         _fail(
             "joint_target_collision",
@@ -669,12 +738,17 @@ def _prepare_joint(
         label=f"joint {topology.joint_id!r} body1",
     )
 
-    if joint.anchor is None:
-        anchor = body1_xform.Transform(Gf.Vec3d(0.0, 0.0, 0.0))
-    else:
-        anchor = Gf.Vec3d(*joint.anchor.position_stage)
-    local_pos0 = body0_xform.GetInverse().Transform(anchor)
-    local_pos1 = body1_xform.GetInverse().Transform(anchor)
+    local_pos0_value, local_pos1_value, anchor_value = (
+        canonical_local_joint_anchor_positions(
+            body0_xform,
+            body1_xform,
+            anchor_stage=(
+                None if joint.anchor is None else joint.anchor.position_stage
+            ),
+            label=f"joint {topology.joint_id!r}",
+            Gf=Gf,
+        )
+    )
 
     axis_token: str | None = None
     local_rot0: _Quaternion | None = None
@@ -728,53 +802,6 @@ def _prepare_joint(
             label=f"joint {topology.joint_id!r} friction coefficient",
         )
 
-    local_pos0_value = _float32_vector(
-        _vec3_tuple(local_pos0),
-        label=f"joint {topology.joint_id!r} body0 local anchor",
-    )
-    local_pos1_value = _float32_vector(
-        _vec3_tuple(local_pos1),
-        label=f"joint {topology.joint_id!r} body1 local anchor",
-    )
-    anchor_value = _vec3_tuple(anchor)
-    local_pos0_value, local_pos1_value = _reconcile_float32_local_anchors(
-        body0_xform,
-        body1_xform,
-        requested_anchor=anchor_value,
-        local_pos0=local_pos0_value,
-        local_pos1=local_pos1_value,
-        explicit_anchor=joint.anchor is not None,
-        label=f"joint {topology.joint_id!r}",
-        Gf=Gf,
-    )
-    reprojected_anchor0 = _vec3_tuple(
-        body0_xform.Transform(Gf.Vec3d(*local_pos0_value))
-    )
-    reprojected_anchor1 = _vec3_tuple(
-        body1_xform.Transform(Gf.Vec3d(*local_pos1_value))
-    )
-    if not (
-        _vector_distance(reprojected_anchor0, reprojected_anchor1)
-        <= _SHARED_ANCHOR_DISTANCE_TOLERANCE
-        and _anchor_vectors_close(reprojected_anchor0, anchor_value)
-        and _anchor_vectors_close(reprojected_anchor1, anchor_value)
-        and (
-            joint.anchor is None
-            or (
-                _vector_distance(reprojected_anchor0, anchor_value)
-                <= _SHARED_ANCHOR_DISTANCE_TOLERANCE
-                and _vector_distance(reprojected_anchor1, anchor_value)
-                <= _SHARED_ANCHOR_DISTANCE_TOLERANCE
-            )
-        )
-    ):
-        _fail(
-            "authored_value_out_of_range",
-            f"joint {topology.joint_id!r} local anchors do not preserve the "
-            "requested stage anchor after USD float32 storage: "
-            f"requested={anchor_value!r}, body0={reprojected_anchor0!r}, "
-            f"body1={reprojected_anchor1!r}",
-        )
     local_rot0 = _float32_quaternion(
         local_rot0,
         label=f"joint {topology.joint_id!r} body0 local rotation",
@@ -938,6 +965,90 @@ def _stage_joint_frame(axis_stage: Any, *, Gf: Any) -> tuple[Any, Any, Any]:
     return axis, secondary, tertiary
 
 
+def canonical_local_joint_frame_rotation(
+    world_transform: Any,
+    *,
+    axis_stage: _Vector3,
+    axis_token: str,
+    label: str,
+    Gf: Any,
+) -> _Quaternion:
+    """Return the deterministic complete local frame for one stage-space axis."""
+    return _local_joint_frame_rotation(
+        world_transform,
+        stage_frame=_stage_joint_frame(Gf.Vec3d(*axis_stage), Gf=Gf),
+        axis_token=axis_token,
+        label=label,
+        Gf=Gf,
+    )
+
+
+def canonical_local_joint_anchor_positions(
+    body0_world_transform: Any,
+    body1_world_transform: Any,
+    *,
+    anchor_stage: _Vector3 | None,
+    label: str,
+    Gf: Any,
+) -> tuple[_Vector3, _Vector3, _Vector3]:
+    """Return shared float32 local anchors and their requested stage anchor."""
+
+    explicit_anchor = anchor_stage is not None
+    anchor = (
+        Gf.Vec3d(*anchor_stage)
+        if anchor_stage is not None
+        else body1_world_transform.Transform(Gf.Vec3d(0.0, 0.0, 0.0))
+    )
+    anchor_value = _vec3_tuple(anchor)
+    local_pos0 = _float32_vector(
+        _vec3_tuple(body0_world_transform.GetInverse().Transform(anchor)),
+        label=f"{label} body0 local anchor",
+    )
+    local_pos1 = _float32_vector(
+        _vec3_tuple(body1_world_transform.GetInverse().Transform(anchor)),
+        label=f"{label} body1 local anchor",
+    )
+    local_pos0, local_pos1 = _reconcile_float32_local_anchors(
+        body0_world_transform,
+        body1_world_transform,
+        requested_anchor=anchor_value,
+        local_pos0=local_pos0,
+        local_pos1=local_pos1,
+        explicit_anchor=explicit_anchor,
+        label=label,
+        Gf=Gf,
+    )
+    reprojected_anchor0 = _vec3_tuple(
+        body0_world_transform.Transform(Gf.Vec3d(*local_pos0))
+    )
+    reprojected_anchor1 = _vec3_tuple(
+        body1_world_transform.Transform(Gf.Vec3d(*local_pos1))
+    )
+    if not (
+        _vector_distance(reprojected_anchor0, reprojected_anchor1)
+        <= _SHARED_ANCHOR_DISTANCE_TOLERANCE
+        and _anchor_vectors_close(reprojected_anchor0, anchor_value)
+        and _anchor_vectors_close(reprojected_anchor1, anchor_value)
+        and (
+            not explicit_anchor
+            or (
+                _vector_distance(reprojected_anchor0, anchor_value)
+                <= _SHARED_ANCHOR_DISTANCE_TOLERANCE
+                and _vector_distance(reprojected_anchor1, anchor_value)
+                <= _SHARED_ANCHOR_DISTANCE_TOLERANCE
+            )
+        )
+    ):
+        _fail(
+            "authored_value_out_of_range",
+            f"{label} local anchors do not preserve the requested stage anchor "
+            "after USD float32 storage: "
+            f"requested={anchor_value!r}, body0={reprojected_anchor0!r}, "
+            f"body1={reprojected_anchor1!r}",
+        )
+    return local_pos0, local_pos1, anchor_value
+
+
 def _local_joint_frame_rotation(
     world_transform: Any,
     *,
@@ -1011,6 +1122,7 @@ def _validate_authored_preflight(
     additional_expected_relationship_targets: Mapping[str, Mapping[str, str]]
     | None = None,
     plan_sha256_override: str | None = None,
+    validate_joint_rigger_metadata: bool = True,
 ) -> None:
     Gf, Sdf, _, _, UsdGeom, UsdPhysics = _pxr_modules()
     if preflight.create_joints_scope:
@@ -1215,56 +1327,58 @@ def _validate_authored_preflight(
             ).get(expected.joint_path, {}),
         )
 
-        if prim.GetCustomDataByKey("jointRigger:jointId") != topology.joint_id:
-            _fail(
-                "authored_graph_mismatch",
-                f"joint id customData mismatch at {expected.joint_path}",
-            )
-        expected_plan_sha256 = plan_sha256_override or preflight.plan_sha256
-        if prim.GetCustomDataByKey("jointRigger:planSha256") != expected_plan_sha256:
-            _fail(
-                "authored_graph_mismatch",
-                f"plan identity customData mismatch at {expected.joint_path}",
-            )
-        if (
-            prim.GetCustomDataByKey("jointRigger:authoringVersion")
-            != _TOPOLOGY_AUTHOR_VERSION
-        ):
-            _fail(
-                "authored_graph_mismatch",
-                f"authoring version customData mismatch at {expected.joint_path}",
-            )
-        expected_decisions: str | None = None
-        if diagnostics is not None:
-            diagnostic = diagnostics_by_id[topology.joint_id]
-            if diagnostic.authored_prim_path != expected.joint_path:
+        if validate_joint_rigger_metadata:
+            if prim.GetCustomDataByKey("jointRigger:jointId") != topology.joint_id:
                 _fail(
                     "authored_graph_mismatch",
-                    f"diagnostics path mismatch for {topology.joint_id!r}",
+                    f"joint id customData mismatch at {expected.joint_path}",
                 )
-            expected_decisions = json.dumps(
-                [
-                    item.model_dump(mode="json", exclude_none=True)
-                    for item in diagnostic.field_decisions
-                ],
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-            )
-            if (
-                prim.GetCustomDataByKey("jointRigger:fieldDecisions")
-                != expected_decisions
+            if prim.GetCustomDataByKey("jointRigger:planSha256") != (
+                plan_sha256_override or preflight.plan_sha256
             ):
                 _fail(
                     "authored_graph_mismatch",
-                    f"field-decision provenance mismatch at {expected.joint_path}",
+                    f"plan identity customData mismatch at {expected.joint_path}",
                 )
-        _validate_joint_authored_metadata(
-            prim,
-            expected,
-            plan_sha256=expected_plan_sha256,
-            expected_field_decisions=expected_decisions,
-        )
+            if (
+                prim.GetCustomDataByKey("jointRigger:authoringVersion")
+                != _TOPOLOGY_AUTHOR_VERSION
+            ):
+                _fail(
+                    "authored_graph_mismatch",
+                    f"authoring version customData mismatch at {expected.joint_path}",
+                )
+            expected_decisions: str | None = None
+            if diagnostics is not None:
+                diagnostic = diagnostics_by_id[topology.joint_id]
+                if diagnostic.authored_prim_path != expected.joint_path:
+                    _fail(
+                        "authored_graph_mismatch",
+                        f"diagnostics path mismatch for {topology.joint_id!r}",
+                    )
+                expected_decisions = json.dumps(
+                    [
+                        item.model_dump(mode="json", exclude_none=True)
+                        for item in diagnostic.field_decisions
+                    ],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                )
+                if (
+                    prim.GetCustomDataByKey("jointRigger:fieldDecisions")
+                    != expected_decisions
+                ):
+                    _fail(
+                        "authored_graph_mismatch",
+                        f"field-decision provenance mismatch at {expected.joint_path}",
+                    )
+            _validate_joint_authored_metadata(
+                prim,
+                expected,
+                plan_sha256=plan_sha256_override or preflight.plan_sha256,
+                expected_field_decisions=expected_decisions,
+            )
 
 
 def _validate_no_reshape(

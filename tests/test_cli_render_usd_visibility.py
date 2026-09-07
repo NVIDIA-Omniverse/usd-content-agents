@@ -512,9 +512,10 @@ def test_render_usd_rejects_unknown_backend_verbose(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 1
-    assert "Unknown rendering backend: not-real" in result.output
-    assert "Supported by wu render-usd: remote, ovrtx" in result.output
-    assert "recognized but unsupported" not in result.output
+    output = " ".join(result.output.split())
+    assert "Unknown rendering backend: not-real" in output
+    assert "Supported by wu render-usd: remote, ovrtx" in output
+    assert "recognized but unsupported" not in output
 
 
 def test_render_usd_rejects_invalid_remote_worker_bound_before_stage_io(

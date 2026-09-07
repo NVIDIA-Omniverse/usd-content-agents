@@ -43,15 +43,15 @@ class SubAssetHarnessConfig:
     """Retired compatibility settings for the sub-asset harness path.
 
     The Material Agent task-first harness workflow has been retired. The
-    supported agentic asset workflow is now ``content-workflow-cli`` with Content
-    Workbench.
+    supported agentic asset workflow is now ``content-workflow-cli`` with
+    ``usd-cli`` as its low-level scene tool.
     """
 
     enabled: bool = False
     render_mode: Literal["remote"] = "remote"
     inference_mode: Literal["vlm"] = "vlm"
     vlm_backend: str = "nim"
-    vlm_model: str = "google/gemma-4-31b-it"
+    vlm_model: str = "moonshotai/kimi-k3"
     max_iterations: int = 1
     max_rendered_prims: int | None = None
     apply_source_mode: Literal["copy", "overlay"] = "copy"
@@ -228,7 +228,7 @@ def run_sub_asset_with_harness(
     _ = (verbose, predict_max_workers, cancel_checker)
     raise RuntimeError(
         "The Material Agent task-first harness workflow has been retired. "
-        "Use `content-workflow-cli materials assign` with Content Workbench for "
+        "Use `content-workflow-cli materials assign`; its workflow uses usd-cli for "
         "agentic asset workflows."
     )
 

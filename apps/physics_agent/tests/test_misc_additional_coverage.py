@@ -27,6 +27,12 @@ class _Store:
         return self.data[key]
 
 
+def test_package_version_uses_distribution_metadata() -> None:
+    import physics_agent
+
+    assert physics_agent.__version__ == get_version()
+
+
 def test_utils_version_fallback_and_formatting(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

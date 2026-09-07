@@ -1,4 +1,0 @@
-interface:
-  display_name: "Validation Agent CLI"
-  short_description: "Run the Validation Agent CLI"
-  default_prompt: "Use $validation-agent-cli to run Validation Agent for config-driven or prompt-driven asset validation."

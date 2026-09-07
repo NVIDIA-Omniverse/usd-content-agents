@@ -120,6 +120,98 @@ def test_vlm_model_can_be_overridden_from_env(monkeypatch):
         importlib.reload(reloaded_defaults)
 
 
+def test_identify_asset_vlm_timeout_uses_legacy_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    try:
+        with monkeypatch.context() as environment:
+            environment.setenv("PA_IDENTIFY_ASSET_VLM_TIMEOUT", "300")
+            reloaded_defaults = importlib.reload(defaults)
+            resolved = reloaded_defaults.apply_defaults(
+                {}, reloaded_defaults.IDENTIFY_ASSET_DEFAULTS
+            )
+
+            assert reloaded_defaults.DEFAULT_IDENTIFY_ASSET_VLM_TIMEOUT == 300.0
+            assert reloaded_defaults.IDENTIFY_ASSET_DEFAULTS["vlm"]["timeout"] == 300.0
+            assert resolved["vlm"]["timeout"] == 300.0
+    finally:
+        importlib.reload(defaults)
+
+
+def test_sol_vlm_defaults_to_xhigh_reasoning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hosted_backend = "nvidia" + "_inference"
+    try:
+        with monkeypatch.context() as environment:
+            environment.setenv("PA_VLM_BACKEND", hosted_backend)
+            environment.setenv("PA_VLM_MODEL", "openai/openai/gpt-5.6-sol")
+            environment.delenv("PA_VLM_REASONING_EFFORT", raising=False)
+            reloaded_defaults = importlib.reload(defaults)
+
+            assert reloaded_defaults.DEFAULT_VLM_REASONING_EFFORT == "xhigh"
+            assert (
+                reloaded_defaults.PREDICT_DEFAULTS["vlm"]["reasoning_effort"] == "xhigh"
+            )
+    finally:
+        importlib.reload(defaults)
+
+
+def test_kimi_k3_nim_vlm_defaults_to_max_reasoning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    try:
+        with monkeypatch.context() as environment:
+            environment.setenv("PA_VLM_BACKEND", "nim")
+            environment.setenv("PA_VLM_MODEL", "moonshotai/kimi-k3")
+            environment.delenv("PA_VLM_REASONING_EFFORT", raising=False)
+            reloaded_defaults = importlib.reload(defaults)
+
+            assert reloaded_defaults.DEFAULT_VLM_REASONING_EFFORT == "max"
+            assert reloaded_defaults.PREDICT_DEFAULTS["vlm"]["model"] == (
+                "moonshotai/kimi-k3"
+            )
+            assert (
+                reloaded_defaults.PREDICT_DEFAULTS["vlm"]["reasoning_effort"] == "max"
+            )
+    finally:
+        importlib.reload(defaults)
+
+
+def test_predict_model_override_re_resolves_reasoning_effort() -> None:
+    overridden = defaults.get_predict_config_with_defaults(
+        {"vlm": {"backend": "nim", "model": "nvidia/cosmos-reason2-8b"}}
+    )
+    assert "reasoning_effort" not in overridden["vlm"]
+
+    explicit = defaults.get_predict_config_with_defaults(
+        {
+            "vlm": {
+                "backend": "nim",
+                "model": "moonshotai/kimi-k3",
+                "reasoning_effort": "low",
+            }
+        }
+    )
+    assert explicit["vlm"]["reasoning_effort"] == "low"
+
+
+def test_nim_vlm_omits_unsupported_reasoning_effort(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    try:
+        with monkeypatch.context() as environment:
+            environment.setenv("PA_VLM_BACKEND", "nim")
+            environment.setenv("PA_VLM_MODEL", "openai/openai/gpt-5.6-sol")
+            environment.setenv("PA_VLM_REASONING_EFFORT", "xhigh")
+            reloaded_defaults = importlib.reload(defaults)
+
+            assert reloaded_defaults.DEFAULT_VLM_REASONING_EFFORT is None
+            assert "reasoning_effort" not in reloaded_defaults.PREDICT_DEFAULTS["vlm"]
+    finally:
+        importlib.reload(defaults)
+
+
 def test_vlm_openai_base_url_can_be_overridden_from_env(monkeypatch):
     resolved_secret = "physics-default-runtime-only-key"
     monkeypatch.setenv("PA_VLM_BACKEND", "openai")
@@ -171,6 +263,7 @@ def test_vlm_temperature_can_be_overridden_from_env(monkeypatch):
             "model": "gpt-5.5",
             "temperature": 1.0,
             "max_tokens": 4096,
+            "timeout": reloaded_defaults.DEFAULT_IDENTIFY_ASSET_VLM_TIMEOUT,
         }
         assert config["steps"]["predict"]["vlm"] == {
             "backend": "openai",

@@ -494,8 +494,12 @@ Below is the additional context of the part and materials:
                 "backend": DEFAULT_VLM_BACKEND,
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
-                "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
+                **(
+                    {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+                    if DEFAULT_VLM_REASONING_EFFORT
+                    else {}
+                ),
             },
             "llm": {
                 "backend": DEFAULT_LLM_BACKEND,

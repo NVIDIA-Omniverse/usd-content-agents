@@ -28,6 +28,26 @@ def test_config_validates_vlm_max_workers_env(
             config_module.ServiceConfig()
 
 
+def test_config_reads_llm_reasoning_effort_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("JA_LLM_REASONING_EFFORT", "medium")
+
+    assert config_module.ServiceConfig().llm_reasoning_effort == "medium"
+
+
+def test_config_leaves_model_derived_llm_reasoning_effort_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("JA_LLM_REASONING_EFFORT", raising=False)
+
+    config = config_module.ServiceConfig(
+        llm_model="openai/openai/gpt-5.6-sol",
+    )
+
+    assert config.llm_reasoning_effort is None
+
+
 def test_config_load_description_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     class MissingPath:
         def __init__(self, *_args: Any) -> None:

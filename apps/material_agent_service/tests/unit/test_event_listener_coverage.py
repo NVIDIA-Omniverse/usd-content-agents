@@ -148,9 +148,7 @@ def test_listener_maps_lifecycle_and_workflow_events(fake_bus: _FakeBus) -> None
     failed = listener._map_event_to_progress(
         "step.failed", {"step_name": "apply", "error": "bad material"}
     )
-    assert failed is not None
-    assert failed.state == StepState.FAILED
-    assert failed.message == "bad material"
+    assert failed is None
 
     assert (
         listener._map_event_to_progress("task.cancelled", {"task_name": "TextureTask"})
@@ -166,8 +164,7 @@ def test_listener_maps_lifecycle_and_workflow_events(fake_bus: _FakeBus) -> None
 
     listener.current_step = "predict"
     workflow_failed = listener._map_event_to_progress("workflow.failed", {})
-    assert workflow_failed is not None
-    assert workflow_failed.step == "predict"
+    assert workflow_failed is None
 
     assert (
         listener._map_event_to_progress(

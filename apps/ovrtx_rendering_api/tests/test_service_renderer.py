@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests for apps/ovrtx_rendering_api/service/renderer.py.
 
-Focus on the pure-Python helpers — the pxr and ovrtx imports in ``render()``
-are not exercised here since they require a GPU-equipped environment.
+Focus on the pure-Python helpers. The USD intake tests use ``pxr.Sdf`` only;
+the GPU-dependent ovrtx import in ``render()`` is replaced by a fake backend.
 """
 
 from __future__ import annotations
@@ -15,19 +15,365 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 # ``service`` is on sys.path via ``pythonpath = ["apps/ovrtx_rendering_api"]``
 # in the root pyproject.toml's [tool.pytest.ini_options].
 from service.renderer import (
     _ZIP_MAX_FILES,
+    IncompleteRenderOutputError,
     Renderer,
+    _apply_protocol_v3_camera_defs,
     _extract_zip_bundle,
     _fetch_usd,
     _is_usdz_payload,
+    _parse_http_max_download_bytes,
     _parse_zip_max_uncompressed_bytes,
+    _to_protocol_v3_results,
     _validate_connected_socket_peer,
     _validate_url_target,
+    _validate_usd_asset_paths_confined,
 )
+
+
+def test_protocol_v3_results_preserve_exact_renderer_metadata() -> None:
+    image = Image.new("RGB", (4, 4), color=(10, 20, 30))
+
+    results = _to_protocol_v3_results(
+        {
+            "results": [
+                {
+                    "camera": "/World/Camera",
+                    "images": [image],
+                    "ovrtx_render_mode": "pt",
+                    "ovrtx_num_sensor_updates": 8,
+                    "active_aov": "LdrColor",
+                }
+            ]
+        },
+        camera_paths=["/World/Camera"],
+        requested_frames=[2.0],
+        include_frame=True,
+    )
+
+    assert len(results) == 1
+    assert results[0]["camera"] == "/World/Camera"
+    assert results[0]["frame"] == 2.0
+    assert results[0]["ovrtx_render_mode"] == "pt"
+    assert results[0]["ovrtx_num_sensor_updates"] == 8
+    assert results[0]["active_aov"] == "LdrColor"
+    assert base64.b64decode(results[0]["image_base64"]).startswith(b"\x89PNG")
+
+
+def test_protocol_v3_results_reject_incomplete_output() -> None:
+    with pytest.raises(IncompleteRenderOutputError, match="incomplete color output"):
+        _to_protocol_v3_results(
+            {"results": []},
+            camera_paths=["/World/Camera"],
+            requested_frames=[0.0],
+            include_frame=False,
+        )
+
+
+def test_protocol_v3_results_reject_partial_camera_output() -> None:
+    image = Image.new("RGB", (4, 4))
+
+    with pytest.raises(IncompleteRenderOutputError) as exc_info:
+        _to_protocol_v3_results(
+            {
+                "results": [
+                    {
+                        "camera": "/World/CompleteCamera",
+                        "images": [image],
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            },
+            camera_paths=["/World/CompleteCamera", "/World/MissingCamera"],
+            requested_frames=[0.0],
+            include_frame=False,
+        )
+
+    assert exc_info.value.requested_output_count == 2
+    assert exc_info.value.output_count == 1
+    assert exc_info.value.missing_camera_count == 1
+
+
+def test_protocol_v3_results_reject_missing_execution_metadata() -> None:
+    image = Image.new("RGB", (4, 4))
+
+    with pytest.raises(RuntimeError, match="missing exact mode"):
+        _to_protocol_v3_results(
+            {"results": [{"camera": "/World/Camera", "images": [image]}]},
+            camera_paths=["/World/Camera"],
+            requested_frames=[0.0],
+            include_frame=False,
+        )
+
+
+def test_protocol_v3_results_reject_inconsistent_camera_metadata() -> None:
+    image = Image.new("RGB", (4, 4))
+
+    with pytest.raises(RuntimeError, match="cameras disagree"):
+        _to_protocol_v3_results(
+            {
+                "results": [
+                    {
+                        "camera": "/World/CameraA",
+                        "images": [image],
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    },
+                    {
+                        "camera": "/World/CameraB",
+                        "images": [image],
+                        "ovrtx_render_mode": "rt2",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    },
+                ]
+            },
+            camera_paths=["/World/CameraA", "/World/CameraB"],
+            requested_frames=[0.0],
+            include_frame=False,
+        )
+
+
+def test_protocol_v3_render_does_not_promote_failed_warmup_readiness(
+    tmp_path: Path,
+) -> None:
+    class _Backend:
+        render_mode = "pt"
+
+        @staticmethod
+        def render(**_kwargs):
+            return {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [Image.new("RGB", (4, 4))],
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            }
+
+    renderer = Renderer.__new__(Renderer)
+    renderer._backend = _Backend()
+    renderer._initialized = False
+    renderer._render_lock = threading.RLock()
+    bundle = _make_bundle(tmp_path, ["scene.usda"])
+
+    results = renderer.render_protocol_v3_upload(
+        usdz_bytes=bundle.read_bytes(),
+        camera_paths=["/World/Camera"],
+        width=4,
+        height=4,
+        mode="quality",
+    )
+
+    assert len(results) == 1
+    assert renderer._initialized is False
+
+
+def test_protocol_v3_render_preserves_order_and_fractional_frame_labels(
+    tmp_path: Path,
+) -> None:
+    class _Backend:
+        render_mode = "pt"
+        frames = None
+
+        def render(self, **kwargs):
+            self.frames = kwargs["frames"]
+            return {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [Image.new("RGB", (4, 4)) for _ in range(2)],
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            }
+
+    backend = _Backend()
+    renderer = Renderer.__new__(Renderer)
+    renderer._backend = backend
+    renderer._initialized = True
+    renderer._render_lock = threading.RLock()
+    bundle = _make_bundle(tmp_path, ["scene.usda"])
+
+    results = renderer.render_protocol_v3_upload(
+        usdz_bytes=bundle.read_bytes(),
+        camera_paths=["/World/Camera"],
+        width=4,
+        height=4,
+        mode="quality",
+        frames=[5.0, 1.5],
+    )
+
+    assert backend.frames == "5.0,1.5"
+    assert [item["frame"] for item in results] == [5.0, 1.5]
+
+
+def test_protocol_v3_render_recovers_once_after_daemon_failure(
+    tmp_path: Path,
+) -> None:
+    class _Backend:
+        render_mode = "pt"
+
+        def __init__(self) -> None:
+            self.render_calls = 0
+
+        def render(self, **_kwargs):
+            self.render_calls += 1
+            if self.render_calls == 1:
+                raise RuntimeError("OvRTX daemon pipe failed")
+            return {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "images": [Image.new("RGB", (4, 4))],
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            }
+
+    backend = _Backend()
+    recover_calls = 0
+    renderer = Renderer.__new__(Renderer)
+    renderer._backend = backend
+    renderer._initialized = True
+    renderer._render_lock = threading.RLock()
+
+    def recover(*, force: bool = False) -> bool:
+        nonlocal recover_calls
+        assert force is True
+        recover_calls += 1
+        return True
+
+    renderer.recover = recover
+    bundle = _make_bundle(tmp_path, ["scene.usda"])
+
+    results = renderer.render_protocol_v3_upload(
+        usdz_bytes=bundle.read_bytes(),
+        camera_paths=["/World/Camera"],
+        width=4,
+        height=4,
+        mode="quality",
+    )
+
+    assert len(results) == 1
+    assert backend.render_calls == 2
+    assert recover_calls == 1
+
+
+def test_protocol_v3_camera_defs_reject_instance_proxy() -> None:
+    from pxr import Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    prototype = stage.DefinePrim("/Prototype", "Xform")
+    UsdGeom.Camera.Define(stage, "/Prototype/Camera")
+    instance = stage.DefinePrim("/World/Instance", "Xform")
+    instance.GetReferences().AddInternalReference(prototype.GetPath())
+    instance.SetInstanceable(True)
+    proxy = stage.GetPrimAtPath("/World/Instance/Camera")
+    assert proxy.IsInstanceProxy()
+
+    with pytest.raises(ValueError, match="immutable instance proxy"):
+        _apply_protocol_v3_camera_defs(
+            stage,
+            [{"path": "/World/Instance/Camera"}],
+        )
+
+
+@pytest.mark.parametrize(
+    ("matrix", "message"),
+    (
+        (None, "must hold 16 values"),
+        ([0.0] * 15, "must hold 16 values"),
+        ([0.0] * 15 + ["not-a-number"], "non-numeric matrix"),
+    ),
+)
+def test_protocol_v3_camera_defs_reject_malformed_matrix(
+    matrix: object,
+    message: str,
+) -> None:
+    from pxr import Usd
+
+    stage = Usd.Stage.CreateInMemory()
+    spec: dict[str, object] = {"path": "/World/Camera"}
+    if matrix is not None:
+        spec["matrix"] = matrix
+
+    with pytest.raises(ValueError, match=message):
+        _apply_protocol_v3_camera_defs(stage, [spec])
+
+
+def test_protocol_v3_camera_defs_deinstance_writable_camera() -> None:
+    from pxr import Gf, Usd, UsdGeom
+
+    stage = Usd.Stage.CreateInMemory()
+    camera_prim = UsdGeom.Camera.Define(stage, "/World/Camera").GetPrim()
+    camera_prim.SetInstanceable(True)
+    assert camera_prim.IsInstanceable()
+
+    _apply_protocol_v3_camera_defs(
+        stage,
+        [
+            {
+                "path": "/World/Camera",
+                "focal_length": 50.0,
+                "matrix": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    1.0,
+                ],
+            }
+        ],
+    )
+
+    restored = UsdGeom.Camera.Get(stage, "/World/Camera")
+    assert restored.GetPrim().IsInstanceable() is False
+    assert restored.GetFocalLengthAttr().Get() == pytest.approx(50.0)
+    assert UsdGeom.Xformable(restored).GetLocalTransformation() == Gf.Matrix4d(
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        3.0,
+        4.0,
+        5.0,
+        1.0,
+    )
 
 
 def _make_bundle(tmp_path: Path, names: list[str]) -> Path:
@@ -45,6 +391,256 @@ def _make_bundle(tmp_path: Path, names: list[str]) -> Path:
         for name in names:
             zf.write(src / name, name)
     return zip_path
+
+
+def test_usd_intake_allows_dependencies_confined_to_bundle(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    layers = bundle / "layers"
+    textures = bundle / "textures"
+    layers.mkdir(parents=True)
+    textures.mkdir()
+    (textures / "albedo.png").write_bytes(b"png")
+    (layers / "child.usda").write_text(
+        "#usda 1.0\n(\n    subLayers = [@../root.usda@]\n)\n"
+        'def Material "Mat" {\n'
+        "    asset inputs:file = @../textures/albedo.png@\n}\n",
+        encoding="utf-8",
+    )
+    root = bundle / "root.usda"
+    root.write_text(
+        "#usda 1.0\n(\n    subLayers = [@layers/child.usda@]\n)\n",
+        encoding="utf-8",
+    )
+
+    _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_preserves_runtime_resolved_bare_mdl(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    root = bundle / "root.usda"
+    root.write_text(
+        '#usda 1.0\ndef Shader "Mat" {\n'
+        "    asset info:mdl:sourceAsset = @OmniPBR.mdl@\n}\n",
+        encoding="utf-8",
+    )
+
+    _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_requires_concrete_confined_udim_tiles(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    textures = bundle / "textures"
+    textures.mkdir(parents=True)
+    (textures / "albedo.1001.png").write_bytes(b"tile-1001")
+    (textures / "albedo.1100.png").write_bytes(b"tile-1100")
+    root = bundle / "root.usda"
+    root.write_text(
+        '#usda 1.0\ndef Material "Mat" {\n'
+        "    asset inputs:file = @textures/albedo.<UDIM>.png@\n}\n",
+        encoding="utf-8",
+    )
+
+    _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_rejects_udim_pattern_without_concrete_tiles(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    root = bundle / "root.usda"
+    root.write_text(
+        '#usda 1.0\ndef Material "Mat" {\n'
+        "    asset inputs:file = @textures/albedo.<UDIM>.png@\n}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="UDIM asset path has no concrete tiles"):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_rejects_udim_symlink_escape(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"outside")
+    bundle = tmp_path / "bundle"
+    textures = bundle / "textures"
+    textures.mkdir(parents=True)
+    (textures / "albedo.1001.png").symlink_to(outside)
+    root = bundle / "root.usda"
+    root.write_text(
+        '#usda 1.0\ndef Material "Mat" {\n'
+        "    asset inputs:file = @textures/albedo.<UDIM>.png@\n}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="escapes the render intake root"):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_accepts_packaged_udim_tiles(tmp_path: Path) -> None:
+    from pxr import Usd
+
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    package_root = sources / "root.usda"
+    package_root.write_text(
+        '#usda 1.0\ndef Material "Mat" {\n'
+        "    asset inputs:file = @textures/albedo.<UDIM>.png@\n}\n",
+        encoding="utf-8",
+    )
+    tile = sources / "albedo.1001.png"
+    tile.write_bytes(b"tile-1001")
+    package = tmp_path / "scene.usdz"
+    writer = Usd.ZipFileWriter.CreateNew(str(package))
+    assert writer.AddFile(str(package_root), "root.usda") == "root.usda"
+    assert (
+        writer.AddFile(str(tile), "textures/albedo.1001.png")
+        == "textures/albedo.1001.png"
+    )
+    assert writer.Save()
+
+    _validate_usd_asset_paths_confined(package, intake_root=tmp_path)
+
+
+def test_usd_intake_rejects_packaged_udim_pattern_without_tiles(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd
+
+    package_root = tmp_path / "root.usda"
+    package_root.write_text(
+        '#usda 1.0\ndef Material "Mat" {\n'
+        "    asset inputs:file = @textures/albedo.<UDIM>.png@\n}\n",
+        encoding="utf-8",
+    )
+    package = tmp_path / "scene.usdz"
+    writer = Usd.ZipFileWriter.CreateNew(str(package))
+    assert writer.AddFile(str(package_root), "root.usda") == "root.usda"
+    assert writer.Save()
+
+    with pytest.raises(ValueError, match="UDIM asset path has no concrete tiles"):
+        _validate_usd_asset_paths_confined(package, intake_root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "asset_path",
+    (
+        "/etc/passwd",
+        "file:///etc/passwd",
+        "https://metadata.example/scene.usda",
+        "../outside.usda",
+        "nested.usdz[layer.usda]",
+    ),
+)
+def test_usd_intake_rejects_external_asset_paths(
+    tmp_path: Path,
+    asset_path: str,
+) -> None:
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    root = bundle / "root.usda"
+    root.write_text(
+        f'#usda 1.0\ndef Xform "Root" {{\n    asset source = @{asset_path}@\n}}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="render intake|escapes"):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_rejects_nested_sublayer_escape(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    layers = bundle / "layers"
+    layers.mkdir(parents=True)
+    (layers / "child.usda").write_text(
+        '#usda 1.0\ndef Material "Mat" {\n'
+        "    asset inputs:file = @../../outside.png@\n}\n",
+        encoding="utf-8",
+    )
+    root = bundle / "root.usda"
+    root.write_text(
+        "#usda 1.0\n(\n    subLayers = [@layers/child.usda@]\n)\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="escapes the render intake root"):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_recurses_into_nested_usdz_dependencies(tmp_path: Path) -> None:
+    from pxr import Usd
+
+    bundle = tmp_path / "bundle"
+    sources = tmp_path / "sources"
+    bundle.mkdir()
+    sources.mkdir()
+    package_root = sources / "root.usda"
+    package_child = sources / "child.usda"
+    package_root.write_text(
+        "#usda 1.0\n(\n    subLayers = [@child.usda@]\n)\n",
+        encoding="utf-8",
+    )
+    package_child.write_text(
+        '#usda 1.0\ndef Xform "Child" {\n    asset source = @../../outside.png@\n}\n',
+        encoding="utf-8",
+    )
+    nested_package = bundle / "nested.usdz"
+    writer = Usd.ZipFileWriter.CreateNew(str(nested_package))
+    assert writer.AddFile(str(package_root), "root.usda") == "root.usda"
+    assert writer.AddFile(str(package_child), "child.usda") == "child.usda"
+    assert writer.Save()
+    root = bundle / "root.usda"
+    root.write_text(
+        "#usda 1.0\n(\n    subLayers = [@nested.usdz@]\n)\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unsafe USD package member path"):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+def test_usd_intake_rejects_symlink_escape(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"secret")
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "linked.png").symlink_to(outside)
+    root = bundle / "root.usda"
+    root.write_text(
+        '#usda 1.0\ndef Material "Mat" {\n    asset inputs:file = @linked.png@\n}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="escapes the render intake root"):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
+
+
+@pytest.mark.parametrize(
+    "scene_text",
+    (
+        "#usda 1.0\n(\n    subLayers = [@missing.usda@]\n)\n",
+        '#usda 1.0\ndef Xform "World" (references = @missing.usda@) {}\n',
+        '#usda 1.0\ndef Xform "World" (payload = @missing.usda@) {}\n',
+        ('#usda 1.0\ndef Xform "World" {\n    asset source = @missing.png@\n}\n'),
+    ),
+)
+def test_usd_intake_rejects_missing_authored_dependency_from_intake_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scene_text: str,
+) -> None:
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    root = bundle / "root.usda"
+    root.write_text(scene_text, encoding="utf-8")
+    monkeypatch.chdir(bundle)
+
+    with pytest.raises(
+        ValueError,
+        match=r"layer=.*root\.usda.*path='missing\.(?:usda|png)'",
+    ):
+        _validate_usd_asset_paths_confined(root, intake_root=bundle)
 
 
 class _DummySocket:
@@ -82,6 +678,10 @@ class _DummyResponse:
     def close(self) -> None:
         self.closed = True
 
+    def iter_content(self, chunk_size: int):
+        for start in range(0, len(self.content), chunk_size):
+            yield self.content[start : start + chunk_size]
+
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
             raise RuntimeError(f"HTTP {self.status_code}")
@@ -93,6 +693,7 @@ class _RecordingBackend:
         self.base_dir_name: str | None = None
         self.stage_exists_during_render = False
         self.texture_exists_during_render = False
+        self.articulation_joint_exists = False
 
     def render(self, **kwargs):
         self.render_kwargs = kwargs
@@ -102,13 +703,16 @@ class _RecordingBackend:
         self.texture_exists_during_render = (
             base_dir / "textures" / "albedo.png"
         ).exists()
+        self.articulation_joint_exists = bool(
+            kwargs["stage"].GetPrimAtPath("/World/Joints/Hinge")
+        )
         return {
             "results": [
                 {
                     "camera": kwargs["cameras"][0],
-                    "images": [],
+                    "images": [Image.new("RGB", (2, 2), color=(16, 32, 64))],
                     "sensors": {},
-                    "frame_count": 0,
+                    "frame_count": 1,
                 }
             ],
         }
@@ -263,6 +867,47 @@ class TestFetchUsd:
             "https://assets.example/final.usda",
         ]
         assert validated_urls == requested_urls
+        assert responses == []
+
+    def test_http_download_rejects_declared_oversize_before_writing(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        response = _DummyResponse(
+            200,
+            content=b"not-read",
+            headers={"Content-Length": "9"},
+        )
+        monkeypatch.setattr("service.renderer._HTTP_MAX_DOWNLOAD_BYTES", 8)
+        monkeypatch.setattr(
+            "service.renderer._safe_http_get", lambda *_args, **_kwargs: response
+        )
+
+        dest = tmp_path / "scene.usd"
+        with pytest.raises(ValueError, match="HTTP USD download is too large"):
+            _fetch_usd("https://assets.example/scene.usd", str(dest))
+
+        assert response.closed is True
+        assert not dest.exists()
+
+    def test_http_download_rejects_chunked_oversize_and_removes_partial_file(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        response = _DummyResponse(200, content=b"123456789")
+        monkeypatch.setattr("service.renderer._HTTP_MAX_DOWNLOAD_BYTES", 8)
+        monkeypatch.setattr(
+            "service.renderer._safe_http_get", lambda *_args, **_kwargs: response
+        )
+
+        dest = tmp_path / "scene.usd"
+        with pytest.raises(ValueError, match="exceeded the byte limit"):
+            _fetch_usd("https://assets.example/scene.usd", str(dest))
+
+        assert response.closed is True
+        assert not dest.exists()
 
     @pytest.mark.parametrize(
         ("headers", "message"),
@@ -292,6 +937,12 @@ class TestFetchUsd:
 
         assert response.closed is True
         assert not dest.exists()
+
+
+@pytest.mark.parametrize("value", ("0", "-1", "not-an-integer"))
+def test_http_download_limit_must_be_positive_integer(value: str) -> None:
+    with pytest.raises(ValueError, match="OVRTX_HTTP_MAX_DOWNLOAD_BYTES"):
+        _parse_http_max_download_bytes(value)
 
 
 class TestExtractZipBundle:
@@ -341,6 +992,91 @@ class TestExtractZipBundle:
         assert backend.render_kwargs is not None
         assert backend.base_dir_name == "bundle"
         assert backend.stage_exists_during_render is True
+        assert backend.texture_exists_during_render is True
+
+    def test_renderer_accepts_post_articulation_usdz_dependency_closure(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        from pxr import Sdf, Usd, UsdGeom, UsdPhysics
+
+        source = tmp_path / "post_articulation"
+        source.mkdir()
+
+        def write_layer(relative_path: str, prim_name: str) -> None:
+            layer_path = source / relative_path
+            layer_path.parent.mkdir(parents=True, exist_ok=True)
+            stage = Usd.Stage.CreateNew(str(layer_path))
+            prim = UsdGeom.Xform.Define(stage, f"/{prim_name}").GetPrim()
+            stage.SetDefaultPrim(prim)
+            stage.GetRootLayer().Save()
+
+        layer_prims = {
+            "layers/base.usda": "BaseLayer",
+            "references/visual.usda": "Visual",
+            "payloads/body.usda": "Body",
+            "clips/anim.usda": "Animation",
+        }
+        for relative_path, prim_name in layer_prims.items():
+            write_layer(relative_path, prim_name)
+        texture = source / "textures" / "albedo.png"
+        texture.parent.mkdir()
+        Image.new("RGB", (1, 1), color=(64, 96, 128)).save(texture)
+
+        root = source / "root.usda"
+        stage = Usd.Stage.CreateNew(str(root))
+        world = UsdGeom.Xform.Define(stage, "/World").GetPrim()
+        stage.SetDefaultPrim(world)
+        stage.GetRootLayer().subLayerPaths.append("layers/base.usda")
+        base = UsdGeom.Cube.Define(stage, "/World/Base").GetPrim()
+        door = UsdGeom.Cube.Define(stage, "/World/Door").GetPrim()
+        UsdPhysics.RigidBodyAPI.Apply(base)
+        UsdPhysics.RigidBodyAPI.Apply(door)
+        UsdPhysics.ArticulationRootAPI.Apply(world)
+        joint = UsdPhysics.RevoluteJoint.Define(stage, "/World/Joints/Hinge")
+        joint.CreateBody0Rel().SetTargets([base.GetPath()])
+        joint.CreateBody1Rel().SetTargets([door.GetPath()])
+        UsdGeom.Xform.Define(
+            stage, "/World/Referenced"
+        ).GetPrim().GetReferences().AddReference("references/visual.usda")
+        UsdGeom.Xform.Define(
+            stage, "/World/Payload"
+        ).GetPrim().GetPayloads().AddPayload("payloads/body.usda")
+        animated = UsdGeom.Xform.Define(stage, "/World/Animated").GetPrim()
+        Usd.ClipsAPI(animated).SetClipAssetPaths([Sdf.AssetPath("clips/anim.usda")])
+        world.CreateAttribute("inputs:albedo", Sdf.ValueTypeNames.Asset).Set(
+            Sdf.AssetPath("textures/albedo.png")
+        )
+        UsdGeom.Camera.Define(stage, "/World/Camera")
+        stage.GetRootLayer().Save()
+
+        package = tmp_path / "post_articulation.usdz"
+        writer = Usd.ZipFileWriter.CreateNew(str(package))
+        members = ["root.usda", *layer_prims, "textures/albedo.png"]
+        for member in members:
+            assert writer.AddFile(str(source / member), member) == member
+        assert writer.Save()
+
+        backend = _RecordingBackend()
+        renderer = Renderer.__new__(Renderer)
+        renderer._backend = backend
+        renderer._initialized = False
+        renderer._render_lock = threading.RLock()
+        renderer._recovery_cooldown_until = 0.0
+        payload = base64.b64encode(package.read_bytes()).decode("ascii")
+
+        result = renderer.render(
+            f"data:application/vnd.usdz+zip;base64,{payload}",
+            camera_paths=["/World/Camera"],
+            frame_start=0,
+            frame_end=0,
+            width=64,
+            height=64,
+        )
+
+        assert result["status"] == "success"
+        assert result["images"]
+        assert backend.articulation_joint_exists is True
         assert backend.texture_exists_during_render is True
 
     def test_prefers_main_over_scene_and_stage(self, tmp_path: Path):

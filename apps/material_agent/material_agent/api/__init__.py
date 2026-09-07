@@ -135,6 +135,9 @@ from material_agent.api.defaults import (
     DEFAULT_LLM_MODEL,
     DEFAULT_RENDER_BACKEND,
     DEFAULT_VLM_BACKEND,
+    DEFAULT_VLM_JUDGE_BACKEND,
+    DEFAULT_VLM_JUDGE_MODEL,
+    DEFAULT_VLM_JUDGE_REASONING_EFFORT,
     DEFAULT_VLM_MODEL,
     ITERATION_DEFAULTS,
     MUTUALLY_EXCLUSIVE_STEPS,
@@ -168,6 +171,19 @@ from material_agent.api.evaluate import (
     arun_evaluate,
     evaluate,
     run_evaluate,
+)
+
+# Import rendered material refinement APIs
+from material_agent.api.material_refinement import (
+    MaterialRefinementInput,
+    MaterialRefinementOutput,
+    MaterialVariationOutput,
+    arun_material_refinement,
+    arun_material_variations,
+    create_material_variations,
+    refine_material,
+    run_material_refinement_api,
+    run_material_variations_api,
 )
 
 # Import pipeline API
@@ -240,6 +256,9 @@ __all__ = [
     "get_required_fields",
     # Defaults & Utilities
     "DEFAULT_VLM_BACKEND",
+    "DEFAULT_VLM_JUDGE_BACKEND",
+    "DEFAULT_VLM_JUDGE_MODEL",
+    "DEFAULT_VLM_JUDGE_REASONING_EFFORT",
     "DEFAULT_VLM_MODEL",
     "DEFAULT_LLM_BACKEND",
     "DEFAULT_LLM_MODEL",
@@ -330,6 +349,16 @@ __all__ = [
     "arun_refine",
     "refine",
     "arefine",
+    # Rendered material refinement and variation
+    "MaterialRefinementInput",
+    "MaterialRefinementOutput",
+    "MaterialVariationOutput",
+    "run_material_refinement_api",
+    "arun_material_refinement",
+    "refine_material",
+    "run_material_variations_api",
+    "arun_material_variations",
+    "create_material_variations",
     # Configure
     "ConfigureInput",
     "ConfigureOutput",

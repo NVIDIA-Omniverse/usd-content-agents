@@ -18,6 +18,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from world_understanding.utils.artifacts import remove_legacy_pipeline_temp
 from world_understanding.utils.credentials import InlineSecretError
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    NonRetryableVLMTimeoutError,
+    make_terminal_vlm_timeout_marker,
+)
+from world_understanding.utils.render_failure_diagnostics import (
+    PipelineFailureDiagnostic,
+)
 
 from material_agent.materials import FALLBACK_MATERIAL_NAME
 from material_agent.tasks.prepare_dataset import (
@@ -27,7 +35,9 @@ from material_agent.tasks.unified_pipeline_executor import (
     UnifiedPipelineExecutorTask,
     _auto_wire_reference_generation_inputs,
     _build_child_config_dict,
+    _build_child_workflow_context,
     _build_runtime_pipeline_context,
+    _capture_pipeline_failure_diagnostic,
     _dedupe_paths,
     _make_yaml_safe,
     _pipeline_input_config,
@@ -197,6 +207,18 @@ def test_make_yaml_safe_normalizes_nested_non_primitives() -> None:
     assert safe["root"]["mode"] == "fast"
     assert safe["root"]["items"] == [1, "child"]
     assert safe["root"]["flags"] == ["a", "b"]
+
+
+@pytest.mark.parametrize("step_name", ["predict", "benchmark"])
+def test_child_prediction_context_uses_trusted_parent_resume(step_name: str) -> None:
+    child = _build_child_workflow_context(
+        step_name,
+        {"resume": False, "dataset": "dataset.jsonl"},
+        {"resume": True, "config_path": "config.yaml"},
+    )
+
+    assert child["config_dict"]["resume"] is False
+    assert child["resume"] is True
 
 
 def test_make_yaml_safe_canonicalizes_mixed_sets_after_normalization() -> None:
@@ -2481,6 +2503,64 @@ def test_runtime_context_clones_containers_and_preserves_runtime_leaves() -> Non
     assert source_context["step_configs"] is source_step_configs
 
 
+def test_runtime_failure_marker_is_trusted_and_caller_injection_is_removed() -> None:
+    diagnostic = PipelineFailureDiagnostic(
+        renderer_backend="warp",
+        checked_count=3,
+        blank_count=2,
+        threshold=0.5,
+        render_modes=("composition",),
+        samples=(),
+    )
+    injected = diagnostic.to_dict()
+    runtime_context = _build_runtime_pipeline_context(
+        {
+            "step_configs": {},
+            "pipeline_failure_diagnostic": injected,
+        }
+    )
+    assert "pipeline_failure_diagnostic" not in runtime_context
+
+    _capture_pipeline_failure_diagnostic(
+        runtime_context,
+        {"pipeline_failure_diagnostic": injected},
+    )
+    assert "pipeline_failure_diagnostic" not in runtime_context
+
+    _capture_pipeline_failure_diagnostic(
+        runtime_context,
+        {"pipeline_failure_diagnostic": diagnostic},
+    )
+    assert runtime_context["pipeline_failure_diagnostic"] is diagnostic
+
+    _capture_pipeline_failure_diagnostic(runtime_context, {})
+    assert "pipeline_failure_diagnostic" not in runtime_context
+
+
+@pytest.mark.asyncio
+async def test_arun_clears_exact_stale_marker_before_early_failure() -> None:
+    diagnostic = PipelineFailureDiagnostic(
+        renderer_backend="warp",
+        checked_count=3,
+        blank_count=2,
+        threshold=0.5,
+        render_modes=("composition",),
+        samples=(),
+    )
+    context: dict[str, Any] = {"pipeline_failure_diagnostic": diagnostic}
+
+    with (
+        patch(
+            "material_agent.tasks.unified_pipeline_executor.get_listener",
+            return_value=MagicMock(),
+        ),
+        pytest.raises(ValueError, match="No steps to run"),
+    ):
+        await UnifiedPipelineExecutorTask().arun(context)
+
+    assert "pipeline_failure_diagnostic" not in context
+
+
 def test_remove_legacy_pipeline_temp_does_not_follow_symlink(tmp_path: Path) -> None:
     working_dir = tmp_path / "work"
     working_dir.mkdir()
@@ -3364,6 +3444,32 @@ def test_run_records_step_error_for_failed_step(
     assert all(record.exc_info is None for record in failure_records)
 
 
+def test_cleanup_and_checkpoint_defensive_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import material_agent.tasks.unified_pipeline_executor as executor_module
+
+    assert not executor_module._unlink_with_safe_diagnostics(
+        tmp_path / "missing.usd", label="output"
+    )
+    assert not executor_module._remove_tree_with_safe_diagnostics(
+        tmp_path / "missing", label="directory"
+    )
+    regular_file = tmp_path / "regular.txt"
+    regular_file.write_text("data", encoding="utf-8")
+    assert not executor_module._remove_tree_with_safe_diagnostics(
+        regular_file, label="directory"
+    )
+
+    (tmp_path / ".pipeline_state.json").write_text("[]", encoding="utf-8")
+    state = executor_module._load_pipeline_state(tmp_path, "sid", "project", True)
+    assert state["completed_steps"] == []
+
+    task = UnifiedPipelineExecutorTask()
+    monkeypatch.setattr(task, "_clean_directories", lambda context: None)
+    task._clean_pipeline_artifacts({}, None)
+
+
 def test_run_clears_prior_step_error_on_success(tmp_path: Path) -> None:
     executor = UnifiedPipelineExecutorTask()
     listener = MagicMock()
@@ -3808,3 +3914,283 @@ async def test_arun_records_step_error_for_failed_step(
     ]
     assert failure_records
     assert all(record.exc_info is None for record in failure_records)
+
+
+@pytest.mark.asyncio
+async def test_arun_propagates_code_owned_failure_marker_to_caller(
+    tmp_path: Path,
+) -> None:
+    diagnostic = PipelineFailureDiagnostic(
+        renderer_backend="warp",
+        checked_count=3,
+        blank_count=2,
+        threshold=0.5,
+        render_modes=("composition",),
+        samples=(),
+    )
+    executor = UnifiedPipelineExecutorTask()
+
+    async def fail_with_marker(
+        _step_name: str,
+        _step_config: dict[str, Any],
+        runtime_context: dict[str, Any],
+        _object_store: Any,
+        _pipeline_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        runtime_context["pipeline_failure_diagnostic"] = diagnostic
+        raise RuntimeError("private renderer failure")
+
+    executor._aexecute_step = fail_with_marker  # type: ignore[method-assign]
+    working_dir = tmp_path / "work"
+    context = {
+        "working_dir": str(working_dir),
+        "steps_to_run": ["build_dataset_usd"],
+        "step_configs": {"build_dataset_usd": {}},
+        "session_id": "blank-render",
+        "project_name": "blank-render",
+    }
+    pipeline_state = {
+        "session_id": "blank-render",
+        "project_name": "blank-render",
+        "completed_steps": [],
+        "failed_steps": [],
+        "step_errors": {},
+        "step_outputs": {},
+        "current_step": None,
+    }
+
+    with (
+        patch(
+            "material_agent.tasks.unified_pipeline_executor._load_pipeline_state",
+            return_value=pipeline_state,
+        ),
+        patch(
+            "material_agent.tasks.unified_pipeline_executor.get_listener",
+            return_value=MagicMock(),
+        ),
+        pytest.raises(RuntimeError, match="build_dataset_usd"),
+    ):
+        await executor.arun(context)
+
+    assert context["pipeline_failure_diagnostic"] is diagnostic
+
+
+def test_execute_step_restores_terminal_timeout_from_workflow_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, list[dict]] = {}
+    _patch_fake_workflows(
+        monkeypatch,
+        captured,
+        {
+            "predict": {
+                "error": "Task execution failed",
+                "workflow_terminated": True,
+                TERMINAL_VLM_TIMEOUT_CONTEXT_KEY: make_terminal_vlm_timeout_marker(
+                    "VLMInference"
+                ),
+            }
+        },
+    )
+
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        UnifiedPipelineExecutorTask()._execute_step(
+            "predict",
+            {},
+            {"working_dir": str(tmp_path)},
+            object_store=None,
+            pipeline_state={"step_outputs": {}},
+        )
+
+
+@pytest.mark.asyncio
+async def test_aexecute_step_restores_terminal_timeout_from_workflow_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, list[dict]] = {}
+    _patch_fake_workflows(
+        monkeypatch,
+        captured,
+        {
+            "predict": {
+                "error": "Task execution failed",
+                "workflow_terminated": True,
+                TERMINAL_VLM_TIMEOUT_CONTEXT_KEY: make_terminal_vlm_timeout_marker(
+                    "VLMInference"
+                ),
+            }
+        },
+    )
+
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        await UnifiedPipelineExecutorTask()._aexecute_step(
+            "predict",
+            {},
+            {"working_dir": str(tmp_path)},
+            object_store=None,
+            pipeline_state={"step_outputs": {}},
+        )
+
+
+@pytest.mark.asyncio
+async def test_aexecute_step_carries_blank_render_marker_before_redacted_raise(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    diagnostic = PipelineFailureDiagnostic(
+        renderer_backend="warp",
+        checked_count=3,
+        blank_count=2,
+        threshold=0.5,
+        render_modes=("composition",),
+        samples=(),
+    )
+    captured: dict[str, list[dict]] = {}
+    _patch_fake_workflows(
+        monkeypatch,
+        captured,
+        {
+            "build_dataset_usd": {
+                "error": "Task execution failed",
+                "workflow_terminated": True,
+                "pipeline_failure_diagnostic": diagnostic,
+            }
+        },
+    )
+    context: dict[str, Any] = {"working_dir": str(tmp_path)}
+
+    with pytest.raises(RuntimeError, match="build_dataset_usd"):
+        await UnifiedPipelineExecutorTask()._aexecute_step(
+            "build_dataset_usd",
+            {},
+            context,
+            object_store=None,
+            pipeline_state={"step_outputs": {}},
+        )
+
+    assert context["pipeline_failure_diagnostic"] is diagnostic
+
+
+def test_execute_step_carries_blank_render_marker_before_redacted_raise(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    diagnostic = PipelineFailureDiagnostic(
+        renderer_backend="warp",
+        checked_count=3,
+        blank_count=2,
+        threshold=0.5,
+        render_modes=("composition",),
+        samples=(),
+    )
+    captured: dict[str, list[dict]] = {}
+    _patch_fake_workflows(
+        monkeypatch,
+        captured,
+        {
+            "build_dataset_usd": {
+                "error": "Task execution failed",
+                "workflow_terminated": True,
+                "pipeline_failure_diagnostic": diagnostic,
+            }
+        },
+    )
+    context: dict[str, Any] = {"working_dir": str(tmp_path)}
+
+    with pytest.raises(RuntimeError, match="build_dataset_usd"):
+        UnifiedPipelineExecutorTask()._execute_step(
+            "build_dataset_usd",
+            {},
+            context,
+            object_store=None,
+            pipeline_state={"step_outputs": {}},
+        )
+
+    assert context["pipeline_failure_diagnostic"] is diagnostic
+
+
+def test_run_persists_terminal_timeout_and_rejects_resume(tmp_path: Path) -> None:
+    working_dir = tmp_path / "sync-terminal"
+    context = {
+        "working_dir": str(working_dir),
+        "steps_to_run": ["predict"],
+        "step_configs": {"predict": {}},
+    }
+    first_executor = UnifiedPipelineExecutorTask()
+    first_executor._execute_step = MagicMock(
+        side_effect=NonRetryableVLMTimeoutError("provider-secret")
+    )
+
+    with (
+        patch(
+            "material_agent.tasks.unified_pipeline_executor.get_listener",
+            return_value=MagicMock(),
+        ),
+        pytest.raises(RuntimeError, match="Pipeline failed at step 'predict'"),
+    ):
+        first_executor.run(context)
+
+    saved = json.loads(
+        (working_dir / ".pipeline_state.json").read_text(encoding="utf-8")
+    )
+    assert saved[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == (
+        make_terminal_vlm_timeout_marker("predict")
+    )
+
+    resume_executor = UnifiedPipelineExecutorTask()
+    resume_executor._execute_step = MagicMock()
+    with (
+        patch(
+            "material_agent.tasks.unified_pipeline_executor.get_listener",
+            return_value=MagicMock(),
+        ),
+        pytest.raises(RuntimeError, match="resume is blocked"),
+    ):
+        resume_executor.run({**context, "resume": True})
+    resume_executor._execute_step.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_arun_persists_terminal_timeout_and_rejects_resume(
+    tmp_path: Path,
+) -> None:
+    working_dir = tmp_path / "async-terminal"
+    context = {
+        "working_dir": str(working_dir),
+        "steps_to_run": ["predict"],
+        "step_configs": {"predict": {}},
+    }
+    first_executor = UnifiedPipelineExecutorTask()
+    first_executor._aexecute_step = AsyncMock(
+        side_effect=NonRetryableVLMTimeoutError("provider-secret")
+    )
+
+    with (
+        patch(
+            "material_agent.tasks.unified_pipeline_executor.get_listener",
+            return_value=MagicMock(),
+        ),
+        pytest.raises(RuntimeError, match="Pipeline failed at step 'predict'"),
+    ):
+        await first_executor.arun(context)
+
+    saved = json.loads(
+        (working_dir / ".pipeline_state.json").read_text(encoding="utf-8")
+    )
+    assert saved[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == (
+        make_terminal_vlm_timeout_marker("predict")
+    )
+
+    resume_executor = UnifiedPipelineExecutorTask()
+    resume_executor._aexecute_step = AsyncMock()
+    with (
+        patch(
+            "material_agent.tasks.unified_pipeline_executor.get_listener",
+            return_value=MagicMock(),
+        ),
+        pytest.raises(RuntimeError, match="resume is blocked"),
+    ):
+        await resume_executor.arun({**context, "resume": True})
+    resume_executor._aexecute_step.assert_not_awaited()

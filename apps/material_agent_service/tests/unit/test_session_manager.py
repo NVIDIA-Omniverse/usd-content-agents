@@ -230,6 +230,27 @@ async def test_local_store_put_file_to_same_path_is_noop(tmp_path: str) -> None:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_session_manager_contains_store_lifecycle_failures(tmp_path: str) -> None:
+    manager = SessionManager(tmp_path)
+
+    async def fail_delete(session_id: str) -> None:
+        raise RuntimeError("delete failed")
+
+    async def fail_exists(session_id: str, key: str) -> bool:
+        raise RuntimeError("read failed")
+
+    manager.store.delete_session = fail_delete  # type: ignore[method-assign]
+    assert not await manager.delete_session(str(uuid4()))
+
+    manager.store.exists = fail_exists  # type: ignore[method-assign]
+    assert (
+        await manager.iter_store_chunks(str(uuid4()), "output/file.bin", chunk_size=4)
+        is None
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 class TestProgressMath:
     """Test progress scaling: 0-50% (rendering), 50-90% (predict), 90-100% (apply)."""
 

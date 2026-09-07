@@ -7,12 +7,14 @@ import builtins
 import logging
 from datetime import datetime
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
 
 from ...service.runtime import get_event_bus
 from ...service.runtime.events import ProgressEvent, StepState
+from ...service.storage.base import SessionGenerationOwnershipError
 from ...service.workers import executor
 
 
@@ -125,19 +127,31 @@ async def test_execute_pipeline_success_failure_and_sync_warning(
     assert sentinel not in caplog.text
     assert sentinel not in repr(manager.metadata)
     assert manager.sync_calls == [
-        "cache/predictions/",
-        "cache/dataset/dataset.jsonl",
-        "cache/physics/",
+        (
+            "input/",
+            "cache/predictions/",
+            "cache/dataset/dataset.jsonl",
+            "cache/physics/",
+        )
     ]
 
-    manager.fail_sync = True
-    await executor.execute_pipeline_async(
-        session_id,
-        {"project": {"name": "test"}},
-        manager,
-        only_steps=["predict"],
+    sync_failure_manager = _Manager(tmp_path / "sync-failure")
+    sync_failure_manager.fail_sync = True
+    with pytest.raises(
+        RuntimeError,
+        match="physics_pipeline_artifact_publication_failed",
+    ):
+        await executor.execute_pipeline_async(
+            session_id,
+            {"project": {"name": "test"}},
+            sync_failure_manager,
+            only_steps=["predict"],
+        )
+    assert sync_failure_manager.metadata["status"] == "failed"
+    assert (
+        sync_failure_manager.metadata["error"]
+        == "physics_pipeline_artifact_publication_failed"
     )
-    assert manager.metadata["status"] == "completed"
 
     async def bad_pipeline(_params):
         return SimpleNamespace(
@@ -284,7 +298,9 @@ async def test_pipeline_cancellation_covers_post_pipeline_lifecycle(
             manager,
         )
 
-    assert manager.metadata["status"] == "completed"
+    assert manager.metadata["status"] == (
+        "cancelled" if cancel_phase == "artifact_sync" else "completed"
+    )
     assert manager.metadata["can_cancel"] is False
     assert manager.metadata["completed_at"]
 
@@ -492,7 +508,7 @@ async def test_completion_claim_rejects_cancel_during_artifact_publication(
     allow_artifact_sync.set()
     await task
 
-    assert manager.metadata["status"] == "completed"
+    assert manager.metadata["status"] == "cancelled"
     assert manager.metadata["can_cancel"] is False
 
 
@@ -776,3 +792,288 @@ def test_pipeline_stats_file_fallbacks_and_errors(
         session_dir,
         {"prims_processed": 0, "images_generated": 0, "predictions_made": 0},
     )
+
+
+@pytest.mark.asyncio
+async def test_pipeline_lifecycle_cancels_a_pending_cancel_watcher(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+
+    async def pending_watcher(*_args) -> None:
+        await asyncio.Future()
+
+    async def completed_lifecycle(*_args, **_kwargs) -> None:
+        return None
+
+    monkeypatch.setattr(executor, "_watch_for_cancel", pending_watcher)
+    monkeypatch.setattr(
+        executor,
+        "_execute_pipeline_with_cancel_signal",
+        completed_lifecycle,
+    )
+
+    await executor._execute_pipeline_lifecycle("sid", {}, manager)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_result_and_terminal_claim_defensive_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class BrokenResult:
+        cancelled = False
+        completed_steps: list[str] = []
+        step_results: dict[str, object] = {}
+
+        @property
+        def success(self) -> bool:
+            raise RuntimeError("malformed result")
+
+    async def malformed_pipeline(_params):
+        return BrokenResult()
+
+    manager = _Manager(tmp_path / "malformed")
+    monkeypatch.setattr(executor, "arun_pipeline", malformed_pipeline)
+    with pytest.raises(RuntimeError, match="physics_pipeline_execution_failed"):
+        await executor._execute_pipeline_with_cancel_signal(
+            "malformed",
+            {"project": {"name": "test"}},
+            manager,
+            manager.get_session_dir("malformed"),
+            SimpleNamespace(canonical_current_step=None),
+            Event(),
+            only_steps=None,
+        )
+
+    async def failed_pipeline(_params):
+        return SimpleNamespace(
+            success=False,
+            cancelled=False,
+            error="failed",
+            completed_steps=[],
+            step_results={},
+        )
+
+    manager = _Manager(tmp_path / "failed-claim")
+    manager.terminal_claim = "completed"
+    monkeypatch.setattr(executor, "arun_pipeline", failed_pipeline)
+    await executor._execute_pipeline_with_cancel_signal(
+        "failed-claim",
+        {"project": {"name": "test"}},
+        manager,
+        manager.get_session_dir("failed-claim"),
+        SimpleNamespace(canonical_current_step=None),
+        Event(),
+        only_steps=None,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("terminal_claim", ["cancelled", "failed"])
+async def test_completed_pipeline_respects_a_competing_terminal_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    terminal_claim: str,
+) -> None:
+    async def completed_pipeline(_params):
+        return SimpleNamespace(
+            success=True,
+            cancelled=False,
+            error=None,
+            completed_steps=["predict"],
+            step_results={"predict": {"predictions_count": 1}},
+            raw_result={},
+        )
+
+    manager = _Manager(tmp_path)
+    manager.terminal_claim = terminal_claim
+    monkeypatch.setattr(executor, "arun_pipeline", completed_pipeline)
+    await executor._execute_pipeline_with_cancel_signal(
+        f"claim-{terminal_claim}",
+        {"project": {"name": "test"}},
+        manager,
+        manager.get_session_dir(f"claim-{terminal_claim}"),
+        SimpleNamespace(canonical_current_step="predict"),
+        Event(),
+        only_steps=None,
+    )
+    assert manager.terminal_claim == terminal_claim
+
+
+@pytest.mark.asyncio
+async def test_completed_pipeline_observes_cancellation_after_stats(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class LateCancelManager(_Manager):
+        def __init__(self, root: Path) -> None:
+            super().__init__(root)
+            self.polls = 0
+
+        async def is_cancelled(self, _session_id: str) -> bool:
+            self.polls += 1
+            return self.polls >= 2
+
+    async def completed_pipeline(_params):
+        return SimpleNamespace(
+            success=True,
+            cancelled=False,
+            error=None,
+            completed_steps=["predict"],
+            step_results={"predict": {"predictions_count": 1}},
+            raw_result={},
+        )
+
+    manager = LateCancelManager(tmp_path)
+    monkeypatch.setattr(executor, "arun_pipeline", completed_pipeline)
+    await executor._execute_pipeline_with_cancel_signal(
+        "late-cancel",
+        {"project": {"name": "test"}},
+        manager,
+        manager.get_session_dir("late-cancel"),
+        SimpleNamespace(canonical_current_step="predict"),
+        Event(),
+        only_steps=None,
+    )
+    assert manager.metadata["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_cancellation_poll_and_quiescence_failure_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class PollFailureManager(_Manager):
+        async def is_cancelled(self, _session_id: str) -> bool:
+            raise RuntimeError("poll failed")
+
+    manager = PollFailureManager(tmp_path)
+    assert not await executor._cancellation_requested(
+        manager,
+        "sid",
+        Event(),
+    )
+
+    release = asyncio.Event()
+
+    async def cooperative_worker() -> None:
+        await release.wait()
+
+    pipeline_task = asyncio.create_task(cooperative_worker())
+    waiter = asyncio.create_task(executor._wait_for_pipeline_quiescence(pipeline_task))
+    await asyncio.sleep(0)
+    waiter.cancel()
+    await asyncio.sleep(0)
+    release.set()
+    await waiter
+
+    async def failing_worker() -> None:
+        await asyncio.sleep(0)
+        raise RuntimeError("worker failed")
+
+    pipeline_task = asyncio.create_task(failing_worker())
+    with caplog.at_level(logging.ERROR, logger=executor.__name__):
+        await executor._wait_for_pipeline_quiescence(pipeline_task)
+    assert "physics_pipeline_cancellation_quiescence_failed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_terminal_helpers_cover_conflicts_and_malformed_snapshots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class Bus:
+        def __init__(self, *, fail_emit: bool = False) -> None:
+            self.fail_emit = fail_emit
+
+        def get_snapshot(self, _session_id: str) -> dict[str, object]:
+            return {"completed_steps": "malformed"}
+
+        async def emit(self, _event: ProgressEvent) -> None:
+            if self.fail_emit:
+                raise RuntimeError("emit failed")
+
+    diagnostic = executor._pipeline_failure_diagnostic()
+
+    cancelled = _Manager(tmp_path / "cancelled")
+    cancelled.terminal_claim = "cancelled"
+    monkeypatch.setattr(executor, "get_event_bus", lambda: Bus())
+    assert (
+        await executor._mark_failed(cancelled, "cancelled", diagnostic, "predict")
+        == "cancelled"
+    )
+
+    completed = _Manager(tmp_path / "completed")
+    completed.terminal_claim = "completed"
+    assert (
+        await executor._mark_failed(completed, "completed", diagnostic, "predict")
+        == "completed"
+    )
+
+    failed = _Manager(tmp_path / "failed")
+    await executor._mark_failed(failed, "failed", diagnostic, "predict")
+    assert failed.metadata["completed_steps"] == []
+
+    event_failure = _Manager(tmp_path / "event-failure")
+    monkeypatch.setattr(executor, "get_event_bus", lambda: Bus(fail_emit=True))
+    with caplog.at_level(logging.ERROR, logger=executor.__name__):
+        assert await executor._mark_cancelled(
+            event_failure,
+            "event-failure",
+            "predict",
+        )
+    assert event_failure.metadata["completed_steps"] == []
+    assert "physics_pipeline_cancellation_event_failed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_artifact_publication_failure_respects_cancelled_terminal_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def completed_pipeline(_params):
+        return SimpleNamespace(
+            success=True,
+            cancelled=False,
+            error=None,
+            completed_steps=["predict"],
+            step_results={"predict": {"predictions_count": 1}},
+            raw_result={},
+        )
+
+    manager = _Manager(tmp_path)
+    manager.fail_sync = True
+    manager.terminal_claim = "cancelled"
+    monkeypatch.setattr(executor, "arun_pipeline", completed_pipeline)
+
+    await executor._execute_pipeline_with_cancel_signal(
+        "cancelled-publication",
+        {"project": {"name": "test"}},
+        manager,
+        manager.get_session_dir("cancelled-publication"),
+        SimpleNamespace(canonical_current_step="predict"),
+        Event(),
+        only_steps=None,
+    )
+    assert manager.terminal_claim == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_terminal_metadata_ownership_error_is_not_retried(tmp_path: Path) -> None:
+    manager = _Manager(tmp_path)
+
+    async def stale_update(_session_id: str, _updates: dict) -> None:
+        raise SessionGenerationOwnershipError("stale generation")
+
+    manager.update_session = stale_update  # type: ignore[method-assign]
+    with pytest.raises(SessionGenerationOwnershipError, match="stale generation"):
+        await executor._persist_terminal_metadata(
+            manager,
+            "sid",
+            {"status": "failed"},
+            failure_code="physics_terminal_write_failed",
+        )

@@ -31,16 +31,52 @@ import sys
 import tempfile
 import time
 import uuid
+from collections.abc import Iterable
 from enum import IntEnum
 from pathlib import Path
 from typing import Any
 
+from world_understanding.functions.graphics.so_export import (
+    _atomic_output_file,
+    _lexical_absolute_path,
+)
 from world_understanding.utils.data_uri import should_use_data_uri
 from world_understanding.utils.usd.stage import create_data_uri_from_file
 
 logger = logging.getLogger(__name__)
 
 _SO_UV_WORKER_PATH = Path(__file__).parent / "so_uv_worker.py"
+_SO_EXPORT_PATH = Path(__file__).parent / "so_export.py"
+
+
+class _LocalSOUnavailableError(RuntimeError):
+    """The local Scene Optimizer runtime could not start or import."""
+
+
+def _is_uv_worker_process_startup_failure(
+    stderr: str,
+    executable: str,
+) -> bool:
+    """Return whether a pre-manifest worker exit proves import/loader failure."""
+    lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+    if not lines:
+        return False
+
+    terminal = lines[-1]
+    if terminal.startswith(("ModuleNotFoundError:", "ImportError:")):
+        return True
+
+    linux_loader_prefix = f"{executable}: error while loading shared libraries:"
+    if any(line.startswith(linux_loader_prefix) for line in lines):
+        return True
+    return any(
+        line.startswith("dyld[") and ": Library not loaded:" in line for line in lines
+    )
+
+
+def _is_local_so_unavailable(error: RuntimeError | FileNotFoundError) -> bool:
+    """Return whether a local failure is safe to retry on the remote backend."""
+    return isinstance(error, FileNotFoundError | _LocalSOUnavailableError)
 
 
 class ProjectionType(IntEnum):
@@ -180,8 +216,12 @@ async def _generate_uvs_from_url(
         }
 
     stage_bytes = base64.b64decode(stage_b64)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(stage_bytes)
+    output_path = _lexical_absolute_path(output_path)
+    with _atomic_output_file(
+        output_path,
+        clear_portable_sidecar=True,
+    ) as transaction_output:
+        transaction_output.write_bytes(stage_bytes)
     output_size = output_path.stat().st_size
 
     logger.info("Wrote UV-generated USD to %s (%d bytes)", output_path, output_size)
@@ -328,6 +368,8 @@ def _run_uv_worker(
     operation: str,
     op_params: dict[str, Any],
     timeout: int = 600,
+    *,
+    approved_dependency_roots: Iterable[Path | str] | None = None,
 ) -> dict[str, Any]:
     """Run a UV generation operation in the SO subprocess.
 
@@ -337,6 +379,9 @@ def _run_uv_worker(
         operation: SO operation name.
         op_params: Operation parameters dict (camelCase keys).
         timeout: Subprocess timeout in seconds.
+        approved_dependency_roots: Filesystem roots from which the worker may
+            copy dependencies into the portable output sidecar. Defaults to
+            the input USD parent.
 
     Returns:
         Result dict with status, timing, and mesh UV stats.
@@ -344,19 +389,36 @@ def _run_uv_worker(
     Raises:
         RuntimeError: If SO paths are missing or subprocess fails.
     """
-    so_package_dir, so_python = _resolve_so_paths()
+    root_values: tuple[Path | str, ...]
+    if approved_dependency_roots is None:
+        root_values = (input_path.resolve().parent,)
+    else:
+        root_values = tuple(approved_dependency_roots)
+    # Validate in the parent process before launch. In particular, a broad
+    # filesystem-root approval must not be mistaken for local-backend
+    # unavailability and silently sent to the remote fallback.
+    from world_understanding.functions.graphics.so_export import (
+        _normalize_dependency_roots,
+    )
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    dependency_roots = [str(root) for root in _normalize_dependency_roots(root_values)]
+
+    try:
+        so_package_dir, so_python = _resolve_so_paths()
+    except RuntimeError as exc:
+        raise _LocalSOUnavailableError(str(exc)) from exc
 
     with tempfile.TemporaryDirectory(prefix="so_uv_") as tmp_dir:
         worker_path = os.path.join(tmp_dir, "_so_uv_worker.py")
         manifest_path = os.path.join(tmp_dir, "manifest.json")
 
         shutil.copy2(str(_SO_UV_WORKER_PATH), worker_path)
+        shutil.copy2(str(_SO_EXPORT_PATH), os.path.join(tmp_dir, "so_export.py"))
 
         params = {
             "input_usd_path": str(input_path),
             "output_usd_path": str(output_path),
+            "approved_dependency_roots": dependency_roots,
             "operation": operation,
             "op_params": op_params,
             "manifest_path": manifest_path,
@@ -413,6 +475,8 @@ def _run_uv_worker(
                 error_msg += f"\n--- stdout ---\n{proc.stdout[-1000:]}"
             if proc.stderr:
                 error_msg += f"\n--- stderr ---\n{proc.stderr[-2000:]}"
+            if _is_uv_worker_process_startup_failure(proc.stderr or "", so_python):
+                raise _LocalSOUnavailableError(error_msg)
             raise RuntimeError(error_msg)
 
         if not os.path.exists(manifest_path):
@@ -428,9 +492,12 @@ def _run_uv_worker(
     logger.info("%s completed in %.2fs", operation, elapsed)
 
     if manifest.get("status") != "success":
-        raise RuntimeError(
-            f"{operation} failed: {manifest.get('error', 'unknown error')}"
-        )
+        error_msg = f"{operation} failed: {manifest.get('error', 'unknown error')}"
+        if manifest.get("failure_phase") == "runtime_import" and manifest.get(
+            "error_type"
+        ):
+            raise _LocalSOUnavailableError(error_msg)
+        raise RuntimeError(error_msg)
 
     return manifest
 
@@ -443,6 +510,7 @@ def _run_with_fallback(
     backend: str,
     timeout: int,
     allow_remote_fallback: bool = True,
+    approved_dependency_roots: Iterable[Path | str] | None = None,
 ) -> dict[str, Any]:
     """Dispatch UV generation to local or NVCF backend.
 
@@ -459,23 +527,19 @@ def _run_with_fallback(
     if backend == "local":
         try:
             return _run_uv_worker(
-                input_path, output_path, operation, op_params, timeout
+                input_path,
+                output_path,
+                operation,
+                op_params,
+                timeout,
+                approved_dependency_roots=approved_dependency_roots,
             )
         except (RuntimeError, FileNotFoundError) as local_err:
             # Auto-fallback to NVCF when local SO is unavailable.
             # Covers: missing bundle, missing env vars, missing directories,
             # macOS (.so/dlopen failures), missing python3.12 binary,
             # subprocess import errors.
-            err_str = str(local_err)
-            is_unavailable = isinstance(local_err, FileNotFoundError) or any(
-                marker in err_str
-                for marker in (
-                    "WU_SO_PACKAGE_DIR",
-                    "SO package missing directory",
-                    "UV generation subprocess failed",
-                )
-            )
-            if is_unavailable:
+            if _is_local_so_unavailable(local_err):
                 if not allow_remote_fallback:
                     raise
                 logger.warning(
@@ -512,6 +576,7 @@ def generate_projection_uvs(
     timeout: int = 600,
     backend: str = "local",
     allow_remote_fallback: bool = True,
+    approved_dependency_roots: Iterable[Path | str] | None = None,
 ) -> dict[str, Any]:
     """Generate projection-based UVs on a USD file.
 
@@ -533,6 +598,9 @@ def generate_projection_uvs(
         backend: ``"local"`` (default, auto-falls back to NVCF) or ``"remote"``.
         allow_remote_fallback: When using ``backend="local"``, fall back to
             NVCF if the local Scene Optimizer subprocess is unavailable.
+        approved_dependency_roots: Filesystem roots from which the local
+            worker may copy dependencies into the portable output sidecar.
+            Defaults to the input USD parent. Ignored by the remote backend.
 
     Returns:
         Dict with status, timing, mesh_count, meshes_with_uvs.
@@ -565,6 +633,7 @@ def generate_projection_uvs(
         backend=backend,
         timeout=timeout,
         allow_remote_fallback=allow_remote_fallback,
+        approved_dependency_roots=approved_dependency_roots,
     )
 
 
@@ -581,6 +650,7 @@ def generate_atlas_uvs(
     timeout: int = 600,
     backend: str = "local",
     allow_remote_fallback: bool = True,
+    approved_dependency_roots: Iterable[Path | str] | None = None,
 ) -> dict[str, Any]:
     """Generate atlas-unwrapped UVs on a USD file.
 
@@ -603,6 +673,9 @@ def generate_atlas_uvs(
         backend: ``"local"`` (default, auto-falls back to NVCF) or ``"remote"``.
         allow_remote_fallback: When using ``backend="local"``, fall back to
             NVCF if the local Scene Optimizer subprocess is unavailable.
+        approved_dependency_roots: Filesystem roots from which the local
+            worker may copy dependencies into the portable output sidecar.
+            Defaults to the input USD parent. Ignored by the remote backend.
 
     Returns:
         Dict with status, timing, mesh_count, meshes_with_uvs.
@@ -629,4 +702,5 @@ def generate_atlas_uvs(
         backend=backend,
         timeout=timeout,
         allow_remote_fallback=allow_remote_fallback,
+        approved_dependency_roots=approved_dependency_roots,
     )

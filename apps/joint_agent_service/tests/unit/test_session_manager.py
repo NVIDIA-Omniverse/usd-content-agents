@@ -14,6 +14,7 @@ All tests are parameterized across local, S3 (MinIO), and default storage backen
 import os
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -883,3 +884,59 @@ class TestSessionIdValidationEveryMethod:
         manager = SessionManager(tmp_path)
         with pytest.raises(ValueError, match="Invalid session_id"):
             await manager.get_artifact_stream(self.BAD_ID, "predictions")
+
+
+@pytest.mark.asyncio
+async def test_immutable_artifact_path_closes_held_stream(
+    tmp_path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(tmp_path, store=LocalSessionStore(tmp_path))
+    stream = tempfile.TemporaryFile()
+    artifact = SimpleNamespace(stream=stream, relative_key="artifact.bin")
+
+    async def selected(*_args):
+        return artifact, "artifact.bin"
+
+    monkeypatch.setattr(
+        manager,
+        "get_immutable_local_artifact_stream_with_filename",
+        selected,
+    )
+    assert await manager.get_immutable_local_artifact_path_with_filename(
+        str(uuid4()), "joint_rigger_output"
+    ) == (Path(tmp_path) / "artifact.bin", "artifact.bin")
+    assert stream.closed
+
+
+@pytest.mark.asyncio
+async def test_immutable_artifact_stream_closes_stale_publication(
+    tmp_path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(tmp_path, store=LocalSessionStore(tmp_path))
+    stream = tempfile.TemporaryFile()
+    artifact = SimpleNamespace(
+        stream=stream, relative_key="cache/joint_rigger/rigged.usd"
+    )
+    calls = 0
+
+    async def lookup(*_args):
+        nonlocal calls
+        calls += 1
+        marker = ("publication", "a" * 32, "first" if calls == 1 else "changed")
+        return (artifact.relative_key,), marker
+
+    monkeypatch.setattr(manager, "_artifact_lookup_for_session", lookup)
+    monkeypatch.setattr(
+        session_manager_module,
+        "open_held_confined_artifact",
+        lambda *_args: artifact,
+    )
+    assert (
+        await manager.get_immutable_local_artifact_stream_with_filename(
+            str(uuid4()), "joint_rigger_output"
+        )
+        is None
+    )
+    assert stream.closed

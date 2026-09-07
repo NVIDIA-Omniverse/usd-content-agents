@@ -1,0 +1,59 @@
+[project]
+name = "cad-verifier"
+dynamic = ["version"]
+description = "CAD geometry, DFM, and SimReady validation checks for the World Understanding geometry agent"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy>=1.26",
+    "world-understanding>=0.4.8",
+]
+
+[project.optional-dependencies]
+collision = [
+    "coacd>=1.0.11,<2",
+]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+]
+
+[tool.uv.sources]
+world-understanding = { path = "../../..", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["cad_verifier"]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.32.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.6.0"
+from-file = { source = "../../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

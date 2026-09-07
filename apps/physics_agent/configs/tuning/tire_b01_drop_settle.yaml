@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # drop_settle scenario tuned against the Isaac SimReady Tire_B01 asset.
-# record_video is on so every trial writes a recording.usd + render mp4 we
+# record_frames is on so every trial writes a recording.usd + PNG frames we
 # can inspect locally. Drop height + duration shrunk vs ladder (tire is ~0.42 m
 # radius vs ladder's ~1.7 m height) to keep wall time tight.
 
@@ -24,19 +24,14 @@ target:
   # keeps the tire visible from drop through landing.
   camera_ground_bias_fraction: 0.75
   vlm_check: "off"
-  record_video: "always"
+  record_frames: "always"
 
 parameters:
+  # Omitted bounds are centered on each value authored in tire.usdc with the
+  # shared 1.1 multiplier. Missing or zero-width authored values use backend
+  # capability fallbacks; conflicting automatic friction ranges do the same.
+  # Automatic restitution stays within [0, 1]. Refine may replace the bounds.
   - name: mass_scale
-    min: 0.5
-    max: 2.0
   - name: static_friction
-    min: 0.05
-    max: 1.5
-  # Optimizers couple these ranges so dynamic friction never exceeds static.
   - name: dynamic_friction
-    min: 0.05
-    max: 1.5
   - name: restitution
-    min: 0.0
-    max: 1.0

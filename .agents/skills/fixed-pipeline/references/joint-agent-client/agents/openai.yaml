@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Joint Agent Client"
+  short_description: "Fixed pipeline: Call the Joint Agent service"
+  default_prompt: "Use $fixed-pipeline to make requests to the Joint Agent REST API service for VLM-based joint/articulation classification of 3D USD assets."

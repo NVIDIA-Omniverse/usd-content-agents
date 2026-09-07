@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Physics Agent CLI"
+  short_description: "Fixed pipeline: Run the Physics Agent CLI"
+  default_prompt: "Use $fixed-pipeline to run the Physics Agent CLI for VLM-based physics property classification, apply-physics authoring, tuning, and iterative refine of 3D assets."

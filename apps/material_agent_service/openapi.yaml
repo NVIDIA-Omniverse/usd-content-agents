@@ -1,13 +1,50 @@
 openapi: 3.1.0
 info:
   title: Material Agent Service
-  description: REST API for VLM-based material assignment to 3D USD objects.
-  version: "0.5.2"
+  description: >-
+    Fixed pipeline REST API for VLM-based material assignment to 3D USD
+    objects. This v0.6 interface does not invoke the default agentic Content
+    Workflow.
+  version: "0.6.0"
 servers:
   - url: http://localhost:8000
     description: Local development server
 
 paths:
+  /auth/session:
+    post:
+      summary: Exchange a service token for a browser session cookie
+      description: >-
+        Browser clients cannot attach an Authorization header to EventSource
+        streams, image sources, or download navigations. This endpoint accepts
+        the service token and sets a signed, expiring, HttpOnly,
+        SameSite=Strict cookie that the guard accepts as an alternative
+        credential. The cookie is derived from the token and does not contain
+        it, so rotating MATERIAL_AGENT_TOKEN invalidates every issued session.
+        Unauthenticated by design -- it is how a client obtains a credential --
+        and it validates the supplied token itself.
+      operationId: create_auth_session
+      # Not gated by the shared route guard -- the handler validates the token
+      # itself, so the generated schema carries no security requirement and
+      # this must match it. The bearer token is still required; see the
+      # description.
+      security: []
+      responses:
+        '204':
+          description: Session established; the cookie is set.
+        '401':
+          description: Missing or invalid service token.
+        '409':
+          description: >-
+            The service has no token configured, so there is no session to
+            establish.
+    delete:
+      summary: Clear the browser session cookie
+      operationId: delete_auth_session
+      security: []
+      responses:
+        '204':
+          description: Cookie cleared.
   /health:
     get:
       summary: Health check
@@ -25,6 +62,9 @@ paths:
                   service: { type: string }
                   version: { type: string }
                   api_keys_configured: { type: boolean }
+                  auth_enforced:
+                    type: boolean
+                    description: Whether bearer-token enforcement is active on this server.
                   image_gen_configured: { type: boolean }
                   max_active_sessions: { type: integer }
 
@@ -87,17 +127,24 @@ paths:
           multipart/form-data:
             schema:
               type: object
+              anyOf:
+                - required: [session_id]
+                - required: [s3_uri]
+                - required: [usd_file]
               properties:
                 usd_file:
                   type: string
                   format: binary
-                  description: USD file (required if no session_id)
+                  description: USD file used when neither session_id nor s3_uri is provided
                 session_id:
                   type: string
-                  description: Existing session ID from /upload-usd
+                  description: Existing session ID from /upload-usd; takes priority over s3_uri and usd_file
+                s3_uri:
+                  type: string
+                  description: S3 URI to a USD file. Its exact bucket must be listed in MA_S3_ALLOWED_BUCKETS; empty rejects all. Used when session_id is absent and takes priority over usd_file.
                 user_email:
                   type: string
-                  description: Optional user email for usage tracking. Omitted or blank values use MA_DEFAULT_USER_EMAIL, then anonymous@nvidia.com when that fallback is blank.
+                  description: Optional user email for usage tracking. Omitted or blank values use MA_DEFAULT_USER_EMAIL, then anonymous@example.com when that fallback is blank.
                 reference_images:
                   type: array
                   items: { type: string, format: binary }
@@ -245,7 +292,10 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SessionCreated" }
         "400": { description: Invalid input }
+        "403": { description: S3 bucket not allowlisted or S3 access denied }
+        "404": { description: Client-supplied S3 object was not found }
         "413": { description: File too large }
+        "502": { description: Failed to download the client-supplied S3 object }
         "503": { description: Image-generation configuration is required for generated material-library mode }
 
   /pipeline/{session_id}/status:
@@ -713,6 +763,48 @@ paths:
               schema: { type: string, format: binary }
         "404": { description: Not available }
 
+  /assets/{session_id}/failure-evidence:
+    get:
+      summary: List bounded evidence retained for a failed pipeline
+      operationId: listFailureEvidence
+      tags: [assets]
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Failure evidence listing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FailureEvidence" }
+        "404": { description: Session or failure evidence not found }
+
+  /assets/{session_id}/failure-evidence/{file_name}:
+    get:
+      summary: Download an allowlisted failure report or render sample
+      operationId: getFailureEvidenceFile
+      tags: [assets]
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: file_name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: JSON report or PNG failed-render sample
+          content:
+            application/json:
+              schema: { type: object }
+            image/png:
+              schema: { type: string, format: binary }
+        "404": { description: Failure evidence not available }
+
   /assets/{session_id}/references:
     get:
       summary: List reference images
@@ -1019,6 +1111,66 @@ components:
         message: { type: string }
         estimated_duration_minutes: { type: integer, nullable: true }
 
+    DiagnosticEvidenceNames:
+      type: object
+      required: [report, samples]
+      properties:
+        report: { type: string, const: report.json }
+        samples:
+          type: array
+          maxItems: 4
+          items: { type: string, pattern: "^[0-9a-f]{16}\\.png$" }
+
+    PipelineErrorDiagnostic:
+      type: object
+      required: [schema, code, phase, retryable]
+      properties:
+        schema: { type: string }
+        code: { type: string, minLength: 1, maxLength: 96 }
+        phase: { type: string }
+        retryable: { type: boolean }
+        failed_step: { type: string, nullable: true }
+        renderer_backend:
+          type: string
+          enum: [warp, ovrtx, remote, mock, unknown]
+          nullable: true
+        checked_count: { type: integer, minimum: 1, maximum: 1000000, nullable: true }
+        blank_count: { type: integer, minimum: 1, maximum: 1000000, nullable: true }
+        blank_ratio: { type: number, minimum: 0, maximum: 1, nullable: true }
+        threshold: { type: number, minimum: 0, maximum: 1, nullable: true }
+        render_modes:
+          type: array
+          maxItems: 6
+          items: { type: string }
+        samples:
+          type: array
+          maxItems: 4
+          items: { type: object }
+        evidence:
+          oneOf:
+            - { $ref: "#/components/schemas/DiagnosticEvidenceNames" }
+            - { type: "null" }
+
+    FailureEvidenceFile:
+      type: object
+      required: [name, url]
+      properties:
+        name: { type: string }
+        url: { type: string }
+
+    FailureEvidence:
+      type: object
+      required: [report, samples, retention]
+      properties:
+        report: { $ref: "#/components/schemas/FailureEvidenceFile" }
+        samples:
+          type: array
+          maxItems: 4
+          items: { $ref: "#/components/schemas/FailureEvidenceFile" }
+        retention:
+          type: string
+          const: until_session_expiry_or_deletion
+
     PipelineStatus:
       type: object
       properties:
@@ -1069,6 +1221,16 @@ components:
         coverage:
           oneOf:
             - { $ref: "#/components/schemas/MaterialCoverage" }
+            - { type: "null" }
+        error: { type: string, nullable: true }
+        failed_step: { type: string, nullable: true }
+        error_diagnostic:
+          oneOf:
+            - { $ref: "#/components/schemas/PipelineErrorDiagnostic" }
+            - { type: "null" }
+        failure_evidence:
+          oneOf:
+            - { $ref: "#/components/schemas/FailureEvidence" }
             - { type: "null" }
 
     PipelineResults:
@@ -1162,6 +1324,14 @@ components:
         coverage:
           oneOf:
             - { $ref: "#/components/schemas/MaterialCoverage" }
+            - { type: "null" }
+        error_diagnostic:
+          oneOf:
+            - { $ref: "#/components/schemas/PipelineErrorDiagnostic" }
+            - { type: "null" }
+        failure_evidence:
+          oneOf:
+            - { $ref: "#/components/schemas/FailureEvidence" }
             - { type: "null" }
 
     MaterialCoverage:
@@ -1261,7 +1431,13 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Optional Bearer token (or set MATERIAL_AGENT_TOKEN env var)
+      description: >-
+        Bearer token. The server enforces this ONLY when MATERIAL_AGENT_TOKEN is set in the
+        server's environment; when it is unset the service accepts
+        unauthenticated requests and every endpoint behaves as if no scheme
+        were declared. Send `Authorization: Bearer <token>`. Probe and
+        documentation endpoints (`/health`, `/api`, `/`, `/docs`,
+        `/openapi.json`) never require a token.
 
 security:
   - {}

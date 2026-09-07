@@ -24,6 +24,10 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from physics_agent.physics_units import (
+    acceleration_m_per_s2_to_stage_units,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +37,7 @@ def patch_physics_usd(
     tuned_params: dict[str, float],
     *,
     bindings: list[dict[str, Any]] | None = None,
+    gravity_m_per_s2: float | None = None,
 ) -> Path:
     """Apply tuned parameters to ``input_usd`` and write a derivative USD.
 
@@ -50,6 +55,12 @@ def patch_physics_usd(
         bindings: Optional resolved parameter bindings produced by
             ``scenario_resolution``. When present, values are applied through
             those bindings instead of the legacy param-name switch.
+        gravity_m_per_s2: Optional signed scenario gravity in SI units. When
+            provided, an unambiguous writable PhysicsScene is updated to match
+            the gravity used by tuning while preserving the input stage units.
+            Unsafe or ambiguous scene topology leaves gravity unchanged but
+            still writes the tuned-parameter artifact. Existing gravity is
+            preserved when omitted.
 
     Returns:
         Absolute path to the written USD.
@@ -65,7 +76,7 @@ def patch_physics_usd(
         raise FileNotFoundError(f"Input USD not found: {input_path}")
 
     # Local import — pxr is heavy and only needed at patch time.
-    from pxr import Sdf, Usd, UsdPhysics
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
 
     stage = Usd.Stage.Open(str(input_path))
     if not stage:
@@ -226,12 +237,81 @@ def patch_physics_usd(
                     f"point at prims without the required schema: {binding}"
                 )
 
+    if gravity_m_per_s2 is not None:
+        scene_traversal = Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)
+        scenes = [
+            prim
+            for prim in Usd.PrimRange.Stage(stage, scene_traversal)
+            if prim.IsA(UsdPhysics.Scene)
+        ]
+        proxy_scenes = [prim for prim in scenes if prim.IsInstanceProxy()]
+        physics_scene = None
+        gravity_skip_reason = None
+        if proxy_scenes:
+            gravity_skip_reason = (
+                "instance-proxy PhysicsScene prims are read-only; deinstance "
+                "the input USD first: "
+                f"{[str(prim.GetPath()) for prim in proxy_scenes]}"
+            )
+        elif len(scenes) > 1:
+            gravity_skip_reason = (
+                "the USD has multiple active PhysicsScene prims: "
+                f"{[str(prim.GetPath()) for prim in scenes]}"
+            )
+        elif scenes:
+            scene_prim = scenes[0]
+            if scene_prim.IsInstanceable():
+                scene_prim.SetInstanceable(False)
+            physics_scene = UsdPhysics.Scene(scene_prim)
+        else:
+            default_prim = stage.GetDefaultPrim()
+            if not default_prim or not default_prim.IsValid():
+                gravity_skip_reason = "the USD has no default prim"
+            else:
+                if default_prim.IsInstanceable():
+                    default_prim.SetInstanceable(False)
+                physics_scene = UsdPhysics.Scene.Define(
+                    stage,
+                    default_prim.GetPath().AppendChild("PhysicsScene"),
+                )
+
+        if gravity_skip_reason is not None:
+            logger.warning(
+                "Skipping scenario gravity update for tuned USD %s because %s; "
+                "tuned parameters will still be written",
+                input_path,
+                gravity_skip_reason,
+            )
+        else:
+            assert physics_scene is not None
+            meters_per_unit = float(UsdGeom.GetStageMetersPerUnit(stage))
+            gravity_value = float(gravity_m_per_s2)
+            gravity_stage_units = acceleration_m_per_s2_to_stage_units(
+                abs(gravity_value),
+                meters_per_unit,
+            )
+            sign = -1.0 if gravity_value < 0.0 else 1.0
+            if UsdGeom.GetStageUpAxis(stage) == UsdGeom.Tokens.y:
+                direction = Gf.Vec3f(0.0, sign, 0.0)
+            else:
+                direction = Gf.Vec3f(0.0, 0.0, sign)
+            physics_scene.CreateGravityDirectionAttr().Set(direction)
+            physics_scene.CreateGravityMagnitudeAttr().Set(gravity_stage_units)
+            if not UsdGeom.StageHasAuthoredMetersPerUnit(stage):
+                logger.warning(
+                    "Tuned USD input %s does not author metersPerUnit; using "
+                    "the OpenUSD fallback %.6g meters per unit for gravity "
+                    "authoring",
+                    input_path,
+                    meters_per_unit,
+                )
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     flattened_layer = stage.Flatten()
     flattened_layer.Export(str(output_path))
 
     logger.info(
-        "patch_physics_usd: scaled %d mass attrs, updated %d attrs → %s",
+        "patch_physics_usd: scaled %d mass attrs, updated %d attrs -> %s",
         n_mass,
         n_attribute,
         output_path,

@@ -1,7 +1,7 @@
 # Joint Agent Service Dockerfile
 # Uses NVIDIA CUDA base for GPU-accelerated rendering (OvRTX, Warp)
 # Ubuntu 24.04 ships Python 3.12 natively — no deadsnakes PPA needed
-FROM nvcr.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04
+FROM nvcr.io/nvidia/cuda:12.6.3-runtime-ubuntu24.04@sha256:92906d87596d638d35015c6353053121bd299d25943b875763321653884ba924
 
 ARG WU_REQUIRED_OPTIONAL_BACKEND
 
@@ -127,11 +127,30 @@ ENV NVIDIA_VISIBLE_DEVICES=all \
 # Create directories for sessions
 RUN mkdir -p /var/joint-agent/sessions
 
-# Create non-root user for security (ubuntu user with UID 1000 doesn't exist in this base)
+# Create the non-root user and redirect OVRTX's package-relative NVIDIA shader
+# cache into its home. Keep the rest of the prebuilt venv root-owned.
 RUN useradd -m -u 10000 joint-agent && \
-    chown -R joint-agent:joint-agent /var/joint-agent /opt/ovrtx_venv
+    chown -R joint-agent:joint-agent /var/joint-agent && \
+    install -d -o joint-agent -g joint-agent \
+        /home/joint-agent/.cache/ovrtx-nv-shadercache && \
+    OVRTX_BIN="$(/opt/ovrtx_venv/bin/python -c \
+        'from pathlib import Path; import ovrtx; print(Path(ovrtx.__file__).resolve().parent / "bin")')" && \
+    mkdir -p "$OVRTX_BIN/cache" && \
+    rm -rf "$OVRTX_BIN/cache/nv_shadercache" && \
+    chown -R joint-agent:joint-agent "$OVRTX_BIN/cache" && \
+    find "$OVRTX_BIN/cache" -type d -exec chmod 700 {} + && \
+    find "$OVRTX_BIN/cache" -type f -exec chmod 600 {} + && \
+    ln -s /home/joint-agent/.cache/ovrtx-nv-shadercache \
+        "$OVRTX_BIN/cache/nv_shadercache"
 RUN chmod -R a+rX /app && \
     chmod -R go-w /app
+
+# Installed runtimes remain root-owned except for OVRTX's redirected cache.
+# Verify the service user can import OVRTX and write through that exact cache
+# path without copying the large environment into a new ownership layer.
+RUN su -s /bin/sh -c \
+    '/opt/ovrtx_venv/bin/python -c "import ovrtx, sys; assert sys.prefix == \"/opt/ovrtx_venv\""; cache=$(/opt/ovrtx_venv/bin/python -c "from pathlib import Path; import ovrtx; print(Path(ovrtx.__file__).resolve().parent / \"bin\" / \"cache\" / \"nv_shadercache\")"); test -w "$cache"; touch "$cache/.write-probe"; rm "$cache/.write-probe"' \
+    joint-agent
 
 # Fail the build if restrictive source modes make the editable service package
 # unreadable after the runtime user switch.
@@ -141,7 +160,9 @@ RUN su -s /bin/sh -c \
 
 # Keep /app read-only for the service user without Python trying to create
 # __pycache__ beside editable source files at runtime.
-ENV PYTHONDONTWRITEBYTECODE=1
+ENV HOME=/home/joint-agent \
+    XDG_CACHE_HOME=/home/joint-agent/.cache \
+    PYTHONDONTWRITEBYTECODE=1
 
 # Add Python paths for joint_agent imports
 ENV PYTHONPATH="/app:/app/apps:/app/apps/joint_agent_service"

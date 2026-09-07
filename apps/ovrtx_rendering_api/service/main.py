@@ -10,21 +10,125 @@ schemas, but uses OVRTX for local RTX rendering instead of Kit SDK.
 from __future__ import annotations
 
 import asyncio
+import gzip
+import io
 import logging
 import os
 import sys
+import zlib
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from service.dispatcher import OVRTXDispatcher, parse_gpu_workers
-from service.models import HealthResponse, RenderRequest
-from service.renderer import Renderer
+from service.models import (
+    HealthResponse,
+    ProtocolV3RenderResponse,
+    ProtocolV3RenderUploadParams,
+    RenderRequest,
+)
+from service.protocol import PROTOCOL_VERSION
+from service.renderer import IncompleteRenderOutputError, Renderer
 
 _renderer: Renderer | None = None
 _warmup_task: asyncio.Task | None = None
 _dispatcher: OVRTXDispatcher | None = None
+_MAX_BODY_BYTES = int(os.environ.get("OVRTX_MAX_BODY_BYTES", str(70 * 1024 * 1024)))
+_MAX_SCENE_BYTES = _MAX_BODY_BYTES * 8
+_MULTIPART_OVERHEAD_BYTES = 1024 * 1024
+_MAX_PROTOCOL_REQUEST_BYTES = _MAX_BODY_BYTES + _MULTIPART_OVERHEAD_BYTES
+
+
+class _RequestBodyLimitExceeded(RuntimeError):
+    """Raised before multipart parsing when a protocol upload exceeds its cap."""
+
+
+class _ProtocolUploadBodyLimitMiddleware:
+    """Bound `/render/upload` bytes at the ASGI receive layer.
+
+    FastAPI resolves ``UploadFile`` before calling the endpoint, so handler-level
+    reads cannot stop Starlette from spooling an arbitrarily large multipart body.
+    This wrapper counts bytes before form parsing and reserves a small bounded
+    allowance above the advertised file-part cap for JSON parameters and framing.
+    """
+
+    def __init__(self, app: ASGIApp, *, max_request_bytes: int) -> None:
+        self.app = app
+        self.max_request_bytes = max_request_bytes
+
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if (
+            scope["type"] != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") != "/render/upload"
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        content_lengths = [
+            value
+            for name, value in scope.get("headers", ())
+            if name.lower() == b"content-length"
+        ]
+        if content_lengths:
+            try:
+                if len(content_lengths) != 1:
+                    raise ValueError
+                content_length = int(content_lengths[0].decode("ascii"))
+                if content_length < 0:
+                    raise ValueError
+            except (UnicodeDecodeError, ValueError):
+                response = JSONResponse(
+                    status_code=400,
+                    content={"detail": "invalid content-length"},
+                )
+                await response(scope, receive, send)
+                return
+            if content_length > self.max_request_bytes:
+                response = JSONResponse(
+                    status_code=413,
+                    content={"detail": "request body too large"},
+                )
+                await response(scope, receive, send)
+                return
+
+        received_bytes = 0
+        response_started = False
+
+        async def limited_receive() -> Message:
+            nonlocal received_bytes
+            message = await receive()
+            if message["type"] == "http.request":
+                received_bytes += len(message.get("body", b""))
+                if received_bytes > self.max_request_bytes:
+                    raise _RequestBodyLimitExceeded
+            return message
+
+        async def tracked_send(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, limited_receive, tracked_send)
+        except _RequestBodyLimitExceeded:
+            if response_started:
+                raise
+            response = JSONResponse(
+                status_code=413,
+                content={"detail": "request body too large"},
+            )
+            await response(scope, receive, send)
 
 
 def _configure_logging(root_logger: logging.Logger | None = None) -> None:
@@ -169,6 +273,41 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.add_middleware(
+    _ProtocolUploadBodyLimitMiddleware,
+    max_request_bytes=_MAX_PROTOCOL_REQUEST_BYTES,
+)
+
+_default_openapi = app.openapi
+
+
+def _openapi_with_nvcf_version() -> dict[str, Any]:
+    """Build OpenAPI metadata that identifies the serving NVCF version."""
+    schema: dict[str, Any] = _default_openapi()
+    if version_id := os.getenv("NVCF_FUNCTION_VERSION_ID"):
+        schema["info"]["x-nvcf-function-version-id"] = version_id
+    return schema
+
+
+app.openapi = _openapi_with_nvcf_version
+
+
+@app.get("/live", response_model=None)
+async def live() -> dict[str, Any] | JSONResponse:
+    """Public package-owned usd-cli protocol identity.
+
+    The v3 adapter intentionally advertises no optional transports: clients use
+    the bounded gzip/none multipart floor and never infer CAS or zstd support.
+    """
+    return {
+        "status": "alive",
+        "protocol_version": PROTOCOL_VERSION,
+        "engine": "ovrtx",
+        "renderer": "ovrtx",
+        "max_body_bytes": _MAX_BODY_BYTES,
+        "max_scene_bytes": _MAX_SCENE_BYTES,
+        "features": [],
+    }
 
 
 @app.get("/health")
@@ -181,7 +320,7 @@ async def health() -> HealthResponse:
     initializing = _warmup_task is not None and not _warmup_task.done()
     if renderer is None:
         status = "initializing" if initializing else "unhealthy"
-        return HealthResponse(status=status)
+        return HealthResponse(status=status, protocol_version=PROTOCOL_VERSION)
 
     renderer_initialized = renderer.is_initialized
     daemon_running = renderer.daemon_running
@@ -195,6 +334,7 @@ async def health() -> HealthResponse:
 
     return HealthResponse(
         status=status,
+        protocol_version=PROTOCOL_VERSION,
         gpu_initialized=gpu_initialized,
         renderer_initialized=renderer_initialized,
         daemon_running=daemon_running,
@@ -202,8 +342,19 @@ async def health() -> HealthResponse:
     )
 
 
-@app.post("/render")
-def render(request: RenderRequest) -> dict[str, Any]:
+def _render_http_response(result: dict[str, Any]) -> dict[str, Any] | JSONResponse:
+    """Map typed retryable renderer failures to an HTTP retry signal."""
+    if result.get("retryable") is True:
+        return JSONResponse(
+            status_code=503,
+            content=result,
+            headers={"Retry-After": "1"},
+        )
+    return result
+
+
+@app.post("/render", response_model=None)
+def render(request: RenderRequest) -> dict[str, Any] | JSONResponse:
     """Render a USD file.
 
     Accepts the same request body as the Kit-based rendering-api and returns
@@ -216,28 +367,34 @@ def render(request: RenderRequest) -> dict[str, Any]:
     orchestrator to kill the pod.
     """
     if _dispatcher is not None:
-        return _dispatcher.render(request.model_dump())
+        return _render_http_response(_dispatcher.render(request.model_dump()))
 
     if _renderer is None:
-        return {
-            "status": "exception",
-            "error": "Renderer not initialized",
-            "images": {},
-        }
+        return _render_http_response(
+            {
+                "status": "exception",
+                "error": "Renderer not initialized",
+                "images": {},
+            }
+        )
     if not _renderer.is_ready:
         if _warmup_task is not None and not _warmup_task.done():
-            return {
-                "status": "exception",
-                "error": "Renderer not initialized",
-                "images": {},
-            }
+            return _render_http_response(
+                {
+                    "status": "exception",
+                    "error": "Renderer not initialized",
+                    "images": {},
+                }
+            )
         logger.warning("Renderer not initialized; attempting recovery before render")
         if not _renderer.recover():
-            return {
-                "status": "exception",
-                "error": "Renderer not initialized",
-                "images": {},
-            }
+            return _render_http_response(
+                {
+                    "status": "exception",
+                    "error": "Renderer not initialized",
+                    "images": {},
+                }
+            )
 
     settings = request.render_settings
     result = _renderer.render(
@@ -252,4 +409,96 @@ def render(request: RenderRequest) -> dict[str, Any]:
         render_mode=settings.render_mode,
         material_target=settings.material_target,
     )
-    return result
+    return _render_http_response(result)
+
+
+def _inflate_protocol_v3_upload(data: bytes, compression: str) -> bytes:
+    if compression == "none":
+        return data
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(data)) as archive:
+            expanded = archive.read(_MAX_SCENE_BYTES + 1)
+    except (OSError, EOFError, zlib.error) as exc:
+        raise HTTPException(
+            status_code=400, detail="file is not valid gzip data"
+        ) from exc
+    if len(expanded) > _MAX_SCENE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="gzip body inflates past the scene size limit",
+        )
+    return expanded
+
+
+@app.post("/render/upload", response_model=ProtocolV3RenderResponse)
+async def render_upload(
+    file: UploadFile, params: str = Form(...)
+) -> ProtocolV3RenderResponse | JSONResponse:
+    """Render package-owned usd-cli protocol-v3 multipart input."""
+    try:
+        parsed = ProtocolV3RenderUploadParams.model_validate_json(params)
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid params: {exc}") from exc
+    if _dispatcher is None and (_renderer is None or not _renderer.is_ready):
+        raise HTTPException(status_code=503, detail="renderer is not ready")
+    try:
+        data = await file.read(_MAX_BODY_BYTES + 1)
+    finally:
+        await file.close()
+    if len(data) > _MAX_BODY_BYTES:
+        raise HTTPException(status_code=413, detail="request body too large")
+    if _dispatcher is not None:
+        dispatched = await asyncio.to_thread(
+            _dispatcher.render_protocol_v3_upload,
+            data=data,
+            filename=file.filename or "scene.usdz",
+            content_type=file.content_type or "application/octet-stream",
+            params=parsed.model_dump_json(),
+        )
+        if dispatched.status_code >= 400:
+            headers = (
+                {"Retry-After": dispatched.retry_after}
+                if dispatched.retry_after is not None
+                else None
+            )
+            return JSONResponse(
+                status_code=dispatched.status_code,
+                content=dispatched.payload,
+                headers=headers,
+            )
+        try:
+            return ProtocolV3RenderResponse.model_validate(dispatched.payload)
+        except ValidationError:
+            logger.exception("Protocol-v3 worker returned an invalid response")
+            return JSONResponse(
+                status_code=502,
+                content={"detail": "invalid protocol-v3 response from renderer worker"},
+            )
+    data = _inflate_protocol_v3_upload(data, parsed.compression)
+    if _renderer is None or not _renderer.is_ready:
+        raise HTTPException(status_code=503, detail="renderer is not ready")
+    try:
+        items = await asyncio.to_thread(
+            _renderer.render_protocol_v3_upload,
+            usdz_bytes=data,
+            camera_paths=parsed.cameras,
+            width=parsed.image_width,
+            height=parsed.image_height,
+            mode=parsed.mode,
+            frames=parsed.frames,
+            camera_defs=parsed.camera_defs,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IncompleteRenderOutputError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+            headers={"Retry-After": "1"},
+        ) from exc
+    except Exception as exc:
+        logger.exception("Protocol-v3 render failed")
+        raise HTTPException(
+            status_code=500, detail="protocol-v3 render failed"
+        ) from exc
+    return ProtocolV3RenderResponse(results=items)

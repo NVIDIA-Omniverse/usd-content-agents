@@ -13,13 +13,38 @@ import pytest
 
 from world_understanding.utils import artifacts as artifact_utils
 from world_understanding.utils.artifacts import (
+    confined_directory_identity,
     copy_open_file_to_confined,
     is_pipeline_temp_path,
     open_confined_directory,
+    open_confined_directory_at,
+    open_confined_regular_file_leaf,
     open_regular_file_no_follow,
     remove_confined_tree,
     write_bytes_to_confined,
 )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires POSIX directory descriptors")
+def test_confined_directory_identity_matches_held_descriptor(tmp_path: Path) -> None:
+    with open_confined_directory(tmp_path) as descriptor:
+        metadata = os.fstat(descriptor)
+        assert confined_directory_identity(descriptor) == (
+            metadata.st_dev,
+            metadata.st_ino,
+        )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires POSIX descriptors")
+def test_confined_directory_identity_rejects_regular_file(tmp_path: Path) -> None:
+    regular = tmp_path / "artifact.bin"
+    regular.write_bytes(b"payload")
+    descriptor = os.open(regular, os.O_RDONLY)
+    try:
+        with pytest.raises(artifact_utils.ArtifactPathError, match="not a directory"):
+            confined_directory_identity(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 @pytest.mark.parametrize(
@@ -33,6 +58,58 @@ from world_understanding.utils.artifacts import (
 )
 def test_pipeline_temp_path_detection_casefolds_components(path: str | Path) -> None:
     assert is_pipeline_temp_path(path)
+
+
+@pytest.mark.parametrize(
+    "leaf_name", [".pipeline_temp", r"a\request.json", "C:req.json"]
+)
+def test_confined_host_leaf_accepts_linux_filenames(
+    tmp_path: Path,
+    leaf_name: str,
+) -> None:
+    source = tmp_path / leaf_name
+    source.write_bytes(b"request")
+
+    with open_confined_directory(tmp_path) as parent_descriptor:
+        with open_confined_regular_file_leaf(
+            parent_descriptor,
+            leaf_name,
+        ) as (stream, metadata):
+            assert metadata.st_size == len(b"request")
+            assert stream.read() == b"request"
+
+
+@pytest.mark.parametrize(
+    "leaf_name",
+    ["", ".", "..", "../secret", "nested/leaf", "a\x00b", Path("leaf")],
+)
+def test_confined_host_leaf_rejects_traversal_and_non_text(
+    tmp_path: Path,
+    leaf_name: object,
+) -> None:
+    (tmp_path.parent / "secret").write_bytes(b"outside")
+
+    with open_confined_directory(tmp_path) as parent_descriptor:
+        with pytest.raises(ValueError, match="one exact host filename"):
+            with open_confined_regular_file_leaf(parent_descriptor, leaf_name):  # type: ignore[arg-type]
+                raise AssertionError("unsafe leaf must not be opened")
+
+
+def test_confined_host_leaf_rejects_symlink(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "outside-request"
+    outside.write_bytes(b"outside")
+    (tmp_path / "request-link").symlink_to(outside)
+
+    with open_confined_directory(tmp_path) as parent_descriptor:
+        with pytest.raises(
+            artifact_utils.ArtifactPathError,
+            match="symlinked artifact",
+        ):
+            with open_confined_regular_file_leaf(
+                parent_descriptor,
+                "request-link",
+            ):
+                raise AssertionError("symlink must not be opened")
 
 
 def test_atomic_write_default_mode_honors_process_umask(tmp_path: Path) -> None:
@@ -49,6 +126,49 @@ def test_atomic_write_default_mode_honors_process_umask(tmp_path: Path) -> None:
         os.umask(previous_umask)
 
     assert stat.S_IMODE((root / "artifact.bin").stat().st_mode) == 0o600
+
+
+def test_confined_directory_exclusive_create_rejects_existing_leaf(
+    tmp_path: Path,
+) -> None:
+    with open_confined_directory(tmp_path) as root_descriptor:
+        with open_confined_directory_at(
+            root_descriptor,
+            "tuning/iter_1/evidence",
+            create=True,
+            exclusive_create=True,
+        ):
+            pass
+
+        with pytest.raises(FileExistsError):
+            with open_confined_directory_at(
+                root_descriptor,
+                "tuning/iter_1/evidence",
+                create=True,
+                exclusive_create=True,
+            ):
+                raise AssertionError("an existing leaf must not be reopened")
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires POSIX directory descriptors")
+def test_confined_lock_file_exclusive_create_rejects_existing_leaf(
+    tmp_path: Path,
+) -> None:
+    with open_confined_directory(tmp_path) as root_descriptor:
+        with artifact_utils.open_confined_lock_file(
+            root_descriptor,
+            "locks/run.lock",
+            exclusive_create=True,
+        ) as descriptor:
+            os.write(descriptor, b"held")
+
+        with pytest.raises(FileExistsError):
+            with artifact_utils.open_confined_lock_file(
+                root_descriptor,
+                "locks/run.lock",
+                exclusive_create=True,
+            ):
+                raise AssertionError("an existing lock file must not be reopened")
 
 
 def test_atomic_copy_keeps_held_destination_parent_after_swap(

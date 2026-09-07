@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +29,7 @@ from texture_agent.execution import (
     bind_prim_texture_units_to_plan,
 )
 from texture_agent.execution.adapters import _runtime_identity
+from texture_agent.execution.executor import _default_artifact_validator
 from texture_agent.functions.material_discovery import MaterialInfo, PrimTextureUnit
 from texture_agent.planning import (
     TexturePlan,
@@ -39,6 +42,7 @@ from texture_agent.planning import (
     TexturePlanUnit,
 )
 from texture_agent.tasks import apply_textures as apply_textures_task
+from texture_agent.tasks import generate_prompts
 from texture_agent.tasks.apply_textures import ApplyTexturesTask
 from texture_agent.tasks.blend_textures import BlendedTextures
 from texture_agent.tasks.execute_texture_plan import ExecuteTexturePlanTask
@@ -97,10 +101,17 @@ def _plan(tmp_path: Path, count: int = 3, *, approved: bool = True) -> TexturePl
 def _artifact_result(unit_id: str, output_dir: Path, marker: str = "ok"):
     path = output_dir / f"{unit_id}-{marker}.png"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(marker.encode("utf-8"))
+    payload = marker.encode("utf-8")
+    path.write_bytes(payload)
     return TextureUnitExecutionResult(
         unit_id=unit_id,
-        artifacts=(TextureArtifactRef(name="albedo", uri=str(path)),),
+        artifacts=(
+            TextureArtifactRef(
+                name="albedo",
+                uri=str(path),
+                sha256=hashlib.sha256(payload).hexdigest(),
+            ),
+        ),
         metadata={"marker": marker},
     )
 
@@ -217,6 +228,48 @@ def test_executor_fails_non_cooperative_runner_after_unit_timeout(
     assert summary.cancelled_unit_ids == (plan.selected_units[2].unit_id,)
 
 
+def test_executor_cancels_active_units_when_runner_reports_timeout(
+    tmp_path: Path,
+) -> None:
+    original = _plan(tmp_path, count=2)
+    plan = TexturePlan(
+        generated_at=original.generated_at,
+        request=original.request.model_copy(update={"max_concurrency": 2}),
+        limits=original.limits,
+        execution=original.execution.model_copy(update={"max_concurrency": 2}),
+        counts=original.counts,
+        selected_units=original.selected_units,
+        decision=original.decision,
+    )
+    timed_out_id = plan.selected_units[0].unit_id
+
+    def run(unit, execution_context):
+        if unit.unit_id == timed_out_id:
+            sleep(0.05)
+            raise TextureExecutionTimedOut("runner reported its immutable timeout")
+        while True:
+            sleep(0.005)
+            execution_context.raise_if_cancelled()
+
+    summary = BoundedTextureExecutor(
+        plan=plan,
+        checkpoint_store=FileTextureExecutionCheckpointStore(
+            tmp_path / "checkpoint.json"
+        ),
+        unit_runner=run,
+    ).execute()
+
+    assert summary.status == TextureExecutionStatus.FAILED
+    assert summary.failed_unit_ids == (timed_out_id,)
+    assert summary.cancelled_unit_ids == (plan.selected_units[1].unit_id,)
+    cancelled = next(
+        record
+        for record in summary.records
+        if record.unit_id == plan.selected_units[1].unit_id
+    )
+    assert cancelled.last_error == "Cancelled after another texture unit timed out"
+
+
 def test_executor_abandons_active_futures_on_external_cancel(
     tmp_path: Path,
 ) -> None:
@@ -308,6 +361,42 @@ def test_default_artifact_validator_accepts_remote_and_rejects_bad_digest(
         unit_runner=run,
     ).execute()
     assert failed.status == TextureExecutionStatus.FAILED
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [r"C:\runs\tex\missing.png", "file:///C:/runs/tex/missing.png"],
+)
+def test_default_artifact_validator_rejects_missing_windows_paths_portably(
+    uri: str,
+) -> None:
+    result = TextureUnitExecutionResult(
+        unit_id="tu_0123456789abcdefabcd",
+        artifacts=(TextureArtifactRef(name="albedo", uri=uri, sha256="0" * 64),),
+    )
+
+    assert _default_artifact_validator(result) is False
+
+
+def test_default_artifact_validator_treats_file_localhost_as_local(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "texture.png"
+    artifact.write_bytes(b"texture")
+    local_uri = artifact.as_uri()
+    localhost_uri = local_uri.replace("file:///", "file://localhost/", 1)
+    result = TextureUnitExecutionResult(
+        unit_id="tu_0123456789abcdefabcd",
+        artifacts=(
+            TextureArtifactRef(
+                name="albedo",
+                uri=localhost_uri,
+                sha256=hashlib.sha256(b"texture").hexdigest(),
+            ),
+        ),
+    )
+
+    assert _default_artifact_validator(result) is True
 
 
 def test_executor_accepts_mapping_results_and_reports_partial_selection(
@@ -504,6 +593,71 @@ def test_resume_reexecutes_unit_when_cached_artifact_is_missing(tmp_path: Path) 
     assert invoked == [plan.selected_units[0].unit_id]
     assert resumed.cache_hit_unit_ids == ()
     assert resumed.records[0].attempts == 2
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows path regression")
+@pytest.mark.parametrize("damage", ("deleted", "truncated", "modified", "substituted"))
+@pytest.mark.parametrize("uri_style", ("drive", "file_uri"))
+def test_resume_reexecutes_unit_for_invalid_drive_letter_artifact(
+    tmp_path: Path,
+    damage: str,
+    uri_style: str,
+) -> None:
+    plan = _plan(tmp_path, count=1)
+    checkpoint = FileTextureExecutionCheckpointStore(tmp_path / "checkpoint.json")
+    first = BoundedTextureExecutor(
+        plan=plan,
+        checkpoint_store=checkpoint,
+        unit_runner=lambda unit, _context: _artifact_result(unit.unit_id, tmp_path),
+    ).execute()
+    accepted = first.records[0].accepted_result
+    assert accepted is not None
+    artifact_path = Path(accepted.artifacts[0].uri)
+    assert artifact_path.drive
+    if uri_style == "file_uri":
+        stored = checkpoint.load()
+        assert stored is not None
+        record = stored.records[0]
+        assert record.accepted_result is not None
+        artifact = record.accepted_result.artifacts[0].model_copy(
+            update={"uri": artifact_path.as_uri()}
+        )
+        accepted_result = record.accepted_result.model_copy(
+            update={"artifacts": (artifact,)}
+        )
+        checkpoint.save(
+            stored.model_copy(
+                update={
+                    "records": (
+                        record.model_copy(update={"accepted_result": accepted_result}),
+                    )
+                }
+            )
+        )
+    if damage == "deleted":
+        artifact_path.unlink()
+    elif damage == "truncated":
+        artifact_path.write_bytes(b"")
+    elif damage == "modified":
+        artifact_path.write_bytes(b"changed")
+    else:
+        replacement = artifact_path.with_suffix(".replacement")
+        replacement.write_bytes(b"replacement")
+        os.replace(replacement, artifact_path)
+
+    executed: list[str] = []
+    resumed = BoundedTextureExecutor(
+        plan=plan,
+        checkpoint_store=checkpoint,
+        unit_runner=lambda unit, _context: (
+            executed.append(unit.unit_id)
+            or _artifact_result(unit.unit_id, tmp_path, marker="resumed")
+        ),
+    ).execute(resume=True)
+
+    assert resumed.status == TextureExecutionStatus.COMPLETED
+    assert resumed.cache_hit_unit_ids == ()
+    assert executed == [plan.selected_units[0].unit_id]
 
 
 def test_resume_rejects_checkpoint_from_different_plan(tmp_path: Path) -> None:
@@ -921,6 +1075,378 @@ def test_apply_keeps_duplicate_material_names_separated_by_canonical_path(
         assert unit_id in value.path
 
 
+def test_planned_per_material_apply_clones_only_exact_selected_member(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_usd = tmp_path / "scene.usda"
+    stage = Usd.Stage.CreateNew(str(input_usd))
+    UsdGeom.Xform.Define(stage, "/World")
+    UsdGeom.Scope.Define(stage, "/World/Looks")
+    selected = UsdGeom.Cube.Define(stage, "/World/Mesh_0")
+    preserved = UsdGeom.Cube.Define(stage, "/World/Mesh_preserved")
+    material_path = "/World/Looks/Material_0"
+    material = UsdShade.Material.Define(stage, material_path)
+    UsdShade.MaterialBindingAPI.Apply(selected.GetPrim()).Bind(material)
+    UsdShade.MaterialBindingAPI.Apply(preserved.GetPrim()).Bind(material)
+    stage.GetRootLayer().Save()
+
+    plan = _plan(tmp_path, count=1)
+    unit_id = plan.selected_units[0].unit_id
+    texture_paths: dict[str, str] = {}
+    for channel, color in (
+        ("albedo", (120, 20, 30)),
+        ("normal", (128, 128, 255)),
+        ("orm", (255, 128, 0)),
+    ):
+        path = tmp_path / "textures" / f"{unit_id}_{channel}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (2, 2), color).save(path)
+        texture_paths[channel] = str(path)
+
+    runtime_unit = PrimTextureUnit(
+        prim_path="",
+        material_info=MaterialInfo(
+            prim_path=material_path,
+            name="Material_0",
+            bound_prim_paths=["/World/Mesh_0"],
+        ),
+        key=unit_id,
+        prompt="ruby-red paint",
+        opacity=1.0,
+    )
+    result = ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_usd),
+            "blended_textures": {unit_id: BlendedTextures(**texture_paths)},
+            "prim_texture_units": [runtime_unit],
+            "texture_plan": plan,
+            "working_dir": str(tmp_path),
+        }
+    )
+
+    output = Usd.Stage.Open(result["output_usd_paths"][0])
+    selected_material = UsdShade.MaterialBindingAPI(
+        output.GetPrimAtPath("/World/Mesh_0")
+    ).ComputeBoundMaterial()[0]
+    preserved_material = UsdShade.MaterialBindingAPI(
+        output.GetPrimAtPath("/World/Mesh_preserved")
+    ).ComputeBoundMaterial()[0]
+    assert selected_material.GetPath() == f"/World/Looks/{unit_id}"
+    assert preserved_material.GetPath() == material_path
+    assert not output.GetPrimAtPath(material_path).HasAttribute(
+        "inputs:base_color_texture_file"
+    )
+    assert unit_id in (
+        output.GetPrimAtPath(str(selected_material.GetPath()))
+        .GetAttribute("inputs:base_color_texture_file")
+        .Get()
+        .path
+    )
+
+    clean_input_usd = tmp_path / "clean-scene.usda"
+    assert Usd.Stage.Open(str(input_usd)).Export(str(clean_input_usd))
+    variant_stage = Usd.Stage.Open(str(input_usd))
+    variants = variant_stage.GetPrimAtPath("/World/Mesh_0").GetVariantSets()
+    look = variants.AddVariantSet("look")
+    look.AddVariant("selected")
+    look.SetVariantSelection("selected")
+    variant_stage.GetRootLayer().Save()
+    monkeypatch.setattr(
+        apply_textures_task,
+        "_clone_material",
+        lambda *_args, **_kwargs: pytest.fail(
+            "planned apply authored before variant preflight"
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="variant arc"):
+        ApplyTexturesTask().run(
+            {
+                "usd_path": str(input_usd),
+                "blended_textures": {unit_id: BlendedTextures(**texture_paths)},
+                "prim_texture_units": [runtime_unit],
+                "texture_plan": plan,
+                "working_dir": str(tmp_path / "variant-run"),
+            }
+        )
+
+    legacy_key_unit = PrimTextureUnit(
+        prim_path="",
+        material_info=runtime_unit.material_info,
+        key="Material_0",
+        prompt=runtime_unit.prompt,
+        opacity=runtime_unit.opacity,
+    )
+    with pytest.raises(RuntimeError, match="does not map to one plan unit"):
+        ApplyTexturesTask().run(
+            {
+                "usd_path": str(clean_input_usd),
+                "blended_textures": {
+                    legacy_key_unit.key: BlendedTextures(**texture_paths)
+                },
+                "prim_texture_units": [legacy_key_unit],
+                "texture_plan": plan,
+                "working_dir": str(tmp_path / "mismatched-plan-run"),
+            }
+        )
+
+    legacy_working_dir = tmp_path / "legacy-cached-apply-run"
+    (legacy_working_dir / "textures").mkdir(parents=True)
+    legacy_context = {
+        "usd_path": str(clean_input_usd),
+        "blended_textures": {legacy_key_unit.key: BlendedTextures(**texture_paths)},
+        "prim_texture_units": [legacy_key_unit],
+        "texture_plan": plan,
+        "planning_config": {
+            "resume_apply_textures": True,
+            "apply_texture_plan_unit_ids": False,
+            "allow_non_executable_cached_apply_plan": True,
+        },
+        "working_dir": str(legacy_working_dir),
+    }
+    assert (
+        generate_prompts._load_resumed_texture_plan(
+            legacy_context,
+            working_dir=legacy_working_dir,
+        )
+        is None
+    )
+    assert apply_textures_task._accepted_plan_units_by_id(legacy_context) is None
+    legacy_result = ApplyTexturesTask().run(legacy_context)
+    assert Path(legacy_result["output_usd_paths"][0]).is_file()
+
+    executable_context = {
+        **legacy_context,
+        "planning_config": {
+            "resume_apply_textures": True,
+            "apply_texture_plan_unit_ids": False,
+            "allow_non_executable_cached_apply_plan": False,
+        },
+    }
+    assert (
+        generate_prompts._load_resumed_texture_plan(
+            executable_context,
+            working_dir=legacy_working_dir,
+        )
+        == plan
+    )
+    assert set(
+        apply_textures_task._accepted_plan_units_by_id(executable_context) or {}
+    ) == {unit_id}
+
+
+def test_planned_per_material_apply_clones_composed_sublayer_material(
+    tmp_path: Path,
+) -> None:
+    content_usd = tmp_path / "layers" / "content.usda"
+    content_usd.parent.mkdir()
+    content = Usd.Stage.CreateNew(str(content_usd))
+    UsdGeom.Xform.Define(content, "/World")
+    UsdGeom.Scope.Define(content, "/World/Looks")
+    selected = UsdGeom.Cube.Define(content, "/World/Mesh_0")
+    preserved = UsdGeom.Cube.Define(content, "/World/Mesh_preserved")
+    material_path = "/World/Looks/Material_0"
+    material = UsdShade.Material.Define(content, material_path)
+    UsdShade.MaterialBindingAPI.Apply(selected.GetPrim()).Bind(material)
+    UsdShade.MaterialBindingAPI.Apply(preserved.GetPrim()).Bind(material)
+    assert content.GetRootLayer().Save()
+
+    input_usd = tmp_path / "scene.usda"
+    root = Usd.Stage.CreateNew(str(input_usd))
+    root.GetRootLayer().subLayerPaths = ["layers/content.usda"]
+    assert root.GetRootLayer().Save()
+    assert root.GetRootLayer().GetPrimAtPath(material_path) is None
+
+    plan = _plan(tmp_path, count=1)
+    unit_id = plan.selected_units[0].unit_id
+    working_dir = tmp_path / "run"
+    (working_dir / "textures").mkdir(parents=True)
+    texture_paths: dict[str, str] = {}
+    for channel, color in (
+        ("albedo", (120, 20, 30)),
+        ("normal", (128, 128, 255)),
+        ("orm", (255, 128, 0)),
+    ):
+        path = tmp_path / "textures" / f"{unit_id}_{channel}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (2, 2), color).save(path)
+        texture_paths[channel] = str(path)
+
+    result = ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_usd),
+            "blended_textures": {unit_id: BlendedTextures(**texture_paths)},
+            "prim_texture_units": [
+                PrimTextureUnit(
+                    prim_path="",
+                    material_info=MaterialInfo(
+                        prim_path=material_path,
+                        name="Material_0",
+                        bound_prim_paths=["/World/Mesh_0"],
+                    ),
+                    key=unit_id,
+                    prompt="ruby-red paint",
+                    opacity=1.0,
+                )
+            ],
+            "texture_plan": plan,
+            "working_dir": str(working_dir),
+        }
+    )
+
+    output = Usd.Stage.Open(result["output_usd_paths"][0])
+    selected_material = UsdShade.MaterialBindingAPI(
+        output.GetPrimAtPath("/World/Mesh_0")
+    ).ComputeBoundMaterial()[0]
+    preserved_material = UsdShade.MaterialBindingAPI(
+        output.GetPrimAtPath("/World/Mesh_preserved")
+    ).ComputeBoundMaterial()[0]
+    assert selected_material.GetPath() == f"/World/Looks/{unit_id}"
+    assert preserved_material.GetPath() == material_path
+    assert not output.GetPrimAtPath(material_path).HasAttribute(
+        "inputs:base_color_texture_file"
+    )
+
+
+def test_planned_per_material_apply_clones_and_rebinds_exact_subset(
+    tmp_path: Path,
+) -> None:
+    input_usd = tmp_path / "subset-scene.usda"
+    stage = Usd.Stage.CreateNew(str(input_usd))
+    UsdGeom.Xform.Define(stage, "/World")
+    UsdGeom.Scope.Define(stage, "/World/Looks")
+    mesh = UsdGeom.Mesh.Define(stage, "/World/Mesh")
+    mesh.CreatePointsAttr([(-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0)])
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    subset = UsdGeom.Subset.Define(stage, "/World/Mesh/PaintedFaces")
+    subset.CreateElementTypeAttr(UsdGeom.Tokens.face)
+    subset.CreateIndicesAttr([0])
+    material_path = "/World/Looks/Paint"
+    material = UsdShade.Material.Define(stage, material_path)
+    UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(material)
+    assert stage.GetRootLayer().Save()
+
+    plan_unit = TexturePlanUnit.build(
+        unit_mode="per_material",
+        material_prim_paths=(material_path,),
+        member_subset_paths=("/World/Mesh/PaintedFaces",),
+        display_name="Painted faces",
+        selection_reason_code="effectively_bound",
+        selection_reason="Used by a renderable material-binding subset.",
+        detail_policy="surface_only",
+    )
+    plan = _plan(tmp_path, count=1).model_copy(update={"selected_units": (plan_unit,)})
+    working_dir = tmp_path / "subset-run"
+    (working_dir / "textures").mkdir(parents=True)
+    texture_paths: dict[str, str] = {}
+    for channel, color in (
+        ("albedo", (120, 20, 30)),
+        ("normal", (128, 128, 255)),
+        ("orm", (255, 128, 0)),
+    ):
+        path = tmp_path / "subset-textures" / f"{plan_unit.unit_id}_{channel}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (2, 2), color).save(path)
+        texture_paths[channel] = str(path)
+
+    result = ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_usd),
+            "blended_textures": {plan_unit.unit_id: BlendedTextures(**texture_paths)},
+            "prim_texture_units": [
+                PrimTextureUnit(
+                    prim_path="",
+                    material_info=MaterialInfo(
+                        prim_path=material_path,
+                        name="Paint",
+                        bound_subset_paths=["/World/Mesh/PaintedFaces"],
+                    ),
+                    key=plan_unit.unit_id,
+                    prompt="ruby-red paint",
+                    opacity=1.0,
+                )
+            ],
+            "texture_plan": plan,
+            "working_dir": str(working_dir),
+        }
+    )
+
+    output = Usd.Stage.Open(result["output_usd_paths"][0])
+    subset_material = UsdShade.MaterialBindingAPI(
+        output.GetPrimAtPath("/World/Mesh/PaintedFaces")
+    ).ComputeBoundMaterial()[0]
+    assert subset_material.GetPath() == f"/World/Looks/{plan_unit.unit_id}"
+    assert not output.GetPrimAtPath(material_path).HasAttribute(
+        "inputs:base_color_texture_file"
+    )
+
+
+def test_planned_per_material_apply_supports_unbound_material(
+    tmp_path: Path,
+) -> None:
+    input_usd = tmp_path / "unbound-scene.usda"
+    stage = Usd.Stage.CreateNew(str(input_usd))
+    UsdGeom.Xform.Define(stage, "/World")
+    UsdGeom.Scope.Define(stage, "/World/Looks")
+    material_path = "/World/Looks/Unbound"
+    UsdShade.Material.Define(stage, material_path)
+    assert stage.GetRootLayer().Save()
+
+    plan_unit = TexturePlanUnit.build(
+        unit_mode="per_material",
+        material_prim_paths=(material_path,),
+        display_name="Unbound",
+        selection_reason_code="explicit_material",
+        selection_reason="Selected by exact material path.",
+        detail_policy="surface_only",
+    )
+    plan = _plan(tmp_path, count=1).model_copy(update={"selected_units": (plan_unit,)})
+    working_dir = tmp_path / "unbound-run"
+    (working_dir / "textures").mkdir(parents=True)
+    texture_paths: dict[str, str] = {}
+    for channel, color in (
+        ("albedo", (120, 20, 30)),
+        ("normal", (128, 128, 255)),
+        ("orm", (255, 128, 0)),
+    ):
+        path = tmp_path / "unbound-textures" / f"{plan_unit.unit_id}_{channel}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (2, 2), color).save(path)
+        texture_paths[channel] = str(path)
+
+    result = ApplyTexturesTask().run(
+        {
+            "usd_path": str(input_usd),
+            "blended_textures": {plan_unit.unit_id: BlendedTextures(**texture_paths)},
+            "prim_texture_units": [
+                PrimTextureUnit(
+                    prim_path="",
+                    material_info=MaterialInfo(
+                        prim_path=material_path,
+                        name="Unbound",
+                    ),
+                    key=plan_unit.unit_id,
+                    prompt="ruby-red paint",
+                    opacity=1.0,
+                )
+            ],
+            "texture_plan": plan,
+            "working_dir": str(working_dir),
+        }
+    )
+
+    output = Usd.Stage.Open(result["output_usd_paths"][0])
+    value = (
+        output.GetPrimAtPath(material_path)
+        .GetAttribute("inputs:base_color_texture_file")
+        .Get()
+    )
+    assert plan_unit.unit_id in value.path
+    assert result["apply_textures_stats"]["applied_count"] == 1
+
+
 def test_apply_deinstances_instance_proxy_material_before_authoring(
     tmp_path: Path,
 ) -> None:
@@ -1006,7 +1532,7 @@ def test_apply_skips_material_when_deinstance_cannot_make_it_editable(
     monkeypatch.setattr(
         apply_textures_task,
         "_editable_prim_for_path",
-        lambda stage, mat_path: _UneditablePrim(),
+        lambda stage, mat_path, **_kwargs: _UneditablePrim(),
     )
 
     assert apply_textures_task._apply_pbr_textures(

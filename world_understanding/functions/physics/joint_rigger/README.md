@@ -32,9 +32,12 @@ The WP-R3 public surface also exports:
 `JointRiggerInputV2` and `JointRiggerPlanV2` extend the same strict boundary for
 multi-root forests and aggregate rigid links. V2 requests carry every graph
 component root plus an exact source-to-authored mapping for each rigid-link
-member. Aggregate authoring is available only through a backend that explicitly
-declares both V2 and aggregate support; reopened outputs must match the sealed
-pre-move member structure and world transforms.
+member. Facade aggregate authoring is available only through a backend that
+explicitly declares both V2 and aggregate support. The public contracts and
+facade retain the released 0.5 import floor; post-0.5 app-owned aggregate
+integration is outside this public seam.
+Aggregate namespace authoring seals the complete pre-move member structure and
+world transforms; reopened outputs must reproduce that exact sealed snapshot.
 
 Importing the contracts and facade does not require an app package or eagerly
 import OpenUSD. Calling the USD identity or oracle functions does require the

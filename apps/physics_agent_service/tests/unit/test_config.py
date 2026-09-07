@@ -5,9 +5,17 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+from pydantic import ValidationError
+
 from ...service import config as config_module
 from ...service.config import ServiceConfig
 from ...service.storage.local_store import LocalSessionStore
+
+
+def test_generation_retention_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        ServiceConfig(storage_s3_generation_retention=0)
 
 
 def test_has_required_api_keys_accepts_public_nim_credentials_with_sidecar_renderer(
@@ -244,7 +252,9 @@ def test_config_helper_branches(monkeypatch, tmp_path: Path):
         storage_kind="s3",
         storage_s3_bucket="bucket",
         storage_s3_prefix="prefix",
+        storage_s3_generation_retention=7,
     )
     store = config.build_session_store()
     assert store.kind == "s3"
     assert store.cfg.s3_bucket == "bucket"
+    assert store.cfg.s3_generation_retention == 7

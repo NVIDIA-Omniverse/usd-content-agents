@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from ...service.storage import LocalSessionStore, StorageConfig
-from ...service.storage.base import METADATA_KEY
+from ...service.storage.base import METADATA_KEY, SessionStoragePathError
 
 
 @pytest.mark.unit
@@ -24,6 +24,19 @@ class TestLocalSessionStoreCRUD:
         store = LocalSessionStore(root_dir=str(tmp_path))
         await store.init_session("s1")
         assert (tmp_path / "s1").is_dir()
+
+    @pytest.mark.asyncio
+    async def test_init_session_reports_unsafe_symlinked_root(
+        self, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "real-root"
+        target.mkdir()
+        symlink_root = tmp_path / "symlink-root"
+        symlink_root.symlink_to(target, target_is_directory=True)
+        store = LocalSessionStore(root_dir=str(symlink_root))
+
+        with pytest.raises(SessionStoragePathError, match="storage root is unsafe"):
+            await store.init_session("s1")
 
     @pytest.mark.asyncio
     async def test_init_session_rejects_nested_identifier(self, tmp_path: Path) -> None:

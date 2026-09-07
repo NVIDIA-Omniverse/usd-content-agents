@@ -21,6 +21,7 @@ steps:
     enabled: true
     renderer:
       backend: remote
+      max_concurrent_requests: 1
 
   analyze_structure:
     enabled: true
@@ -28,10 +29,11 @@ steps:
     use_prompt_library: false
     llm:
       backend: nim
-      model: google/gemma-4-31b-it
+      model: moonshotai/kimi-k3
 
   build_dataset_usd:
     enabled: true
+    max_concurrent_requests: 1
     renderer:
       backend: remote
 
@@ -44,7 +46,7 @@ steps:
     completion_retries: 3
     vlm:
       backend: nim
-      model: google/gemma-4-31b-it
+      model: moonshotai/kimi-k3
 
   consistency_pass:
     enabled: true
@@ -66,7 +68,7 @@ steps:
       require_source_images: true
     vlm:
       backend: nim
-      model: google/gemma-4-31b-it
+      model: moonshotai/kimi-k3
 
   # Opt in only after reviewing the generated Stage 2 candidate document.
   apply_joint_rigger:

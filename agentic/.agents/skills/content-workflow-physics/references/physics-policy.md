@@ -3,12 +3,16 @@
 The physics workflow is agent-driven. Do not run the fixed
 `apps/physics_agent` pipeline as the workflow engine.
 
-Use Workbench `inspect-components` and `inspect-topology` to inspect logical
-components, source/inspection path mapping, bounds, existing materials, collider
-ownership, rigid bodies, joints, and articulation structure. Visual geometry,
-collider geometry, and helpers are distinct roles. The agent infers physics
-properties from geometry, visual material evidence, part function, names,
-references, and user intent.
+Use usd-cli to inspect authored scene state, bounds,
+existing materials, collider ownership, rigid bodies, joints, and articulation
+structure. Visual geometry, collider geometry, and helpers are distinct roles.
+The workflow agent—not the scene backend—groups logical components and infers
+physics properties from geometry, visual material evidence, part function,
+names, references, and user intent.
+
+Plan topology through the existing workflow helpers. Apply an accepted,
+digest-bound plan with usd-cli when it supports the
+required primitives, otherwise retain the guarded workflow helper.
 
 ## Property Contract
 
@@ -33,15 +37,19 @@ Use conservative property ranges:
 
 - density: positive, normally below 50000 kg/m3;
 - mass: positive, scene-scale plausible, normally below 1000000 kg;
+- exception: a component whose `component_role` is `unowned_static` (a floor,
+  wall, or fixture the asset merely rests on) takes zero density and zero
+  estimated mass, with real friction and restitution from its material, so
+  fixture volume never inflates the simulated body's mass;
 - static friction: 0.0 to 10.0, with common material estimates usually 0.0 to
   1.5;
 - dynamic friction: 0.0 to 10.0 and not greater than static friction;
 - restitution: 0.0 to 1.0.
 
 Mass estimates must account for fill factor. Do not treat hollow shells, sheet
-metal, tubes, frames, or thin covers as solid bounding boxes. Record a
-`mass_scale_suspicious` warning when geometry scale or mass plausibility is
-uncertain.
+metal, tubes, frames, or thin covers as solid bounding boxes. Record
+`{"code": "mass_scale_suspicious", "severity": "warning", "message": "..."}`
+when geometry scale or mass plausibility is uncertain.
 
 ## Authoring Policy
 
@@ -74,7 +82,10 @@ the default and forbids removing bodies or joints. Use a digest-bound topology
 plan only when user or workflow context resolves the asset as `movable` or
 `static`. The topology-plan allowlist may ensure or remove `RigidBodyAPI` and
 remove fixed joints; it must not remove non-fixed joints, alter articulations,
-delete colliders, reparent prims, or mutate the source asset.
+delete colliders, reparent prims, or mutate the source asset. Apply topology
+plans through usd-cli or the retained workflow
+`apply-topology-plan` helper. A missing usd-cli primitive does not move topology
+policy into usd-cli or deprecate the workflow.
 
 ## Coverage Policy
 
@@ -85,5 +96,8 @@ prims, joints, and scopes are never independent physics candidates. Existing
 collision geometry is an authoring target for properties but not a second
 semantic component.
 
-Optimized Workbench sessions should make decisions in runtime/inspection space
-and record source expansions for durable restore/export.
+Scene optimization and correspondence-aware restoration are workflow-owned.
+When an optimized inspection representation is used, make decisions in
+inspection space, record source expansions, reject ambiguous mappings, and
+author accepted decisions onto a source derivative through the configured
+scene backend.

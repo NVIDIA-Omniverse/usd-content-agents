@@ -1,0 +1,29 @@
+# The OVRTX image consumes only the package source, constraints, legal files,
+# and its own service subtree. Default-deny everything else so local daemon
+# state, credentials, examples, LFS assets, and benchmark outputs never enter
+# the Docker build context.
+**
+!.dockerignore
+!pyproject.toml
+!README.md
+!LICENSE
+!requirements/
+!requirements/constraints.txt
+!src/
+!src/**
+!apps/
+!apps/ovrtx_rendering_api/
+!apps/ovrtx_rendering_api/LICENSE
+!apps/ovrtx_rendering_api/README.md
+!apps/ovrtx_rendering_api/docker-entrypoint.sh
+!apps/ovrtx_rendering_api/pyproject.toml
+!apps/ovrtx_rendering_api/service/
+!apps/ovrtx_rendering_api/service/**
+
+# Re-exclude generated native/Python artifacts if they exist under an allowed
+# source directory in a developer checkout.
+**/__pycache__/
+**/*.py[cod]
+**/*.so
+**/*.pyd
+**/*.dylib

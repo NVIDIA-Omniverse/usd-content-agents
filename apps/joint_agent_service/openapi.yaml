@@ -7,7 +7,7 @@ info:
     optionally apply the Research Preview Joint Rigger, and stream real-time progress
     via SSE. The built-in owned_core adapter authors topology only and publishes a
     self-contained USDZ package; it does not author masses or collision.
-  version: "0.5.2"
+  version: "0.6.0"
   contact:
     name: NVIDIA Omniverse GenAI
 
@@ -744,7 +744,8 @@ components:
 
     HealthStatus:
       type: object
-      required: [status, service, version, api_keys_configured, max_active_sessions, capabilities]
+      required: [status, service, version, api_keys_configured, auth_enforced,
+        max_active_sessions, capabilities]
       properties:
         status:
           type: string
@@ -754,9 +755,12 @@ components:
           example: Joint Agent Service
         version:
           type: string
-          example: "0.5.2"
+          example: "0.6.0"
         api_keys_configured:
           type: boolean
+        auth_enforced:
+          type: boolean
+          description: Whether bearer-token enforcement is active on this server.
         max_active_sessions:
           type: integer
           example: 1
@@ -1316,3 +1320,19 @@ components:
           additionalProperties:
             type: number
           description: Per-step durations in seconds
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Bearer token. The server enforces this ONLY when JOINT_AGENT_TOKEN is set in the
+        server's environment; when it is unset the service accepts
+        unauthenticated requests and every endpoint behaves as if no scheme
+        were declared. Send `Authorization: Bearer <token>`. Probe and
+        documentation endpoints (`/health`, `/api`, `/`, `/docs`,
+        `/openapi.json`) never require a token.
+
+security:
+  - {}
+  - bearerAuth: []

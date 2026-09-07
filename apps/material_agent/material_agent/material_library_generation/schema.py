@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -15,6 +16,19 @@ DEFAULT_LIBRARY_ROOT = "/World/Looks"
 
 _SLUG_INVALID_CHARS = re.compile(r"[^A-Za-z0-9_]+")
 _SLUG_UNDERSCORES = re.compile(r"_+")
+
+
+class MaterialRecipeSemantics(StrEnum):
+    """How recipe controls are interpreted before USD shader authoring.
+
+    Both modes author linear shader values. Generation hints treat
+    ``base_color_hint`` as display-encoded sRGB and may apply semantic optical
+    heuristics; literal shader values are already linear and are preserved
+    exactly.
+    """
+
+    LITERAL_SHADER_VALUES = "literal_shader_values"
+    GENERATION_HINTS = "generation_hints"
 
 
 def make_material_id(value: str) -> str:
@@ -129,7 +143,13 @@ class IntendedPart:
 
 @dataclass(frozen=True)
 class MaterialRecipe:
-    """Recipe for generating one material in an asset-specific library."""
+    """Recipe for generating one material in an asset-specific library.
+
+    ``base_color_hint`` is display-encoded sRGB at the generation-plan boundary.
+    Canonical ``MaterialAuthoringRequest`` and source-preserving adapters reuse
+    this schema for already-linear shader controls and select literal-value
+    authoring mode explicitly.
+    """
 
     name: str
     description: str
@@ -235,7 +255,11 @@ class MaterialRecipe:
             color=data.get("color"),
             material=data.get("material"),
             finish=data.get("finish"),
-            base_color_hint=tuple(float(value) for value in base_color_hint),
+            base_color_hint=(
+                float(base_color_hint[0]),
+                float(base_color_hint[1]),
+                float(base_color_hint[2]),
+            ),
             pbr_hints=PBRHints.from_dict(data.get("pbr_hints")),
             reference_image_uris=resolved_refs,
             intended_parts=intended_parts,
@@ -338,11 +362,28 @@ class TextureMapSet:
 
 @dataclass(frozen=True)
 class GeneratedMaterial:
-    """Generated material artifact ready for USD and manifest authoring."""
+    """Generated material artifact ready for USD and manifest authoring.
+
+    ``textures=None`` is the explicit scalar-PBR representation, not a missing
+    generation result. Manifest writers record that representation and a null
+    texture result instead of silently omitting it.
+    """
 
     recipe: MaterialRecipe
-    textures: TextureMapSet
+    textures: TextureMapSet | None
     prototype_source: dict[str, Any] | None = None
+
+    @property
+    def is_textured(self) -> bool:
+        """Return whether this material carries authored texture maps."""
+
+        return self.textures is not None
+
+    @property
+    def representation(self) -> str:
+        """Return the explicit portable representation name."""
+
+        return "textured_pbr" if self.is_textured else "scalar_pbr"
 
     @property
     def name(self) -> str:
@@ -378,7 +419,7 @@ class GeneratedMaterialLibrary:
     def materials_data(self) -> dict[str, Any]:
         entries: list[dict[str, Any]] = []
         for material in self.materials:
-            entry = {
+            entry: dict[str, Any] = {
                 "name": material.name,
                 "description": material.description,
                 "binding": material.binding,

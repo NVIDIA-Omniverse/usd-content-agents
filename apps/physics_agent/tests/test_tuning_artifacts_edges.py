@@ -13,7 +13,9 @@ from physics_agent.tuning.artifacts import (
     _append_visual_evidence_md,
     _atomic_write_text,
     _inline_code,
+    _objective_metadata,
 )
+from physics_agent.tuning.types import Scenario, TunableParam
 
 
 def test_atomic_write_failure_removes_temp_file(
@@ -63,3 +65,42 @@ def test_visual_evidence_markdown_edges() -> None:
     assert "comparison failed" in text
 
     assert _inline_code("a `quoted` value") == "`` a `quoted` value ``"
+
+
+@pytest.mark.parametrize(
+    ("name", "metric", "expected"),
+    [
+        (
+            "drop_settle",
+            "settle_distance",
+            {"name": "settle_distance", "unit": "m", "direction": "minimize"},
+        ),
+        (
+            "drop_settle",
+            "max_bounce_height",
+            {
+                "name": "first_bounce_height",
+                "unit": "m",
+                "direction": "maximize",
+            },
+        ),
+        (
+            "freeform",
+            "judge_score",
+            {"name": "judge_score", "unit": "unitless", "direction": "maximize"},
+        ),
+    ],
+)
+def test_standard_objective_metadata(
+    name: str,
+    metric: str,
+    expected: dict[str, str],
+) -> None:
+    scenario = Scenario(
+        name=name,
+        params=(TunableParam("mass_scale", 0.5, 2.0),),
+        target={},
+        metric=metric,
+    )
+    assert _objective_metadata(scenario, "ovphysx") == expected
+    assert _objective_metadata(scenario, "newton") == expected

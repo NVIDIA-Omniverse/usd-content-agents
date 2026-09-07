@@ -28,8 +28,14 @@ The validation runtime is isolated from the main workflow environment because
 `simready-validate`, `omniverse-asset-validator`, `usd-core`, and related
 packages can conflict with other OpenUSD and Omniverse dependencies.
 
+Managed checkout verification attests the root `requirements.txt` and the
+release-layout fallback at `nv_core/validator_sample/requirements.txt` whenever
+either is tracked. The selected requirements file must match the pinned commit
+byte for byte and must not carry `assume-unchanged` or `skip-worktree` index
+state before it can seed a validator environment.
+
 On Linux ARM64 with Python < 3.13, the managed validation runtime must use
-`usd-exchange>=2.3,<3` as the active `pxr` provider because public `usd-core`
+`usd-exchange==2.3.0` as the active `pxr` provider because public `usd-core`
 does not publish compatible wheels there. The adapter installs Foundation
 requirements with `usd-core` excluded and adds `usd-exchange` explicitly. Set
 `CONTENT_WORKFLOW_SIMREADY_USD_PROVIDER=usd-core` to force the standard

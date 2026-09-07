@@ -29,7 +29,8 @@ import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from ...service.routers import pipeline_router
+from ...service.routers import pipeline_router, sessions_router
+from ...service.runtime.bus import EventBus
 from ...service.session.manager import SessionManager
 
 
@@ -101,6 +102,51 @@ def test_upload_usd_oversize_removes_created_session(
     )
 
     assert response.status_code == 413
+    assert manager.list_sessions() == []
+
+
+def test_generated_resolution_contract_fails_before_upload_side_effects(
+    tmp_path: Path,
+) -> None:
+    manager = SessionManager(tmp_path, ttl_hours=2)
+    client = _build_test_client(manager)
+
+    response = client.post(
+        "/pipeline",
+        data={
+            "backend_custom_parameters_json": (
+                '{"preserve_generated_resolution":null}'
+            ),
+        },
+        files={"usd_file": ("scene.usda", _make_minimal_usd_bytes())},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == [
+        "form",
+        "backend_custom_parameters_json",
+        "preserve_generated_resolution",
+    ]
+    assert manager.list_sessions() == []
+
+
+def test_external_authoring_contract_fails_before_upload_side_effects(
+    tmp_path: Path,
+) -> None:
+    manager = SessionManager(tmp_path, ttl_hours=2)
+    client = _build_test_client(manager)
+
+    response = client.post(
+        "/pipeline",
+        data={"external_authoring_json": '{"workflow":"paint"}'},
+        files={"usd_file": ("scene.usda", _make_minimal_usd_bytes())},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == [
+        "form",
+        "external_authoring_json",
+    ]
     assert manager.list_sessions() == []
 
 
@@ -352,8 +398,14 @@ def test_regenerate_clears_stale_bus_state_before_register(
             calls.append("clear")
             self.cleared = True
 
-        async def seed_pending_session(self, session_id: str) -> None:
+        async def seed_pending_session(
+            self,
+            session_id: str,
+            *,
+            execution_id: str | None = None,
+        ) -> None:
             assert session_id == sid
+            assert execution_id is None
             calls.append("seed")
 
     bus = _StubBus()
@@ -399,6 +451,9 @@ def test_regenerate_register_failure_restores_prior_diagnostics(
     manager = _seed_completed_session(tmp_path, sid, _default_steps_disabling_render())
     old_diagnostics = {
         "status": "failed",
+        "execution_id": "c" * 32,
+        "execution_request_digest": "d" * 64,
+        "execution_request_digests": {"c" * 32: "d" * 64},
         "error": "old failure",
         "failed_step": "generate_textures",
         "failed_step_stats": {"old": True},
@@ -407,14 +462,13 @@ def test_regenerate_register_failure_restores_prior_diagnostics(
     }
     manager.update_session(sid, old_diagnostics)
 
-    class _StubBus:
-        def clear_session_state(self, session_id: str) -> None:
-            assert session_id == sid
-
-        async def seed_pending_session(self, session_id: str) -> None:
-            assert session_id == sid
+    bus = EventBus(manager)
 
     class _FailingRegistry:
+        def is_running(self, session_id: str) -> bool:
+            assert session_id == sid
+            return False
+
         async def register(
             self,
             session_id: str,
@@ -426,7 +480,8 @@ def test_regenerate_register_failure_restores_prior_diagnostics(
             raise RuntimeError("synthetic register failure")
 
     monkeypatch.setattr(pipeline_router, "get_job_registry", lambda: _FailingRegistry())
-    monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: _StubBus())
+    monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: bus)
+    sessions_router.set_session_manager(manager)
 
     client = _build_test_client(manager)
     with pytest.raises(RuntimeError, match="synthetic register failure"):
@@ -439,6 +494,10 @@ def test_regenerate_register_failure_restores_prior_diagnostics(
     for key, value in old_diagnostics.items():
         assert metadata[key] == value
     assert manager.is_worker_active(sid) is False
+    status = client.get(f"/pipeline/{sid}/status")
+    assert status.status_code == 200, status.text
+    assert status.json()["status"] == "failed"
+    assert status.json()["execution_id"] == old_diagnostics["execution_id"]
 
 
 def test_create_existing_session_rejects_worker_lock(tmp_path: Path) -> None:
@@ -1256,6 +1315,11 @@ def test_create_pipeline_s3_and_file_modes_start_pipeline(
     client = _build_test_client(manager)
     captured: dict[str, Any] = {}
     monkeypatch.setattr(pipeline_router.config, "s3_allowed_buckets", "bucket")
+    monkeypatch.setattr(
+        pipeline_router.config,
+        "texture_endpoint_allowed_urls",
+        "http://texture",
+    )
     _stub_pipeline_registration(monkeypatch, captured)
 
     def fake_download(s3_uri: str, session_dir: Path) -> Path:
@@ -1283,9 +1347,9 @@ def test_create_pipeline_s3_and_file_modes_start_pipeline(
         "/pipeline",
         data={
             "s3_uri": "s3://bucket/path/scene.usdz",
-            "reference_image_uris_json": '[" file:///tmp/ref.png ", ""]',
-            "turntable_video_uri": " file:///tmp/turntable.mp4 ",
-            "multiview_image_uris_json": '["file:///tmp/a.png"]',
+            "reference_image_uris_json": '[" https://assets.example/ref.png ", ""]',
+            "turntable_video_uri": " https://assets.example/turntable.mp4 ",
+            "multiview_image_uris_json": '["https://assets.example/a.png"]',
             "backend_custom_parameters_json": '{"cfg": 7}',
             "texture_backend": "service",
             "texture_endpoint": " http://texture ",
@@ -1304,9 +1368,14 @@ def test_create_pipeline_s3_and_file_modes_start_pipeline(
     assert response.status_code == 202, response.text
     config = captured["config"]
     assert config["input"]["usd_path"].endswith("scene.usdz")
-    assert config["texture"]["reference_image_uris"] == ["file:///tmp/ref.png"]
-    assert config["texture"]["turntable_video_uri"] == "file:///tmp/turntable.mp4"
-    assert config["texture"]["multiview_image_uris"] == ["file:///tmp/a.png"]
+    assert config["texture"]["reference_image_uris"] == [
+        "https://assets.example/ref.png"
+    ]
+    assert (
+        config["texture"]["turntable_video_uri"]
+        == "https://assets.example/turntable.mp4"
+    )
+    assert config["texture"]["multiview_image_uris"] == ["https://assets.example/a.png"]
     assert config["texture"]["custom_parameters"] == {"cfg": 7}
     assert config["texture"]["endpoint"] == "http://texture"
     assert config["texture"]["engine"] == "step1x"
@@ -1378,17 +1447,64 @@ def test_create_pipeline_existing_session_reference_upload_and_metadata_fallback
 
     response = client.post(
         "/pipeline",
-        data={"session_id": sid, "reference_image_uris_json": '["file:///tmp/a.png"]'},
+        data={
+            "session_id": sid,
+            "reference_image_uris_json": '["https://assets.example/a.png"]',
+        },
         files={"reference_image_file": ("ref.png", b"png")},
     )
 
     assert response.status_code == 202, response.text
     refs = captured["config"]["texture"]["reference_image_uris"]
-    assert refs[0] == "file:///tmp/a.png"
+    assert refs[0] == "https://assets.example/a.png"
     assert refs[1].endswith("/input/reference_images/reference_image.png")
     metadata = manager.get_session_metadata(sid)
     assert metadata is not None
     assert metadata["config"]["original_filename"] is None
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("reference_image_uris_json", '["/etc/passwd"]'),
+        ("reference_image_uris_json", '["file:///etc/passwd"]'),
+        ("reference_image_uris_json", '["C:\\\\private\\\\ref.png"]'),
+        ("turntable_video_uri", "/private/turntable.mp4"),
+        ("multiview_image_uris_json", '["file:///private/view.png"]'),
+    ],
+)
+def test_create_pipeline_rejects_client_local_conditioning_paths_before_io(
+    tmp_path: Path,
+    field_name: str,
+    field_value: str,
+) -> None:
+    manager = SessionManager(tmp_path, ttl_hours=2)
+    client = _build_test_client(manager)
+
+    response = client.post("/pipeline", data={field_name: field_value})
+
+    assert response.status_code == 422
+    assert "upload the reference file instead" in response.text
+    assert not any(tmp_path.iterdir())
+
+
+def test_create_pipeline_rejects_per_material_local_conditioning_path_before_io(
+    tmp_path: Path,
+) -> None:
+    manager = SessionManager(tmp_path, ttl_hours=2)
+    client = _build_test_client(manager)
+    payload = (
+        '{"Steel":{"prompt":"rust","reference_image_uris":["file:///private/ref.png"]}}'
+    )
+
+    response = client.post(
+        "/pipeline",
+        data={"material_textures_json": payload},
+    )
+
+    assert response.status_code == 422
+    assert "material_textures_json.Steel.reference_image_uris" in response.text
+    assert not any(tmp_path.iterdir())
 
 
 def test_pipeline_status_and_results_disk_views_normalize_edges(

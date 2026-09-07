@@ -6,9 +6,12 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import ipaddress
 import shlex
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -35,6 +38,7 @@ COSMOS_LOCAL_VLM_MODEL = "nvidia/cosmos-reason2-8b"
 TEXTURE_LOCAL_IMAGE_GEN_MODEL = "black-forest-labs/flux.2-klein-4b"
 TEXTURE_LOCAL_LLM_MODEL = "nvidia/llama-3.1-nemotron-nano-8b-v1"
 BREV_REMOTE_WORKTREE_PATH = "/home/ubuntu/world-understanding"
+REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKTREE_RSYNC_EXCLUDES = (
     ".git",
     ".venv",
@@ -81,6 +85,65 @@ data["data-root"] = os.environ["DOCKER_DATA_ROOT"]
 path.write_text(json.dumps(data, indent=2) + "\\n")
 """
 
+TEXTURE_CREDENTIAL_ENV_PYTHON = """import os
+import sys
+from pathlib import Path
+
+from dotenv import dotenv_values
+
+credential_names = ("NGC_API_KEY", "HF_TOKEN")
+values = {name: os.environ.get(name) for name in credential_names}
+dotenv_path = Path(sys.argv[1]) / ".env"
+if dotenv_path.is_file():
+    dotenv = dotenv_values(dotenv_path=dotenv_path, interpolate=False)
+    for name in credential_names:
+        # An explicit environment entry is authoritative even when invalid. Do not
+        # silently replace an exported empty value with a credential from disk.
+        if name not in os.environ and name in dotenv:
+            values[name] = dotenv[name]
+
+for name in credential_names:
+    value = values[name]
+    if not value:
+        raise SystemExit(f"{name} is required")
+    if "\\n" in value or "\\r" in value:
+        raise SystemExit(f"{name} must be a single-line value")
+
+sys.stdout.write(
+    "".join(f"{name}={values[name]}\\n" for name in credential_names),
+)
+"""
+
+REMOTE_CREDENTIAL_INSTALL_SHELL = """set -e
+umask 077
+destination="$HOME/.ngc-nim.env"
+tmp_env="$(mktemp "${destination}.XXXXXX")"
+cleanup() { rm -f -- "$tmp_env"; }
+trap cleanup EXIT
+trap 'cleanup; exit 1' HUP INT TERM
+cat > "$tmp_env"
+chmod 600 "$tmp_env"
+mv -f -- "$tmp_env" "$destination"
+trap - EXIT HUP INT TERM
+"""
+
+SSH_TRUST_OPTIONS = (
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "-o",
+    "UserKnownHostsFile=~/.ssh/known_hosts",
+)
+
+SSH_TRUST_OPTIONS_SHELL = (
+    "-o BatchMode=yes -o ConnectTimeout=10 "
+    "-o StrictHostKeyChecking=yes "
+    "-o UserKnownHostsFile=~/.ssh/known_hosts"
+)
+
 
 @dataclass(frozen=True)
 class ServiceConfig:
@@ -117,6 +180,7 @@ class PlannerOptions:
     vlm_min_disk_gb: int = 500
     cpu_type: str = "n2d-standard-4"
     qwen_model: str | None = None
+    image_gen_node_name: str | None = None
     image_gen_type: str | None = "g6e.xlarge"
     image_gen_gpu_name: str = "L40S"
     image_gen_min_vram_gb: int = 48
@@ -789,7 +853,9 @@ def _texture_hybrid_plan(
         image_gen_nodes: tuple[NodePlan, ...] = ()
         image_gen_commands: tuple[PlannedCommand, ...] = ()
         if not options.image_gen_base_url:
-            image_gen_node_name = f"{options.name}-texture-image-gen"
+            image_gen_node_name = (
+                options.image_gen_node_name or f"{options.name}-texture-image-gen"
+            )
             image_gen_purpose = (
                 "Hosts an OpenAI-compatible FLUX image-generation endpoint. "
                 "The local texture pipeline reaches it through a Brev "
@@ -889,6 +955,7 @@ def _texture_hybrid_plan(
                 "The image-generation endpoint is the required heavy dependency for generate_textures.",
                 "The LLM endpoint is optional and skipped by default when explicit material prompts are supplied in the config.",
                 "Pass --texture-include-llm to add a small Qwen LLM node for auto-prompt generation.",
+                "Before direct SSH credential transfer, install the node host key in ~/.ssh/known_hosts only after verifying its fingerprint through an independently authenticated Brev/provider channel; generated SSH commands enforce strict verification.",
                 *_connectivity_notes("local-port-forward"),
             ),
         )
@@ -1415,6 +1482,7 @@ def _model_node_readiness_commands(
 def _texture_image_gen_setup_commands(
     node_name: str, image_gen_port: int
 ) -> tuple[PlannedCommand, ...]:
+    _require_texture_credential_parser()
     return (
         PlannedCommand(
             "Qualify texture image-gen node disk, Docker storage, and GPU",
@@ -1452,39 +1520,45 @@ def _texture_image_gen_setup_commands(
             cost_incurring=True,
         ),
         PlannedCommand(
-            "Create a minimal local NGC/HF env file for FLUX NIM",
+            "Verify direct SSH access to the texture image-gen node",
             (
-                "bash",
-                "-lc",
-                "set -e; umask 077; "
-                "if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; "
-                'test -n "$NGC_API_KEY" && test -n "$HF_TOKEN" && '
-                "printf 'NGC_API_KEY=%s\\nHF_TOKEN=%s\\n' "
-                '"$NGC_API_KEY" "$HF_TOKEN" > /tmp/wu-ngc-nim.env',
-            ),
-        ),
-        PlannedCommand(
-            "Copy minimal NGC/HF env file to the image-gen node",
-            (
-                "brev",
-                "copy",
-                "/tmp/wu-ngc-nim.env",
-                f"{node_name}:/home/ubuntu/.ngc-nim.env",
+                "ssh",
+                *SSH_TRUST_OPTIONS,
+                node_name,
+                "true",
             ),
             cost_incurring=True,
         ),
         PlannedCommand(
-            "Remove the local minimal NGC/HF env file",
-            ("rm", "-f", "/tmp/wu-ngc-nim.env"),
+            "Stream a minimal NGC/HF env file securely to FLUX NIM",
+            (
+                "bash",
+                "-lc",
+                "set -e -o pipefail; "
+                'credential_env="$("$2" -c "$3" "$5")"; '
+                'printf "%s\\n" "$credential_env" | '
+                f'ssh {SSH_TRUST_OPTIONS_SHELL} "$1" "$4"',
+                "bash",
+                node_name,
+                sys.executable,
+                TEXTURE_CREDENTIAL_ENV_PYTHON,
+                REMOTE_CREDENTIAL_INSTALL_SHELL,
+                str(REPO_ROOT),
+            ),
+            cost_incurring=True,
         ),
         PlannedCommand(
             "Log Docker into nvcr.io without exposing the NGC token",
             (
-                "brev",
-                "exec",
+                "ssh",
+                *SSH_TRUST_OPTIONS,
                 node_name,
-                "chmod 600 /home/ubuntu/.ngc-nim.env && "
-                "set -a; . /home/ubuntu/.ngc-nim.env; set +a; "
+                'chmod 600 "$HOME/.ngc-nim.env" && '
+                'NGC_API_KEY="$(sed -n '
+                '\'s/^NGC_API_KEY=//p\' "$HOME/.ngc-nim.env")" && '
+                'test -n "$NGC_API_KEY" && '
+                'cleaned="$(printf %s "$NGC_API_KEY" | tr -d \'\\r\\n\')" && '
+                'test "$cleaned" = "$NGC_API_KEY" && '
                 "printf '%s\\n' \"$NGC_API_KEY\" | "
                 'docker login nvcr.io -u "\\$oauthtoken" --password-stdin',
             ),
@@ -1493,13 +1567,13 @@ def _texture_image_gen_setup_commands(
         PlannedCommand(
             "Start the FLUX image-generation NIM",
             (
-                "brev",
-                "exec",
+                "ssh",
+                *SSH_TRUST_OPTIONS,
                 node_name,
                 "docker rm -f flux-image-gen >/dev/null 2>&1 || true; "
-                "docker run -d --name flux-image-gen --gpus all --ipc=host "
+                "docker run -d --name flux-image-gen --gpus all --shm-size=32g "
                 f"-p {image_gen_port}:8000 "
-                "--env-file /home/ubuntu/.ngc-nim.env "
+                '--env-file "$HOME/.ngc-nim.env" '
                 "-e NIM_CACHE_PATH=/opt/nim/.cache "
                 "-v /opt/dlami/nvme/nim-cache:/opt/nim/.cache "
                 "nvcr.io/nim/black-forest-labs/flux.2-klein-4b:1.0.1-variant",
@@ -1507,6 +1581,15 @@ def _texture_image_gen_setup_commands(
             cost_incurring=True,
         ),
     )
+
+
+def _require_texture_credential_parser() -> None:
+    if importlib.util.find_spec("dotenv") is None:
+        raise RuntimeError(
+            "python-dotenv is required to render the FLUX credential transfer. "
+            "Activate the repository .venv or install the development dependencies "
+            "before rendering this plan."
+        )
 
 
 def _image_gen_node_readiness_command(
@@ -1649,6 +1732,13 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--image-gen-node-name",
+        help=(
+            "Exact Brev node name for the texture image-generation endpoint. "
+            "Defaults to <name>-texture-image-gen."
+        ),
+    )
+    parser.add_argument(
         "--image-gen-type",
         default="g6e.xlarge",
         help=(
@@ -1764,6 +1854,7 @@ def main() -> None:
         vlm_min_disk_gb=args.vlm_min_disk_gb,
         cpu_type=args.cpu_type,
         qwen_model=args.qwen_model,
+        image_gen_node_name=args.image_gen_node_name,
         image_gen_type=args.image_gen_type or None,
         image_gen_gpu_name=args.image_gen_gpu_name,
         image_gen_min_vram_gb=args.image_gen_min_vram_gb,

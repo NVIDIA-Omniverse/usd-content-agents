@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Joint Agent CLI"
+  short_description: "Fixed pipeline: Run the Joint Agent CLI"
+  default_prompt: "Use $fixed-pipeline to run the Joint Agent CLI for LLM hierarchy analysis and VLM classification of articulated bodies (robot arms)."

@@ -5,10 +5,12 @@
 from __future__ import annotations
 
 import sys
+from importlib.metadata import version
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from requests import Response
 
 from world_understanding.functions.models import backends, nim_timeout
 from world_understanding.functions.models import image_generation_models as image_models
@@ -101,9 +103,43 @@ def test_openai_chat_and_vlm_factory_edges(
     assert chat.kwargs["max_tokens"] == 99
     assert chat.kwargs["base_url"] == "https://api.openai.com/v1"
 
+    sol_chat = openai_backend.create_openai_chat(
+        api_key="openai-key",
+        model="openai/openai/gpt-5.6-sol",
+        base_url="https://inference-api.nvidia.com/v1",
+        temperature=0.1,
+        top_p=0.4,
+        max_tokens=512,
+        use_responses_api=False,
+    )
+    assert sol_chat.kwargs == {
+        "model": "openai/openai/gpt-5.6-sol",
+        "api_key": "openai-key",
+        "streaming": False,
+        "timeout": 120.0,
+        "max_completion_tokens": 16_384,
+        "reasoning_effort": "xhigh",
+        "use_responses_api": True,
+        "base_url": "https://inference-api.nvidia.com/v1",
+    }
+
     vlm = openai_backend.create_openai_vlm(api_key="openai-key")
     assert vlm.kwargs["base_url"] == "https://api.openai.com/v1"
     assert vlm.kwargs["api_key"] == "openai-key"
+
+    sol_vlm = openai_backend.create_openai_vlm(
+        api_key="openai-key",
+        model="openai/openai/gpt-5.6-sol",
+        base_url="https://inference-api.nvidia.com/v1",
+        max_tokens=512,
+        timeout=9,
+    )
+    assert isinstance(sol_vlm, vlm_models.LangChainChatVLM)
+    assert sol_vlm.model_name == "openai/openai/gpt-5.6-sol"
+    assert sol_vlm.backend_name == "openai"
+    assert sol_vlm.has_bounded_request_timeout is True
+    assert sol_vlm.chat_model.kwargs["use_responses_api"] is True
+    assert sol_vlm.chat_model.kwargs["timeout"] == 9
 
     monkeypatch.setattr(image_models, "OpenAIImageGenerationModel", CapturingModel)
     image_model = openai_backend.create_openai_image_gen(
@@ -139,23 +175,162 @@ def test_nim_chat_factory_builds_model_and_applies_timeout(
     )
 
     assert chat.kwargs == {
-        "model": "google/gemma-4-31b-it",
+        "model": "moonshotai/kimi-k3",
         "nvidia_api_key": "nim-key",
         "streaming": True,
         "temperature": 0.2,
         "top_p": 0.6,
-        "max_tokens": 111,
+        "max_tokens": 16_384,
         "custom": "kept",
     }
     assert applied_timeouts == [(chat, 9, "create_nim_chat")]
 
 
+def test_kimi_k3_nim_chat_applies_budget_at_payload_edge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class FakeChatNVIDIA:
+        def __init__(self, **kwargs: Any) -> None:
+            self.constructor_kwargs = kwargs
+
+        def _prepare_inputs_and_payload(
+            self,
+            _messages: Any,
+            **kwargs: Any,
+        ) -> str:
+            calls.append(kwargs)
+            return "payload"
+
+    monkeypatch.setitem(
+        sys.modules,
+        "langchain_nvidia_ai_endpoints",
+        SimpleNamespace(ChatNVIDIA=FakeChatNVIDIA),
+    )
+    monkeypatch.setattr(nim, "_apply_nim_chat_timeout", lambda *_args, **_kwargs: None)
+
+    chat = nim.create_nim_chat(api_key="nim-key", max_tokens=512)
+
+    assert chat.constructor_kwargs["model"] == "moonshotai/kimi-k3"
+    assert chat.constructor_kwargs["max_tokens"] == 16_384
+    assert not hasattr(chat, "model")
+    assert (
+        chat._prepare_inputs_and_payload(
+            [],
+            max_tokens=1024,
+            reasoning_effort="max",
+        )
+        == "payload"
+    )
+    assert calls[-1]["max_tokens"] == 16_384
+    assert calls[-1]["reasoning_effort"] == "max"
+
+    assert (
+        chat._prepare_inputs_and_payload(
+            [],
+            stream=True,
+            max_completion_tokens=2048,
+            reasoning_effort="high",
+        )
+        == "payload"
+    )
+    assert calls[-1]["max_tokens"] == 16_384
+    assert "max_completion_tokens" not in calls[-1]
+    assert calls[-1]["reasoning_effort"] == "high"
+
+    other_chat = nim.create_nim_chat(
+        api_key="nim-key",
+        model="test-model",
+    )
+    other_chat._prepare_inputs_and_payload([], max_tokens=2048)
+    assert calls[-1]["max_tokens"] == 2048
+
+
+def test_nim_1_4_3_applies_implicit_and_aliased_k3_budgets() -> None:
+    """Exercise the request-budget hook against the locked real SDK class."""
+    from langchain_core.messages import HumanMessage
+    from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+    assert version("langchain-nvidia-ai-endpoints") == "1.4.3"
+    assert hasattr(ChatNVIDIA, "_prepare_inputs_and_payload")
+
+    implicit = nim.create_nim_chat(api_key="nvapi-test")
+    _, implicit_payload, _ = implicit._prepare_inputs_and_payload(
+        [HumanMessage(content="hello")]
+    )
+    assert implicit_payload["max_tokens"] == 16_384
+
+    aliased = nim.create_nim_chat(
+        api_key="nvapi-test",
+        max_completion_tokens=2048,
+    )
+    _, aliased_payload, _ = aliased._prepare_inputs_and_payload(
+        [HumanMessage(content="hello")]
+    )
+    assert aliased_payload["max_tokens"] == 16_384
+    assert "max_completion_tokens" not in aliased_payload
+
+
 def test_nim_timeout_none_is_noop() -> None:
     model = CapturingModel()
 
-    nim_timeout._apply_nim_chat_timeout(model, None, label="test")
+    configured = nim_timeout._apply_nim_chat_timeout(model, None, label="test")
 
+    assert configured is False
     assert not hasattr(model, "timeout")
+
+
+def test_nim_1_4_3_applies_timeout_to_post_and_polling_get_transport() -> None:
+    """Prove the locked SDK uses the client timeout for both HTTP legs."""
+    assert version("langchain-nvidia-ai-endpoints") == "1.4.3"
+
+    vlm = vlm_models.NvidiaNIMVLM(
+        api_key="nvapi-test",
+        model="google/gemma-4-31b-it",
+        timeout=4.25,
+    )
+    sync_client = vlm.chat_model._client
+
+    initial_response = Response()
+    initial_response.status_code = 202
+    initial_response.headers["NVCF-REQID"] = "request-1"
+    completed_response = Response()
+    completed_response.status_code = 200
+
+    class FakeSession:
+        def __init__(self) -> None:
+            self.post_calls: list[dict[str, Any]] = []
+            self.get_calls: list[dict[str, Any]] = []
+
+        def post(self, **kwargs: Any) -> Response:
+            self.post_calls.append(kwargs)
+            return initial_response
+
+        def get(self, **kwargs: Any) -> Response:
+            self.get_calls.append(kwargs)
+            return completed_response
+
+    session = FakeSession()
+    sync_client.get_session_fn = lambda: session
+    sync_client.interval = 0
+    request_body = {"messages": [{"role": "user", "content": "hello"}]}
+
+    response, returned_session = sync_client._post(
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        request_body,
+    )
+    result = sync_client._wait(response, returned_session)
+
+    assert result is completed_response
+    assert len(session.post_calls) == 1
+    assert session.post_calls[0]["timeout"] == 4.25
+    assert session.post_calls[0]["json"] == request_body
+    assert "timeout" not in session.post_calls[0]["json"]
+    assert len(session.get_calls) == 1
+    assert session.get_calls[0]["timeout"] == 4.25
+    assert "json" not in session.get_calls[0]
+    assert vlm.has_bounded_request_timeout is True
 
 
 def test_nim_vlm_and_image_generation_factories(
@@ -228,11 +403,14 @@ def test_backend_registry_error_and_list_edges() -> None:
 
 
 def test_backend_registry_metadata_helpers_reject_unknown_backends() -> None:
+    assert registry.chat_backend_supports("openai", "reasoning_effort") is True
     assert registry.vlm_backend_requires_api_key("openai") is True
     assert registry.vlm_backend_supports("openai", "reasoning_effort") is True
 
     with pytest.raises(ValueError, match="Unknown chat backend"):
         registry.chat_backend_requires_api_key("missing-chat-metadata")
+    with pytest.raises(ValueError, match="Unknown chat backend"):
+        registry.chat_backend_supports("missing-chat-capabilities", "reasoning_effort")
     with pytest.raises(ValueError, match="Unknown VLM backend"):
         registry.vlm_backend_requires_api_key("missing-vlm-metadata")
     with pytest.raises(ValueError, match="Unknown VLM backend"):

@@ -136,6 +136,9 @@ print(session_id, results)
 raises `requests.HTTPError` when the service returns `202` while a run or its
 terminal diagnostics are still finalizing. Use `run_and_monitor(...)`, or poll
 `get_status(session_id)` until it is terminal before retrying `get_results`.
+For a failed run, inspect the stable `error`, `error_diagnostic`, and optional
+`failure_evidence` fields and download the evidence URLs before requesting
+session deletion.
 
 See `apps/material_agent_service/examples/regenerate_client_usage.py` for a
 focused follow-up example that calls `client.regenerate(...)` and
@@ -152,3 +155,5 @@ Key endpoints the client uses:
 - POST `/pipeline/{session_id}/cancel` (cancel)
 - POST `/pipeline/{session_id}/regenerate` (re-run steps from cache)
 - GET `/pipeline/{session_id}/event-log` (persisted event history)
+- GET `/assets/{session_id}/failure-evidence` (failed-run evidence listing)
+- GET `/assets/{session_id}/failure-evidence/{file_name}` (report or sample)

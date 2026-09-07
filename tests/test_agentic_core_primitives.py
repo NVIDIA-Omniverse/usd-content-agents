@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import errno
+import io
 import json
 import logging
 import traceback
@@ -16,6 +17,8 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from rich.console import Console
+from rich.table import Table
 
 from world_understanding.agentic import base_pipeline_executor as executor_module
 from world_understanding.agentic import session as session_module
@@ -24,7 +27,11 @@ from world_understanding.agentic.base import BaseAgent
 from world_understanding.agentic.base_pipeline_executor import (
     BasePipelineExecutor,
     PathEncoder,
+    is_valid_pipeline_checkpoint_structure,
+    record_terminal_step_failure,
+    reject_terminal_pipeline_resume,
 )
+from world_understanding.agentic.cli.console import EncodingSafeTextIO
 from world_understanding.agentic.events import (
     CLIEventListener,
     CollectingEventListener,
@@ -43,6 +50,12 @@ from world_understanding.agentic.tasks import (
     ToolTask,
 )
 from world_understanding.utils.credentials import InlineSecretError
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    NonRetryableVLMTimeoutError,
+    is_terminal_vlm_timeout_marker,
+    make_terminal_vlm_timeout_marker,
+)
 from world_understanding.utils.object_store import InMemoryObjectStore
 from world_understanding.utils.result_projection import project_result_metadata
 
@@ -291,6 +304,85 @@ def test_cli_listener_logs_and_renders_supported_events() -> None:
     ]
     assert len(console.calls) >= 9
     assert console.calls[-1][1] == {"end": "\r"}
+
+
+def test_cli_listener_events_are_cp1252_safe() -> None:
+    output = io.BytesIO()
+    stream = io.TextIOWrapper(output, encoding="cp1252")
+    console = Console(file=stream, color_system=None, force_terminal=False)
+    listener = CLIEventListener(
+        logger=RecordingLogger(),
+        console=console,
+        show_events=True,
+    )
+
+    listener.event("step.completed", {"step_name": "extract"})
+    listener.event("step.failed", {"step_name": "render", "error": "bad usd"})
+    listener.event(
+        "pipeline.overview",
+        {"steps": ["extract", "render"], "completed_steps": ["extract"]},
+    )
+    listener.event("pipeline.success", {})
+    listener.event("pipeline.failed", {"failed_step": "render", "error": "bad usd"})
+    stream.flush()
+
+    rendered = output.getvalue().decode("cp1252")
+    assert "OK Step 'extract' completed" in rendered
+    assert "X Step 'render' failed" in rendered
+    assert "OK Completed" in rendered
+    assert "- Pending" in rendered
+    assert "OK Pipeline completed successfully" in rendered
+    assert "X Pipeline failed at step: render" in rendered
+
+
+def test_encoding_safe_console_projects_dynamic_cp1252_text() -> None:
+    output = io.BytesIO()
+    stream = io.TextIOWrapper(output, encoding="cp1252")
+    safe_stream = EncodingSafeTextIO(lambda: stream)
+    console = Console(file=safe_stream, color_system=None, force_terminal=False)
+    table = Table(show_header=False)
+    table.add_row("Output USD", "C:\\雪\\result.usda")
+
+    console.print(table)
+    stream.flush()
+
+    rendered = output.getvalue().decode("cp1252")
+    assert "C:\\\\u96ea\\result.usda" in rendered
+
+
+def test_encoding_safe_console_delegates_with_unknown_encoding() -> None:
+    class _UnknownEncodingStream:
+        encoding = "not-a-codec"
+        marker = "delegated"
+
+        def __init__(self) -> None:
+            self.values: list[str] = []
+            self.flushed = False
+
+        def write(self, value: str) -> int:
+            self.values.append(value)
+            return len(value)
+
+        def flush(self) -> None:
+            self.flushed = True
+
+        def isatty(self) -> bool:
+            return True
+
+        def fileno(self) -> int:
+            return 17
+
+    stream = _UnknownEncodingStream()
+    safe_stream = EncodingSafeTextIO(lambda: stream)  # type: ignore[arg-type]
+
+    assert safe_stream.write("雪") == len(r"\u96ea")
+    safe_stream.flush()
+
+    assert stream.values == [r"\u96ea"]
+    assert stream.flushed is True
+    assert safe_stream.isatty() is True
+    assert safe_stream.fileno() == 17
+    assert safe_stream.marker == "delegated"
 
 
 def test_cli_listener_silent_and_show_events_without_console() -> None:
@@ -774,6 +866,36 @@ def test_agentic_loop_task_completion_paths() -> None:
     )
     assert maxed["completion_reason"] == "max_iterations_reached"
     assert maxed["final_iteration"] == 2
+
+    zero_agent = FakeAgent([])
+    zero = asyncio.run(
+        AgenticLoopTask(zero_agent, max_iterations=0).arun({}, InMemoryObjectStore())
+    )
+    assert zero == {
+        "completed": True,
+        "completion_reason": "max_iterations_reached",
+        "final_iteration": 0,
+    }
+    assert zero_agent.calls == []
+
+    bool_agent = FakeAgent([{"needs_refinement": True}])
+    boolean_limit = asyncio.run(
+        AgenticLoopTask(bool_agent, max_iterations=True).arun({}, InMemoryObjectStore())
+    )
+    assert boolean_limit["refinement_iteration"] == 0
+    assert boolean_limit["completion_reason"] == "max_iterations_reached"
+    assert boolean_limit["final_iteration"] is True
+    assert len(bool_agent.calls) == 1
+
+    false_agent = FakeAgent([])
+    false_limit = asyncio.run(
+        AgenticLoopTask(false_agent, max_iterations=False).arun(
+            {}, InMemoryObjectStore()
+        )
+    )
+    assert false_limit["completion_reason"] == "max_iterations_reached"
+    assert false_limit["final_iteration"] is False
+    assert false_agent.calls == []
 
 
 def test_tool_task_resolves_inputs_runs_and_stores_output(
@@ -1490,6 +1612,46 @@ def test_base_pipeline_executor_rejects_malformed_resume_checkpoint_structure(
         )
 
     assert str(malformed_state) not in str(exc_info.value)
+
+
+def test_terminal_timeout_checkpoint_marker_is_strict_and_blocks_resume() -> None:
+    state: dict[str, Any] = {
+        "completed_steps": [],
+        "failed_steps": ["predict"],
+        "step_outputs": {},
+        "current_step": None,
+    }
+    error = NonRetryableVLMTimeoutError("provider detail")
+
+    assert record_terminal_step_failure(state, "predict", error) is True
+    assert state[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == (
+        make_terminal_vlm_timeout_marker("predict")
+    )
+    assert is_valid_pipeline_checkpoint_structure(state) is True
+
+    with pytest.raises(RuntimeError, match="restart with clean=True"):
+        reject_terminal_pipeline_resume(state, resume=True)
+    reject_terminal_pipeline_resume(state, resume=False)
+
+    state[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] = {
+        **make_terminal_vlm_timeout_marker("predict"),
+        "provider_error": "must not be accepted",
+    }
+    assert is_valid_pipeline_checkpoint_structure(state) is False
+
+
+@pytest.mark.parametrize("failed_step", [None, "", "x" * 129, True])
+def test_terminal_timeout_marker_builder_rejects_invalid_step_names(
+    failed_step: Any,
+) -> None:
+    with pytest.raises(ValueError, match="non-empty string of at most 128"):
+        make_terminal_vlm_timeout_marker(failed_step)
+
+
+def test_terminal_timeout_marker_builder_accepts_maximum_step_name() -> None:
+    marker = make_terminal_vlm_timeout_marker("x" * 128)
+
+    assert is_terminal_vlm_timeout_marker(marker) is True
 
 
 @pytest.mark.parametrize(

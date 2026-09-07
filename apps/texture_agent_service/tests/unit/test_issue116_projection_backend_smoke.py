@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -103,9 +104,12 @@ def _service_config_from_client_form(
     session_dir: Path,
     form: dict[str, str],
 ) -> dict[str, Any]:
+    uploaded_path = session_dir / "input" / "ladder.usd"
+    uploaded_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(_ladder_path(), uploaded_path)
     config = pipeline_router.build_default_pipeline_config(
         session_id=session_id,
-        usd_path=str(_ladder_path()),
+        usd_path=str(uploaded_path),
         working_dir=str(session_dir / "cache"),
         material_textures=json.loads(form["material_textures_json"]),
         auto_prompt_enabled=form["auto_prompt_enabled"] == "true",
@@ -211,8 +215,19 @@ async def test_issue116_service_client_ladder_projection_backend_smoke(
     client = TextureAgentClient("http://texture.test")
     fake_http = _ClientHttp()
     client._http = fake_http
+    session_id = "issue116-service-smoke"
+    manager = SessionManager(tmp_path / "sessions")
+    session_dir = manager.create_session(session_id)
+    pipeline_router.set_session_manager(manager)
+    sessions_router.set_session_manager(manager)
+    init_event_bus(manager).clear_session_state(session_id)
 
-    with FakeProjectionBackend(tmp_path / "backend") as backend:
+    with FakeProjectionBackend(session_dir / "cache" / "backend") as backend:
+        monkeypatch.setattr(
+            pipeline_router.config,
+            "texture_endpoint_allowed_urls",
+            backend.endpoint_url,
+        )
         client_session_id = client.start_pipeline(
             session_id="uploaded-ladder",
             material_textures={
@@ -234,13 +249,6 @@ async def test_issue116_service_client_ladder_projection_backend_smoke(
         assert client_session_id == "issue116-service-smoke"
         client_form = fake_http.posts[0]["data"]
         assert client_form["auto_prompt_enabled"] == "false"
-
-        session_id = "issue116-service-smoke"
-        manager = SessionManager(tmp_path / "sessions")
-        session_dir = manager.create_session(session_id)
-        pipeline_router.set_session_manager(manager)
-        sessions_router.set_session_manager(manager)
-        init_event_bus(manager).clear_session_state(session_id)
 
         await executor.execute_pipeline_async(
             session_id,
@@ -383,6 +391,11 @@ async def test_issue116_service_projection_backend_missing_albedo_fails(
     }
 
     with FakeProjectionBackend(tmp_path / "backend") as backend:
+        monkeypatch.setattr(
+            pipeline_router.config,
+            "texture_endpoint_allowed_urls",
+            backend.endpoint_url,
+        )
         client_form["texture_endpoint"] = backend.endpoint_url
         with pytest.raises(RuntimeError, match="texture generation requests failed"):
             await executor.execute_pipeline_async(

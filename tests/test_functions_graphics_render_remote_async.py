@@ -130,7 +130,7 @@ async def test_render_cameras_applies_retry_jitter(
 
 
 @pytest.mark.asyncio
-async def test_render_cameras_frame_range_sensors_mapping_and_missing_camera(
+async def test_render_cameras_frame_range_sensors_and_camera_mapping(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, Any]] = []
@@ -143,9 +143,21 @@ async def test_render_cameras_frame_range_sensors_mapping_and_missing_camera(
                 "1": {
                     "Camera": {"images": "img-a", "linear_depth": "depth-a"},
                     "/Other/Named": {"images": "img-b", "linear_depth": "depth-b"},
+                    "/Missing": {
+                        "images": "img-missing",
+                        "linear_depth": "depth-missing",
+                    },
                 },
                 "2": {
                     "Camera": {"images": "img-c", "linear_depth": "depth-c"},
+                    "/Other/Named": {
+                        "images": "img-d",
+                        "linear_depth": "depth-d",
+                    },
+                    "/Missing": {
+                        "images": "img-e",
+                        "linear_depth": "depth-e",
+                    },
                 },
             },
         }
@@ -180,12 +192,144 @@ async def test_render_cameras_frame_range_sensors_mapping_and_missing_camera(
         "start": 1,
         "end": 2,
     }
-    assert result["successful_cameras"] == 2
-    assert result["failed_cameras"] == 1
+    assert result["successful_cameras"] == 3
+    assert result["failed_cameras"] == 0
     assert result["results"][0]["frame_count"] == 2
     assert set(result["results"][0]["sensors"]["linear_depth"]) == {1, 2}
     assert result["results"][1]["camera"] == "/Rig/Named"
-    assert result["results"][2]["status"] == RenderingStatus.exception
+    assert result["results"][2]["status"] == RenderingStatus.success
+
+
+@pytest.mark.asyncio
+async def test_render_cameras_maps_each_frame_response_key_independently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_execute_nvcf_request_async(**kwargs: Any) -> dict[str, Any]:
+        return {
+            "status": "success",
+            "images": {
+                "0": {"Camera": {"images": _ONE_PIXEL_PNG}},
+                "1": {"/Rig/Camera": {"images": _ONE_PIXEL_PNG}},
+            },
+        }
+
+    monkeypatch.setattr(
+        render_remote_async,
+        "execute_nvcf_request_async",
+        fake_execute_nvcf_request_async,
+    )
+
+    result = await render_remote_async.render_cameras_from_url(
+        usd_url="https://example.com/scene.usda",
+        cameras=["/World/Camera"],
+        api_key="test-api-key",
+        base_url="https://example.com",
+        frames="0:1",
+    )
+
+    assert result["successful_cameras"] == 1
+    assert result["failed_cameras"] == 0
+    assert result["results"][0]["camera"] == "/World/Camera"
+    assert result["results"][0]["frame_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_render_cameras_retries_http_200_incomplete_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    async def fake_execute_nvcf_request_async(**kwargs: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {"status": "success", "images": {}}
+        return {
+            "status": "success",
+            "images": {"0": {"/Camera": {"images": _ONE_PIXEL_PNG}}},
+        }
+
+    monkeypatch.setattr(
+        render_remote_async,
+        "execute_nvcf_request_async",
+        fake_execute_nvcf_request_async,
+    )
+
+    result = await render_remote_async.render_cameras_from_url(
+        usd_url="https://example.com/scene.usda",
+        cameras=["/Camera"],
+        api_key="test-api-key",
+        base_url="https://example.com",
+        max_retries=1,
+        retry_delay=0.0,
+    )
+
+    assert calls == 2
+    assert result["successful_cameras"] == 1
+    assert result["failed_cameras"] == 0
+
+
+@pytest.mark.asyncio
+async def test_render_cameras_returns_empty_after_incomplete_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_execute_nvcf_request_async(**kwargs: Any) -> dict[str, Any]:
+        return {"status": "success", "images": {}}
+
+    monkeypatch.setattr(
+        render_remote_async,
+        "execute_nvcf_request_async",
+        fake_execute_nvcf_request_async,
+    )
+
+    result = await render_remote_async.render_cameras_from_url(
+        usd_url="https://example.com/scene.usda",
+        cameras=["/Camera"],
+        api_key="test-api-key",
+        base_url="https://example.com",
+        max_retries=0,
+    )
+
+    assert result["successful_cameras"] == 0
+    assert result["failed_cameras"] == 1
+    assert result["results"][0]["status"] == RenderingStatus.empty_response
+    assert "0/1 requested outputs present" in result["results"][0]["error"]
+
+
+@pytest.mark.asyncio
+async def test_render_cameras_retries_nonempty_invalid_image_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    async def fake_execute_nvcf_request_async(**kwargs: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return {
+            "status": "success",
+            "images": {"0": {"/Camera": {"images": "not-an-image"}}},
+        }
+
+    monkeypatch.setattr(
+        render_remote_async,
+        "execute_nvcf_request_async",
+        fake_execute_nvcf_request_async,
+    )
+
+    result = await render_remote_async.render_cameras_from_url(
+        usd_url="https://example.com/scene.usda",
+        cameras=["/Camera"],
+        api_key="test-api-key",
+        base_url="https://example.com",
+        max_retries=1,
+        retry_delay=0.0,
+    )
+
+    assert calls == 2
+    assert result["successful_cameras"] == 0
+    assert result["failed_cameras"] == 1
+    assert result["results"][0]["status"] == RenderingStatus.empty_response
+    assert "0/1 requested outputs present" in result["results"][0]["error"]
 
 
 @pytest.mark.asyncio

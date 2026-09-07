@@ -1,0 +1,37 @@
+{
+  "configuration_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+  "graph_digest": "e646a31f01259ce0958af97231b1e92de3912e90e10365012b531fdfa63b162a",
+  "leaf_catalog_digest": "6666666666666666666666666666666666666666666666666666666666666666",
+  "nodes": [
+    {
+      "depends_on": [],
+      "descriptor_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+      "leaf_id": "z.prepare.v1",
+      "requirement": "required",
+      "terminal_output": false
+    },
+    {
+      "depends_on": [
+        "z.prepare.v1"
+      ],
+      "descriptor_digest": "8888888888888888888888888888888888888888888888888888888888888888",
+      "leaf_id": "a.publish.v1",
+      "requirement": "required",
+      "terminal_output": true
+    }
+  ],
+  "omitted_leaf_ids": [
+    "q.optional.v1",
+    "b.audit.v1"
+  ],
+  "prompt_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+  "reference_digest": "5555555555555555555555555555555555555555555555555555555555555555",
+  "schema_version": "content-agents.asset-execution-graph.v1",
+  "selected_leaf_ids": [
+    "z.prepare.v1",
+    "a.publish.v1"
+  ],
+  "selected_mode": "agentic",
+  "sole_coordinator_identity_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+  "source_digest": "3333333333333333333333333333333333333333333333333333333333333333"
+}

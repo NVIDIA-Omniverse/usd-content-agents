@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Embeddings Brev"
-  short_description: "Deploy a Brev-hosted NVIDIA embedding NIM endpoint for Content Agents"
-  default_prompt: "Use $deploy-embeddings-brev to deploy or smoke-test a Brev-hosted llama-nemotron embedding NIM endpoint for Material Agent prim clustering and collection deployment wiring."

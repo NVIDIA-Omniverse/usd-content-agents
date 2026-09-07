@@ -5,7 +5,12 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import time
+from pathlib import Path
 from typing import cast
+from urllib.parse import quote
 
 import pytest
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -17,10 +22,29 @@ from world_understanding.utils.public_response import (
 )
 
 
+@pytest.mark.parametrize(
+    "separator_pattern",
+    (
+        public_response._WINDOWS_SEPARATOR_PATTERN,
+        public_response._POSIX_SEPARATOR_PATTERN,
+    ),
+)
+def test_separator_patterns_reject_long_runs_without_backtracking(
+    separator_pattern: str,
+) -> None:
+    pattern = re.compile(rf"{separator_pattern}var")
+    started = time.perf_counter()
+
+    assert pattern.search("/" * 1000 + "x") is None
+    assert time.perf_counter() - started < 1.0
+
+
 def test_public_payload_projects_paths_and_internal_endpoints() -> None:
     session_id = "12345678-1234-1234-1234-123456789abc"
     root = "/var/material-agent/sessions"
     absolute_path = f"{root}/{session_id}/cache/optimized/input.usd"
+    encoded_path = quote(absolute_path, safe="")
+    lowercase_encoded_path = encoded_path.replace("%2F", "%2f")
     sibling_path = f"{root}_backup/retained.usd"
     payload = {
         "library_path": absolute_path,
@@ -30,6 +54,8 @@ def test_public_payload_projects_paths_and_internal_endpoints() -> None:
             f"render failed for {absolute_path} via "
             "http://ovrtx-rendering-api:8000/render"
         ),
+        "encoded_path_message": f"failed for {encoded_path}",
+        "lowercase_encoded_path_message": f"failed for {lowercase_encoded_path}",
         "cluster_error": (
             "request to http://render.graphics.svc.cluster.local:8000/render failed"
         ),
@@ -64,6 +90,8 @@ def test_public_payload_projects_paths_and_internal_endpoints() -> None:
     assert sanitized["error_message"] == (
         "render failed for <session> via <internal-endpoint>"
     )
+    assert sanitized["encoded_path_message"] == "failed for <session>"
+    assert sanitized["lowercase_encoded_path_message"] == "failed for <session>"
     assert sanitized["cluster_error"] == ("request to <internal-endpoint> failed")
     assert sanitized["ipv6_loopback_error"] == ("request to <internal-endpoint> failed")
     assert sanitized["ipv6_ula_error"] == "request to <internal-endpoint> failed"
@@ -79,6 +107,137 @@ def test_public_payload_projects_paths_and_internal_endpoints() -> None:
     assert sanitized["external_ipv6_url"] == payload["external_ipv6_url"]
     assert sanitized["external_pool_error"] == payload["external_pool_error"]
     assert sanitized["target_prim_path"] == "/World/Tire"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires POSIX symlink semantics")
+def test_public_payload_redacts_canonical_path_for_symlinked_session_root(
+    tmp_path: Path,
+) -> None:
+    session_id = "12345678-1234-1234-1234-123456789abc"
+    real_root = tmp_path / "real-sessions"
+    real_root.mkdir()
+    alias_root = tmp_path / "configured-sessions"
+    alias_root.symlink_to(real_root, target_is_directory=True)
+    emitted_path = real_root / session_id / "cache" / "input.usd"
+
+    sanitized = sanitize_public_response_payload(
+        {
+            "output_path": str(emitted_path),
+            "error": f"failed for {emitted_path}",
+        },
+        session_roots=(alias_root,),
+    )
+
+    assert sanitized == {
+        "output_path": f"session://{session_id}/cache/input.usd",
+        "error": "failed for <session>",
+    }
+
+
+def test_public_payload_sanitizes_windows_session_paths_portably() -> None:
+    session_id = "12345678-1234-1234-1234-123456789abc"
+    root = r"C:\ProgramData\NVIDIA\material-agent\sessions"
+    absolute_path = rf"{root}\{session_id}\cache\optimized\input.usd"
+    mixed_path = (
+        rf"C:/ProgramData\NVIDIA/material-agent\sessions/{session_id}\cache/input.usd"
+    )
+    case_variant = absolute_path.lower()
+    escaped_path = absolute_path.replace("\\", "\\\\")
+    encoded_path = quote(absolute_path, safe="")
+    double_encoded_path = quote(encoded_path, safe="")
+    unicode_escaped_path = absolute_path.replace("\\", r"\u005c").replace(
+        ":", r"\u003a"
+    )
+    sibling_path = rf"{root}_backup\retained.usd"
+    payload = {
+        "output_path": absolute_path,
+        "generated_files": [mixed_path, encoded_path],
+        "error_message": f"failed for {absolute_path}",
+        "case_variant_message": f"failed for {case_variant}",
+        "escaped_message": f"failed for {escaped_path}",
+        "encoded_message": f"failed for {encoded_path}",
+        "double_encoded_message": f"failed for {double_encoded_path}",
+        "unicode_escaped_message": f"failed for {unicode_escaped_path}",
+        "sibling_path_message": sibling_path,
+        "target_prim_path": "/World/Tire",
+    }
+
+    sanitized = sanitize_public_response_payload(payload, session_roots=(root,))
+
+    session_uri = f"session://{session_id}/cache/optimized/input.usd"
+    assert sanitized["output_path"] == session_uri
+    assert sanitized["generated_files"] == [
+        f"session://{session_id}/cache/input.usd",
+        session_uri,
+    ]
+    assert sanitized["error_message"] == "failed for <session>"
+    assert sanitized["case_variant_message"] == "failed for <session>"
+    assert sanitized["escaped_message"] == "failed for <session>"
+    assert sanitized["encoded_message"] == "failed for <session>"
+    assert sanitized["double_encoded_message"] == "failed for <session>"
+    assert sanitized["unicode_escaped_message"] == "failed for <session>"
+    assert sanitized["sibling_path_message"] == sibling_path
+    assert sanitized["target_prim_path"] == "/World/Tire"
+
+
+def test_public_payload_sanitizes_lowercase_encoded_unicode_posix_root() -> None:
+    root = "/var/séssions"
+    absolute_path = f"{root}/session-id/cache/input.usd"
+    encoded_path = quote(absolute_path, safe="")
+    lowercase_encoded_path = (
+        encoded_path.replace("%2F", "%2f").replace("%C3", "%c3").replace("%A9", "%a9")
+    )
+    case_variant = absolute_path.replace("/séssions/", "/Séssions/")
+
+    sanitized = sanitize_public_response_payload(
+        {
+            "error_message": f"failed for {lowercase_encoded_path}",
+            "case_variant_message": f"failed for {case_variant}",
+        },
+        session_roots=(root,),
+    )
+
+    assert sanitized["error_message"] == "failed for <session>"
+    assert sanitized["case_variant_message"] == f"failed for {case_variant}"
+
+
+def test_public_payload_sanitizes_windows_unc_session_paths_portably() -> None:
+    session_id = "12345678-1234-1234-1234-123456789abc"
+    root = r"\\render-share\content agent\sessions"
+    absolute_path = rf"{root}\{session_id}\cache\input.usd"
+    mixed_path = rf"//render-share/content agent\sessions/{session_id}/cache\input.usd"
+    payload = {
+        "source_file": mixed_path,
+        "error": f"unable to read {absolute_path}",
+    }
+
+    sanitized = sanitize_public_response_payload(payload, session_roots=(root,))
+
+    session_uri = f"session://{session_id}/cache/input.usd"
+    assert sanitized == {
+        "source_file": session_uri,
+        "error": "unable to read <session>",
+    }
+
+
+def test_public_payload_preserves_literal_percent_sequences_in_session_root() -> None:
+    root = r"C:\sessions%20archive"
+    absolute_path = rf"{root}\session-id\cache\input.usd"
+    encoded_path = quote(absolute_path, safe="")
+
+    sanitized = sanitize_public_response_payload(
+        {
+            "paths": [absolute_path, encoded_path],
+            "messages": [absolute_path, encoded_path],
+        },
+        session_roots=(root,),
+    )
+
+    session_uri = "session://session-id/cache/input.usd"
+    assert sanitized == {
+        "paths": [session_uri, session_uri],
+        "messages": ["<session>", "<session>"],
+    }
 
 
 async def _invoke_middleware(
@@ -364,6 +523,85 @@ async def test_sse_middleware_sanitizes_split_json_data_records() -> None:
     }
     assert internal_path.encode() not in body
     assert b"nvcf.nvidia.com" not in body
+
+
+@pytest.mark.asyncio
+async def test_sse_middleware_sanitizes_lowercase_unicode_escaped_raw_path() -> None:
+    escaped_path = r"/var/material\u002dagent/sessions/session-id/cache/output.usd"
+    event = f"data: failed for {escaped_path}\n\n".encode()
+
+    async def app(_scope: Scope, _receive: Receive, send: Send) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"text/event-stream")],
+            }
+        )
+        await send({"type": "http.response.body", "body": event})
+
+    middleware = PublicJsonResponseSanitizationMiddleware(cast(ASGIApp, app))
+    messages = await _invoke_middleware(middleware)
+
+    body = b"".join(message.get("body", b"") for message in messages[1:])
+    assert body == b"data: failed for <session>\n\n"
+    assert b"material\\u002dagent" not in body
+
+
+@pytest.mark.asyncio
+async def test_sse_middleware_sanitizes_unicode_escaped_non_ascii_root() -> None:
+    root = "/var/matérial-agent/sessions"
+    escaped_path = r"/var/mat\u00e9rial-agent/sessions/session-id/cache/output.usd"
+    event = f"data: failed for {escaped_path}\n\n".encode()
+
+    async def app(_scope: Scope, _receive: Receive, send: Send) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"text/event-stream")],
+            }
+        )
+        await send({"type": "http.response.body", "body": event})
+
+    middleware = PublicJsonResponseSanitizationMiddleware(
+        cast(ASGIApp, app),
+        session_roots=(root,),
+    )
+    messages = await _invoke_middleware(middleware)
+
+    body = b"".join(message.get("body", b"") for message in messages[1:])
+    assert body == b"data: failed for <session>\n\n"
+    assert b"mat\\u00e9rial-agent" not in body
+
+
+@pytest.mark.asyncio
+async def test_sse_middleware_sanitizes_non_bmp_surrogate_escaped_root() -> None:
+    root = "/var/material-\U0001f680-agent/sessions"
+    escaped_path = (
+        r"/var/material-\ud83d\ude80-agent/sessions/session-id/cache/output.usd"
+    )
+    event = f"data: failed for {escaped_path}\n\n".encode()
+
+    async def app(_scope: Scope, _receive: Receive, send: Send) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"text/event-stream")],
+            }
+        )
+        await send({"type": "http.response.body", "body": event})
+
+    middleware = PublicJsonResponseSanitizationMiddleware(
+        cast(ASGIApp, app),
+        session_roots=(root,),
+    )
+    messages = await _invoke_middleware(middleware)
+
+    body = b"".join(message.get("body", b"") for message in messages[1:])
+    assert body == b"data: failed for <session>\n\n"
+    assert b"\\ud83d\\ude80" not in body.lower()
 
 
 @pytest.mark.parametrize(

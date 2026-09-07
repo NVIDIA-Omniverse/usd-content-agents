@@ -1,0 +1,10 @@
+name: raw curl bootstrap
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Unbounded curl
+        timeout-minutes: 15
+        run: curl -fsSL https://example.invalid/tool.tar.gz

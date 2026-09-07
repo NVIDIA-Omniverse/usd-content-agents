@@ -1,0 +1,215 @@
+#usda 1.0
+(
+    "Material Library for light_bulb_01. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "Cap_Plastic" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.027211785, 0.027211785, 0.027211785)
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.25
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Cap_Plastic/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Cap_Plastic/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Cap_Plastic.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/Cap_Plastic.inputs:ior>
+            float inputs:metallic.connect = </Materials/Cap_Plastic.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Cap_Plastic.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Cap_Plastic.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "Filament_Holder_Metal" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.0099279545, 0.0099279545, 0.0099279545)
+        float inputs:ior = 1.5
+        float inputs:metallic = 1
+        float inputs:opacity = 1
+        float inputs:roughness = 0.656364
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Filament_Holder_Metal/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Filament_Holder_Metal/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Filament_Holder_Metal.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/Filament_Holder_Metal.inputs:ior>
+            float inputs:metallic.connect = </Materials/Filament_Holder_Metal.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Filament_Holder_Metal.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Filament_Holder_Metal.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "Filament_Metal" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.0018924923, 0.0019048762, 0.0022833592)
+        float inputs:ior = 1.5
+        float inputs:metallic = 1
+        float inputs:opacity = 1
+        float inputs:roughness = 0.656364
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Filament_Metal/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Filament_Metal/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Filament_Metal.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/Filament_Metal.inputs:ior>
+            float inputs:metallic.connect = </Materials/Filament_Metal.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Filament_Metal.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Filament_Metal.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "Internal_Chamber_Glass" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.0021421053, 0.0020071208, 0.0032149807)
+        float inputs:ior = 1.52
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.063636
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Internal_Chamber_Glass/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Internal_Chamber_Glass/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Internal_Chamber_Glass.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/Internal_Chamber_Glass.inputs:ior>
+            float inputs:metallic.connect = </Materials/Internal_Chamber_Glass.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Internal_Chamber_Glass.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Internal_Chamber_Glass.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "Internal_Metal" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/obs_light_bulb_01_a.png@
+        float inputs:ior = 1.5
+        float inputs:metallic = 1
+        float inputs:opacity = 1
+        float inputs:roughness = 0.5
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Internal_Metal/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Internal_Metal/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Internal_Metal/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/Internal_Metal.inputs:ior>
+            float inputs:metallic.connect = </Materials/Internal_Metal.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Internal_Metal.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Internal_Metal.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/Internal_Metal.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/Internal_Metal/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/Internal_Metal.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/Internal_Metal.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+    }
+
+    def Material "LightBulb_Glass" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.0039359396, 0.0039359396, 0.0039359396)
+        float inputs:ior = 1.52
+        float inputs:metallic = 0
+        float inputs:opacity = 0.1
+        float inputs:roughness = 0.1
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/LightBulb_Glass/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/LightBulb_Glass/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/LightBulb_Glass.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/LightBulb_Glass.inputs:ior>
+            float inputs:metallic.connect = </Materials/LightBulb_Glass.inputs:metallic>
+            float inputs:opacity.connect = </Materials/LightBulb_Glass.inputs:opacity>
+            float inputs:roughness.connect = </Materials/LightBulb_Glass.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "Screw_Metal" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.23281102, 0.23281102, 0.23281102)
+        float inputs:ior = 1.5
+        float inputs:metallic = 1
+        float inputs:opacity = 1
+        float inputs:roughness = 0.285
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/Screw_Metal/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/Screw_Metal/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/Screw_Metal.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/Screw_Metal.inputs:ior>
+            float inputs:metallic.connect = </Materials/Screw_Metal.inputs:metallic>
+            float inputs:opacity.connect = </Materials/Screw_Metal.inputs:opacity>
+            float inputs:roughness.connect = </Materials/Screw_Metal.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+}

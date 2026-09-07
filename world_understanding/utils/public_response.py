@@ -5,11 +5,15 @@
 from __future__ import annotations
 
 import json
+import ntpath
+import os
+import posixpath
 import re
 from collections.abc import Iterable
 from ipaddress import ip_address
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
+from urllib.parse import unquote
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -39,6 +43,15 @@ _INTERNAL_DNS_SUFFIXES = (
     ".internal",
     ".localdomain",
 )
+_MAX_PATH_DECODE_ROUNDS = 2
+_PATH_UNICODE_ESCAPE_RE = re.compile(
+    r"\\u00(?P<code>20|2f|3a|5c)",
+    re.IGNORECASE,
+)
+_WINDOWS_SEPARATOR_PATTERN = r"(?:[\\/]|%(?:25)?(?:2f|5c)|\\u00(?:2f|5c))+"
+_POSIX_SEPARATOR_PATTERN = r"(?:/|%(?:25)?2[fF]|\\u002[fF])+"
+
+_SessionRoot = PurePosixPath | PureWindowsPath
 
 
 def _is_internal_host(host: str) -> bool:
@@ -77,45 +90,149 @@ def _redact_http_connection_pool(match: re.Match[str]) -> str:
     )
 
 
-def _normalized_roots(session_roots: Iterable[str | Path]) -> tuple[Path, ...]:
+def _path_text_candidates(value: str) -> tuple[str, ...]:
+    """Return raw and bounded-decoded spellings of a response path."""
+    candidates: list[str] = []
+    decoded = value
+    for _ in range(_MAX_PATH_DECODE_ROUNDS + 1):
+        if decoded not in candidates:
+            candidates.append(decoded)
+        unicode_decoded = _PATH_UNICODE_ESCAPE_RE.sub(
+            lambda match: chr(int(match.group("code"), 16)),
+            decoded,
+        )
+        if unicode_decoded not in candidates:
+            candidates.append(unicode_decoded)
+        next_value = unquote(decoded)
+        if next_value == decoded:
+            break
+        decoded = next_value
+    return tuple(candidates)
+
+
+def _portable_absolute_path(value: str | Path) -> _SessionRoot:
+    """Normalize a path with host-independent Windows and POSIX semantics."""
+    text = str(value)
+    windows_path = PureWindowsPath(ntpath.normpath(text))
+    if windows_path.is_absolute():
+        return windows_path
+    posix_path = PurePosixPath(posixpath.normpath(text))
+    if posix_path.is_absolute():
+        return posix_path
+    resolved = Path(text).resolve(strict=False)
+    return _portable_absolute_path(str(resolved))
+
+
+def _normalized_roots(
+    session_roots: Iterable[str | Path],
+) -> tuple[_SessionRoot, ...]:
     """Resolve unique configured and container session roots longest-first."""
-    roots: list[Path] = []
+    roots: list[_SessionRoot] = []
     for value in (*session_roots, *_DOCKER_SESSION_ROOTS):
-        path = Path(value).resolve(strict=False)
-        if path not in roots:
-            roots.append(path)
+        path = _portable_absolute_path(value)
+        candidates = [path]
+        native_flavor = (os.name == "nt" and isinstance(path, PureWindowsPath)) or (
+            os.name != "nt" and isinstance(path, PurePosixPath)
+        )
+        if native_flavor:
+            native_path = Path(value)
+            if native_path.is_absolute():
+                try:
+                    candidates.append(
+                        _portable_absolute_path(str(native_path.resolve(strict=False)))
+                    )
+                except (OSError, RuntimeError):
+                    # Keep the lexical root when the host cannot canonicalize it.
+                    pass
+        for candidate in candidates:
+            if candidate not in roots:
+                roots.append(candidate)
     return tuple(sorted(roots, key=lambda path: len(str(path)), reverse=True))
 
 
-def _root_redaction_patterns(roots: tuple[Path, ...]) -> tuple[re.Pattern[str], ...]:
-    """Compile bounded descendant matchers for trusted session roots."""
-    return tuple(
-        re.compile(
-            rf"{re.escape(str(root).rstrip('/'))}"
-            rf"(?![A-Za-z0-9_.-])(?:/[^\s'\"]*)?"
+def _encoded_character_pattern(character: str) -> str:
+    """Match a literal character or one/two rounds of percent encoding."""
+    encoded = "".join(f"%{byte:02X}" for byte in character.encode("utf-8"))
+    nested_encoded = encoded.replace("%", "%25")
+    alternatives = [
+        re.escape(character),
+        rf"(?i:{re.escape(encoded)})",
+        rf"(?i:{re.escape(nested_encoded)})",
+    ]
+    if ord(character) <= 0xFFFF:
+        unicode_escape = re.escape(f"\\u{ord(character):04X}")
+        alternatives.append(rf"(?i:{unicode_escape})")
+    else:
+        utf16 = character.encode("utf-16-be")
+        surrogate_escape = "".join(
+            f"\\u{int.from_bytes(utf16[index : index + 2], 'big'):04X}"
+            for index in range(0, len(utf16), 2)
         )
-        for root in roots
+        alternatives.append(rf"(?i:{re.escape(surrogate_escape)})")
+    return "(?:" + "|".join(dict.fromkeys(alternatives)) + ")"
+
+
+def _root_literal_pattern(root: _SessionRoot) -> tuple[str, str]:
+    """Build an encoding-aware root pattern and its separator matcher."""
+    windows = isinstance(root, PureWindowsPath)
+    separator_pattern = (
+        _WINDOWS_SEPARATOR_PATTERN if windows else _POSIX_SEPARATOR_PATTERN
     )
-
-
-def _session_uri(value: str, roots: tuple[Path, ...]) -> str | None:
-    """Project one absolute path under a session root to a session URI."""
-    path = Path(value)
-    if not path.is_absolute():
-        return None
-    normalized = path.resolve(strict=False)
-    for root in roots:
-        try:
-            relative = normalized.relative_to(root)
-        except ValueError:
+    root_text = str(root).rstrip("\\/")
+    pieces: list[str] = []
+    index = 0
+    while index < len(root_text):
+        character = root_text[index]
+        if character in "\\/":
+            while index < len(root_text) and root_text[index] in "\\/":
+                index += 1
+            pieces.append(separator_pattern)
             continue
-        if not relative.parts:
-            return "session://"
-        session_id, *remainder = relative.parts
-        suffix = "/".join(remainder)
-        return (
-            f"session://{session_id}/{suffix}" if suffix else f"session://{session_id}"
+        pieces.append(_encoded_character_pattern(character))
+        index += 1
+    return "".join(pieces), separator_pattern
+
+
+def _root_redaction_patterns(
+    roots: tuple[_SessionRoot, ...],
+) -> tuple[re.Pattern[str], ...]:
+    """Compile bounded descendant matchers for trusted session roots."""
+    patterns: list[re.Pattern[str]] = []
+    for root in roots:
+        literal_pattern, separator_pattern = _root_literal_pattern(root)
+        patterns.append(
+            re.compile(
+                rf"{literal_pattern}"
+                rf"(?:{separator_pattern}[^\s'\"]*|(?![A-Za-z0-9_.-]))",
+                re.IGNORECASE if isinstance(root, PureWindowsPath) else 0,
+            )
         )
+    return tuple(patterns)
+
+
+def _session_uri(value: str, roots: tuple[_SessionRoot, ...]) -> str | None:
+    """Project one absolute path under a session root to a session URI."""
+    for candidate in _path_text_candidates(value):
+        for root in roots:
+            if isinstance(root, PureWindowsPath):
+                normalized: _SessionRoot = PureWindowsPath(ntpath.normpath(candidate))
+            else:
+                normalized = PurePosixPath(posixpath.normpath(candidate))
+            if not normalized.is_absolute():
+                continue
+            try:
+                relative = normalized.relative_to(root)
+            except ValueError:
+                continue
+            if not relative.parts:
+                return "session://"
+            session_id, *remainder = relative.parts
+            suffix = "/".join(remainder)
+            return (
+                f"session://{session_id}/{suffix}"
+                if suffix
+                else f"session://{session_id}"
+            )
     return None
 
 
@@ -134,7 +251,7 @@ def _sanitize_text(
 def _sanitize_prepared_public_response_payload(
     payload: Any,
     *,
-    roots: tuple[Path, ...],
+    roots: tuple[_SessionRoot, ...],
     root_patterns: tuple[re.Pattern[str], ...],
 ) -> Any:
     """Sanitize a payload with precomputed session-root state."""
@@ -186,7 +303,7 @@ def sanitize_public_response_payload(
 def _serialize_sanitized_json(
     body: bytes,
     *,
-    roots: tuple[Path, ...],
+    roots: tuple[_SessionRoot, ...],
     root_patterns: tuple[re.Pattern[str], ...],
 ) -> bytes:
     """Parse, sanitize, and compactly serialize one JSON value."""
@@ -210,7 +327,7 @@ class _StreamingRecordSanitizer:
         self,
         mode: str,
         *,
-        roots: tuple[Path, ...],
+        roots: tuple[_SessionRoot, ...],
         root_patterns: tuple[re.Pattern[str], ...],
         max_record_bytes: int,
     ) -> None:

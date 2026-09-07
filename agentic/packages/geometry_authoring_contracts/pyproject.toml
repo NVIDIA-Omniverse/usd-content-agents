@@ -1,0 +1,64 @@
+[project]
+name = "geometry-authoring-contracts"
+dynamic = ["version"]
+description = "Provider-neutral typed contracts for external geometry authoring"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "pydantic>=2.11,<3.0.0",
+    "requests>=2.32,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10",
+    "ruff>=0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["geometry_authoring_contracts"]
+ignore-vcs = true
+
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSE" = "geometry_authoring_contracts/LICENSE"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/geometry_authoring_contracts",
+    "/tests",
+]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.32.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.6.0"
+from-file = { source = "../../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

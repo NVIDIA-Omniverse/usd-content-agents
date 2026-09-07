@@ -11,6 +11,7 @@ failure logs a warning and returns whatever did succeed.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -19,8 +20,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from apps.texture_gen_service_common.artifacts import local_path_from_file_uri
+from apps.texture_gen_service_common.weathering_intent import (
+    prompt_requests_weathering,
+)
 
 from texture_agent.functions.detail_policy import apply_detail_policy_to_prompt
+from texture_agent.functions.external_authoring import (
+    ExternalAuthoringCapabilityReceipt,
+    ExternalAuthoringSpec,
+    external_authoring_spec_digest,
+)
 from texture_agent.functions.material_discovery import (
     MaterialInfo,
     PrimTextureUnit,
@@ -138,13 +147,114 @@ def test_surface_only_detail_policy_prompt_is_idempotent() -> None:
     )
 
     assert "brushed aluminum with." not in prompt
-    assert "material swatch: brushed aluminum." in prompt
+    assert "swatch filling the entire image: brushed aluminum." in prompt
+    assert "Do not depict an object, product, scene" in prompt
+    assert prompt_requests_weathering(prompt) is False
     assert apply_detail_policy_to_prompt(prompt, "surface_only") == prompt
+
+
+def test_surface_only_detail_policy_removes_chained_trailing_conjunctions() -> None:
+    prompt = apply_detail_policy_to_prompt(
+        "brushed aluminum with labels and logos",
+        "surface_only",
+    )
+
+    assert "swatch filling the entire image: brushed aluminum." in prompt
+    assert "with and" not in prompt
+    assert apply_detail_policy_to_prompt(prompt, "surface_only") == prompt
+
+
+def test_surface_only_detail_policy_preserves_legacy_guarded_prompt() -> None:
+    legacy = (
+        "Surface-only material texture: flat seamless tileable orthographic "
+        "material swatch filling the entire image: brushed aluminum. Do not "
+        "depict an object, product, scene, silhouette, border, background, "
+        "perspective, or lighting. Avoid traces, vias, pads, labels, text, "
+        "logos, holes, seams, fasteners, components, and geometry markings. "
+        "Plain roughness, gloss, and subtle color variation only."
+    )
+
+    assert apply_detail_policy_to_prompt(legacy, "surface_only") == legacy
+
+
+def test_surface_only_detail_policy_preserves_pre_object_guard_legacy_prompt() -> None:
+    legacy = (
+        "Surface-only material texture: material swatch: brushed aluminum. "
+        "Avoid traces, vias, pads, labels, text, logos, holes, seams, fasteners, "
+        "components, decals, stickers, linework, symbols, and geometry markings. "
+        "Plain roughness, gloss, subtle color, dust, scratches, and mild wear."
+    )
+
+    assert apply_detail_policy_to_prompt(legacy, "surface_only") == legacy
+
+
+def test_surface_only_detail_policy_preserves_safe_conjunctions() -> None:
+    prompt = apply_detail_policy_to_prompt(
+        "neutral silver-gray color, and restrained industrial roughness",
+        "surface_only",
+    )
+
+    assert "color, and restrained industrial roughness" in prompt
 
 
 def test_surface_only_detail_policy_does_not_trust_prefix_only_prompt() -> None:
     prompt = apply_detail_policy_to_prompt(
         "Surface-only material texture: green pcb material with labels",
+        "surface_only",
+    )
+
+    assert "Avoid traces, vias, pads" in prompt
+    assert "green material" in prompt
+    assert "pcb" not in prompt.lower()
+    assert "with labels" not in prompt.lower()
+
+
+def test_surface_only_detail_policy_does_not_trust_partial_legacy_guard() -> None:
+    prompt = apply_detail_policy_to_prompt(
+        (
+            "Surface-only material texture: green PCB material with labels. "
+            "Plain roughness, gloss"
+        ),
+        "surface_only",
+    )
+
+    assert "Avoid traces, vias, pads" in prompt
+    assert "green material" in prompt
+    assert "pcb" not in prompt.lower()
+    assert "with labels" not in prompt.lower()
+
+
+def test_surface_only_detail_policy_does_not_trust_guarded_forbidden_description() -> (
+    None
+):
+    prompt = apply_detail_policy_to_prompt(
+        (
+            "Surface-only material texture: green PCB material with labels. "
+            "Do not depict an object, product, scene, silhouette, border, "
+            "background, perspective, or lighting. Avoid traces, vias, pads, "
+            "labels, text, logos, holes, seams, fasteners, components, and "
+            "geometry markings. Plain roughness, gloss, and subtle color "
+            "variation only."
+        ),
+        "surface_only",
+    )
+
+    assert "Avoid traces, vias, pads" in prompt
+    assert "green material" in prompt
+    assert "pcb" not in prompt.lower()
+    assert "with labels" not in prompt.lower()
+
+
+def test_surface_only_detail_policy_does_not_trust_malformed_full_guard() -> None:
+    prompt = apply_detail_policy_to_prompt(
+        (
+            "Surface-only material texture: green PCB material with labels "
+            "Do not depict an object, product, scene, silhouette, border, "
+            "background, perspective, or lighting. Avoid traces, vias, pads, "
+            "labels, text, logos, holes, seams, fasteners, components, and "
+            "geometry markings. Plain roughness, gloss, and subtle color "
+            "variation only."
+        ),
         "surface_only",
     )
 
@@ -431,6 +541,79 @@ def test_localize_artifact_uri_decodes_local_paths(tmp_path: Path) -> None:
     assert Path(localized).is_file()
 
 
+def test_localize_artifact_uri_rejects_files_outside_task_workspace(
+    tmp_path: Path,
+) -> None:
+    out_dir = tmp_path / "task" / "generated"
+    out_dir.mkdir(parents=True)
+    outside = tmp_path / "sensitive.txt"
+    outside.write_text("do not publish", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="outside the current task workspace"):
+        GenerateTexturesTask._localize_artifact_uri(
+            str(outside),
+            "Aluminum_Matte",
+            "albedo",
+            out_dir,
+        )
+
+
+def test_localize_artifact_uri_rejects_source_replaced_before_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    out_dir = tmp_path / "task" / "generated"
+    out_dir.mkdir(parents=True)
+    source = Path(_write_rgb(tmp_path / "task" / "backend.png", (1, 2, 3)))
+    outside = tmp_path / "sensitive.txt"
+    outside.write_text("do not publish", encoding="utf-8")
+    real_open = generate_textures_module.open_regular_file_no_follow
+
+    def replace_then_open(path: Path):
+        source.unlink()
+        source.symlink_to(outside)
+        return real_open(path)
+
+    monkeypatch.setattr(
+        generate_textures_module,
+        "open_regular_file_no_follow",
+        replace_then_open,
+    )
+
+    with pytest.raises(RuntimeError, match="outside the current task workspace"):
+        GenerateTexturesTask._localize_artifact_uri(
+            str(source),
+            "Aluminum_Matte",
+            "albedo",
+            out_dir,
+        )
+
+    assert not (out_dir / "Aluminum_Matte_albedo.png").exists()
+
+
+def test_localize_artifact_uri_rejects_output_symlink_without_overwriting_target(
+    tmp_path: Path,
+) -> None:
+    out_dir = tmp_path / "task" / "generated"
+    out_dir.mkdir(parents=True)
+    source = _write_rgb(tmp_path / "task" / "backend.png", (1, 2, 3))
+    victim = tmp_path / "victim.txt"
+    victim.write_text("preserve-me", encoding="utf-8")
+    local_path = out_dir / "Aluminum_Matte_albedo.png"
+    local_path.symlink_to(victim)
+
+    with pytest.raises(RuntimeError, match="outside the current task workspace"):
+        GenerateTexturesTask._localize_artifact_uri(
+            source,
+            "Aluminum_Matte",
+            "albedo",
+            out_dir,
+        )
+
+    assert local_path.is_symlink()
+    assert victim.read_text(encoding="utf-8") == "preserve-me"
+
+
 def test_windows_drive_source_asset_path_becomes_file_uri() -> None:
     assert _path_or_uri_to_uri(r"C:\refs\asset.usd") == "file:///C:/refs/asset.usd"
 
@@ -521,6 +704,237 @@ def _projection_status_from_maps(
             diagnostics=diagnostics or [],
         ),
     )
+
+
+@patch("texture_agent.functions.rest_client.RestTextureVariationClient")
+def test_service_fallback_maps_match_upscaled_albedo_resolution(
+    mock_client_cls: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Synthetic PBR maps must not fall back to the configured 1024 size."""
+    albedo = _write_sized_rgb(
+        tmp_path / "backend" / "albedo.png",
+        (10, 20, 30),
+        (8, 6),
+    )
+    input_usd = tmp_path / "input.usd"
+    input_usd.write_text("#usda 1.0\n", encoding="utf-8")
+    mock_client_cls.return_value.generate.return_value = _projection_status_from_maps(
+        "Aluminum_Matte",
+        maps={"albedo": f"file://{albedo}"},
+    )
+    context = {
+        "prim_texture_units": [_service_unit()],
+        "working_dir": str(tmp_path),
+        "usd_path": str(input_usd),
+        "texture_config": {
+            "backend": "service",
+            "endpoint": "http://fake-backend",
+            "size": 4,
+            "skip_existing": False,
+            "workers": 1,
+        },
+    }
+
+    result = GenerateTexturesTask().run(context)
+    generated = result["generated_textures"]["Aluminum_Matte"]
+
+    from PIL import Image
+
+    with Image.open(generated.albedo) as image:
+        assert image.size == (8, 6)
+    with Image.open(generated.normal) as image:
+        assert image.size == (8, 6)
+        assert image.convert("RGB").getextrema() == (
+            (128, 128),
+            (128, 128),
+            (255, 255),
+        )
+    with Image.open(generated.orm) as image:
+        assert image.size == (8, 6)
+
+
+@patch("texture_agent.functions.rest_client.RestTextureVariationClient")
+def test_service_external_authoring_preserves_nonerror_result_diagnostic(
+    mock_client_cls: MagicMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    maps = {
+        channel: f"file://{_write_rgb(tmp_path / 'backend' / f'{channel}.png', color)}"
+        for channel, color in {
+            "albedo": (10, 20, 30),
+            "normal": (128, 128, 255),
+            "orm": (255, 128, 0),
+        }.items()
+    }
+    source = tmp_path / "prepared.usd"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    mock_client_cls.return_value.generate.return_value = _projection_status_from_maps(
+        "Aluminum_Matte",
+        maps=maps,
+    )
+    diagnostic = {
+        "schema_version": "texture-agent-diagnostic.v1",
+        "code": "EXTERNAL_AUTHORING_BACKEND_NOTE",
+        "severity": "warning",
+        "stage": "generate_textures",
+        "prim_path": None,
+        "material_name": "Aluminum_Matte",
+        "message": "Authoring backend returned a non-blocking note.",
+        "recommended_action": "Inspect the preserved backend note.",
+        "details": {},
+    }
+    monkeypatch.setattr(
+        generate_textures_module,
+        "validate_external_authoring_result",
+        lambda **_kwargs: [diagnostic],
+    )
+    spec = ExternalAuthoringSpec.from_config(
+        {
+            "adapter_id": "approved-painter-adapter",
+            "workflow": "paint",
+            "required_map_channels": ["albedo", "normal", "orm"],
+        }
+    )
+    receipt = ExternalAuthoringCapabilityReceipt.from_payload(
+        {
+            "schema_version": "texture-agent-external-authoring-capabilities.v1",
+            "ready": True,
+            "adapter_id": spec.adapter_id,
+            "adapter_version": "4.5.6",
+            "tool_name": "Approved Painter",
+            "tool_version": "1.2.3",
+            "headless": True,
+            "license_status": "valid",
+            "deployment_mode": "remote_headless",
+            "environment_digest": "sha256:" + "a" * 64,
+            "supported_workflows": ["paint"],
+            "supported_map_channels": ["albedo", "normal", "orm"],
+            "supported_auxiliary_artifacts": [],
+            "seed_control": True,
+            "deterministic_parameters": True,
+            "normalized_output": "texture_variation_maps",
+            "diagnostics": [],
+        }
+    )
+    context = {"usd_path": str(source)}
+    generated_dir = tmp_path / "generated"
+    generated_dir.mkdir()
+    generated, errors, _label = GenerateTexturesTask()._run_service(
+        [_service_unit()],
+        context,
+        generated_dir,
+        {
+            "endpoint": "http://approved-adapter.invalid",
+            "workers": 1,
+            "size": 4,
+        },
+        spec,
+        receipt,
+    )
+
+    assert errors == []
+    assert set(generated) == {"Aluminum_Matte"}
+    assert context["projection_backend_results"]["Aluminum_Matte"]["diagnostics"] == [
+        diagnostic
+    ]
+
+
+@patch("texture_agent.functions.rest_client.RestTextureVariationClient")
+def test_service_external_authoring_reports_backend_map_omissions_before_fallbacks(
+    mock_client_cls: MagicMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    albedo = Path(_write_rgb(tmp_path / "backend" / "albedo.png", (10, 20, 30)))
+    source = tmp_path / "prepared.usd"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    spec = ExternalAuthoringSpec.from_config(
+        {
+            "adapter_id": "approved-painter-adapter",
+            "workflow": "paint",
+            "required_map_channels": ["albedo", "normal", "orm"],
+        }
+    )
+    receipt = ExternalAuthoringCapabilityReceipt.from_payload(
+        {
+            "schema_version": "texture-agent-external-authoring-capabilities.v1",
+            "ready": True,
+            "adapter_id": spec.adapter_id,
+            "adapter_version": "4.5.6",
+            "tool_name": "Approved Painter",
+            "tool_version": "1.2.3",
+            "headless": True,
+            "license_status": "valid",
+            "deployment_mode": "remote_headless",
+            "environment_digest": "sha256:" + "a" * 64,
+            "supported_workflows": ["paint"],
+            "supported_map_channels": ["albedo", "normal", "orm"],
+            "supported_auxiliary_artifacts": [],
+            "seed_control": True,
+            "deterministic_parameters": True,
+            "normalized_output": "texture_variation_maps",
+            "diagnostics": [],
+        }
+    )
+    result_metadata = {
+        "external_authoring": {
+            "schema_version": "texture-agent-external-authoring-result.v1",
+            "spec_digest": external_authoring_spec_digest(spec),
+            "adapter_id": spec.adapter_id,
+            "adapter_version": receipt.adapter_version,
+            "workflow": spec.workflow,
+            "tool_name": receipt.tool_name,
+            "tool_version": receipt.tool_version,
+            "headless": True,
+            "license_status": "valid",
+            "deployment_mode": receipt.deployment_mode,
+            "environment_digest": receipt.environment_digest,
+            "seed": 11631,
+            "source_asset_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "output_sha256": {
+                "albedo": hashlib.sha256(albedo.read_bytes()).hexdigest()
+            },
+        }
+    }
+    mock_client_cls.return_value.generate.return_value = _projection_status_from_maps(
+        "Aluminum_Matte",
+        maps={"albedo": albedo.as_uri()},
+        metadata=result_metadata,
+    )
+    monkeypatch.setattr(
+        generate_textures_module,
+        "_service_source_asset_uri_for_unit",
+        lambda *_args, **_kwargs: source.as_uri(),
+    )
+    context = {"usd_path": str(source)}
+    generated_dir = tmp_path / "generated"
+    generated_dir.mkdir()
+
+    generated, errors, _label = GenerateTexturesTask()._run_service(
+        [_service_unit()],
+        context,
+        generated_dir,
+        {
+            "endpoint": "http://approved-adapter.invalid",
+            "workers": 1,
+            "size": 4,
+        },
+        spec,
+        receipt,
+    )
+
+    assert generated == {}
+    assert len(errors) == 1
+    diagnostic_codes = {
+        item["code"]
+        for item in context["projection_backend_results"]["Aluminum_Matte"][
+            "diagnostics"
+        ]
+    }
+    assert "EXTERNAL_AUTHORING_OUTPUT_MISSING" in diagnostic_codes
+    assert "EXTERNAL_AUTHORING_OUTPUT_DIGEST_MISMATCH" not in diagnostic_codes
 
 
 @pytest.fixture
@@ -659,6 +1073,7 @@ def test_service_backend_sends_projection_contract_and_packs_orm(
     assert call["capabilities"].geometry_output == "none"
 
     backend_record = result["projection_backend_results"]["Aluminum_Matte"]
+    assert backend_record["source_asset_uri"] == call["source_asset_uri"]
     assert backend_record["maps"]["roughness"]["width"] == 4
     assert backend_record["capabilities"]["orm"] is False
     assert backend_record["degraded_channels"] == ["normal", "orm"]
@@ -2002,6 +2417,47 @@ def test_skip_existing_with_cache_and_fresh_success_does_not_raise(
     assert set(generated.keys()) == {"Steel_Carbon", "Copper_Polished"}
     # No failure warnings -- everything succeeded.
     assert not any("failures" in rec.message for rec in caplog.records)
+
+
+def test_external_authoring_does_not_reuse_unbound_texture_cache(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DCC results without a digest-bound receipt must be regenerated."""
+    unit = _service_unit()
+    _make_real_texture_set(tmp_path / "generated", unit.key)
+    fresh = _make_real_texture_set(tmp_path / "fresh", unit.key)
+
+    def unexpected_cache(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("external authoring must not inspect unbound cache")
+
+    monkeypatch.setattr(
+        generate_textures_module, "_cached_texture_set", unexpected_cache
+    )
+    monkeypatch.setattr(
+        generate_textures_module,
+        "_preflight_external_authoring",
+        lambda units, _config: (units, [], {}, [], None, None, None),
+    )
+    task = GenerateTexturesTask()
+    run_service = MagicMock(return_value=({unit.key: fresh}, [], "service (test)"))
+    monkeypatch.setattr(task, "_run_service", run_service)
+    context = {
+        "prim_texture_units": [unit],
+        "working_dir": str(tmp_path),
+        "usd_path": "/tmp/prepared.usd",
+        "texture_config": {
+            "backend": "service",
+            "endpoint": "http://approved-adapter.invalid",
+            "skip_existing": True,
+            "external_authoring": {"enabled": True},
+        },
+    }
+
+    result = task.run(context)
+
+    run_service.assert_called_once()
+    assert result["generated_textures"][unit.key] == fresh
 
 
 @patch("texture_agent.tasks.generate_textures.TextureVariationClient")

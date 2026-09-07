@@ -7,10 +7,19 @@ import sys
 from contextlib import asynccontextmanager
 from functools import cache
 from pathlib import Path
+from typing import Any
 
-from world_understanding.utils.logging import setup_logging
+from world_understanding.utils.logging import (
+    configure_service_standard_streams,
+    setup_logging,
+)
 from world_understanding.utils.public_response import (
     PublicJsonResponseSanitizationMiddleware,
+)
+from world_understanding.utils.service_auth import (
+    auth_is_enforced,
+    build_token_dependency,
+    log_auth_posture,
 )
 
 from .utils import AccessLogFilter
@@ -25,11 +34,10 @@ for path in [str(apps_dir), str(repo_root)]:
         sys.path.insert(0, path)
 
 import importlib  # noqa: E402
-import io  # noqa: E402
 import os  # noqa: E402
 
 from dotenv import load_dotenv  # noqa: E402
-from fastapi import FastAPI, Request  # noqa: E402
+from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 
@@ -50,10 +58,6 @@ from .session.manager import (  # noqa: E402
 
 # Setup logging from config
 setup_logging()
-
-if sys.platform == "win32":  # pragma: no cover - Windows-only import-time setup
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # Configure logging
 logging.basicConfig(
@@ -179,6 +183,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
     # Startup
     logger.info("Starting Joint Agent Service...")
+    log_auth_posture(logger, _TOKEN_ENV_NAMES, service_label="Joint Agent Service")
     uvicorn_access_logger = logging.getLogger("uvicorn.access")
     uvicorn_access_logger.addFilter(AccessLogFilter())
 
@@ -274,6 +279,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+JOINT_TOKEN_ENV = "JOINT_AGENT_TOKEN"
+_TOKEN_ENV_NAMES = (JOINT_TOKEN_ENV,)
+require_service_token = build_token_dependency(
+    _TOKEN_ENV_NAMES, service_label="Joint Agent Service"
+)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -294,6 +305,7 @@ app.add_middleware(
 # subclass (not all ValueError) so unrelated ValueError bugs still surface as
 # 500 — otherwise pydantic / type-conversion errors would silently map to 400.
 from .session.manager import InvalidSessionIdError  # noqa: E402
+from .storage.base import SessionStoragePathError  # noqa: E402
 
 
 @app.exception_handler(InvalidSessionIdError)
@@ -303,10 +315,43 @@ async def _invalid_session_id_handler(
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(SessionStoragePathError)
+async def _session_storage_path_handler(
+    request: Request, exc: SessionStoragePathError
+) -> JSONResponse:
+    """Return a safe, actionable response for an unsafe storage root."""
+    del request, exc
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Session storage is unavailable; configure a non-symlinked storage root."
+        },
+    )
+
+
 # Include routers
-app.include_router(pipeline_router.router)
-app.include_router(artifacts_router.router)
-app.include_router(sessions_router.router)
+app.include_router(
+    pipeline_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(
+    artifacts_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(
+    sessions_router.router, dependencies=[Depends(require_service_token)]
+)
+
+_default_openapi = app.openapi
+
+
+def _openapi_with_nvcf_version() -> dict[str, Any]:
+    """Build OpenAPI metadata that identifies the serving NVCF version."""
+    schema: dict[str, Any] = _default_openapi()
+    if version_id := os.getenv("NVCF_FUNCTION_VERSION_ID"):
+        schema["info"]["x-nvcf-function-version-id"] = version_id
+    return schema
+
+
+app.openapi = _openapi_with_nvcf_version
 
 
 # Health check endpoint
@@ -315,6 +360,7 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
+        "auth_enforced": auth_is_enforced(_TOKEN_ENV_NAMES),
         "service": config.service_name,
         "version": config.service_version,
         "api_keys_configured": config.has_required_api_keys,
@@ -378,6 +424,7 @@ def main():
     """Entry point for running the service."""
     import uvicorn
 
+    configure_service_standard_streams()
     uvicorn.run(
         "service.main:app",
         host="0.0.0.0",

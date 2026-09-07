@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import types
 from collections.abc import Callable
 from pathlib import Path
@@ -40,7 +39,6 @@ from material_agent.material_library_generation.schema import (  # noqa: E402
 from material_agent.material_library_generation.usd_authoring import (  # noqa: E402
     MaterialAuthoringContractError,
     inspect_material_library_authoring,
-    probe_openpbr_materialx_authoring,
     write_material_library_usd,
 )
 
@@ -100,16 +98,7 @@ def _assert_contract_error(
     return raised.value
 
 
-def _install_incomplete_usdex(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_usdex = types.ModuleType("usdex")
-    fake_core = types.ModuleType("usdex.core")
-    fake_core.definePbrMaterial = lambda *args, **kwargs: None
-    fake_usdex.core = fake_core
-    monkeypatch.setitem(sys.modules, "usdex", fake_usdex)
-    monkeypatch.setitem(sys.modules, "usdex.core", fake_core)
-
-
-def _install_textured_openpbr_usdex(
+def _patch_openpbr_graph(
     monkeypatch: pytest.MonkeyPatch,
     *,
     albedo_color_space: str = "sRGB",
@@ -123,201 +112,75 @@ def _install_textured_openpbr_usdex(
     texcoord_shader_id: str = "ND_texcoord_vector2",
     texcoord_value: int | str = 0,
 ) -> None:
-    fake_usdex = types.ModuleType("usdex")
-    fake_core = types.ModuleType("usdex.core")
+    from world_understanding.utils.usd import material as usd_material_module
 
-    def texcoord(stage: Usd.Stage, material_path: str) -> UsdShade.Shader:
-        shader = UsdShade.Shader.Get(stage, f"{material_path}/Texcoord")
-        if shader and shader.GetPrim().IsValid():
-            return shader
-        shader = UsdShade.Shader.Define(stage, f"{material_path}/Texcoord")
-        shader.CreateIdAttr(texcoord_shader_id)
+    direct_author = usd_material_module.define_materialx_openpbr_material
+
+    def author_and_mutate(*args: Any, **kwargs: Any) -> UsdShade.Material | None:
+        if definition_returns_none:
+            return None
+        material = direct_author(*args, **kwargs)
+        stage = material.GetPrim().GetStage()
+        material_path = str(material.GetPath())
+        openpbr = UsdShade.Shader.Get(stage, f"{material_path}/OpenPBR")
+        albedo = UsdShade.Shader.Get(stage, f"{material_path}/Albedo")
+        normalmap = UsdShade.Shader.Get(stage, f"{material_path}/NormalMap")
+        separate = UsdShade.Shader.Get(stage, f"{material_path}/SeparateORM")
+        texcoord = UsdShade.Shader.Get(stage, f"{material_path}/Texcoord")
+
+        albedo.GetIdAttr().Set(albedo_shader_id)
+        albedo.GetInput("file").GetAttr().SetColorSpace(albedo_color_space)
+        normalmap.GetIdAttr().Set(normalmap_shader_id)
+
+        texcoord.GetIdAttr().Set(texcoord_shader_id)
         if texcoord_shader_id == "ND_geompropvalue_vector2":
-            shader.CreateInput("geomprop", Sdf.ValueTypeNames.String).Set(
+            texcoord.CreateInput("geomprop", Sdf.ValueTypeNames.String).Set(
                 str(texcoord_value)
             )
         else:
-            shader.CreateInput("index", Sdf.ValueTypeNames.Int).Set(int(texcoord_value))
-        shader.CreateOutput("out", Sdf.ValueTypeNames.Float2)
-        return shader
+            texcoord.CreateInput("index", Sdf.ValueTypeNames.Int).Set(
+                int(texcoord_value)
+            )
 
-    def image(
-        material: UsdShade.Material,
-        name: str,
-        shader_id: str,
-        output_type: Any,
-        path: Sdf.AssetPath,
-        color_space: str,
-    ) -> UsdShade.Shader:
-        stage = material.GetPrim().GetStage()
-        material_path = str(material.GetPath())
-        shader = UsdShade.Shader.Define(stage, f"{material_path}/{name}")
-        shader.CreateIdAttr(shader_id)
-        file_input = shader.CreateInput("file", Sdf.ValueTypeNames.Asset)
-        file_input.Set(path)
-        file_input.GetAttr().SetColorSpace(color_space)
-        shader.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(
-            texcoord(stage, material_path).GetOutput("out")
-        )
-        shader.CreateOutput("out", output_type)
-        return shader
-
-    def surface(material: UsdShade.Material) -> UsdShade.Shader:
-        stage = material.GetPrim().GetStage()
-        return UsdShade.Shader.Get(stage, f"{material.GetPath()}/OpenPBR")
-
-    def define_pbr_material(
-        stage: Usd.Stage,
-        path: Sdf.Path,
-        color: Gf.Vec3f,
-        opacity: float,
-        roughness: float,
-        metallic: float,
-    ) -> UsdShade.Material | None:
-        if definition_returns_none:
-            return None
-        material = UsdShade.Material.Define(stage, path)
-        material.CreateInput("base_color", Sdf.ValueTypeNames.Color3f).Set(color)
-        material.CreateInput("base_metalness", Sdf.ValueTypeNames.Float).Set(metallic)
-        material.CreateInput("specular_roughness", Sdf.ValueTypeNames.Float).Set(
-            roughness
-        )
-        material.CreateInput("geometry_opacity", Sdf.ValueTypeNames.Float).Set(opacity)
-        material.CreateInput("transmission_weight", Sdf.ValueTypeNames.Float).Set(0.0)
-        openpbr = UsdShade.Shader.Define(stage, path.AppendChild("OpenPBR"))
-        openpbr.CreateIdAttr("ND_open_pbr_surface_surfaceshader")
-        material.CreateSurfaceOutput("mtlx").ConnectToSource(
-            openpbr.CreateOutput(surface_output, Sdf.ValueTypeNames.Token)
-        )
+        if albedo_output != "out":
+            output = albedo.CreateOutput(albedo_output, Sdf.ValueTypeNames.Color3f)
+            openpbr.GetInput("base_color").ConnectToSource(output)
+        if surface_output != "out":
+            material.GetSurfaceOutput("mtlx").ConnectToSource(
+                openpbr.CreateOutput(surface_output, Sdf.ValueTypeNames.Token)
+            )
+        if not include_ao_output:
+            separate.GetPrim().RemoveProperty("outputs:outr")
+        if roughness_output != "outg":
+            openpbr.GetInput("specular_roughness").ConnectToSource(
+                separate.GetOutput(roughness_output)
+            )
         return material
 
-    def add_diffuse(material: UsdShade.Material, path: Sdf.AssetPath) -> None:
-        texture = image(
-            material,
-            "Albedo",
-            albedo_shader_id,
-            Sdf.ValueTypeNames.Color3f,
-            path,
-            albedo_color_space,
-        )
-        if albedo_output != "out":
-            texture.CreateOutput(albedo_output, Sdf.ValueTypeNames.Color3f)
-        surface(material).CreateInput(
-            "base_color", Sdf.ValueTypeNames.Color3f
-        ).ConnectToSource(texture.GetOutput(albedo_output))
-
-    def add_normal(material: UsdShade.Material, path: Sdf.AssetPath) -> None:
-        texture = image(
-            material,
-            "Normal",
-            "ND_tiledimage_vector3",
-            Sdf.ValueTypeNames.Float3,
-            path,
-            "raw",
-        )
-        stage = material.GetPrim().GetStage()
-        normalmap = UsdShade.Shader.Define(stage, f"{material.GetPath()}/NormalMap")
-        normalmap.CreateIdAttr(normalmap_shader_id)
-        normalmap.CreateInput("in", Sdf.ValueTypeNames.Float3).ConnectToSource(
-            texture.GetOutput("out")
-        )
-        normalmap.CreateOutput("out", Sdf.ValueTypeNames.Float3)
-        surface(material).CreateInput(
-            "geometry_normal", Sdf.ValueTypeNames.Float3
-        ).ConnectToSource(normalmap.GetOutput("out"))
-
-    def add_orm(material: UsdShade.Material, path: Sdf.AssetPath) -> None:
-        texture = image(
-            material,
-            "ORM",
-            "ND_tiledimage_color3",
-            Sdf.ValueTypeNames.Color3f,
-            path,
-            "raw",
-        )
-        stage = material.GetPrim().GetStage()
-        separate = UsdShade.Shader.Define(stage, f"{material.GetPath()}/SeparateORM")
-        separate.CreateIdAttr("ND_separate3_color3")
-        separate.CreateInput("in", Sdf.ValueTypeNames.Color3f).ConnectToSource(
-            texture.GetOutput("out")
-        )
-        output_names = (
-            ("outr", "outg", "outb") if include_ao_output else ("outg", "outb")
-        )
-        for output_name in output_names:
-            separate.CreateOutput(output_name, Sdf.ValueTypeNames.Float)
-        surface(material).CreateInput(
-            "specular_roughness", Sdf.ValueTypeNames.Float
-        ).ConnectToSource(separate.GetOutput(roughness_output))
-        surface(material).CreateInput(
-            "base_metalness", Sdf.ValueTypeNames.Float
-        ).ConnectToSource(separate.GetOutput("outb"))
-
-    fake_core.definePbrMaterial = define_pbr_material
-    fake_core.addDiffuseTextureToPbrMaterial = add_diffuse
-    fake_core.addNormalTextureToPbrMaterial = add_normal
-    fake_core.addOrmTextureToPbrMaterial = add_orm
-    fake_usdex.core = fake_core
-    monkeypatch.setitem(sys.modules, "usdex", fake_usdex)
-    monkeypatch.setitem(sys.modules, "usdex.core", fake_core)
+    monkeypatch.setattr(
+        usd_material_module,
+        "define_materialx_openpbr_material",
+        author_and_mutate,
+    )
 
 
-def test_openpbr_capability_requires_definition_and_texture_apis(
+def test_openpbr_prerequisite_fails_when_helper_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        usd_authoring_module.metadata,
-        "version",
-        lambda _distribution: "2.3.0",
-    )
-    _install_incomplete_usdex(monkeypatch)
-
-    capability = probe_openpbr_materialx_authoring()
-
-    assert capability.available is False
-    assert capability.installed_version == "2.3.0"
-    assert capability.missing_symbols == (
-        "usdex.core.addDiffuseTextureToPbrMaterial",
-        "usdex.core.addNormalTextureToPbrMaterial",
-        "usdex.core.addOrmTextureToPbrMaterial",
-    )
-
-
-def test_openpbr_capability_reports_native_import_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def fail_import(_name: str) -> NoReturn:
-        raise RuntimeError("native USD-Exchange load failed")
+    from world_understanding.utils.usd import material as usd_material_module
 
     monkeypatch.setattr(
-        usd_authoring_module.importlib,
-        "import_module",
-        fail_import,
+        usd_material_module,
+        "define_materialx_openpbr_material",
+        None,
     )
 
-    capability = probe_openpbr_materialx_authoring()
+    with pytest.raises(MaterialAuthoringContractError) as raised:
+        usd_authoring_module.require_material_authoring_prerequisites(
+            "openpbr_materialx"
+        )
 
-    assert capability.available is False
-    assert capability.import_error == ("RuntimeError: native USD-Exchange load failed")
-
-
-def test_openpbr_capability_reports_missing_distribution(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def missing_distribution(_distribution: str) -> str:
-        raise usd_authoring_module.metadata.PackageNotFoundError
-
-    monkeypatch.setattr(
-        usd_authoring_module.metadata,
-        "version",
-        missing_distribution,
-    )
-    _install_incomplete_usdex(monkeypatch)
-
-    capability = probe_openpbr_materialx_authoring()
-
-    assert capability.available is False
-    assert capability.installed_version is None
+    assert raised.value.code == "OPENPBR_MATERIALX_AUTHORING_UNAVAILABLE"
 
 
 def test_connection_guards_reject_missing_ambiguous_and_non_shader_sources() -> None:
@@ -548,62 +411,9 @@ def test_display_color_profile_fails_before_backend(tmp_path: Path) -> None:
     assert not package_dir.exists()
 
 
-def test_explicit_openpbr_fails_before_backend_when_usdex_is_incomplete(
-    monkeypatch: pytest.MonkeyPatch,
+def test_cached_openpbr_package_reuses_direct_usdshade_authoring(
     tmp_path: Path,
 ) -> None:
-    _install_incomplete_usdex(monkeypatch)
-    backend = FakeMaterialCreationBackend()
-    package_dir = tmp_path / "package"
-
-    with pytest.raises(MaterialCreationError) as raised:
-        create_material_package(
-            _request(tmp_path),
-            package_dir,
-            registry=_registry(backend),
-            material_profile="openpbr_materialx",
-        )
-
-    assert raised.value.code is MaterialCreationErrorCode.BACKEND_UNAVAILABLE
-    assert raised.value.retryable is False
-    assert raised.value.diagnostics[0].code == (
-        "OPENPBR_MATERIALX_AUTHORING_UNAVAILABLE"
-    )
-    assert raised.value.diagnostics[0].details["dependency_issue"] == 371
-    assert backend.calls == []
-    assert not package_dir.exists()
-
-
-def test_openpbr_preflight_does_not_delete_existing_package_on_overwrite(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    _install_incomplete_usdex(monkeypatch)
-    backend = FakeMaterialCreationBackend()
-    package_dir = tmp_path / "package"
-    package_dir.mkdir()
-    marker = package_dir / "existing.txt"
-    marker.write_text("preserve", encoding="utf-8")
-
-    with pytest.raises(MaterialCreationError) as raised:
-        create_material_package(
-            _request(tmp_path),
-            package_dir,
-            registry=_registry(backend),
-            material_profile="openpbr_materialx",
-            overwrite=True,
-        )
-
-    assert raised.value.code is MaterialCreationErrorCode.BACKEND_UNAVAILABLE
-    assert marker.read_text(encoding="utf-8") == "preserve"
-    assert backend.calls == []
-
-
-def test_cached_openpbr_package_reuses_without_authoring_runtime(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    _install_textured_openpbr_usdex(monkeypatch)
     backend = FakeMaterialCreationBackend()
     registry = _registry(backend)
     request = _request(tmp_path)
@@ -614,8 +424,6 @@ def test_cached_openpbr_package_reuses_without_authoring_runtime(
         registry=registry,
         material_profile="openpbr_materialx",
     )
-    _install_incomplete_usdex(monkeypatch)
-
     cached = create_material_package(
         request,
         package_dir,
@@ -674,7 +482,7 @@ def test_authoring_contract_failure_removes_partial_package(
 
     monkeypatch.setattr(
         creation_module,
-        "write_material_library_usd",
+        "write_material_package_files",
         fail_authoring,
     )
 
@@ -692,10 +500,8 @@ def test_authoring_contract_failure_removes_partial_package(
 
 
 def test_textured_openpbr_graph_records_authoritative_profile_evidence(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    _install_textured_openpbr_usdex(monkeypatch)
     generated = _generated_material(tmp_path)
     library_path = tmp_path / "material_library.usda"
 
@@ -740,11 +546,39 @@ def test_textured_openpbr_graph_records_authoritative_profile_evidence(
     assert preview.GetIdAttr().Get() == "UsdPreviewSurface"
 
 
-def test_explicit_openpbr_authors_generated_maps_instead_of_prototype(
-    monkeypatch: pytest.MonkeyPatch,
+def test_scalar_openpbr_graph_has_no_texture_nodes(
     tmp_path: Path,
 ) -> None:
-    _install_textured_openpbr_usdex(monkeypatch)
+    generated = GeneratedMaterial(recipe=_recipe(), textures=None)
+    library_path = tmp_path / "material_library.usda"
+
+    write_material_library_usd(
+        library_path,
+        (generated,),
+        material_profile="openpbr_materialx",
+    )
+    evidence = inspect_material_library_authoring(
+        library_path,
+        (generated,),
+        material_profile="openpbr_materialx",
+    )
+
+    material = evidence["materials"][generated.binding]
+    assert material["textures"] == {}
+    stage = Usd.Stage.Open(str(library_path))
+    assert stage is not None
+    asset_inputs = [
+        usd_input
+        for prim in stage.Traverse()
+        for usd_input in UsdShade.Shader(prim).GetInputs()
+        if usd_input.GetTypeName() == Sdf.ValueTypeNames.Asset
+    ]
+    assert asset_inputs == []
+
+
+def test_explicit_openpbr_authors_generated_maps_instead_of_prototype(
+    tmp_path: Path,
+) -> None:
     generated = _generated_material(tmp_path)
     prototype_path = tmp_path / "prototype.usda"
     prototype_stage = Usd.Stage.CreateNew(str(prototype_path))
@@ -792,7 +626,7 @@ def test_explicit_openpbr_rejects_invalid_material_from_definition_api(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    _install_textured_openpbr_usdex(
+    _patch_openpbr_graph(
         monkeypatch,
         definition_returns_none=True,
     )
@@ -845,7 +679,7 @@ def test_materialx_geomprop_st_is_a_valid_uv_binding(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    _install_textured_openpbr_usdex(
+    _patch_openpbr_graph(
         monkeypatch,
         texcoord_shader_id="ND_geompropvalue_vector2",
         texcoord_value="st",
@@ -891,7 +725,7 @@ def test_textured_openpbr_graph_rejects_invalid_nodes_paths_and_uvs(
     authoring_options: dict[str, object],
     error_code: str,
 ) -> None:
-    _install_textured_openpbr_usdex(monkeypatch, **authoring_options)
+    _patch_openpbr_graph(monkeypatch, **authoring_options)
 
     _assert_contract_error(
         error_code,
@@ -921,7 +755,6 @@ def test_openpbr_graph_requires_mtlx_surface_and_ovrtx_fallback(
         ),
     )
 
-    _install_textured_openpbr_usdex(monkeypatch)
     monkeypatch.setattr(
         usd_material_module,
         "add_ovrtx_preview_fallbacks_for_materialx_openpbr",
@@ -953,7 +786,7 @@ def test_textured_openpbr_graph_fails_closed_on_invalid_channel_contract(
     roughness_output: str,
     error_code: str,
 ) -> None:
-    _install_textured_openpbr_usdex(
+    _patch_openpbr_graph(
         monkeypatch,
         albedo_color_space=albedo_color_space,
         albedo_output=albedo_output,
@@ -1046,6 +879,25 @@ def test_material_authoring_inspects_omnipbr_profile(tmp_path: Path) -> None:
             material_profile="omnipbr_mdl",
         ),
     )
+
+
+def test_textured_omnipbr_creation_uses_shared_package_validation(
+    tmp_path: Path,
+) -> None:
+    created = create_material_package(
+        _request(tmp_path),
+        tmp_path / "package",
+        registry=_registry(FakeMaterialCreationBackend()),
+        material_profile="omnipbr_mdl",
+    )
+
+    authoring_manifest = json.loads(
+        (
+            created.material_usd_path.parent / "material_authoring_manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert authoring_manifest["request"]["recipe_semantics"] == "generation_hints"
+    assert authoring_manifest["material_package"]["representation"] == "textured_pbr"
 
 
 def test_cached_package_rejects_a_different_requested_profile(tmp_path: Path) -> None:

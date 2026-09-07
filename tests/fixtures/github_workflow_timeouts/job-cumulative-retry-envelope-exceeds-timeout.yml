@@ -1,0 +1,19 @@
+name: cumulative retry envelope exceeds job timeout
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: First bounded install
+        if: ${{ matrix.id == 'first' }}
+        timeout-minutes: 15
+        run: >-
+          bash ci/github/retry-network-command.sh --
+          python -m pip install first
+      - name: Second bounded install
+        if: ${{ matrix.id == 'second' }}
+        timeout-minutes: 15
+        run: >-
+          bash ci/github/retry-network-command.sh --
+          python -m pip install second

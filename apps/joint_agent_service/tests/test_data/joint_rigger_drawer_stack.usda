@@ -1,0 +1,62 @@
+#usda 1.0
+(
+    defaultPrim = "RootNode"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "RootNode"
+{
+    def Xform "Geometry"
+    {
+        def Xform "body_01_obj_00"
+        {
+            def Cube "body_01_mesh_00"
+            {
+                float3 xformOp:scale = (0.8, 0.45, 0.9)
+                double3 xformOp:translate = (0, 0, 0.45)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "drawer_01_obj_00"
+        {
+            def Cube "drawer_01_mesh_00"
+            {
+                float3 xformOp:scale = (0.62, 0.36, 0.08)
+                double3 xformOp:translate = (0.15, 0, 0.78)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "drawer_02_obj_00"
+        {
+            def Cube "drawer_02_mesh_00"
+            {
+                float3 xformOp:scale = (0.62, 0.36, 0.08)
+                double3 xformOp:translate = (0.15, 0, 0.56)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "drawer_03_obj_00"
+        {
+            def Cube "drawer_03_mesh_00"
+            {
+                float3 xformOp:scale = (0.62, 0.36, 0.08)
+                double3 xformOp:translate = (0.15, 0, 0.34)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "drawer_04_obj_00"
+        {
+            def Cube "drawer_04_mesh_00"
+            {
+                float3 xformOp:scale = (0.62, 0.36, 0.08)
+                double3 xformOp:translate = (0.15, 0, 0.12)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+    }
+}

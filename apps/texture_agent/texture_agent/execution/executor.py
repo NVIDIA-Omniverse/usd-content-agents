@@ -16,7 +16,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from texture_agent.execution.models import (
     TextureArtifactRef,
@@ -145,9 +146,21 @@ def _default_artifact_validator(result: TextureUnitExecutionResult) -> bool:
     """Validate local artifacts while accepting durable remote URIs."""
     for artifact in result.artifacts:
         parsed = urlparse(artifact.uri)
-        if parsed.scheme and parsed.scheme != "file":
+        windows_drive_path = (
+            len(parsed.scheme) == 1
+            and len(artifact.uri) >= 3
+            and artifact.uri[1] == ":"
+            and artifact.uri[2] in {"/", "\\"}
+        )
+        if parsed.scheme and parsed.scheme != "file" and not windows_drive_path:
             continue
-        path = Path(unquote(parsed.path) if parsed.scheme == "file" else artifact.uri)
+        if parsed.scheme == "file":
+            path_text = url2pathname(parsed.path)
+            if parsed.netloc and parsed.hostname != "localhost":
+                path_text = f"//{parsed.netloc}{path_text}"
+        else:
+            path_text = artifact.uri
+        path = Path(path_text)
         if not path.is_file():
             return False
         if artifact.sha256 is not None:
@@ -297,6 +310,7 @@ class BoundedTextureExecutor:
                     timeout=wait_timeout,
                     return_when=FIRST_COMPLETED,
                 )
+                runner_timed_out = False
                 for future in done:
                     unit_id, _deadline = active.pop(future)
                     record = records[unit_id]
@@ -311,6 +325,17 @@ class BoundedTextureExecutor:
                                 "finished_at": finished_at,
                             }
                         )
+                    except TextureExecutionTimedOut as exc:
+                        records[unit_id] = record.model_copy(
+                            update={
+                                "state": TextureUnitExecutionState.FAILED,
+                                "last_error": f"TextureExecutionTimedOut: {exc}",
+                                "finished_at": finished_at,
+                            }
+                        )
+                        self.cancellation_token.cancel()
+                        abandon_executor = True
+                        runner_timed_out = True
                     except Exception as exc:
                         records[unit_id] = record.model_copy(
                             update={
@@ -332,6 +357,24 @@ class BoundedTextureExecutor:
                             }
                         )
                     checkpoint = self._save_records(checkpoint, records)
+
+                if runner_timed_out:
+                    finished_at = datetime.now(UTC)
+                    for future, (unit_id, _deadline) in list(active.items()):
+                        active.pop(future, None)
+                        future.cancel()
+                        record = records[unit_id]
+                        records[unit_id] = record.model_copy(
+                            update={
+                                "state": TextureUnitExecutionState.CANCELLED,
+                                "last_error": (
+                                    "Cancelled after another texture unit timed out"
+                                ),
+                                "finished_at": finished_at,
+                            }
+                        )
+                    checkpoint = self._save_records(checkpoint, records)
+                    break
 
                 timed_out = [
                     (future, unit_id)

@@ -23,12 +23,14 @@ from physics_agent.tasks.config_optimize_usd import OptimizeUSDConfigTask
 from physics_agent.tasks.config_predict import PredictConfigTask
 from physics_agent.tasks.config_prepare_dataset import PrepareDatasetConfigTask
 from physics_agent.tasks.config_restore_usd import RestoreUSDConfigTask
+from physics_agent.tasks.config_vomp_mass import VompMassConfigTask
 from physics_agent.tasks.identify_asset import IdentifyAssetTask
 from physics_agent.tasks.inference import VLMInferenceTask
 from physics_agent.tasks.optimize_usd import OptimizeUSDTask
 from physics_agent.tasks.predictions import SavePredictionsTask
 from physics_agent.tasks.reporting import GeneratePredictionReportTask
 from physics_agent.tasks.restore_usd import RestoreUSDTask
+from physics_agent.tasks.vomp_mass import VompMassTask
 
 logger = logging.getLogger(__name__)
 
@@ -194,4 +196,15 @@ def create_apply_physics_workflow_from_config() -> Workflow:
         object_store=InMemoryObjectStore(),
         name="Config-Driven Apply Physics",
         description="Apply UsdPhysics schemas from predictions to USD stage",
+    )
+
+
+def create_vomp_mass_workflow_from_config() -> Workflow:
+    """Create the concrete OVRTX-to-VoMP mass-inference workflow."""
+
+    return Workflow(
+        tasks=[VompMassConfigTask(), VompMassTask()],
+        object_store=InMemoryObjectStore(),
+        name="Config-Driven VoMP Mass Inference",
+        description="Render with OVRTX, infer with VoMP, and author MassAPI",
     )

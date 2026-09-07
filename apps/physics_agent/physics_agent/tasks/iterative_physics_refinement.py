@@ -24,13 +24,14 @@ Inputs (constructor):
     score_threshold
     chat_model (optional; refine degrades without a chat model, but the
         iterative judge fails closed when no VLM verdict is available)
-    force_record_video (optional, "off"|"end_of_tune"|"always"|None) ⇒
-        when set, every iteration's scenario.yaml gets ``record_video``
+    force_record_frames (optional, "off"|"end_of_tune"|"always"|None) ⇒
+        when set, every iteration's scenario.yaml gets ``record_frames``
         rewritten to this value, overriding both the initial YAML and
         any LLM-refined value. Default ``None`` honors the YAML.
-    render_winning_trial (default False) ⇒ post-tune render of the best
-        trial's recording.usd into ``iter_N/render/`` so each iteration
-        has PNG judge evidence when per-trial rendering is suppressed.
+    render_winning_trial (default False) ⇒ force a post-tune render of the
+        best trial's recording.usd into ``iter_N/render/`` even when visual
+        evidence is disabled. Visual judge calls render this PNG evidence
+        automatically when per-trial rendering is suppressed.
 
 Per-iteration on-disk layout::
 
@@ -44,7 +45,7 @@ Per-iteration on-disk layout::
             tune_results.json (from run_tune)
             report.md (from run_tune)
             tuned_physics.usd (from run_tune, optional)
-            render/<trial>/  (when scenario.target.record_video is on)
+            render/<trial>/  (when scenario.target.record_frames is on)
         iter_2/...
         final/
             (copy / link of the winning iteration's artifacts)
@@ -75,30 +76,39 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import yaml
 from world_understanding.agentic.events import get_listener
+from world_understanding.functions.physics.ovphysx_daemon import (
+    OvPhysXDaemonUnavailableError,
+)
+from world_understanding.optimization import RefinementLoop
 
 from physics_agent.tasks.judge_tune import run_tune_judge
 from physics_agent.tasks.scenario_refine import RefineResult, run_scenario_refine
 from physics_agent.tuning.artifacts import ARTIFACT_VISUAL_COMPARISON
 from physics_agent.tuning.backend import get_backend
 from physics_agent.tuning.capabilities import capabilities_for_backend
-from physics_agent.tuning.errors import NewtonUnavailableError, OvPhysXUnavailableError
+from physics_agent.tuning.errors import (
+    NewtonUnavailableError,
+    OvPhysXUnavailableError,
+    TuningError,
+)
+from physics_agent.tuning.frame_rendering import resolve_frame_renderer
 from physics_agent.tuning.scenario import load_scenario
+from physics_agent.tuning.scenario_resolution import resolve_scenario_parameter_bounds
 from physics_agent.tuning.types import (
-    SCENARIO_FREEFORM,
     Scenario,
     TrialRecord,
     TuneInput,
     TuneOutput,
 )
-from physics_agent.tuning.video_rendering import resolve_video_renderer
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
     DEFAULT_JUDGE_REFERENCE_FRAMES,
-    DEFAULT_REFERENCE_VIDEO_FRAMES,
+    DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
     JudgeVisualEvidence,
     has_reference_media,
     prepare_reference_media,
@@ -110,6 +120,27 @@ from physics_agent.tuning.visual_evidence import (
 logger = logging.getLogger(__name__)
 
 _TUNE_EXECUTION_FAILURE_MESSAGE = "Tune execution failed before judge."
+_TUNE_CANCELLATION_MESSAGE = "Tune execution was cancelled before judge."
+
+
+def _safe_tune_exception_diagnostic(exc: Exception) -> str:
+    """Return an allowlisted product diagnostic or a value-free category."""
+
+    category = f"Exception category: {type(exc).__name__}."
+    # Only this stable product-authored remediation is public. Runtime-created
+    # instances can contain subprocess output and paths, so never publish
+    # ``str(exc)`` even when the exact exception type is allowlisted.
+    if type(exc) is OvPhysXDaemonUnavailableError:
+        try:
+            remediation = OvPhysXDaemonUnavailableError.safe_remediation_message()
+        except Exception:
+            # Diagnostics must not replace the task's original failure. If the
+            # platform-specific product message cannot be resolved, retain only
+            # the already-sanitized exception category.
+            return category
+        return f"{category} Remediation:\n{remediation}"
+    return category
+
 
 __all__ = [
     "IterationRecord",
@@ -226,14 +257,17 @@ class IterativePhysicsRefinementResult:
 
 def _scenario_to_yaml_text(scenario: Scenario) -> str:
     """Round-trip a :class:`Scenario` into the YAML form ``load_scenario`` accepts."""
+    parameters: list[dict[str, Any]] = []
+    for parameter in scenario.params:
+        entry: dict[str, Any] = {"name": parameter.name}
+        if parameter.name not in scenario.auto_bound_fields:
+            entry.update(min=parameter.min_value, max=parameter.max_value)
+        parameters.append(entry)
     payload: dict[str, Any] = {
         "name": scenario.name,
         "metric": scenario.metric,
         "target": dict(scenario.target),
-        "parameters": [
-            {"name": p.name, "min": p.min_value, "max": p.max_value}
-            for p in scenario.params
-        ],
+        "parameters": parameters,
     }
     if scenario.extra:
         for k, v in scenario.extra.items():
@@ -255,13 +289,7 @@ def _history_to_summary(history: list[TrialRecord]) -> list[dict[str, Any]]:
 
 
 def _extract_metric_value(history: list[TrialRecord], metric_name: str) -> float | None:
-    """Pull the metric's raw physical value off the best trial's
-    backend_metrics block.
-
-    The drop_settle evaluator surfaces ``max_bounce_height`` (and other
-    metrics by name) on the trial result alongside the optimizer
-    ``score``. When the requested metric is not present we return None.
-    """
+    """Return the best trial's raw physical metric."""
     if not history:
         return None
     successful = [t for t in history if not t.failed]
@@ -540,7 +568,11 @@ def _discover_camera_paths(stage_path: Path) -> list[str] | None:
     return paths or None
 
 
-class _LLMTimeoutError(RuntimeError):
+class _OperationTimeoutError(RuntimeError):
+    """A refine-loop operation exceeded its wall-clock deadline."""
+
+
+class _LLMTimeoutError(_OperationTimeoutError):
     """An LLM call inside the refine loop exceeded its wall-clock deadline.
 
     Mirrors ``physics_agent.tuning.runner._LLMTimeoutError`` so the refine
@@ -551,27 +583,14 @@ class _LLMTimeoutError(RuntimeError):
     """
 
 
-def _run_with_llm_timeout(
+def _run_with_timeout(
     fn: Callable[..., Any],
     *args: Any,
     timeout_seconds: float,
     op_label: str,
     **kwargs: Any,
 ) -> Any:
-    """Execute a synchronous LLM call under a wall-clock deadline.
-
-    Light reimplementation of ``physics_agent.tuning.runner._run_with_llm_timeout``
-    (we duplicate rather than import to keep this module's import surface
-    free of optimizer/runner dependencies). Same daemon-thread shape, same
-    contract: ``timeout_seconds <= 0`` disables the deadline.
-
-    A hung NIM/ChatNVIDIA call (no SDK-level deadline) cannot be
-    interrupted in pure Python, so the orphan daemon thread continues
-    until the provider's own timeout (or process exit) ends it. The hard
-    deadline here only ensures the refine loop itself does not block
-    indefinitely — the right complementary fix is provider-level
-    deadlines, same as the tune runner's docstring notes.
-    """
+    """Execute a synchronous operation under a wall-clock deadline."""
     if timeout_seconds <= 0:
         return fn(*args, **kwargs)
 
@@ -590,7 +609,7 @@ def _run_with_llm_timeout(
     thread = threading.Thread(
         target=_worker,
         daemon=True,
-        name=f"refine-{op_label}-llm",
+        name=f"refine-{op_label}",
     )
     thread.start()
 
@@ -600,13 +619,75 @@ def _run_with_llm_timeout(
         if done.wait(poll):
             break
         if time.monotonic() >= deadline:
-            raise _LLMTimeoutError(
-                f"{op_label} LLM call exceeded {timeout_seconds}s deadline"
+            raise _OperationTimeoutError(
+                f"{op_label} exceeded {timeout_seconds}s deadline"
             )
 
     if "error" in error_box:
         raise error_box["error"]
     return result_box.get("value")
+
+
+def _run_with_llm_timeout(
+    fn: Callable[..., Any],
+    *args: Any,
+    timeout_seconds: float,
+    op_label: str,
+    **kwargs: Any,
+) -> Any:
+    """Execute an LLM call under the refine loop's wall-clock deadline."""
+    try:
+        return _run_with_timeout(
+            fn,
+            *args,
+            timeout_seconds=timeout_seconds,
+            op_label=f"{op_label}-llm",
+            **kwargs,
+        )
+    except _OperationTimeoutError as exc:
+        raise _LLMTimeoutError(
+            f"{op_label} LLM call exceeded {timeout_seconds}s deadline"
+        ) from exc
+
+
+def _visual_evidence_failure_message(
+    *,
+    error: str,
+    iteration: int,
+    reference_media_supplied: bool,
+    timeout_seconds: float,
+) -> str:
+    """Return operator guidance for a generated-evidence failure."""
+    if error == "every trial failed; no winning trial to render":
+        return (
+            f"No successful trial is available for visual evidence at iteration "
+            f"{iteration}; every trial failed. Refusing to fall back to a "
+            "programmatic-only verdict."
+        )
+    if error == "winning trial did not persist recording_usd":
+        return (
+            f"Winning trial did not persist recording_usd at iteration {iteration}; "
+            "visual evidence cannot be generated. Check the simulation recording "
+            "output. Refusing to fall back to a programmatic-only verdict."
+        )
+    if error == "VisualEvidenceRenderTimeout":
+        return (
+            f"Winning-trial visual evidence render timed out at iteration "
+            f"{iteration} after {timeout_seconds:g}s. Increase "
+            "--visual-evidence-timeout-seconds or fix renderer performance. "
+            "Refusing to fall back to a programmatic-only verdict."
+        )
+
+    text_only_hint = ""
+    if not reference_media_supplied:
+        text_only_hint = (
+            " For an intentional text-only judge, pass --no-visual-evidence."
+        )
+    return (
+        f"Winning-trial visual evidence renderer failed at iteration {iteration}: "
+        f"{error}. Fix the configured USD renderer.{text_only_hint} Refusing to "
+        "fall back to a programmatic-only verdict."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -641,18 +722,18 @@ class IterativePhysicsRefinementTask:
         chat_model: Any | None = None,
         vlm_model: Any | None = None,
         reference_images: list[Path] | None = None,
-        reference_videos: list[Path] | None = None,
         reference_descriptions: list[str] | None = None,
-        reference_video_descriptions: list[str] | None = None,
-        reference_video_frames: int = DEFAULT_REFERENCE_VIDEO_FRAMES,
         judge_reference_frames: int = DEFAULT_JUDGE_REFERENCE_FRAMES,
         judge_generated_frames: int = DEFAULT_JUDGE_GENERATED_FRAMES,
         run_tune_callable: Any | None = None,
-        force_record_video: str | None = None,
+        force_record_frames: str | None = None,
         render_winning_trial: bool = False,
         visual_evidence_enabled: bool = True,
         history_window: int = 20,
         llm_timeout_seconds: float = 180.0,
+        visual_evidence_timeout_seconds: float = (
+            DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS
+        ),
         cancel_event: Any | None = None,
     ) -> None:
         if not user_prompt or not user_prompt.strip():
@@ -670,19 +751,15 @@ class IterativePhysicsRefinementTask:
                     "judge_temperature must be finite and >= 0, "
                     f"got {judge_temperature}"
                 )
-        if force_record_video is not None and force_record_video not in {
+        if force_record_frames is not None and force_record_frames not in {
             "off",
             "end_of_tune",
             "always",
         }:
             raise ValueError(
-                "force_record_video must be one of {'off','end_of_tune',"
-                f"'always'}}, got {force_record_video!r}"
+                "force_record_frames must be one of {'off','end_of_tune',"
+                f"'always'}}, got {force_record_frames!r}"
             )
-        reference_video_frames = validate_visual_frame_count(
-            "reference_video_frames",
-            reference_video_frames,
-        )
         judge_reference_frames = validate_visual_frame_count(
             "judge_reference_frames",
             judge_reference_frames,
@@ -691,6 +768,12 @@ class IterativePhysicsRefinementTask:
             "judge_generated_frames",
             judge_generated_frames,
         )
+        visual_evidence_timeout_seconds = float(visual_evidence_timeout_seconds)
+        if not math.isfinite(visual_evidence_timeout_seconds):
+            raise ValueError(
+                "visual_evidence_timeout_seconds must be finite, "
+                f"got {visual_evidence_timeout_seconds}"
+            )
         self.name = "IterativePhysicsRefinement"
         self.description = (
             "Iteratively tune+judge+refine a physics scenario from a user prompt"
@@ -701,15 +784,21 @@ class IterativePhysicsRefinementTask:
         self.output_dir = Path(output_dir)
         self.engine = engine
         try:
-            refine_capabilities = get_backend(engine).tuning_capabilities()
+            bounds_backend = get_backend(engine)
+            refine_capabilities = bounds_backend.tuning_capabilities()
         except (NewtonUnavailableError, OvPhysXUnavailableError):
             refine_capabilities = capabilities_for_backend(engine)
+            bounds_backend = SimpleNamespace(
+                name=engine,
+                tuning_capabilities=lambda: refine_capabilities,
+            )
         except Exception:
             logger.exception("Failed to resolve tuning capabilities for %s", engine)
             raise
         self._refine_supported_param_keys = tuple(
             capability.param_name for capability in refine_capabilities
         )
+        self._bounds_backend = bounds_backend
         self.optimizer = optimizer
         self.max_trials = max_trials
         self.seed = seed
@@ -720,23 +809,17 @@ class IterativePhysicsRefinementTask:
         self.chat_model = chat_model
         self.vlm_model = vlm_model
         self.reference_images = [Path(p) for p in reference_images or []]
-        self.reference_videos = [Path(p) for p in reference_videos or []]
         self.reference_descriptions = (
             list(reference_descriptions) if reference_descriptions is not None else None
         )
-        self.reference_video_descriptions = (
-            list(reference_video_descriptions)
-            if reference_video_descriptions is not None
-            else None
-        )
-        self.reference_video_frames = reference_video_frames
         self.judge_reference_frames = judge_reference_frames
         self.judge_generated_frames = judge_generated_frames
-        self.force_record_video = force_record_video
+        self.force_record_frames = force_record_frames
         self.render_winning_trial = render_winning_trial
         self.visual_evidence_enabled = bool(visual_evidence_enabled)
         self.history_window = int(history_window)
         self.llm_timeout_seconds = float(llm_timeout_seconds)
+        self.visual_evidence_timeout_seconds = visual_evidence_timeout_seconds
         if cancel_event is not None and not callable(
             getattr(cancel_event, "is_set", None)
         ):
@@ -861,15 +944,16 @@ class IterativePhysicsRefinementTask:
 
         if self.visual_evidence_enabled:
             try:
-                reference_evidence = _run_with_llm_timeout(
+                reference_evidence = _run_with_timeout(
                     self._prepare_reference_evidence,
-                    timeout_seconds=self.llm_timeout_seconds,
+                    timeout_seconds=self.visual_evidence_timeout_seconds,
                     op_label="visual evidence preparation",
                 )
-            except _LLMTimeoutError as exc:
+            except _OperationTimeoutError as exc:
                 listener.warning(
                     "  Visual evidence preparation timed out after "
-                    f"{self.llm_timeout_seconds}s; judge will fail closed: {exc}"
+                    f"{self.visual_evidence_timeout_seconds}s; "
+                    f"judge will fail closed: {exc}"
                 )
                 reference_evidence = JudgeVisualEvidence(
                     reference_error="VisualEvidencePreparationTimeout"
@@ -927,13 +1011,18 @@ class IterativePhysicsRefinementTask:
         )
 
         records: list[IterationRecord] = []
-        termination_reason = "max_iterations"
         final_iter_dir: Path | None = None
+        refinement = RefinementLoop(
+            initial_state=scenario,
+            max_iterations=self.max_iterations,
+        )
 
-        for iteration in range(1, self.max_iterations + 1):
+        while (refinement_iteration := refinement.begin_iteration()) is not None:
+            iteration = refinement_iteration.iteration
+            scenario = refinement_iteration.state
             if self._cancel_requested():
                 listener.info(f"  Cancellation requested before iteration {iteration}.")
-                termination_reason = "cancelled"
+                refinement.stop("cancelled")
                 break
 
             listener.info("")
@@ -961,22 +1050,68 @@ class IterativePhysicsRefinementTask:
                 iter_dir / "prior_refine_history.json",
                 prior_refine_history,
             )
+            scenario_yaml_path = iter_dir / "scenario.yaml"
+
+            # Resolve omitted bounds only when an iteration is about to run.
+            # Iteration 1 therefore starts around authored USD values, while a
+            # later LLM refinement can replace those bounds explicitly.
+            try:
+                scenario = resolve_scenario_parameter_bounds(
+                    scenario,
+                    physics_usd=self.physics_usd,
+                    backend=self._bounds_backend,
+                )
+            except (TuningError, FileNotFoundError, RuntimeError) as exc:
+                error_msg = (
+                    "Scenario parameter-bound resolution failed before tune. "
+                    f"Exception category: {type(exc).__name__}."
+                )
+                scenario_yaml_path.write_text(
+                    _scenario_to_yaml_text(scenario),
+                    encoding="utf-8",
+                )
+                listener.error(f"  Iteration {iteration}: {error_msg}")
+                records.append(
+                    IterationRecord(
+                        iteration=iteration,
+                        iteration_dir=iter_dir,
+                        scenario_yaml_path=scenario_yaml_path,
+                        tune_output_dir=iter_dir,
+                        best_params={},
+                        best_score=float("inf"),
+                        n_trials=0,
+                        judge_decision="skipped",
+                        judge_score=0.0,
+                        judge_reasoning="parameter-bound resolution failed before tune",
+                        judge_llm_unavailable=True,
+                        refine_llm_unavailable=True,
+                        refine_reasoning="",
+                        metric_name=scenario.metric,
+                        metric_value=None,
+                        error=error_msg,
+                    )
+                )
+                ctx["iteration_count"] = iteration
+                ctx["judge_score"] = None
+                ctx["judge_reasoning"] = error_msg
+                ctx["continue_iteration"] = False
+                refinement.stop("error")
+                break
 
             # 1) Persist the scenario YAML used by THIS iteration. When
-            #    ``force_record_video`` is set (the CLI passes "off"), it
-            #    overrides whatever ``record_video`` was authored in the
+            #    ``force_record_frames`` is set (the CLI passes "off"), it
+            #    overrides whatever ``record_frames`` was authored in the
             #    initial YAML or refined by the LLM — wins over both
             #    sources. The orchestrator's post-tune winning-trial
             #    render is the canonical per-iteration image evidence, so
             #    suppressing per-trial rendering keeps trials fast.
-            #    Pass force_record_video=None at construction time to
+            #    Pass force_record_frames=None at construction time to
             #    honor whatever the YAML / refine flow asks for.
-            scenario_yaml_path = iter_dir / "scenario.yaml"
             yaml_text = _scenario_to_yaml_text(scenario)
-            if self.force_record_video is not None:
+            if self.force_record_frames is not None:
                 merged_dict = yaml.safe_load(yaml_text)
                 merged_dict.setdefault("target", {})
-                merged_dict["target"]["record_video"] = self.force_record_video
+                merged_dict["target"]["record_frames"] = self.force_record_frames
                 yaml_text = yaml.safe_dump(merged_dict, sort_keys=False)
                 # Re-parse so the in-memory scenario aligns with what
                 # we wrote on disk for downstream judge / refine calls.
@@ -994,10 +1129,12 @@ class IterativePhysicsRefinementTask:
                     iter_output_dir=iter_dir,
                     iteration=iteration,
                 )
-            except Exception:
-                listener.error(
-                    f"  Iteration {iteration}: {_TUNE_EXECUTION_FAILURE_MESSAGE}"
+            except Exception as exc:
+                error_msg = (
+                    f"{_TUNE_EXECUTION_FAILURE_MESSAGE} "
+                    f"{_safe_tune_exception_diagnostic(exc)}"
                 )
+                listener.error(f"  Iteration {iteration}: {error_msg}")
                 records.append(
                     IterationRecord(
                         iteration=iteration,
@@ -1015,10 +1152,10 @@ class IterativePhysicsRefinementTask:
                         refine_reasoning="",
                         metric_name=scenario.metric,
                         metric_value=None,
-                        error=_TUNE_EXECUTION_FAILURE_MESSAGE,
+                        error=error_msg,
                     )
                 )
-                termination_reason = "error"
+                refinement.stop("error")
                 break
 
             # Tune can also signal failure via ``TuneOutput(success=False)``
@@ -1029,11 +1166,15 @@ class IterativePhysicsRefinementTask:
             # success=False as a hard error / cancelled iteration so the
             # error termination plumbing kicks in and the CLI exits non-zero.
             if not tune_output.success:
-                error_msg = (
-                    str(getattr(tune_output, "error", None))
-                    or "tune reported success=False"
-                )
                 cancelled_flag = bool(getattr(tune_output, "cancelled", False))
+                # ``TuneOutput.error`` can originate from a backend exception
+                # stored as ``TrialRecord.error=str(exc)``. Never republish it
+                # into the durable refinement summary or listener surface.
+                error_msg = (
+                    _TUNE_CANCELLATION_MESSAGE
+                    if cancelled_flag
+                    else _TUNE_EXECUTION_FAILURE_MESSAGE
+                )
                 listener.error(
                     f"  Iteration {iteration} tune did not succeed "
                     f"(cancelled={cancelled_flag}): {error_msg}"
@@ -1065,7 +1206,7 @@ class IterativePhysicsRefinementTask:
                         error=error_msg,
                     )
                 )
-                termination_reason = "cancelled" if cancelled_flag else "error"
+                refinement.stop("cancelled" if cancelled_flag else "error")
                 break
 
             best_params = dict(tune_output.best_params)
@@ -1112,13 +1253,13 @@ class IterativePhysicsRefinementTask:
                         error="Refine cancelled by caller",
                     )
                 )
-                termination_reason = "cancelled"
+                refinement.stop("cancelled")
                 break
 
             # 2.5) Post-iter render of the winning trial's recording.usd.
             #      The per-trial drop_settle evaluator only renders when
-            #      ``record_video in {end_of_tune, always}``. With the
-            #      default ``record_video=off`` we get fast trials and a
+            #      ``record_frames in {end_of_tune, always}``. With the
+            #      default ``record_frames=off`` we get fast trials and a
             #      single render of the best trial here when requested.
             generated_frames: list[Path] = []
             generated_error: str | None = None
@@ -1126,29 +1267,32 @@ class IterativePhysicsRefinementTask:
                 reference_evidence is not None
                 and reference_evidence.reference_error is None
             )
-            generated_only_visual_requested = (
-                reference_evidence is None and scenario.name == SCENARIO_FREEFORM
-            )
+            # A text-only prompt still asks the VLM to judge the simulated
+            # result. Render the selected trial for every scenario, not only
+            # freeform, so built-in scenarios cannot silently fall back to
+            # scalar evidence without rendering image evidence.
+            generated_only_visual_requested = reference_evidence is None
             needs_visual_judge_render = self.visual_evidence_enabled and (
                 reference_visual_ready or generated_only_visual_requested
             )
             if self.render_winning_trial or needs_visual_judge_render:
                 try:
-                    generated_frames, generated_error = _run_with_llm_timeout(
+                    generated_frames, generated_error = _run_with_timeout(
                         self._render_best_trial_into_iter_dir,
                         iter_dir=iter_dir,
                         history=history,
                         scenario=scenario,
                         listener=listener,
-                        timeout_seconds=self.llm_timeout_seconds,
+                        timeout_seconds=self.visual_evidence_timeout_seconds,
                         op_label="winning-trial-render",
                     )
-                except _LLMTimeoutError as exc:
+                except _OperationTimeoutError as exc:
                     generated_frames = []
                     generated_error = "VisualEvidenceRenderTimeout"
                     listener.warning(
                         "Winning trial render timed out after "
-                        f"{self.llm_timeout_seconds}s; judge will fail closed: {exc}"
+                        f"{self.visual_evidence_timeout_seconds}s; "
+                        f"judge will fail closed: {exc}"
                     )
 
             ctx["judge_score"] = None  # clear stale value before judge
@@ -1177,7 +1321,7 @@ class IterativePhysicsRefinementTask:
                         error="Refine cancelled by caller",
                     )
                 )
-                termination_reason = "cancelled"
+                refinement.stop("cancelled")
                 break
 
             # 3) Judge. ``run_tune_judge`` is single-shot; pass the
@@ -1304,11 +1448,32 @@ class IterativePhysicsRefinementTask:
             # any run, including text-only runs with an empty media list, approve
             # from programmatic-only scores when the judge VLM is unavailable.
             if judge_result.llm_unavailable:
-                error_msg = (
-                    f"Judge VLM unavailable at iteration {iteration} "
-                    f"(critique: {judge_result.llm_critique}). "
-                    f"Refusing to fall back to programmatic-only verdict."
-                )
+                if (
+                    reference_evidence is not None
+                    and reference_evidence.reference_error is not None
+                    and self.visual_evidence_enabled
+                ):
+                    error_msg = (
+                        "Reference visual evidence preparation failed at iteration "
+                        f"{iteration}: {reference_evidence.reference_error}. "
+                        "Refusing to fall back to a programmatic-only verdict."
+                    )
+                elif generated_error is not None and self.visual_evidence_enabled:
+                    error_msg = _visual_evidence_failure_message(
+                        error=generated_error,
+                        iteration=iteration,
+                        reference_media_supplied=(
+                            reference_evidence is not None
+                            and reference_evidence.has_reference_media
+                        ),
+                        timeout_seconds=self.visual_evidence_timeout_seconds,
+                    )
+                else:
+                    error_msg = (
+                        f"Judge VLM unavailable at iteration {iteration} "
+                        f"(critique: {judge_result.llm_critique}). "
+                        "Refusing to fall back to a programmatic-only verdict."
+                    )
                 listener.error(f"  {error_msg}")
                 ctx["judge_score"] = judge_result.score
                 ctx["judge_reasoning"] = judge_result.reasoning
@@ -1334,7 +1499,7 @@ class IterativePhysicsRefinementTask:
                         error=error_msg,
                     )
                 )
-                termination_reason = "error"
+                refinement.stop("error")
                 break
 
             # Listener context-key contract — same shape material's loop emits.
@@ -1367,10 +1532,10 @@ class IterativePhysicsRefinementTask:
                 record.cancelled = True
                 record.error = "Refine cancelled by caller"
                 records.append(record)
-                termination_reason = "cancelled"
+                refinement.stop("cancelled")
                 break
 
-            if judge_result.decision == "approve" or iteration >= self.max_iterations:
+            if judge_result.decision == "approve" or refinement_iteration.is_last:
                 record.recording_usd, record.recording_error = (
                     _materialize_winning_recording(
                         history,
@@ -1389,11 +1554,11 @@ class IterativePhysicsRefinementTask:
                 )
                 records.append(record)
                 final_iter_dir = iter_dir
-                termination_reason = "approved"
+                refinement.approve()
                 break
 
             # 5) Refine for the next iteration.
-            if iteration >= self.max_iterations:
+            if refinement_iteration.is_last:
                 listener.info(
                     "  Reached max_iterations; persisting iteration record "
                     "and terminating."
@@ -1406,14 +1571,14 @@ class IterativePhysicsRefinementTask:
                 ctx["continue_iteration"] = False
                 records.append(record)
                 final_iter_dir = iter_dir
-                termination_reason = "max_iterations"
+                refinement.continue_with(scenario)
                 break
 
             if self._cancel_requested():
                 record.cancelled = True
                 record.error = "Refine cancelled by caller"
                 records.append(record)
-                termination_reason = "cancelled"
+                refinement.stop("cancelled")
                 break
 
             # Same wall-clock guard as the judge call (NIM has no
@@ -1467,20 +1632,11 @@ class IterativePhysicsRefinementTask:
             )
 
             # Promote the refined scenario for the next iteration.
-            scenario = refine.scenario
+            refinement.continue_with(refine.scenario)
 
-        # Pick a final iteration dir if we exited without setting one
-        # (e.g. some error path). Skip the final/ snapshot entirely on
-        # error / cancelled termination — final/ is meant to point at a
-        # usable iteration (approve or last continue), and an error iter
-        # has only scenario.yaml + the exception text. Surface the
-        # failure via termination_reason / records[].error instead.
-        if (
-            final_iter_dir is None
-            and records
-            and termination_reason not in ("error", "cancelled")
-        ):
-            final_iter_dir = records[-1].iteration_dir
+        termination_reason = refinement.termination_reason
+        if termination_reason is None:
+            raise RuntimeError("refinement loop ended without a terminal decision")
 
         result = self._write_result_summary(
             records=records,
@@ -1523,17 +1679,13 @@ class IterativePhysicsRefinementTask:
         """Prepare user reference media once for all judge iterations."""
         if not has_reference_media(
             reference_images=self.reference_images,
-            reference_videos=self.reference_videos,
         ):
             return None
         try:
             return prepare_reference_media(
                 reference_images=self.reference_images,
-                reference_videos=self.reference_videos,
                 reference_descriptions=self.reference_descriptions,
-                reference_video_descriptions=self.reference_video_descriptions,
                 output_dir=self.output_dir,
-                frames_per_video=self.reference_video_frames,
             )
         except Exception as exc:  # noqa: BLE001 - surfaced by judge result
             return JudgeVisualEvidence(reference_error=type(exc).__name__)
@@ -1603,10 +1755,9 @@ class IterativePhysicsRefinementTask:
         Picks the best (lowest-score) successful trial from ``history``,
         reads its ``recording_usd`` and ``scene_usd`` paths from
         ``backend_metrics``, and runs the world_understanding render
-        helper to produce a per-frame PNG sequence. Refine deliberately
-        does not encode MP4; the time-sampled recording USD is the portable
-        motion artifact. Render failures are logged and dropped and do not
-        fail the loop.
+        helper to produce a per-frame PNG sequence. The time-sampled recording
+        USD is the portable motion artifact. Render failures are returned and fail
+        closed when generated evidence is required for visual judging.
         """
         successful = [t for t in history if not t.failed]
         if not successful:
@@ -1627,18 +1778,15 @@ class IterativePhysicsRefinementTask:
                 render_time_sampled_usd,
             )
         except ImportError:
-            # The helper ships in PR #66 (issue #50). Until that lands
-            # the iter render is a no-op; not fatal — the tune output,
-            # judge verdict, and refine_summary.json are still complete
-            # without image evidence. Same fallback drop_settle.evaluate() takes.
+            # The caller decides whether this is terminal. Visual judging fails
+            # closed, while an optional artifact-only render may be skipped.
             listener.warning(
-                "  Skipping iter render: render_time_sampled_usd unavailable "
-                "(world_understanding.functions.graphics; ships in PR #66 / issue #50)."
+                "  Skipping iter render: render_time_sampled_usd unavailable."
             )
             return [], "render_time_sampled_usd unavailable"
 
         target = scenario.target or {}
-        renderer = resolve_video_renderer(target)
+        renderer = resolve_frame_renderer(target)
         render_dir = iter_dir / "render"
         cameras = _discover_camera_paths(Path(recording))
         try:
@@ -1648,12 +1796,11 @@ class IterativePhysicsRefinementTask:
                 renderer=renderer,
                 cameras=cameras,
                 fps=int(target.get("sample_fps", 30)),
-                make_mp4=False,
                 max_duration_seconds=float(target.get("duration_s", 2.0)),
-                image_width=int(target.get("video_image_width", 512)),
-                image_height=int(target.get("video_image_height", 512)),
-                num_sensor_updates=int(target.get("video_sensor_updates", 32)),
-                render_mode=str(target.get("video_render_mode", "rt2")),
+                image_width=int(target.get("frame_image_width", 512)),
+                image_height=int(target.get("frame_image_height", 512)),
+                num_sensor_updates=int(target.get("frame_sensor_updates", 32)),
+                render_mode=str(target.get("frame_render_mode", "rt2")),
             )
             listener.info(
                 f"  Rendered winning trial → {render_dir} ({len(frames)} frames)"
@@ -1662,9 +1809,7 @@ class IterativePhysicsRefinementTask:
                 return [], "renderer produced no frames"
             return list(frames), None
         except Exception as exc:
-            listener.warning(
-                f"  Iter render failed (non-fatal): {type(exc).__name__}: {exc}"
-            )
+            listener.warning(f"  Iter render failed: {type(exc).__name__}: {exc}")
             return [], type(exc).__name__
 
     @staticmethod

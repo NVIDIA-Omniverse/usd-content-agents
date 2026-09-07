@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
 
 ARG APP_VERSION=unknown
 ARG GIT_COMMIT=unknown
@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/workspace/world-understanding \
-    TEXTURE_STEP1X_REQUIRED_EXECUTABLES=uv
+    TEXTURE_STEP1X_REQUIRED_EXECUTABLES=""
 
 # Install Ubuntu-patched Python instead of copying the official Python image's
 # /usr/local interpreter into the scanned final image.
@@ -19,6 +19,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         python3.12 \
         python3.12-venv \
+        libpython3.12 \
         ca-certificates \
         libgl1 \
         libstdc++6 \
@@ -56,7 +57,9 @@ RUN python -m pip install --no-cache-dir --upgrade \
         "uvicorn[standard]>=0.34.0,<1.0.0" \
         "python-dotenv==1.2.2" \
         "Pillow>=12.1.1,<13.0.0" \
-        "usd-exchange>=2.3,<3"
+        "numpy>=2.3,<3.0.0" \
+        "usd-exchange>=2.3,<3" \
+    && python -c "from pxr import Usd, UsdGeom, UsdShade"
 
 RUN mkdir -p \
         /var/texture-agent/sessions \

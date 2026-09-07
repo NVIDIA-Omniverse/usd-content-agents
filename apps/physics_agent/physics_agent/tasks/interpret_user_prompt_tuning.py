@@ -5,8 +5,9 @@
 Implements Part 1.1 of the physics-agent tune NL feature (closed issue #51):
 when the user invokes ``physics-agent tune --user-prompt "make this object
 bouncy"`` the runner calls :func:`infer_scenario_from_prompt` here to turn the
-free-form prompt into a validated :class:`physics_agent.tuning.types.Scenario`
-with biased parameter bounds.
+free-form prompt into a validated :class:`physics_agent.tuning.types.Scenario`.
+Initial parameter bounds are omitted so the tuning resolver derives them from
+the authored USD values.
 
 Design contract:
     * Single LLM call (one retry on parser-validation failure).
@@ -48,11 +49,17 @@ from typing import Any
 from world_understanding.functions.graphics.rendering_backend_factory import (
     RENDERING_BACKEND_NAMES,
 )
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+)
 from world_understanding.functions.nlp.chat import generate_chat_response
 
-from physics_agent.tuning.scenario import ScenarioParseError, parse_scenario
+from physics_agent.tuning.scenario import (
+    ScenarioParseError,
+    parse_scenario,
+    validate_scenario_parameters,
+)
 from physics_agent.tuning.types import (
-    DEFAULT_PARAM_BOUNDS,
     SUPPORTED_PARAM_KEYS,
     SUPPORTED_SCENARIOS,
     Scenario,
@@ -65,7 +72,7 @@ logger = logging.getLogger(__name__)
 # Public fallback model + backend per #51 spec. Service deployments override
 # these with PA_TUNE_*, PA_REFINE_*, or PA_VLM_* environment settings so
 # prompt-only /tune uses the same internal model backend as the service.
-_DEFAULT_CHAT_MODEL_NAME = "google/gemma-4-31b-it"
+_DEFAULT_CHAT_MODEL_NAME = "moonshotai/kimi-k3"
 _DEFAULT_CHAT_BACKEND = "nim"
 
 
@@ -86,19 +93,19 @@ _DROP_SETTLE_RESTITUTION_EXAMPLE = {
         "gravity": -9.81,
     },
     "parameters": [
-        {"name": "restitution", "min": 0.4, "max": 0.95},
-        {"name": "mass_scale", "min": 0.7, "max": 1.3},
+        {"name": "restitution"},
+        {"name": "mass_scale"},
     ],
 }
 
 
 def _render_target_prompt_lines() -> str:
-    """Return the shared video-evidence target schema for both scenarios."""
+    """Return the shared frame-evidence target schema for both scenarios."""
     backend_names = " / ".join(f'"{name}"' for name in RENDERING_BACKEND_NAMES)
-    return f"""    record_video  : "off" | "end_of_tune" | "always" (default "off").
-                    Writes the trial's recording to PNG sequence + mp4 for
+    return f"""    record_frames : "off" | "end_of_tune" | "always" (default "off").
+                    Writes the trial's recording to a PNG sequence for
                     visual inspection without requiring a VLM call.
-    video_renderer: backend name override for the render driver
+    frame_renderer: backend name override for the render driver
                     ({backend_names}). Falls back to
                     vlm_renderer, then "ovrtx". ``mock`` creates deterministic
                     test evidence, not production visual evidence."""
@@ -113,9 +120,9 @@ _DROP_SETTLE_CONTACT_EXAMPLE = {
         "gravity": -9.81,
     },
     "parameters": [
-        {"name": "contact_ke", "min": 10000.0, "max": 100000.0},
-        {"name": "contact_kd", "min": 0.0, "max": 1000.0},
-        {"name": "mass_scale", "min": 0.7, "max": 1.3},
+        {"name": "contact_ke"},
+        {"name": "contact_kd"},
+        {"name": "mass_scale"},
     ],
 }
 
@@ -136,8 +143,8 @@ _FREEFORM_EXAMPLE = {
         "observations": ["did the top fall over"],
     },
     "parameters": [
-        {"name": "dynamic_friction", "min": 0.05, "max": 0.4},
-        {"name": "mass_scale", "min": 0.5, "max": 1.5},
+        {"name": "dynamic_friction"},
+        {"name": "mass_scale"},
     ],
 }
 
@@ -170,21 +177,20 @@ def _drop_settle_example_for_params(
         return _DROP_SETTLE_RESTITUTION_EXAMPLE
     if {"contact_ke", "contact_kd"}.issubset(set(supported_param_keys)):
         params = [
-            {"name": "contact_ke", "min": 10000.0, "max": 100000.0},
-            {"name": "contact_kd", "min": 0.0, "max": 1000.0},
+            {"name": "contact_ke"},
+            {"name": "contact_kd"},
         ]
         if "mass_scale" in supported_param_keys:
-            params.append({"name": "mass_scale", "min": 0.7, "max": 1.3})
+            params.append({"name": "mass_scale"})
         return {**_DROP_SETTLE_CONTACT_EXAMPLE, "parameters": params}
     fallback_name = (
         "mass_scale"
         if "mass_scale" in supported_param_keys
         else supported_param_keys[0]
     )
-    lo, hi = DEFAULT_PARAM_BOUNDS[fallback_name]
     return {
         **_DROP_SETTLE_RESTITUTION_EXAMPLE,
-        "parameters": [{"name": fallback_name, "min": lo, "max": hi}],
+        "parameters": [{"name": fallback_name}],
     }
 
 
@@ -192,22 +198,18 @@ def _parameter_guidance(supported_param_keys: tuple[str, ...]) -> str:
     """Build parameter-selection examples that only mention legal keys."""
     lines: list[str] = []
     if "restitution" in supported_param_keys:
-        lines.append('    "bouncy"        -> restitution biased high (e.g. 0.4..0.95)')
+        lines.append('    "bouncy"        -> restitution')
     elif {"contact_ke", "contact_kd"}.issubset(set(supported_param_keys)):
-        lines.append(
-            '    "bouncy"        -> contact_ke biased high and contact_kd biased '
-            "low/moderate"
-        )
+        lines.append('    "bouncy"        -> contact_ke + contact_kd')
     if "mass_scale" in supported_param_keys:
-        lines.append('    "heavy"         -> mass_scale biased high (e.g. 1.2..2.0)')
+        lines.append('    "heavy"         -> mass_scale')
     if {"static_friction", "dynamic_friction"}.issubset(set(supported_param_keys)):
         lines.extend(
             [
                 '    "slippery"/"slick"/"icy"',
-                "                    -> dynamic_friction + static_friction biased low",
-                "                      (e.g. 0.05..0.3)",
+                "                    -> dynamic_friction + static_friction",
                 '    "sticky"/"grippy"',
-                "                    -> static_friction biased high (e.g. 0.7..1.5)",
+                "                    -> static_friction + dynamic_friction",
             ]
         )
     if "restitution" in supported_param_keys and {
@@ -278,11 +280,6 @@ def _build_system_prompt(
     active_param_keys = _normalize_supported_param_keys(supported_param_keys)
     supported_scenarios = ", ".join(sorted(SUPPORTED_SCENARIOS))
     supported_params = ", ".join(sorted(active_param_keys))
-    bounds_lines = "\n".join(
-        f"      - {name}: [{lo}, {hi}]"
-        for name, (lo, hi) in sorted(DEFAULT_PARAM_BOUNDS.items())
-        if name in active_param_keys
-    )
     backend_context = (
         f"\nActive backend: {backend_name}. Only choose tunable parameters from "
         "that backend's allowlist below.\n"
@@ -310,12 +307,12 @@ Top-level keys (all required unless noted):
     metric      : short string identifying the objective (e.g.
                   "settle_distance", "judge_score")
     target      : object — see per-kind keys below
-    parameters  : non-empty list of {{name, min, max}} objects
+    parameters  : non-empty list of {{name}} objects
 
 Tunable parameter ``name`` MUST be one of: [{supported_params}].
-Each parameter has numeric ``min`` and ``max`` (closed interval, min <= max).
-If you are uncertain about a parameter's range, use these defaults:
-{bounds_lines}
+Do NOT emit ``min`` or ``max``. The runtime derives initial bounds from the
+physics values already authored in the input USD. Explicit user scenario
+overrides may still supply min/max and always win during the merge.
 
 ## drop_settle
 
@@ -380,12 +377,11 @@ the validated path with a fixed target schema.
 # Parameter selection
 
 Pick the smallest set of parameters that the user's prompt actually
-constrains, and TIGHTEN their bounds around the user's intent. Examples:
+constrains. Select names only; do not author bounds. Examples:
 {parameter_guidance}
 At minimum, output one parameter. If the prompt is silent on physics
-properties, default to ``mass_scale`` over its full default range when
-``mass_scale`` is available; otherwise choose the broadest relevant allowed
-parameter.
+properties, default to ``mass_scale`` when it is available; otherwise choose
+the most relevant allowed parameter.
 
 # Examples
 
@@ -524,6 +520,27 @@ def _merge_explicit_wins(
     return result
 
 
+def _omit_llm_parameter_bounds(payload: dict[str, Any]) -> dict[str, Any]:
+    """Remove initial bounds authored by the prompt interpreter.
+
+    The input USD, not the language model, owns the center of the first search
+    space. Explicit ``scenario_override`` parameters are merged afterward and
+    therefore remain authoritative.
+    """
+
+    result = dict(payload)
+    raw_parameters = payload.get("parameters")
+    if not isinstance(raw_parameters, list):
+        return result
+    result["parameters"] = [
+        {key: value for key, value in parameter.items() if key not in {"min", "max"}}
+        if isinstance(parameter, dict)
+        else parameter
+        for parameter in raw_parameters
+    ]
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Default chat model resolution
 # ---------------------------------------------------------------------------
@@ -578,6 +595,19 @@ def _resolve_default_chat_model() -> Any:
     }
     if model:
         llm_config["model"] = model
+    reasoning_effort = _first_env(
+        "PA_TUNE_REASONING_EFFORT",
+        "PA_REFINE_REASONING_EFFORT",
+        "PA_VLM_REASONING_EFFORT",
+    )
+    reasoning_effort = resolve_reasoning_effort_for_backend(
+        backend,
+        model,
+        explicit=reasoning_effort,
+        interface="chat",
+    )
+    if reasoning_effort:
+        llm_config["reasoning_effort"] = reasoning_effort
     base_url = _first_env("PA_TUNE_BASE_URL", "PA_REFINE_BASE_URL", "PA_VLM_BASE_URL")
     api_key_env = _first_env(
         "PA_TUNE_API_KEY_ENV",
@@ -726,7 +756,7 @@ def infer_scenario_from_prompt(
             wins on every key conflict. The interpreter only fills gaps the
             user's config did not specify. Must be a dict if provided.
         chat_model: Optional pre-built chat model instance. When ``None`` the
-            project default (``google/gemma-4-31b-it`` on the ``nim``
+            project default (``moonshotai/kimi-k3`` on the ``nim``
             backend) is resolved via
             :func:`world_understanding.functions.models.chat_models.create_chat_model`.
         audit_dir: Optional directory. When set, the post-merge final dict
@@ -756,6 +786,13 @@ def infer_scenario_from_prompt(
             f"scenario_override must be a dict or None, got "
             f"{type(scenario_override).__name__}"
         )
+    if scenario_override is not None and "parameters" in scenario_override:
+        try:
+            validate_scenario_parameters(scenario_override["parameters"])
+        except ScenarioParseError as exc:
+            raise InterpreterError(
+                f"Invalid scenario_override parameters: {exc}"
+            ) from exc
 
     if chat_model is None:
         default_backend, default_model = _default_chat_backend_and_model()
@@ -795,7 +832,7 @@ def infer_scenario_from_prompt(
         )
         try:
             raw_response = _call_llm(chat_model, system_prompt, user_message)
-            llm_dict = _extract_json(raw_response)
+            llm_dict = _omit_llm_parameter_bounds(_extract_json(raw_response))
         except InterpreterError as e:
             # JSON-extraction / LLM-call problems on attempt 0 deserve a
             # retry too — feed the error back as the retry hint.
@@ -845,9 +882,9 @@ def infer_scenario_from_prompt(
                         f"({override_name!r}) than the LLM inferred "
                         f"({llm_name!r}), but did not supply 'parameters'. "
                         "Cross-kind LLM-authored params can't be reused: "
-                        "include 'parameters' in scenario_override (with "
-                        "appropriate bounds for the override's scenario "
-                        "kind), or drop the explicit 'name' override and "
+                        "include 'parameters' in scenario_override for the "
+                        "override's scenario kind, or drop the explicit "
+                        "'name' override and "
                         "let the LLM author both the kind and parameters."
                     )
                 merged = dict(scenario_override)

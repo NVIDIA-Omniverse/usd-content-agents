@@ -14,6 +14,7 @@ from world_understanding.functions.physics.joint_rigger.models import (
     JointRiggerInputV2,
     RigidLinkMemberPlanV1,
     RigidLinkPlanV1,
+    _validate_rigid_link_cross_link_invariants,
     canonical_sha256,
 )
 
@@ -62,7 +63,24 @@ def author_aggregate_rigid_links(stage: Any, request: JointRiggerInputV1) -> Non
 
     if not isinstance(request, JointRiggerInputV2):
         return
-    aggregates = _preflight_source_links(stage, request)
+    _author_aggregate_rigid_link_plans(stage, request.rigid_links)
+
+
+def _author_aggregate_rigid_link_plans(
+    stage: Any,
+    rigid_links: tuple[RigidLinkPlanV1, ...],
+) -> None:
+    """Apply the shared V2 membership policy to an exact rigid-link plan.
+
+    App-owned authorers that already have a stricter, identity-bound request may
+    reuse this private seam without fabricating a second JointRiggerInputV2.
+    The public request path above delegates to the same implementation, so the
+    namespace, metadata, rollback, and transform-preservation policy cannot
+    diverge.
+    """
+
+    _require_valid_exact_rigid_link_plans(rigid_links)
+    aggregates = _preflight_source_links(stage, rigid_links)
     if not aggregates:
         return
 
@@ -123,17 +141,47 @@ def validate_authored_rigid_links(stage: Any, request: JointRiggerInputV1) -> No
 
     if not isinstance(request, JointRiggerInputV2):
         return
-    for link in request.rigid_links:
+    _validate_authored_rigid_link_plans(stage, request.rigid_links)
+
+
+def _validate_authored_rigid_link_plans(
+    stage: Any,
+    rigid_links: tuple[RigidLinkPlanV1, ...],
+) -> None:
+    """Read back one exact rigid-link plan through the shared V2 validator."""
+
+    _require_valid_exact_rigid_link_plans(rigid_links)
+    for link in rigid_links:
         if link.body_authoring == "existing":
             _require_existing_identity_link(stage, link)
             continue
         _validate_authored_aggregate(stage, link, expected_members=None)
 
 
+def _require_valid_exact_rigid_link_plans(
+    rigid_links: tuple[RigidLinkPlanV1, ...],
+) -> None:
+    if type(rigid_links) is not tuple or any(
+        type(link) is not RigidLinkPlanV1 for link in rigid_links
+    ):
+        raise TypeError("rigid_links must contain exact RigidLinkPlanV1 values")
+    try:
+        _validate_rigid_link_cross_link_invariants(rigid_links)
+    except ValueError as exc:
+        _fail("rigid_link_cross_link_invalid", str(exc))
+
+
 def _preflight_source_links(
     stage: Any,
-    request: JointRiggerInputV2,
+    request_or_links: JointRiggerInputV2 | tuple[RigidLinkPlanV1, ...],
 ) -> tuple[_AggregatePreflight, ...]:
+    """Preflight the legacy exact request or the shared exact-plan seam."""
+
+    rigid_links = (
+        request_or_links.rigid_links
+        if isinstance(request_or_links, JointRiggerInputV2)
+        else request_or_links
+    )
     if stage is None:
         _fail("invalid_stage", "stage must not be None")
     root_layer = stage.GetRootLayer()
@@ -147,7 +195,7 @@ def _preflight_source_links(
         _fail("aggregate_root_not_editable", "stage root layer is not editable")
 
     aggregates: list[_AggregatePreflight] = []
-    for link in request.rigid_links:
+    for link in rigid_links:
         if link.body_authoring == "existing":
             _require_existing_identity_link(stage, link)
             continue

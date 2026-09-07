@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Texture Agent Brev"
+  short_description: "Fixed pipeline Texture Agent deployment on Brev"
+  default_prompt: "Use $fixed-pipeline to deploy or smoke-test Texture Agent on Brev with hosted or small local Qwen endpoints."

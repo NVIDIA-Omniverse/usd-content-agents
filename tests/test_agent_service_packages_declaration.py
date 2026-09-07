@@ -3,13 +3,14 @@
 """Regression tests for service package declarations.
 
 `*_agent_service` apps used to declare `[tool.hatch.build.targets.wheel].only-include`
-which ships files but does not register a Python package — so `pip install -e
+which ships files but does not register a Python package -- so `pip install -e
 apps/<svc>_agent_service` produced an empty wheel with no `_editable_impl_*.pth`,
-and `from client.client import ...` from any cwd outside the service directory
-raised `ModuleNotFoundError`.
+and imports from any cwd outside the service directory raised `ModuleNotFoundError`.
 
-The fix switched to `packages = ["service", "client"]`. This test pins that
-declaration so a future edit cannot revert to the broken `only-include` form.
+The fix switched to explicit package declarations. This test pins the legacy
+`service`/`client` packages and the Geometry Agent's collision-resistant
+namespaced packages so a future edit cannot revert to the broken
+`only-include` form.
 """
 
 import tomllib
@@ -30,6 +31,12 @@ TEXTURE_GEN_SERVICE_PYPROJECTS = sorted(
 )
 
 REQUIRED_PACKAGES = {"service", "client"}
+REQUIRED_PACKAGES_BY_PROJECT = {
+    Path("apps/geometry_agent_service/pyproject.toml"): {
+        "geometry_agent_client",
+        "geometry_agent_service",
+    },
+}
 OVRTX_RUNTIME_LOCK_PACKAGE_PATH = (
     "world_understanding/functions/graphics/pylock.ovrtx-runtime.toml"
 )
@@ -86,12 +93,16 @@ def test_service_pyproject_declares_packages(pyproject_path: Path) -> None:
         "Python package, so editable installs produced an empty wheel and "
         "`from client.client import ...` failed."
     )
-    missing = REQUIRED_PACKAGES - set(packages)
+    relative_pyproject = pyproject_path.relative_to(REPO_ROOT)
+    required_packages = REQUIRED_PACKAGES_BY_PROJECT.get(
+        relative_pyproject, REQUIRED_PACKAGES
+    )
+    missing = required_packages - set(packages)
     assert not missing, (
-        f"{pyproject_path.relative_to(REPO_ROOT)} packages={packages!r} is "
-        f"missing {sorted(missing)}. Both `service` and `client` must be "
-        "registered so the documented `from client.client import ...` import "
-        "works for editable installs."
+        f"{relative_pyproject} packages={packages!r} is missing "
+        f"{sorted(missing)}. Every documented service and client package must "
+        "be registered so editable-install imports work outside the project "
+        "directory."
     )
     for package in packages:
         package_init = pyproject_path.parent / package.replace(".", "/") / "__init__.py"

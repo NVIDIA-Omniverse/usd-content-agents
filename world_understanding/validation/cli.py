@@ -624,6 +624,16 @@ def _scaffold_policy_from_request(
     return policy
 
 
+def scaffold_policy_from_request(
+    request: ValidationRequest,
+    *,
+    base_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """Build the resolved scaffold policy used by stable Python runners."""
+
+    return _scaffold_policy_from_request(request, base_dir=base_dir)
+
+
 _POLICY_PATH_SEQUENCE_KEYS: Final = (
     "animation_frame_paths",
     "animation_usd_paths",
@@ -683,6 +693,31 @@ def _resolve_policy_path_fields(
                     field_name=key,
                 )
             )
+
+    qualified_render = resolved.get("qualified_render_evidence")
+    if qualified_render is not None:
+        if not isinstance(qualified_render, list):
+            raise ValidationCliError(
+                "policy.qualified_render_evidence must be a list of records"
+            )
+        resolved_qualified_render: list[dict[str, Any]] = []
+        for index, record in enumerate(qualified_render):
+            if not isinstance(record, Mapping) or not isinstance(
+                record.get("path"), str | Path
+            ):
+                raise ValidationCliError(
+                    f"policy.qualified_render_evidence[{index}] requires a path string"
+                )
+            resolved_record = dict(record)
+            resolved_record["path"] = str(
+                _resolve_policy_path_value(
+                    record["path"],
+                    base_dir,
+                    field_name=f"qualified_render_evidence[{index}].path",
+                )
+            )
+            resolved_qualified_render.append(resolved_record)
+        resolved["qualified_render_evidence"] = resolved_qualified_render
 
     focused = resolved.get("focused_image_paths")
     if isinstance(focused, Mapping):
@@ -777,15 +812,24 @@ def _scaffold_metadata_from_request(request: ValidationRequest) -> dict[str, Any
     return metadata
 
 
-def _finalize_result(
+def scaffold_metadata_from_request(request: ValidationRequest) -> dict[str, Any]:
+    """Build scaffold metadata without exposing CLI-private implementation."""
+
+    return _scaffold_metadata_from_request(request)
+
+
+def finalize_validation_result(
     result: ValidationResult,
     *,
     request: ValidationRequest,
     artifact_paths: Mapping[str, str],
+    runner: str = "validation-agent-cli",
 ) -> ValidationResult:
+    """Apply stable request, artifact, expected-result, and gate policy."""
+
     plan = result.plan.model_copy(update={"artifact_paths": dict(artifact_paths)})
     metadata = dict(result.metadata)
-    metadata.setdefault("runner", "validation-agent-cli")
+    metadata.setdefault("runner", runner)
     stable_result = result.model_copy(
         update={
             "request": request,
@@ -796,6 +840,19 @@ def _finalize_result(
     )
     expected_result = _apply_expected_result_policy(stable_result)
     return _apply_gate_policy(expected_result, request=request)
+
+
+def _finalize_result(
+    result: ValidationResult,
+    *,
+    request: ValidationRequest,
+    artifact_paths: Mapping[str, str],
+) -> ValidationResult:
+    return finalize_validation_result(
+        result,
+        request=request,
+        artifact_paths=artifact_paths,
+    )
 
 
 def _apply_expected_result_policy(result: ValidationResult) -> ValidationResult:

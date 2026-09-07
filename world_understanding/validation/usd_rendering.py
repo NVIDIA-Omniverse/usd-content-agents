@@ -5,10 +5,11 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 import shutil
-from collections.abc import Mapping, Sequence
-from hashlib import blake2s
+from collections.abc import Callable, Mapping, Sequence
+from hashlib import blake2s, sha256
 from pathlib import Path
 from typing import Any, Literal
 
@@ -38,19 +39,32 @@ from world_understanding.validation.rendering_backend_contract import (
 )
 
 RuntimeRenderStatus = Literal["completed", "failed", "unavailable", "skipped"]
+CameraProjection = Literal["perspective", "orthographic"]
 
 logger = logging.getLogger(__name__)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
 
 DEFAULT_RUNTIME_RENDER_VIEWS: tuple[str, ...] = ("+x+y+z",)
 _VALIDATION_RENDERING_SURFACE = "Validation Agent in-run USD rendering"
 _SIDE_VIEW_DIRECTIONS: frozenset[str] = frozenset({"+x", "-x", "+y", "-y", "+z", "-z"})
 _ASSET_KEY_STEM_CHARS = 16
 _ASSET_KEY_DIGEST_CHARS = 8
+_REFLECTION_SAFE_STUDIO_RIG = "ovrtx-reflection-safe-v1"
+_STUDIO_HDRI_PATH = Path(__file__).resolve().parents[1] / "data/env_maps/studio.exr"
 _INVALID_RENDER_BACKEND_LABEL = "invalid"
 _JSON_NORMALIZER = StructuredJsonNormalizer(unsupported_value_policy="stringify")
 _json_value = _JSON_NORMALIZER.value
 _VIEW_GROUP_ALIASES: dict[str, tuple[str, ...]] = {
     "fixed_6": ("+x", "-x", "+y", "-y", "+z", "-z"),
+    "review_6": ("+x", "-x", "+y", "-y", "+z", "+x+y+z"),
 }
 _VIEW_DIRECTION_ALIASES: dict[str, str] = {
     "front": "+y",
@@ -122,11 +136,15 @@ def render_usd_visual_evidence(
     response_cameras: list[str] = []
     render_issues: list[dict[str, Any]] = []
     stage_preparation: list[dict[str, Any]] = []
+    render_invocation_count = 0
     scope_response_cameras = len(usd_paths) > 1
 
     for usd_index, usd_path_value in enumerate(usd_paths):
         usd_path = Path(usd_path_value)
         try:
+            usd_sha256_before_open = (
+                _file_sha256(usd_path) if usd_path.is_file() else None
+            )
             stage = Usd.Stage.Open(str(usd_path))
             if not stage:
                 render_issues.append(
@@ -139,6 +157,24 @@ def render_usd_visual_evidence(
                 )
                 continue
 
+            usd_sha256 = _file_sha256(usd_path)
+            if usd_sha256_before_open is None or usd_sha256 != usd_sha256_before_open:
+                render_issues.append(
+                    _runtime_issue(
+                        code="render.usd_changed_during_open",
+                        severity="fail",
+                        message=(
+                            "USD source changed while it was being opened for rendering; "
+                            "render evidence was not produced."
+                        ),
+                        subject=str(usd_path),
+                        details={
+                            "sha256_before_open": usd_sha256_before_open,
+                            "sha256_after_open": usd_sha256,
+                        },
+                    )
+                )
+                continue
             stage, preparation_metadata = _prepare_stage_for_render(
                 stage,
                 backend_name=backend_name,
@@ -147,17 +183,47 @@ def render_usd_visual_evidence(
             stage_preparation.append(
                 {
                     "usd_path": str(usd_path),
+                    "usd_sha256": usd_sha256,
                     **preparation_metadata,
                 }
             )
             render_asset_base_dir = preparation_metadata.get("asset_base_dir")
+            focus_prim = None
+            focus_prim_path = _optional_string(policy, "render_focus_prim_path")
+            if focus_prim_path:
+                focus_prim = stage.GetPrimAtPath(focus_prim_path)
+                if not focus_prim or not focus_prim.IsValid():
+                    raise ValueError(
+                        f"render focus prim does not exist: {focus_prim_path}"
+                    )
+            isolate_paths = _optional_string_sequence(
+                policy,
+                "render_isolate_prim_paths",
+            )
+            if (
+                focus_prim is not None
+                and isolate_paths
+                and _optional_bool(policy, "render_frame_isolated_context", True)
+            ):
+                focus_prim = None
             camera_specs = tuple(_view_spec(view) for view in views)
+            camera_projection = _camera_projection(policy)
             camera_paths = [
-                _add_view_camera(stage, label=label, direction=direction)
+                _add_view_camera(
+                    stage,
+                    label=label,
+                    direction=direction,
+                    image_width=width,
+                    image_height=height,
+                    focus_prim=focus_prim,
+                    margin=_optional_float(policy, "render_camera_margin", 1.2),
+                    projection=camera_projection,
+                )
                 for label, direction in camera_specs
             ]
             # OvRTXRenderingBackend accepts Usd.Stage here; its implementation
             # exports the stage to a temp USD before isolated subprocess render.
+            render_invocation_count += 1
             render_result = backend.render(
                 stage,
                 cameras=camera_paths,
@@ -166,6 +232,26 @@ def render_usd_visual_evidence(
                 frames=frames,
                 base_dir=render_asset_base_dir,
             )
+            usd_sha256_after_render = (
+                _file_sha256(usd_path) if usd_path.is_file() else None
+            )
+            if usd_sha256_after_render != usd_sha256:
+                render_issues.append(
+                    _runtime_issue(
+                        code="render.usd_changed_during_render",
+                        severity="fail",
+                        message=(
+                            "USD source changed while it was being rendered; "
+                            "render evidence was discarded."
+                        ),
+                        subject=str(usd_path),
+                        details={
+                            "sha256_before_render": usd_sha256,
+                            "sha256_after_render": usd_sha256_after_render,
+                        },
+                    )
+                )
+                continue
         except Exception as exc:
             render_issues.append(
                 _runtime_issue(
@@ -287,6 +373,7 @@ def render_usd_visual_evidence(
                 "image_width": width,
                 "image_height": height,
                 "stage_preparation": stage_preparation,
+                "render_invocation_count": render_invocation_count,
             },
         }
 
@@ -328,6 +415,7 @@ def render_usd_visual_evidence(
             "image_width": width,
             "image_height": height,
             "stage_preparation": stage_preparation,
+            "render_invocation_count": render_invocation_count,
         },
     }
 
@@ -362,7 +450,182 @@ def _prepare_stage_for_render(
         normalize_materials=normalize_materials,
     )
     metadata = {"backend": backend_name, **metadata}
+    isolate_paths = _optional_string_sequence(policy, "render_isolate_prim_paths")
+    if isolate_paths:
+        _isolate_render_prims(prepared_stage, isolate_paths)
+        metadata["isolate_prim_paths"] = list(isolate_paths)
+    focus_prim_path = _optional_string(policy, "render_focus_prim_path")
+    if focus_prim_path:
+        metadata["focus_prim_path"] = focus_prim_path
+    if isolate_paths:
+        metadata["frame_isolated_context"] = _optional_bool(
+            policy,
+            "render_frame_isolated_context",
+            True,
+        )
+    studio_lighting = _optional_bool(policy, "render_studio_lighting", False)
+    if studio_lighting:
+        studio_dome = _optional_bool(policy, "render_studio_dome", True)
+        reflection_safe = _optional_bool(
+            policy,
+            "render_studio_reflection_safe",
+            backend_name == "ovrtx",
+        )
+        studio_dome_intensity = _optional_float(
+            policy,
+            "render_studio_dome_intensity",
+            20.0 if reflection_safe else 350.0,
+            allow_zero=True,
+        )
+        studio_hdri_intensity = _optional_float(
+            policy,
+            "render_studio_hdri_intensity",
+            600.0,
+            allow_zero=True,
+        )
+        studio_reflection_intensity = _optional_float(
+            policy,
+            "render_studio_reflection_intensity",
+            100.0,
+            allow_zero=True,
+        )
+        if (
+            min(
+                studio_dome_intensity,
+                studio_hdri_intensity,
+                studio_reflection_intensity,
+            )
+            < 0.0
+        ):
+            raise ValueError("studio light intensities cannot be negative")
+        _add_neutral_studio_lighting(
+            prepared_stage,
+            include_dome=studio_dome,
+            dome_intensity=studio_dome_intensity,
+            reflection_safe=reflection_safe,
+            hdri_intensity=studio_hdri_intensity,
+            reflection_intensity=studio_reflection_intensity,
+        )
+        metadata["studio_lighting"] = True
+        metadata["studio_dome"] = studio_dome
+        metadata["studio_reflection_safe"] = reflection_safe
+        if studio_dome:
+            metadata["studio_dome_intensity"] = studio_dome_intensity
+        if reflection_safe:
+            metadata.update(
+                {
+                    "studio_rig": _REFLECTION_SAFE_STUDIO_RIG,
+                    "studio_hdri_intensity": studio_hdri_intensity,
+                    "studio_reflection_intensity": studio_reflection_intensity,
+                }
+            )
     return prepared_stage, metadata
+
+
+def _isolate_render_prims(stage: Any, prim_paths: Sequence[str]) -> None:
+    """Hide renderable geometry outside explicit context subtrees."""
+
+    from pxr import Sdf, UsdGeom
+
+    selected = [Sdf.Path(path) for path in prim_paths]
+    missing = [str(path) for path in selected if not stage.GetPrimAtPath(path)]
+    if missing:
+        raise ValueError(f"render isolate prims do not exist: {missing}")
+    for prim in stage.Traverse():
+        if not prim.IsA(UsdGeom.Imageable):
+            continue
+        path = prim.GetPath()
+        if any(path.HasPrefix(root) or root.HasPrefix(path) for root in selected):
+            continue
+        UsdGeom.Imageable(prim).MakeInvisible()
+
+
+def _add_neutral_studio_lighting(
+    stage: Any,
+    *,
+    include_dome: bool = True,
+    dome_intensity: float = 350.0,
+    reflection_safe: bool = False,
+    hdri_intensity: float = 600.0,
+    reflection_intensity: float = 100.0,
+) -> None:
+    """Add neutral key/fill/rim reflections without changing asset materials."""
+
+    from pxr import Gf, Sdf, UsdGeom, UsdLux
+
+    scope_path = Sdf.Path("/__WUStudioLighting")
+    if stage.GetPrimAtPath(scope_path):
+        stage.RemovePrim(scope_path)
+    UsdGeom.Scope.Define(stage, scope_path)
+    if include_dome:
+        dome = UsdLux.DomeLight.Define(stage, scope_path.AppendChild("Dome"))
+        dome.CreateIntensityAttr(float(dome_intensity))
+        dome.CreateColorAttr(Gf.Vec3f(0.92, 0.95, 1.0))
+    if reflection_safe:
+        if not _STUDIO_HDRI_PATH.is_file():
+            raise RuntimeError(f"Studio HDRI is missing: {_STUDIO_HDRI_PATH}")
+        environment = UsdLux.DomeLight.Define(
+            stage,
+            scope_path.AppendChild("Environment"),
+        )
+        environment.CreateIntensityAttr(float(hdri_intensity))
+        environment.GetPrim().CreateAttribute(
+            "inputs:texture:format",
+            Sdf.ValueTypeNames.Token,
+        ).Set("latlong")
+        environment.GetPrim().CreateAttribute(
+            "inputs:texture:file",
+            Sdf.ValueTypeNames.Asset,
+        ).Set(str(_STUDIO_HDRI_PATH))
+        environment.GetPrim().CreateAttribute(
+            "visibleInPrimaryRay",
+            Sdf.ValueTypeNames.Bool,
+        ).Set(False)
+
+    key_lights = (
+        (
+            ("Key", (-42.0, 35.0, -18.0), 2400.0, (1.0, 0.96, 0.9)),
+            ("Fill", (-18.0, -55.0, 28.0), 1400.0, (0.82, 0.9, 1.0)),
+            ("Rim", (35.0, 145.0, 8.0), 1800.0, (1.0, 1.0, 1.0)),
+        )
+        if reflection_safe
+        else (
+            ("Key", (-42.0, 35.0, -18.0), 4200.0, (1.0, 0.96, 0.9)),
+            ("Fill", (-18.0, -55.0, 28.0), 2100.0, (0.82, 0.9, 1.0)),
+            ("Rim", (35.0, 145.0, 8.0), 3000.0, (1.0, 1.0, 1.0)),
+        )
+    )
+    for name, rotation, intensity, color in key_lights:
+        light = UsdLux.DistantLight.Define(stage, scope_path.AppendChild(name))
+        light.CreateIntensityAttr(intensity)
+        light.CreateAngleAttr(10.0 if reflection_safe else 4.0)
+        light.CreateColorAttr(Gf.Vec3f(*color))
+        if reflection_safe:
+            light.GetPrim().CreateAttribute(
+                "visibleInPrimaryRay",
+                Sdf.ValueTypeNames.Bool,
+            ).Set(False)
+        UsdGeom.Xformable(light).AddRotateXYZOp().Set(Gf.Vec3f(*rotation))
+
+    if not reflection_safe or reflection_intensity <= 0.0:
+        return
+    for name, rotation in (
+        ("TopReflection", (0.0, 0.0, 0.0)),
+        ("BottomReflection", (180.0, 0.0, 0.0)),
+        ("PositiveXReflection", (0.0, -90.0, 0.0)),
+        ("NegativeXReflection", (0.0, 90.0, 0.0)),
+        ("PositiveYReflection", (90.0, 0.0, 0.0)),
+        ("NegativeYReflection", (-90.0, 0.0, 0.0)),
+    ):
+        light = UsdLux.DistantLight.Define(stage, scope_path.AppendChild(name))
+        light.CreateIntensityAttr(float(reflection_intensity))
+        light.CreateAngleAttr(12.0)
+        light.CreateColorAttr(Gf.Vec3f(1.0, 1.0, 1.0))
+        light.GetPrim().CreateAttribute(
+            "visibleInPrimaryRay",
+            Sdf.ValueTypeNames.Bool,
+        ).Set(False)
+        UsdGeom.Xformable(light).AddRotateXYZOp().Set(Gf.Vec3f(*rotation))
 
 
 def _create_render_backend(
@@ -395,6 +658,28 @@ def _create_render_backend(
                 },
             )
         backend_config["base_url"] = resolved_base_url
+        # An explicit endpoint-scoped key or redirect policy must win over the
+        # factory's automatic NGC_API_KEY / redirect-following defaults.
+        if "render_api_key" in policy:
+            backend_config["api_key"] = _optional_string(policy, "render_api_key")
+        if "render_allow_redirects" in policy:
+            backend_config["allow_redirects"] = _optional_bool(
+                policy,
+                "render_allow_redirects",
+                True,
+            )
+        if "render_ovrtx_num_sensor_updates" in policy:
+            backend_config["num_sensor_updates"] = _optional_int(
+                policy,
+                "render_ovrtx_num_sensor_updates",
+                32,
+            )
+        if "render_ovrtx_mode" in policy:
+            backend_config["render_mode"] = _optional_stripped_string(
+                policy,
+                "render_ovrtx_mode",
+                "rt2",
+            )
 
     if backend_name == "ovrtx":
         backend_config.update(
@@ -458,6 +743,20 @@ def _create_rendering_backend_from_factory(
 def _validation_render_backend_selection(
     backend_value: Any,
 ) -> str | dict[str, Any]:
+    if backend_value is None:
+        return _failed_result(
+            backend=None,
+            code="render.backend_required",
+            message=(
+                "An explicit rendering backend is required before Validation "
+                "can produce in-run visual evidence."
+            ),
+            details={
+                "reason": "backend_not_selected",
+                "render_backend": None,
+                "supported_render_backends": list(VALIDATION_RENDERING_BACKEND_NAMES),
+            },
+        )
     try:
         return validate_rendering_backend_for_surface(
             backend_value,
@@ -607,32 +906,175 @@ def _view_spec(view: str) -> tuple[str, str]:
     return (view, "+x+y+z")
 
 
+def _camera_projection(policy: Mapping[str, Any]) -> CameraProjection:
+    projection = (
+        _optional_string(policy, "render_camera_projection") or "perspective"
+    ).lower()
+    if projection == "perspective":
+        return "perspective"
+    if projection == "orthographic":
+        return "orthographic"
+    raise ValueError(
+        "render_camera_projection must be 'perspective' or 'orthographic', "
+        f"got {projection!r}"
+    )
+
+
 def _looks_like_direction(value: str) -> bool:
     return bool(re.fullmatch(r"([+-](?:\d+(?:\.\d+)?)?[xyz])+", value.lower()))
 
 
-def _add_view_camera(stage: Any, *, label: str, direction: str) -> str:
+def _add_view_camera(
+    stage: Any,
+    *,
+    label: str,
+    direction: str,
+    image_width: int,
+    image_height: int,
+    focus_prim: Any | None = None,
+    margin: float = 1.2,
+    projection: CameraProjection = "perspective",
+) -> str:
     from world_understanding.utils.usd.camera import (
         add_corner_view_camera,
+        add_focused_corner_view_camera,
+        add_focused_side_view_camera,
         add_side_view_camera,
     )
 
     camera_path = f"/ValidationAgentCameras/{_safe_path_component(label)}"
-    add_camera = (
-        add_side_view_camera
-        if direction in _SIDE_VIEW_DIRECTIONS
-        else add_corner_view_camera
-    )
+    add_camera: Callable[..., Any]
+    if focus_prim is None:
+        add_camera = (
+            add_side_view_camera
+            if direction in _SIDE_VIEW_DIRECTIONS
+            else add_corner_view_camera
+        )
+    else:
+        add_camera = (
+            add_focused_side_view_camera
+            if direction in _SIDE_VIEW_DIRECTIONS
+            else add_focused_corner_view_camera
+        )
+    horizontal_aperture = 36.0
+    vertical_aperture = horizontal_aperture * float(image_height) / float(image_width)
     add_camera(
-        stage,
+        focus_prim if focus_prim is not None else stage,
         camera_path=camera_path,
         direction=_camera_helper_direction(direction),
-        margin=1.2,
+        margin=margin,
         focal_length=50.0,
-        horizontal_aperture=36.0,
-        vertical_aperture=36.0,
+        horizontal_aperture=horizontal_aperture,
+        vertical_aperture=vertical_aperture,
     )
+    if projection == "orthographic":
+        _set_orthographic_camera_framing(
+            stage,
+            camera_path,
+            focus_prim=focus_prim,
+            image_width=image_width,
+            image_height=image_height,
+            margin=margin,
+        )
+    if focus_prim is not None:
+        _expand_camera_clipping_to_visible_geometry(stage, camera_path)
     return camera_path
+
+
+def _set_orthographic_camera_framing(
+    stage: Any,
+    camera_path: str,
+    *,
+    focus_prim: Any | None,
+    image_width: int,
+    image_height: int,
+    margin: float,
+) -> None:
+    """Fit an orthographic filmback to the selected world-space bounds."""
+
+    from pxr import Gf, Usd, UsdGeom
+
+    target = focus_prim if focus_prim is not None else stage.GetPseudoRoot()
+    bbox = UsdGeom.BBoxCache(
+        Usd.TimeCode.Default(),
+        [UsdGeom.Tokens.default_, UsdGeom.Tokens.render],
+        useExtentsHint=True,
+        ignoreVisibility=False,
+    ).ComputeWorldBound(target)
+    aligned_range = bbox.ComputeAlignedRange()
+    if aligned_range.IsEmpty():
+        return
+    camera = UsdGeom.Camera.Get(stage, camera_path)
+    if not camera:
+        return
+    world_to_camera = (
+        UsdGeom.Xformable(camera)
+        .ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        .GetInverse()
+    )
+    minimum = aligned_range.GetMin()
+    maximum = aligned_range.GetMax()
+    camera_points = [
+        world_to_camera.Transform(Gf.Vec3d(x, y, z))
+        for x in (minimum[0], maximum[0])
+        for y in (minimum[1], maximum[1])
+        for z in (minimum[2], maximum[2])
+    ]
+    span_x = max(point[0] for point in camera_points) - min(
+        point[0] for point in camera_points
+    )
+    span_y = max(point[1] for point in camera_points) - min(
+        point[1] for point in camera_points
+    )
+    aspect = float(image_width) / float(image_height)
+    frame_width = max(float(span_x) * margin, float(span_y) * margin * aspect, 1.0e-6)
+    frame_height = frame_width / aspect
+    camera.GetProjectionAttr().Set(UsdGeom.Tokens.orthographic)
+    # USD camera apertures are expressed in tenths of a scene unit.
+    camera.GetHorizontalApertureAttr().Set(frame_width * 10.0)
+    camera.GetVerticalApertureAttr().Set(frame_height * 10.0)
+
+
+def _expand_camera_clipping_to_visible_geometry(stage: Any, camera_path: str) -> None:
+    """Keep focused framing while admitting all visible review context in depth."""
+
+    from pxr import Gf, Usd, UsdGeom
+
+    bbox = UsdGeom.BBoxCache(
+        Usd.TimeCode.Default(),
+        [UsdGeom.Tokens.default_, UsdGeom.Tokens.render],
+        useExtentsHint=True,
+        ignoreVisibility=False,
+    ).ComputeWorldBound(stage.GetPseudoRoot())
+    aligned_range = bbox.ComputeAlignedRange()
+    if aligned_range.IsEmpty():
+        return
+    camera = UsdGeom.Camera.Get(stage, camera_path)
+    if not camera:
+        return
+    transform = UsdGeom.Xformable(camera).ComputeLocalToWorldTransform(
+        Usd.TimeCode.Default()
+    )
+    camera_position = transform.ExtractTranslation()
+    view_direction = transform.TransformDir(Gf.Vec3d(0.0, 0.0, -1.0)).GetNormalized()
+    minimum = aligned_range.GetMin()
+    maximum = aligned_range.GetMax()
+    depths = [
+        Gf.Dot(
+            Gf.Vec3d(x, y, z) - camera_position,
+            view_direction,
+        )
+        for x in (minimum[0], maximum[0])
+        for y in (minimum[1], maximum[1])
+        for z in (minimum[2], maximum[2])
+    ]
+    positive_depths = [float(depth) for depth in depths if depth > 1e-6]
+    if not positive_depths:
+        return
+    existing = camera.GetClippingRangeAttr().Get()
+    near = min(float(existing[0]), max(1e-6, min(positive_depths) * 0.98))
+    far = max(float(existing[1]), max(positive_depths) * 1.02)
+    camera.GetClippingRangeAttr().Set(Gf.Vec2f(near, far))
 
 
 def _camera_helper_direction(direction: str) -> str:
@@ -845,7 +1287,7 @@ def _json_render_response_entry(
     usd_path: Path,
 ) -> dict[str, Any]:
     status = entry.get("status")
-    return {
+    response = {
         "camera": response_camera,
         "camera_label": camera_label,
         "camera_path": camera_path,
@@ -856,6 +1298,14 @@ def _json_render_response_entry(
         "status": str(status) if status is not None else None,
         "error": _json_scalar(entry.get("error")),
     }
+    for field in (
+        "ovrtx_render_mode",
+        "ovrtx_num_sensor_updates",
+        "active_aov",
+    ):
+        if field in entry:
+            response[field] = _json_scalar(entry.get(field))
+    return response
 
 
 def _runtime_issue(
@@ -901,6 +1351,8 @@ def _reset_asset_output_dir(
 ) -> tuple[Path, dict[str, Any] | None]:
     output_dir = output_root / asset_key
     try:
+        if output_root.is_symlink() or output_dir.is_symlink():
+            raise ValueError("render output directories cannot be symlinks")
         output_root_resolved = output_root.resolve()
         output_dir_resolved = output_dir.resolve()
         output_dir_resolved.relative_to(output_root_resolved)
@@ -942,6 +1394,45 @@ def _optional_string(policy: Mapping[str, Any], key: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _optional_string_sequence(policy: Mapping[str, Any], key: str) -> tuple[str, ...]:
+    value = policy.get(key)
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        values = (value,)
+    elif isinstance(value, Sequence) and not isinstance(value, bytes | bytearray):
+        values = tuple(value)
+    else:
+        raise ValueError(f"Invalid string-sequence policy value {key}={value!r}")
+    normalized = tuple(str(item).strip() for item in values if str(item).strip())
+    if any(not item.startswith("/") for item in normalized):
+        raise ValueError(f"USD prim paths in {key} must be absolute: {normalized}")
+    return normalized
+
+
+def _optional_float(
+    policy: Mapping[str, Any],
+    key: str,
+    default: float,
+    *,
+    allow_zero: bool = False,
+) -> float:
+    value = policy.get(key)
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"Invalid float policy value {key}={value!r}")
+    resolved = float(value)
+    if (
+        not math.isfinite(resolved)
+        or resolved < 0.0
+        or (resolved == 0.0 and not allow_zero)
+    ):
+        qualifier = "nonnegative" if allow_zero else "positive"
+        raise ValueError(f"Float policy value {key} must be {qualifier}, got {value!r}")
+    return resolved
+
+
 def _optional_bool(policy: Mapping[str, Any], key: str, default: bool) -> bool:
     value = policy.get(key)
     if isinstance(value, bool):
@@ -970,8 +1461,6 @@ def _optional_stripped_string(
 def _normalized_render_backend(policy: Mapping[str, Any]) -> Any:
     raw_backend_name = policy.get("render_backend")
     backend_name = normalize_validation_rendering_backend(raw_backend_name)
-    if isinstance(raw_backend_name, str) and not raw_backend_name.strip():
-        logger.info("Blank render_backend value defaults to remote")
     if backend_name != raw_backend_name:
         logger.debug(
             "Normalized render_backend value from %r to %r",

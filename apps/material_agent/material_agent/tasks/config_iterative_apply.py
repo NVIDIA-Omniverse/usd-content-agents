@@ -25,8 +25,8 @@ from world_understanding.utils.credentials import (
 
 from material_agent.api.defaults import (
     ITERATION_DEFAULTS,
-    PREDICT_DEFAULTS,
     apply_defaults,
+    get_predict_config_with_defaults,
 )
 from material_agent.materials import (
     material_entries_with_fallback,
@@ -115,7 +115,7 @@ class IterativeApplyConfigTask(Task):
                 predict_config["system_prompt_file"],
                 config_path,
             )
-        predict_config_with_defaults = apply_defaults(predict_config, PREDICT_DEFAULTS)
+        predict_config_with_defaults = get_predict_config_with_defaults(predict_config)
 
         context["vlm_config"] = predict_config_with_defaults.get("vlm", {})
         context["llm_config"] = predict_config_with_defaults.get("llm", {})

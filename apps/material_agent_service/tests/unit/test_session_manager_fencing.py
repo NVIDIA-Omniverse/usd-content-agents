@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -145,6 +147,38 @@ async def test_local_json_compare_and_swap_rejects_stale_versions(
             "session", METADATA_KEY, {"value": "stale-update"}, created_version
         )
     assert await store.get_json("session", METADATA_KEY) == {"value": 2}
+
+
+@pytest.mark.unit
+def test_local_json_lock_retries_and_releases_portable_descriptor_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = LocalSessionStore(str(tmp_path))
+    attempts = 0
+    released: list[int] = []
+    sleeps: list[float] = []
+
+    @contextmanager
+    def portable_lock(descriptor: int) -> Iterator[None]:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise BlockingIOError("busy")
+        try:
+            yield
+        finally:
+            released.append(descriptor)
+
+    monkeypatch.setattr(local_store_module, "exclusive_descriptor_lock", portable_lock)
+    monkeypatch.setattr(local_store_module.time, "sleep", sleeps.append)
+
+    with store._json_lock("session", METADATA_KEY):
+        pass
+
+    assert attempts == 2
+    assert sleeps == [pytest.approx(0.01)]
+    assert len(released) == 1
 
 
 @pytest.mark.unit

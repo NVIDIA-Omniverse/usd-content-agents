@@ -12,17 +12,30 @@ handles both per-material and per-prim modes transparently.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import re
+import tempfile
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path, PureWindowsPath
 from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import unquote, urlparse
 
+from apps.texture_gen_service_common.weathering_intent import (
+    prompt_requests_weathering,
+)
 from world_understanding.agentic.tasks import Task
 from world_understanding.utils.archive import ArchiveSizeLimitExceeded
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    copy_open_file_to_confined,
+    open_confined_directory,
+    open_regular_file_no_follow,
+)
 from world_understanding.utils.usd.package import (
     extract_usdz_member_to_dir,
     resolve_local_package_path,
@@ -33,6 +46,14 @@ from texture_agent.functions.detail_policy import (
     DETAIL_POLICY_DEFAULT,
     DETAIL_POLICY_SURFACE_ONLY,
     SURFACE_ONLY_FORBIDDEN_DETAILS,
+)
+from texture_agent.functions.external_authoring import (
+    EXTERNAL_AUTHORING_FEASIBILITY_SCHEMA_VERSION,
+    ExternalAuthoringCapabilityReceipt,
+    ExternalAuthoringSpec,
+    evaluate_external_authoring_feasibility,
+    unavailable_external_authoring_feasibility,
+    validate_external_authoring_result,
 )
 from texture_agent.functions.material_discovery import (
     PrimTextureUnit,
@@ -47,6 +68,7 @@ from texture_agent.functions.texture_generation import (
     TextureTarget,
     TextureVariationClient,
     TextureVariationConfig,
+    WeatheringControls,
 )
 from texture_agent.tasks.thresholds import (
     raise_if_failure_threshold_exceeded,
@@ -211,24 +233,29 @@ def _backend_diagnostic(
     code: str,
     *,
     severity: str,
-    unit: PrimTextureUnit,
+    unit: PrimTextureUnit | None,
     message: str,
+    stage: str = "generate_textures",
     recommended_action: str = "",
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a texture-agent-diagnostic.v1 payload for backend parsing."""
-    prim_path = unit.prim_path or (
-        unit.material_info.bound_prim_paths[0]
-        if unit.material_info.bound_prim_paths
-        else None
-    )
+    prim_path = None
+    material_name = None
+    if unit is not None:
+        prim_path = unit.prim_path or (
+            unit.material_info.bound_prim_paths[0]
+            if unit.material_info.bound_prim_paths
+            else None
+        )
+        material_name = unit.material_info.name
     return {
         "schema_version": "texture-agent-diagnostic.v1",
         "code": code,
         "severity": severity,
-        "stage": "generate_textures",
+        "stage": stage,
         "prim_path": prim_path,
-        "material_name": unit.material_info.name,
+        "material_name": material_name,
         "message": message,
         "recommended_action": recommended_action,
         "details": details or {},
@@ -403,6 +430,186 @@ def _preflight_step1x_targets(
     return supported, errors, metadata, diagnostics
 
 
+def _external_authoring_spec_from_config(
+    texture_config: dict[str, Any],
+) -> ExternalAuthoringSpec | None:
+    raw = texture_config.get("external_authoring")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("texture.external_authoring must be an object")
+    if raw.get("enabled", True) is False:
+        return None
+    return ExternalAuthoringSpec.from_config(raw)
+
+
+def _external_authoring_no_go_records(
+    units: list[PrimTextureUnit],
+    feasibility: dict[str, Any],
+) -> tuple[
+    list[dict[str, Any]],
+    dict[str, dict[str, Any]],
+    list[dict[str, Any]],
+]:
+    diagnostics = [
+        item for item in feasibility.get("diagnostics", []) if isinstance(item, dict)
+    ]
+    message = (
+        diagnostics[0].get("message")
+        if diagnostics
+        else "External authoring feasibility gate returned no-go."
+    )
+    errors = [
+        {
+            "material": unit.key,
+            "type": "ExternalAuthoringNoGo",
+            "status": None,
+            "message": message,
+        }
+        for unit in units
+    ]
+    metadata = {
+        unit.key: {
+            "maps": {},
+            "auxiliary_artifacts": {},
+            "metadata": {"external_authoring_preflight": feasibility},
+            "capabilities": {},
+            "degraded_channels": [],
+            "diagnostics": diagnostics,
+            "variant_asset_uri": "",
+            "variant_name": unit.key,
+            "endpoint": "",
+        }
+        for unit in units
+    }
+    return errors, metadata, diagnostics
+
+
+def _preflight_external_authoring(
+    units: list[PrimTextureUnit],
+    texture_config: dict[str, Any],
+) -> tuple[
+    list[PrimTextureUnit],
+    list[dict[str, Any]],
+    dict[str, dict[str, Any]],
+    list[dict[str, Any]],
+    ExternalAuthoringSpec | None,
+    ExternalAuthoringCapabilityReceipt | None,
+    dict[str, Any] | None,
+]:
+    """Require a sanitized go receipt before any external DCC job launches."""
+    try:
+        spec = _external_authoring_spec_from_config(texture_config)
+    except ValueError as exc:
+        diagnostic = _backend_diagnostic(
+            "EXTERNAL_AUTHORING_CONTRACT_INVALID",
+            severity="error",
+            unit=None,
+            message="External authoring configuration is invalid.",
+            recommended_action="Fix the versioned external_authoring contract.",
+            details={"error": str(exc)},
+        )
+        feasibility = {
+            "schema_version": EXTERNAL_AUTHORING_FEASIBILITY_SCHEMA_VERSION,
+            "verdict": "no_go",
+            "spec": None,
+            "capabilities": None,
+            "diagnostics": [diagnostic],
+        }
+        errors, metadata, diagnostics = _external_authoring_no_go_records(
+            units, feasibility
+        )
+        return [], errors, metadata, diagnostics, None, None, feasibility
+    if spec is None:
+        return units, [], {}, [], None, None, None
+
+    if texture_config.get("backend", "simple_image_gen") != "service":
+        feasibility = unavailable_external_authoring_feasibility(
+            spec,
+            "texture.backend must be 'service' for external authoring",
+        )
+        errors, metadata, diagnostics = _external_authoring_no_go_records(
+            units, feasibility
+        )
+        return [], errors, metadata, diagnostics, spec, None, feasibility
+    endpoint = str(texture_config.get("endpoint") or "").strip()
+    if not endpoint:
+        feasibility = unavailable_external_authoring_feasibility(
+            spec,
+            "texture.endpoint is required for external authoring",
+        )
+        errors, metadata, diagnostics = _external_authoring_no_go_records(
+            units, feasibility
+        )
+        return [], errors, metadata, diagnostics, spec, None, feasibility
+
+    from texture_agent.functions.rest_client import RestTextureVariationClient
+
+    client = RestTextureVariationClient(endpoint, timeout=60.0)
+    try:
+        receipt = client.preflight_external_authoring(spec)
+    except RuntimeError as exc:
+        feasibility = unavailable_external_authoring_feasibility(spec, str(exc))
+        errors, metadata, diagnostics = _external_authoring_no_go_records(
+            units, feasibility
+        )
+        return [], errors, metadata, diagnostics, spec, None, feasibility
+
+    feasibility = evaluate_external_authoring_feasibility(spec, receipt)
+    unseeded_units = [
+        unit.key
+        for unit in units
+        if unit.seed is None and texture_config.get("seed") is None
+    ]
+    if feasibility["verdict"] == "go" and unseeded_units:
+        feasibility["verdict"] = "no_go"
+        feasibility["diagnostics"].append(
+            _backend_diagnostic(
+                "EXTERNAL_AUTHORING_REPRODUCIBILITY_UNSUPPORTED",
+                severity="error",
+                unit=None,
+                message="External authoring requests require an explicit seed.",
+                recommended_action=(
+                    "Set texture.seed or use deterministic per-unit plan seeds."
+                ),
+                details={"unseeded_unit_ids": unseeded_units},
+            )
+        )
+    if feasibility["verdict"] != "go":
+        errors, metadata, diagnostics = _external_authoring_no_go_records(
+            units, feasibility
+        )
+        return [], errors, metadata, diagnostics, spec, receipt, feasibility
+    return units, [], {}, [], spec, receipt, feasibility
+
+
+def _write_external_authoring_feasibility(
+    working_dir: Path,
+    feasibility: dict[str, Any],
+) -> Path:
+    """Publish the preflight verdict before a later pipeline failure can occur."""
+    working_dir.mkdir(parents=True, exist_ok=True)
+    output_path = working_dir / "external_authoring_feasibility.json"
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=working_dir,
+            prefix=".external_authoring_feasibility.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            json.dump(feasibility, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+            temp_path = Path(handle.name)
+        temp_path.replace(output_path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+    return output_path
+
+
 def _preflight_simple_image_gen_conditioning(
     units: list[PrimTextureUnit],
     context: dict[str, Any],
@@ -451,6 +658,10 @@ def _preflight_simple_image_gen_conditioning(
             unsupported_fields.append("turntable_video_uri")
         if conditioning.multiview_image_uris and not capabilities["multiview"]:
             unsupported_fields.append("multiview_image_uris")
+        if _weathering_controls_for_unit(
+            unit, context, texture_config
+        ) is not None or prompt_requests_weathering(conditioning.text_prompt):
+            unsupported_fields.append("weathering")
         if not unsupported_fields:
             supported.append(unit)
             continue
@@ -466,6 +677,16 @@ def _preflight_simple_image_gen_conditioning(
                 "Download the reference images to local storage and pass local "
                 "paths or file URIs, or select a service backend that can "
                 "materialize remote references."
+            )
+        elif "weathering" in unsupported_fields:
+            message = (
+                "simple_image_gen cannot enforce prompt-requested weathering "
+                "masks or "
+                "material-specific PBR correlation."
+            )
+            recommended_action = (
+                "Select a service backend that advertises weathering and mask "
+                "enforcement capabilities."
             )
         elif not capabilities["image_conditioning"]:
             message = (
@@ -561,6 +782,7 @@ def _capabilities_from_config(texture_config: dict[str, Any]) -> BackendCapabili
         orm=raw.get("orm"),
         masks=raw.get("masks"),
         coverage=raw.get("coverage"),
+        weathering=raw.get("weathering"),
         geometry_output=raw.get("geometry_output"),
     )
 
@@ -645,6 +867,22 @@ def _material_texture_spec(context: dict[str, Any], unit: PrimTextureUnit) -> di
     # specs under a legacy unit key rather than a material identity.
     spec = raw_specs.get(unit.key)
     return spec if isinstance(spec, dict) else {}
+
+
+def _weathering_controls_for_unit(
+    unit: PrimTextureUnit,
+    context: dict[str, Any],
+    texture_config: dict[str, Any],
+) -> WeatheringControls | None:
+    """Return optional precision masks for a prompt-first weathering request."""
+    material_spec = _material_texture_spec(context, unit)
+    raw = material_spec.get("weathering", texture_config.get("weathering"))
+    if raw is None:
+        return None
+    try:
+        return WeatheringControls.model_validate(raw)
+    except ValueError as exc:
+        raise ValueError(f"Invalid weathering controls for {unit.key}: {exc}") from exc
 
 
 def _conditioning_for_unit(
@@ -827,6 +1065,362 @@ def _paths_overlap(a: str, b: str) -> bool:
     return a == b or a.startswith(f"{b}/") or b.startswith(f"{a}/")
 
 
+# Packed-ORM components restored from the asset's authored map. Roughness (G) is
+# deliberately NOT preserved: it is the channel a weathering edit should legitimately
+# move, and the only one measured to correlate with the requested effect. Occlusion
+# and metallic are restored because neither generator derives them from evidence --
+# ``simple_image_gen`` hardcodes R=255/B=0, and Material Anything receives no ORM
+# input at all. See issue #950.
+_PRESERVED_ORM_COMPONENTS = ("occlusion", "metallic")
+
+# Channel index within the packed ORM (R=occlusion, G=roughness, B=metallic).
+_ORM_COMPONENT_CHANNELS = {"occlusion": 0, "roughness": 1, "metallic": 2}
+
+# Components whose authored band must be scaled with nearest-neighbour rather than
+# LANCZOS. Metallic is typically an authored near-binary mask, and LANCZOS overshoots
+# and rings at its edges, inventing intermediate metalness that never existed.
+# Occlusion is a smooth field and interpolates cleanly. Named rather than holding
+# PIL enums because PIL is imported lazily inside the functions below.
+_ORM_COMPONENTS_NEEDING_NEAREST = frozenset({"metallic"})
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_WEATHERING_RECEIPT_DIGESTS = (
+    "source_albedo_sha256",
+    "candidate_albedo_sha256",
+    "candidate_orm_sha256",
+    "final_albedo_sha256",
+    "final_orm_sha256",
+    "weathering_mask_sha256",
+    "source_usd_sha256",
+    "request_sha256",
+)
+
+
+def _local_artifact_sha256(uri_or_path: Any) -> str | None:
+    if not isinstance(uri_or_path, str) or not uri_or_path:
+        return None
+    try:
+        path = _path_from_local_path_or_uri(uri_or_path)
+        if not path.is_file():
+            return None
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def _passing_rust_receipt_matches_result(
+    context: dict[str, Any],
+    unit_key: str,
+    record: dict[str, Any],
+    evidence: dict[str, Any],
+) -> bool:
+    if (
+        evidence.get("schema_version") != "texture-weathering-evidence.v1"
+        or evidence.get("effect") != "rust"
+        or evidence.get("status") != "pass"
+        or evidence.get("failures") != []
+        or not isinstance(evidence.get("metrics"), dict)
+        or not isinstance(evidence.get("thresholds"), dict)
+    ):
+        return False
+    internal_plan = evidence.get("internal_plan")
+    if not isinstance(internal_plan, dict) or internal_plan.get("effect") != "rust":
+        return False
+    artifacts = evidence.get("artifacts")
+    if not isinstance(artifacts, dict):
+        return False
+    if any(
+        not isinstance(artifacts.get(key), str)
+        or _SHA256_RE.fullmatch(artifacts[key]) is None
+        for key in _WEATHERING_RECEIPT_DIGESTS
+    ):
+        return False
+    if _local_artifact_sha256(record.get("source_asset_uri")) != artifacts.get(
+        "source_usd_sha256"
+    ):
+        return False
+
+    generated = context.get("generated_textures")
+    textures = generated.get(unit_key) if isinstance(generated, dict) else None
+    if textures is None:
+        return False
+    if _local_artifact_sha256(getattr(textures, "albedo", None)) != artifacts.get(
+        "final_albedo_sha256"
+    ):
+        return False
+    if _local_artifact_sha256(getattr(textures, "orm", None)) != artifacts.get(
+        "final_orm_sha256"
+    ):
+        return False
+
+    auxiliary = record.get("auxiliary_artifacts")
+    masks = auxiliary.get("masks") if isinstance(auxiliary, dict) else None
+    weathering_mask = masks.get("weathering") if isinstance(masks, dict) else None
+    if not isinstance(weathering_mask, dict):
+        return False
+    mask_digest = artifacts.get("weathering_mask_sha256")
+    if weathering_mask.get("sha256") != mask_digest:
+        return False
+    return _local_artifact_sha256(weathering_mask.get("uri")) == mask_digest
+
+
+def _preserved_orm_components_for_result(
+    context: dict[str, Any],
+    unit_key: str,
+) -> tuple[str, ...]:
+    """Allow localized rust metallic only when its quality receipt passed."""
+    records = context.get("projection_backend_results")
+    if not isinstance(records, dict):
+        return _PRESERVED_ORM_COMPONENTS
+    record = records.get(unit_key)
+    if not isinstance(record, dict):
+        return _PRESERVED_ORM_COMPONENTS
+    metadata = record.get("metadata")
+    if not isinstance(metadata, dict):
+        return _PRESERVED_ORM_COMPONENTS
+    evidence = metadata.get("weathering")
+    if isinstance(evidence, dict) and _passing_rust_receipt_matches_result(
+        context,
+        unit_key,
+        record,
+        evidence,
+    ):
+        return ("occlusion",)
+    return _PRESERVED_ORM_COMPONENTS
+
+
+# Counter fields prepare_uvs reports when it touched UVs. These must stay in sync
+# with the action dicts built in tasks/prepare_uvs.py -- BOTH the python fallback
+# and the scene_optimizer path emit exactly these four names. A field missing from
+# this tuple means the guard below silently never fires for that mutation and
+# authored texels get composited onto a moved atlas, so
+# ``test_guard_covers_every_prepare_uvs_mutation_field`` pins the list.
+_UV_MUTATION_COUNT_FIELDS = (
+    "generated",
+    "fixed_interpolation",
+    "degenerate_repaired",
+    "normalized",
+)
+
+
+def _uv_layout_changed_for_unit(
+    context: dict[str, Any],
+    unit: PrimTextureUnit,
+) -> bool:
+    """True when prepare_uvs may have moved this unit's UV layout.
+
+    An authored ORM is only meaningful in the atlas it was authored against, so
+    preservation must be skipped whenever UVs were generated or normalized for the
+    unit's prims -- otherwise authored texels land on unrelated surface. Conservative
+    by design: an unattributable mutation counts as changed.
+    """
+    uv_preparation = context.get("uv_preparation")
+    if not isinstance(uv_preparation, dict):
+        return False
+
+    def _count(field: str) -> int:
+        # uv_preparation is untyped upstream context, not a validated model. A
+        # bare int() would raise on a string or list and abort the whole step.
+        value = uv_preparation.get(field)
+        return int(value) if isinstance(value, int | float) else 0
+
+    mutated = any(_count(field) > 0 for field in _UV_MUTATION_COUNT_FIELDS)
+    if not mutated:
+        return False
+
+    # Stage-wide scope means the mutation cannot be attributed, so assume it hit.
+    if uv_preparation.get("uv_scope") != "target_prims":
+        return True
+
+    changed_targets = _normalized_path_set(uv_preparation.get("target_prim_paths"))
+    if not changed_targets:
+        return True
+
+    # Subsets matter: a material bound through a `materialBind` GeomSubset has an
+    # EMPTY bound_prim_paths, and in per_material mode an empty prim_path too. Without
+    # the subset paths, unit_targets would be empty, `any()` over nothing would be
+    # False, and the guard would report "UVs did not move" for a mesh whose UVs were
+    # fully regenerated -- failing open on exactly the case it exists to catch.
+    unit_targets = _normalized_path_set(
+        [
+            unit.prim_path,
+            *unit.material_info.bound_prim_paths,
+            *unit.material_info.bound_subset_paths,
+        ]
+    )
+    if not unit_targets:
+        # Nothing to attribute the mutation against; stay conservative.
+        return True
+    return any(
+        _paths_overlap(unit_path, changed_path)
+        for unit_path in unit_targets
+        for changed_path in changed_targets
+    )
+
+
+def _preserve_authored_orm(
+    *,
+    new_generated: dict[str, Any],
+    units: list[PrimTextureUnit],
+    context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Restore authored occlusion/metallic over each freshly generated ORM.
+
+    Runs once for all backends rather than inside each, so ``service`` and
+    ``simple_image_gen`` are covered by a single call site. Idempotent: applying it
+    to an already-composited map is a no-op.
+    """
+    from PIL import Image
+
+    diagnostics: list[dict[str, Any]] = []
+    units_by_key = {unit.key: unit for unit in units}
+    usd_path = context.get("usd_path")
+    if not usd_path:
+        return diagnostics
+    base_usd_path = Path(str(usd_path))
+
+    for key, textures in new_generated.items():
+        generated_orm = getattr(textures, "orm", None)
+        unit = units_by_key.get(key)
+        if unit is None or not generated_orm:
+            continue
+        authored_ref = unit.material_info.orm_texture
+        if not authored_ref:
+            continue
+        if _uv_layout_changed_for_unit(context, unit):
+            logger.info(
+                "Skipping authored ORM preservation for %s: UV layout was regenerated",
+                key,
+            )
+            _append_diagnostic_once(
+                diagnostics,
+                _backend_diagnostic(
+                    "AUTHORED_ORM_NOT_PRESERVED",
+                    severity="warning",
+                    unit=unit,
+                    stage="blend_textures",
+                    message=(
+                        "Authored ORM was not preserved: prepare_uvs changed this "
+                        "unit's UV layout, so authored texels no longer correspond "
+                        "to the atlas."
+                    ),
+                    recommended_action=(
+                        "Re-author the ORM against the prepared UVs, or run with a "
+                        "UV policy that leaves the authored layout intact."
+                    ),
+                    details={"reason": "uv_layout_regenerated"},
+                ),
+            )
+            continue
+
+        authored_path = _resolve_texture_path(authored_ref, base_usd_path=base_usd_path)
+        if authored_path is None or not authored_path.exists():
+            logger.warning(
+                "Authored ORM for %s did not resolve to a readable file: %r",
+                key,
+                authored_ref,
+            )
+            _append_diagnostic_once(
+                diagnostics,
+                _backend_diagnostic(
+                    "AUTHORED_ORM_NOT_PRESERVED",
+                    severity="warning",
+                    unit=unit,
+                    stage="blend_textures",
+                    message=(
+                        "Authored ORM was not preserved: the authored reference did "
+                        "not resolve to a readable file."
+                    ),
+                    recommended_action=(
+                        "Check that the ORM texture ships with the asset and is "
+                        "reachable from the stage."
+                    ),
+                    details={
+                        "reason": "authored_orm_unresolvable",
+                        "authored_ref": str(authored_ref),
+                    },
+                ),
+            )
+            continue
+
+        try:
+            preserved_components = _preserved_orm_components_for_result(context, key)
+            generated_path = _path_from_local_path_or_uri(str(generated_orm))
+            with Image.open(generated_path) as gen_img:
+                generated_rgb = gen_img.convert("RGB")
+                generated_size = generated_rgb.size
+            with Image.open(authored_path) as authored_img:
+                authored_rgb = authored_img.convert("RGB")
+                authored_size = authored_rgb.size
+
+            # Resolve to the LARGER of the two so neither input is ever
+            # downsampled. Downsampling the authored map would smooth away the
+            # very occlusion/metallic detail this is protecting, while
+            # upsampling is information-preserving. Equal sizes resample
+            # nothing.
+            #
+            # Pick whichever map has more pixels and adopt ITS size rather than a
+            # per-axis max: with differing aspect ratios (4096x1024 authored vs
+            # 1024x4096 generated) a per-axis max would be 4096x4096 and stretch
+            # both, corrupting the UV correspondence for every texel.
+            target_size = max(generated_size, authored_size, key=lambda s: s[0] * s[1])
+            if generated_size != target_size:
+                generated_rgb = generated_rgb.resize(
+                    target_size, Image.Resampling.LANCZOS
+                )
+
+            bands = list(generated_rgb.split())
+            authored_bands = list(authored_rgb.split())
+            for component in preserved_components:
+                channel = _ORM_COMPONENT_CHANNELS[component]
+                band = authored_bands[channel]
+                if authored_size != target_size:
+                    band = band.resize(
+                        target_size,
+                        Image.Resampling.NEAREST
+                        if component in _ORM_COMPONENTS_NEEDING_NEAREST
+                        else Image.Resampling.LANCZOS,
+                    )
+                bands[channel] = band
+            Image.merge("RGB", bands).save(generated_path)
+        except (OSError, ValueError, RuntimeError) as exc:
+            logger.warning("Could not preserve authored ORM for %s: %s", key, exc)
+            continue
+
+        _append_diagnostic_once(
+            diagnostics,
+            _backend_diagnostic(
+                "AUTHORED_ORM_PRESERVED",
+                severity="info",
+                unit=unit,
+                stage="blend_textures",
+                message=(
+                    "Restored authored packed-ORM components over the generated "
+                    "ORM; verified localized rust metallic is retained only when "
+                    "its weathering receipt passed."
+                ),
+                details={
+                    "preserved_components": list(preserved_components),
+                    "localized_components": [
+                        component
+                        for component in _PRESERVED_ORM_COMPONENTS
+                        if component not in preserved_components
+                    ],
+                    "source": "preserved_input",
+                    "authored_orm": str(authored_path),
+                    "authored_size": list(authored_size),
+                    "generated_size": list(generated_size),
+                    "output_size": list(target_size),
+                },
+            ),
+        )
+
+    return diagnostics
+
+
 def _rebake_unit_source_textures(
     context: dict[str, Any],
     unit: PrimTextureUnit,
@@ -883,6 +1477,7 @@ def _rebake_unit_source_textures(
         output_usd=rebaked_usd,
         material_path=unit.material_info.prim_path,
         texture_paths=rebaked_textures,
+        required_prim_paths=target_prim_paths,
     )
     logger.info(
         "Rebaked %s source texture map(s) for %s after scoped UV preparation",
@@ -1233,70 +1828,103 @@ def _author_unit_source_usd(
     output_usd: Path,
     material_path: str,
     texture_paths: dict[str, Path],
+    required_prim_paths: Sequence[str] = (),
 ) -> None:
     from pxr import Sdf, Usd, UsdShade
 
     stage = Usd.Stage.Open(str(prepared_usd))
     if stage is None:
         raise RuntimeError(f"Failed to open prepared USD: {prepared_usd}")
-    stage.GetRootLayer().Export(str(output_usd))
+    output_usd.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=f".{output_usd.stem}.",
+        dir=output_usd.parent,
+    ) as temporary_dir:
+        # Let USD create this file so it receives normal umask-derived
+        # permissions. NamedTemporaryFile would publish its private 0600 mode
+        # when the inode is atomically moved to output_usd.
+        temporary_output = Path(temporary_dir) / output_usd.name
+        # Export the composed stage, not the root layer. A layered or packaged
+        # asset reaches its geometry through relative arcs, and exporting only
+        # the root layer into a different directory leaves those arcs dangling.
+        # USD drops an unresolved sublayer with a warning rather than an error,
+        # so the result can open cleanly and contain nothing. See issue #957.
+        flattened = stage.Flatten(addSourceFileComment=False)
+        if not flattened.Export(str(temporary_output)):
+            raise RuntimeError(f"Failed to export rebaked source USD: {output_usd}")
 
-    stage = Usd.Stage.Open(str(output_usd))
-    if stage is None:
-        raise RuntimeError(f"Failed to open rebaked source USD: {output_usd}")
-    material_prim = stage.GetPrimAtPath(material_path)
-    if not material_prim:
-        raise RuntimeError(f"Material path not found for rebake: {material_path}")
-    if material_prim.IsInstanceProxy():
-        raise RuntimeError(
-            f"Material path is an instance proxy and cannot be modified: {material_path}"
-        )
-    if material_prim.IsInstance() or material_prim.IsInstanceable():
-        material_prim.SetInstanceable(False)
+        stage = Usd.Stage.Open(str(temporary_output))
+        if stage is None:
+            raise RuntimeError(f"Failed to open rebaked source USD: {output_usd}")
+        missing_prim_paths = [
+            prim_path
+            for prim_path in required_prim_paths
+            if not stage.GetPrimAtPath(prim_path)
+        ]
+        if missing_prim_paths:
+            raise RuntimeError(
+                "Rebaked source USD lost required target prim path(s): "
+                + ", ".join(missing_prim_paths)
+            )
 
-    resolved_refs = {
-        channel: str(path.resolve()) for channel, path in texture_paths.items()
-    }
-    for channel, attr_names in _REBAKE_AUTHOR_TEXTURE_INPUTS.items():
-        texture_ref = resolved_refs.get(channel)
-        if texture_ref is None:
-            continue
-        for attr_name in attr_names:
-            material_prim.CreateAttribute(
-                attr_name,
-                Sdf.ValueTypeNames.Asset,
-            ).Set(Sdf.AssetPath(texture_ref))
+        material_prim = stage.GetPrimAtPath(material_path)
+        if not material_prim:
+            raise RuntimeError(f"Material path not found for rebake: {material_path}")
+        if material_prim.IsInstanceProxy():
+            raise RuntimeError(
+                "Material path is an instance proxy and cannot be modified: "
+                f"{material_path}"
+            )
+        if material_prim.IsInstance() or material_prim.IsInstanceable():
+            material_prim.SetInstanceable(False)
 
-    for prim in stage.TraverseAll():
-        if not str(prim.GetPath()).startswith(material_path.rstrip("/") + "/"):
-            continue
-        if prim.IsInstanceProxy():
-            continue
-        if prim.IsInstance() or prim.IsInstanceable():
-            prim.SetInstanceable(False)
-        if not prim.IsA(UsdShade.Shader):
-            continue
-        shader = UsdShade.Shader(prim)
-        shader_id = shader.GetIdAttr().Get()
-        shader_channel = _rebake_channel_from_name(prim.GetName())
-        if str(shader_id).lower() == "usduvtexture" and shader_channel in resolved_refs:
-            file_input = shader.GetInput("file")
-            texture_ref = resolved_refs[shader_channel]
-            if file_input:
-                file_input.Set(Sdf.AssetPath(texture_ref))
-            else:
-                shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
-                    Sdf.AssetPath(texture_ref)
-                )
-        for shader_input in shader.GetInputs():
-            channel = _rebake_channel_from_name(shader_input.GetBaseName())
-            texture_ref = resolved_refs.get(channel or "")
+        resolved_refs = {
+            channel: str(path.resolve()) for channel, path in texture_paths.items()
+        }
+        for channel, attr_names in _REBAKE_AUTHOR_TEXTURE_INPUTS.items():
+            texture_ref = resolved_refs.get(channel)
             if texture_ref is None:
                 continue
-            if _coerce_rebake_texture_ref(shader_input.Get()) is None:
+            for attr_name in attr_names:
+                material_prim.CreateAttribute(
+                    attr_name,
+                    Sdf.ValueTypeNames.Asset,
+                ).Set(Sdf.AssetPath(texture_ref))
+
+        for prim in stage.TraverseAll():
+            if not str(prim.GetPath()).startswith(material_path.rstrip("/") + "/"):
                 continue
-            shader_input.Set(Sdf.AssetPath(texture_ref))
-    stage.GetRootLayer().Save()
+            if prim.IsInstanceProxy():
+                continue
+            if prim.IsInstance() or prim.IsInstanceable():
+                prim.SetInstanceable(False)
+            if not prim.IsA(UsdShade.Shader):
+                continue
+            shader = UsdShade.Shader(prim)
+            shader_id = shader.GetIdAttr().Get()
+            shader_channel = _rebake_channel_from_name(prim.GetName())
+            if (
+                str(shader_id).lower() == "usduvtexture"
+                and shader_channel in resolved_refs
+            ):
+                file_input = shader.GetInput("file")
+                texture_ref = resolved_refs[shader_channel]
+                if file_input:
+                    file_input.Set(Sdf.AssetPath(texture_ref))
+                else:
+                    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+                        Sdf.AssetPath(texture_ref)
+                    )
+            for shader_input in shader.GetInputs():
+                channel = _rebake_channel_from_name(shader_input.GetBaseName())
+                texture_ref = resolved_refs.get(channel or "")
+                if texture_ref is None:
+                    continue
+                if _coerce_rebake_texture_ref(shader_input.Get()) is None:
+                    continue
+                shader_input.Set(Sdf.AssetPath(texture_ref))
+        stage.GetRootLayer().Save()
+        temporary_output.replace(output_usd)
 
 
 def _positive_int(value: Any) -> int | None:
@@ -1648,6 +2276,8 @@ class GenerateTexturesTask(Task):
         context: dict[str, Any],
         out_dir: Path,
         texture_config: dict,
+        external_authoring_spec: ExternalAuthoringSpec | None = None,
+        external_authoring_receipt: ExternalAuthoringCapabilityReceipt | None = None,
     ) -> tuple[dict[str, GeneratedTextures], list[dict[str, Any]], str]:
         """Generate textures using a remote REST service.
 
@@ -1702,6 +2332,9 @@ class GenerateTexturesTask(Task):
                 texture_config,
                 out_dir,
             )
+            resolved_seed = (
+                unit.seed if unit.seed is not None else texture_config.get("seed")
+            )
             status = client.generate(
                 source_asset_uri=source_asset_uri,
                 target=_service_target_for_unit(unit, texture_config),
@@ -1709,17 +2342,21 @@ class GenerateTexturesTask(Task):
                 config=TextureVariationConfig(
                     strength=texture_config.get("strength", unit.opacity),
                     variant_name=unit.key,
-                    seed=unit.seed
-                    if unit.seed is not None
-                    else texture_config.get("seed"),
+                    seed=resolved_seed,
                     engine=texture_config.get("engine"),
                     texture_size=texture_config.get("size"),
+                    weathering=_weathering_controls_for_unit(
+                        unit,
+                        context,
+                        texture_config,
+                    ),
                     custom_parameters=_custom_parameters_for_unit(
                         texture_config,
                         unit,
                     ),
                 ),
                 capabilities=capabilities,
+                external_authoring=external_authoring_spec,
                 wait=True,
                 timeout_sec=job_timeout_sec,
             )
@@ -1753,14 +2390,40 @@ class GenerateTexturesTask(Task):
                     ),
                 )
 
-            local_textures, backend_record = self._materialize_service_result(
-                status.result,
-                unit=unit,
-                conditioning=conditioning,
-                out_dir=out_dir,
-                endpoint=endpoint,
-                expected_size=texture_config.get("size"),
+            local_textures, backend_record, backend_map_paths = (
+                self._materialize_service_result(
+                    status.result,
+                    unit=unit,
+                    conditioning=conditioning,
+                    out_dir=out_dir,
+                    endpoint=endpoint,
+                    expected_size=texture_config.get("size"),
+                )
             )
+            backend_record["source_asset_uri"] = source_asset_uri
+            if external_authoring_spec is not None:
+                if external_authoring_receipt is None:
+                    raise AssertionError(
+                        "External authoring dispatch requires a go preflight receipt"
+                    )
+                authoring_diagnostics = validate_external_authoring_result(
+                    spec=external_authoring_spec,
+                    receipt=external_authoring_receipt,
+                    metadata=status.result.metadata or {},
+                    auxiliary_artifacts=status.result.auxiliary_artifacts or {},
+                    source_asset_uri=source_asset_uri,
+                    seed=resolved_seed,
+                    map_paths=backend_map_paths,
+                )
+                for diagnostic in authoring_diagnostics:
+                    _append_diagnostic_once(backend_record["diagnostics"], diagnostic)
+                if any(
+                    item.get("severity") == "error" for item in authoring_diagnostics
+                ):
+                    raise _BackendResultError(
+                        "External authoring result failed provenance validation",
+                        backend_record,
+                    )
             try:
                 _validate_textures_or_raise(
                     unit.key,
@@ -1845,10 +2508,32 @@ class GenerateTexturesTask(Task):
             return uri
 
         if remote_path.exists():
-            import shutil
-
+            trusted_root = out_dir.parent.resolve(strict=True)
+            lexical_source = Path(os.path.abspath(remote_path.expanduser()))
+            if not lexical_source.is_relative_to(trusted_root):
+                raise RuntimeError(
+                    "Texture backend returned a local artifact outside the current "
+                    f"task workspace: {remote_path}"
+                )
             local_path = out_dir / f"{key}_{suffix}.png"
-            shutil.copy2(remote_path, str(local_path))
+            try:
+                with open_regular_file_no_follow(lexical_source) as (
+                    source,
+                    source_metadata,
+                ):
+                    with open_confined_directory(out_dir) as output_descriptor:
+                        copy_open_file_to_confined(
+                            output_descriptor,
+                            local_path.name,
+                            source,
+                            source_metadata,
+                            overwrite=True,
+                        )
+            except (ArtifactPathError, FileNotFoundError, OSError) as exc:
+                raise RuntimeError(
+                    "Texture backend returned a local artifact outside the current "
+                    f"task workspace: {remote_path}"
+                ) from exc
             return str(local_path)
         return uri
 
@@ -2149,8 +2834,8 @@ class GenerateTexturesTask(Task):
         out_dir: Path,
         endpoint: str,
         expected_size: Any = None,
-    ) -> tuple[GeneratedTextures, dict[str, Any]]:
-        """Normalize service maps into local GeneratedTextures for downstream."""
+    ) -> tuple[GeneratedTextures, dict[str, Any], dict[str, str]]:
+        """Normalize service maps and retain paths actually returned by the backend."""
         diagnostics = [
             item for item in (result.diagnostics or []) if isinstance(item, dict)
         ]
@@ -2206,7 +2891,13 @@ class GenerateTexturesTask(Task):
         )
         expected_dimensions = _expected_size_tuple(expected_size)
         if expected_dimensions:
-            size = expected_dimensions
+            # The backend may publish an upscaled albedo while omitting an
+            # optional PBR map. Synthetic fallbacks must follow that published
+            # atlas instead of shrinking back to the configured request size.
+            size = (
+                max(size[0], expected_dimensions[0]),
+                max(size[1], expected_dimensions[1]),
+            )
 
         local_normal = cls._localize_map(maps, "normal", unit.key, out_dir)
         if not local_normal:
@@ -2219,6 +2910,10 @@ class GenerateTexturesTask(Task):
             unit=unit,
             diagnostics=diagnostics,
         )
+        backend_map_paths = {
+            "albedo": local_albedo,
+            "normal": local_normal,
+        }
         if not local_normal:
             normal_path = out_dir / f"{unit.key}_normal.png"
             cls._write_neutral_normal(normal_path, size)
@@ -2251,6 +2946,7 @@ class GenerateTexturesTask(Task):
             unit=unit,
             diagnostics=diagnostics,
         )
+        backend_map_paths["orm"] = local_orm
         if not local_orm:
             roughness_path = cls._localize_map(maps, "roughness", unit.key, out_dir)
             metalness_path = cls._localize_map(maps, "metalness", unit.key, out_dir)
@@ -2324,12 +3020,24 @@ class GenerateTexturesTask(Task):
             maps=maps,
             diagnostics=diagnostics,
         )
+        auxiliary = backend_record.get("auxiliary_artifacts")
+        masks = auxiliary.get("masks") if isinstance(auxiliary, dict) else None
+        weathering_mask = masks.get("weathering") if isinstance(masks, dict) else None
+        if isinstance(weathering_mask, dict):
+            localized_mask = cls._localize_artifact_uri(
+                str(weathering_mask.get("uri") or ""),
+                unit.key,
+                "weathering_mask",
+                out_dir,
+            )
+            if localized_mask:
+                weathering_mask["uri"] = localized_mask
         if unit.detail_policy != DETAIL_POLICY_DEFAULT:
             backend_record["metadata"] = {
                 **backend_record.get("metadata", {}),
                 "detail_policy": unit.detail_policy,
             }
-        return textures, backend_record
+        return textures, backend_record, backend_map_paths
 
     @staticmethod
     def _localize_textures(
@@ -2383,6 +3091,19 @@ class GenerateTexturesTask(Task):
         skip_existing = bool(context.get("resume")) or texture_config.get(
             "skip_existing", True
         )
+        external_authoring_config = texture_config.get("external_authoring")
+        external_authoring_requested = external_authoring_config is not None and not (
+            isinstance(external_authoring_config, dict)
+            and external_authoring_config.get("enabled", True) is False
+        )
+        if external_authoring_requested and skip_existing:
+            # Existing flat texture caches do not carry the source/spec/tool
+            # receipt needed to prove they came from this preflight environment.
+            # Regenerate until cache entries have their own digest-bound receipt.
+            logger.info(
+                "External authoring disables unbound generated-texture cache reuse"
+            )
+            skip_existing = False
 
         # Validate the threshold BEFORE any backend dispatch so a typo
         # (``failure_threshold: "nan"`` / ``1.1``) fails fast instead of
@@ -2429,13 +3150,37 @@ class GenerateTexturesTask(Task):
         preflight_diagnostics: list[dict[str, Any]] = []
         dispatch_units = list(to_generate)
 
+        (
+            dispatch_units,
+            external_preflight_errors,
+            external_preflight_metadata,
+            external_preflight_diagnostics,
+            external_authoring_spec,
+            external_authoring_receipt,
+            external_authoring_feasibility,
+        ) = _preflight_external_authoring(dispatch_units, texture_config)
+        preflight_errors.extend(external_preflight_errors)
+        preflight_metadata.update(external_preflight_metadata)
+        preflight_diagnostics.extend(external_preflight_diagnostics)
+        if external_authoring_feasibility is not None:
+            context["external_authoring_preflight"] = external_authoring_feasibility
+            context["external_authoring_preflight_path"] = str(
+                _write_external_authoring_feasibility(
+                    working_dir,
+                    external_authoring_feasibility,
+                )
+            )
+
         if backend == "service":
             (
                 dispatch_units,
-                preflight_errors,
-                preflight_metadata,
-                preflight_diagnostics,
-            ) = _preflight_step1x_targets(to_generate, texture_config)
+                step1x_preflight_errors,
+                step1x_preflight_metadata,
+                step1x_preflight_diagnostics,
+            ) = _preflight_step1x_targets(dispatch_units, texture_config)
+            preflight_errors.extend(step1x_preflight_errors)
+            preflight_metadata.update(step1x_preflight_metadata)
+            preflight_diagnostics.extend(step1x_preflight_diagnostics)
 
         (
             dispatch_units,
@@ -2459,7 +3204,12 @@ class GenerateTexturesTask(Task):
         if backend == "service":
             if dispatch_units:
                 new_generated, errors, backend_label = self._run_service(
-                    dispatch_units, context, out_dir, texture_config
+                    dispatch_units,
+                    context,
+                    out_dir,
+                    texture_config,
+                    external_authoring_spec,
+                    external_authoring_receipt,
                 )
             else:
                 new_generated = {}

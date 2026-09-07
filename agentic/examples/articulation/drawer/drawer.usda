@@ -1,0 +1,86 @@
+#usda 1.0
+(
+    defaultPrim = "MiniCabinet"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "MiniCabinet" (
+    kind = "assembly"
+)
+{
+    def Xform "Frame" (
+        kind = "component"
+    )
+    {
+        def Cube "LeftPanel"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.22, 0.24, 0.28)]
+            float3 xformOp:scale = (0.12, 1.2, 2.0)
+            double3 xformOp:translate = (-0.94, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "RightPanel"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.22, 0.24, 0.28)]
+            float3 xformOp:scale = (0.12, 1.2, 2.0)
+            double3 xformOp:translate = (0.94, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "TopPanel"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.22, 0.24, 0.28)]
+            float3 xformOp:scale = (2.0, 1.2, 0.12)
+            double3 xformOp:translate = (0, 0, 1.94)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "BottomPanel"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.22, 0.24, 0.28)]
+            float3 xformOp:scale = (2.0, 1.2, 0.12)
+            double3 xformOp:translate = (0, 0, 0.06)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "BackPanel"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.18, 0.20, 0.24)]
+            float3 xformOp:scale = (1.76, 0.10, 1.76)
+            double3 xformOp:translate = (0, 0.55, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Xform "Drawer" (
+        kind = "component"
+    )
+    {
+        custom string semantic:description = "single drawer that slides along the Y axis"
+
+        def Cube "DrawerBody"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.16, 0.42, 0.72)]
+            float3 xformOp:scale = (1.62, 0.92, 0.72)
+            double3 xformOp:translate = (0, -0.20, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "DrawerFront"
+        {
+            double size = 1
+            float3[] primvars:displayColor = [(0.10, 0.30, 0.58)]
+            float3 xformOp:scale = (1.76, 0.10, 0.82)
+            double3 xformOp:translate = (0, -0.70, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+}

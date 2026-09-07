@@ -4,6 +4,7 @@ import logging
 import math
 import random
 from collections.abc import Iterable, Iterator
+from pathlib import Path
 from typing import Any
 
 from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdLux, UsdShade, Vt
@@ -843,6 +844,8 @@ convert_class_prototypes_to_xforms = convert_abstract_prototypes_to_def
 def flatten_prototype_references(
     stage: Usd.Stage,
     remove_prototypes: bool = True,
+    *,
+    preserve_resolved_asset_paths: bool = False,
 ) -> Sdf.Layer:
     """Flatten a stage by copying composed values, resolving all references.
 
@@ -857,6 +860,11 @@ def flatten_prototype_references(
     Args:
         stage: The USD stage to flatten.
         remove_prototypes: If True, exclude Flattened_Prototype_* prims from output.
+        preserve_resolved_asset_paths: If True, replace composed asset values with
+            their resolved paths while copying them. This is intended for a
+            subsequent portable export, which localizes those paths into a
+            bounded output package. Bare MDL module tokens remain unchanged for
+            runtime resolution.
 
     Returns:
         A new Sdf.Layer with flattened content.
@@ -898,6 +906,50 @@ def flatten_prototype_references(
     # Always preserve metersPerUnit — skipping the default (0.01) caused
     # the value to be silently lost when the source stage used 1.0 (meters).
     target_pseudoroot.SetInfo("metersPerUnit", meters_per_unit)
+
+    def _asset_owner_layer(attr: Usd.Attribute, time_code: Usd.TimeCode) -> Sdf.Layer:
+        """Return the strongest layer contributing an asset value."""
+        property_stack = attr.GetPropertyStack(time_code)
+        for spec in property_stack:
+            if not isinstance(spec, Sdf.AttributeSpec):
+                continue
+            if time_code.IsDefault() and spec.HasDefaultValue():
+                return spec.layer
+            if not time_code.IsDefault() and spec.layer.ListTimeSamplesForPath(
+                spec.path
+            ):
+                return spec.layer
+        for spec in property_stack:
+            if isinstance(spec, Sdf.AttributeSpec):
+                return spec.layer
+        return stage.GetRootLayer()
+
+    def _resolved_asset_value(value: Any, owner_layer: Sdf.Layer) -> Any:
+        """Preserve the composed anchor for asset values in a flattened layer."""
+
+        def resolve_one(asset: Sdf.AssetPath) -> Sdf.AssetPath:
+            raw = asset.path
+            token = raw.strip("@")
+            is_runtime_mdl = (
+                bool(token)
+                and ":" not in token
+                and "/" not in token
+                and "\\" not in token
+                and Path(token).suffix.lower() == ".mdl"
+            )
+            if asset.resolvedPath and not is_runtime_mdl:
+                return Sdf.AssetPath(asset.resolvedPath)
+            if raw and not is_runtime_mdl:
+                anchored = Sdf.ComputeAssetPathRelativeToLayer(owner_layer, raw)
+                if anchored:
+                    return Sdf.AssetPath(anchored)
+            return asset
+
+        if isinstance(value, Sdf.AssetPath):
+            return resolve_one(value)
+        if isinstance(value, Sdf.AssetPathArray):
+            return Sdf.AssetPathArray([resolve_one(asset) for asset in value])
+        return value
 
     def _should_skip_path(prim_path: Sdf.Path) -> bool:
         """Check if prim path should be skipped (prototype paths)."""
@@ -1042,7 +1094,36 @@ def flatten_prototype_references(
                     elif has_value:
                         val = attr.Get()
                         if val is not None:
-                            attr_spec.default = val
+                            attr_spec.default = (
+                                _resolved_asset_value(
+                                    val,
+                                    _asset_owner_layer(
+                                        attr,
+                                        Usd.TimeCode.Default(),
+                                    ),
+                                )
+                                if preserve_resolved_asset_paths
+                                else val
+                            )
+
+                    if preserve_resolved_asset_paths and attr.GetTypeName() in {
+                        Sdf.ValueTypeNames.Asset,
+                        Sdf.ValueTypeNames.AssetArray,
+                    }:
+                        for time_code in attr.GetTimeSamples():
+                            sample = attr.Get(time_code)
+                            if sample is not None:
+                                target_layer.SetTimeSample(
+                                    attr_spec.path,
+                                    time_code,
+                                    _resolved_asset_value(
+                                        sample,
+                                        _asset_owner_layer(
+                                            attr,
+                                            Usd.TimeCode(time_code),
+                                        ),
+                                    ),
+                                )
 
                     # Copy connections (for shader networks)
                     if connections:

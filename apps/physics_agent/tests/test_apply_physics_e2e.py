@@ -12,19 +12,21 @@ Skipped if `pxr` isn't importable.
 from __future__ import annotations
 
 import json
+import shutil
 import zipfile
 from pathlib import Path
 
 import pytest
 
 pxr = pytest.importorskip("pxr", reason="USD (pxr) not available in this env")
-from pxr import Sdf, Usd, UsdGeom, UsdPhysics, UsdShade  # noqa: E402
+from pxr import Ar, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, UsdUtils  # noqa: E402
 
 from physics_agent.functions.apply_physics import (  # noqa: E402
     PhysicsAuthoringError,
-    _copy_usdz_asset_for_flattened_output,
+    _apply_predictions_to_stage,
     _create_physics_material,
     _create_usdz_package,
+    _is_runtime_resolved_asset_path,
     apply_physics,
 )
 
@@ -104,6 +106,31 @@ def _write_instanced_usd(tmp_path: Path) -> Path:
     instance = UsdGeom.Xform.Define(stage, "/World/Inst").GetPrim()
     instance.GetReferences().AddReference(str(asset_path), "/Model")
     instance.SetInstanceable(True)
+    stage.GetRootLayer().Save()
+    return stage_path
+
+
+def _write_default_prim_instance_usd(
+    tmp_path: Path,
+    *,
+    with_physics_scene: bool = False,
+) -> Path:
+    asset_path = tmp_path / "referenced_default_model.usda"
+    asset_stage = Usd.Stage.CreateNew(str(asset_path))
+    model = UsdGeom.Xform.Define(asset_stage, "/Model")
+    asset_stage.SetDefaultPrim(model.GetPrim())
+    UsdGeom.Cube.Define(asset_stage, "/Model/Cube")
+    if with_physics_scene:
+        scene = UsdPhysics.Scene.Define(asset_stage, "/Model/PhysicsScene")
+        scene.CreateGravityMagnitudeAttr(123.0)
+    asset_stage.GetRootLayer().Save()
+
+    stage_path = tmp_path / "default_prim_instance.usda"
+    stage = Usd.Stage.CreateNew(str(stage_path))
+    world = UsdGeom.Xform.Define(stage, "/World")
+    world.GetPrim().GetReferences().AddReference(str(asset_path), "/Model")
+    world.GetPrim().SetInstanceable(True)
+    stage.SetDefaultPrim(world.GetPrim())
     stage.GetRootLayer().Save()
     return stage_path
 
@@ -325,6 +352,193 @@ def test_apply_physics_authors_expected_schemas(
     )
 
 
+@pytest.mark.parametrize(
+    ("meters_per_unit", "expected_gravity_stage_units"),
+    [(None, 981.0), (0.01, 981.0), (0.1, 98.1), (1.0, 9.81)],
+)
+def test_apply_physics_authors_earth_gravity_in_customer_stage_units(
+    tmp_path: Path,
+    meters_per_unit: float | None,
+    expected_gravity_stage_units: float,
+) -> None:
+    source = tmp_path / "source.usda"
+    output = tmp_path / "output.usda"
+    predictions = tmp_path / "predictions.jsonl"
+    stage = Usd.Stage.CreateNew(str(source))
+    world = UsdGeom.Xform.Define(stage, "/World")
+    stage.SetDefaultPrim(world.GetPrim())
+    UsdGeom.Cube.Define(stage, "/World/Cube")
+    if meters_per_unit is not None:
+        UsdGeom.SetStageMetersPerUnit(stage, meters_per_unit)
+    stage.GetRootLayer().Save()
+    _write_jsonl(
+        predictions,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _metal_props()},
+            }
+        ],
+    )
+
+    apply_physics(str(source), str(predictions), str(output))
+
+    result = Usd.Stage.Open(str(output))
+    assert result is not None
+    assert UsdGeom.StageHasAuthoredMetersPerUnit(result) is (
+        meters_per_unit is not None
+    )
+    resolved_mpu = float(UsdGeom.GetStageMetersPerUnit(result))
+    scene_prim = next(prim for prim in result.Traverse() if prim.IsA(UsdPhysics.Scene))
+    gravity = float(UsdPhysics.Scene(scene_prim).GetGravityMagnitudeAttr().Get())
+    assert gravity == pytest.approx(expected_gravity_stage_units, rel=1e-6)
+    assert gravity * resolved_mpu == pytest.approx(9.81, rel=1e-6)
+
+
+def test_apply_physics_preserves_existing_customer_gravity(tmp_path: Path) -> None:
+    source = tmp_path / "source.usda"
+    output = tmp_path / "output.usda"
+    predictions = tmp_path / "predictions.jsonl"
+    stage = Usd.Stage.CreateNew(str(source))
+    world = UsdGeom.Xform.Define(stage, "/World")
+    stage.SetDefaultPrim(world.GetPrim())
+    UsdGeom.SetStageMetersPerUnit(stage, 0.01)
+    UsdGeom.Cube.Define(stage, "/World/Cube")
+    customer_scene = UsdPhysics.Scene.Define(stage, "/World/CustomerPhysics")
+    customer_scene.CreateGravityMagnitudeAttr(123.0)
+    stage.GetRootLayer().Save()
+    _write_jsonl(
+        predictions,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _metal_props()},
+            }
+        ],
+    )
+
+    apply_physics(str(source), str(predictions), str(output))
+
+    result = Usd.Stage.Open(str(output))
+    assert result is not None
+    scenes = [prim for prim in result.Traverse() if prim.IsA(UsdPhysics.Scene)]
+    assert [str(prim.GetPath()) for prim in scenes] == ["/World/CustomerPhysics"]
+    gravity = UsdPhysics.Scene(scenes[0]).GetGravityMagnitudeAttr().Get()
+    assert gravity == pytest.approx(123.0)
+
+
+def test_apply_physics_deinstances_default_prim_before_scene_authoring(
+    tmp_path: Path,
+) -> None:
+    source = _write_default_prim_instance_usd(tmp_path)
+    output = tmp_path / "output.usda"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _glass_props()},
+            }
+        ],
+    )
+
+    apply_physics(str(source), str(predictions), str(output))
+
+    result = Usd.Stage.Open(str(output))
+    assert result is not None
+    assert not result.GetDefaultPrim().IsInstanceable()
+    assert result.GetPrimAtPath("/World/PhysicsScene").IsA(UsdPhysics.Scene)
+    cube = result.GetPrimAtPath("/World/Cube")
+    assert not cube.IsInstanceProxy()
+    assert cube.HasAPI(UsdPhysics.CollisionAPI)
+
+
+def test_apply_physics_detects_existing_instance_proxy_scene(tmp_path: Path) -> None:
+    source = _write_default_prim_instance_usd(tmp_path, with_physics_scene=True)
+    output = tmp_path / "output.usda"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(predictions, [])
+
+    apply_physics(
+        str(source),
+        str(predictions),
+        str(output),
+        allow_empty_predictions=True,
+        author_rigid_body=False,
+    )
+
+    result = Usd.Stage.Open(str(output))
+    assert result is not None
+    assert result.GetDefaultPrim().IsInstanceable()
+    scene_traversal = Usd.TraverseInstanceProxies(Usd.PrimAllPrimsPredicate)
+    scenes = [
+        prim
+        for prim in Usd.PrimRange.Stage(result, scene_traversal)
+        if prim.IsA(UsdPhysics.Scene)
+    ]
+    assert [str(prim.GetPath()) for prim in scenes] == ["/World/PhysicsScene"]
+    assert scenes[0].IsInstanceProxy()
+    assert UsdPhysics.Scene(scenes[0]).GetGravityMagnitudeAttr().Get() == pytest.approx(
+        123.0
+    )
+
+
+def test_apply_physics_deinstances_existing_proxy_scene_for_normal_authoring(
+    tmp_path: Path,
+) -> None:
+    source = _write_default_prim_instance_usd(tmp_path, with_physics_scene=True)
+    output = tmp_path / "output.usda"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _glass_props()},
+            }
+        ],
+    )
+
+    apply_physics(str(source), str(predictions), str(output))
+
+    result = Usd.Stage.Open(str(output))
+    assert result is not None
+    assert not result.GetDefaultPrim().IsInstanceable()
+    scenes = [prim for prim in result.Traverse() if prim.IsA(UsdPhysics.Scene)]
+    assert [str(prim.GetPath()) for prim in scenes] == ["/World/PhysicsScene"]
+    assert UsdPhysics.Scene(scenes[0]).GetGravityMagnitudeAttr().Get() == pytest.approx(
+        123.0
+    )
+    cube = result.GetPrimAtPath("/World/Cube")
+    assert not cube.IsInstanceProxy()
+    assert cube.HasAPI(UsdPhysics.CollisionAPI)
+
+
+def test_apply_physics_rejects_instance_proxy_default_prim(tmp_path: Path) -> None:
+    source = _write_instanced_usd(tmp_path)
+    stage = Usd.Stage.Open(str(source))
+    assert stage is not None
+    proxy = stage.GetPrimAtPath("/World/Inst/Cube")
+    assert proxy.IsInstanceProxy()
+
+    class _StageWithProxyDefault:
+        def GetDefaultPrim(self) -> Usd.Prim:
+            return proxy
+
+    with pytest.raises(PhysicsAuthoringError, match="default prim .*instance proxy"):
+        _apply_predictions_to_stage(
+            _StageWithProxyDefault(),  # type: ignore[arg-type]
+            source,
+            [],
+            "convexHull",
+            "classification",
+            "skip_mass",
+            allow_empty_predictions=True,
+            author_rigid_body=False,
+        )
+
+
 def test_apply_physics_rejects_empty_predictions_by_default(
     tmp_path: Path, lightbulb_usdz: Path
 ) -> None:
@@ -498,6 +712,95 @@ def test_apply_physics_rejects_in_place_output(tmp_path: Path) -> None:
     assert stage_path.read_bytes() == before
 
 
+def test_apply_physics_rejects_empty_approved_dependency_roots(
+    tmp_path: Path,
+) -> None:
+    stage_path = _write_mass_authored_usd(tmp_path)
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        apply_physics(
+            usd_path=str(stage_path),
+            predictions_path=str(tmp_path / "predictions.jsonl"),
+            output_path=str(tmp_path / "output.usda"),
+            approved_dependency_roots=[],
+        )
+
+
+@pytest.mark.parametrize(
+    ("invalid_kind", "message"),
+    [
+        ("filesystem-root", "must not contain filesystem roots"),
+        ("missing-root", "must contain existing directories"),
+    ],
+)
+def test_apply_physics_rejects_invalid_approved_dependency_roots(
+    tmp_path: Path,
+    invalid_kind: str,
+    message: str,
+) -> None:
+    stage_path = _write_mass_authored_usd(tmp_path)
+    invalid_root = (
+        Path(tmp_path.anchor)
+        if invalid_kind == "filesystem-root"
+        else tmp_path / "missing-root"
+    )
+
+    with pytest.raises(ValueError, match=message):
+        apply_physics(
+            usd_path=str(stage_path),
+            predictions_path=str(tmp_path / "missing-predictions.jsonl"),
+            output_path=str(tmp_path / "output.usda"),
+            approved_dependency_roots=[invalid_root],
+        )
+
+
+def test_apply_physics_expands_and_forwards_tilde_dependency_roots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    approved_root = home / "approved"
+    approved_root.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+
+    stage_path = _write_mass_authored_usd(tmp_path)
+    predictions_path = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions_path,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _metal_props()},
+            }
+        ],
+    )
+    captured: dict[str, tuple[Path, ...]] = {}
+
+    def capture_export(
+        _stage: Usd.Stage,
+        _output: Path,
+        _skipped_mass_paths: set[str],
+        approved_dependency_roots: tuple[Path, ...],
+        package_asset_root: Path | None = None,
+    ) -> None:
+        assert package_asset_root is None
+        captured["approved_dependency_roots"] = approved_dependency_roots
+
+    monkeypatch.setattr(
+        "physics_agent.functions.apply_physics._export_flattened_stage",
+        capture_export,
+    )
+
+    apply_physics(
+        usd_path=str(stage_path),
+        predictions_path=str(predictions_path),
+        output_path=str(tmp_path / "output" / "physics.usda"),
+        approved_dependency_roots=["~/approved"],
+    )
+
+    assert captured["approved_dependency_roots"] == (approved_root.resolve(),)
+
+
 def test_apply_physics_preserves_existing_same_dir_output_on_failure(
     tmp_path: Path,
 ) -> None:
@@ -526,6 +829,55 @@ def test_apply_physics_preserves_existing_same_dir_output_on_failure(
     assert output_usd.read_bytes() == before
 
 
+@pytest.mark.parametrize("symlink_kind", ["leaf", "parent"])
+def test_apply_physics_rejects_output_symlink_escape_without_publication(
+    tmp_path: Path,
+    symlink_kind: str,
+) -> None:
+    stage_path = _write_mass_authored_usd(tmp_path)
+    predictions_path = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions_path,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _metal_props()},
+            },
+        ],
+    )
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if symlink_kind == "leaf":
+        requested_parent = tmp_path
+        outside_output = outside / "sentinel.usda"
+        outside_output.write_bytes(b"outside-must-survive")
+        output = requested_parent / "physics.usda"
+        output.symlink_to(outside_output)
+        message = "symlink USD output"
+    else:
+        requested_parent = tmp_path / "requested"
+        outside_output = outside / "physics.usda"
+        outside_output.write_bytes(b"outside-must-survive")
+        requested_parent.symlink_to(outside, target_is_directory=True)
+        output = requested_parent / "physics.usda"
+        message = "symlink or non-directory ancestor"
+
+    with pytest.raises(RuntimeError, match=message):
+        apply_physics(
+            usd_path=str(stage_path),
+            predictions_path=str(predictions_path),
+            output_path=str(output),
+        )
+
+    assert outside_output.read_bytes() == b"outside-must-survive"
+    assert requested_parent.is_symlink() is (symlink_kind == "parent")
+    if symlink_kind == "leaf":
+        assert output.is_symlink()
+        assert not (requested_parent / "physics.usda_assets").exists()
+    assert not (outside / "physics.usda_assets").exists()
+
+
 def test_create_usdz_package_preserves_existing_output_on_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -544,6 +896,115 @@ def test_create_usdz_package_preserves_existing_output_on_failure(
     with pytest.raises(RuntimeError, match="Failed to create USDZ package"):
         _create_usdz_package(root_layer, output)
     assert output.read_bytes() == before
+
+
+def test_create_usdz_package_removes_owned_stale_sidecar(tmp_path: Path) -> None:
+    from world_understanding.functions.graphics import so_export
+
+    root_layer = tmp_path / "root.usda"
+    root_layer.write_text("#usda 1.0\n", encoding="utf-8")
+    output = tmp_path / "output.usdz"
+    sidecar = tmp_path / so_export.portable_sidecar_name(output)
+    sidecar.mkdir()
+    (sidecar / so_export.PORTABLE_SIDECAR_MARKER_NAME).write_bytes(
+        so_export.PORTABLE_SIDECAR_MARKER_BYTES
+    )
+    (sidecar / "stale.png").write_bytes(b"stale")
+
+    _create_usdz_package(root_layer, output)
+
+    assert zipfile.is_zipfile(output)
+    assert not sidecar.exists()
+
+
+def test_create_usdz_package_uses_path_export_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from world_understanding.functions.graphics import so_export
+
+    monkeypatch.setattr(so_export, "_SUPPORTS_DIRECTORY_DESCRIPTORS", False)
+    root_layer = tmp_path / "root.usda"
+    stage = Usd.Stage.CreateNew(str(root_layer))
+    root = UsdGeom.Xform.Define(stage, "/Root")
+    stage.SetDefaultPrim(root.GetPrim())
+    UsdGeom.Cube.Define(stage, "/Root/Cube")
+    stage.GetRootLayer().Save()
+    output = tmp_path / "output.usdz"
+
+    _create_usdz_package(root_layer, output)
+
+    assert zipfile.is_zipfile(output)
+    assert Usd.Stage.Open(str(output)) is not None
+    assert not list(tmp_path.glob(".usd_output_*"))
+
+
+def test_create_usdz_package_refuses_foreign_sidecar(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from world_understanding.functions.graphics import so_export
+
+    root_layer = tmp_path / "root.usda"
+    root_layer.write_text("#usda 1.0\n", encoding="utf-8")
+    output = tmp_path / "output.usdz"
+    output.write_bytes(b"previous-good-package")
+    sidecar = tmp_path / so_export.portable_sidecar_name(output)
+    sidecar.write_bytes(b"foreign-sidecar")
+    package_calls = 0
+
+    def create_package(*_args, **_kwargs):
+        nonlocal package_calls
+        package_calls += 1
+        return True
+
+    monkeypatch.setattr(
+        "physics_agent.functions.apply_physics.UsdUtils.CreateNewUsdzPackage",
+        create_package,
+    )
+
+    with pytest.raises(RuntimeError, match="non-exporter-owned USD sidecar"):
+        _create_usdz_package(root_layer, output)
+
+    assert package_calls == 0
+    assert output.read_bytes() == b"previous-good-package"
+    assert sidecar.read_bytes() == b"foreign-sidecar"
+
+
+def test_apply_physics_uses_path_export_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from world_understanding.functions.graphics import so_export
+
+    monkeypatch.setattr(so_export, "_SUPPORTS_DIRECTORY_DESCRIPTORS", False)
+    source = tmp_path / "source.usda"
+    stage = Usd.Stage.CreateNew(str(source))
+    world = UsdGeom.Xform.Define(stage, "/World")
+    stage.SetDefaultPrim(world.GetPrim())
+    UsdGeom.Cube.Define(stage, "/World/Cube")
+    stage.GetRootLayer().Save()
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions,
+        [
+            {
+                "id": "/World/Cube",
+                "classification": {"physical_properties": _metal_props()},
+            }
+        ],
+    )
+    output = tmp_path / "physics" / "result.usda"
+
+    result = apply_physics(str(source), str(predictions), str(output))
+
+    assert Path(result) == output.resolve()
+    authored = Usd.Stage.Open(str(output))
+    assert authored is not None
+    cube = authored.GetPrimAtPath("/World/Cube")
+    assert cube.HasAPI(UsdPhysics.CollisionAPI)
+    assert cube.HasAPI(UsdPhysics.MassAPI)
+    assert not list(output.parent.glob(".result_export_*"))
 
 
 def test_apply_physics_output_is_self_contained_and_relocatable(
@@ -740,37 +1201,165 @@ def Xform "World"
         output_path=str(output_usda),
     )
 
-    assets_dir = tmp_path / "textured_physics_assets"
-    copied_texture = assets_dir / "Textures" / "diffuse.png"
-    assert copied_texture.read_bytes() == b"png"
+    assets_dir = tmp_path / "textured_physics.usda_assets"
     output_text = output_usda.read_text(encoding="utf-8")
     assert str(tmp_path) not in output_text
-    assert "@textured_physics_assets/Textures/diffuse.png@" in output_text
     stage = Usd.Stage.Open(str(output_usda))
     assert stage is not None
+    shader = UsdShade.Shader(stage.GetPrimAtPath("/World/Looks/Preview/Shader"))
+    texture_asset = shader.GetInput("file").Get()
+    assert isinstance(texture_asset, Sdf.AssetPath)
+    assert texture_asset.path.startswith(f"{assets_dir.name}/")
+    assert not Path(texture_asset.path).is_absolute()
+    resolved_texture = Path(texture_asset.resolvedPath).resolve()
+    assert resolved_texture.is_relative_to(assets_dir.resolve())
+    assert resolved_texture.read_bytes() == b"png"
     assert "PhysicsRigidBodyAPI" in stage.GetDefaultPrim().GetAppliedSchemas()
 
+    del stage
+    root_usda.unlink()
+    input_usdz.unlink()
+    shutil.rmtree(texture.parent)
+    delivery = tmp_path / "delivery"
+    delivery.mkdir()
+    delivered_output = Path(shutil.move(str(output_usda), delivery / output_usda.name))
+    delivered_assets = Path(shutil.move(str(assets_dir), delivery / assets_dir.name))
 
-def test_usdz_asset_rewrite_rejects_parent_escape(
+    delivered_stage = Usd.Stage.Open(str(delivered_output))
+    assert delivered_stage is not None
+    delivered_shader = UsdShade.Shader(
+        delivered_stage.GetPrimAtPath("/World/Looks/Preview/Shader")
+    )
+    delivered_texture = delivered_shader.GetInput("file").Get()
+    assert (
+        Path(delivered_texture.resolvedPath)
+        .resolve()
+        .is_relative_to(delivered_assets.resolve())
+    )
+    assert Path(delivered_texture.resolvedPath).read_bytes() == b"png"
+    assert "PhysicsRigidBodyAPI" in delivered_stage.GetDefaultPrim().GetAppliedSchemas()
+
+
+def test_apply_physics_usdz_to_usda_localizes_time_sampled_assets_after_move(
     tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Relative asset paths cannot copy files outside the extracted package."""
-    extract_dir = tmp_path / "extract"
-    extract_dir.mkdir()
-    outside = tmp_path / "outside.png"
-    outside.write_bytes(b"outside")
-    output_usda = tmp_path / "scene_physics.usda"
+    """Time-sampled package textures survive source deletion and delivery move."""
+    source_dir = tmp_path / "source"
+    textures_dir = source_dir / "Textures"
+    textures_dir.mkdir(parents=True)
+    root_usda = source_dir / "root.usda"
+    root_usda.write_text(
+        """#usda 1.0
+(
+    defaultPrim = "World"
+)
 
-    result = _copy_usdz_asset_for_flattened_output(
-        Sdf.AssetPath("../outside.png"),
-        extract_dir,
-        output_usda,
+def Xform "World"
+{
+    def Cube "Geom"
+    {
+        asset inputs:file.timeSamples = {
+            0: @./Textures/frame_0.png@,
+            1: @./Textures/frame_1.png@,
+        }
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    (textures_dir / "frame_0.png").write_bytes(b"frame-zero")
+    (textures_dir / "frame_1.png").write_bytes(b"frame-one")
+    input_usdz = source_dir / "animated.usdz"
+    with zipfile.ZipFile(input_usdz, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.write(root_usda, "root.usda")
+        archive.write(textures_dir / "frame_0.png", "Textures/frame_0.png")
+        archive.write(textures_dir / "frame_1.png", "Textures/frame_1.png")
+
+    predictions_path = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions_path,
+        [
+            {
+                "id": "/World/Geom",
+                "classification": {"physical_properties": _glass_props()},
+            },
+        ],
+    )
+    output_dir = tmp_path / "work"
+    output_usda = output_dir / "animated_physics.usda"
+    apply_physics(
+        usd_path=str(input_usdz),
+        predictions_path=str(predictions_path),
+        output_path=str(output_usda),
     )
 
-    assert result.path == "../outside.png"
-    assert not (tmp_path / "scene_physics_assets").exists()
-    assert "could not be resolved under the extracted package" in caplog.text
+    sidecar = output_dir / "animated_physics.usda_assets"
+    assert sidecar.is_dir()
+    delivery = tmp_path / "delivery"
+    delivery.mkdir()
+    delivered_output = Path(shutil.move(str(output_usda), delivery / output_usda.name))
+    delivered_sidecar = Path(shutil.move(str(sidecar), delivery / sidecar.name))
+    shutil.rmtree(source_dir)
+
+    stage = Usd.Stage.Open(str(delivered_output))
+    assert stage is not None
+    attr = stage.GetPrimAtPath("/World/Geom").GetAttribute("inputs:file")
+    assert attr.GetTimeSamples() == [0.0, 1.0]
+    for time_code, expected in ((0.0, b"frame-zero"), (1.0, b"frame-one")):
+        asset = attr.Get(time_code)
+        assert asset.path.startswith(f"{delivered_sidecar.name}/")
+        resolved = Ar.GetResolver().Resolve(asset.resolvedPath)
+        resolver_asset = Ar.GetResolver().OpenAsset(resolved)
+        assert resolver_asset is not None
+        assert bytes(resolver_asset.GetBuffer()) == expected
+
+
+def test_apply_physics_usdz_to_usda_rejects_unresolved_package_asset(
+    tmp_path: Path,
+) -> None:
+    """A non-runtime package dependency must fail closed instead of dangling."""
+    root_usda = tmp_path / "root.usda"
+    root_usda.write_text(
+        """#usda 1.0
+(
+    defaultPrim = "World"
+)
+
+def Xform "World"
+{
+    def Cube "Geom"
+    {
+        asset inputs:file = @../missing.png@
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    input_usdz = tmp_path / "dangling.usdz"
+    with zipfile.ZipFile(input_usdz, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.write(root_usda, "root.usda")
+
+    predictions_path = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions_path,
+        [
+            {
+                "id": "/World/Geom",
+                "classification": {"physical_properties": _glass_props()},
+            },
+        ],
+    )
+    output_usda = tmp_path / "dangling_physics.usda"
+
+    with pytest.raises(RuntimeError, match="unresolved asset"):
+        apply_physics(
+            usd_path=str(input_usdz),
+            predictions_path=str(predictions_path),
+            output_path=str(output_usda),
+        )
+
+    assert not output_usda.exists()
+    assert not (tmp_path / "dangling_physics.usda_assets").exists()
 
 
 def test_apply_physics_respects_custom_output_key(
@@ -1030,6 +1619,127 @@ def test_apply_physics_same_suffix_different_directory_flattens_dependencies(
     assert "PhysicsCollisionAPI" in cube.GetAppliedSchemas()
 
 
+def test_apply_physics_localizes_optimizer_package_texture_after_relocation(
+    tmp_path: Path,
+) -> None:
+    """Optimizer output must not retain dependencies on the upload tree."""
+    upload_dir = tmp_path / "upload"
+    upload_dir.mkdir()
+    package_root = upload_dir / "root.usda"
+    package_root.write_text(
+        '#usda 1.0\n(defaultPrim = "World")\ndef Xform "World" {}\n',
+        encoding="utf-8",
+    )
+    texture = upload_dir / "albedo.png"
+    texture.write_bytes(b"generated-texture")
+    roughness = upload_dir / "roughness.png"
+    roughness.write_bytes(b"roughness-texture")
+    source_package = upload_dir / "Body_textured.usdz"
+    with zipfile.ZipFile(
+        source_package,
+        "w",
+        compression=zipfile.ZIP_STORED,
+    ) as archive:
+        archive.write(package_root, "root.usda")
+        archive.write(texture, "0/albedo.png")
+
+    optimizer_dir = tmp_path / "cache" / "optimize_usd"
+    optimizer_dir.mkdir(parents=True)
+    optimized_usd = optimizer_dir / "scene_optimized.usdc"
+    optimized_stage = Usd.Stage.CreateNew(str(optimized_usd))
+    world = UsdGeom.Xform.Define(optimized_stage, "/World")
+    optimized_stage.SetDefaultPrim(world.GetPrim())
+    cube = UsdGeom.Cube.Define(optimized_stage, "/World/Geom")
+    looks = UsdGeom.Scope.Define(optimized_stage, "/World/Looks")
+    material = UsdShade.Material.Define(
+        optimized_stage,
+        looks.GetPath().AppendChild("Paint"),
+    )
+    shader = UsdShade.Shader.Define(
+        optimized_stage,
+        material.GetPath().AppendChild("Texture"),
+    )
+    shader.CreateIdAttr("UsdUVTexture")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(f"{source_package}[0/albedo.png]")
+    )
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(str(roughness))
+    )
+    shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("OmniPBR.mdl"))
+    shader.GetPrim().CreateAttribute(
+        "info:remote:sourceAsset",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("https://example.invalid/runtime.png"))
+    UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(material)
+    optimized_stage.GetRootLayer().Save()
+
+    predictions_path = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        predictions_path,
+        [
+            {
+                "id": "/World/Geom",
+                "classification": {"physical_properties": _metal_props()},
+            }
+        ],
+    )
+    physics_dir = tmp_path / "cache" / "physics"
+    output_usd = physics_dir / "scene_physics.usda"
+
+    apply_physics(
+        usd_path=str(optimized_usd),
+        predictions_path=str(predictions_path),
+        output_path=str(output_usd),
+        approved_dependency_roots=[tmp_path],
+    )
+
+    output_stage = Usd.Stage.Open(str(output_usd))
+    output_asset = (
+        UsdShade.Shader(output_stage.GetPrimAtPath("/World/Looks/Paint/Texture"))
+        .GetInput("file")
+        .Get()
+    )
+    assert output_asset.path.startswith("scene_physics.usda_assets/")
+    assert str(upload_dir) not in output_asset.path
+
+    del optimized_stage, output_stage
+    shutil.rmtree(upload_dir)
+    shutil.rmtree(optimizer_dir)
+    downloaded_dir = tmp_path / "downloaded"
+    physics_dir.replace(downloaded_dir)
+    moved_output = downloaded_dir / output_usd.name
+
+    moved_stage = Usd.Stage.Open(str(moved_output))
+    assert moved_stage is not None
+    assert (
+        "PhysicsCollisionAPI"
+        in moved_stage.GetPrimAtPath("/World/Geom").GetAppliedSchemas()
+    )
+    assert "PhysicsRigidBodyAPI" in moved_stage.GetDefaultPrim().GetAppliedSchemas()
+
+    moved_shader = UsdShade.Shader(
+        moved_stage.GetPrimAtPath("/World/Looks/Paint/Texture")
+    )
+    moved_asset = moved_shader.GetInput("file").Get()
+    moved_roughness = moved_shader.GetInput("roughness").Get()
+    assert moved_roughness.path.startswith("scene_physics.usda_assets/")
+    assert Path(moved_roughness.resolvedPath).read_bytes() == b"roughness-texture"
+    mdl_asset = moved_shader.GetPrim().GetAttribute("info:mdl:sourceAsset").Get()
+    assert mdl_asset.path == "OmniPBR.mdl"
+    remote_asset = moved_shader.GetPrim().GetAttribute("info:remote:sourceAsset").Get()
+    assert remote_asset.path == "https://example.invalid/runtime.png"
+    assert Path(moved_asset.resolvedPath).read_bytes() == b"generated-texture"
+
+    _, _, unresolved = UsdUtils.ComputeAllDependencies(Sdf.AssetPath(str(moved_output)))
+    assert [
+        path for path in unresolved if not _is_runtime_resolved_asset_path(path)
+    ] == []
+
+
 def test_apply_physics_non_usdz_to_usdz_flattens_parent_relative_dependencies(
     tmp_path: Path,
 ) -> None:
@@ -1059,6 +1769,7 @@ def test_apply_physics_non_usdz_to_usdz_flattens_parent_relative_dependencies(
         usd_path=str(usd_path),
         predictions_path=str(predictions_path),
         output_path=str(output_usdz),
+        approved_dependency_roots=[tmp_path],
     )
 
     assert zipfile.is_zipfile(output_usdz)

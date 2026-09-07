@@ -1,0 +1,73 @@
+{
+  "schema_version": "geometry-repair.route-policy.v1",
+  "policy_id": "geometry-repair.route-policy.phase2-observed.v1",
+  "source_evidence": {
+    "phase1_pilot_results_sha256": "ae12cb50ee167cc2067b031e11f2abf2de57e5bc21dca35096f3f5d062ecef24",
+    "phase2_route_observations_sha256": "c80094a96459775c0401d6988e810a85c0715d8f43a9372d498aa5effd4078d5",
+    "case_count": 42,
+    "note": "Ordering combines observed Phase 1 and Phase 2 outcomes with the fixed least-destructive repair invariant. The Phase 2 matrix confirms bounded local closure before opt-in global reconstruction."
+  },
+  "workers": {
+    "usd_structure_repair": {
+      "priority": 30,
+      "destructive_cost": 0,
+      "observed_attempts": 2,
+      "observed_blocker_reductions": 2
+    },
+    "trimesh_conservative_cleanup": {
+      "priority": 20,
+      "destructive_cost": 1,
+      "observed_attempts": 6,
+      "observed_blocker_reductions": 5
+    },
+    "trimesh_bounded_hole_fill": {
+      "priority": 35,
+      "destructive_cost": 2,
+      "observed_attempts": 7,
+      "observed_blocker_reductions": 3
+    },
+    "pmp_patch": {
+      "priority": 37,
+      "destructive_cost": 2,
+      "observed_attempts": 1,
+      "observed_blocker_reductions": 1
+    },
+    "geogram_local_repair": {
+      "priority": 40,
+      "destructive_cost": 2,
+      "observed_attempts": 16,
+      "observed_blocker_reductions": 8
+    },
+    "sdf_rebuild": {
+      "priority": 90,
+      "destructive_cost": 4,
+      "observed_attempts": 31,
+      "observed_blocker_reductions": 5
+    },
+    "ocp_shape_heal": {
+      "priority": 20,
+      "destructive_cost": 1,
+      "observed_attempts": 1,
+      "observed_blocker_reductions": 1
+    }
+  },
+  "issue_routes": {
+    "asset:default_prim_missing": ["usd_structure_repair"],
+    "asset:noncanonical_up_axis": ["usd_structure_repair"],
+    "asset:noncanonical_stage_units": ["usd_structure_repair"],
+    "brep:invalid_shape": ["ocp_shape_heal"],
+    "mesh:boundary_edges": ["trimesh_bounded_hole_fill", "pmp_patch", "sdf_rebuild"],
+    "mesh:coplanar_overlaps": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:coplanar_overlaps_not_evaluated": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:degenerate_faces": ["trimesh_conservative_cleanup", "sdf_rebuild"],
+    "mesh:duplicate_faces": ["trimesh_conservative_cleanup", "sdf_rebuild"],
+    "mesh:inconsistent_orientation": ["trimesh_conservative_cleanup", "sdf_rebuild"],
+    "mesh:inverted_shells": ["trimesh_conservative_cleanup", "geogram_local_repair", "sdf_rebuild"],
+    "mesh:inverted_shells_not_evaluated": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:needle_triangles": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:non_manifold_vertices": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:over_connected_edges": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:self_intersections": ["geogram_local_repair", "sdf_rebuild"],
+    "mesh:self_intersections_not_evaluated": ["geogram_local_repair", "sdf_rebuild"]
+  }
+}

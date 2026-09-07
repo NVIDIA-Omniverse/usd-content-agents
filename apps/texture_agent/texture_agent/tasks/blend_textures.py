@@ -16,9 +16,31 @@ from world_understanding.agentic.tasks import Task
 from texture_agent.functions.material_discovery import PrimTextureUnit
 from texture_agent.functions.texture_blending import blend_texture_onto_constant
 from texture_agent.functions.texture_generation import GeneratedTextures
+from texture_agent.tasks.generate_textures import _preserve_authored_orm
 from texture_agent.tasks.thresholds import validate_failure_threshold
 
 logger = logging.getLogger(__name__)
+
+
+def _preserve_generated_resolution_enabled(
+    context: dict[str, Any],
+    blend_config: dict[str, Any],
+) -> bool:
+    """Resolve and strictly validate the native-resolution blend opt-in."""
+    config_key = "blend_config.preserve_generated_resolution"
+    if "preserve_generated_resolution" in blend_config:
+        value = blend_config["preserve_generated_resolution"]
+    else:
+        texture_config = context.get("texture_config") or {}
+        custom_parameters = texture_config.get("custom_parameters") or {}
+        if "preserve_generated_resolution" not in custom_parameters:
+            return False
+        value = custom_parameters["preserve_generated_resolution"]
+        config_key = "texture_config.custom_parameters.preserve_generated_resolution"
+
+    if not isinstance(value, bool):
+        raise ValueError(f"{config_key} must be a boolean")
+    return value
 
 
 @dataclass
@@ -45,7 +67,10 @@ class BlendTexturesTask(Task):
     Context keys read:
         prim_texture_units (list[PrimTextureUnit]): From DiscoverMaterialsTask.
         generated_textures (dict[str, GeneratedTextures]): From GenerateTexturesTask.
-        blend_config (dict): Default opacity, output size.
+        blend_config (dict): Default opacity, output size, and optional native
+            generated-resolution preservation.
+        texture_config (dict): Backend custom parameters. Used as a fallback
+            source for preserve_generated_resolution in direct pipeline runs.
         working_dir (str): Working directory.
 
     Context keys written:
@@ -94,6 +119,15 @@ class BlendTexturesTask(Task):
         generated: dict[str, GeneratedTextures] = context.get("generated_textures", {})
         blend_config: dict = context.get("blend_config", {})
         working_dir = Path(context["working_dir"])
+
+        # Validate before creating the output directory or doing any per-unit
+        # work. The flag is carried through free-form backend parameters at the
+        # service API, so truthiness coercion would make malformed requests
+        # silently change output resolution.
+        preserve_generated_resolution = _preserve_generated_resolution_enabled(
+            context,
+            blend_config,
+        )
 
         # Validate threshold before any per-unit work so a typo fails fast.
         failure_threshold = validate_failure_threshold(
@@ -162,10 +196,13 @@ class BlendTexturesTask(Task):
             # context, so any soft errors recorded so far are still surfaced
             # alongside the propagated exception).
             with Image.open(gen_textures.albedo) as albedo_img:
+                albedo_output_size = (
+                    albedo_img.size if preserve_generated_resolution else output_size
+                )
                 blended_albedo = blend_texture_onto_constant(
                     base_color=mat.base_color,
                     texture=albedo_img,
-                    output_size=output_size,
+                    output_size=albedo_output_size,
                     opacity=opacity,
                 )
             albedo_path = out_dir / f"{key}_albedo.png"
@@ -175,12 +212,19 @@ class BlendTexturesTask(Task):
             normal_path = out_dir / f"{key}_normal.png"
             if gen_textures.normal and Path(gen_textures.normal).exists():
                 with Image.open(gen_textures.normal) as normal_source:
+                    normal_output_size = (
+                        normal_source.size
+                        if preserve_generated_resolution
+                        else output_size
+                    )
                     normal_img = normal_source.resize(
-                        output_size, Image.Resampling.LANCZOS
+                        normal_output_size, Image.Resampling.LANCZOS
                     )
                 normal_img.save(str(normal_path))
             else:
-                Image.new("RGB", output_size, (128, 128, 255)).save(str(normal_path))
+                Image.new("RGB", albedo_output_size, (128, 128, 255)).save(
+                    str(normal_path)
+                )
 
             # --- ORM: blend roughness/metalness channels ---
             orm_path = out_dir / f"{key}_orm.png"
@@ -189,16 +233,22 @@ class BlendTexturesTask(Task):
             )
             metalness = mat.base_metalness if mat.base_metalness is not None else 0.0
             if gen_textures.orm and Path(gen_textures.orm).exists():
+                with Image.open(gen_textures.orm) as orm_source:
+                    orm_output_size = (
+                        orm_source.size
+                        if preserve_generated_resolution
+                        else output_size
+                    )
                 blended_orm = self._blend_orm(
                     gen_textures.orm,
                     roughness=roughness,
                     metalness=metalness,
-                    output_size=output_size,
+                    output_size=orm_output_size,
                     opacity=opacity,
                 )
                 blended_orm.save(str(orm_path))
             else:
-                h, w = output_size[1], output_size[0]
+                h, w = albedo_output_size[1], albedo_output_size[0]
                 orm_arr = np.zeros((h, w, 3), dtype=np.uint8)
                 orm_arr[:, :, 0] = 255
                 orm_arr[:, :, 1] = int(roughness * 255)
@@ -217,6 +267,24 @@ class BlendTexturesTask(Task):
                 opacity,
                 out_dir,
             )
+
+        # Restore authored occlusion/metallic AFTER blending, not before. apply
+        # consumes ``blended_textures``, and ``_blend_orm`` lerps every channel
+        # toward material constants at ``opacity`` (0.85 by default), so
+        # preserving in generate_textures would leave authored metallic 249
+        # arriving as ~212 and occlusion pulled back toward 255. Compositing
+        # here makes the preserved channels final while roughness keeps its
+        # normal blend. One call site still covers both backends. See #950.
+        preserved_diagnostics = _preserve_authored_orm(
+            new_generated=blended,
+            units=units,
+            context=context,
+        )
+        if preserved_diagnostics:
+            context["blend_textures_diagnostics"] = [
+                *(context.get("blend_textures_diagnostics") or []),
+                *preserved_diagnostics,
+            ]
 
         # ``blended_textures``, ``blend_textures_errors``, and
         # ``blend_textures_attempted_count`` are already on context (wired

@@ -1,0 +1,86 @@
+diff --git a/openvdb/openvdb/tools/VolumeToMesh.h b/openvdb/openvdb/tools/VolumeToMesh.h
+--- a/openvdb/openvdb/tools/VolumeToMesh.h
++++ b/openvdb/openvdb/tools/VolumeToMesh.h
+@@ -22,6 +22,7 @@
+ #include <cmath> // for std::isfinite()
+ #include <cstring> // for std::memset
++#include <limits>
+ #include <map>
+ #include <memory>
+ #include <set>
+ #include <type_traits>
+@@ -174,7 +174,10 @@ struct VolumeToMesh
+     /// @param adaptivity                 Adaptivity threshold [0 to 1]
+     /// @param relaxDisorientedTriangles  Toggle relaxing disoriented triangles during
+     ///                                   adaptive meshing.
+-    VolumeToMesh(double isovalue = 0, double adaptivity = 0, bool relaxDisorientedTriangles = true);
++    VolumeToMesh(double isovalue = 0, double adaptivity = 0,
++        bool relaxDisorientedTriangles = true,
++        size_t maxPointListSize = std::numeric_limits<size_t>::max(),
++        size_t maxPolygonCount = std::numeric_limits<size_t>::max());
+ 
+     //////////
+ 
+@@ -263,6 +267,7 @@ private:
+     bool mInvertSurfaceMask, mRelaxDisorientedTriangles;
+ 
+     std::unique_ptr<uint32_t[]> mQuantizedSeamPoints;
++    size_t mMaxPointListSize, mMaxPolygonCount;
+     std::vector<uint8_t> mPointFlags;
+ }; // struct VolumeToMesh
+ 
+@@ -4816,7 +4820,12 @@ PolygonPool::trimTrinagles(const size_t n, bool reallocate)
+ 
+ 
+ inline
+-VolumeToMesh::VolumeToMesh(double isovalue, double adaptivity, bool relaxDisorientedTriangles)
++VolumeToMesh::VolumeToMesh(
++    double isovalue,
++    double adaptivity,
++    bool relaxDisorientedTriangles,
++    size_t maxPointListSize,
++    size_t maxPolygonCount)
+     : mPoints(nullptr)
+     , mPolygons()
+     , mPointListSize(0)
+@@ -4833,6 +4842,8 @@ VolumeToMesh::VolumeToMesh(double isovalue, double adaptivity, bool relaxDisorie
+     , mInvertSurfaceMask(false)
+     , mRelaxDisorientedTriangles(relaxDisorientedTriangles)
+     , mQuantizedSeamPoints(nullptr)
++    , mMaxPointListSize(maxPointListSize)
++    , mMaxPolygonCount(maxPolygonCount)
+     , mPointFlags(0)
+ {
+ }
+@@ -5101,6 +5112,10 @@ VolumeToMesh::operator()(const InputGridType& inputGrid)
+             pointCount += tmp;
+         }
+ 
++        if (size_t(pointCount) > mMaxPointListSize) {
++            OPENVDB_THROW(ValueError, "VolumeToMesh point output exceeds max_vertices");
++        }
++
+         mPointListSize = size_t(pointCount);
+         mPoints.reset(new openvdb::Vec3s[mPointListSize]);
+         mPointFlags.clear();
+@@ -5125,6 +5140,20 @@ VolumeToMesh::operator()(const InputGridType& inputGrid)
+ 
+     // compute polygons
+ 
++    size_t polygonUpperBound = 0;
++    for (const Int16LeafNodeType* node : signFlagsLeafNodes) {
++        size_t edgeCount = 0;
++        for (auto iter = node->cbeginValueOn(); iter; ++iter) {
++            if (iter.getValue() & volume_to_mesh_internal::XEDGE) ++edgeCount;
++            if (iter.getValue() & volume_to_mesh_internal::YEDGE) ++edgeCount;
++            if (iter.getValue() & volume_to_mesh_internal::ZEDGE) ++edgeCount;
++        }
++        if (edgeCount > mMaxPolygonCount - polygonUpperBound) {
++            OPENVDB_THROW(ValueError, "VolumeToMesh polygon output exceeds max_faces");
++        }
++        polygonUpperBound += edgeCount;
++    }
++
+     mPolygonPoolListSize = signFlagsLeafNodes.size();
+     mPolygons.reset(new PolygonPool[mPolygonPoolListSize]);
+ 

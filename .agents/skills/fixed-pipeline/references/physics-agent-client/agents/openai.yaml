@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Physics Agent Client"
+  short_description: "Fixed pipeline: Call the Physics Agent service"
+  default_prompt: "Use $fixed-pipeline to make requests to the Physics Agent REST API service for VLM-based physics/component classification, tuning, and refine-loop workflows for 3D USD assets."

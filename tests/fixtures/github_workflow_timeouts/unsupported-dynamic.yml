@@ -1,0 +1,8 @@
+name: unsupported dynamic timeout
+on: push
+jobs:
+  dynamic:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(vars.JOB_TIMEOUT) }}
+    steps:
+      - run: echo unknown

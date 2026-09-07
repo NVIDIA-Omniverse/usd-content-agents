@@ -1557,6 +1557,32 @@ def test_missing_backend_is_typed_and_preserves_existing_complete_bundle(
     _assert_complete_bundle(targets)
 
 
+def test_unsupported_authoring_platform_fails_before_factory_or_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    targets = _targets(tmp_path)
+    _write_complete_bundle(targets)
+    factory_called = False
+
+    def request_backend_factory() -> tuple[JointRiggerInputV1, Any]:
+        nonlocal factory_called
+        factory_called = True
+        raise AssertionError("request/backend factory must not run")
+
+    monkeypatch.setattr(facade, "_AUTHORING_PLATFORM_SUPPORTED", False)
+
+    with pytest.raises(
+        JointRiggerBackendUnavailableError,
+        match="requires Linux, a Linux container, or WSL2",
+    ):
+        facade.author_joint_rig_from_factory(request_backend_factory, targets)
+
+    assert factory_called is False
+    _assert_complete_bundle(targets)
+    assert not any(tmp_path.glob(".*.stage-*"))
+
+
 def test_missing_backend_api_is_typed_and_leaves_no_staging(tmp_path: Path) -> None:
     source = tmp_path / "source.usda"
     _write_empty_usda(source)
@@ -6417,6 +6443,41 @@ def test_sealed_dependency_snapshot_cleanup_is_idempotent(tmp_path: Path) -> Non
     snapshot.cleanup()
 
     assert snapshot.source_descriptor == -1
+
+
+def test_failed_post_transfer_binding_validation_closes_transferred_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.usda"
+    source.write_text(_EMPTY_USDA, encoding="utf-8")
+    expected = JointRiggerArtifactError("forced post-transfer validation failure")
+    transferred_descriptor = -1
+
+    def fail_binding_validation(
+        binding: source_binding_module.SealedDependencyBinding,
+    ) -> None:
+        nonlocal transferred_descriptor
+        transferred_descriptor = binding.descriptor
+        raise expected
+
+    monkeypatch.setattr(
+        source_binding_module,
+        "_require_sealed_file_binding",
+        fail_binding_validation,
+    )
+
+    with pytest.raises(JointRiggerArtifactError) as caught:
+        source_binding_module._create_sealed_file_binding(
+            source,
+            expected_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+            prefer_disk_snapshot=True,
+        )
+
+    assert caught.value is expected
+    assert transferred_descriptor >= 0
+    with pytest.raises(OSError):
+        os.fstat(transferred_descriptor)
 
 
 def test_generated_root_seal_preserves_primary_error_when_close_fails(

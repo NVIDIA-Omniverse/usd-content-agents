@@ -6,11 +6,14 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import shutil
 import stat
 import subprocess
+import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -21,6 +24,8 @@ import content_agent_workflows.simready.conform_profile as conform_profile_modul
 import content_agent_workflows.simready.foundation_runtime as foundation_runtime_module
 import content_agent_workflows.simready.validate_profile as validate_profile_module
 from content_agent_workflows.simready import (
+    DEFAULT_SIMREADY_FOUNDATION_COMMIT,
+    DEFAULT_SIMREADY_FOUNDATION_REF,
     SimReadyConformanceInput,
     SimReadyValidationInput,
     preflight_simready_foundation,
@@ -30,14 +35,17 @@ from content_agent_workflows.simready import (
 from content_agent_workflows.simready.foundation_runtime import (
     SIMREADY_CACHE_DIR_ENV,
     SIMREADY_FOUNDATION_REF_ENV,
-    SIMREADY_USD_CORE_EXCLUDE,
+    SIMREADY_USD_CORE_OVERRIDE,
     SIMREADY_USD_EXCHANGE_REQUIREMENT,
     SIMREADY_USD_PROVIDER_ENV,
     _acquire_venv_lock,
     _install_command,
     _prepare_validation_venv,
 )
-from content_agent_workflows.simready.models import SIMREADY_GRASP_PLAN_SCHEMA_VERSION
+from content_agent_workflows.simready.models import (
+    SIMREADY_GRASP_PLAN_SCHEMA_VERSION,
+    default_simready_report_name,
+)
 
 
 def _write_fake_foundation(tmp_path: Path, *, skill_layout: str = "legacy") -> Path:
@@ -69,6 +77,151 @@ def _write_fake_foundation(tmp_path: Path, *, skill_layout: str = "legacy") -> P
         skill.mkdir(parents=True)
         (skill / "SKILL.md").write_text(f"# {skill_name}\n", encoding="utf-8")
     return root
+
+
+def _commit_fake_foundation(root: Path) -> str:
+    git = ["git", "-c", "core.autocrlf=false"]
+    subprocess.run([*git, "init", "-q", str(root)], check=True)
+    subprocess.run([*git, "-C", str(root), "add", "."], check=True)
+    subprocess.run(
+        [
+            *git,
+            "-C",
+            str(root),
+            "-c",
+            "user.name=SimReady Test",
+            "-c",
+            "user.email=simready@example.test",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    return subprocess.run(
+        [*git, "-C", str(root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _venv_marker_identity() -> dict[str, object]:
+    return foundation_runtime_module._expected_venv_marker_identity(
+        foundation_commit="a" * 40,
+        foundation_requirements_sha256="b" * 64,
+    )
+
+
+def test_simready_runtime_contract_includes_minimal_pydantic_closure() -> None:
+    expected = {
+        "annotated-types": "0.7.0",
+        "pydantic": "2.12.5",
+        "pydantic-core": "2.41.5",
+        "typing-extensions": "4.15.0",
+        "typing-inspection": "0.4.2",
+    }
+
+    assert expected.items() <= (
+        foundation_runtime_module.SIMREADY_VALIDATOR_DISTRIBUTIONS.items()
+    )
+    assert {f"{name}=={version}" for name, version in expected.items()} <= set(
+        foundation_runtime_module.SIMREADY_VALIDATOR_CONSTRAINTS
+    )
+    assert "pillow" not in foundation_runtime_module.SIMREADY_VALIDATOR_DISTRIBUTIONS
+    assert "filelock" not in foundation_runtime_module.SIMREADY_VALIDATOR_DISTRIBUTIONS
+
+
+def _write_fake_runtime_inventory(
+    venv: Path,
+    *,
+    marker_identity: dict[str, object],
+) -> None:
+    site_packages = venv / "Lib" / "site-packages"
+    site_packages.mkdir(parents=True, exist_ok=True)
+    provider = marker_identity["usd_provider"]
+    assert isinstance(provider, str)
+    inventory = foundation_runtime_module._expected_distribution_inventory(
+        usd_provider=provider
+    )
+    for name, version in inventory.items():
+        dist_info = site_packages / f"{name.replace('-', '_')}-{version}.dist-info"
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(
+            f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n",
+            encoding="utf-8",
+        )
+
+
+def _trusted_conformance_runtime(
+    foundation_root: Path,
+) -> foundation_runtime_module.SimReadyRuntimeInfo:
+    validator = foundation_root / ".test-runtime" / "bin" / "simready-validate"
+    validator.parent.mkdir(parents=True, exist_ok=True)
+    validator.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    return foundation_runtime_module.SimReadyRuntimeInfo(
+        foundation_root=str(foundation_root.resolve()),
+        foundation_commit="a" * 40,
+        foundation_checkout_verified=True,
+        foundation_requirements_sha256="b" * 64,
+        foundation_spec_tree_sha256="c" * 64,
+        foundation_spec_root=str(
+            (foundation_root / "nv_core" / "sr_specs" / "docs").resolve()
+        ),
+        validator_executable=str(validator.resolve()),
+        validator_executable_sha256="d" * 64,
+        validator_distributions_sha256="e" * 64,
+        validator_runtime_verified=True,
+        runtime_contract_sha256="f" * 64,
+        specs_ready=True,
+        runtime_ready=True,
+    )
+
+
+def _write_trusted_validation_report(
+    path: Path,
+    *,
+    asset_path: Path,
+    runtime: foundation_runtime_module.SimReadyRuntimeInfo,
+    rerun_reasons: list[str],
+    extra: dict[str, object] | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": conform_profile_module.SIMREADY_VALIDATION_SCHEMA_VERSION,
+        "asset_path": str(asset_path.resolve()),
+        "asset_sha256": hashlib.sha256(asset_path.read_bytes()).hexdigest(),
+        "asset_dependency_manifest": (
+            validate_profile_module.build_asset_dependency_manifest(asset_path)
+        ),
+        "profile_name": "Prop-Robotics-Neutral",
+        "profile_version": "1.0.0",
+        "profile_target": "Prop-Robotics-Neutral@1.0.0",
+        "foundation_root": runtime.foundation_root,
+        "foundation_commit": runtime.foundation_commit,
+        "foundation_checkout_verified": True,
+        "foundation_requirements_sha256": runtime.foundation_requirements_sha256,
+        "foundation_spec_tree_sha256": runtime.foundation_spec_tree_sha256,
+        "foundation_spec_root": runtime.foundation_spec_root,
+        "validator_executable": runtime.validator_executable,
+        "validator_executable_sha256": runtime.validator_executable_sha256,
+        "validator_distributions_sha256": (runtime.validator_distributions_sha256),
+        "validator_runtime_verified": True,
+        "runtime_contract_sha256": runtime.runtime_contract_sha256,
+        "validator_tool": "simready-validate",
+        "passed": False,
+        "status": "FAIL",
+        "needs_rerun": True,
+        "rerun_reasons": rerun_reasons,
+        "issues": [],
+        "ignored_issues": [],
+        "feature_results": None,
+        "warnings": [],
+        "errors": [],
+    }
+    if extra:
+        payload.update(extra)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
 
 
 def _write_fake_venv(tmp_path: Path, *, exit_code: int = 1) -> Path:
@@ -113,7 +266,38 @@ sys.exit({exit_code})
     return venv
 
 
-def _write_fake_features_summary_venv(tmp_path: Path) -> Path:
+def _write_flooding_pass_venv(tmp_path: Path, *, descriptor: int) -> Path:
+    venv = tmp_path / f"simready-flood-venv-{descriptor}"
+    bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
+    bin_dir.mkdir(parents=True)
+    executable = bin_dir / (
+        "simready-validate.exe" if os.name == "nt" else "simready-validate"
+    )
+    executable.write_text(
+        f"""#!/usr/bin/env python3
+import json
+import os
+import sys
+from pathlib import Path
+
+output = Path(sys.argv[sys.argv.index("--output") + 1])
+output.parent.mkdir(parents=True, exist_ok=True)
+output.write_text(json.dumps({{
+    "passed": True,
+    "status": "PASS",
+    "issues": [],
+    "feature_results": [],
+    "warnings": []
+}}), encoding="utf-8")
+os.write({descriptor}, b"x" * 65536)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    return venv
+
+
+def _write_fake_features_summary_venv(tmp_path: Path, *, exit_code: int = 0) -> Path:
     venv = tmp_path / "simready-summary-venv"
     bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
     bin_dir.mkdir(parents=True)
@@ -149,7 +333,7 @@ output.write_text(json.dumps({
     }
 }), encoding="utf-8")
 sys.exit(0)
-""",
+""".replace("sys.exit(0)", f"sys.exit({exit_code})"),
         encoding="utf-8",
     )
     executable.chmod(0o755)
@@ -186,6 +370,40 @@ output.write_text(json.dumps({
     },
 }), encoding="utf-8")
 sys.exit(0 if accepted else 1)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    return venv
+
+
+def _write_dependency_mutating_venv(tmp_path: Path) -> Path:
+    venv = tmp_path / "simready-dependency-mutating-venv"
+    bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
+    bin_dir.mkdir(parents=True)
+    executable = bin_dir / (
+        "simready-validate.exe" if os.name == "nt" else "simready-validate"
+    )
+    executable.write_text(
+        """#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+asset = Path(sys.argv[-1]).resolve()
+(asset.parent / "layers" / "sub.usda").write_text(
+    '#usda 1.0\\n\\ndef Xform "ChangedDuringValidation" {}\\n',
+    encoding="utf-8",
+)
+output = Path(sys.argv[sys.argv.index("--output") + 1])
+output.parent.mkdir(parents=True, exist_ok=True)
+output.write_text(json.dumps({
+    "passed": True,
+    "status": "PASS",
+    "issues": [],
+    "warnings": [],
+}), encoding="utf-8")
+sys.exit(0)
 """,
         encoding="utf-8",
     )
@@ -303,7 +521,7 @@ sys.exit(1)
     return venv
 
 
-def _write_no_report_venv(tmp_path: Path) -> Path:
+def _write_no_report_venv(tmp_path: Path, *, exit_code: int = 0) -> Path:
     venv = tmp_path / "simready-no-report-venv"
     bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
     bin_dir.mkdir(parents=True)
@@ -311,10 +529,10 @@ def _write_no_report_venv(tmp_path: Path) -> Path:
         "simready-validate.exe" if os.name == "nt" else "simready-validate"
     )
     executable.write_text(
-        """#!/usr/bin/env python3
+        f"""#!/usr/bin/env python3
 import sys
 
-sys.exit(0)
+sys.exit({exit_code})
 """,
         encoding="utf-8",
     )
@@ -473,6 +691,486 @@ def test_simready_preflight_accepts_foundation_root_and_venv(tmp_path: Path) -> 
     assert report.foundation_root == str(foundation_root.resolve())
 
 
+def test_default_simready_foundation_is_release_pinned() -> None:
+    assert DEFAULT_SIMREADY_FOUNDATION_REF == "v2026.04.1"
+    assert DEFAULT_SIMREADY_FOUNDATION_COMMIT == (
+        "a1e9dd68ee2d107f74dc6cd6da875b54ad3f8fd3"
+    )
+
+
+def test_simready_managed_commit_mismatch_never_installs(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    cache = tmp_path / "cache"
+    root = cache / "checkouts" / "simready-foundation-v2026.04.1"
+    spec_root = root / "nv_core" / "sr_specs" / "docs"
+    (spec_root / "capabilities").mkdir(parents=True)
+    (spec_root / "features").mkdir()
+    (spec_root / "profiles").mkdir()
+    (spec_root / "profiles" / "profiles.toml").write_text(
+        '[Prop-Robotics-Neutral]\n"1.0.0" = { features = [] }\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(cache))
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "_foundation_commit",
+        lambda _root: "b" * 40,
+    )
+
+    def unexpected_install(_command, **_kwargs):
+        raise AssertionError("identity mismatch must short-circuit installation")
+
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "_prepare_validation_venv",
+        unexpected_install,
+    )
+
+    runtime = foundation_runtime_module.resolve_simready_runtime(install_missing=True)
+
+    assert not runtime.passed
+    assert runtime.install_command == []
+    assert any("identity differs" in item for item in runtime.errors)
+
+
+def test_simready_managed_refs_must_be_immutable(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(tmp_path / "cache"))
+    monkeypatch.setenv(SIMREADY_FOUNDATION_REF_ENV, "main")
+
+    report = preflight_simready_foundation(install_missing=True)
+
+    assert not report.passed
+    assert any("must be immutable" in item for item in report.errors)
+    assert report.install_command == []
+
+
+def test_simready_managed_checkout_refuses_in_place_update(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    cache = tmp_path / "cache"
+    root = cache / "checkouts" / "simready-foundation-v2026.04.1"
+    root.mkdir(parents=True)
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(cache))
+
+    runtime = foundation_runtime_module.resolve_simready_runtime(
+        install_missing=False,
+        update_foundation=True,
+    )
+
+    assert not runtime.passed
+    assert any("immutable" in item for item in runtime.errors)
+    assert runtime.install_command == []
+
+
+def test_simready_managed_runtime_blocks_alternate_spec_and_unmarked_venv(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    alternate_spec = tmp_path / "alternate-spec"
+    (alternate_spec / "capabilities").mkdir(parents=True)
+    (alternate_spec / "features").mkdir()
+    (alternate_spec / "profiles").mkdir()
+    (alternate_spec / "profiles" / "profiles.toml").write_text(
+        '[Prop-Robotics-Neutral]\n"1.0.0" = { features = [] }\n',
+        encoding="utf-8",
+    )
+    alternate_venv = _write_fake_venv(tmp_path)
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "_resolve_foundation_root",
+        lambda *_args, **_kwargs: (root.resolve(), True),
+    )
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "_foundation_commit",
+        lambda _root: DEFAULT_SIMREADY_FOUNDATION_COMMIT,
+    )
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "_managed_checkout_verification",
+        lambda *_args, **_kwargs: ([], "c" * 64),
+    )
+
+    runtime = foundation_runtime_module.resolve_simready_runtime(
+        foundation_spec_root=alternate_spec,
+        venv_path=alternate_venv,
+        install_missing=False,
+    )
+
+    assert not runtime.passed
+    assert runtime.validator_executable is None
+    assert any("spec root must use" in item for item in runtime.errors)
+    assert any("executable is unavailable" in item for item in runtime.errors)
+
+
+def test_simready_managed_checkout_rejects_local_bytes_and_ignored_spec_files(
+    tmp_path: Path,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    _commit_fake_foundation(root)
+    profiles = root / "nv_core" / "sr_specs" / "docs" / "profiles"
+    (profiles / "profiles.toml").write_text("modified\n", encoding="utf-8")
+    (root / ".gitignore").write_text("*.rogue\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "add", ".gitignore"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=SimReady Test",
+            "-c",
+            "user.email=simready@example.test",
+            "commit",
+            "-qm",
+            "ignore fixture",
+        ],
+        check=True,
+    )
+    (profiles / "injected.rogue").write_text("injected\n", encoding="utf-8")
+
+    errors = foundation_runtime_module._managed_checkout_errors(root)
+
+    assert any("local changes" in item for item in errors)
+    assert any("source file set differs" in item for item in errors)
+    assert any("source bytes differ" in item for item in errors)
+
+
+def test_simready_managed_checkout_checks_full_worktree_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    commit = _commit_fake_foundation(root)
+    commands: list[list[str]] = []
+    real_run = subprocess.run
+
+    def recording_run(*args, **kwargs):
+        command = args[0]
+        if isinstance(command, list):
+            commands.append(command)
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(foundation_runtime_module.subprocess, "run", recording_run)
+
+    errors = foundation_runtime_module._managed_checkout_errors(
+        root,
+        expected_commit=commit,
+    )
+
+    assert errors == []
+    status_command = next(command for command in commands if "status" in command)
+    assert status_command[status_command.index("status") + 1 :] == [
+        "--porcelain",
+        "--untracked-files=all",
+    ]
+
+
+def test_simready_managed_checkout_attests_validator_source_bytes(
+    tmp_path: Path,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    relative = "nv_core/validator_sample/validate_asset.py"
+    validator = root / relative
+    validator.parent.mkdir(parents=True)
+    validator.write_text("print('validator')\n", encoding="utf-8")
+    commit = _commit_fake_foundation(root)
+    subprocess.run(
+        ["git", "-C", str(root), "update-index", "--assume-unchanged", relative],
+        check=True,
+    )
+    validator.write_text("print('tampered')\n", encoding="utf-8")
+
+    errors = foundation_runtime_module._managed_checkout_errors(
+        root,
+        expected_commit=commit,
+    )
+
+    assert not any("local changes" in item for item in errors)
+    assert any("special index flags" in item for item in errors)
+    assert any("source bytes differ" in item for item in errors)
+
+
+def test_simready_managed_checkout_accepts_exact_git_lfs_payload() -> None:
+    payload = b"pinned foundation image bytes\n"
+    pointer = (
+        b"version https://git-lfs.github.com/spec/v1\n"
+        + f"oid sha256:{hashlib.sha256(payload).hexdigest()}\n".encode()
+        + f"size {len(payload)}\n".encode()
+    )
+
+    assert foundation_runtime_module._matches_git_lfs_pointer(pointer, payload)
+
+
+def test_simready_managed_clone_materializes_lfs_with_trusted_filters(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    git_executable = foundation_runtime_module._managed_git_executable()
+    git_lfs_executable = foundation_runtime_module._managed_git_lfs_executable()
+    if git_executable is None or git_lfs_executable is None:
+        pytest.skip("trusted git and git-lfs executables are required")
+
+    environment = foundation_runtime_module._managed_git_environment(
+        git_executable,
+        allow_network=True,
+    )
+    source = tmp_path / "source"
+    origin = tmp_path / "origin.git"
+    checkout = tmp_path / "checkout"
+    subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "init",
+            "-q",
+            str(source),
+        ),
+        check=True,
+        env=environment,
+    )
+    spec_root = source / "nv_core" / "sr_specs" / "docs"
+    spec_root.mkdir(parents=True)
+    (source / ".gitattributes").write_text(
+        "*.bin filter=lfs diff=lfs merge=lfs -text\n",
+        encoding="ascii",
+    )
+    payload = b"materialized foundation payload\n" * 16
+    (spec_root / "fixture.bin").write_bytes(payload)
+    subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "-C",
+            str(source),
+            "add",
+            ".",
+        ),
+        check=True,
+        env=environment,
+    )
+    subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "-C",
+            str(source),
+            "-c",
+            "user.name=SimReady Test",
+            "-c",
+            "user.email=simready@example.test",
+            "commit",
+            "-qm",
+            "LFS fixture",
+        ),
+        check=True,
+        env=environment,
+    )
+    commit = subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "-C",
+            str(source),
+            "rev-parse",
+            "HEAD",
+        ),
+        check=True,
+        capture_output=True,
+        env=environment,
+        text=True,
+    ).stdout.strip()
+    subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "clone",
+            "--bare",
+            str(source),
+            str(origin),
+        ),
+        check=True,
+        env=environment,
+    )
+    subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "-C",
+            str(source),
+            "remote",
+            "add",
+            "origin",
+            str(origin),
+        ),
+        check=True,
+        env=environment,
+    )
+    subprocess.run(
+        foundation_runtime_module._managed_git_command(
+            git_executable,
+            "-C",
+            str(source),
+            "lfs",
+            "push",
+            "--all",
+            "origin",
+        ),
+        check=True,
+        env=environment,
+    )
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "DEFAULT_SIMREADY_FOUNDATION_REPO_URL",
+        str(origin),
+    )
+
+    error = foundation_runtime_module._clone_foundation(checkout, ref=commit)
+
+    assert error is None
+    assert (checkout / "nv_core/sr_specs/docs/fixture.bin").read_bytes() == payload
+    assert (
+        foundation_runtime_module._managed_checkout_errors(
+            checkout,
+            expected_commit=commit,
+        )
+        == []
+    )
+
+
+def test_simready_managed_checkout_rejects_unsmudged_git_lfs_pointer(
+    tmp_path: Path,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    relative = "nv_core/sr_specs/docs/profiles/profiles.toml"
+    payload = b"pinned foundation profile bytes\n"
+    pointer = (
+        b"version https://git-lfs.github.com/spec/v1\n"
+        + f"oid sha256:{hashlib.sha256(payload).hexdigest()}\n".encode()
+        + f"size {len(payload)}\n".encode()
+    )
+    (root / relative).write_bytes(pointer)
+    commit = _commit_fake_foundation(root)
+
+    errors = foundation_runtime_module._managed_checkout_errors(
+        root,
+        expected_commit=commit,
+    )
+
+    assert any("unresolved Git LFS pointer" in item for item in errors)
+
+
+@pytest.mark.parametrize(
+    ("pointer_transform", "payload_transform"),
+    [
+        (lambda value: value.replace(b"sha256:", b"sha512:"), lambda value: value),
+        (lambda value: value.replace(b"size 30", b"size 29"), lambda value: value),
+        (lambda value: value, lambda value: value + b"tampered"),
+    ],
+)
+def test_simready_managed_checkout_rejects_invalid_git_lfs_payload(
+    pointer_transform,
+    payload_transform,
+) -> None:
+    payload = b"pinned foundation image bytes\n"
+    pointer = (
+        b"version https://git-lfs.github.com/spec/v1\n"
+        + f"oid sha256:{hashlib.sha256(payload).hexdigest()}\n".encode()
+        + f"size {len(payload)}\n".encode()
+    )
+
+    assert not foundation_runtime_module._matches_git_lfs_pointer(
+        pointer_transform(pointer),
+        payload_transform(payload),
+    )
+
+
+def test_simready_managed_checkout_rejects_assume_unchanged_spec_bytes(
+    tmp_path: Path,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    commit = _commit_fake_foundation(root)
+    relative = "nv_core/sr_specs/docs/profiles/profiles.toml"
+    subprocess.run(
+        ["git", "-C", str(root), "update-index", "--assume-unchanged", relative],
+        check=True,
+    )
+    (root / relative).write_text("tampered\n", encoding="utf-8")
+
+    errors = foundation_runtime_module._managed_checkout_errors(
+        root,
+        expected_commit=commit,
+    )
+
+    assert not any("local changes" in item for item in errors)
+    assert any("special index flags" in item for item in errors)
+    assert any("source bytes differ" in item for item in errors)
+
+
+def test_simready_managed_checkout_attests_fallback_requirements(
+    tmp_path: Path,
+) -> None:
+    root = _write_fake_foundation(tmp_path)
+    relative = "nv_core/validator_sample/requirements.txt"
+    fallback = root / relative
+    fallback.parent.mkdir(parents=True)
+    fallback.write_text("simready-validate==2026.4.8\n", encoding="utf-8")
+    commit = _commit_fake_foundation(root)
+    subprocess.run(
+        ["git", "-C", str(root), "update-index", "--assume-unchanged", relative],
+        check=True,
+    )
+    fallback.write_text("untrusted-package==1.0\n", encoding="utf-8")
+
+    errors = foundation_runtime_module._managed_checkout_errors(
+        root,
+        expected_commit=commit,
+    )
+
+    assert not any("local changes" in item for item in errors)
+    assert any("special index flags" in item for item in errors)
+    assert any("source bytes differ" in item for item in errors)
+
+
+def test_simready_managed_checkout_rejects_replacement_refs(tmp_path: Path) -> None:
+    root = _write_fake_foundation(tmp_path)
+    original_commit = _commit_fake_foundation(root)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=SimReady Test",
+            "-c",
+            "user.email=simready@example.test",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "replacement target",
+        ],
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "-C", str(root), "replace", head, original_commit],
+        check=True,
+    )
+
+    errors = foundation_runtime_module._managed_checkout_errors(
+        root,
+        expected_commit=head,
+    )
+
+    assert any("contains replacement refs" in item for item in errors)
+
+
 def test_simready_preflight_rejects_option_like_foundation_ref(
     tmp_path: Path,
     monkeypatch,
@@ -488,8 +1186,111 @@ def test_simready_preflight_rejects_option_like_foundation_ref(
 
 def test_simready_prepare_validation_venv_reports_malformed_command() -> None:
     assert (
-        _prepare_validation_venv(["uv", "venv"])
+        _prepare_validation_venv(
+            ["uv", "venv"],
+            expected_marker_identity=_venv_marker_identity(),
+        )
         == "Malformed SimReady validation venv install command."
+    )
+
+
+def test_simready_managed_tool_environment_is_allowlisted(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("LD_PRELOAD", "/tmp/injected.so")
+    monkeypatch.setenv("PIP_INDEX_URL", "https://pip.example.test/simple")
+    monkeypatch.setenv("PYTHONPATH", "/tmp/injected-python")
+    monkeypatch.setenv("UV_EXTRA_INDEX_URL", "https://extra.example.test/simple")
+    monkeypatch.setenv("UV_INDEX_URL", "https://index.example.test/simple")
+    monkeypatch.setenv("UV_NATIVE_TLS", "true")
+    monkeypatch.setenv("LANG", "C.UTF-8")
+
+    environment = foundation_runtime_module.build_simready_subprocess_environment(
+        executable_dir=tmp_path / "bin",
+        allow_network=True,
+    )
+
+    assert "AWS_SECRET_ACCESS_KEY" not in environment
+    assert "LD_PRELOAD" not in environment
+    assert "PIP_INDEX_URL" not in environment
+    assert "PYTHONPATH" not in environment
+    assert "UV_EXTRA_INDEX_URL" not in environment
+    assert "UV_INDEX_URL" not in environment
+    assert "UV_NATIVE_TLS" not in environment
+    assert environment["LANG"] == "C.UTF-8"
+    assert environment["PATH"].split(os.pathsep)[0] == str(tmp_path / "bin")
+    assert environment["UV_NO_CONFIG"] == "1"
+
+
+def test_simready_managed_git_environment_disables_external_configuration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "core.fsmonitor")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "/tmp/injected-monitor")
+    monkeypatch.setenv("GIT_SSH_COMMAND", "/tmp/injected-ssh")
+
+    environment = foundation_runtime_module._managed_git_environment(
+        tmp_path / "bin" / "git",
+        allow_network=True,
+    )
+
+    assert "GIT_CONFIG_COUNT" not in environment
+    assert "GIT_CONFIG_KEY_0" not in environment
+    assert "GIT_CONFIG_VALUE_0" not in environment
+    assert "GIT_SSH_COMMAND" not in environment
+    assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert environment["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert environment["GIT_CONFIG_SYSTEM"] == os.devnull
+    assert environment["GIT_LFS_SKIP_SMUDGE"] == "0"
+    assert environment["GIT_TERMINAL_PROMPT"] == "0"
+
+
+def test_simready_managed_git_ignores_caller_path_and_wires_trusted_lfs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hostile = tmp_path / "git"
+    hostile.write_text("#!/bin/sh\nexit 99\n", encoding="ascii")
+    hostile.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    git_executable = foundation_runtime_module._managed_git_executable()
+    if git_executable is None:
+        pytest.skip("trusted git executable is unavailable")
+    assert git_executable != hostile.resolve()
+
+    git_lfs_executable = tmp_path / "trusted git-lfs"
+    monkeypatch.setattr(
+        foundation_runtime_module,
+        "_managed_git_lfs_executable",
+        lambda: git_lfs_executable,
+    )
+    command = foundation_runtime_module._managed_git_command(
+        git_executable,
+        "status",
+    )
+    config_values = [
+        command[index + 1] for index, value in enumerate(command[:-1]) if value == "-c"
+    ]
+
+    assert command[0] == str(git_executable)
+    if os.name == "nt":
+        assert "core.longpaths=true" in config_values
+    assert any(
+        value.startswith("filter.lfs.clean=") and str(git_lfs_executable) in value
+        for value in config_values
+    )
+    assert any(
+        value.startswith("filter.lfs.smudge=") and str(git_lfs_executable) in value
+        for value in config_values
+    )
+    assert any(
+        value.startswith("filter.lfs.process=") and str(git_lfs_executable) in value
+        for value in config_values
     )
 
 
@@ -522,16 +1323,16 @@ def test_simready_install_command_uses_usd_exchange_provider_on_linux_arm64(
     command = _install_command(foundation_root, venv)
 
     filtered = venv.with_name(f"{venv.name}-usd-exchange-requirements.txt")
-    excludes = venv.with_name(f"{venv.name}-usd-exchange-excludes.txt")
-    assert command[command.index("--excludes") + 1] == str(excludes)
+    overrides = venv.with_name(f"{venv.name}-usd-exchange-overrides.txt")
+    assert command[command.index("--overrides") + 1] == str(overrides)
     assert command[command.index("-r") + 1] == str(filtered)
     assert SIMREADY_USD_EXCHANGE_REQUIREMENT in command
     filtered_text = filtered.read_text(encoding="utf-8")
-    assert "# Replaced by usd-exchange>=2.3,<3: usd-core==25.5" in filtered_text
+    assert "# Replaced by usd-exchange==2.3.0: usd-core==25.5" in filtered_text
     assert "# usd-core in comments is preserved" in filtered_text
     assert "usd-core-extra==1.0" in filtered_text
-    assert excludes.read_text(encoding="utf-8").splitlines()[-1] == (
-        SIMREADY_USD_CORE_EXCLUDE
+    assert overrides.read_text(encoding="utf-8").splitlines()[-1] == (
+        SIMREADY_USD_CORE_OVERRIDE
     )
 
 
@@ -585,13 +1386,14 @@ def test_simready_install_command_uses_supported_uv_pip_flags(
             "--target",
             str(tmp_path / "target"),
             SIMREADY_USD_EXCHANGE_REQUIREMENT,
-            "--excludes",
-            command[command.index("--excludes") + 1],
+            "--overrides",
+            command[command.index("--overrides") + 1],
             "-r",
             command[command.index("-r") + 1],
         ],
         check=True,
         capture_output=True,
+        env={**os.environ, "UV_CACHE_DIR": str(tmp_path / "uv-cache")},
         text=True,
     )
     resolver_output = dry_run.stdout + dry_run.stderr
@@ -609,17 +1411,130 @@ def test_simready_managed_validation_venv_cache_includes_provider(
 
     monkeypatch.setenv(SIMREADY_USD_PROVIDER_ENV, "usd-core")
     usd_core_venv, usd_core_managed = foundation_runtime_module._resolve_venv_path(
-        None, foundation_root
+        None,
+        foundation_root,
+        foundation_commit="a" * 40,
     )
 
     monkeypatch.setenv(SIMREADY_USD_PROVIDER_ENV, "usd-exchange")
     usd_exchange_venv, usd_exchange_managed = (
-        foundation_runtime_module._resolve_venv_path(None, foundation_root)
+        foundation_runtime_module._resolve_venv_path(
+            None,
+            foundation_root,
+            foundation_commit="a" * 40,
+        )
     )
 
     assert usd_core_managed
     assert usd_exchange_managed
     assert usd_core_venv != usd_exchange_venv
+
+
+def test_simready_managed_validation_venv_cache_includes_foundation_commit(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    foundation_root = tmp_path / "foundation"
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(tmp_path / "cache"))
+
+    first, first_managed = foundation_runtime_module._resolve_venv_path(
+        None,
+        foundation_root,
+        foundation_commit="a" * 40,
+    )
+    second, second_managed = foundation_runtime_module._resolve_venv_path(
+        None,
+        foundation_root,
+        foundation_commit="b" * 40,
+    )
+
+    assert first_managed
+    assert second_managed
+    assert first != second
+
+
+def test_simready_managed_validation_venv_cache_is_checkout_path_independent(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first_root = tmp_path / "first" / "foundation"
+    second_root = tmp_path / "relocated" / "foundation"
+    for root in (first_root, second_root):
+        root.mkdir(parents=True)
+        (root / "requirements.txt").write_text(
+            "simready-validate==2026.4.9\n",
+            encoding="utf-8",
+        )
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(tmp_path / "cache"))
+
+    first, first_managed = foundation_runtime_module._resolve_venv_path(
+        None,
+        first_root,
+        foundation_commit="a" * 40,
+    )
+    second, second_managed = foundation_runtime_module._resolve_venv_path(
+        None,
+        second_root,
+        foundation_commit="a" * 40,
+    )
+
+    assert first_managed
+    assert second_managed
+    assert first == second
+
+
+def test_simready_managed_validation_venv_cache_includes_platform_contract(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    foundation_root = tmp_path / "foundation"
+    requirements = foundation_root / "requirements.txt"
+    requirements.parent.mkdir()
+    requirements.write_text("simready-validate>=2026.4.8\n", encoding="utf-8")
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(tmp_path / "cache"))
+
+    monkeypatch.setattr(
+        foundation_runtime_module, "_runtime_platform_identity", lambda: "first"
+    )
+    first, _ = foundation_runtime_module._resolve_venv_path(
+        None,
+        foundation_root,
+        foundation_commit="a" * 40,
+    )
+    monkeypatch.setattr(
+        foundation_runtime_module, "_runtime_platform_identity", lambda: "second"
+    )
+    second, _ = foundation_runtime_module._resolve_venv_path(
+        None,
+        foundation_root,
+        foundation_commit="a" * 40,
+    )
+
+    assert first != second
+
+
+def test_simready_managed_validation_venv_cache_includes_requirements(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    foundation_root = tmp_path / "foundation"
+    requirements = foundation_root / "requirements.txt"
+    requirements.parent.mkdir()
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(tmp_path / "cache"))
+    requirements.write_text("simready-validate==2026.4.8\n", encoding="utf-8")
+    first, _ = foundation_runtime_module._resolve_venv_path(
+        None,
+        foundation_root,
+        foundation_commit="a" * 40,
+    )
+    requirements.write_text("simready-validate==2026.4.9\n", encoding="utf-8")
+    second, _ = foundation_runtime_module._resolve_venv_path(
+        None,
+        foundation_root,
+        foundation_commit="a" * 40,
+    )
+
+    assert first != second
 
 
 def test_simready_install_command_can_force_usd_core_provider(
@@ -639,7 +1554,7 @@ def test_simready_install_command_can_force_usd_core_provider(
 
     command = _install_command(foundation_root, tmp_path / "simready-venv")
 
-    assert "--excludes" not in command
+    assert "--overrides" not in command
     assert SIMREADY_USD_EXCHANGE_REQUIREMENT not in command
 
 
@@ -656,7 +1571,7 @@ def test_simready_prepare_validation_venv_removes_partial_on_install_failure(
     monkeypatch.setattr(foundation_runtime_module.shutil, "which", lambda name: name)
 
     def fake_run(command, **_kwargs):
-        if command[:2] == ["uv", "venv"]:
+        if Path(command[0]).name == "uv" and command[1] == "venv":
             bin_dir.mkdir(parents=True)
             python_executable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
             validator.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
@@ -680,7 +1595,8 @@ def test_simready_prepare_validation_venv_removes_partial_on_install_failure(
             str(python_executable),
             "-r",
             str(tmp_path / "requirements.txt"),
-        ]
+        ],
+        expected_marker_identity=_venv_marker_identity(),
     )
 
     assert error is not None
@@ -701,14 +1617,33 @@ def test_simready_prepare_validation_venv_clears_broken_existing_before_install(
         "simready-validate.exe" if os.name == "nt" else "simready-validate"
     )
     python_executable = bin_dir / ("python.exe" if os.name == "nt" else "python")
+    marker_identity = _venv_marker_identity()
+    isolated_names = {
+        "PIP_INDEX_URL",
+        "PYTHONPATH",
+        "UV_EXTRA_INDEX_URL",
+        "UV_INDEX_URL",
+        "VIRTUAL_ENV",
+    }
+    for name in isolated_names:
+        monkeypatch.setenv(name, f"injected-{name.lower()}")
     monkeypatch.setattr(foundation_runtime_module.shutil, "which", lambda name: name)
+    observed_commands: list[list[str]] = []
 
-    def fake_run(command, **_kwargs):
-        if command[:2] == ["uv", "venv"]:
+    def fake_run(command, **kwargs):
+        observed_commands.append(command)
+        assert kwargs["cwd"] == venv.parent
+        assert not isolated_names & kwargs["env"].keys()
+        assert kwargs["env"]["UV_NO_CONFIG"] == "1"
+        if Path(command[0]).name == "uv" and command[1] == "venv":
             assert not stale.exists()
             bin_dir.mkdir(parents=True)
             python_executable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
             validator.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+            _write_fake_runtime_inventory(
+                venv,
+                marker_identity=marker_identity,
+            )
         return SimpleNamespace(returncode=0, stderr="")
 
     monkeypatch.setattr(foundation_runtime_module.subprocess, "run", fake_run)
@@ -728,52 +1663,108 @@ def test_simready_prepare_validation_venv_clears_broken_existing_before_install(
             str(python_executable),
             "-r",
             str(tmp_path / "requirements.txt"),
-        ]
+        ],
+        expected_marker_identity=marker_identity,
     )
 
     assert error is None
+    assert len(observed_commands) == 2
     assert foundation_runtime_module._venv_ready_marker(venv).exists()
 
 
+@pytest.mark.parametrize("tamper", ["marker", "entrypoint", "inventory"])
 def test_simready_validator_from_managed_venv_requires_ready_marker(
     tmp_path: Path,
+    tamper: str,
 ) -> None:
     venv = _write_fake_venv(tmp_path)
     validator = foundation_runtime_module._validator_from_venv(venv)
+    marker_identity = _venv_marker_identity()
+    _write_fake_runtime_inventory(venv, marker_identity=marker_identity)
 
     assert validator is not None
     assert (
         foundation_runtime_module._validator_from_venv(
             venv,
             require_ready_marker=True,
+            expected_marker_identity=marker_identity,
         )
         is None
     )
 
-    foundation_runtime_module._venv_ready_marker(venv).write_text(
-        "ready\n",
-        encoding="utf-8",
+    foundation_runtime_module._write_venv_ready_marker(
+        venv,
+        expected_marker_identity=marker_identity,
     )
 
     assert (
         foundation_runtime_module._validator_from_venv(
             venv,
             require_ready_marker=True,
+            expected_marker_identity=marker_identity,
         )
         == validator
     )
 
-
-def test_simready_validation_venv_lock_waits_for_existing_lock(tmp_path: Path) -> None:
-    venv = tmp_path / "simready-venv"
-    bin_dir = venv / ("Scripts" if os.name == "nt" else "bin")
-    bin_dir.mkdir(parents=True)
-    executable = bin_dir / (
-        "simready-validate.exe" if os.name == "nt" else "simready-validate"
+    if tamper == "marker":
+        foundation_runtime_module._venv_ready_marker(venv).write_text(
+            "{malformed",
+            encoding="utf-8",
+        )
+    elif tamper == "entrypoint":
+        assert validator is not None
+        validator.write_text("#!/usr/bin/env python3\n# tampered\n", encoding="utf-8")
+    else:
+        metadata = next((venv / "Lib" / "site-packages").rglob("METADATA"))
+        metadata.write_text(
+            metadata.read_text(encoding="utf-8").replace("Version: ", "Version: 999."),
+            encoding="utf-8",
+        )
+    assert (
+        foundation_runtime_module._validator_from_venv(
+            venv,
+            require_ready_marker=True,
+            expected_marker_identity=marker_identity,
+        )
+        is None
     )
-    executable.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+
+
+def test_simready_validation_venv_lock_excludes_concurrent_process_and_reacquires(
+    tmp_path: Path,
+) -> None:
+    venv = tmp_path / "simready-venv"
     lock_path = venv.with_name(f"{venv.name}.lock")
-    lock_path.write_text(str(os.getpid()), encoding="utf-8")
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "\n".join(
+                [
+                    "import sys",
+                    "from pathlib import Path",
+                    "sys.path.insert(0, sys.argv[2])",
+                    (
+                        "from content_agent_workflows.simready.foundation_runtime "
+                        "import _acquire_venv_lock, _release_venv_lock"
+                    ),
+                    "path, fd, error = _acquire_venv_lock(Path(sys.argv[1]))",
+                    "assert path is not None and fd is not None and error is None",
+                    "print('locked', flush=True)",
+                    "sys.stdin.readline()",
+                    "_release_venv_lock(path, fd)",
+                ]
+            ),
+            str(venv),
+            str(Path(__file__).resolve().parents[1]),
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert child.stdout is not None
+    assert child.stdout.readline().strip() == "locked"
 
     acquired_path, lock_fd, error = _acquire_venv_lock(venv, timeout_s=0.0)
 
@@ -781,45 +1772,51 @@ def test_simready_validation_venv_lock_waits_for_existing_lock(tmp_path: Path) -
     assert lock_fd is None
     assert error is not None
     assert "Timed out waiting" in error
+    stdout, stderr = child.communicate("\n", timeout=10)
+    assert child.returncode == 0, stdout + stderr
+    assert lock_path.exists()
+    metadata = lock_path.stat()
+    assert stat.S_ISREG(metadata.st_mode)
+    assert metadata.st_nlink == 1
+    if os.name != "nt":
+        assert stat.S_IMODE(metadata.st_mode) == 0o600
+    if hasattr(os, "geteuid"):
+        assert metadata.st_uid == os.geteuid()
 
-
-def test_simready_validation_venv_lock_removes_stale_lock(tmp_path: Path) -> None:
-    venv = tmp_path / "simready-venv"
-    lock_path = venv.with_name(f"{venv.name}.lock")
-    lock_path.write_text("-1", encoding="utf-8")
-
-    acquired_path, lock_fd, error = _acquire_venv_lock(venv, timeout_s=0.0)
+    acquired_path, lock_fd, error = _acquire_venv_lock(venv, timeout_s=1.0)
 
     assert acquired_path == lock_path
     assert lock_fd is not None
     assert error is None
     foundation_runtime_module._release_venv_lock(acquired_path, lock_fd)
-    assert not lock_path.exists()
+    assert lock_path.exists()
 
 
-def test_simready_validation_venv_lock_treats_windows_invalid_pid_as_stale(
+@pytest.mark.skipif(
+    os.name == "nt" or not hasattr(os, "O_NOFOLLOW"),
+    reason="requires POSIX symlinks and O_NOFOLLOW",
+)
+def test_simready_validation_venv_lock_refuses_symlink_without_touching_target(
     tmp_path: Path,
-    monkeypatch,
 ) -> None:
     venv = tmp_path / "simready-venv"
     lock_path = venv.with_name(f"{venv.name}.lock")
-    lock_path.write_text("123456", encoding="utf-8")
+    target = tmp_path / "lock-target.txt"
+    original = b"do not modify\n"
+    target.write_bytes(original)
+    try:
+        lock_path.symlink_to(target)
+    except OSError as exc:  # pragma: no cover - platform permission dependent
+        pytest.skip(f"symlink creation is unavailable: {exc}")
 
-    error = OSError("invalid pid")
-    error.winerror = 87
+    acquired_path, lock_fd, error = _acquire_venv_lock(venv, timeout_s=0.0)
 
-    def invalid_pid(_pid, _signal):
-        raise error
-
-    monkeypatch.setattr(foundation_runtime_module.sys, "platform", "win32")
-    monkeypatch.setattr(foundation_runtime_module.os, "kill", invalid_pid)
-
-    acquired_path, lock_fd, lock_error = _acquire_venv_lock(venv, timeout_s=0.0)
-
-    assert acquired_path == lock_path
-    assert lock_fd is not None
-    assert lock_error is None
-    foundation_runtime_module._release_venv_lock(acquired_path, lock_fd)
+    assert acquired_path is None
+    assert lock_fd is None
+    assert error is not None
+    assert "Failed to open" in error or "Refusing unsafe" in error
+    assert lock_path.is_symlink()
+    assert target.read_bytes() == original
 
 
 def test_simready_resolve_runtime_locks_managed_foundation_checkout(
@@ -852,11 +1849,17 @@ def test_simready_resolve_runtime_locks_managed_foundation_checkout(
 
     assert observed_lock_exists
     assert runtime.foundation_root is not None
-    assert (
-        not Path(runtime.foundation_root)
-        .with_name(f"{Path(runtime.foundation_root).name}.lock")
-        .exists()
+    lock_path = Path(runtime.foundation_root).with_name(
+        f"{Path(runtime.foundation_root).name}.lock"
     )
+    assert lock_path.exists()
+    acquired_path, lock_fd, error = foundation_runtime_module._acquire_foundation_lock(
+        Path(runtime.foundation_root), timeout_s=0.0
+    )
+    assert acquired_path == lock_path
+    assert lock_fd is not None
+    assert error is None
+    foundation_runtime_module._release_pid_lock(acquired_path, lock_fd)
 
 
 def test_simready_clone_foundation_removes_partial_on_failure(
@@ -909,6 +1912,403 @@ def test_simready_validation_normalizes_failed_profile(tmp_path: Path) -> None:
         ]
         == "NP.006"
     )
+    run_manifest_path = Path(report.workflow_run_manifest_path or "")
+    assert run_manifest_path == (
+        tmp_path / ".simready-profile.json.workflow-run" / "workflow_run_manifest.json"
+    )
+    run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
+    assert run_manifest["workflow"] == "simready_profile_validation"
+    assert run_manifest["status"] == "fail"
+    assert run_manifest["source_path"] == str(asset.resolve())
+    assert run_manifest["source_sha256"]
+    assert run_manifest["backend"]["validator"] == "simready-validate"
+    assert run_manifest["policy"] == {
+        "install_missing": False,
+        "profile": "Prop-Robotics-Neutral",
+        "profile_version": "1.0.0",
+        "update_foundation": False,
+    }
+    assert run_manifest["required_artifacts"] == ["validation_report"]
+    assert run_manifest["checkpoints"][-1]["phase"] == "validated"
+
+    resumed = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset),
+            report_path=str(report_path),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+            resume=True,
+        )
+    )
+    resumed_manifest = json.loads(
+        Path(resumed.workflow_run_manifest_path or "").read_text(encoding="utf-8")
+    )
+    assert [item["phase"] for item in resumed_manifest["checkpoints"]] == [
+        "validated",
+        "validated",
+    ]
+
+
+def test_simready_validation_isolates_validator_environment(monkeypatch) -> None:
+    injected = {
+        "AWS_SECRET_ACCESS_KEY": "secret",
+        "DYLD_INSERT_LIBRARIES": "/runtime/injected.dylib",
+        "LD_LIBRARY_PATH": "/runtime/native-libraries",
+        "LD_PRELOAD": "/runtime/injected.so",
+        "PYTHONHOME": "/runtime/python-home",
+        "PYTHONINSPECT": "1",
+        "PYTHONPATH": "/runtime/openusd:/runtime/packages",
+        "PXR_PLUGINPATH_NAME": "/runtime/usd-plugins",
+        "USD_PLUGIN_PATH": "/runtime/legacy-usd-plugins",
+        "VIRTUAL_ENV": "/runtime/venv",
+    }
+    for name, value in injected.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("LANG", "C.UTF-8")
+    monkeypatch.setenv("SIMREADY_TEST_NOT_PRESERVED", "discarded")
+
+    validator = "/managed/validator/bin/simready-validate"
+    environment = validate_profile_module._validator_subprocess_environment(validator)
+
+    assert not injected.keys() & environment.keys()
+    assert "SIMREADY_TEST_NOT_PRESERVED" not in environment
+    assert environment["LANG"] == "C.UTF-8"
+    assert environment["PATH"].split(os.pathsep)[0] == str(
+        Path(validator).resolve().parent
+    )
+    assert environment["PYTHONNOUSERSITE"] == "1"
+    assert environment["PYTHONSAFEPATH"] == "1"
+
+
+@pytest.mark.parametrize(("descriptor", "log_name"), [(1, "stdout"), (2, "stderr")])
+def test_bounded_validator_subprocess_retains_exact_prefix_and_fails(
+    tmp_path: Path,
+    descriptor: int,
+    log_name: str,
+) -> None:
+    stdout_path = tmp_path / "validator.stdout.log"
+    stderr_path = tmp_path / "validator.stderr.log"
+    limit = 257
+
+    returncode, error = validate_profile_module._run_bounded_validator_subprocess(
+        [
+            sys.executable,
+            "-c",
+            f"import os; os.write({descriptor}, b'x' * 65536)",
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        stdout_log_path=stdout_path,
+        stderr_log_path=stderr_path,
+        timeout_s=10.0,
+        stdout_limit_bytes=limit,
+        stderr_limit_bytes=limit,
+    )
+
+    selected = stdout_path if log_name == "stdout" else stderr_path
+    other = stderr_path if log_name == "stdout" else stdout_path
+    assert returncode == 1
+    assert error is not None
+    assert error.startswith("simready_validator_output_limit_exceeded:")
+    assert selected.read_bytes() == b"x" * limit
+    assert other.read_bytes() == b""
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows pipe-pump regression")
+def test_bounded_validator_fails_early_on_small_output_overflow(
+    tmp_path: Path,
+) -> None:
+    stdout_path = tmp_path / "validator.stdout.log"
+    stderr_path = tmp_path / "validator.stderr.log"
+    limit = 257
+    started = time.monotonic()
+
+    returncode, error = validate_profile_module._run_bounded_validator_subprocess(
+        [
+            sys.executable,
+            "-c",
+            f"import os, time; os.write(1, b'x' * {limit + 1}); time.sleep(10)",
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        stdout_log_path=stdout_path,
+        stderr_log_path=stderr_path,
+        timeout_s=5.0,
+        stdout_limit_bytes=limit,
+        stderr_limit_bytes=limit,
+    )
+
+    assert time.monotonic() - started < 2.0
+    assert returncode == 1
+    assert error is not None
+    assert error.startswith("simready_validator_output_limit_exceeded:")
+    assert stdout_path.read_bytes() == b"x" * limit
+    assert stderr_path.read_bytes() == b""
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Gate 3 process containment is Linux-only")
+def test_bounded_validator_waits_for_leader_after_both_output_pipes_close(
+    tmp_path: Path,
+) -> None:
+    stdout_path = tmp_path / "validator.stdout.log"
+    stderr_path = tmp_path / "validator.stderr.log"
+    report_path = tmp_path / "validator-report.json"
+
+    returncode, error = validate_profile_module._run_bounded_validator_subprocess(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import os, pathlib, sys, time; "
+                "null_fd = os.open(os.devnull, os.O_WRONLY); "
+                "os.dup2(null_fd, 1); os.dup2(null_fd, 2); os.close(null_fd); "
+                "time.sleep(0.25); "
+                "pathlib.Path(sys.argv[1]).write_text('complete', encoding='utf-8')"
+            ),
+            str(report_path),
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        stdout_log_path=stdout_path,
+        stderr_log_path=stderr_path,
+        timeout_s=2.0,
+        stdout_limit_bytes=1024,
+        stderr_limit_bytes=1024,
+    )
+
+    assert returncode == 0
+    assert error is None
+    assert report_path.read_text(encoding="utf-8") == "complete"
+    assert stdout_path.read_bytes() == b""
+    assert stderr_path.read_bytes() == b""
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Gate 3 process containment is Linux-only")
+def test_bounded_validator_times_out_after_both_output_pipes_close(
+    tmp_path: Path,
+) -> None:
+    stdout_path = tmp_path / "validator.stdout.log"
+    stderr_path = tmp_path / "validator.stderr.log"
+    late_report_path = tmp_path / "late-validator-report.json"
+
+    returncode, error = validate_profile_module._run_bounded_validator_subprocess(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import os, pathlib, sys, time; "
+                "null_fd = os.open(os.devnull, os.O_WRONLY); "
+                "os.dup2(null_fd, 1); os.dup2(null_fd, 2); os.close(null_fd); "
+                "time.sleep(10); "
+                "pathlib.Path(sys.argv[1]).write_text('too late', encoding='utf-8')"
+            ),
+            str(late_report_path),
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        stdout_log_path=stdout_path,
+        stderr_log_path=stderr_path,
+        timeout_s=0.2,
+        stdout_limit_bytes=1024,
+        stderr_limit_bytes=1024,
+    )
+
+    assert returncode == 1
+    assert error == "simready_validator_timeout_exceeded: exceeded 0.2 seconds"
+    assert not late_report_path.exists()
+    assert stdout_path.read_bytes() == b""
+    assert stderr_path.read_bytes() == b""
+
+
+def test_bounded_validator_cleans_up_descendant_after_leader_exit(
+    tmp_path: Path,
+) -> None:
+    stdout_path = tmp_path / "validator.stdout.log"
+    stderr_path = tmp_path / "validator.stderr.log"
+    descendant_marker = tmp_path / "descendant-survived.txt"
+    descendant_code = (
+        "import pathlib, sys, time; "
+        "time.sleep(0.5); "
+        "pathlib.Path(sys.argv[1]).write_text('survived', encoding='utf-8')"
+    )
+    leader_code = (
+        "import subprocess, sys; "
+        f"subprocess.Popen([sys.executable, '-c', {descendant_code!r}, sys.argv[1]])"
+    )
+
+    returncode, error = validate_profile_module._run_bounded_validator_subprocess(
+        [sys.executable, "-c", leader_code, str(descendant_marker)],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        stdout_log_path=stdout_path,
+        stderr_log_path=stderr_path,
+        timeout_s=2.0,
+        stdout_limit_bytes=1024,
+        stderr_limit_bytes=1024,
+    )
+
+    assert returncode == 0
+    assert error is None
+    time.sleep(0.7)
+    assert not descendant_marker.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Job Object regression")
+@pytest.mark.parametrize("failure_kind", ["timeout", "output_limit"])
+def test_bounded_validator_windows_failure_cleans_up_descendants(
+    tmp_path: Path,
+    failure_kind: str,
+) -> None:
+    stdout_path = tmp_path / "validator.stdout.log"
+    stderr_path = tmp_path / "validator.stderr.log"
+    descendant_marker = tmp_path / f"{failure_kind}-descendant-survived.txt"
+    descendant_ready = tmp_path / f"{failure_kind}-descendant-started.txt"
+    descendant_code = (
+        "import pathlib, sys, time; "
+        "pathlib.Path(sys.argv[2]).write_text('started', encoding='utf-8'); "
+        "time.sleep(0.5); "
+        "pathlib.Path(sys.argv[1]).write_text('survived', encoding='utf-8')"
+    )
+    limit = 257
+    failure_action = (
+        "time.sleep(10)"
+        if failure_kind == "timeout"
+        else f"os.write(1, b'x' * {limit + 1}); time.sleep(10)"
+    )
+    leader_code = (
+        "import os, pathlib, subprocess, sys, time; "
+        f"subprocess.Popen([sys.executable, '-c', {descendant_code!r}, "
+        "sys.argv[1], sys.argv[2]]); "
+        "deadline = time.monotonic() + 2; "
+        "ready = pathlib.Path(sys.argv[2]); "
+        'exec("while not ready.exists() and time.monotonic() < deadline:\\n '
+        '   time.sleep(0.01)"); '
+        f"{failure_action}"
+    )
+    started = time.monotonic()
+
+    returncode, error = validate_profile_module._run_bounded_validator_subprocess(
+        [
+            sys.executable,
+            "-c",
+            leader_code,
+            str(descendant_marker),
+            str(descendant_ready),
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ),
+        stdout_log_path=stdout_path,
+        stderr_log_path=stderr_path,
+        timeout_s=0.2 if failure_kind == "timeout" else 5.0,
+        stdout_limit_bytes=limit,
+        stderr_limit_bytes=limit,
+    )
+
+    assert time.monotonic() - started < 2.0
+    assert returncode == 1
+    assert error is not None
+    assert error.startswith(f"simready_validator_{failure_kind}_exceeded:")
+    assert descendant_ready.read_text(encoding="utf-8") == "started"
+    time.sleep(0.7)
+    assert not descendant_marker.exists()
+
+
+def test_simready_log_limits_must_be_configured_as_a_pair() -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            "max_stdout_log_bytes and max_stderr_log_bytes must be provided together"
+        ),
+    ):
+        SimReadyValidationInput(
+            asset_path="asset.usda",
+            max_stdout_log_bytes=1024,
+        )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Gate 3 process containment is Linux-only")
+def test_bounded_validator_drain_waits_through_an_empty_poll() -> None:
+    read_fd, write_fd = os.pipe()
+    os.write(write_fd, b"late forensic bytes")
+    os.close(write_fd)
+    destination = io.BytesIO()
+    key = SimpleNamespace(
+        fd=read_fd,
+        fileobj=read_fd,
+        data=(destination, 1024),
+    )
+
+    class DelayedSelector:
+        def __init__(self) -> None:
+            self.active = True
+            self.poll_count = 0
+
+        def get_map(self) -> dict[int, object]:
+            return {read_fd: key} if self.active else {}
+
+        def select(self, _timeout: float) -> list[tuple[object, int]]:
+            self.poll_count += 1
+            if self.poll_count == 1:
+                return []
+            return [(key, 1)]
+
+        def unregister(self, _fileobj: object) -> None:
+            self.active = False
+
+    selector = DelayedSelector()
+    try:
+        exceeded = validate_profile_module._drain_ready_validator_output(
+            selector,  # type: ignore[arg-type]
+            written={read_fd: 0},
+        )
+    finally:
+        os.close(read_fd)
+
+    assert exceeded is False
+    assert destination.getvalue() == b"late forensic bytes"
+    assert selector.poll_count >= 2
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Gate 3 process containment is Linux-only")
+@pytest.mark.parametrize(("descriptor", "log_name"), [(1, "stdout"), (2, "stderr")])
+def test_simready_output_limit_overrides_passing_validator_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    descriptor: int,
+    log_name: str,
+) -> None:
+    monkeypatch.setenv(SIMREADY_CACHE_DIR_ENV, str(tmp_path / "simready-cache"))
+    foundation_root = _write_fake_foundation(tmp_path)
+    venv = _write_flooding_pass_venv(tmp_path, descriptor=descriptor)
+    asset = tmp_path / "asset.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {\n}\n', encoding="utf-8")
+    report_path = tmp_path / "simready-profile.json"
+    limit = 257
+
+    report = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset),
+            report_path=str(report_path),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+            max_stdout_log_bytes=limit,
+            max_stderr_log_bytes=limit,
+        )
+    )
+
+    selected_path = Path(
+        report.stdout_log_path if log_name == "stdout" else report.stderr_log_path
+    )
+    assert report.status == "ERROR"
+    assert report.passed is False
+    assert report.next_step == "fix-simready-validator-runtime"
+    assert any(
+        error.startswith("simready_validator_output_limit_exceeded:")
+        for error in report.errors
+    )
+    assert selected_path.read_bytes() == b"x" * limit
 
 
 def test_simready_validation_stages_usdz_root_and_preserves_original(
@@ -959,6 +2359,153 @@ def test_simready_validation_stages_usdz_root_and_preserves_original(
     )
     assert asset.read_bytes() == original_bytes
     assert asset.stat().st_mtime_ns == original_mtime_ns
+
+
+def test_simready_support_budget_presizes_normalized_report(tmp_path: Path) -> None:
+    report_path = tmp_path / "simready-profile.json"
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"simready_support_budget_exceeded: file_bytes limit=1",
+    ):
+        run_simready_profile_validation(
+            SimReadyValidationInput(
+                asset_path=str(tmp_path / "missing.usda"),
+                report_path=str(report_path),
+                max_support_file_bytes=1,
+                max_support_total_bytes=1,
+                max_support_file_count=1,
+                max_support_directory_count=1,
+            )
+        )
+
+    assert not report_path.exists()
+
+
+def test_simready_support_budget_rejects_raw_report_before_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_report = tmp_path / "raw.json"
+    with raw_report.open("wb") as stream:
+        stream.seek(1024 * 1024)
+        stream.write(b"x")
+
+    monkeypatch.setattr(
+        validate_profile_module.os,
+        "read",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("oversized raw report must not be read")
+        ),
+    )
+
+    payload = validate_profile_module._load_json_if_present(
+        raw_report,
+        max_bytes=1024,
+    )
+
+    assert payload[validate_profile_module.TOOLCHAIN_ERROR_KEY] is True
+    assert any(
+        "simready_support_budget_exceeded: file_bytes limit=1024" in error
+        for error in payload["errors"]
+    )
+
+
+def test_simready_raw_report_open_fails_closed_when_confined_open_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_report = tmp_path / "raw.json"
+    raw_report.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        validate_profile_module,
+        "open_held_confined_artifact",
+        lambda *_args: (_ for _ in ()).throw(
+            validate_profile_module.ArtifactPathError("confined open unavailable")
+        ),
+    )
+
+    payload = validate_profile_module._load_json_if_present(raw_report)
+
+    assert payload[validate_profile_module.TOOLCHAIN_ERROR_KEY] is True
+    assert any("confined open unavailable" in error for error in payload["errors"])
+
+
+def test_unbounded_raw_report_read_stops_at_opened_size_when_file_keeps_growing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_report = tmp_path / "raw.json"
+    raw_report.write_bytes(b"{}")
+    requested_sizes: list[int] = []
+
+    def endlessly_growing_read(_descriptor: int, size: int) -> bytes:
+        requested_sizes.append(size)
+        return b"x" * size
+
+    monkeypatch.setattr(validate_profile_module.os, "read", endlessly_growing_read)
+
+    payload = validate_profile_module._load_json_if_present(raw_report)
+
+    assert payload[validate_profile_module.TOOLCHAIN_ERROR_KEY] is True
+    assert any("changed while it was read" in error for error in payload["errors"])
+    assert requested_sizes == [raw_report.stat().st_size + 1]
+
+
+@pytest.mark.parametrize(
+    ("member_name", "payload_size", "directory_limit", "dimension"),
+    (
+        ("root.usda", 64 * 1024 + 1, 8, "file_bytes"),
+        ("a/b/c/root.usda", 16, 3, "directory_count"),
+    ),
+)
+def test_simready_support_budget_rejects_usdz_before_workspace_creation(
+    tmp_path: Path,
+    member_name: str,
+    payload_size: int,
+    directory_limit: int,
+    dimension: str,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    venv = _write_asset_capture_venv(tmp_path)
+    asset = tmp_path / "budgeted.usdz"
+    with ZipFile(asset, "w") as archive:
+        archive.writestr(member_name, b"x" * payload_size)
+    report_path = tmp_path / "simready-profile.json"
+
+    report = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset),
+            report_path=str(report_path),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+            max_support_file_bytes=64 * 1024,
+            max_support_total_bytes=128 * 1024,
+            max_support_file_count=8,
+            max_support_directory_count=directory_limit,
+        )
+    )
+
+    assert report.status == "BLOCKED"
+    assert any(
+        f"simready_support_budget_exceeded: {dimension}" in error
+        for error in report.errors
+    )
+    assert not validate_profile_module._validation_workspace_path(
+        report_path.resolve()
+    ).exists()
+
+
+def test_simready_support_budget_must_be_complete() -> None:
+    with pytest.raises(
+        ValueError,
+        match="all SimReady support budget limits must be provided together",
+    ):
+        SimReadyValidationInput(
+            asset_path="asset.usda",
+            max_support_file_bytes=1024,
+        )
 
 
 def test_simready_validation_rejects_usdz_traversal_member(tmp_path: Path) -> None:
@@ -1108,6 +2655,45 @@ def test_simready_validation_keeps_usda_validator_path_unchanged(
     ).exists()
 
 
+def test_simready_validation_binds_and_rechecks_composed_dependencies(
+    tmp_path: Path,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    venv = _write_dependency_mutating_venv(tmp_path)
+    layers = tmp_path / "layers"
+    layers.mkdir()
+    dependency = layers / "sub.usda"
+    dependency.write_text(
+        '#usda 1.0\n\ndef Xform "Dependency" {}\n',
+        encoding="utf-8",
+    )
+    asset = tmp_path / "asset.usda"
+    asset.write_text(
+        "#usda 1.0\n(\n    subLayers = [@layers/sub.usda@]\n)\n",
+        encoding="utf-8",
+    )
+
+    report = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset),
+            report_path=str(tmp_path / "simready-profile.json"),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+        )
+    )
+
+    manifest_paths = {
+        item["path"] for item in report.asset_dependency_manifest.get("files", [])
+    }
+    assert manifest_paths == {str(asset.resolve()), str(dependency.resolve())}
+    assert not report.passed
+    assert report.status == "ERROR"
+    assert any(
+        "resolved USD dependency content changed" in item for item in report.errors
+    )
+
+
 def test_simready_validation_normalizes_malformed_raw_json(tmp_path: Path) -> None:
     foundation_root = _write_fake_foundation(tmp_path)
     venv = _write_malformed_json_venv(tmp_path)
@@ -1203,16 +2789,24 @@ def test_simready_validation_normalizes_invalid_utf8_raw_json(tmp_path: Path) ->
     assert report.next_step == "fix-simready-validator-runtime"
 
 
-def test_simready_validation_fails_when_raw_report_missing(tmp_path: Path) -> None:
+def test_simready_validation_rejects_stale_pass_when_fresh_raw_report_missing(
+    tmp_path: Path,
+) -> None:
     foundation_root = _write_fake_foundation(tmp_path)
-    venv = _write_no_report_venv(tmp_path)
+    venv = _write_no_report_venv(tmp_path, exit_code=17)
     asset = tmp_path / "asset.usda"
     asset.write_text('#usda 1.0\n\ndef Xform "World" {\n}\n', encoding="utf-8")
+    report_path = tmp_path / "simready-profile.json"
+    stale_raw_report = report_path.with_suffix(".raw.json")
+    stale_raw_report.write_text(
+        json.dumps({"passed": True, "status": "PASS"}),
+        encoding="utf-8",
+    )
 
     report = run_simready_profile_validation(
         SimReadyValidationInput(
             asset_path=str(asset),
-            report_path=str(tmp_path / "simready-profile.json"),
+            report_path=str(report_path),
             foundation_root=str(foundation_root),
             venv_path=str(venv),
             install_missing=False,
@@ -1223,7 +2817,8 @@ def test_simready_validation_fails_when_raw_report_missing(tmp_path: Path) -> No
     assert report.status == "ERROR"
     assert any("raw report was not written" in item for item in report.errors)
     assert report.raw_report_path is not None
-    assert not Path(report.raw_report_path).exists()
+    assert Path(report.raw_report_path) == stale_raw_report.resolve()
+    assert not stale_raw_report.exists()
     assert report.next_step == "fix-simready-validator-runtime"
 
 
@@ -1272,6 +2867,58 @@ def test_simready_validation_ignores_rb_mb001_for_single_component_asset(
             "severity": "IGNORED",
         }
     ]
+
+
+def test_simready_validation_accepts_nonzero_exit_for_ignored_rb_mb001(
+    tmp_path: Path,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    venv = _write_fake_features_summary_venv(tmp_path, exit_code=1)
+    asset = tmp_path / "coffee_mug.usda"
+    _write_single_mesh_asset(asset)
+
+    report = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset),
+            profile="Prop-Robotics-Physx",
+            profile_version="1.0.0",
+            report_path=str(tmp_path / "simready-profile.json"),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+        )
+    )
+
+    assert report.passed
+    assert report.status == "PASS"
+    assert report.rerun_reasons == []
+    assert report.validation_policy["single_component_requirement_ignored"]
+
+
+def test_simready_validation_rejects_unexpected_exit_for_ignored_rb_mb001(
+    tmp_path: Path,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    venv = _write_fake_features_summary_venv(tmp_path, exit_code=2)
+    asset = tmp_path / "coffee_mug.usda"
+    _write_single_mesh_asset(asset)
+
+    report = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset),
+            profile="Prop-Robotics-Physx",
+            profile_version="1.0.0",
+            report_path=str(tmp_path / "simready-profile.json"),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+        )
+    )
+
+    assert not report.passed
+    assert report.status == "ERROR"
+    assert report.next_step == "fix-simready-validator-runtime"
+    assert any("unexpected status 2" in error for error in report.errors)
 
 
 def test_simready_validation_counts_mixed_mesh_and_subset_components(
@@ -1364,7 +3011,7 @@ def test_simready_validation_does_not_ignore_rb_mb001_without_mesh_components(
     assert report.rerun_reasons == ["RB.MB.001"]
 
 
-def test_simready_validation_warns_when_topology_inspection_cannot_open_asset(
+def test_simready_validation_blocks_when_dependency_inspection_cannot_open_asset(
     tmp_path: Path,
 ) -> None:
     foundation_root = _write_fake_foundation(tmp_path)
@@ -1382,29 +3029,47 @@ def test_simready_validation_warns_when_topology_inspection_cannot_open_asset(
         )
     )
 
-    assert not report.asset_topology["inspected"]
-    assert "OpenUSD could not" in report.asset_topology["warning"]
+    assert report.status == "BLOCKED"
+    assert not report.passed
+    assert report.next_step == "resolve-usd-dependencies"
+    assert report.asset_dependency_manifest == {}
+    assert any(
+        "Could not bind asset dependency identity" in error for error in report.errors
+    )
+    assert any(
+        "OpenUSD could not enumerate dependencies" in error for error in report.errors
+    )
 
 
-def test_simready_conformance_repairs_simready_metadata(tmp_path: Path) -> None:
+def test_simready_conformance_repairs_identity_bound_failed_requirement(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     Usd = pytest.importorskip("pxr.Usd")
     foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
     asset = tmp_path / "asset.usda"
     asset.write_text('#usda 1.0\n\ndef Xform "World" {\n}\n', encoding="utf-8")
     validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps(
-            {
-                "issues": [
-                    {
-                        "requirement_id": "NP.006",
-                        "severity": "ERROR",
-                        "message": "Missing SimReady metadata.",
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
+    _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["NP.006"],
+        extra={
+            "issues": [
+                {
+                    "requirement_id": "NP.006",
+                    "severity": "ERROR",
+                    "message": "Missing SimReady metadata.",
+                }
+            ]
+        },
     )
 
     report = run_simready_profile_conformance(
@@ -1425,6 +3090,274 @@ def test_simready_conformance_repairs_simready_metadata(tmp_path: Path) -> None:
         report.steps[0]["upstream_skill"] == "simready-foundation-conform-fet-000-core"
     )
     repaired_stage = Usd.Stage.Open(report.output_usd_path)
+    assert repaired_stage is not None
+    assert "SimReady_Metadata" in repaired_stage.GetRootLayer().customLayerData
+
+
+def test_np005_repair_blocks_when_dependency_discovery_is_incomplete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "widget.usda"
+    asset.write_text('#usda 1.0\ndef Xform "Widget" {}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        conform_profile_module,
+        "_usd_dependency_paths",
+        lambda _path: ([asset], ["OpenUSD dependency inspection unavailable"]),
+    )
+
+    result = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=tmp_path / "conform",
+    )
+
+    assert result.status == "BLOCKED"
+    assert result.passed is False
+    assert result.report["dependency_warnings"] == [
+        "OpenUSD dependency inspection unavailable"
+    ]
+
+
+def test_np005_repair_packages_and_rewrites_external_texture_dependency(
+    tmp_path: Path,
+) -> None:
+    Usd = pytest.importorskip("pxr.Usd")
+    source_dir = tmp_path / "source"
+    texture = source_dir / "textures/albedo.png"
+    texture.parent.mkdir(parents=True)
+    texture.write_bytes(b"png fixture")
+    asset = source_dir / "widget.usda"
+    asset.write_text(
+        '#usda 1.0\n\ndef Xform "Widget" {\n'
+        "    custom asset texture = @textures/albedo.png@\n}\n",
+        encoding="utf-8",
+    )
+
+    result = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=tmp_path / "conform",
+    )
+
+    assert result.status == "REPAIRED"
+    assert result.passed is True
+    assert result.package_root is not None
+    output = result.output_path
+    repaired_stage = Usd.Stage.Open(str(output))
+    assert repaired_stage is not None
+    authored = repaired_stage.GetPrimAtPath("/Widget").GetAttribute("texture").Get()
+    assert authored is not None
+    assert authored.path.startswith("../dependencies/")
+    relocated_texture = (output.parent / authored.path).resolve()
+    assert relocated_texture.read_bytes() == texture.read_bytes()
+    assert relocated_texture.is_relative_to(result.package_root.resolve())
+    assert len(result.report["output_tree_sha256"]) == 64
+    assert result.report["packaged_dependencies"] == [
+        {
+            "source_path": str(texture.resolve()),
+            "output_path": str(relocated_texture),
+            "sha256": hashlib.sha256(texture.read_bytes()).hexdigest(),
+        }
+    ]
+    repeated = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=tmp_path / "conform",
+    )
+    assert repeated.status == "REPAIRED"
+    assert repeated.report["reused_output"] is True
+    assert repeated.output_path == result.output_path
+
+
+def test_np005_repair_rewrites_nested_usd_layer_dependencies(tmp_path: Path) -> None:
+    Sdf = pytest.importorskip("pxr.Sdf")
+    Usd = pytest.importorskip("pxr.Usd")
+    source_dir = tmp_path / "source"
+    texture = source_dir / "textures/albedo.png"
+    texture.parent.mkdir(parents=True)
+    texture.write_bytes(b"nested png fixture")
+    child = source_dir / "layers/child.usda"
+    child.parent.mkdir(parents=True)
+    child.write_text(
+        '#usda 1.0\n\ndef Xform "Child" {\n'
+        "    custom asset texture = @../textures/albedo.png@\n}\n",
+        encoding="utf-8",
+    )
+    asset = source_dir / "widget.usda"
+    asset.write_text(
+        "#usda 1.0\n(\n    subLayers = [@layers/child.usda@]\n)\n"
+        '\ndef Xform "Widget" {}\n',
+        encoding="utf-8",
+    )
+
+    result = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=tmp_path / "conform",
+    )
+
+    assert result.status == "REPAIRED"
+    assert result.package_root is not None
+    repaired_root = Sdf.Layer.FindOrOpen(str(result.output_path))
+    assert repaired_root is not None
+    assert len(repaired_root.subLayerPaths) == 1
+    copied_child = (
+        result.output_path.parent / repaired_root.subLayerPaths[0]
+    ).resolve()
+    child_stage = Usd.Stage.Open(str(copied_child))
+    assert child_stage is not None
+    authored = child_stage.GetPrimAtPath("/Child").GetAttribute("texture").Get()
+    assert authored is not None
+    relocated_texture = (copied_child.parent / authored.path).resolve()
+    assert relocated_texture.read_bytes() == texture.read_bytes()
+    assert relocated_texture.is_relative_to(result.package_root.resolve())
+
+
+def test_aa001_accepts_np005_content_addressed_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "widget.usda"
+    asset.write_text('#usda 1.0\ndef Xform "Widget" {}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        conform_profile_module,
+        "_usd_dependency_paths",
+        lambda _path: ([asset], []),
+    )
+    output_dir = tmp_path / "conform"
+    np005 = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=output_dir,
+    )
+
+    assert np005.status == "REPAIRED"
+    assert np005.package_root is not None
+    source_tree, root_path, _, cleanup_dir = (
+        conform_profile_module._aa001_source_package(
+            asset_path=np005.output_path,
+            package_root=np005.package_root,
+            output_dir=output_dir,
+        )
+    )
+    assert source_tree == np005.package_root.resolve()
+    assert root_path == np005.output_path.resolve()
+    assert cleanup_dir is None
+
+
+def test_np005_repair_publishes_changed_input_to_new_content_address(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "widget.usda"
+    asset.write_text('#usda 1.0\ndef Xform "Widget" {}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        conform_profile_module,
+        "_usd_dependency_paths",
+        lambda _path: ([asset], []),
+    )
+    output_dir = tmp_path / "conform"
+
+    first = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=output_dir,
+    )
+    first_bytes = first.output_path.read_bytes()
+    asset.write_text(
+        '#usda 1.0\ndef Xform "Widget" { custom string revision = "two" }\n',
+        encoding="utf-8",
+    )
+    second = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=output_dir,
+    )
+
+    assert first.status == second.status == "REPAIRED"
+    assert first.output_path != second.output_path
+    assert first.report["output_tree_sha256"] != second.report["output_tree_sha256"]
+    assert first.output_path.read_bytes() == first_bytes
+    assert second.output_path.read_bytes() == asset.read_bytes()
+
+
+@pytest.mark.parametrize("symlink_component", ["asset_root", "intermediate", "output"])
+def test_np005_repair_rejects_symlinked_output_components(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    symlink_component: str,
+) -> None:
+    asset = tmp_path / "widget.usda"
+    asset.write_text('#usda 1.0\ndef Xform "Widget" {}\n', encoding="utf-8")
+    monkeypatch.setattr(
+        conform_profile_module,
+        "_usd_dependency_paths",
+        lambda _path: ([asset], []),
+    )
+    output_dir = tmp_path / "conform"
+    initial = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=output_dir,
+    )
+    assert initial.status == "REPAIRED"
+    assert initial.package_root is not None
+    asset_root = initial.package_root
+    intermediate = asset_root / "simready_usd"
+    output = intermediate / "widget.usda"
+    victim_dir = tmp_path / "victim-dir"
+    victim_dir.mkdir()
+    if symlink_component == "asset_root":
+        shutil.rmtree(asset_root)
+        asset_root.symlink_to(victim_dir, target_is_directory=True)
+    elif symlink_component == "intermediate":
+        shutil.rmtree(intermediate)
+        intermediate.symlink_to(victim_dir, target_is_directory=True)
+    else:
+        output.unlink()
+        victim = tmp_path / "victim.usda"
+        victim.write_bytes(asset.read_bytes())
+        output.symlink_to(victim)
+
+    result = conform_profile_module._repair_asset_folder_structure(
+        requirement="NP.005",
+        asset_path=asset,
+        output_dir=output_dir,
+    )
+
+    assert result.status == "BLOCKED"
+    assert result.passed is False
+    assert "symlink" in result.reason
+
+
+def test_simready_conformance_repairs_np005_before_metadata(
+    tmp_path: Path,
+) -> None:
+    Usd = pytest.importorskip("pxr.Usd")
+    foundation_root = _write_fake_foundation(tmp_path)
+    asset = tmp_path / "physics.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {\n}\n', encoding="utf-8")
+    source_bytes = asset.read_bytes()
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            repair_requirements=["NP.006", "NP.005"],
+            foundation_root=str(foundation_root),
+        )
+    )
+
+    assert report.passed
+    assert report.requirements_repaired == ["NP.005", "NP.006"]
+    assert [step["requirement"] for step in report.steps] == ["NP.005", "NP.006"]
+    output = Path(report.output_usd_path)
+    assert output.name == "physics.usda"
+    assert output.parent.name == "simready_usd"
+    assert output.parent.parent.name == "physics"
+    assert asset.read_bytes() == source_bytes
+    repaired_stage = Usd.Stage.Open(str(output))
     assert repaired_stage is not None
     assert "SimReady_Metadata" in repaired_stage.GetRootLayer().customLayerData
 
@@ -2094,9 +4027,46 @@ def test_simready_conformance_temp_directories_are_mode_0700(tmp_path: Path) -> 
         directory=tmp_path,
     )
     try:
-        assert stat.S_IMODE(temporary.stat().st_mode) == 0o700
+        if os.name == "nt":
+            assert temporary.is_dir()
+            assert not temporary.is_symlink()
+        else:
+            assert stat.S_IMODE(temporary.stat().st_mode) == 0o700
     finally:
         shutil.rmtree(temporary)
+
+
+def test_simready_cleanup_rejects_windows_reparse_point_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    build_dir = tmp_path / "build"
+    child = build_dir / "child"
+    child.mkdir(parents=True)
+    original_stat = Path.stat
+    reparse_attribute = 0x400
+    monkeypatch.setattr(
+        stat,
+        "FILE_ATTRIBUTE_REPARSE_POINT",
+        reparse_attribute,
+        raising=False,
+    )
+
+    def reparse_stat(path: Path, *args: object, **kwargs: object) -> object:
+        metadata = original_stat(path, *args, **kwargs)
+        if path == child:
+            return SimpleNamespace(
+                st_mode=metadata.st_mode,
+                st_file_attributes=reparse_attribute,
+            )
+        return metadata
+
+    monkeypatch.setattr(Path, "stat", reparse_stat)
+
+    with pytest.raises(ValueError, match="symlink or reparse point"):
+        conform_profile_module._remove_gsp001_build_tree(build_dir)
+
+    assert build_dir.exists()
 
 
 def test_simready_conformance_aa001_removes_only_stale_asset_identity(
@@ -2681,23 +4651,17 @@ def test_simready_conformance_repairs_raw_usd_to_isa001_atomically(
     source_world = UsdGeom.Xformable(mesh.GetPrim()).ComputeLocalToWorldTransform(
         Usd.TimeCode.Default()
     )
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["ISA.001"]}),
-        encoding="utf-8",
-    )
-
     params = SimReadyConformanceInput(
         asset_path=str(asset),
         output_dir=str(tmp_path / "conform"),
-        validation_report_path=str(validation_report),
+        repair_requirements=["ISA.001"],
         foundation_root=str(tmp_path / "missing-foundation"),
         force=True,
     )
     first_report = run_simready_profile_conformance(params)
 
     assert first_report.passed
-    assert first_report.failed_requirements == ["ISA.001"]
+    assert first_report.failed_requirements == []
     assert first_report.requirements_repaired == ["ISA.001"]
     assert asset.read_bytes() == source_bytes
     output = Path(first_report.output_usd_path)
@@ -3499,7 +5463,10 @@ def test_isa001_publish_reuses_verified_concurrent_winner(
     )
 
     assert reused
-    assert final_tree == publish_root / tree_sha256
+    assert (
+        final_tree
+        == publish_root / conform_profile_module._content_address_component(tree_sha256)
+    )
     assert conform_profile_module._isa001_tree_sha256(final_tree) == tree_sha256
     assert not build_dir.exists()
 
@@ -3551,26 +5518,16 @@ def test_simready_conformance_repairs_deterministic_profile_failures(
     grasp.CreateWidthsAttr([0.01])
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps(
-            {
-                "rerun_reasons": [
-                    "GSP.001",
-                    "RB.COL.001",
-                    "RB.COL.002",
-                    "VM.MAT.001",
-                ]
-            }
-        ),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=[
+                "GSP.001",
+                "RB.COL.001",
+                "RB.COL.002",
+                "VM.MAT.001",
+            ],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -3630,17 +5587,11 @@ def test_simready_conformance_blocks_grasp_without_evidence_and_no_colliders(
     visual_mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["GSP.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["GSP.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -3743,17 +5694,11 @@ def test_simready_conformance_blocks_visual_material_without_sourced_material(
     mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["VM.MAT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["VM.MAT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -3766,6 +5711,156 @@ def test_simready_conformance_blocks_visual_material_without_sourced_material(
     assert not repaired_stage.GetPrimAtPath(
         "/robot/Looks/SimReadyFallbackMaterial"
     ).IsValid()
+
+
+def test_simready_conformance_blocks_ambiguous_vm_tex_002_color_spaces(
+    tmp_path: Path,
+) -> None:
+    Sdf = pytest.importorskip("pxr.Sdf")
+    Usd = pytest.importorskip("pxr.Usd")
+    UsdShade = pytest.importorskip("pxr.UsdShade")
+
+    foundation_root = _write_fake_foundation(tmp_path)
+    asset = tmp_path / "asset.usda"
+    stage = Usd.Stage.CreateNew(str(asset))
+    root = stage.DefinePrim("/asset", "Xform")
+    stage.SetDefaultPrim(root)
+    shader = UsdShade.Shader.Define(stage, "/asset/Looks/Shader")
+    base_color = shader.CreateInput(
+        "base_color_texture_file", Sdf.ValueTypeNames.Asset
+    ).GetAttr()
+    base_color.Set(Sdf.AssetPath("albedo.png"))
+    base_color.SetColorSpace("sRGB")
+    vertex_color = shader.CreateInput(
+        "UV_VertexColor", Sdf.ValueTypeNames.Color3f
+    ).GetAttr()
+    vertex_color.SetColorSpace("raw")
+    stage.GetRootLayer().Save()
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            repair_requirements=["VM.TEX.002"],
+            foundation_root=str(foundation_root),
+            force=True,
+        )
+    )
+
+    assert not report.passed
+    assert report.requirements_blocked == ["VM.TEX.002"]
+    assert asset.read_text().count('colorSpace = "sRGB"') == 1
+    repaired_stage = Usd.Stage.Open(report.output_usd_path)
+    assert repaired_stage is not None
+    repaired_shader = repaired_stage.GetPrimAtPath("/asset/Looks/Shader")
+    assert (
+        repaired_shader.GetAttribute("inputs:base_color_texture_file").GetColorSpace()
+        == "sRGB"
+    )
+    assert (
+        repaired_shader.GetAttribute("inputs:UV_VertexColor").GetColorSpace() == "raw"
+    )
+    repair_payload = json.loads(Path(report.reports["VM.TEX.002"]).read_text())
+    assert repair_payload["changed_attributes"] == []
+    assert repair_payload["ambiguous_attributes"] == [
+        {
+            "attribute_path": "/asset/Looks/Shader.inputs:base_color_texture_file",
+            "color_space": "sRGB",
+            "validator_expected_color_space": "raw",
+        }
+    ]
+
+
+def test_simready_conformance_repairs_empty_vm_tex_002_texture_slot(
+    tmp_path: Path,
+) -> None:
+    Sdf = pytest.importorskip("pxr.Sdf")
+    Usd = pytest.importorskip("pxr.Usd")
+    UsdShade = pytest.importorskip("pxr.UsdShade")
+
+    foundation_root = _write_fake_foundation(tmp_path)
+    asset = tmp_path / "asset.usda"
+    stage = Usd.Stage.CreateNew(str(asset))
+    root = stage.DefinePrim("/asset", "Xform")
+    stage.SetDefaultPrim(root)
+    shader = UsdShade.Shader.Define(stage, "/asset/Looks/Shader")
+    empty_texture = shader.CreateInput(
+        "base_color_texture_file", Sdf.ValueTypeNames.Asset
+    ).GetAttr()
+    empty_texture.Set(Sdf.AssetPath(""))
+    empty_texture.SetColorSpace("auto")
+    stage.GetRootLayer().Save()
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            repair_requirements=["VM.TEX.002"],
+            foundation_root=str(foundation_root),
+            force=True,
+        )
+    )
+
+    assert report.passed
+    repaired_stage = Usd.Stage.Open(report.output_usd_path)
+    assert repaired_stage is not None
+    repaired = repaired_stage.GetAttributeAtPath(
+        "/asset/Looks/Shader.inputs:base_color_texture_file"
+    )
+    assert repaired.Get().path == ""
+    assert repaired.GetColorSpace() == "raw"
+    repair_payload = json.loads(Path(report.reports["VM.TEX.002"]).read_text())
+    assert repair_payload.get("ambiguous_attributes", []) == []
+    assert repair_payload["changed_attributes"] == [
+        {
+            "attribute_path": ("/asset/Looks/Shader.inputs:base_color_texture_file"),
+            "color_space": "raw",
+            "previous_color_space": "auto",
+        }
+    ]
+
+
+def test_simready_conformance_blocks_time_sampled_vm_tex_002_texture_slot(
+    tmp_path: Path,
+) -> None:
+    Sdf = pytest.importorskip("pxr.Sdf")
+    Usd = pytest.importorskip("pxr.Usd")
+    UsdShade = pytest.importorskip("pxr.UsdShade")
+
+    foundation_root = _write_fake_foundation(tmp_path)
+    asset = tmp_path / "asset.usda"
+    stage = Usd.Stage.CreateNew(str(asset))
+    root = stage.DefinePrim("/asset", "Xform")
+    stage.SetDefaultPrim(root)
+    texture = (
+        UsdShade.Shader.Define(stage, "/asset/Looks/Shader")
+        .CreateInput("coat_texture_file", Sdf.ValueTypeNames.Asset)
+        .GetAttr()
+    )
+    texture.Set(Sdf.AssetPath("coat.png"), 1.0)
+    texture.SetColorSpace("auto")
+    stage.GetRootLayer().Save()
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            repair_requirements=["VM.TEX.002"],
+            foundation_root=str(foundation_root),
+            force=True,
+        )
+    )
+
+    assert not report.passed
+    assert report.requirements_blocked == ["VM.TEX.002"]
+    repair_payload = json.loads(Path(report.reports["VM.TEX.002"]).read_text())
+    assert repair_payload["ambiguous_attributes"] == [
+        {
+            "attribute_path": "/asset/Looks/Shader.inputs:coat_texture_file",
+            "color_space": "auto",
+            "validator_expected_color_space": "raw",
+        }
+    ]
 
 
 def test_simready_conformance_blocks_ambiguous_visual_material_assignment(
@@ -3793,17 +5888,11 @@ def test_simready_conformance_blocks_ambiguous_visual_material_assignment(
         )
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["VM.MAT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["VM.MAT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -3845,17 +5934,11 @@ def test_simready_conformance_binds_visual_material_subsets(
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["VM.MAT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["VM.MAT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -3901,17 +5984,11 @@ def test_simready_conformance_preserves_full_purpose_visual_bindings(
     )
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["VM.MAT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["VM.MAT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -3957,25 +6034,21 @@ def test_simready_conformance_resolves_agent_skill_layout_for_local_repairs(
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["VM.MAT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["VM.MAT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
     )
 
     assert report.passed
-    assert report.steps[0]["upstream_skill_path"].endswith(
-        ".agents/skills/simready-conform-fet_006-materials/SKILL.md"
+    assert (
+        report.steps[0]["upstream_skill_path"]
+        .replace("\\", "/")
+        .endswith(".agents/skills/simready-conform-fet_006-materials/SKILL.md")
     )
 
 
@@ -3998,17 +6071,11 @@ def test_simready_conformance_blocks_physics_material_without_sourced_material(
     UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["PMT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["PMT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4017,8 +6084,12 @@ def test_simready_conformance_blocks_physics_material_without_sourced_material(
     assert not report.passed
     assert report.requirements_blocked == ["PMT.001"]
     assert report.steps[0]["upstream_skill"].endswith("fet-007-nonvisual-materials")
-    assert report.steps[0]["upstream_skill_path"].endswith(
-        "skills/simready-foundation-conform-fet-007-nonvisual-materials/SKILL.md"
+    assert (
+        report.steps[0]["upstream_skill_path"]
+        .replace("\\", "/")
+        .endswith(
+            "skills/simready-foundation-conform-fet-007-nonvisual-materials/SKILL.md"
+        )
     )
     repaired_stage = Usd.Stage.Open(report.output_usd_path)
     assert repaired_stage is not None
@@ -4052,17 +6123,11 @@ def test_simready_conformance_repairs_invalid_physics_material_targets(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["PMT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["PMT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4105,17 +6170,11 @@ def test_simready_conformance_blocks_ambiguous_physics_material_assignment(
         UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["PMT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["PMT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4131,7 +6190,7 @@ def test_simready_conformance_blocks_ambiguous_physics_material_assignment(
     assert not relationship or not relationship.GetTargets()
 
 
-def test_simready_conformance_accepts_inherited_physics_material_binding(
+def test_simready_conformance_materializes_inherited_physics_material_binding(
     tmp_path: Path,
 ) -> None:
     Usd = pytest.importorskip("pxr.Usd")
@@ -4156,17 +6215,11 @@ def test_simready_conformance_accepts_inherited_physics_material_binding(
     UsdShade.MaterialBindingAPI.Apply(robot).Bind(rubber, materialPurpose="physics")
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["PMT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["PMT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4176,7 +6229,9 @@ def test_simready_conformance_accepts_inherited_physics_material_binding(
     repaired_stage = Usd.Stage.Open(report.output_usd_path)
     assert repaired_stage is not None
     repaired_mesh = repaired_stage.GetPrimAtPath("/robot/collider_mesh")
-    assert not repaired_mesh.GetRelationship("material:binding:physics").IsValid()
+    assert repaired_mesh.GetRelationship("material:binding:physics").GetTargets() == [
+        rubber.GetPath()
+    ]
     material, _rel = UsdShade.MaterialBindingAPI(repaired_mesh).ComputeBoundMaterial(
         materialPurpose="physics"
     )
@@ -4206,17 +6261,11 @@ def test_simready_conformance_pairs_mesh_collision_api_with_collision_api(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4257,17 +6306,11 @@ def test_simready_conformance_migrates_collision_only_to_analytic_gprim(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4400,17 +6443,11 @@ def test_simready_conformance_expands_pmt_for_non_mesh_collision_migration(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4455,17 +6492,11 @@ def test_simready_conformance_preserves_mesh_collision_only_physics_binding(
     owner.CreateRelationship("material:binding:physics").SetTargets([rubber.GetPath()])
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4512,17 +6543,11 @@ def test_simready_conformance_blocks_conflicting_collision_migration_bindings(
     )
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4568,17 +6593,11 @@ def test_simready_conformance_blocks_inherited_collision_binding_conflict(
     UsdShade.MaterialBindingAPI.Apply(group).Bind(metal, materialPurpose="physics")
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.001", "RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.001", "RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4631,17 +6650,11 @@ def test_simready_conformance_preserves_target_collider_settings(
     )
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.001", "RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.001", "RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4684,17 +6697,11 @@ def test_simready_conformance_repairs_directory_package_root_usd(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(package_dir),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4736,17 +6743,11 @@ def test_simready_conformance_migrates_collision_only_to_identified_meshes(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.001", "RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.001", "RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4791,17 +6792,11 @@ def test_simready_conformance_blocks_ambiguous_collision_migration(
         mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.001", "RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.001", "RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4845,17 +6840,11 @@ def test_simready_conformance_does_not_save_partial_collision_migration_on_block
         mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["RB.COL.001", "RB.COL.002"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["RB.COL.001", "RB.COL.002"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4899,11 +6888,6 @@ def test_simready_conformance_blocks_when_repaired_layer_save_fails(
     UsdPhysics.MaterialAPI.Apply(material.GetPrim())
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["PMT.001"]}),
-        encoding="utf-8",
-    )
     save_error = "Could not save repaired USD layer /tmp/readonly.usda."
     monkeypatch.setattr(
         conform_profile_module,
@@ -4915,7 +6899,7 @@ def test_simready_conformance_blocks_when_repaired_layer_save_fails(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["PMT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -4959,17 +6943,11 @@ def test_simready_conformance_blocks_multi_target_physics_material_binding(
     )
     stage.GetRootLayer().Save()
 
-    validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["PMT.001"]}),
-        encoding="utf-8",
-    )
-
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=["PMT.001"],
             foundation_root=str(foundation_root),
             force=True,
         )
@@ -5014,26 +6992,33 @@ def test_simready_visual_materials_accept_render_context_surface_outputs() -> No
 
 def test_simready_conformance_uses_rerun_reasons_over_ignored_features(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
     asset = tmp_path / "asset.usda"
     asset.write_text('#usda 1.0\n\ndef Xform "World" {\n}\n', encoding="utf-8")
     validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps(
-            {
-                "rerun_reasons": ["NP.006"],
-                "ignored_issues": [{"requirement_id": "RB.MB.001"}],
-                "feature_results": [
-                    {
-                        "id": "FET004_BASE_PHYSX",
-                        "passed": False,
-                        "failing requirements": "['RB.MB.001']",
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
+    _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["NP.006"],
+        extra={
+            "ignored_issues": [{"requirement_id": "RB.MB.001"}],
+            "feature_results": [
+                {
+                    "id": "FET004_BASE_PHYSX",
+                    "passed": False,
+                    "failing requirements": "['RB.MB.001']",
+                }
+            ],
+        },
     )
 
     report = run_simready_profile_conformance(
@@ -5051,16 +7036,25 @@ def test_simready_conformance_uses_rerun_reasons_over_ignored_features(
     assert "RB.MB.001" not in {step["requirement"] for step in report.steps}
 
 
-def test_simready_conformance_does_not_pass_skipped_failed_requirements(
+def test_simready_conformance_rejects_unsupported_identity_bound_rerun_id(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
     asset = tmp_path / "asset.usda"
     asset.write_text('#usda 1.0\n\ndef Xform "World" {\n}\n', encoding="utf-8")
     validation_report = tmp_path / "simready-profile.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["ZZ.001"]}),
-        encoding="utf-8",
+    _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["ZZ.001"],
     )
 
     report = run_simready_profile_conformance(
@@ -5074,7 +7068,12 @@ def test_simready_conformance_does_not_pass_skipped_failed_requirements(
 
     assert not report.passed
     assert report.status == "BLOCKED"
-    assert report.requirements_skipped == ["ZZ.001"]
+    assert report.requirements_skipped == []
+    assert any(
+        "rerun_reasons contains an unsupported requirement" in item
+        for item in report.errors
+    )
+    assert report.output_usd_path == str(asset.resolve())
 
 
 def test_simready_conformance_reports_missing_validation_report(
@@ -5094,8 +7093,9 @@ def test_simready_conformance_reports_missing_validation_report(
     )
 
     assert not report.passed
-    assert report.status == "FAIL"
+    assert report.status == "BLOCKED"
     assert any("Validation report does not exist" in item for item in report.errors)
+    assert report.next_step == "simready-validate"
 
 
 def test_simready_conformance_reports_malformed_validation_report(
@@ -5117,10 +7117,11 @@ def test_simready_conformance_reports_malformed_validation_report(
     )
 
     assert not report.passed
-    assert report.status == "FAIL"
+    assert report.status == "BLOCKED"
     assert any(
         "Validation report could not be parsed" in item for item in report.errors
     )
+    assert report.next_step == "simready-validate"
 
 
 def test_simready_conformance_reports_invalid_utf8_validation_report(
@@ -5142,10 +7143,248 @@ def test_simready_conformance_reports_invalid_utf8_validation_report(
     )
 
     assert not report.passed
-    assert report.status == "FAIL"
+    assert report.status == "BLOCKED"
     assert any(
         "Validation report could not be parsed" in item for item in report.errors
     )
+    assert report.next_step == "simready-validate"
+
+
+def test_simready_conformance_blocks_untrusted_validation_report(
+    tmp_path: Path,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    asset = tmp_path / "asset.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {}\n', encoding="utf-8")
+    validation_report = tmp_path / "simready-profile.json"
+    validation_report.write_text(
+        json.dumps({"rerun_reasons": ["NP.006"]}),
+        encoding="utf-8",
+    )
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            validation_report_path=str(validation_report),
+            foundation_root=str(foundation_root),
+        )
+    )
+
+    assert not report.passed
+    assert report.status == "BLOCKED"
+    assert any("not identity-bound" in item for item in report.errors)
+    assert report.output_usd_path == str(asset.resolve())
+    assert report.next_step == "simready-validate"
+
+
+@pytest.mark.parametrize(
+    "identity_field",
+    [
+        "asset_path",
+        "profile_name",
+        "profile_version",
+        "profile_target",
+        "foundation_commit",
+        "foundation_root",
+        "foundation_spec_root",
+        "validator_executable",
+        "foundation_requirements_sha256",
+        "foundation_spec_tree_sha256",
+        "runtime_contract_sha256",
+        "validator_executable_sha256",
+        "validator_distributions_sha256",
+        "validator_runtime_verified",
+    ],
+)
+def test_simready_conformance_rejects_wrong_validation_identity(
+    tmp_path: Path,
+    monkeypatch,
+    identity_field: str,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
+    asset = tmp_path / "asset.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {}\n', encoding="utf-8")
+    other_asset = tmp_path / "other.usda"
+    other_asset.write_text('#usda 1.0\n\ndef Xform "Other" {}\n', encoding="utf-8")
+    other_root = tmp_path / "other-runtime"
+    other_root.mkdir()
+    validation_report = tmp_path / "simready-profile.json"
+    payload = _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["NP.006"],
+    )
+    wrong_values: dict[str, object] = {
+        "asset_path": str(other_asset.resolve()),
+        "profile_name": "Prop-Robotics-Physx",
+        "profile_version": "9.9.9",
+        "profile_target": "Prop-Robotics-Physx@9.9.9",
+        "foundation_commit": "9" * 40,
+        "foundation_root": str(other_root.resolve()),
+        "foundation_spec_root": str(other_root.resolve()),
+        "validator_executable": str(other_asset.resolve()),
+        "foundation_requirements_sha256": "9" * 64,
+        "foundation_spec_tree_sha256": "9" * 64,
+        "runtime_contract_sha256": "9" * 64,
+        "validator_executable_sha256": "9" * 64,
+        "validator_distributions_sha256": "9" * 64,
+        "validator_runtime_verified": False,
+    }
+    payload[identity_field] = wrong_values[identity_field]
+    validation_report.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            validation_report_path=str(validation_report),
+        )
+    )
+
+    assert not report.passed
+    assert report.status == "BLOCKED"
+    assert any(identity_field in item for item in report.errors)
+    assert report.output_usd_path == str(asset.resolve())
+
+
+def test_simready_conformance_rejects_asset_changed_after_validation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
+    asset = tmp_path / "asset.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {}\n', encoding="utf-8")
+    validation_report = tmp_path / "simready-profile.json"
+    payload = _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["NP.006"],
+    )
+    original_sha256 = payload["asset_sha256"]
+    asset.write_text('#usda 1.0\n\ndef Xform "Changed" {}\n', encoding="utf-8")
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            validation_report_path=str(validation_report),
+        )
+    )
+
+    assert hashlib.sha256(asset.read_bytes()).hexdigest() != original_sha256
+    assert not report.passed
+    assert report.status == "BLOCKED"
+    assert any("asset_sha256 mismatch" in item for item in report.errors)
+
+
+def test_simready_conformance_rejects_dependency_changed_after_validation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
+    layers = tmp_path / "layers"
+    layers.mkdir()
+    dependency = layers / "sub.usda"
+    dependency.write_text(
+        '#usda 1.0\n\ndef Xform "Dependency" {}\n',
+        encoding="utf-8",
+    )
+    asset = tmp_path / "asset.usda"
+    asset.write_text(
+        "#usda 1.0\n(\n    subLayers = [@layers/sub.usda@]\n)\n",
+        encoding="utf-8",
+    )
+    validation_report = tmp_path / "simready-profile.json"
+    _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["NP.006"],
+    )
+    dependency.write_text(
+        '#usda 1.0\n\ndef Xform "ChangedAfterValidation" {}\n',
+        encoding="utf-8",
+    )
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            validation_report_path=str(validation_report),
+        )
+    )
+
+    assert not report.passed
+    assert report.status == "BLOCKED"
+    assert any(
+        "resolved USD dependency content changed" in item for item in report.errors
+    )
+
+
+def test_simready_conformance_rejects_staged_asset_identity_change(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    runtime = _trusted_conformance_runtime(foundation_root)
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
+    asset = tmp_path / "asset.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {}\n', encoding="utf-8")
+    validation_report = tmp_path / "simready-profile.json"
+    _write_trusted_validation_report(
+        validation_report,
+        asset_path=asset,
+        runtime=runtime,
+        rerun_reasons=["NP.006"],
+    )
+    stage_input = conform_profile_module._stage_input
+
+    def stage_then_mutate(*args, **kwargs):
+        staged_asset, package_root, warnings = stage_input(*args, **kwargs)
+        staged_asset.write_text(
+            '#usda 1.0\n\ndef Xform "ChangedDuringStaging" {}\n',
+            encoding="utf-8",
+        )
+        return staged_asset, package_root, warnings
+
+    monkeypatch.setattr(conform_profile_module, "_stage_input", stage_then_mutate)
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+            validation_report_path=str(validation_report),
+        )
+    )
+
+    assert not report.passed
+    assert report.status == "BLOCKED"
+    assert any("Staged asset content" in item for item in report.errors)
 
 
 def test_simready_conformance_reports_staging_failure(
@@ -5323,6 +7562,42 @@ def test_simready_layer_dependencies_skip_text_export_after_native_api() -> None
     assert conform_profile_module._layer_authored_dependencies(FakeLayer()) == [
         "from-api.usda"
     ]
+
+
+def test_simready_conformance_blocks_unverified_managed_checkout(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    asset = tmp_path / "asset.usda"
+    asset.write_text('#usda 1.0\n\ndef Xform "World" {}\n', encoding="utf-8")
+    foundation_root = tmp_path / "managed-foundation"
+    foundation_root.mkdir()
+    runtime = foundation_runtime_module.SimReadyRuntimeInfo(
+        foundation_root=str(foundation_root),
+        foundation_commit="b" * 40,
+        foundation_spec_root=str(foundation_root / "specs"),
+        managed_foundation_checkout=True,
+        foundation_checkout_verified=False,
+        errors=["Managed SimReady Foundation release identity differs."],
+    )
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        lambda **_kwargs: runtime,
+    )
+
+    report = run_simready_profile_conformance(
+        SimReadyConformanceInput(
+            asset_path=str(asset),
+            output_dir=str(tmp_path / "conform"),
+        )
+    )
+
+    assert not report.passed
+    assert report.status == "BLOCKED"
+    assert not report.foundation_checkout_verified
+    assert report.output_usd_path == str(asset.resolve())
+    assert report.next_step == "prepare-simready-foundation-runtime"
 
 
 def test_simready_conformance_noop_passes_without_foundation(tmp_path: Path) -> None:
@@ -5540,3 +7815,146 @@ def test_simready_conformance_preserves_parent_traversal_payloads(
     assert output_path.parent.name == "Scenes"
     assert (output_path.parent.parent / "Payload" / "Contents.usda").exists()
     assert not (output_path.parent.parent / "unreferenced.bin").exists()
+
+
+def test_default_simready_report_names_are_asset_namespaced(tmp_path: Path) -> None:
+    first = tmp_path / "one" / "asset.usda"
+    second = tmp_path / "two" / "asset.usda"
+
+    first_name = default_simready_report_name(first, kind="profile")
+    second_name = default_simready_report_name(second, kind="profile")
+
+    assert first_name.startswith("asset-")
+    assert first_name.endswith("-simready-profile.json")
+    assert first_name != second_name
+
+
+def test_simready_validation_namespaces_same_directory_run_records(
+    tmp_path: Path,
+) -> None:
+    foundation_root = _write_fake_foundation(tmp_path)
+    venv = _write_fake_venv(tmp_path)
+    asset_a = tmp_path / "asset-a.usda"
+    asset_b = tmp_path / "asset-b.usda"
+    asset_a.write_text("#usda 1.0\n", encoding="utf-8")
+    asset_b.write_text("#usda 1.0\n", encoding="utf-8")
+    report_a = tmp_path / "asset-a.simready.json"
+    report_b = tmp_path / "asset-b.simready.json"
+    generic_request = tmp_path / "request.json"
+    generic_manifest = tmp_path / "workflow_run_manifest.json"
+    generic_request.write_text('{"owner":"existing-request"}\n', encoding="utf-8")
+    generic_manifest.write_text('{"owner":"existing-manifest"}\n', encoding="utf-8")
+
+    result_a = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset_a),
+            report_path=str(report_a),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+        )
+    )
+    manifest_a_path = Path(result_a.workflow_run_manifest_path or "")
+    manifest_a_before = manifest_a_path.read_bytes()
+
+    result_b = run_simready_profile_validation(
+        SimReadyValidationInput(
+            asset_path=str(asset_b),
+            report_path=str(report_b),
+            foundation_root=str(foundation_root),
+            venv_path=str(venv),
+            install_missing=False,
+        )
+    )
+    manifest_b_path = Path(result_b.workflow_run_manifest_path or "")
+
+    assert manifest_a_path == (
+        tmp_path / ".asset-a.simready.json.workflow-run" / "workflow_run_manifest.json"
+    )
+    assert manifest_b_path == (
+        tmp_path / ".asset-b.simready.json.workflow-run" / "workflow_run_manifest.json"
+    )
+    assert manifest_a_path != manifest_b_path
+    assert manifest_a_path.read_bytes() == manifest_a_before
+    assert generic_request.read_text(encoding="utf-8") == (
+        '{"owner":"existing-request"}\n'
+    )
+    assert generic_manifest.read_text(encoding="utf-8") == (
+        '{"owner":"existing-manifest"}\n'
+    )
+
+
+def test_simready_validation_records_unexpected_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "asset.usda"
+    asset.write_text("#usda 1.0\n", encoding="utf-8")
+    report_path = tmp_path / "asset.simready.json"
+
+    def fail_runtime(**_kwargs: object) -> object:
+        raise RuntimeError("unexpected validation failure")
+
+    monkeypatch.setattr(
+        validate_profile_module,
+        "resolve_simready_runtime",
+        fail_runtime,
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected validation failure"):
+        run_simready_profile_validation(
+            SimReadyValidationInput(
+                asset_path=str(asset),
+                report_path=str(report_path),
+            )
+        )
+
+    manifest_path = (
+        tmp_path / ".asset.simready.json.workflow-run" / "workflow_run_manifest.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["status"] == "fail"
+    assert manifest["failure"] == {
+        "code": "unexpected_workflow_error",
+        "error_type": "RuntimeError",
+        "message": "unexpected validation failure",
+    }
+
+
+def test_simready_conformance_records_unexpected_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "asset.usda"
+    asset.write_text("#usda 1.0\n", encoding="utf-8")
+    output_dir = tmp_path / "conform"
+
+    def fail_runtime(**_kwargs: object) -> object:
+        raise RuntimeError("unexpected conformance failure")
+
+    monkeypatch.setattr(
+        conform_profile_module,
+        "resolve_simready_runtime",
+        fail_runtime,
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected conformance failure"):
+        run_simready_profile_conformance(
+            SimReadyConformanceInput(
+                asset_path=str(asset),
+                output_dir=str(output_dir),
+            )
+        )
+
+    report_name = default_simready_report_name(asset, kind="conformance")
+    manifest = json.loads(
+        (
+            output_dir / f".{report_name}.workflow-run" / "workflow_run_manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert manifest["status"] == "fail"
+    assert manifest["failure"] == {
+        "code": "unexpected_workflow_error",
+        "error_type": "RuntimeError",
+        "message": "unexpected conformance failure",
+    }

@@ -1528,3 +1528,115 @@ def test_pipeline_stats_file_fallbacks_and_errors(
         session_dir,
         {"prims_processed": 0, "images_generated": 0, "predictions_made": 0},
     )
+
+    candidates = session_dir / "cache" / "predictions" / "articulation_candidates.json"
+    candidates.write_text("not json", encoding="utf-8")
+    executor._count_stats_from_files(
+        session_dir,
+        {
+            "prims_processed": 0,
+            "images_generated": 0,
+            "predictions_made": 0,
+        },
+        count_articulation_candidates=True,
+    )
+
+
+def test_executor_failure_and_confined_cache_helpers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert (
+        executor._pipeline_failure_diagnostic("pipeline_completion").code
+        == "joint_pipeline_completion_failed"
+    )
+
+    cache_root = tmp_path / "cache"
+    cache_root.mkdir()
+    with pytest.raises(executor.ArtifactPathError, match="outside"):
+        executor._confined_cache_cleanup_target(tmp_path / "outside", cache_root)
+    with pytest.raises(executor.ArtifactPathError, match="cache root"):
+        executor._confined_cache_cleanup_target(cache_root, cache_root)
+    with pytest.raises(executor.ArtifactPathError, match="not canonical"):
+        executor._confined_cache_cleanup_target(cache_root / "bad\x00", cache_root)
+
+    executor._unlink_confined_cache_entry(cache_root, "missing")
+    executor._unlink_confined_cache_entry(tmp_path / "missing-root", "missing")
+
+    monkeypatch.setattr(
+        executor,
+        "open_confined_directory",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            executor.ArtifactPathError("unsafe")
+        ),
+    )
+    with pytest.raises(executor.ArtifactPathError, match="unsafe"):
+        executor._unlink_confined_cache_entry(cache_root, "entry")
+
+    monkeypatch.setattr(
+        executor,
+        "open_confined_directory",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("failed")),
+    )
+    with pytest.raises(executor.ArtifactPathError, match="could not be confined"):
+        executor._unlink_confined_cache_entry(cache_root, "entry")
+
+
+@pytest.mark.asyncio
+async def test_emit_pipeline_failed_preserves_cancellation_and_emit_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Bus:
+        def __init__(self, error: BaseException) -> None:
+            self.error = error
+
+        @staticmethod
+        def get_snapshot(_session_id: str) -> dict[str, object]:
+            return {"status": "running"}
+
+        async def emit(self, _event: ProgressEvent) -> None:
+            raise self.error
+
+    monkeypatch.setattr(
+        executor,
+        "get_event_bus",
+        lambda: _Bus(RuntimeError("emit failed")),
+    )
+    await executor._emit_pipeline_failed("sid", "predict", "failed")
+
+    monkeypatch.setattr(
+        executor,
+        "get_event_bus",
+        lambda: _Bus(asyncio.CancelledError()),
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await executor._emit_pipeline_failed("sid", "predict", "cancelled")
+
+
+@pytest.mark.asyncio
+async def test_pipeline_failure_recording_failure_is_contained(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+
+    async def failed_pipeline(_params):
+        return SimpleNamespace(
+            success=False,
+            error="backend failed",
+            completed_steps=[],
+            step_results={},
+        )
+
+    async def fail_record(*_args, **_kwargs) -> None:
+        raise RuntimeError("record failed")
+
+    monkeypatch.setattr(executor, "arun_pipeline", failed_pipeline)
+    monkeypatch.setattr(executor, "_record_run_failure", fail_record)
+    with pytest.raises(RuntimeError, match="Pipeline failed"):
+        await executor.execute_pipeline_async(
+            "sid",
+            manager.current_run_id,
+            {"project": {"name": "test"}},
+            manager,
+        )

@@ -6,7 +6,7 @@
 # Build context must be the repository root:
 #   docker build -f apps/ovrtx_rendering_api/Dockerfile -t ovrtx-rendering-api .
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
 
 ARG APP_VERSION=0.1.0
 
@@ -55,6 +55,7 @@ WORKDIR /app
 # staged there before `docker build` without copying unrelated local files.
 COPY pyproject.toml README.md VERSION.md /app/
 COPY world_understanding /app/world_understanding
+COPY apps/usd_cli /app/apps/usd_cli
 COPY apps/ovrtx_rendering_api /app/apps/ovrtx_rendering_api
 COPY .build-resources /app/.build-resources
 
@@ -83,6 +84,12 @@ ENV WU_SO_PACKAGE_DIR=/app/.build-resources/scene_optimizer_core
 # ignore any host-level uv config and tool.uv.sources indirection.
 RUN cd /app && SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 UV_DYNAMIC_VERSIONING_BYPASS=0.0.0 \
     uv pip install -e ".[telemetry]" --no-config --no-sources
+
+# Install the package-owned remote protocol contract. The standalone service
+# imports its protocol version from this exact checkout so it cannot advertise a
+# stale numeric version after usd-cli advances.
+RUN cd /app/apps/usd_cli && uv pip install -e . --no-config --no-sources \
+    && python -c 'from importlib.metadata import version; assert version("usd-cli") == "0.0.1"'
 
 # Install ovrtx_rendering_api service
 RUN cd /app/apps/ovrtx_rendering_api && uv pip install -e . --no-config --no-sources
@@ -135,7 +142,10 @@ RUN python -m world_understanding.functions.graphics.render_ovrtx --provision-on
 # is large, and Docker layer creation becomes the slowest part of local
 # validation. Normalize only copied source directories so host checkout modes
 # such as 0600/0700 do not break the non-root import path.
-RUN chmod -R a+rX /app/world_understanding /app/apps/ovrtx_rendering_api
+RUN chmod -R a+rX \
+      /app/world_understanding \
+      /app/apps/usd_cli \
+      /app/apps/ovrtx_rendering_api
 
 RUN groupadd --gid 10001 renderer && \
     useradd --uid 10001 --gid renderer --create-home \

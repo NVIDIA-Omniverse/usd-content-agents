@@ -1,0 +1,43 @@
+#usda 1.0
+(
+    subLayers = [
+        @ladder.usd@
+    ]
+)
+
+# The source crate contains complete face-vertex UV arrays for these meshes, but
+# its primvars declare constant interpolation.  This metadata-only overlay makes
+# the checked-in public benchmark fixture truthful without rewriting source UVs.
+over "RootNode"
+{
+    over "Geometry"
+    {
+        over "M_AluminumStepLadder_B01_Aluminum"
+        {
+            texCoord2f[] primvars:st (
+                interpolation = "faceVarying"
+            )
+        }
+
+        over "M_AluminumStepLadder_B01_Plastic1"
+        {
+            texCoord2f[] primvars:st (
+                interpolation = "faceVarying"
+            )
+        }
+
+        over "M_AluminumStepLadder_B01_Plastic2"
+        {
+            texCoord2f[] primvars:st (
+                interpolation = "faceVarying"
+            )
+        }
+
+        over "M_AluminumStepLadder_B01_Rubber"
+        {
+            texCoord2f[] primvars:st (
+                interpolation = "faceVarying"
+            )
+        }
+    }
+}

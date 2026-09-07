@@ -186,6 +186,7 @@ def test_build_refine_models_success_and_config_errors(
 ) -> None:
     monkeypatch.setenv("PA_REFINE_BACKEND", "plugin-provider")
     monkeypatch.setenv("PA_REFINE_MODEL", "model")
+    monkeypatch.setenv("PA_REFINE_REASONING_EFFORT", "medium")
 
     import physics_agent.tuning.visual_evidence as visual_evidence
     import world_understanding.agentic.config as agentic_config
@@ -231,7 +232,7 @@ def test_build_refine_models_success_and_config_errors(
     monkeypatch.setattr(
         visual_evidence,
         "backend_supports_reasoning_effort",
-        lambda _backend: False,
+        lambda _backend, _model=None: False,
     )
 
     chat_model, vlm_model = executor._build_refine_models(
@@ -241,6 +242,35 @@ def test_build_refine_models_success_and_config_errors(
     assert chat_model[0] == "chat"
     assert vlm_model[0] == "vlm"
     assert vlm_model[1]["api_key"] == "vlm-key"
+    assert "reasoning_effort" not in vlm_model[1]
+
+    monkeypatch.setattr(
+        visual_evidence,
+        "backend_supports_reasoning_effort",
+        lambda _backend, _model=None: True,
+    )
+    chat_model, vlm_model = executor._build_refine_models(
+        judge_max_tokens=123,
+        judge_temperature=0.25,
+    )
+    assert chat_model[1]["reasoning_effort"] == "medium"
+    assert vlm_model[1]["reasoning_effort"] == "medium"
+
+    import physics_agent.api.defaults as physics_defaults
+    import world_understanding.functions.models.token_limits as token_limits
+
+    monkeypatch.delenv("PA_REFINE_REASONING_EFFORT", raising=False)
+    monkeypatch.setattr(physics_defaults, "DEFAULT_VLM_REASONING_EFFORT", "")
+    monkeypatch.setattr(
+        token_limits,
+        "model_reasoning_effort_default",
+        lambda _model, **_kwargs: None,
+    )
+    chat_model, vlm_model = executor._build_refine_models(
+        judge_max_tokens=123,
+        judge_temperature=0.25,
+    )
+    assert "reasoning_effort" not in chat_model[1]
     assert "reasoning_effort" not in vlm_model[1]
 
 
@@ -435,7 +465,7 @@ async def _run_execute_refine(
     async def fake_arun_refine(refine_input):
         assert refine_input.chat_model == "chat"
         assert refine_input.vlm_model == "vlm"
-        assert refine_input.force_record_video == "off"
+        assert refine_input.force_record_frames == "off"
         assert refine_input.render_winning_trial is False
         if isinstance(result_or_exc, BaseException):
             raise result_or_exc
@@ -458,6 +488,7 @@ async def _run_execute_refine(
         seed=42,
         max_iterations=1,
         score_threshold=0.9,
+        visual_evidence_enabled=False,
     )
     return manager
 
@@ -472,11 +503,11 @@ async def test_execute_refine_success_and_sync_warning(
     manager = await _run_execute_refine(tmp_path, monkeypatch, result)
     assert manager.metadata["status"] == "completed"
     assert manager.metadata["results"]["final_best_params"] == {"mass_scale": 1.4}
-    assert manager.sync_calls == ["refine/"]
+    assert manager.sync_calls == [("input/", "refine/")]
     assert manager.metadata["artifact_manifest"] == ["refine/refine_summary.json"]
-    assert manager.operations.index("sync:refine/") < manager.operations.index(
-        "status:completed"
-    )
+    assert manager.operations.index(
+        "sync:('input/', 'refine/')"
+    ) < manager.operations.index("status:completed")
 
     manager = _Manager(tmp_path)
     manager.fail_sync = True
@@ -504,6 +535,7 @@ async def test_execute_refine_success_and_sync_warning(
         seed=42,
         max_iterations=1,
         score_threshold=0.9,
+        visual_evidence_enabled=False,
     )
     assert manager.metadata["status"] == "failed"
     assert manager.metadata["failed_step"] == "artifact_sync"
@@ -602,6 +634,7 @@ async def test_execute_refine_failed_result_late_cancel_and_exceptions(
         seed=42,
         max_iterations=1,
         score_threshold=0.9,
+        visual_evidence_enabled=False,
     )
     assert manager.metadata["status"] == "cancelled"
 
@@ -639,3 +672,50 @@ async def test_execute_refine_failed_result_late_cancel_and_exceptions(
     assert manager.metadata["status"] == "cancelled"
     assert manager.metadata["artifact_manifest"] == ["refine/refine_summary.json"]
     assert manager.metadata["results"]["termination_reason"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_refine_terminal_commit_compatibility_paths(tmp_path: Path) -> None:
+    manager = _Manager(tmp_path / "conditional")
+
+    async def accept(_session_id: str, _updates: dict) -> bool:
+        return True
+
+    manager.update_session_if_not_cancelled = accept  # type: ignore[attr-defined]
+    assert await executor._commit_terminal_unless_cancelled(
+        manager,
+        "sid",
+        {"status": "completed"},
+    )
+
+    legacy = _Manager(tmp_path / "legacy")
+    legacy.cancelled = True
+    assert not await executor._commit_terminal_unless_cancelled(
+        legacy,
+        "sid",
+        {"status": "completed"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_refine_artifact_failure_loses_atomic_cancellation_race(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path / "run")
+    manager.fail_sync = True
+
+    async def reject(_session_id: str, _updates: dict) -> bool:
+        return False
+
+    manager.update_session_if_not_cancelled = reject  # type: ignore[attr-defined]
+    await _run_execute_refine(
+        tmp_path / "run",
+        monkeypatch,
+        _result(tmp_path / "result"),
+        manager=manager,
+    )
+    assert manager.metadata["status"] == "cancelled"
+    assert manager.metadata["artifact_sync_error"] == (
+        "physics_refine_artifact_sync_failed"
+    )

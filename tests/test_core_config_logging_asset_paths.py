@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from typing import Any
 import pytest
 import yaml
 from pydantic import BaseModel
+from rich.console import Console
 from rich.logging import RichHandler
 
 from world_understanding.agentic.cli.logging import setup_logging as setup_agent_logging
@@ -178,9 +180,12 @@ def test_agentic_cli_setup_logging_configures_handlers(tmp_path: Path) -> None:
         assert logger.level == logging.DEBUG
         assert logger.propagate is False
         assert any(isinstance(handler, RichHandler) for handler in logger.handlers)
-        assert any(
-            isinstance(handler, logging.FileHandler) for handler in logger.handlers
+        file_handler = next(
+            handler
+            for handler in logger.handlers
+            if isinstance(handler, logging.FileHandler)
         )
+        assert file_handler.encoding == "utf-8"
         assert logging.getLogger("world_understanding").level == logging.DEBUG
         assert child.level == logging.DEBUG
         assert wu_child.level == logging.DEBUG
@@ -194,6 +199,87 @@ def test_agentic_cli_setup_logging_configures_handlers(tmp_path: Path) -> None:
         for handler in configured_handlers:
             handler.close()
         rich_handler.close()
+
+
+def test_agentic_cli_logging_projects_cp1252_console_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from world_understanding.agentic.cli import logging as logging_module
+
+    utf8_record = logging.LogRecord(
+        "cp1252_agent",
+        logging.INFO,
+        __file__,
+        1,
+        "✓ rendered 📁 → café 雪",
+        (),
+        None,
+    )
+    assert logging_module._ConsoleEncodingFilter("utf-8").filter(utf8_record) is True
+    assert utf8_record.getMessage() == "✓ rendered 📁 → café 雪"
+
+    logger_states = _snapshot_logging_state("cp1252_agent", "world_understanding")
+    output = io.BytesIO()
+    stream = io.TextIOWrapper(output, encoding="cp1252")
+    console = Console(file=stream, color_system=None, force_terminal=False)
+    monkeypatch.setattr(logging_module, "Console", lambda **_kwargs: console)
+    log_file = tmp_path / "agent.log"
+    configured_handlers: set[logging.Handler] = set()
+
+    try:
+        logger = setup_agent_logging("cp1252_agent", log_file=log_file)
+        configured_handlers.update(logger.handlers)
+        configured_handlers.update(logging.getLogger("world_understanding").handlers)
+        logger.info("✓ rendered 📁 → café 雪")
+        try:
+            raise RuntimeError("bad 雪 path")
+        except RuntimeError:
+            logger.exception("failed 雪")
+        for handler in logger.handlers:
+            handler.flush()
+        stream.flush()
+
+        rendered = output.getvalue().decode("cp1252")
+        assert "OK rendered [files] -> café \\u96ea" in rendered
+        assert "failed \\u96ea" in rendered
+        assert "RuntimeError: bad \\u96ea path" in rendered
+        file_log = log_file.read_text(encoding="utf-8")
+        assert "✓ rendered 📁 → café 雪" in file_log
+        assert "failed 雪" in file_log
+        assert "RuntimeError: bad 雪 path" in file_log
+    finally:
+        for handler in configured_handlers:
+            handler.close()
+        _restore_logging_state(logger_states, "cp1252_agent", "world_understanding")
+
+
+def test_console_encoding_filter_projects_cached_exception_and_stack() -> None:
+    from world_understanding.agentic.cli import logging as logging_module
+
+    record = logging.LogRecord(
+        "unknown_encoding_agent",
+        logging.ERROR,
+        __file__,
+        1,
+        "failed 雪",
+        (),
+        None,
+    )
+    record.exc_text = "CachedError: bad 雪"
+    record.stack_info = "Stack at 雪"
+
+    projected = logging_module._ConsoleEncodingFilter("not-a-codec").filter(record)
+
+    assert isinstance(projected, logging.LogRecord)
+    assert projected is not record
+    assert projected.getMessage() == (
+        r"failed \u96ea" "\n" r"CachedError: bad \u96ea" "\n" r"Stack at \u96ea"
+    )
+    assert projected.exc_text is None
+    assert projected.stack_info is None
+    assert record.exc_text == "CachedError: bad 雪"
+    assert record.stack_info == "Stack at 雪"
 
 
 def test_agentic_cli_logging_projects_log_path_and_replaces_open_error(

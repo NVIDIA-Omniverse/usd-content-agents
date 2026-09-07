@@ -197,7 +197,11 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+                **(
+                    {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+                    if DEFAULT_VLM_REASONING_EFFORT
+                    else {}
+                ),
             },
             "llm": {},  # Optional LLM for response parsing
             "max_workers": 64,
@@ -219,6 +223,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "enabled": False,
             "output_key": "classification",
             "candidate_joint_types": ["revolute", "prismatic", "spherical"],
+            "enable_source_backed_v1_breadth": False,
             "llm": {},
             "vlm": {},
             "adjudication": {
@@ -241,6 +246,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "joint_rigger_template": DEFAULT_USD_JOINT_RIGGER_TEMPLATE,
             "apply_masses": DEFAULT_USD_JOINT_RIGGER_APPLY_MASSES,
             "apply_collision": DEFAULT_USD_JOINT_RIGGER_APPLY_COLLISION,
+            "enable_source_backed_v1_breadth": False,
         },
         "author_physics_schemas": {
             "enabled": False,

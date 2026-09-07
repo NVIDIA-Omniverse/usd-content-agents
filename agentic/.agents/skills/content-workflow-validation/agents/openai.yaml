@@ -1,0 +1,4 @@
+interface:
+  display_name: "Content Workflow Validation"
+  short_description: "Outer-native evidence-backed asset validation"
+  default_prompt: "Use $content-workflow-validation to validate this asset through focused capabilities and an outer-authored assessment."

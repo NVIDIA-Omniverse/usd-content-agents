@@ -222,6 +222,9 @@ class TuneStatus(BaseModel):
     best_score: float | None = Field(
         default=None, description="Best score so far (lower is better)"
     )
+    best_objective: float | None = Field(
+        default=None, description="Raw objective value for the best completed trial"
+    )
     best_params: dict[str, float] | None = Field(
         default=None, description="Best parameter set so far"
     )
@@ -253,6 +256,10 @@ class TuneResults(BaseModel):
             "cancelled before any trial completed or when no successful "
             "trial was recorded."
         ),
+    )
+    best_objective: float | None = Field(
+        default=None,
+        description="Raw objective value before conversion to optimizer score.",
     )
     n_trials: int
     optimizer_used: str = Field(description="Resolved optimizer name (auto→botorch)")

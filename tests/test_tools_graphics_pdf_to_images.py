@@ -19,45 +19,15 @@ from world_understanding.tools.graphics.pdf_to_images import (
 
 
 @pytest.fixture
-def sample_pdf_path() -> Path:
-    """Create a simple test PDF file using reportlab."""
-    from reportlab.lib.colors import Color
-    from reportlab.pdfgen import canvas
-
-    # Create a temporary PDF with 3 pages
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-        pdf_path = Path(f.name)
-
-    # Create PDF with reportlab
-    c = canvas.Canvas(str(pdf_path), pagesize=(200, 200))
-
-    # Page 1: Red background
-    c.setFillColor(Color(1, 0.8, 0.8))
-    c.rect(0, 0, 200, 200, fill=1, stroke=0)
-    c.setFillColor(Color(0, 0, 0))
-    c.drawString(50, 100, "Page 1")
-    c.showPage()
-
-    # Page 2: Green background
-    c.setFillColor(Color(0.8, 1, 0.8))
-    c.rect(0, 0, 200, 200, fill=1, stroke=0)
-    c.setFillColor(Color(0, 0, 0))
-    c.drawString(50, 100, "Page 2")
-    c.showPage()
-
-    # Page 3: Blue background
-    c.setFillColor(Color(0.8, 0.8, 1))
-    c.rect(0, 0, 200, 200, fill=1, stroke=0)
-    c.setFillColor(Color(0, 0, 0))
-    c.drawString(50, 100, "Page 3")
-    c.showPage()
-
-    c.save()
-
-    yield pdf_path
-
-    # Cleanup
-    pdf_path.unlink()
+def sample_pdf_path(tmp_path: Path) -> Path:
+    """Create a simple three-page PDF using the existing Pillow dependency."""
+    pdf_path = tmp_path / "sample.pdf"
+    pages = [
+        Image.new("RGB", (200, 200), color)
+        for color in ((255, 204, 204), (204, 255, 204), (204, 204, 255))
+    ]
+    pages[0].save(pdf_path, save_all=True, append_images=pages[1:])
+    return pdf_path
 
 
 # Tests for core function

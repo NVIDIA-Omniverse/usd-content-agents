@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Texture Agent Brev"
-  short_description: "Run Brev service-only or hybrid Texture Agent deployment."
-  default_prompt: "Use $deploy-texture-agent-brev to deploy or smoke-test Texture Agent on Brev with hosted or small local Qwen endpoints."

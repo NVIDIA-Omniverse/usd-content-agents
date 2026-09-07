@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+import ast
 import json
 import os
 import tomllib
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from packaging.requirements import Requirement
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,8 +44,10 @@ def test_runtime_lock_is_used_with_hash_enforcement() -> None:
     packages = lock["packages"]
     assert {package["name"]: package["version"] for package in packages} == {
         "numpy": "2.2.6",
-        "ovrtx": "0.3.0.312915",
+        "ovrtx": "0.4.1.364340",
+        "ovstage": "0.1.1.355824",
         "pillow": "12.3.0",
+        "warp-lang": "1.16.0",
     }
     assert all(
         len(wheel["hashes"]["sha256"]) == 64
@@ -51,24 +55,95 @@ def test_runtime_lock_is_used_with_hash_enforcement() -> None:
         for wheel in package["wheels"]
     )
     packages_by_name = {package["name"]: package for package in packages}
-    for package_name in ("numpy", "ovrtx", "pillow"):
+    for package_name in ("numpy", "ovrtx", "ovstage", "pillow", "warp-lang"):
         wheel_urls = [
             wheel["url"] for wheel in packages_by_name[package_name]["wheels"]
         ]
         assert any("x86_64" in url for url in wheel_urls)
         assert any("aarch64" in url for url in wheel_urls)
+        assert any("win_amd64" in url for url in wheel_urls)
 
 
-def test_content_workbench_does_not_install_ovrtx_in_shared_environment() -> None:
-    pyproject_path = REPO_ROOT / "agentic/packages/content_workbench/pyproject.toml"
+def test_shared_runtime_lock_matches_usd_cli_qualified_profile() -> None:
+    from world_understanding.functions.graphics import render_ovrtx
+
+    with render_ovrtx._OVRTX_RUNTIME_LOCK_FILE.open("rb") as stream:
+        lock = tomllib.load(stream)
+    locked_versions = {
+        package["name"]: package["version"] for package in lock["packages"]
+    }
+
+    usd_cli_module = ast.parse(
+        (REPO_ROOT / "apps/usd_cli/src/usd_core/render/ovrtx.py").read_text(
+            encoding="utf-8"
+        )
+    )
+    qualified_versions = next(
+        ast.literal_eval(node.value)
+        for node in usd_cli_module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "_QUALIFIED_RUNTIME_PROFILE"
+            for target in node.targets
+        )
+    )
+    assert {
+        name: locked_versions.get(name) for name in qualified_versions
+    } == qualified_versions
+
+    profile_path = render_ovrtx._OVRTX_RUNTIME_LOCK_FILE.with_name(
+        "ovrtx_runtime_profile.in"
+    )
+    profile_requirements = [
+        Requirement(line)
+        for line in profile_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    for package_name, version in qualified_versions.items():
+        package_urls = [
+            requirement.url
+            for requirement in profile_requirements
+            if requirement.name == package_name and requirement.url is not None
+        ]
+        assert len(package_urls) == 3
+        assert all(version in url for url in package_urls)
+        assert any("x86_64" in url for url in package_urls)
+        assert any("aarch64" in url for url in package_urls)
+        assert any("win_amd64" in url for url in package_urls)
+
+
+def test_usd_cli_shared_runtime_uses_platform_venv_python(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from usd_core.render import ovrtx as usd_cli_ovrtx
+
+    venv_dir = Path("shared-ovrtx-runtime")
+    monkeypatch.setattr(usd_cli_ovrtx.os, "name", "nt")
+    assert usd_cli_ovrtx._ovrtx_venv_python_path(venv_dir) == (
+        venv_dir / "Scripts" / "python.exe"
+    )
+    monkeypatch.setattr(usd_cli_ovrtx.os, "name", "posix")
+    assert usd_cli_ovrtx._ovrtx_venv_python_path(venv_dir) == (
+        venv_dir / "bin" / "python"
+    )
+
+
+def test_usd_cli_keeps_ovrtx_out_of_its_base_environment() -> None:
+    pyproject_path = REPO_ROOT / "apps/usd_cli/pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
     dependencies = pyproject["project"]["dependencies"]
     assert not any(
-        dependency.partition(";")[0].strip().startswith("ovrtx")
+        dependency.partition(";")[0]
+        .strip()
+        .startswith(("ovrtx", "ovstage", "warp-lang"))
         for dependency in dependencies
     )
-    assert "ovrtx" not in pyproject.get("tool", {}).get("uv", {}).get("sources", {})
+    assert pyproject["project"]["optional-dependencies"]["ovrtx"] == [
+        "ovrtx==0.4.1.364340; sys_platform == 'linux' or sys_platform == 'win32'",
+        "ovstage==0.1.1.355824; sys_platform == 'linux' or sys_platform == 'win32'",
+        "warp-lang==1.16.0; sys_platform == 'linux' or sys_platform == 'win32'",
+    ]
 
 
 def test_bundled_python_runtime_libraries_are_removed_from_ovrtx_package(
@@ -291,7 +366,7 @@ def test_daemon_start_clears_pythonpath_in_daemon_env(
     monkeypatch.setattr(
         render_ovrtx._OvRTXDaemon,
         "_read_stdout_line",
-        lambda self, timeout_s, phase: json.dumps({"status": "ready"}),
+        lambda self, timeout_s, phase, **kwargs: json.dumps({"status": "ready"}),
     )
 
     daemon = render_ovrtx._OvRTXDaemon(

@@ -191,6 +191,11 @@ class MockVLM(BaseVisionLanguageModel):
     def backend_name(self) -> str:
         return "mock"
 
+    @property
+    def has_bounded_request_timeout(self) -> bool:
+        """The local deterministic backend dispatches no remote request."""
+        return True
+
     def generate(
         self,
         prompt: str,

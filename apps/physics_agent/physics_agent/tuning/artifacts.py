@@ -108,6 +108,41 @@ ARTIFACT_TUNED_USD = "tuned_physics.usd"
 ARTIFACT_VISUAL_COMPARISON = "comparison.png"
 
 
+def _objective_metadata(scenario: Scenario, engine: str) -> dict[str, str]:
+    """Describe the raw objective emitted by a standard tuning trial."""
+
+    if engine == "fake":
+        return {
+            "name": "synthetic_parameter_error",
+            "unit": "unitless",
+            "direction": "minimize",
+        }
+    descriptors = {
+        ("drop_settle", "settle_distance"): {
+            "name": "settle_distance",
+            "unit": "m",
+            "direction": "minimize",
+        },
+        ("drop_settle", "max_bounce_height"): {
+            "name": "first_bounce_height",
+            "unit": "m",
+            "direction": "maximize",
+        },
+        ("freeform", "judge_score"): {
+            "name": "judge_score",
+            "unit": "unitless",
+            "direction": "maximize",
+        },
+    }
+    try:
+        return descriptors[(scenario.name, scenario.metric)]
+    except KeyError as exc:  # pragma: no cover - parser rejects unknown pairs
+        raise ValueError(
+            "No objective metadata for standard scenario "
+            f"{scenario.name!r} metric {scenario.metric!r}"
+        ) from exc
+
+
 def ensure_output_dir(path: Path) -> Path:
     """Create ``path`` if necessary and return its absolute form."""
     p = Path(path).resolve()
@@ -168,6 +203,7 @@ def write_tune_results(
     engine_used: str,
     best_params: dict[str, float],
     best_score: float,
+    best_objective: float | None,
     history: list[TrialRecord],
     cancelled: bool,
     started_at: str,
@@ -185,12 +221,12 @@ def write_tune_results(
     When ``params_input.user_prompt`` is set, it is persisted under the
     top-level ``user_prompt`` key per #51 spec (and rendered into the
     matching ``report.md``). When ``judge_result`` is supplied, it is
-    persisted under ``judge`` for downstream consumers; absent when judging
-    is disabled to preserve byte-identical output vs the pre-Part-1.1
-    baseline.
+    persisted under ``judge`` for downstream consumers and omitted when
+    judging is disabled.
     """
     p = ensure_output_dir(output_dir) / ARTIFACT_RESULTS
     physics_usd_path = Path(str(params_input.physics_usd))
+    objective = _objective_metadata(scenario, engine_used)
     payload: dict[str, Any] = {
         "scenario": {
             "name": scenario.name,
@@ -218,22 +254,27 @@ def write_tune_results(
         "completed_at": completed_at,
         "cancelled": cancelled,
         "n_trials": len(history),
+        "objective": {
+            **objective,
+            "best_value": best_objective,
+        },
         "best": {
             "score": float(best_score),
+            "objective_value": best_objective,
             "params": {k: float(v) for k, v in best_params.items()},
         },
         "history_summary": [
             {
                 "trial_index": t.trial_index,
                 "score": t.score,
+                "objective_value": t.objective_value,
                 "params": t.params,
                 "failed": t.failed,
             }
             for t in history
         ],
     }
-    # user_prompt is only emitted when set so existing artifacts (and tests
-    # that compare them) stay byte-identical for the explicit-YAML path.
+    # user_prompt is only emitted when set; its absence remains unambiguous.
     if params_input.user_prompt:
         payload["user_prompt"] = params_input.user_prompt
     if judge_result is not None:
@@ -253,6 +294,7 @@ def write_report_md(
     engine_used: str,
     best_params: dict[str, float],
     best_score: float,
+    best_objective: float | None = None,
     history: list[TrialRecord],
     cancelled: bool,
     user_prompt: str | None = None,
@@ -260,9 +302,8 @@ def write_report_md(
 ) -> Path:
     """Write the human-readable ``report.md`` artifact.
 
-    ``user_prompt`` and ``judge_result`` are optional for byte-identical
-    backward compat: when both are absent, the report body is identical
-    to the pre-Part-1.1 baseline.
+    ``user_prompt`` and ``judge_result`` add their corresponding report
+    sections only when present.
     """
     p = ensure_output_dir(output_dir) / ARTIFACT_REPORT
     lines: list[str] = []
@@ -277,9 +318,8 @@ def write_report_md(
     lines.append(f"- Trials: `{len(history)}`")
     lines.append("")
     if user_prompt:
-        # Only emit when set so the explicit-YAML path stays byte-identical
-        # to the PR #43 baseline. Fence width adapts to the longest run of
-        # backticks already in user_prompt so a caller cannot forge
+        # Fence width adapts to the longest run of backticks already in
+        # user_prompt so a caller cannot forge
         # downstream sections (e.g. a fake "## Judge verdict") by closing
         # the fence with their own ```.
         fence = _safe_fence(user_prompt)
@@ -297,6 +337,13 @@ def write_report_md(
         lines.append(f"| `{k}` | `{best_params[k]:.6g}` |")
     lines.append("")
     lines.append(f"Best score: `{best_score:.6g}` (lower is better)")
+    if best_objective is not None:
+        objective = _objective_metadata(scenario, engine_used)
+        lines.append(
+            "Best objective: "
+            f"`{best_objective:.6g}` `{objective['unit']}` "
+            f"({objective['direction']})"
+        )
     lines.append("")
     # Only render the Judge verdict section when there is an actual
     # verdict to show. Failed/timed-out judge attempts persist a

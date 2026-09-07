@@ -12,6 +12,19 @@ from datetime import datetime
 from typing import Any, Protocol
 
 
+def _console_symbol(console: Any, symbol: str, ascii_fallback: str) -> str:
+    """Return ``symbol`` only when the target console can encode it."""
+
+    encoding = getattr(console, "encoding", None)
+    if not isinstance(encoding, str) or not encoding:
+        encoding = "utf-8"
+    try:
+        symbol.encode(encoding)
+    except (LookupError, UnicodeEncodeError):
+        return ascii_fallback
+    return symbol
+
+
 class EventListener(Protocol):
     """Protocol for receiving both logs and structured events from workflows.
 
@@ -141,12 +154,18 @@ class CLIEventListener:
 
             elif event_type == "step.completed":
                 step_name = data.get("step_name", "Unknown")
-                self.console.print(f"[green]✓ Step '{step_name}' completed[/green]")
+                success = _console_symbol(self.console, "✓", "OK")
+                self.console.print(
+                    f"[green]{success} Step '{step_name}' completed[/green]"
+                )
 
             elif event_type == "step.failed":
                 step_name = data.get("step_name", "Unknown")
                 error = data.get("error", "Unknown error")
-                self.console.print(f"[red]✗ Step '{step_name}' failed: {error}[/red]")
+                failure = _console_symbol(self.console, "✗", "X")
+                self.console.print(
+                    f"[red]{failure} Step '{step_name}' failed: {error}[/red]"
+                )
 
             elif event_type == "pipeline.overview":
                 from rich.table import Table
@@ -160,10 +179,10 @@ class CLIEventListener:
 
                 for step in steps:
                     if step in completed_steps:
-                        status = "✓ Completed"
+                        status = f"{_console_symbol(self.console, '✓', 'OK')} Completed"
                         style = "green"
                     else:
-                        status = "○ Pending"
+                        status = f"{_console_symbol(self.console, '○', '-')} Pending"
                         style = "white"
 
                     table.add_row(step, f"[{style}]{status}[/{style}]")
@@ -177,7 +196,8 @@ class CLIEventListener:
                 self.console.print()
                 self.console.print(
                     Panel(
-                        "[bold green]✓ Pipeline completed successfully![/bold green]\n\n"
+                        f"[bold green]{_console_symbol(self.console, '✓', 'OK')} "
+                        "Pipeline completed successfully![/bold green]\n\n"
                         "All steps executed successfully.",
                         title="Success",
                         border_style="green",
@@ -193,7 +213,8 @@ class CLIEventListener:
                 self.console.print()
                 self.console.print(
                     Panel(
-                        f"[bold red]✗ Pipeline failed at step: {failed_step}[/bold red]\n\n"
+                        f"[bold red]{_console_symbol(self.console, '✗', 'X')} "
+                        f"Pipeline failed at step: {failed_step}[/bold red]\n\n"
                         f"Error: {error}",
                         title="Failed",
                         border_style="red",

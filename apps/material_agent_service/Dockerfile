@@ -1,12 +1,14 @@
+# syntax=docker/dockerfile:1.19
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Material Agent Service Dockerfile
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
 
 ARG APP_VERSION=unknown
 ARG GIT_COMMIT=unknown
 ARG WU_REQUIRED_OPTIONAL_BACKEND
+ARG OPENCV_BUILD_JOBS=4
 
 # Prevent interactive prompts during apt-get.
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,9 +27,15 @@ RUN apt-get update && apt-get upgrade -y \
     python3.12-venv \
     python3.12-dev \
     build-essential \
+    cmake \
     git \
     curl \
     ca-certificates \
+    libjpeg-dev \
+    libpng-dev \
+    ninja-build \
+    pkg-config \
+    zlib1g-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -90,8 +98,21 @@ ENV WU_SO_PACKAGE_DIR=/app/.build-resources/scene_optimizer_core
 # ignore any host-level uv config and tool.uv.sources indirection.
 # Keep every editable package on the repository release version so local
 # dependency floors resolve against the installed world-understanding package.
-RUN cd /app && SETUPTOOLS_SCM_PRETEND_VERSION="$(cat /app/VERSION.md)" UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \
-    uv pip install -e ".[telemetry]" --no-config --no-sources
+RUN cd /app \
+    && CMAKE_BUILD_PARALLEL_LEVEL="${OPENCV_BUILD_JOBS}" \
+       CMAKE_ARGS="-DWITH_FFMPEG=OFF" \
+       SETUPTOOLS_SCM_PRETEND_VERSION="$(cat /app/VERSION.md)" \
+       UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" \
+       uv pip install -e ".[telemetry,warp]" \
+         "opencv-python-headless==5.0.0.93" \
+         --no-binary opencv-python-headless \
+         --no-config \
+         --no-sources
+
+# Material needs OpenCV Canny, not codecs. Fail if source resolution ever
+# reintroduces wheel-bundled or dynamically linked FFmpeg.
+RUN --mount=type=bind,source=scripts/verify_system_opencv.py,target=/tmp/verify_system_opencv.py,ro \
+    python /tmp/verify_system_opencv.py --ffmpeg forbidden
 
 # Install the optional backend wheel when release automation stages it in the
 # Docker build context. Public builds do not provide this wheel and continue
@@ -116,6 +137,11 @@ RUN if [ -d "/app/apps/material_agent" ]; then \
 
 # Install material_agent_service package (versions from pyproject.toml)
 RUN cd /app/apps/material_agent_service && UV_DYNAMIC_VERSIONING_BYPASS="$(cat /app/VERSION.md)" uv pip install -e . --no-config --no-sources
+
+# Re-check after every package install so a later resolver cannot replace the
+# codec-free source build with a wheel-bundled OpenCV distribution.
+RUN --mount=type=bind,source=scripts/verify_system_opencv.py,target=/tmp/verify_system_opencv.py,ro \
+    python /tmp/verify_system_opencv.py --ffmpeg forbidden
 
 # Do not ship uv source caches or their nested Git metadata in the final image.
 RUN rm -rf /root/.cache/uv

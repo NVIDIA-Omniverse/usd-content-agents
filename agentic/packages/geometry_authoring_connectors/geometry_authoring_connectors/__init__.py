@@ -1,0 +1,125 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Public reference connectors for provider-neutral geometry authoring."""
+
+from .build123d import BUILD123D_PROVIDER_ID, Build123dHttpConnector
+from .build123d_worker import (
+    Build123dExecutionBackend,
+    Build123dWorkerResult,
+    Build123dWorkerRunner,
+    ExternalAuthoringExecutionBackend,
+    ExternalAuthoringWorkerResult,
+    ExternalAuthoringWorkerRunner,
+    ForgeCadWorkerRunner,
+    WorkerArtifact,
+    WorkerIsolationKind,
+)
+from .command_worker import CommandAuthoringExecutionBackend
+from .delegated import (
+    FORGECAD_AUTHORING_PROVIDER_ID,
+    DelegatedAuthoringHttpConnector,
+)
+from .errors import (
+    ArtifactIntegrityError,
+    ArtifactLimitError,
+    ConnectorConfigurationError,
+    ForgeCadExecutionUnavailableError,
+    GeometryAuthoringConnectorError,
+    InvalidProviderResponseError,
+    ProviderTransportError,
+    ProviderUnavailableError,
+    UnsafeArtifactError,
+    UnsupportedCapabilityError,
+    WorkerIsolationError,
+)
+from .forgecad import (
+    FORGECAD_MANIFEST_SCHEMA_VERSION,
+    FORGECAD_PROVIDER_ID,
+    ForgeCadArtifactAdapter,
+    ForgeCadArtifactManifest,
+    ForgeCadManifestArtifact,
+)
+from .models import (
+    AUTHORING_REQUEST_SCHEMA_VERSION,
+    GEOMETRY_SOURCE_SCHEMA_VERSION,
+    AuthoringCapabilities,
+    AuthoringRequest,
+    InlineInputArtifact,
+    MaterializedArtifact,
+    MaterializedWireSourceBundle,
+    WireArtifact,
+    WirePart,
+    WireSemanticParameter,
+    WireSourceBundle,
+    WireVerificationAssertion,
+)
+from .onshape import (
+    ONSHAPE_EXPORT_REQUEST_SCHEMA_VERSION,
+    ONSHAPE_PROVIDER_ID,
+    ONSHAPE_WORKSPACE_SNAPSHOT_REQUEST_SCHEMA_VERSION,
+    OnshapeConnector,
+    OnshapeVersionExportRequest,
+    OnshapeWorkspaceSnapshotRequest,
+    onshape_source_revision,
+)
+from .providers import (
+    Build123dGeometryAuthoringProvider,
+    DelegatedGeometryAuthoringProvider,
+    canonicalize_materialized_bundle,
+)
+
+__all__ = [
+    "AUTHORING_REQUEST_SCHEMA_VERSION",
+    "BUILD123D_PROVIDER_ID",
+    "FORGECAD_AUTHORING_PROVIDER_ID",
+    "FORGECAD_MANIFEST_SCHEMA_VERSION",
+    "FORGECAD_PROVIDER_ID",
+    "GEOMETRY_SOURCE_SCHEMA_VERSION",
+    "ONSHAPE_EXPORT_REQUEST_SCHEMA_VERSION",
+    "ONSHAPE_PROVIDER_ID",
+    "ONSHAPE_WORKSPACE_SNAPSHOT_REQUEST_SCHEMA_VERSION",
+    "ArtifactIntegrityError",
+    "ArtifactLimitError",
+    "AuthoringCapabilities",
+    "AuthoringRequest",
+    "Build123dExecutionBackend",
+    "Build123dGeometryAuthoringProvider",
+    "Build123dHttpConnector",
+    "Build123dWorkerResult",
+    "Build123dWorkerRunner",
+    "CommandAuthoringExecutionBackend",
+    "ConnectorConfigurationError",
+    "DelegatedAuthoringHttpConnector",
+    "DelegatedGeometryAuthoringProvider",
+    "ExternalAuthoringExecutionBackend",
+    "ExternalAuthoringWorkerResult",
+    "ExternalAuthoringWorkerRunner",
+    "ForgeCadArtifactAdapter",
+    "ForgeCadArtifactManifest",
+    "ForgeCadExecutionUnavailableError",
+    "ForgeCadManifestArtifact",
+    "ForgeCadWorkerRunner",
+    "GeometryAuthoringConnectorError",
+    "InlineInputArtifact",
+    "InvalidProviderResponseError",
+    "MaterializedArtifact",
+    "MaterializedWireSourceBundle",
+    "OnshapeConnector",
+    "OnshapeVersionExportRequest",
+    "OnshapeWorkspaceSnapshotRequest",
+    "ProviderTransportError",
+    "ProviderUnavailableError",
+    "UnsafeArtifactError",
+    "UnsupportedCapabilityError",
+    "WireArtifact",
+    "WirePart",
+    "WireSemanticParameter",
+    "WireSourceBundle",
+    "WireVerificationAssertion",
+    "WorkerArtifact",
+    "WorkerIsolationError",
+    "WorkerIsolationKind",
+    "canonicalize_materialized_bundle",
+    "onshape_source_revision",
+]

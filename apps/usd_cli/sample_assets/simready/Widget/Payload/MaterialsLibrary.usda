@@ -1,0 +1,119 @@
+#usda 1.0
+(
+    "Material Library for widget. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "PVC_X" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.050911717, 0.0010098297, 0)
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.4
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/PVC_X/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/PVC_X/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/PVC_X.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/PVC_X.inputs:ior>
+            float inputs:metallic.connect = </Materials/PVC_X.inputs:metallic>
+            float inputs:opacity.connect = </Materials/PVC_X.inputs:opacity>
+            float inputs:roughness.connect = </Materials/PVC_X.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "PVC_Y" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0.00038026314, 0.050885305, 0)
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.4
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/PVC_Y/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/PVC_Y/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/PVC_Y.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/PVC_Y.inputs:ior>
+            float inputs:metallic.connect = </Materials/PVC_Y.inputs:metallic>
+            float inputs:opacity.connect = </Materials/PVC_Y.inputs:opacity>
+            float inputs:roughness.connect = </Materials/PVC_Y.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "PVC_Z" (
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (0, 0.009207639, 0.050892103)
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.4
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/PVC_Z/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/PVC_Z/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/PVC_Z.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/PVC_Z.inputs:ior>
+            float inputs:metallic.connect = </Materials/PVC_Z.inputs:metallic>
+            float inputs:opacity.connect = </Materials/PVC_Z.inputs:opacity>
+            float inputs:roughness.connect = </Materials/PVC_Z.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
+    def Material "tn__SemiGloss_Plastic_dP" (
+        displayName = "Semi-Gloss_Plastic"
+        instanceable = true
+    )
+    {
+        color3f inputs:diffuseColor = (1, 0.20363002, 0)
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.3
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/tn__SemiGloss_Plastic_dP/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/tn__SemiGloss_Plastic_dP/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/tn__SemiGloss_Plastic_dP.inputs:diffuseColor>
+            float inputs:ior.connect = </Materials/tn__SemiGloss_Plastic_dP.inputs:ior>
+            float inputs:metallic.connect = </Materials/tn__SemiGloss_Plastic_dP.inputs:metallic>
+            float inputs:opacity.connect = </Materials/tn__SemiGloss_Plastic_dP.inputs:opacity>
+            float inputs:roughness.connect = </Materials/tn__SemiGloss_Plastic_dP.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+}

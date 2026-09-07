@@ -43,7 +43,16 @@ import sys
 import traceback
 from typing import Any
 
-import numpy as np
+# The daemon normally executes by file path in its dedicated venv, while unit
+# tests import it through the package.
+try:
+    from .ovphysx_process_limits import relax_address_space_limit_from_environment
+except ImportError:  # pragma: no cover - exercised by the real file-path launch.
+    from ovphysx_process_limits import relax_address_space_limit_from_environment
+
+relax_address_space_limit_from_environment()
+
+import numpy as np  # noqa: E402 - the memory boundary must run before native imports.
 
 # ---------------------------------------------------------------------------
 # Stdout/stderr split: JSON goes to a saved-stdout fd; all other writes —
@@ -115,7 +124,8 @@ def _import_ovphysx() -> tuple[Any, Any, Any]:
             "ovphysx import failed; is the daemon venv populated? "
             "Recreate it from the matching checked-in PEP 751 profile at "
             "apps/physics_agent/runtime/pylock.ovphysx-runtime.toml or "
-            "apps/physics_agent/runtime/pylock.ovphysx-runtime.aarch64.toml; the "
+            "apps/physics_agent/runtime/pylock.ovphysx-runtime.aarch64.toml or "
+            "apps/physics_agent/runtime/pylock.ovphysx-runtime-windows.toml; the "
             "parent error reports the exact hash-enforced command. Detail: " + str(exc)
         )
         raise

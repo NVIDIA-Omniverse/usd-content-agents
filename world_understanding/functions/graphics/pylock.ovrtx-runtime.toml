@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Reviewed lock for the isolated Linux x86_64 and aarch64 OVRTX worker. OVRTX
-# is installed with no dependencies; NumPy and Pillow are explicit compatibility
-# pins.
+# Reviewed lock for the isolated Linux x86_64, Linux aarch64, and Windows
+# x86_64 OVRTX worker shared with usd-cli. OVRTX, ovstage, and Warp are the exact
+# qualified renderer profile; NumPy and Pillow are explicit compatibility pins.
 lock-version = "1.0"
 created-by = "world-understanding release tooling"
 requires-python = ">=3.12,<3.13"
@@ -14,14 +14,25 @@ version = "2.2.6"
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8c/3d/1e1db36cfd41f895d266b103df00ca5b3cbe965184df824dec5c08c6b803/numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", size = 16527618, hashes = { sha256 = "fd83c01228a688733f1ded5201c678f0c53ecc1006ffbc404db9f7a899ac6249" } },
     { url = "https://files.pythonhosted.org/packages/f8/35/8c80729f1ff76b3921d5c9487c7ac3de9b2a103b1cd05e905b3090513510/numpy-2.2.6-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", size = 14018462, hashes = { sha256 = "f2618db89be1b4e05f7a1a847a9c1c0abd63e63a1607d892dd54668dd92faf87" } },
+    { url = "https://files.pythonhosted.org/packages/36/fa/8c9210162ca1b88529ab76b41ba02d433fd54fecaf6feb70ef9f124683f1/numpy-2.2.6-cp312-cp312-win_amd64.whl", size = 12614190, hashes = { sha256 = "c1f9540be57940698ed329904db803cf7a402f3fc200bfe599334c9bd84a40b2" } },
 ]
 
 [[packages]]
 name = "ovrtx"
-version = "0.3.0.312915"
+version = "0.4.1.364340"
 wheels = [
-    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_x86_64.whl", hashes = { sha256 = "a6b2b3c357f6487451c8d71e96cc4f83156c08fd9747d10e1b65f3866bed4b8f" } },
-    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_aarch64.whl", size = 1954997099, hashes = { sha256 = "958d254cebeb271ac397f5b760ff5def84a02d04b23f610c31d456c7c8e871af" } },
+    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.4.1.364340-py3-none-manylinux_2_35_x86_64.whl", hashes = { sha256 = "597e09f34819f31a71fb919c9b0024c3b652588bdfa4d1858b2222f219d0ec09" } },
+    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.4.1.364340-py3-none-manylinux_2_35_aarch64.whl", size = 1571152070, hashes = { sha256 = "38b33e5052b81572c11af317fd9f214b873a631ae727e448f6a6b990597c0320" } },
+    { url = "https://pypi.nvidia.com/ovrtx/ovrtx-0.4.1.364340-py3-none-win_amd64.whl", size = 1894877118, hashes = { sha256 = "f1a8e160912a503a5e536143f7bc1bca7048b3941a4c2756c5b661961bcb5752" } },
+]
+
+[[packages]]
+name = "ovstage"
+version = "0.1.1.355824"
+wheels = [
+    { url = "https://pypi.nvidia.com/ovstage/ovstage-0.1.1.355824-py3-none-manylinux_2_35_x86_64.whl", hashes = { sha256 = "b4affd9e5b23620ec71901a164df4ae373d25de2c76b9fae4d193d97aa2df0ec" } },
+    { url = "https://pypi.nvidia.com/ovstage/ovstage-0.1.1.355824-py3-none-manylinux_2_35_aarch64.whl", hashes = { sha256 = "046aa360959bf5344d912470aaa11d3ec1fc750e28816e5239ce0438864c9863" } },
+    { url = "https://pypi.nvidia.com/ovstage/ovstage-0.1.1.355824-py3-none-win_amd64.whl", hashes = { sha256 = "fc8ae7fe950aa2ff8fd24643047f7156ffa1b9b384ce3f024ee2193929e21a3b" } },
 ]
 
 [[packages]]
@@ -30,4 +41,14 @@ version = "12.3.0"
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/21/a35af28dcc61f37ed850a2d64c65c701321dfbf25085e469d5559360cbbf/pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", size = 6940830, hashes = { sha256 = "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91" } },
     { url = "https://files.pythonhosted.org/packages/25/27/ac8f99618ffd3dde21db0f4d4b1d2ab00c0880595bfd17df103f7f39fd0c/pillow-12.3.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", size = 6266838, hashes = { sha256 = "d9c7f76c0673154f044e9d78c8655fb4213f6ca31a836df48b40fe5d187717b9" } },
+    { url = "https://files.pythonhosted.org/packages/45/89/da2f7971a317f83d807fdd4065c0af40208e59e692cc43d315a71a0e96d1/pillow-12.3.0-cp312-cp312-win_amd64.whl", size = 7227137, hashes = { sha256 = "a2b55dd6b2a4c4b7d87ffa56bdb33fdc5fdb9a462173861a7bc097f17d91cb09" } },
+]
+
+[[packages]]
+name = "warp-lang"
+version = "1.16.0"
+wheels = [
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-manylinux_2_28_x86_64.whl", hashes = { sha256 = "96449fc1e3b354185e2f09434fb794b5953ab2e8673b104d7e7f48d5d418bb35" } },
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-manylinux_2_34_aarch64.whl", hashes = { sha256 = "d4715171bd6821436b82293d774c9a082ace08215c189572b4348d1e48fb8ee8" } },
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-win_amd64.whl", hashes = { sha256 = "8690c9096e0a271985339d4aa4b37675e7d62852620ca861ac032dc85b124542" } },
 ]

@@ -5,7 +5,7 @@
 Newton (https://github.com/newton-physics/newton) is NVIDIA's open-source,
 GPU-accelerated, differentiable physics engine built on Warp + MuJoCo-warp
 kernels. Unlike OvPhysX (which we daemon-isolate because its bundled OpenUSD
-collides with the parent's ``usd-core``), Newton is installed through the
+collides with the parent's OpenUSD provider), Newton is installed through the
 ``apps/physics_agent[newton]`` extra and is driven from the parent venv
 directly.
 

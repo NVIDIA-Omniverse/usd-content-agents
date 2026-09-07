@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mesh Segmentation"
+  short_description: "Route, refine, and boundary-falsify fragment masks"
+  default_prompt: "Use $content-workflow-mesh-segmentation to choose a registered-mask or direct initializer, then falsify every provisional part with signed confuser evidence and held-out multi-view review before locking it."

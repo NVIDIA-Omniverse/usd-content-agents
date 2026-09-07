@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Texture Agent Docker"
-  short_description: "Help with Deploy Texture Agent Docker tasks"
-  default_prompt: "Use $deploy-texture-agent-docker to deploy the texture-agent-service locally using Docker Compose, with an optional FLUX.2 NIM image-gen sidecar."

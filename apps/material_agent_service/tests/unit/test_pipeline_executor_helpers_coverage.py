@@ -18,14 +18,14 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, Request, UploadFile
 
 from ...service import config as config_module
 from ...service.artifact_lineage import initial_artifact_validity
 from ...service.events import listener as listener_module
 from ...service.events.listener import FastAPIEventListener
 from ...service.models.requests import PipelineStep, RegenerateRequest
-from ...service.routers import pipeline_router
+from ...service.routers import assets_router, pipeline_router
 from ...service.runtime.bus import EventBus
 from ...service.runtime.events import ProgressEvent, StepState
 from ...service.session.manager import SessionManager
@@ -41,6 +41,10 @@ def _expect_http(
 
 def _upload(filename: str, data: bytes = b"#usda 1.0\n") -> UploadFile:
     return UploadFile(filename=filename, file=io.BytesIO(data))
+
+
+def _request_from(host: str) -> Request:
+    return Request({"type": "http", "client": (host, 12345), "headers": []})
 
 
 async def _response_body(response: Any) -> bytes:
@@ -743,7 +747,7 @@ def test_pipeline_step_injection_and_session_config(
     )
     assert pipeline_router._normalize_user_email("") == "fallback@nvidia.com"
     monkeypatch.setattr(pipeline_router.config, "default_user_email", "")
-    assert pipeline_router._normalize_user_email(None) == "anonymous@nvidia.com"
+    assert pipeline_router._normalize_user_email(None) == "anonymous@example.com"
 
     assert pipeline_router._insert_step_before(
         ["predict"], "prepare", before_candidates=("predict",)
@@ -1434,12 +1438,16 @@ async def test_pipeline_restore_materials_and_preview_renderer(
     module = types.ModuleType("material_agent.workflows")
     module.create_render_preview_workflow_from_config = lambda: _Workflow()
     monkeypatch.setitem(sys.modules, "material_agent.workflows", module)
+    monkeypatch.setattr(
+        pipeline_router.config, "renderer_backend", "warp", raising=True
+    )
     await pipeline_router._render_input_preview(render_sid, render_dir)
     metadata = await manager.get_session_metadata(render_sid)
     assert metadata["preview_render_status"] == "ready"
     assert (render_dir / "input" / "input_render.png").exists()
     assert "config_dict" in preview_contexts[-1]
     assert "config_path" not in preview_contexts[-1]
+    assert preview_contexts[-1]["config_dict"]["backend"] == "warp"
 
     original_sid = str(uuid4())
     original_dir = await manager.create_session(original_sid)
@@ -1472,6 +1480,33 @@ async def test_pipeline_restore_materials_and_preview_renderer(
     assert "phase=pipeline_execution" in caplog.text
     assert sentinel not in json.dumps(failed_metadata)
     assert sentinel not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_upload_usd_with_native_local_store_confinement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(tmp_path / "sessions")
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(pipeline_router.config, "max_upload_size_mb", 100)
+
+    async def skip_preview(_session_id: str, _session_dir: Path) -> None:
+        return None
+
+    monkeypatch.setattr(pipeline_router, "_render_input_preview", skip_preview)
+
+    uploaded = await pipeline_router.upload_usd_immediate(
+        _upload("scene.usda", b"#usda 1.0\n")
+    )
+
+    assert uploaded.status == "ready"
+    persisted_path = (
+        manager.get_session_dir(uploaded.session_id) / "input" / "scene.usda"
+    )
+    assert persisted_path.read_bytes() == b"#usda 1.0\n"
+    assert await manager.sync_from_store(uploaded.session_id, prefix="input/") == 0
+    await asyncio.sleep(0)
 
 
 @pytest.mark.asyncio
@@ -1525,22 +1560,85 @@ async def test_upload_and_open_usd_endpoint_edges(
     assert "phase=sync_upload" in caplog.text
 
     with pytest.raises(HTTPException) as exc_info:
-        await pipeline_router.open_usd_local(file_path="relative.usda")
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"), file_path="relative.usda"
+        )
+    _expect_http(404, exc_info)
+    monkeypatch.setattr(pipeline_router.config, "local_file_open_enabled", True)
+    monkeypatch.setattr(pipeline_router.config, "local_file_open_token", "")
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path="relative.usda",
+            desktop_token="unconfigured-token",
+        )
+    _expect_http(503, exc_info)
+    monkeypatch.setattr(
+        pipeline_router.config,
+        "local_file_open_token",
+        "desktop-capability-test-token",
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path="relative.usda",
+            desktop_token=None,
+        )
+    _expect_http(403, exc_info)
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path="relative.usda",
+            desktop_token="wrong-token",
+        )
+    _expect_http(403, exc_info)
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("192.0.2.10"),
+            file_path="relative.usda",
+            desktop_token="desktop-capability-test-token",
+        )
+    _expect_http(403, exc_info)
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("not-an-ip"),
+            file_path="relative.usda",
+            desktop_token="desktop-capability-test-token",
+        )
+    _expect_http(403, exc_info)
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path="relative.usda",
+            desktop_token="desktop-capability-test-token",
+        )
     _expect_http(400, exc_info)
     with pytest.raises(HTTPException) as exc_info:
-        await pipeline_router.open_usd_local(file_path=str(tmp_path / "missing.usda"))
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path=str(tmp_path / "missing.usda"),
+            desktop_token="desktop-capability-test-token",
+        )
     _expect_http(400, exc_info)
     bad_file = tmp_path / "bad.txt"
     bad_file.write_text("x")
     with pytest.raises(HTTPException) as exc_info:
-        await pipeline_router.open_usd_local(file_path=str(bad_file))
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path=str(bad_file),
+            desktop_token="desktop-capability-test-token",
+        )
     _expect_http(400, exc_info)
 
     too_large = tmp_path / "too_large.usda"
     too_large.write_bytes(b"x")
     monkeypatch.setattr(pipeline_router.config, "max_upload_size_mb", 0)
     with pytest.raises(HTTPException) as exc_info:
-        await pipeline_router.open_usd_local(file_path=str(too_large))
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path=str(too_large),
+            desktop_token="desktop-capability-test-token",
+        )
     _expect_http(413, exc_info)
 
     source_dir = tmp_path / "source"
@@ -1550,11 +1648,33 @@ async def test_upload_and_open_usd_endpoint_edges(
     (source_dir / "payload.bin").write_bytes(b"x" * 10)
     monkeypatch.setattr(pipeline_router.config, "max_upload_size_mb", 0.000001)
     with pytest.raises(HTTPException) as exc_info:
-        await pipeline_router.open_usd_local(file_path=str(tiny_scene))
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path=str(tiny_scene),
+            desktop_token="desktop-capability-test-token",
+        )
     _expect_http(413, exc_info)
 
     monkeypatch.setattr(pipeline_router.config, "max_upload_size_mb", 100)
-    opened = await pipeline_router.open_usd_local(file_path=str(tiny_scene))
+    outside = tmp_path / "outside.bin"
+    outside.write_bytes(b"private")
+    source_link = source_dir / "linked.bin"
+    source_link.symlink_to(outside)
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.open_usd_local(
+            request=_request_from("127.0.0.1"),
+            file_path=str(tiny_scene),
+            desktop_token="desktop-capability-test-token",
+        )
+    _expect_http(400, exc_info)
+    assert "symbolic links" in str(exc_info.value.detail)
+    source_link.unlink()
+
+    opened = await pipeline_router.open_usd_local(
+        request=_request_from("127.0.0.1"),
+        file_path=str(tiny_scene),
+        desktop_token="desktop-capability-test-token",
+    )
     assert opened.status == "ready"
 
 
@@ -3142,7 +3262,10 @@ async def test_executor_wrapper_error_paths(
     pipeline_failure = await event_bus.get_queue(sid).get()
     assert pipeline_failure.step == "pipeline"
     assert pipeline_failure.message == "material_pipeline_failed"
-    assert pipeline_failure.extra == {"pipeline_failed": True}
+    assert pipeline_failure.extra == {
+        "pipeline_failed": True,
+        "error_diagnostic": failed_metadata["error_diagnostic"],
+    }
     assert not await event_bus.emit_for_owner(
         ProgressEvent(
             session_id=sid,
@@ -3236,7 +3359,10 @@ async def test_executor_wrapper_error_paths(
     scene_failure = await event_bus.get_queue(scene_sid).get()
     assert scene_failure.step == "scene_pipeline"
     assert scene_failure.message == "material_scene_pipeline_failed"
-    assert scene_failure.extra == {"pipeline_failed": True}
+    assert scene_failure.extra == {
+        "pipeline_failed": True,
+        "error_diagnostic": scene_metadata["error_diagnostic"],
+    }
     assert not await event_bus.emit_for_owner(
         ProgressEvent(
             session_id=scene_sid,
@@ -3421,6 +3547,125 @@ class _Telemetry:
 
 
 @pytest.mark.asyncio
+async def test_cancellation_after_failed_finalize_preserves_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(tmp_path)
+    session_id = str(uuid4())
+    await manager.create_session(session_id)
+    await manager.update_session(
+        session_id,
+        {"artifact_validity": initial_artifact_validity()},
+    )
+
+    bus = EventBus()
+    bus.set_session_manager(manager)
+    await bus.seed_pending_session(session_id)
+    monkeypatch.setattr(executor, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(listener_module, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(executor, "TelemetryEventListener", _Telemetry)
+    monkeypatch.setattr(executor, "get_current_span", lambda: _Span())
+
+    diagnostic = {
+        "schema": "world-understanding-durable-diagnostic-v1",
+        "code": "material_pipeline_result_failed",
+        "phase": "pipeline_execution",
+        "retryable": False,
+    }
+
+    async def arun_failure(_pipeline_input: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            success=False,
+            error="private-render-error",
+            error_diagnostic=diagnostic,
+            completed_steps=[],
+            step_results={},
+            raw_result={},
+        )
+
+    monkeypatch.setattr(executor, "arun_pipeline", arun_failure)
+    original_finalize = executor._finalize_pipeline_session
+    owner = asyncio.current_task()
+    assert owner is not None
+    preservation_read_started = asyncio.Event()
+    failure_committed = False
+    original_get_metadata = manager.get_session_metadata
+
+    async def get_metadata_with_recancel_window(
+        target_session_id: str,
+    ) -> dict[str, Any] | None:
+        metadata = await original_get_metadata(target_session_id)
+        if (
+            asyncio.current_task() is owner
+            and metadata is not None
+            and metadata.get("status") == "failed"
+            and failure_committed
+            and not preservation_read_started.is_set()
+        ):
+            preservation_read_started.set()
+            await asyncio.sleep(0)
+        return metadata
+
+    async def cancel_owner_again(
+        _session_manager: SessionManager,
+        _session_id: str,
+        owner_task: asyncio.Task[Any],
+    ) -> None:
+        await preservation_read_started.wait()
+        owner_task.cancel()
+
+    monkeypatch.setattr(
+        manager, "get_session_metadata", get_metadata_with_recancel_window
+    )
+    monkeypatch.setattr(
+        executor,
+        "_poll_standard_pipeline_cancellation",
+        cancel_owner_again,
+    )
+
+    async def finalize_then_cancel(
+        session_manager: SessionManager,
+        target_session_id: str,
+        updates: dict[str, Any],
+        **kwargs: object,
+    ) -> bool:
+        nonlocal failure_committed
+        persisted = await original_finalize(
+            session_manager,
+            target_session_id,
+            updates,
+            **kwargs,
+        )
+        if persisted and updates.get("status") == "failed":
+            failure_committed = True
+            owner.cancel()
+        return persisted
+
+    monkeypatch.setattr(executor, "_finalize_pipeline_session", finalize_then_cancel)
+
+    with pytest.raises(
+        executor._PersistedPipelineFailureError,
+        match="material_pipeline_result_failed",
+    ):
+        await executor.execute_pipeline_async(session_id, {"steps": {}}, manager)
+
+    metadata = await manager.get_session_metadata(session_id)
+    assert metadata is not None
+    assert metadata["status"] == "failed"
+    assert metadata["error"] == "material_pipeline_result_failed"
+    assert metadata["error_diagnostic"] == diagnostic
+    assert metadata["failed_step"] == "pipeline"
+    assert metadata["terminal_events_quiesced"] is True
+    assert "cancelled_at" not in metadata
+
+    failure_event = await bus.get_queue(session_id).get()
+    assert failure_event.state == StepState.FAILED
+    assert failure_event.message == "material_pipeline_result_failed"
+    assert bus.get_queue(session_id).empty()
+
+
+@pytest.mark.asyncio
 async def test_executor_pipeline_inner_success_and_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -3549,6 +3794,10 @@ async def test_executor_pipeline_inner_success_and_failure(
     monkeypatch.setattr(executor, "arun_pipeline", arun_failure)
     with pytest.raises(RuntimeError, match="material_pipeline_result_failed"):
         await executor._execute_pipeline_inner(sid, {"steps": {}}, manager)
+    metadata = await manager.get_session_metadata(sid)
+    assert metadata["status"] == "failed"
+    assert metadata["error"] == "material_pipeline_result_failed"
+    assert metadata["failed_step"] == "pipeline"
 
     regeneration_sid = str(uuid4())
     await manager.create_session(regeneration_sid)
@@ -3602,12 +3851,309 @@ async def test_executor_pipeline_inner_success_and_failure(
     failure_data = json.loads(failure_progress["data"])
     assert failure_data["state"] == "failed"
     assert failure_data["message"] == "material_pipeline_result_failed"
-    assert failure_data["extra"] == {"pipeline_failed": True}
+    assert failure_data["extra"] == {
+        "pipeline_failed": True,
+        "error_diagnostic": {
+            "schema": "world-understanding-durable-diagnostic-v1",
+            "code": "material_pipeline_result_failed",
+            "phase": "pipeline_execution",
+            "retryable": False,
+        },
+    }
     assert "durable-result-error-sentinel-727" not in json.dumps(failure_data)
     failure_done = await anext(failure_stream.body_iterator)
     assert failure_done["event"] == "done"
     with pytest.raises(StopAsyncIteration):
         await anext(failure_stream.body_iterator)
+
+
+@pytest.mark.asyncio
+async def test_blank_render_failure_is_authoritative_and_evidence_survives(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reproduce #1481 across metadata, status, SSE, and evidence download."""
+    sentinel = "credential-and-private-path-sentinel-1481"
+    manager = SessionManager(tmp_path)
+    session_id = str(uuid4())
+    session_dir = await manager.create_session(session_id)
+    await manager.update_session(
+        session_id,
+        {"artifact_validity": initial_artifact_validity()},
+    )
+
+    sample_id = "a" * 16
+    configured_working_dir = session_dir / "configured-cache"
+    evidence_dir = configured_working_dir / "dataset" / "usd" / "failure_evidence"
+    evidence_dir.mkdir(parents=True)
+    error_diagnostic = {
+        "schema": "world-understanding-durable-diagnostic-v1",
+        "code": "blank_dataset_renders",
+        "phase": "rendering",
+        "retryable": False,
+        "failed_step": "build_dataset_usd",
+        "renderer_backend": "warp",
+        "checked_count": 3,
+        "blank_count": 2,
+        "blank_ratio": 2 / 3,
+        "threshold": 0.5,
+        "render_modes": ["composition"],
+        "samples": [
+            {
+                "id": sample_id,
+                "render_mode": "composition",
+                "reason": "solid_color",
+                "pixel_intensity": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "mean": 0.0,
+                },
+            }
+        ],
+        "evidence": {
+            "report": "report.json",
+            "samples": [f"{sample_id}.png"],
+        },
+    }
+    (evidence_dir / "report.json").write_text(
+        json.dumps({"diagnostic": error_diagnostic})
+    )
+    (evidence_dir / f"{sample_id}.png").write_bytes(b"bounded-black-render")
+
+    async def arun_blank_failure(_pipeline_input: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            success=False,
+            error=sentinel,
+            error_diagnostic=error_diagnostic,
+            completed_steps=[],
+            step_results={},
+            raw_result={"error": sentinel},
+        )
+
+    bus = EventBus()
+    bus.set_session_manager(manager)
+    await bus.seed_pending_session(session_id)
+    monkeypatch.setattr(executor, "arun_pipeline", arun_blank_failure)
+    monkeypatch.setattr(executor, "TelemetryEventListener", _Telemetry)
+    monkeypatch.setattr(executor, "get_current_span", lambda: _Span())
+    monkeypatch.setattr(executor, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(listener_module, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(pipeline_router, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(pipeline_router, "get_session_manager", lambda: manager)
+    monkeypatch.setattr(
+        pipeline_router,
+        "get_job_registry",
+        lambda: SimpleNamespace(is_running=lambda _session_id: False),
+    )
+    monkeypatch.setattr(assets_router, "get_session_manager", lambda: manager)
+
+    with pytest.raises(RuntimeError, match="blank_dataset_renders"):
+        await executor._execute_pipeline_inner(
+            session_id,
+            {
+                "project": {"working_dir": str(configured_working_dir)},
+                "steps": {},
+            },
+            manager,
+        )
+
+    metadata = await manager.get_session_metadata(session_id)
+    assert metadata["status"] == "failed"
+    assert metadata["error"] == "blank_dataset_renders"
+    assert metadata["failed_step"] == "build_dataset_usd"
+    assert metadata["error_diagnostic"] == {
+        **error_diagnostic,
+        "blank_ratio": round(2 / 3, 6),
+    }
+    assert metadata["artifact_validity"]["previews"] is False
+    assert metadata["failure_evidence"]["retention"] == (
+        "until_session_expiry_or_deletion"
+    )
+    assert sentinel not in json.dumps(metadata)
+    assert str(configured_working_dir) not in json.dumps(metadata)
+    assert bus.get_queue(session_id).qsize() == 1
+
+    status = await pipeline_router.get_pipeline_status(session_id)
+    status_data = status.model_dump(mode="json", exclude_none=True)
+    assert status_data["error"] == metadata["error"]
+    assert status_data["failed_step"] == metadata["failed_step"]
+    assert status_data["error_diagnostic"] == metadata["error_diagnostic"]
+    assert status_data["failure_evidence"] == metadata["failure_evidence"]
+
+    stream = await pipeline_router.stream_progress_events(session_id)
+    progress = await anext(stream.body_iterator)
+    event_data = json.loads(progress["data"])
+    assert event_data["message"] == "blank_dataset_renders"
+    assert event_data["step"] == "build_dataset_usd"
+    assert event_data["extra"]["error_diagnostic"] == metadata["error_diagnostic"]
+    assert event_data["extra"]["failure_evidence"] == metadata["failure_evidence"]
+    assert sentinel not in json.dumps(event_data)
+
+    evidence = await assets_router.list_failure_evidence(session_id)
+    assert evidence.report.name == "report.json"
+    assert evidence.samples[0].name == f"{sample_id}.png"
+    report_response = await assets_router.get_failure_evidence_file(
+        session_id, "report.json"
+    )
+    assert json.loads((await _response_body(report_response)).decode())["diagnostic"]
+    sample_response = await assets_router.get_failure_evidence_file(
+        session_id, f"{sample_id}.png"
+    )
+    assert await _response_body(sample_response) == b"bounded-black-render"
+    with pytest.raises(HTTPException) as traversal:
+        await assets_router.get_failure_evidence_file(session_id, "../report.json")
+    _expect_http(404, traversal)
+
+    assert await manager.delete_session(session_id)
+    with pytest.raises(HTTPException) as deleted:
+        await assets_router.list_failure_evidence(session_id)
+    _expect_http(404, deleted)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("publication_mode", ["partial", "none"])
+async def test_unavailable_failure_evidence_does_not_leave_dangling_names(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    publication_mode: str,
+) -> None:
+    """A diagnostic advertises evidence only when every named file published."""
+    manager = SessionManager(tmp_path)
+    session_id = str(uuid4())
+    await manager.create_session(session_id)
+    await manager.update_session(
+        session_id,
+        {
+            "artifact_validity": initial_artifact_validity(),
+            "failure_evidence": {"stale": True},
+        },
+    )
+
+    sample_ids = ["a" * 16, "b" * 16]
+    error_diagnostic = {
+        "schema": "world-understanding-durable-diagnostic-v1",
+        "code": "blank_dataset_renders",
+        "phase": "rendering",
+        "retryable": False,
+        "failed_step": "build_dataset_usd",
+        "renderer_backend": "warp",
+        "checked_count": 2,
+        "blank_count": 2,
+        "blank_ratio": 1.0,
+        "threshold": 0.5,
+        "render_modes": ["composition"],
+        "samples": [
+            {
+                "id": sample_id,
+                "render_mode": "composition",
+                "reason": "solid_color",
+                "pixel_intensity": {
+                    "minimum": 0.0,
+                    "maximum": 0.0,
+                    "mean": 0.0,
+                },
+            }
+            for sample_id in sample_ids
+        ],
+        "evidence": {
+            "report": "report.json",
+            "samples": [f"{sample_id}.png" for sample_id in sample_ids],
+        },
+    }
+    partial_evidence = {
+        "report": {
+            "name": "report.json",
+            "url": f"/assets/{session_id}/failure-evidence/report.json",
+        },
+        "samples": [
+            {
+                "name": f"{sample_ids[0]}.png",
+                "url": (f"/assets/{session_id}/failure-evidence/{sample_ids[0]}.png"),
+            }
+        ],
+        "retention": "until_session_expiry_or_deletion",
+    }
+
+    async def arun_blank_failure(_pipeline_input: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            success=False,
+            error="private-render-error",
+            error_diagnostic=error_diagnostic,
+            completed_steps=[],
+            step_results={},
+            raw_result={},
+        )
+
+    async def publish_incomplete(
+        *_args: object, **_kwargs: object
+    ) -> dict[str, Any] | None:
+        return partial_evidence if publication_mode == "partial" else None
+
+    bus = EventBus()
+    bus.set_session_manager(manager)
+    await bus.seed_pending_session(session_id)
+    monkeypatch.setattr(executor, "arun_pipeline", arun_blank_failure)
+    monkeypatch.setattr(executor, "_publish_failure_evidence", publish_incomplete)
+    monkeypatch.setattr(executor, "TelemetryEventListener", _Telemetry)
+    monkeypatch.setattr(executor, "get_current_span", lambda: _Span())
+    monkeypatch.setattr(executor, "get_event_bus", lambda: bus)
+    monkeypatch.setattr(listener_module, "get_event_bus", lambda: bus)
+
+    with pytest.raises(RuntimeError, match="blank_dataset_renders"):
+        await executor._execute_pipeline_inner(session_id, {"steps": {}}, manager)
+
+    metadata = await manager.get_session_metadata(session_id)
+    assert "evidence" not in metadata["error_diagnostic"]
+    failure_event = await bus.get_queue(session_id).get()
+    assert "evidence" not in failure_event.extra["error_diagnostic"]
+    if publication_mode == "partial":
+        assert metadata["failure_evidence"] == partial_evidence
+        assert failure_event.extra["failure_evidence"] == partial_evidence
+    else:
+        assert "failure_evidence" not in metadata
+        assert "failure_evidence" not in failure_event.extra
+
+
+@pytest.mark.asyncio
+async def test_failure_evidence_publication_rejects_source_outside_session(
+    tmp_path: Path,
+) -> None:
+    manager = SessionManager(tmp_path / "sessions")
+    session_id = str(uuid4())
+    session_dir = await manager.create_session(session_id)
+    evidence_dir = session_dir / "cache" / "dataset" / "usd" / "failure_evidence"
+    evidence_dir.mkdir(parents=True)
+    outside_report = tmp_path / "outside-report.json"
+    outside_report.write_text('{"private":"must-not-publish"}')
+    (evidence_dir / "report.json").symlink_to(outside_report)
+
+    published = await executor._publish_failure_evidence(
+        manager,
+        session_id,
+        session_dir,
+        {"evidence": {"report": "report.json", "samples": []}},
+        regeneration_claim=None,
+        artifact_map=None,
+    )
+
+    assert published is None
+    assert not (session_dir / "failure_evidence" / "report.json").exists()
+
+    configured_source = tmp_path / "configured-cache" / "failure_evidence"
+    configured_source.mkdir(parents=True)
+    (configured_source / "report.json").write_text('{"private":"must-not-publish"}')
+    published = await executor._publish_failure_evidence(
+        manager,
+        session_id,
+        session_dir,
+        {"evidence": {"report": "report.json", "samples": []}},
+        source_dir=configured_source,
+        regeneration_claim=None,
+        artifact_map=None,
+    )
+
+    assert published is None
+    assert not (session_dir / "failure_evidence" / "report.json").exists()
 
 
 class _FailingBus:
@@ -4401,3 +4947,319 @@ def test_executor_step_span_and_merge_helpers(
     )
     assert spans[-1].attributes[executor.MAAttributes.PIPELINE_STEP_ERROR] == "bad"
     assert any(key.endswith("cluster_count") for key in spans[-1].attributes)
+
+
+@pytest.mark.asyncio
+async def test_forward_port_historical_reference_and_material_edges(
+    tmp_path: Path,
+) -> None:
+    assert pipeline_router._load_reference_descriptions(tmp_path / "missing") == []
+
+    manager = SessionManager(
+        tmp_path / "local",
+        store=LocalSessionStore(str(tmp_path / "remote")),
+    )
+    session_id = str(uuid4())
+    session_dir = await manager.create_session(session_id)
+    descriptions_key = "input/reference_images/descriptions.json"
+    await manager.store.put_bytes(session_id, descriptions_key, b'["remote"]')
+    assert await pipeline_router._preflight_historical_reference_descriptions(
+        manager, session_id, session_dir
+    ) == ["remote"]
+
+    for payload in (b"{", b"{}"):
+        await manager.store.put_bytes(session_id, descriptions_key, payload)
+        with pytest.raises(HTTPException) as exc_info:
+            await pipeline_router._preflight_historical_reference_descriptions(
+                manager, session_id, session_dir
+            )
+        _expect_http(409, exc_info)
+
+    class _BrokenDescriptionStore:
+        async def exists(self, session_id: str, key: str) -> bool:
+            raise RuntimeError("store failed")
+
+    class _BrokenDescriptionManager:
+        store = _BrokenDescriptionStore()
+
+        async def open_local_artifact(self, *args: object) -> None:
+            return None
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router._preflight_historical_reference_descriptions(
+            _BrokenDescriptionManager(), "sid", tmp_path
+        )
+    _expect_http(409, exc_info)
+    assert (
+        exc_info.value.detail == pipeline_router._HISTORICAL_DESCRIPTIONS_INVALID_DETAIL
+    )
+    assert "store failed" not in str(exc_info.value.detail)
+
+    class _ReadStore:
+        def __init__(self, payload: bytes | None = None) -> None:
+            self.payload = payload
+
+        async def open_read(self, session_id: str, key: str):
+            if self.payload is None:
+                raise RuntimeError("read failed")
+            return io.BytesIO(self.payload)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router._read_bounded_historical_material_key(
+            SimpleNamespace(store=_ReadStore()), "sid", "materials/a", max_bytes=1
+        )
+    _expect_http(400, exc_info)
+    assert exc_info.value.detail == pipeline_router._INVALID_SAVED_MATERIALS_DETAIL
+    assert "read failed" not in str(exc_info.value.detail)
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router._read_bounded_historical_material_key(
+            SimpleNamespace(store=_ReadStore(b"xx")),
+            "sid",
+            "materials/a",
+            max_bytes=1,
+        )
+    _expect_http(400, exc_info)
+
+    class _ListingStore:
+        async def list_keys(self, *args: object, **kwargs: object):
+            raise RuntimeError("list failed")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router._preflight_historical_session_materials(
+            SimpleNamespace(store=_ListingStore()), "sid", tmp_path
+        )
+    _expect_http(409, exc_info)
+    assert exc_info.value.detail == "Saved materials could not be verified"
+    assert "list failed" not in str(exc_info.value.detail)
+
+    class _KeyStore:
+        async def list_keys(self, *args: object, **kwargs: object):
+            return [object()]
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router._preflight_historical_session_materials(
+            SimpleNamespace(store=_KeyStore()), "sid", tmp_path
+        )
+    _expect_http(400, exc_info)
+
+    await manager.store.put_bytes(session_id, "materials/readme.txt", b"readme")
+    assert (
+        await pipeline_router._preflight_historical_session_materials(
+            manager, session_id, session_dir
+        )
+        is None
+    )
+    await manager.store.put_bytes(
+        session_id,
+        "materials/materials.yaml",
+        b"library_path: library.usda\nentries:\n  - name: Steel\n",
+    )
+    await manager.store.put_bytes(session_id, "materials/library.usda", b"#usda 1.0\n")
+    plan = await pipeline_router._preflight_historical_session_materials(
+        manager, session_id, session_dir
+    )
+    assert plan is not None
+    assert {key for key, _ in plan.snapshot_files} == {
+        "materials/library.usda",
+        "materials/materials.yaml",
+        "materials/readme.txt",
+    }
+
+
+def test_forward_port_cached_material_and_restore_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session_dir = tmp_path / "session"
+    manifest = session_dir / "cache/generated_material_library/materials.yaml"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(
+        "api_key: forbidden\nlibrary_path: library.usda\nentries:\n  - name: A\n",
+        encoding="utf-8",
+    )
+    assert pipeline_router._load_cached_generated_material_library(session_dir) is None
+
+    manifest.write_text(
+        "library_path: library.usda\nentries:\n  - name: A\n", encoding="utf-8"
+    )
+    (manifest.parent / "library.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    state_path = session_dir / "cache/.pipeline_state.json"
+    state_path.write_text("{", encoding="utf-8")
+    assert pipeline_router._ensure_cached_generated_material_library_state(
+        session_dir, session_id="sid"
+    )
+
+    monkeypatch.setattr(
+        pipeline_router,
+        "_clean_materials_extract_dir",
+        lambda *args: (_ for _ in ()).throw(OSError("cleanup failed")),
+    )
+    pipeline_router._discard_rejected_materials_archive(
+        tmp_path / "materials", tmp_path / "materials.zip"
+    )
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    alias = tmp_path / "materials-alias"
+    alias.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(HTTPException) as exc_info:
+        pipeline_router._load_extracted_materials_tree(alias)
+    _expect_http(400, exc_info)
+
+
+@pytest.mark.asyncio
+@pytest.mark.real_executor
+async def test_forward_port_restore_zip_and_preview_sync_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = SessionManager(tmp_path / "sessions")
+    session_id = str(uuid4())
+    session_dir = await manager.create_session(session_id)
+    materials_dir = session_dir / "materials"
+    materials_dir.mkdir(exist_ok=True)
+    (materials_dir / "materials.zip").write_bytes(b"zip")
+    monkeypatch.setattr(
+        pipeline_router,
+        "_extract_and_validate_materials_zip",
+        lambda *args, **kwargs: ("library.usda", [{"name": "A"}]),
+    )
+    assert await pipeline_router._restore_existing_session_materials(
+        manager, session_id, session_dir
+    ) == ("library.usda", [{"name": "A"}])
+
+    preview_id = str(uuid4())
+    preview_dir = await manager.create_session(preview_id)
+    (preview_dir / "input/scene.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    rendered = tmp_path / "rendered.png"
+
+    class _PreviewWorkflow:
+        def run(self, context: dict[str, object]) -> dict[str, object]:
+            rendered.write_bytes(b"png")
+            return {"rendered_preview_paths": [str(rendered)]}
+
+    import material_agent.workflows as material_workflows
+
+    monkeypatch.setattr(
+        material_workflows,
+        "create_render_preview_workflow_from_config",
+        lambda: _PreviewWorkflow(),
+    )
+
+    async def fail_put(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("sync failed")
+
+    monkeypatch.setattr(manager, "put_file_to_store", fail_put)
+    pipeline_router.set_session_manager(manager)
+    monkeypatch.setattr(pipeline_router, "get_session_manager", lambda: manager)
+    await pipeline_router._render_input_preview(preview_id, preview_dir)
+    assert (await manager.get_session_metadata(preview_id))[
+        "preview_render_status"
+    ] == ("ready")
+
+
+@pytest.mark.asyncio
+async def test_forward_port_pipeline_publication_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = SessionManager(
+        tmp_path / "local",
+        store=LocalSessionStore(str(tmp_path / "remote")),
+    )
+    pipeline_router.set_session_manager(manager)
+    pipeline_router.get_event_bus().set_session_manager(manager)
+    _install_direct_pipeline_stubs(monkeypatch)
+    monkeypatch.setattr(pipeline_router.config, "max_upload_size_mb", 100)
+
+    async def valid_large_scene(path: Path) -> str:
+        return "/Root"
+
+    monkeypatch.setattr(
+        pipeline_router, "_ensure_large_scene_stage_file", valid_large_scene
+    )
+
+    async def fail_put(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("sync failed")
+
+    monkeypatch.setattr(manager, "put_file_to_store", fail_put)
+    uploaded = await pipeline_router.create_pipeline(
+        **_direct_pipeline_kwargs(
+            usd_file=_upload("scene.usda"),
+            large_scene="true",
+            optimize_usd="false",
+        )
+    )
+    assert uploaded.status == "pending"
+
+    refs_id = str(uuid4())
+    refs_dir = await manager.create_session(refs_id)
+    await manager.update_session(refs_id, {"status": "ready"})
+    (refs_dir / "input/scene.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    refs = await pipeline_router.create_pipeline(
+        **_direct_pipeline_kwargs(
+            session_id=refs_id,
+            optimize_usd="false",
+            reference_images=[_upload("ref.png", b"png")],
+            reference_pdfs=[_upload("ref.pdf", b"%PDF")],
+            steps="predict",
+        )
+    )
+    assert refs.status == "pending"
+
+    async def fail_stream(*args: object, **kwargs: object) -> int:
+        raise RuntimeError("copy failed")
+
+    monkeypatch.setattr(pipeline_router, "_stream_copy", fail_stream)
+    outer_id = str(uuid4())
+    outer_dir = await manager.create_session(outer_id)
+    await manager.update_session(outer_id, {"status": "ready"})
+    (outer_dir / "input/scene.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    outer = await pipeline_router.create_pipeline(
+        **_direct_pipeline_kwargs(
+            session_id=outer_id,
+            optimize_usd="false",
+            reference_images=[_upload("ref.png", b"png")],
+            reference_pdfs=[_upload("ref.pdf", b"%PDF")],
+            steps="predict",
+        )
+    )
+    assert outer.status == "pending"
+
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.create_pipeline(
+            **_direct_pipeline_kwargs(usd_file=_upload("failed.usda"))
+        )
+    _expect_http(500, exc_info)
+    assert exc_info.value.detail == "Failed to save USD file"
+    assert "copy failed" not in str(exc_info.value.detail)
+
+    materials_id = str(uuid4())
+    materials_dir = await manager.create_session(materials_id)
+    await manager.update_session(materials_id, {"status": "ready"})
+    (materials_dir / "input/scene.usda").write_text("#usda 1.0\n", encoding="utf-8")
+    with pytest.raises(HTTPException) as exc_info:
+        await pipeline_router.create_pipeline(
+            **_direct_pipeline_kwargs(
+                session_id=materials_id,
+                optimize_usd="false",
+                materials_zip=_upload("materials.zip", b"zip"),
+            )
+        )
+    _expect_http(400, exc_info)
+
+
+@pytest.mark.asyncio
+async def test_scene_validation_event_failure_is_contained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = SessionManager(tmp_path / "sessions")
+    session_id = str(uuid4())
+    await manager.create_session(session_id)
+    monkeypatch.setattr(executor, "get_current_span", lambda: None)
+    monkeypatch.setattr(executor, "TelemetryEventListener", _Telemetry)
+    monkeypatch.setattr(executor, "get_event_bus", lambda: _FailingBus())
+
+    async def validation_failure(scene_input: object) -> SimpleNamespace:
+        return _scene_result(tmp_path, success=False, validation_failure=True)
+
+    monkeypatch.setattr(executor, "arun_scene_pipeline", validation_failure)
+    await executor._execute_scene_pipeline_inner(session_id, {"steps": {}}, manager)
+    assert (await manager.get_session_metadata(session_id))["status"] == "failed"

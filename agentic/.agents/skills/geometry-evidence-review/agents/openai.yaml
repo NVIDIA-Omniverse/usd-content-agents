@@ -1,0 +1,4 @@
+interface:
+  display_name: "Geometry Evidence Review"
+  short_description: "Inspect and judge geometry evidence."
+  default_prompt: "Use $geometry-evidence-review to gather sufficient geometry evidence and classify the observed issues."

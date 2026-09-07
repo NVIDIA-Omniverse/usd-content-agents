@@ -12,9 +12,9 @@ This module provides a base class for pipeline executors that handles:
 Agent-specific executors inherit from this base and implement step execution logic.
 """
 
-import fcntl
 import json
 import logging
+import os
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -39,13 +39,24 @@ from world_understanding.utils.credentials import (
     InlineSecretError,
     ensure_no_inline_secrets,
     path_exists_with_safe_diagnostics,
-    redact_sensitive_config,
+    redact_sensitive_log_text,
     redact_sensitive_path,
     resolve_path_with_safe_diagnostics,
 )
+from world_understanding.utils.debug_traceback import (
+    append_step_failure_debug_entry,
+)
+from world_understanding.utils.file_locking import exclusive_descriptor_lock
 from world_understanding.utils.model_auth import (
     MODEL_AUTHENTICATION_FAILURE_MESSAGE,
     is_model_authentication_error,
+)
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    TERMINAL_VLM_TIMEOUT_RESUME_MESSAGE,
+    NonRetryableVLMTimeoutError,
+    is_terminal_vlm_timeout_marker,
+    make_terminal_vlm_timeout_marker,
 )
 from world_understanding.utils.object_store import ObjectStore
 
@@ -92,11 +103,7 @@ def _raise_os_error(
 
 def _diagnostic_text(value: Any) -> str:
     """Project one runtime value to a credential-safe diagnostic string."""
-    try:
-        projected = redact_sensitive_config(value)
-        return redact_sensitive_path(str(projected))
-    except Exception:  # pragma: no cover - defensive diagnostic boundary
-        return "<unavailable>"
+    return redact_sensitive_log_text(value)
 
 
 def _diagnostic_steps(steps: list[str]) -> list[str]:
@@ -156,6 +163,24 @@ def safe_step_failure_message(error: BaseException) -> str:
     if is_model_authentication_error(error):
         return MODEL_AUTHENTICATION_FAILURE_MESSAGE
     return f"{safe_exception_category(error)} during step execution"
+
+
+def record_step_failure(
+    working_dir: str | os.PathLike[str] | None,
+    step_name: str,
+    error: BaseException,
+) -> str:
+    """Persist the step-failure debug artifact and return the value-free message.
+
+    Single step-failure entry point for every pipeline executor, including the
+    app-level ``run`` overrides: persisting the session-local secret-scrubbed
+    traceback and projecting the value-free public message happen in one call,
+    so an executor cannot obtain the public failure summary without also
+    recording the diagnosable cause. The append is best-effort and never
+    raises; the returned message stays value-free on every public surface.
+    """
+    append_step_failure_debug_entry(working_dir, step_name, error)
+    return safe_step_failure_message(error)
 
 
 def _safe_public_exception_message(error: BaseException) -> str:
@@ -226,10 +251,8 @@ def _confined_checkpoint_lock(
         deadline = time.monotonic() + timeout
         while True:
             try:
-                fcntl.flock(
-                    lock_descriptor,
-                    fcntl.LOCK_EX | fcntl.LOCK_NB,
-                )
+                lock = exclusive_descriptor_lock(lock_descriptor)
+                lock.__enter__()
                 break
             except BlockingIOError:
                 remaining = deadline - time.monotonic()
@@ -239,7 +262,7 @@ def _confined_checkpoint_lock(
         try:
             yield
         finally:
-            fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
+            lock.__exit__(None, None, None)
 
 
 # Get a tracer for pipeline operations
@@ -267,10 +290,38 @@ def is_valid_pipeline_checkpoint_structure(value: Any) -> bool:
         return False
 
     step_errors = value.get("step_errors", {})
-    return type(step_errors) is dict and all(
+    if type(step_errors) is not dict or not all(
         type(step_name) is str and type(step_error) is str
         for step_name, step_error in step_errors.items()
+    ):
+        return False
+
+    terminal_failure = value.get(TERMINAL_VLM_TIMEOUT_CONTEXT_KEY)
+    return terminal_failure is None or is_terminal_vlm_timeout_marker(terminal_failure)
+
+
+def record_terminal_step_failure(
+    pipeline_state: dict[str, Any],
+    step_name: str,
+    error: BaseException,
+) -> bool:
+    """Persist an unverified VLM timeout without retaining provider values."""
+    if not isinstance(error, NonRetryableVLMTimeoutError):
+        return False
+    pipeline_state[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] = make_terminal_vlm_timeout_marker(
+        step_name
     )
+    return True
+
+
+def reject_terminal_pipeline_resume(
+    pipeline_state: dict[str, Any], *, resume: bool
+) -> None:
+    """Block resume when the prior remote request may still be running."""
+    if resume and is_terminal_vlm_timeout_marker(
+        pipeline_state.get(TERMINAL_VLM_TIMEOUT_CONTEXT_KEY)
+    ):
+        _raise_runtime_error(TERMINAL_VLM_TIMEOUT_RESUME_MESSAGE)
 
 
 class PathEncoder(json.JSONEncoder):
@@ -666,7 +717,14 @@ class BasePipelineExecutor(Task):
                 # handler before performing failure bookkeeping or publishing a
                 # replacement exception. ``raise ... from None`` inside this
                 # handler would still retain ``error`` through ``__context__``.
-                safe_error = safe_step_failure_message(error)
+                # Before discarding it, persist a session-local, secret-
+                # scrubbed traceback so the real cause stays diagnosable; the
+                # public message, events, and checkpoints stay value-free.
+                safe_error = record_step_failure(
+                    context.get("working_dir"),
+                    step_name,
+                    error,
+                )
             else:
                 # Checkpoint persistence is not step execution. In particular, a
                 # credential rejection must propagate once to the public run

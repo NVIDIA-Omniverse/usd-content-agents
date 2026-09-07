@@ -26,6 +26,11 @@ from typing import Any
 
 import httpx
 
+from texture_agent.functions.external_authoring import (
+    ExternalAuthoringCapabilityReceipt,
+    ExternalAuthoringSpec,
+    external_authoring_spec_payload,
+)
 from texture_agent.functions.texture_generation import (
     BackendCapabilities,
     Conditioning,
@@ -35,6 +40,7 @@ from texture_agent.functions.texture_generation import (
     MapArtifact,
     TextureTarget,
     TextureVariationConfig,
+    WeatheringControls,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,6 +86,7 @@ class RestTextureVariationClient:
         timeout_sec: int = 600,
         target: TextureTarget | None = None,
         capabilities: BackendCapabilities | None = None,
+        external_authoring: ExternalAuthoringSpec | None = None,
     ) -> JobStatus:
         """Submit a texture variation job.
 
@@ -91,6 +98,7 @@ class RestTextureVariationClient:
             timeout_sec: Max wait time in seconds.
             target: Optional selected material/prim scope.
             capabilities: Optional requested backend capabilities.
+            external_authoring: Optional approved headless DCC authoring intent.
 
         Returns:
             JobStatus with result on completion.
@@ -104,6 +112,7 @@ class RestTextureVariationClient:
             config=config,
             target=target,
             capabilities=capabilities,
+            external_authoring=external_authoring,
         )
 
         url = f"{self._endpoint_url}/v1/texture-variations"
@@ -188,6 +197,38 @@ class RestTextureVariationClient:
                 poll_interval = min(poll_interval * 1.5, 10.0)
 
             return status
+
+    def preflight_external_authoring(
+        self,
+        spec: ExternalAuthoringSpec,
+    ) -> ExternalAuthoringCapabilityReceipt:
+        """Fetch the mandatory sanitized capability receipt before DCC launch."""
+        url = f"{self._endpoint_url}/v1/texture-authoring/preflight"
+        body = {"external_authoring": external_authoring_spec_payload(spec)}
+        try:
+            with httpx.Client(
+                timeout=min(self._timeout, 60.0),
+                headers=self._headers,
+            ) as client:
+                response = client.post(url, json=body)
+        except httpx.HTTPError as exc:
+            raise RuntimeError(
+                f"External authoring preflight request failed: {type(exc).__name__}"
+            ) from exc
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"External authoring preflight failed: HTTP {response.status_code}"
+            )
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RuntimeError(
+                "External authoring preflight returned invalid JSON"
+            ) from exc
+        try:
+            return ExternalAuthoringCapabilityReceipt.from_payload(payload)
+        except ValueError as exc:
+            raise RuntimeError(f"Invalid external authoring preflight: {exc}") from exc
 
     def _post_with_backpressure_retry(
         self,
@@ -357,8 +398,21 @@ class RestTextureVariationClient:
         config: TextureVariationConfig,
         target: TextureTarget | None = None,
         capabilities: BackendCapabilities | None = None,
+        external_authoring: ExternalAuthoringSpec | None = None,
     ) -> dict[str, Any]:
         """Build the normalized Texture Variation API request body."""
+        configuration: dict[str, Any] = {
+            "strength": config.strength,
+            "seed": config.seed,
+            "variant_name": config.variant_name,
+            "engine": config.engine,
+            "texture_size": config.texture_size,
+            "custom_parameters": config.custom_parameters,
+        }
+        if config.weathering is not None:
+            configuration["weathering"] = WeatheringControls.model_validate(
+                config.weathering
+            ).model_dump(mode="json")
         body: dict[str, Any] = {
             "source_asset_uri": source_asset_uri,
             "conditioning": {
@@ -367,19 +421,19 @@ class RestTextureVariationClient:
                 "turntable_video_uri": conditioning.turntable_video_uri,
                 "multiview_image_uris": conditioning.multiview_image_uris,
             },
-            "configuration": {
-                "strength": config.strength,
-                "seed": config.seed,
-                "variant_name": config.variant_name,
-                "engine": config.engine,
-                "texture_size": config.texture_size,
-                "custom_parameters": config.custom_parameters,
-            },
+            "configuration": configuration,
         }
         if target:
             body["target"] = asdict(target)
         if capabilities:
-            body["capabilities"] = asdict(capabilities)
+            capability_payload = asdict(capabilities)
+            if capability_payload.get("weathering") is None:
+                capability_payload.pop("weathering")
+            body["capabilities"] = capability_payload
+        if external_authoring:
+            body["external_authoring"] = external_authoring_spec_payload(
+                external_authoring
+            )
         return body
 
     @staticmethod

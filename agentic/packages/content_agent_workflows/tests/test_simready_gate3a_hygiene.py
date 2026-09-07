@@ -768,14 +768,12 @@ def test_gate3a_hygiene_final_guard_detects_physics_loss_on_blocked_chain(
     )
 
 
-def test_gate3a_hygiene_routes_digit_bearing_requirement_from_validation_report(
+def test_gate3a_hygiene_routes_digit_bearing_explicit_requirement(
     tmp_path: Path,
 ) -> None:
     Usd = pytest.importorskip("pxr.Usd")
-    assert (
-        conform_profile_module._parse_requirement("rerun G3A.HYG.001 now")
-        == GATE3A_HYGIENE_REQUIREMENT
-    )
+    requirement = conform_profile_module._parse_requirement("rerun G3A.HYG.001 now")
+    assert requirement == GATE3A_HYGIENE_REQUIREMENT
     assert conform_profile_module._parse_requirements("G3A.HYG.001 and RB.COL.001") == [
         GATE3A_HYGIENE_REQUIREMENT,
         "RB.COL.001",
@@ -786,17 +784,12 @@ def test_gate3a_hygiene_routes_digit_bearing_requirement_from_validation_report(
     assert stage.GetRootLayer().Save()
     stage = None
     expected = inspect_gate3a_physics_inventory(asset)
-    validation_report = tmp_path / "validation.json"
-    validation_report.write_text(
-        json.dumps({"rerun_reasons": ["G3A.HYG.001: rerun required"]}),
-        encoding="utf-8",
-    )
 
     report = run_simready_profile_conformance(
         SimReadyConformanceInput(
             asset_path=str(asset),
             output_dir=str(tmp_path / "conform"),
-            validation_report_path=str(validation_report),
+            repair_requirements=[requirement],
             expected_physics_inventory_sha256=expected.sha256,
             foundation_root=str(tmp_path / "missing-foundation"),
             force=True,
@@ -804,7 +797,7 @@ def test_gate3a_hygiene_routes_digit_bearing_requirement_from_validation_report(
     )
 
     assert report.passed
-    assert report.failed_requirements == [GATE3A_HYGIENE_REQUIREMENT]
+    assert report.failed_requirements == []
     assert report.requirements_repaired == [GATE3A_HYGIENE_REQUIREMENT]
     assert [step["requirement"] for step in report.steps] == [
         GATE3A_HYGIENE_REQUIREMENT

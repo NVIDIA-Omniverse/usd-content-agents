@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Embeddings Brev"
+  short_description: "Fixed pipeline Brev embedding endpoint deployment"
+  default_prompt: "Use $fixed-pipeline to deploy or smoke-test a Brev-hosted llama-nemotron embedding NIM endpoint for Material Agent prim clustering and collection deployment wiring."

@@ -268,16 +268,26 @@ def test_collection_docs_describe_shared_image_gen_dependency() -> None:
     docs = [
         repo_root / "deploy" / "collection" / "README.md",
         repo_root / "deploy" / "collection" / "collection.yaml",
-        repo_root / ".agents" / "skills" / "deploy-collection" / "SKILL.md",
         repo_root
         / ".agents"
         / "skills"
+        / "fixed-pipeline"
+        / "references"
+        / "deploy-collection"
+        / "reference.md",
+        repo_root
+        / ".agents"
+        / "skills"
+        / "fixed-pipeline"
+        / "references"
         / "deploy-collection"
         / "references"
         / "env-contract.md",
         repo_root
         / ".agents"
         / "skills"
+        / "fixed-pipeline"
+        / "references"
         / "deploy-collection"
         / "references"
         / "topologies.md",
@@ -352,7 +362,71 @@ def test_collection_write_env_allows_output_outside_repo(
     deploy.write_env(config, output)
 
     assert output.exists()
+    assert output.stat().st_mode & 0o777 == 0o600
     assert str(output) in capsys.readouterr().out
+
+
+def test_collection_write_env_restricts_existing_permissions(tmp_path: Path) -> None:
+    deploy = load_deploy_module()
+    config = deploy.load_config(
+        Path(__file__).resolve().parents[1]
+        / "deploy"
+        / "collection"
+        / "collection.yaml"
+    )
+    output = tmp_path / "collection.env"
+    output.write_text("old", encoding="utf-8")
+    output.chmod(0o644)
+
+    deploy.write_env(config, output)
+
+    assert output.stat().st_mode & 0o777 == 0o600
+
+
+def test_collection_write_env_replaces_symlink_without_overwriting_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deploy = load_deploy_module()
+    secret = "security-regression-secret"
+    monkeypatch.setattr(
+        deploy,
+        "build_env",
+        lambda _config: ({"TA_IMAGE_GEN_API_KEY": secret}, []),
+    )
+    target = tmp_path / "target.env"
+    target.write_text("preserve-me", encoding="utf-8")
+    output = tmp_path / "collection.env"
+    output.symlink_to(target)
+
+    deploy.write_env({}, output)
+
+    assert target.read_text(encoding="utf-8") == "preserve-me"
+    assert not output.is_symlink()
+    assert secret in output.read_text(encoding="utf-8")
+
+
+def test_collection_write_env_replaces_hard_link_without_overwriting_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deploy = load_deploy_module()
+    secret = "hard-link-security-regression-secret"
+    monkeypatch.setattr(
+        deploy,
+        "build_env",
+        lambda _config: ({"TA_IMAGE_GEN_API_KEY": secret}, []),
+    )
+    target = tmp_path / "target.env"
+    target.write_text("preserve-me", encoding="utf-8")
+    output = tmp_path / "collection.env"
+    os.link(target, output)
+
+    deploy.write_env({}, output)
+
+    assert target.read_text(encoding="utf-8") == "preserve-me"
+    assert secret in output.read_text(encoding="utf-8")
+    assert output.stat().st_ino != target.stat().st_ino
 
 
 def test_collection_missing_render_endpoint_is_error_for_rendering_agents() -> None:
@@ -547,7 +621,7 @@ dependencies:
     assert compose_calls == []
 
 
-def test_collection_texture_only_build_does_not_fetch_scene_optimizer(
+def test_collection_texture_only_build_fetches_scene_optimizer(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -561,7 +635,7 @@ def test_collection_texture_only_build_does_not_fetch_scene_optimizer(
     )
 
     assert rc == 0
-    assert calls == []
+    assert calls == [[str(deploy.FETCH_BUILD_RESOURCES)]]
 
 
 def test_collection_texture_only_compose_config_does_not_require_render_endpoint(

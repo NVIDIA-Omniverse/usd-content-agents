@@ -31,6 +31,7 @@ TextEmbeddingFactory = Callable[..., BaseTextEmbeddingModel]
 # Registries: backend name -> factory function
 _chat_backends: dict[str, ChatFactory] = {}
 _chat_backend_requires_api_key: dict[str, bool] = {}
+_chat_backend_capabilities: dict[str, frozenset[str]] = {}
 _vlm_backends: dict[str, VLMFactory] = {}
 _vlm_backend_requires_api_key: dict[str, bool] = {}
 _vlm_backend_capabilities: dict[str, frozenset[str]] = {}
@@ -70,17 +71,24 @@ def list_loaded_backend_plugins() -> tuple[str, ...]:
 
 
 def register_chat_backend(
-    name: str, factory: ChatFactory, *, requires_api_key: bool | None = None
+    name: str,
+    factory: ChatFactory,
+    *,
+    requires_api_key: bool | None = None,
+    capabilities: frozenset[str] | None = None,
 ) -> None:
     """Register a chat model backend factory.
 
-    Omitting ``requires_api_key`` preserves an existing backend's setting and
-    defaults a new backend to requiring credentials.
+    Omitting metadata preserves an existing backend's setting and defaults a
+    new backend to requiring credentials with no optional capabilities.
     """
     if requires_api_key is None:
         requires_api_key = _chat_backend_requires_api_key.get(name, True)
+    if capabilities is None:
+        capabilities = _chat_backend_capabilities.get(name, frozenset())
     _chat_backends[name] = factory
     _chat_backend_requires_api_key[name] = requires_api_key
+    _chat_backend_capabilities[name] = capabilities
 
 
 def chat_backend_requires_api_key(name: str) -> bool:
@@ -88,6 +96,13 @@ def chat_backend_requires_api_key(name: str) -> bool:
     if name not in _chat_backends:
         get_chat_factory(name)
     return _chat_backend_requires_api_key[name]
+
+
+def chat_backend_supports(name: str, capability: str) -> bool:
+    """Return whether a registered chat backend declares a capability."""
+    if name not in _chat_backends:
+        get_chat_factory(name)
+    return capability in _chat_backend_capabilities[name]
 
 
 def register_vlm_backend(

@@ -13,16 +13,21 @@ from typing import Any
 
 from world_understanding.agentic.base_pipeline_executor import (
     BasePipelineExecutor,
+    record_step_failure,
+    record_terminal_step_failure,
+    reject_terminal_pipeline_resume,
     remove_legacy_pipeline_temp_with_safe_diagnostics,
     safe_diagnostic_steps,
     safe_diagnostic_text,
-    safe_step_failure_message,
 )
 from world_understanding.agentic.config import normalize_yaml_config_value
 from world_understanding.agentic.events import get_listener
 from world_understanding.utils.credentials import (
     create_directory_with_safe_diagnostics,
     redact_sensitive_config,
+)
+from world_understanding.utils.model_timeout import (
+    raise_for_terminal_vlm_timeout_result,
 )
 
 logger = logging.getLogger(__name__)
@@ -189,6 +194,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
         state_file = Path(working_dir) / ".pipeline_state.json"
         pipeline_state = self._initialize_pipeline_state(context, resume)
+        reject_terminal_pipeline_resume(pipeline_state, resume=bool(resume))
 
         safe_session_id = safe_diagnostic_text(session_id)
         safe_project_name = safe_diagnostic_text(project_name)
@@ -258,8 +264,16 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     step_name, step_config, context, object_store, pipeline_state
                 )
 
-                # Mark step as completed
+                # Mark step as completed. A successful resume retry
+                # supersedes a stale failure record: leaving the step in
+                # failed_steps would make the benchmark's completion gates
+                # treat provably re-completed output as failed.
                 pipeline_state["completed_steps"].append(step_name)
+                pipeline_state["failed_steps"] = [
+                    failed
+                    for failed in pipeline_state["failed_steps"]
+                    if failed != step_name
+                ]
                 pipeline_state["step_outputs"][step_name] = outputs
 
                 # Save checkpoint
@@ -277,7 +291,12 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     )
 
             except Exception as error:
-                safe_error = safe_step_failure_message(error)
+                record_terminal_step_failure(pipeline_state, step_name, error)
+                # Persist a session-local, secret-scrubbed traceback so the
+                # real cause stays diagnosable. Every public surface (log
+                # line, event, checkpoint, raised message) below remains
+                # value-free exactly as before.
+                safe_error = record_step_failure(working_dir, step_name, error)
                 logger.error("Step '%s' failed: %s", safe_step_name, safe_error)
                 pipeline_state["failed_steps"].append(step_name)
                 pipeline_state["current_step"] = None
@@ -435,7 +454,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                 logger.info(
                     "Auto-wired predictions_path for apply_physics from %s: %s",
                     source,
-                    predictions_path,
+                    safe_diagnostic_text(predictions_path),
                 )
             else:
                 logger.warning(
@@ -443,6 +462,33 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
                     "neither predict nor restore_usd has run yet"
                 )
             step_config["output_key"] = output_key
+
+        if step_name == "vomp_mass":
+            input_usd = (step_outputs.get("apply_physics") or {}).get("output_usd_path")
+            source_step = "apply_physics"
+            if not input_usd:
+                if "apply_physics" in step_outputs:
+                    logger.warning(
+                        "apply_physics produced no output_usd_path; vomp_mass is "
+                        "falling back to an earlier USD"
+                    )
+                input_usd = (step_outputs.get("optimize_usd") or {}).get(
+                    "optimized_usd_path"
+                )
+                source_step = "optimize_usd"
+            if not input_usd:
+                logger.warning(
+                    "vomp_mass could not auto-wire a prior USD output; using the "
+                    "configured usd_path: %s",
+                    safe_diagnostic_text(step_config.get("usd_path")),
+                )
+            if input_usd:
+                step_config["usd_path"] = str(input_usd)
+                logger.info(
+                    "Auto-wired usd_path for vomp_mass from %s: %s",
+                    source_step,
+                    input_usd,
+                )
 
         # Auto-wire restore_usd inputs from optimize_usd and predict steps
         if step_name == "restore_usd":
@@ -490,6 +536,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             create_prepare_dataset_workflow_from_config,
             create_restore_usd_workflow_from_config,
             create_usd_data_preparation_workflow_from_config,
+            create_vomp_mass_workflow_from_config,
         )
 
         # Map step names to workflow factories
@@ -501,6 +548,7 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
             "predict": create_prediction_workflow_from_config,
             "restore_usd": create_restore_usd_workflow_from_config,
             "apply_physics": create_apply_physics_workflow_from_config,
+            "vomp_mass": create_vomp_mass_workflow_from_config,
         }
 
         if step_name not in workflow_map:
@@ -541,6 +589,8 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
         if not result:
             raise RuntimeError(f"Step '{step_name}' returned empty result")
+
+        raise_for_terminal_vlm_timeout_result(result)
 
         if result.get("error") or result.get("workflow_terminated"):
             failed_task = result.get("failed_task", "unknown")
@@ -614,5 +664,17 @@ class UnifiedPipelineExecutorTask(BasePipelineExecutor):
 
         elif step_name == "apply_physics":
             outputs["output_usd_path"] = result.get("output_usd_path")
+
+        elif step_name == "vomp_mass":
+            for key in (
+                "output_usd_path",
+                "provenance_path",
+                "vomp_npz_path",
+                "vomp_artifact_dir",
+                "vomp_worker_manifest_path",
+                "vomp_worker_log_path",
+                "vomp_sample_count",
+            ):
+                outputs[key] = result.get(key)
 
         return outputs

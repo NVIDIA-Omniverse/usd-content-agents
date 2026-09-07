@@ -255,6 +255,57 @@ def test_preflight_rejects_duplicate_deterministic_joint_paths() -> None:
     assert "multiple topology entries" in str(error.value)
 
 
+def test_exact_authored_joint_path_adapter_rejects_inexact_mappings() -> None:
+    plan = _plan()
+    duplicate_plan = plan.model_copy(update={"joints": (plan.joints[0],) * 2})
+    cases = (
+        (
+            duplicate_plan,
+            {"coverage joint": "/World/Joints/coverage_joint"},
+            "authored_graph_mismatch",
+        ),
+        (plan, {}, "authored_graph_mismatch"),
+        (plan, {"coverage joint": 1}, "invalid_joint_path"),
+        (
+            plan,
+            {"coverage joint": "/World/Joints/Nested/coverage_joint"},
+            "invalid_joint_path",
+        ),
+    )
+
+    for candidate_plan, authored_paths, expected_code in cases:
+        with pytest.raises(JointRiggerContractError) as error:
+            validate_authored_joint_topology(
+                _stage(),
+                candidate_plan,
+                authored_joint_paths_by_id=authored_paths,  # type: ignore[arg-type]
+            )
+        _assert_code(error, expected_code)
+
+
+def test_external_author_metadata_requires_exact_paths_without_diagnostics() -> None:
+    stage, plan, preflight, diagnostics = _authored_stage()
+    authored_paths = {
+        plan.joints[0].topology.joint_id: str(preflight.joints[0].joint_path)
+    }
+
+    with pytest.raises(TypeError, match="external author metadata"):
+        validate_authored_joint_topology(
+            stage,
+            plan,
+            validate_joint_rigger_metadata=False,
+        )
+
+    with pytest.raises(TypeError, match="external author metadata"):
+        validate_authored_joint_topology(
+            stage,
+            plan,
+            diagnostics,
+            authored_joint_paths_by_id=authored_paths,
+            validate_joint_rigger_metadata=False,
+        )
+
+
 def test_snapshot_identifier_normalization_handles_relative_mapped_and_absolute(
     tmp_path: Path,
 ) -> None:

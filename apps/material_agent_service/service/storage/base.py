@@ -10,6 +10,10 @@ from typing import BinaryIO, Protocol
 METADATA_KEY = "session.json"
 
 
+class SessionStoragePathError(RuntimeError):
+    """Raised when the configured local session-storage path is unsafe."""
+
+
 @dataclass(frozen=True)
 class VersionedJson:
     """A JSON document and the opaque store version read with it.

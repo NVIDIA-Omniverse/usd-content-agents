@@ -1,0 +1,12 @@
+name: unbounded outer retry loop
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Repository retry nested in an unbounded loop
+        run: >-
+          until bash ci/github/retry-network-command.sh --
+          python -m pip install example-tool;
+          do sleep 1; done

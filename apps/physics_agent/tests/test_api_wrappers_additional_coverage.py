@@ -295,6 +295,47 @@ async def test_arun_pipeline_projects_success_result_without_mutating_runtime(
 
 
 @pytest.mark.asyncio
+async def test_arun_pipeline_defensively_normalizes_projected_collection_types(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pipeline_module = importlib.import_module("physics_agent.api.pipeline")
+    import physics_agent.workflows as workflows
+
+    workflow = _AsyncWorkflow({"pipeline_results": {"predict": {"count": 1}}})
+    monkeypatch.setattr(
+        workflows,
+        "create_unified_pipeline_workflow",
+        lambda: workflow,
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "redact_sensitive_config",
+        lambda *_args, **_kwargs: {"unexpected": "mapping"},
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "project_result_metadata",
+        lambda _result: {"pipeline_results": ["unexpected"]},
+    )
+    listener = _Listener()
+
+    output = await arun_pipeline(
+        PipelineInput(
+            config={"project": {"name": "demo"}},
+            skip_steps=["predict"],
+            only_steps=["predict"],
+            event_listener=listener,
+        )
+    )
+
+    assert listener.events[0][1]["skip_steps"] == []
+    assert listener.events[0][1]["only_steps"] == []
+    assert output.success is True
+    assert output.step_results == {}
+    assert output.completed_steps == []
+
+
+@pytest.mark.asyncio
 async def test_arun_pipeline_default_listener_and_dry_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

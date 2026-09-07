@@ -280,6 +280,7 @@ def _extract_world_warp_meshes(
                 warp_mesh=warp_mesh,
                 vertices=world_points,
                 indices=triangle_indices,
+                vertices_in_world_space=True,
             )
         )
         mesh_prims.append(prim)
@@ -452,6 +453,13 @@ def _render_id_buffer_with_warp(
         enable_shadows=False,
         enable_backface_culling=False,
         color_boost=1.0,
+        max_distance=render_warp._compute_max_camera_distance(
+            stage,
+            [camera_path],
+            [0],
+            image_width=width,
+            image_height=height,
+        ),
     )
     identity_transforms = np.array(
         [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]] * len(mesh_prims),
@@ -479,7 +487,8 @@ def _render_id_buffer_with_warp(
     ctx.bvh_shapes_group_roots = None
 
     camera_fov = render_warp._compute_camera_fov(stage, camera_path, time_code)
-    camera_rays = ctx.utils.compute_pinhole_camera_rays(
+    camera_rays = render_warp._compute_render_camera_rays(
+        ctx,
         width,
         height,
         wp.array([camera_fov], dtype=wp.float32, device=device),
@@ -490,8 +499,11 @@ def _render_id_buffer_with_warp(
         dtype=wp.transformf,
         device=device,
     ).reshape((1, 1))
-    shape_index_image = ctx.create_shape_index_image_output(width, height, 1)
-    ctx.render(
+    shape_index_image = render_warp._create_render_output(
+        ctx, "shape_index", width, height, 1
+    )
+    render_warp._render_context_render(
+        ctx,
         camera_transforms=camera_transforms,
         camera_rays=camera_rays,
         shape_index_image=shape_index_image,

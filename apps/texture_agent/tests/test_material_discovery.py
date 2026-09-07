@@ -5,10 +5,14 @@
 from pathlib import Path
 
 import pytest
+from apps.texture_gen_service_common.weathering_intent import (
+    prompt_requests_weathering,
+)
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 
 from texture_agent.functions import material_discovery as material_discovery_module
 from texture_agent.functions.material_discovery import (
+    TEXTURE_SEMANTIC_MATERIAL_ALIASES_RELATIONSHIP,
     EffectiveMaterialDiscovery,
     MaterialInfo,
     PrimTextureUnit,
@@ -385,6 +389,25 @@ class TestDiscoverMaterials:
         assert mat.base_color_texture is None
         assert mat.bound_prim_paths == ["/World/Sphere"]
 
+    @pytest.mark.parametrize(
+        "roughness_input",
+        ["reflection_roughness_constant", "roughness_constant"],
+    )
+    def test_discovers_mdl_pbr_constant_aliases(self, roughness_input: str) -> None:
+        """Preserves authored OmniPBR roughness and metallic constants."""
+        stage = _create_stage_with_mdl_material()
+        shader = UsdShade.Shader(stage.GetPrimAtPath("/World/Looks/Plastic/Shader"))
+        shader.GetInput("ORM_texture").Set(Sdf.AssetPath(""))
+        shader.CreateInput(roughness_input, Sdf.ValueTypeNames.Float).Set(0.27)
+        shader.CreateInput("metallic_constant", Sdf.ValueTypeNames.Float).Set(0.63)
+
+        materials = discover_materials(stage)
+
+        assert len(materials) == 1
+        assert materials[0].orm_texture is None
+        assert materials[0].specular_roughness == pytest.approx(0.27)
+        assert materials[0].base_metalness == pytest.approx(0.63)
+
     def test_discovers_typed_over_shader_properties(self) -> None:
         """Reads shader inputs authored on typed over descendants."""
         stage = _create_stage_with_mdl_over_shader_material()
@@ -553,6 +576,51 @@ class TestDiscoverMaterials:
 
 class TestDiscoverEffectiveMaterials:
     """Tests for deterministic effective-bound material discovery."""
+
+    def test_bound_generated_material_retains_unbound_semantic_source_alias(
+        self,
+    ) -> None:
+        stage = Usd.Stage.CreateInMemory()
+        semantic = UsdShade.Material.Define(stage, "/World/Looks/Olive_Drab_Matte")
+        generated = UsdShade.Material.Define(stage, "/World/Looks/tu_0123456789")
+        generated.GetPrim().CreateRelationship(
+            TEXTURE_SEMANTIC_MATERIAL_ALIASES_RELATIONSHIP,
+            custom=True,
+        ).SetTargets([semantic.GetPath()])
+        mesh = UsdGeom.Cube.Define(stage, "/World/Body")
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(generated)
+
+        discovery = discover_effective_materials(
+            stage,
+            material_prim_paths=[semantic.GetPath()],
+        )
+
+        assert [item.prim_path for item in discovery.effective_materials] == [
+            "/World/Looks/tu_0123456789"
+        ]
+        assert discovery.effective_materials[0].material_alias_paths == [
+            "/World/Looks/Olive_Drab_Matte",
+            "/World/Looks/tu_0123456789",
+        ]
+        assert any(
+            item.material_prim_path == "/World/Looks/Olive_Drab_Matte"
+            and item.reason_code == "not_effectively_bound"
+            for item in discovery.skipped_materials
+        )
+
+    def test_semantic_material_alias_rejects_missing_material_target(self) -> None:
+        stage = Usd.Stage.CreateInMemory()
+        generated = UsdShade.Material.Define(stage, "/World/Looks/Generated")
+        generated.GetPrim().CreateRelationship(
+            TEXTURE_SEMANTIC_MATERIAL_ALIASES_RELATIONSHIP,
+            custom=True,
+        ).SetTargets([Sdf.Path("/World/Looks/Missing")])
+
+        with pytest.raises(
+            ValueError,
+            match="semantic material alias must target an existing material",
+        ):
+            discover_effective_materials(stage)
 
     def test_instance_proxies_reduce_to_shared_prototype_material(
         self, tmp_path: Path
@@ -807,6 +875,18 @@ class TestExpandToPrimUnits:
             "markings",
         ):
             assert forbidden.lower() not in description.lower()
+
+    def test_surface_only_guard_does_not_invent_weathering_intent(self) -> None:
+        materials = [self._make_material("Paint", ["/World/Panel"])]
+
+        units = expand_to_prim_units(
+            materials,
+            {"Paint": {"prompt": "ruby-red industrial powder coat"}},
+            mode="per_material",
+            default_detail_policy="surface_only",
+        )
+
+        assert prompt_requests_weathering(units[0].prompt) is False
 
     def test_prompt_none_is_empty_before_detail_policy(self) -> None:
         materials = [self._make_material("Plastic_Green", ["/World/PCB"])]

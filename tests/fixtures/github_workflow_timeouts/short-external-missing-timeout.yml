@@ -1,0 +1,9 @@
+name: missing short external timeout
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Unbounded checkout
+        uses: actions/checkout@v4

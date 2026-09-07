@@ -9,12 +9,16 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-LARGE_SCENE_RUN_SCHEMA_VERSION: Final = "content-agent-workflows.large-scene-run.v1"
+LEGACY_LARGE_SCENE_RUN_SCHEMA_VERSION: Final = (
+    "content-agent-workflows.large-scene-run.v1"
+)
+LARGE_SCENE_RUN_SCHEMA_VERSION: Final = "content-agent-workflows.large-scene-run.v2"
 HANDOFF_VALIDATION_SCHEMA_VERSION: Final = (
     "content-agent-workflows.large-scene-handoff-validation.v1"
 )
 
 PhaseName = Literal["decomposition", "asset_task_processing", "collection"]
+SceneBackend = Literal["usd-cli"]
 PhaseStatus = Literal[
     "pending", "ready", "running", "completed", "failed", "invalidated"
 ]
@@ -58,12 +62,14 @@ class LargeSceneRun(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal[LARGE_SCENE_RUN_SCHEMA_VERSION] = (
-        LARGE_SCENE_RUN_SCHEMA_VERSION
-    )
+    schema_version: Literal[
+        LEGACY_LARGE_SCENE_RUN_SCHEMA_VERSION,
+        LARGE_SCENE_RUN_SCHEMA_VERSION,
+    ] = LARGE_SCENE_RUN_SCHEMA_VERSION
     revision: int = Field(default=0, ge=0)
     run_id: str = Field(min_length=1)
     source_scene: str
+    scene_backend: SceneBackend
     additional_instructions: str | None = None
     request_artifact_paths: list[str] = Field(default_factory=list)
     requested_tasks: list[str] = Field(default_factory=list)
@@ -71,6 +77,20 @@ class LargeSceneRun(BaseModel):
     current_phase: PhaseName | None = "decomposition"
     phases: dict[PhaseName, PhaseState]
     transitions: list[PhaseTransition] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def restore_legacy_scene_backend(cls, value: object) -> object:
+        """Migrate pre-backend run state to the canonical usd-cli route."""
+
+        if not isinstance(value, dict):
+            return value
+        if (
+            value.get("schema_version") == LEGACY_LARGE_SCENE_RUN_SCHEMA_VERSION
+            and "scene_backend" not in value
+        ):
+            return {**value, "scene_backend": "usd-cli"}
+        return value
 
     @field_validator("additional_instructions", mode="before")
     @classmethod

@@ -1,340 +1,347 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Optimizer dispatch + lazy BoTorch loader.
-
-Three optimizers are exposed:
-
-* ``botorch`` — first-class production optimizer (Bayesian Optimization via
-  GP + qEI). Implemented with a lazy import; missing deps raise
-  :class:`BoTorchUnavailableError` carrying the install hint mandated by the
-  issue body.
-* ``random`` — uniform random search baseline. Always available.
-* ``cma-es`` — Covariance Matrix Adaptation ES. Always available — it lives in
-  :mod:`world_understanding.functions.optimization.cma_es`.
-
-``--optimizer auto`` resolves to ``botorch`` when BoTorch is importable, and
-otherwise raises :class:`BoTorchUnavailableError`. **There is no silent
-fallback** to random — that contract is part of the issue Acceptance Criteria.
-"""
+"""Physics compatibility wrappers around the shared optimizers."""
 
 from __future__ import annotations
 
-import logging
-import random as _random_module
 from collections.abc import Callable
 
 import numpy as np
+from numpy.typing import NDArray
+from world_understanding.optimization import optimizers as _shared
+from world_understanding.optimization.errors import OptimizerUnavailableError
 
-from .errors import BoTorchUnavailableError
-from .types import Scenario, TunableParam
+from .errors import BoTorchUnavailableError, TuningError
+from .search_space import BoundedParameter, BoundedSearchSpace
+from .types import Scenario
 
-logger = logging.getLogger(__name__)
+OPTIMIZER_AUTO = _shared.OPTIMIZER_AUTO
+OPTIMIZER_BOTORCH = _shared.OPTIMIZER_BOTORCH
+OPTIMIZER_RANDOM = _shared.OPTIMIZER_RANDOM
+OPTIMIZER_CMA_ES = _shared.OPTIMIZER_CMA_ES
+SUPPORTED_OPTIMIZERS = _shared.SUPPORTED_OPTIMIZERS
+EvaluateFn = _shared.EvaluateFn
 
-OPTIMIZER_AUTO = "auto"
-OPTIMIZER_BOTORCH = "botorch"
-OPTIMIZER_RANDOM = "random"
-OPTIMIZER_CMA_ES = "cma-es"
-
-# Order matters for `--help` rendering and error messages.
-SUPPORTED_OPTIMIZERS: tuple[str, ...] = (
-    OPTIMIZER_AUTO,
-    OPTIMIZER_BOTORCH,
-    OPTIMIZER_RANDOM,
-    OPTIMIZER_CMA_ES,
-)
-
-
-# Type alias for the per-trial evaluation callback the optimizer drives.
-EvaluateFn = Callable[[dict[str, float]], float]
-
-
-def _params_from_vector(scenario: Scenario, x: np.ndarray) -> dict[str, float]:
-    """Convert a unit-cube vector ``x`` ∈ [0, 1]^d into named parameters."""
-    out: dict[str, float] = {}
-    for i, tp in enumerate(scenario.params):
-        v = float(np.clip(x[i], 0.0, 1.0))
-        out[tp.name] = tp.min_value + v * (tp.max_value - tp.min_value)
-
-    friction_pair = _friction_pair(scenario)
-    if friction_pair is not None:
-        static_param, dynamic_param = friction_pair
-        static_index = next(
-            i
-            for i, param in enumerate(scenario.params)
-            if param.name == static_param.name
-        )
-        dynamic_index = next(
-            i
-            for i, param in enumerate(scenario.params)
-            if param.name == dynamic_param.name
-        )
-        static_unit = float(np.clip(x[static_index], 0.0, 1.0))
-        dynamic_unit = float(np.clip(x[dynamic_index], 0.0, 1.0))
-        static_min = max(static_param.min_value, dynamic_param.min_value)
-        static_value = static_min + static_unit * (static_param.max_value - static_min)
-        dynamic_max = min(dynamic_param.max_value, static_value)
-        dynamic_value = dynamic_param.min_value + dynamic_unit * (
-            dynamic_max - dynamic_param.min_value
-        )
-        out[static_param.name] = static_value
-        out[dynamic_param.name] = dynamic_value
-    return out
+FrictionPair = tuple[
+    int,
+    BoundedParameter,
+    int,
+    BoundedParameter,
+]
+FrictionInequality = tuple[NDArray[np.int64], NDArray[np.float64], float]
 
 
-def _vector_from_params(scenario: Scenario, params: dict[str, float]) -> np.ndarray:
-    """Inverse of :func:`_params_from_vector`."""
-    out = np.zeros(len(scenario.params), dtype=float)
-    for i, tp in enumerate(scenario.params):
-        denom = max(tp.max_value - tp.min_value, 1e-12)
-        out[i] = (float(params[tp.name]) - tp.min_value) / denom
+def _params_from_vector(
+    search_space: BoundedSearchSpace,
+    vector: np.ndarray,
+) -> dict[str, float]:
+    """Decode each Physics parameter independently from the unit cube."""
 
-    friction_pair = _friction_pair(scenario)
-    if friction_pair is not None:
-        static_param, dynamic_param = friction_pair
-        static_index = next(
-            i
-            for i, param in enumerate(scenario.params)
-            if param.name == static_param.name
-        )
-        dynamic_index = next(
-            i
-            for i, param in enumerate(scenario.params)
-            if param.name == dynamic_param.name
-        )
-        static_value = float(params[static_param.name])
-        dynamic_value = float(params[dynamic_param.name])
-        static_min = max(static_param.min_value, dynamic_param.min_value)
-        static_denom = max(static_param.max_value - static_min, 1e-12)
-        dynamic_max = min(dynamic_param.max_value, static_value)
-        dynamic_denom = max(dynamic_max - dynamic_param.min_value, 1e-12)
-        out[static_index] = (static_value - static_min) / static_denom
-        out[dynamic_index] = (dynamic_value - dynamic_param.min_value) / dynamic_denom
-    return np.clip(out, 0.0, 1.0)
+    return _shared.params_from_vector(search_space, vector)
+
+
+def _vector_from_params(
+    search_space: BoundedSearchSpace,
+    params: dict[str, float],
+) -> NDArray[np.float64]:
+    """Encode each Physics parameter independently into the unit cube."""
+
+    return _shared.vector_from_params(search_space, params)
 
 
 def _friction_pair(
-    scenario: Scenario,
-) -> tuple[TunableParam, TunableParam] | None:
-    """Return coupled static/dynamic friction parameters when both are tuned."""
-    params = scenario.param_dict()
-    static_param = params.get("static_friction")
-    dynamic_param = params.get("dynamic_friction")
-    if static_param is None or dynamic_param is None:
+    search_space: BoundedSearchSpace,
+) -> FrictionPair | None:
+    """Return indexed built-in static/dynamic friction parameters when tuned."""
+    if not isinstance(search_space, Scenario):
         return None
+    indexed = {
+        param.name: (index, param) for index, param in enumerate(search_space.params)
+    }
+    static = indexed.get("static_friction")
+    dynamic = indexed.get("dynamic_friction")
+    if static is None or dynamic is None:
+        return None
+    static_index, static_param = static
+    dynamic_index, dynamic_param = dynamic
     if dynamic_param.min_value > static_param.max_value:
         raise ValueError(
             "dynamic_friction minimum must not exceed static_friction maximum"
         )
-    return static_param, dynamic_param
+    return static_index, static_param, dynamic_index, dynamic_param
+
+
+def _single_point_friction_features(
+    search_space: BoundedSearchSpace,
+) -> dict[int, float] | None:
+    """Return fixed unit coordinates when only one friction pair is feasible."""
+    pair = _friction_pair(search_space)
+    if pair is None:
+        return None
+    static_index, static_param, dynamic_index, dynamic_param = pair
+    if static_param.max_value != dynamic_param.min_value:
+        return None
+
+    static_range = static_param.max_value - static_param.min_value
+    return {
+        static_index: 0.0 if static_range == 0.0 else 1.0,
+        dynamic_index: 0.0,
+    }
+
+
+def _fixed_unit_features(search_space: BoundedSearchSpace) -> dict[int, float]:
+    """Return optimizer coordinates that have no physical freedom."""
+    fixed = {
+        index: 0.0
+        for index, param in enumerate(search_space.params)
+        if param.min_value == param.max_value
+    }
+    friction_features = _single_point_friction_features(search_space)
+    if friction_features is not None:
+        fixed.update(friction_features)
+    return fixed
+
+
+def _friction_inequality_spec(
+    search_space: BoundedSearchSpace,
+) -> FrictionInequality | None:
+    """Express ``static_friction >= dynamic_friction`` in unit-cube space."""
+    pair = _friction_pair(search_space)
+    if pair is None:
+        return None
+
+    static_index, static_param, dynamic_index, dynamic_param = pair
+    static_range = static_param.max_value - static_param.min_value
+    dynamic_range = dynamic_param.max_value - dynamic_param.min_value
+
+    indices: list[int] = []
+    coefficients: list[float] = []
+    if static_range != 0.0:
+        indices.append(static_index)
+        coefficients.append(static_range)
+    if dynamic_range != 0.0:
+        indices.append(dynamic_index)
+        coefficients.append(-dynamic_range)
+    if not indices:
+        return None
+
+    return (
+        np.asarray(indices, dtype=np.int64),
+        np.asarray(coefficients, dtype=np.float64),
+        dynamic_param.min_value - static_param.min_value,
+    )
+
+
+def _is_friction_feasible(
+    search_space: BoundedSearchSpace,
+    vector: np.ndarray,
+) -> bool:
+    """Return whether a candidate satisfies the Physics friction invariant."""
+    if _friction_pair(search_space) is None:
+        return True
+    params = _params_from_vector(search_space, vector)
+    return params["dynamic_friction"] <= params["static_friction"]
+
+
+def _friction_tolerance(pair: FrictionPair) -> float:
+    """Return a physical-unit tolerance for numerical optimizer output."""
+    _, static_param, _, dynamic_param = pair
+    scale = max(
+        1.0,
+        abs(static_param.min_value),
+        abs(static_param.max_value),
+        abs(dynamic_param.min_value),
+        abs(dynamic_param.max_value),
+        static_param.max_value - static_param.min_value,
+        dynamic_param.max_value - dynamic_param.min_value,
+    )
+    return float(np.sqrt(np.finfo(np.float64).eps) * scale)
+
+
+def _repair_numerical_friction_overshoot(
+    search_space: BoundedSearchSpace,
+    vector: np.ndarray,
+) -> NDArray[np.float64] | None:
+    """Project solver-scale friction overshoot into the feasible half-space."""
+    candidate = np.clip(np.asarray(vector, dtype=np.float64), 0.0, 1.0)
+    pair = _friction_pair(search_space)
+    if pair is None or _is_friction_feasible(search_space, candidate):
+        return candidate
+
+    params = _params_from_vector(search_space, candidate)
+    violation = params["dynamic_friction"] - params["static_friction"]
+    tolerance = _friction_tolerance(pair)
+    if violation > tolerance:
+        return None
+
+    constraint = _friction_inequality_spec(search_space)
+    if constraint is None:  # pragma: no cover - fixed valid pairs return above
+        return None
+    indices, coefficients, rhs = constraint
+    lhs = float(np.dot(coefficients, candidate[indices]))
+    norm_squared = float(np.dot(coefficients, coefficients))
+    if norm_squared == 0.0:  # pragma: no cover - nonempty coefficients are nonzero
+        return None
+
+    # Project to the boundary, then move a few unit-cube ULPs farther along the
+    # normalized constraint normal so independent decoding is strictly feasible.
+    norm = float(np.sqrt(norm_squared))
+    distance = max(0.0, rhs - lhs) / norm
+    unit_margin = 8.0 * np.finfo(np.float64).eps
+    repaired = candidate.copy()
+    repaired[indices] += (distance + unit_margin) * coefficients / norm
+    repaired = np.clip(repaired, 0.0, 1.0)
+    return repaired if _is_friction_feasible(search_space, repaired) else None
+
+
+def _sample_feasible_vector(
+    search_space: BoundedSearchSpace,
+    rng: np.random.Generator,
+) -> NDArray[np.float64]:
+    """Draw directly from the feasible region without changing vector decoding."""
+    vector = np.asarray(rng.random(len(search_space.params)), dtype=np.float64)
+    pair = _friction_pair(search_space)
+    if pair is None:
+        return vector
+
+    static_index, static_param, dynamic_index, dynamic_param = pair
+    static_unit = vector[static_index]
+    dynamic_unit = vector[dynamic_index]
+
+    static_lower = max(static_param.min_value, dynamic_param.min_value)
+    static_value = static_lower + static_unit * (static_param.max_value - static_lower)
+    dynamic_upper = min(dynamic_param.max_value, static_value)
+    dynamic_value = dynamic_param.min_value + dynamic_unit * (
+        dynamic_upper - dynamic_param.min_value
+    )
+
+    static_range = static_param.max_value - static_param.min_value
+    dynamic_range = dynamic_param.max_value - dynamic_param.min_value
+    vector[static_index] = (
+        0.0
+        if static_range == 0.0
+        else (static_value - static_param.min_value) / static_range
+    )
+    vector[dynamic_index] = (
+        0.0
+        if dynamic_range == 0.0
+        else (dynamic_value - dynamic_param.min_value) / dynamic_range
+    )
+    if not _is_friction_feasible(search_space, vector):  # pragma: no cover - invariant
+        raise RuntimeError("Direct friction sampler produced an infeasible candidate")
+    return vector
+
+
+def _finite_failed_trial_penalty(observed_scores: list[float]) -> float:
+    """Retain the Physics compatibility helper for existing callers and tests."""
+    return _shared.finite_failed_trial_penalty(observed_scores)
 
 
 def is_botorch_available() -> bool:
-    """Return True if BoTorch can be imported in this process."""
-    try:
-        import botorch  # type: ignore[import-not-found]  # noqa: F401
-        import torch  # type: ignore[import-not-found]  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    """Return whether the optional Physics tuning dependencies are installed."""
+
+    return _shared.is_botorch_available()
 
 
 def resolve_optimizer(name: str) -> str:
-    """Resolve ``auto`` to a concrete optimizer name.
+    """Resolve ``auto`` while preserving Physics Agent's install-hint error."""
 
-    The issue Acceptance Criteria pins behaviour:
-      * ``auto`` → ``botorch`` when installed, else
-        :class:`BoTorchUnavailableError`.
-      * ``botorch`` requested but missing → also
-        :class:`BoTorchUnavailableError`.
-      * ``random`` and ``cma-es`` are always available.
-    """
-    if name not in SUPPORTED_OPTIMIZERS:
-        raise ValueError(
-            f"Unknown optimizer {name!r}. Supported: {sorted(SUPPORTED_OPTIMIZERS)}"
-        )
     if name == OPTIMIZER_AUTO:
         if not is_botorch_available():
             raise BoTorchUnavailableError()
         return OPTIMIZER_BOTORCH
     if name == OPTIMIZER_BOTORCH and not is_botorch_available():
         raise BoTorchUnavailableError()
-    return name
+    try:
+        return _shared.resolve_optimizer(name)
+    except OptimizerUnavailableError as error:
+        raise TuningError(str(error)) from error
 
 
-# ---------------------------------------------------------------------------
-# Optimizer implementations
-#
-# Each optimizer accepts a callback `evaluate(params: dict) -> float` and
-# returns nothing; it is responsible for calling `evaluate` `max_trials`
-# times. The runner records each call into the trial history.
-# ---------------------------------------------------------------------------
+def get_supported_optimizer_names() -> tuple[str, ...]:
+    """Return built-in and installed optimizer extension names."""
 
-
-def _validate_max_trials(max_trials: int) -> None:
-    if not isinstance(max_trials, int) or max_trials <= 0:
-        raise ValueError(f"max_trials must be a positive integer, got {max_trials!r}")
+    return _shared.get_supported_optimizer_names()
 
 
 def run_random_optimizer(
-    scenario: Scenario,
+    search_space: BoundedSearchSpace,
     evaluate: EvaluateFn,
     *,
     max_trials: int,
     seed: int,
     cancel_check: Callable[[], bool] | None = None,
 ) -> None:
-    """Uniform random search over scenario parameter ranges (developer baseline)."""
-    _validate_max_trials(max_trials)
-    rng = np.random.default_rng(seed)
-    for _ in range(max_trials):
-        if cancel_check is not None and cancel_check():
-            return
-        x = rng.random(len(scenario.params))
-        params = _params_from_vector(scenario, x)
-        evaluate(params)
+    """Run shared random search with Physics feasibility sampling."""
+
+    _shared.run_random_optimizer(
+        search_space,
+        evaluate,
+        max_trials=max_trials,
+        seed=seed,
+        cancel_check=cancel_check,
+        candidate_decoder=_params_from_vector,
+        candidate_sampler=_sample_feasible_vector,
+        candidate_feasibility=_is_friction_feasible,
+        fixed_features=_fixed_unit_features(search_space),
+    )
 
 
 def run_cma_es_optimizer(
-    scenario: Scenario,
+    search_space: BoundedSearchSpace,
     evaluate: EvaluateFn,
     *,
     max_trials: int,
     seed: int,
     cancel_check: Callable[[], bool] | None = None,
 ) -> None:
-    """CMA-ES wrapper.
+    """Run shared CMA-ES with Physics feasibility handling."""
 
-    We re-use the project's stock CMA-ES implementation but adapt it to a
-    fixed trial budget instead of a wall-clock budget. The wrapper raises a
-    StopIteration internally when the budget is exhausted.
-    """
-    _validate_max_trials(max_trials)
-    from world_understanding.functions.optimization.cma_es import cma_es
-
-    counter = {"n": 0}
-
-    def evaluator(*, x: np.ndarray) -> float:
-        if counter["n"] >= max_trials:
-            # CMA-ES wraps `evaluate` calls in a loop; raise to break out.
-            raise _BudgetExhausted()
-        if cancel_check is not None and cancel_check():
-            raise _BudgetExhausted()
-        counter["n"] += 1
-        # CMA-ES samples in unit-cube here (n_dims=D, bounds=(0, 1)) so we
-        # can map to scenario params directly.
-        params = _params_from_vector(scenario, np.asarray(x, dtype=float))
-        return float(evaluate(params))
-
-    try:
-        cma_es(
-            evaluate=evaluator,
-            bounds=(0.0, 1.0),
-            n_dims=len(scenario.params),
-            # Set a generous time_budget — the trial budget is the real
-            # stopping condition via _BudgetExhausted.
-            time_budget=max(60.0, float(max_trials) * 5.0),
-            seed=seed,
-        )
-    except _BudgetExhausted:
-        return
+    _shared.run_cma_es_optimizer(
+        search_space,
+        evaluate,
+        max_trials=max_trials,
+        seed=seed,
+        cancel_check=cancel_check,
+        candidate_decoder=_params_from_vector,
+        candidate_sampler=_sample_feasible_vector,
+        candidate_feasibility=_is_friction_feasible,
+        fixed_features=_single_point_friction_features(search_space),
+    )
 
 
 def run_botorch_optimizer(
-    scenario: Scenario,
+    search_space: BoundedSearchSpace,
     evaluate: EvaluateFn,
     *,
     max_trials: int,
     seed: int,
     cancel_check: Callable[[], bool] | None = None,
 ) -> None:
-    """BoTorch single-objective Bayesian optimization (qEI on GP).
+    """Run shared BoTorch with Physics constraints and install-hint errors."""
 
-    Lazy-imports torch / botorch so this module remains importable when the
-    optional ``tuning`` extra is missing. Caller is responsible for calling
-    :func:`resolve_optimizer` first if they want a clean install-hint error.
-    """
-    _validate_max_trials(max_trials)
+    constraint = (
+        None
+        if _single_point_friction_features(search_space) is not None
+        else _friction_inequality_spec(search_space)
+    )
+    inequalities = None if constraint is None else (constraint,)
     try:
-        import torch  # type: ignore[import-not-found]
-        from botorch.acquisition import (
-            qExpectedImprovement,  # type: ignore[import-not-found]
+        _shared.run_botorch_optimizer(
+            search_space,
+            evaluate,
+            max_trials=max_trials,
+            seed=seed,
+            cancel_check=cancel_check,
+            candidate_decoder=_params_from_vector,
+            candidate_sampler=_sample_feasible_vector,
+            candidate_feasibility=_is_friction_feasible,
+            candidate_repair=_repair_numerical_friction_overshoot,
+            inequality_constraints=inequalities,
+            fixed_features=_fixed_unit_features(search_space),
         )
-        from botorch.fit import fit_gpytorch_mll  # type: ignore[import-not-found]
-        from botorch.models import SingleTaskGP  # type: ignore[import-not-found]
-        from botorch.optim import optimize_acqf  # type: ignore[import-not-found]
-        from gpytorch.mlls import (
-            ExactMarginalLogLikelihood,  # type: ignore[import-not-found]
-        )
-    except ImportError as e:
-        raise BoTorchUnavailableError() from e
-
-    torch.manual_seed(seed)
-    _random_module.seed(seed)
-    np.random.seed(seed)
-
-    d = len(scenario.params)
-
-    # 1) Sobol-style initial design (fall back to uniform random when scipy
-    #    is unavailable). ``min(8, max_trials)`` gives BO enough data to fit a
-    #    GP without consuming the entire budget on the first iteration.
-    n_init = min(max(2, d * 2), max_trials)
-    rng = np.random.default_rng(seed)
-    init_x = rng.random((n_init, d))
-
-    history_x: list[list[float]] = []
-    history_y: list[float] = []
-
-    for row in init_x:
-        if cancel_check is not None and cancel_check():
-            return
-        params = _params_from_vector(scenario, row)
-        score = float(evaluate(params))
-        history_x.append(row.tolist())
-        history_y.append(score)
-
-    # 2) Sequential model-based loop using qEI on a SingleTaskGP.
-    n_remaining = max_trials - n_init
-    bounds = torch.stack([torch.zeros(d), torch.ones(d)]).double()
-
-    for _ in range(n_remaining):
-        if cancel_check is not None and cancel_check():
-            return
-        x_train = torch.tensor(history_x, dtype=torch.double)
-        # Negate because BoTorch maximizes by default and we minimize score.
-        y_train = -torch.tensor(history_y, dtype=torch.double).unsqueeze(-1)
-
-        try:
-            gp = SingleTaskGP(x_train, y_train)
-            mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
-            fit_gpytorch_mll(mll)
-            best_f = y_train.max().item()
-            acq = qExpectedImprovement(model=gp, best_f=best_f)
-            candidate, _ = optimize_acqf(
-                acq_function=acq,
-                bounds=bounds,
-                q=1,
-                num_restarts=5,
-                raw_samples=64,
-            )
-            x_next = candidate.detach().cpu().numpy().reshape(-1)
-        except Exception as e:
-            # If GP fitting fails (small d, ill-conditioned), draw a uniform
-            # sample so the run still progresses and the failure is logged.
-            logger.warning(
-                "BoTorch GP step failed (%s); falling back to random sample "
-                "for this iteration",
-                e,
-            )
-            x_next = rng.random(d)
-
-        params = _params_from_vector(scenario, np.asarray(x_next, dtype=float))
-        score = float(evaluate(params))
-        history_x.append(np.asarray(x_next, dtype=float).tolist())
-        history_y.append(score)
-
-
-class _BudgetExhausted(RuntimeError):
-    """Internal control-flow exception for trial-budget exits."""
+    except OptimizerUnavailableError as error:
+        raise BoTorchUnavailableError() from error
 
 
 def get_runner(name: str) -> Callable[..., None]:
@@ -348,7 +355,7 @@ def get_runner(name: str) -> Callable[..., None]:
         return run_random_optimizer
     if name == OPTIMIZER_CMA_ES:
         return run_cma_es_optimizer
-    raise ValueError(f"No runner for optimizer {name!r}")
+    return _shared.get_runner(name)
 
 
 __all__ = [
@@ -361,6 +368,7 @@ __all__ = [
     "resolve_optimizer",
     "is_botorch_available",
     "get_runner",
+    "get_supported_optimizer_names",
     "run_random_optimizer",
     "run_cma_es_optimizer",
     "run_botorch_optimizer",

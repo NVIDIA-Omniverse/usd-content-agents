@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Material Agent Docker"
+  short_description: "Fixed pipeline Material Agent Docker deployment"
+  default_prompt: "Use $fixed-pipeline to deploy the material-agent-service locally using Docker Compose with OVRTX rendering."

@@ -1,4 +1,4 @@
 interface:
   display_name: "Quickstart"
-  short_description: "Run Content Agents locally with Docker Compose"
-  default_prompt: "Use $quickstart to start a local NVIDIA Content Agents Docker Compose POC."
+  short_description: "Start the default agentic workflow from repo root"
+  default_prompt: "Use $quickstart to set up Content Agents from the repository root and route my task to the default agentic workflow."

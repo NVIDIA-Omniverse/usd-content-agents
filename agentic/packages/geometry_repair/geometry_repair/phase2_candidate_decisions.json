@@ -1,0 +1,277 @@
+{
+  "schema_version": "geometry-repair.phase2-candidate-decisions.v1",
+  "audit_date": "2026-08-07",
+  "candidates": [
+    {
+      "name": "openvdb_sdf_driver",
+      "worker": "sdf_rebuild",
+      "upstream_version": "13.0.0 at 7c03e1f084873cd1b3422c7ff7aec6ee681b3b38; distribution openvdb==13.0.0+wu.3",
+      "license": "Apache-2.0 with retained permissive bundled-dependency notices",
+      "operations": ["per_part_signed_level_set_reconstruction", "per_part_unsigned_offset_reconstruction"],
+      "decision": "promoted_bounded_production_candidate",
+      "reason": "Approved OSS with source-locked provenance, an identity-checked OpenVDB nanobind Python module and repository-owned bounded tools overlay, deterministic bounded operations, per-part execution, and independent drift/correspondence gates.",
+      "distribution_boundary": "The source-locked OpenVDB 13 wheel and its audited shared libraries are installed in CAD Agent images with OpenVDB's Apache-2.0 license and bundled permissive notices. Content code calls the backend-neutral sdf_tools contract; the admitted openvdb_runtime driver executes in-process. Geometry Repair makes that call inside its existing generic isolated worker, without an OpenVDB helper or daemon."
+    },
+    {
+      "name": "geogram_local_repair",
+      "upstream_version": "1.10.0 at c8529bb00838186938ab31d96008a59b6a892dee",
+      "license": "BSD-3-Clause curated build",
+      "operations": ["local_topology_repair", "intersection_repair"],
+      "decision": "promoted_bounded_production_candidate",
+      "reason": "The typed vorpalite worker is independently gated and its build excludes graphics, Lua, TetGen, Triangle, legacy numerics, and HLBFGS.",
+      "distribution_boundary": "Pinned native executable and Geogram shared libraries with recursive source and notice inventory."
+    },
+    {
+      "name": "pmp_patch",
+      "upstream_version": "2a2ad502743724ba90e09af816364c84032f9015",
+      "license": "MIT with Eigen MPL-2.0 and retained notices",
+      "operations": ["pmp_fill_classified_hole"],
+      "decision": "promoted_single_operation_production_candidate",
+      "reason": "Only caller-classified complete-hole filling is authorized. Generic remeshing is not exposed because it lacks a bounded semantic and fidelity contract.",
+      "distribution_boundary": "Pinned isolated executable with approved digest, build manifest, source tree digest, and notices."
+    },
+    {
+      "name": "manifold_restore_merge_vectors",
+      "upstream_version": "3.5.2",
+      "license": "Apache-2.0",
+      "operations": ["manifold_restore_merge_vectors"],
+      "decision": "enabled_analysis_only",
+      "reason": "Merge-vector recovery can restore correspondence metadata without authorizing Manifold as a universal mesh-soup repair mutator.",
+      "distribution_boundary": "Pinned Python package; output is accepted only after exact surface/property round-trip checks."
+    },
+    {
+      "name": "wildmeshing_toolkit",
+      "upstream_version": "production pin not selected",
+      "license": "MIT",
+      "operations": ["invariant_preserving_local_remesh"],
+      "decision": "shadow_candidate_pending_typed_adapter",
+      "reason": "Promising permissive remeshing route, but protected-feature, attribute, correspondence, deterministic-resource, and drift contracts are not implemented.",
+      "distribution_boundary": "No production binary or certifying evidence until a pinned typed worker passes the hard-mesh cohort."
+    },
+    {
+      "name": "mcut_local_repair",
+      "upstream_version": "production pin not selected",
+      "license": "LGPL-3.0",
+      "operations": ["two_part_surface_cut", "intersection_resolution"],
+      "decision": "lower_priority_shadow_candidate",
+      "reason": "Useful for explicit two-part cuts, but not a generic repair authority; weak-copyleft packaging and semantic part preservation need approval.",
+      "distribution_boundary": "Isolated evaluation only until linking, source, relinking, and notice obligations are approved."
+    },
+    {
+      "name": "libigl_local_repair",
+      "upstream_version": "production pin not selected",
+      "license": "MPL-2.0 core; selected modules may be GPL",
+      "operations": ["exact_intersection_detection", "local_remesh"],
+      "decision": "disabled_pending_exact_module_review",
+      "reason": "Eligibility depends on a file-level module allowlist and transitive build review; the umbrella project license is not sufficient evidence.",
+      "distribution_boundary": "No linked or distributed worker until the exact compiled source set is approved."
+    },
+    {
+      "name": "cgal_exact_audit",
+      "upstream_version": "5.6 distro evaluation; production pin not approved",
+      "license": "GPL-3.0-or-later for Polygon Mesh Processing",
+      "operations": ["exact_intersection_detection"],
+      "decision": "evaluation_only_not_distributed",
+      "reason": "Useful exact self-intersection authority, but the required package is GPL and no NVIDIA distribution approval was provided.",
+      "distribution_boundary": "Locally compiled shadow evaluator only; absent from wheels and production images."
+    },
+    {
+      "name": "cellocut_rebuild",
+      "upstream_version": "afb58ba54bcb265922ea6e1c8c4d0f8a02cf7539",
+      "license": "Apache-2.0 top-level with bundled Eigen/libigl and CGAL-linked modules",
+      "operations": ["global_watertight_reconstruction"],
+      "decision": "shadow_evaluated_not_promoted",
+      "reason": "The upstream CUDA decimator failed in evaluation, the CPU substitution required an extra simplification pass, fidelity remained conditional, and the CGAL-linked boundary is unsuitable for this distribution.",
+      "distribution_boundary": "No code, binary, benchmark data, or model artifact is shipped."
+    },
+    {
+      "name": "pamo_rebuild",
+      "upstream_version": "a10e34351eb7de71f41eb279e7ab9b2b101cf7a4",
+      "license": "AGPL-3.0",
+      "operations": ["gpu_watertight_remesh", "intersection_free_simplification"],
+      "decision": "disabled_pending_service_distribution_approval",
+      "reason": "AGPL deployment and network-service obligations require a separately approved architecture before evaluation or promotion.",
+      "distribution_boundary": "Not executed or shipped."
+    },
+    {
+      "name": "meshoptimizer",
+      "upstream_version": "production pin not selected",
+      "license": "MIT",
+      "operations": ["post_acceptance_lod", "vertex_cache_optimization"],
+      "decision": "candidate_post_acceptance_only",
+      "reason": "Runtime optimization is valuable after geometry certification but is not defect repair and may change topology, attributes, and correspondence.",
+      "distribution_boundary": "May be promoted only as a typed post-acceptance derivative with separate fidelity evidence."
+    },
+    {
+      "name": "xatlas",
+      "upstream_version": "production pin not selected",
+      "license": "MIT",
+      "operations": ["uv_atlas_generation"],
+      "decision": "candidate_downstream_attribute_workflow",
+      "reason": "UV generation is useful for material workflows but is not geometry repair and must preserve accepted geometry and part identity.",
+      "distribution_boundary": "No geometry certificate authority; evaluate through a separate typed material/UV handoff."
+    },
+    {
+      "name": "openmesh",
+      "upstream_version": "production pin not selected",
+      "license": "BSD-3-Clause",
+      "operations": ["halfedge_analysis", "local_mesh_data_structure"],
+      "decision": "permissive_infrastructure_candidate",
+      "reason": "Useful half-edge infrastructure, but algorithms still need operation-specific intent, fidelity, and attribute contracts.",
+      "distribution_boundary": "Library inclusion alone grants no mutation authority."
+    },
+    {
+      "name": "embree",
+      "upstream_version": "4.4.0 through embreex",
+      "license": "Apache-2.0; embreex BSD-3-Clause",
+      "operations": ["ray_query_acceleration", "inside_outside_measurement"],
+      "decision": "enabled_measurement_accelerator",
+      "reason": "Used only to accelerate bounded independent probes; it does not mutate assets or decide semantic intent.",
+      "distribution_boundary": "Pinned runtime dependency with no certifying authority beyond the surrounding deterministic measurement."
+    },
+    {
+      "name": "fcl",
+      "upstream_version": "production pin not selected",
+      "license": "BSD-3-Clause with Eigen MPL-2.0",
+      "operations": ["distance_query", "continuous_collision_detection", "clearance_validation"],
+      "decision": "priority_independent_validator_candidate",
+      "reason": "FCL can add scalable distance, contact, and continuous-collision evidence without guessing geometry repair intent.",
+      "distribution_boundary": "Curated build with EIGEN_MPL2_ONLY and exact transitive notice review before promotion."
+    },
+    {
+      "name": "lib3mf",
+      "upstream_version": "production pin not selected",
+      "license": "BSD-2-Clause",
+      "operations": ["3mf_package_validation", "3mf_resource_inventory"],
+      "decision": "priority_independent_validator_candidate",
+      "reason": "Provides authoritative 3MF package and resource handling, but package conformance is not manufacturing printability.",
+      "distribution_boundary": "Curated parser with ZIP/XML resource limits; no automatic geometry mutation authority."
+    },
+    {
+      "name": "vtk_mesh_quality",
+      "upstream_version": "production pin not selected",
+      "license": "BSD-3-Clause",
+      "operations": ["surface_element_quality", "volume_element_quality"],
+      "decision": "priority_curated_validator_candidate",
+      "reason": "Useful independent element-quality metrics, provided the build excludes unrelated modules and labels/interfaces remain authoritative.",
+      "distribution_boundary": "Allowlisted VTK modules and audited transitive dependencies only."
+    },
+    {
+      "name": "open3d_reconstruction",
+      "upstream_version": "production pin not selected",
+      "license": "MIT with curated transitive build required",
+      "operations": ["point_cloud_cleanup", "scan_surface_reconstruction"],
+      "decision": "scan_profile_only_candidate",
+      "reason": "Point-cloud reconstruction infers missing surface and must never silently replace authoritative CAD or rigid-object geometry.",
+      "distribution_boundary": "Separate scan profile, explicit inferred-geometry provenance, visual review, and no automatic certified outcome."
+    },
+    {
+      "name": "poissonrecon",
+      "upstream_version": "production pin not selected",
+      "license": "MIT",
+      "operations": ["poisson_scan_reconstruction"],
+      "decision": "scan_profile_only_candidate",
+      "reason": "Suitable for globally inferred scan surfaces, not local repair of authoritative CAD or preservation of openings and exact dimensions.",
+      "distribution_boundary": "Separate scan profile with source-to-surface drift evidence and mandatory review."
+    },
+    {
+      "name": "ftetwild",
+      "upstream_version": "production pin not selected",
+      "license": "MPL-2.0",
+      "operations": ["tetrahedralize", "volume_mesh_repair"],
+      "decision": "disabled_pending_deformable_cae_contract",
+      "reason": "Volume meshing cannot certify correct material regions, interfaces, boundary-condition labels, or solver convergence by itself.",
+      "distribution_boundary": "No promotion before a deformable/CAE certificate and weak-copyleft packaging review exist."
+    },
+    {
+      "name": "mmg",
+      "upstream_version": "production pin not selected",
+      "license": "LGPL-3.0",
+      "operations": ["surface_adaptation", "volume_mesh_adaptation"],
+      "decision": "disabled_pending_deformable_cae_contract",
+      "reason": "Requires explicit region/interface/label preservation and target-solver validation contracts.",
+      "distribution_boundary": "Isolated weak-copyleft worker only after packaging and CAE profile approval."
+    },
+    {
+      "name": "netgen",
+      "upstream_version": "production pin not selected",
+      "license": "LGPL-2.1",
+      "operations": ["surface_mesh_generation", "volume_mesh_generation"],
+      "decision": "disabled_pending_deformable_cae_contract",
+      "reason": "Meshing success does not establish boundary-condition, material-region, or solver-readiness semantics.",
+      "distribution_boundary": "Curated isolated worker only after CAE and weak-copyleft reviews."
+    },
+    {
+      "name": "opencamlib",
+      "upstream_version": "production pin not selected",
+      "license": "LGPL-2.1",
+      "operations": ["three_axis_cutter_sweep", "machining_accessibility_shadow_check"],
+      "decision": "isolated_manufacturing_evaluation_candidate",
+      "reason": "Useful for 3-axis cutter sweeps but not a general CAM, tolerance, rigidity, fixture, or multi-axis manufacturability authority.",
+      "distribution_boundary": "Evaluation-only isolated worker until a manufacturing profile and LGPL integration are approved."
+    },
+    {
+      "name": "freecad_sheetmetal",
+      "upstream_version": "production pin not selected",
+      "license": "LGPL-2.1",
+      "operations": ["sheet_metal_unfold_shadow_check"],
+      "decision": "isolated_manufacturing_evaluation_candidate",
+      "reason": "Unfolding can support review but does not prove material, bend-table, tooling, sequence, or machine access.",
+      "distribution_boundary": "External or isolated evaluation lane; no automatic repair or manufacturing certificate."
+    },
+    {
+      "name": "gmsh",
+      "upstream_version": "not selected",
+      "license": "GPL or separately licensed commercial SDK",
+      "operations": ["reference_surface_meshing", "reference_volume_meshing"],
+      "decision": "external_evaluation_only_unless_commercially_approved",
+      "reason": "The current product distribution has no approved GPL embedding or commercial SDK agreement.",
+      "distribution_boundary": "User-installed external reference tool only; results cannot become product certification authority."
+    },
+    {
+      "name": "openfoam",
+      "upstream_version": "not selected",
+      "license": "GPL",
+      "operations": ["reference_cfd_mesh_check", "reference_flow_initialization"],
+      "decision": "external_evaluation_only",
+      "reason": "Useful CFD reference evidence but outside the current distributed dependency and geometry-certificate scope.",
+      "distribution_boundary": "User-installed external process with exact version/configuration evidence; never bundled."
+    },
+    {
+      "name": "curaengine",
+      "upstream_version": "not selected",
+      "license": "AGPL-3.0",
+      "operations": ["reference_additive_slicing", "reference_support_generation"],
+      "decision": "external_evaluation_only_pending_agpl_approval",
+      "reason": "No approved AGPL distribution or network-service architecture exists.",
+      "distribution_boundary": "Not linked, embedded, redistributed, or used as certifying authority."
+    },
+    {
+      "name": "prusaslicer",
+      "upstream_version": "not selected",
+      "license": "AGPL-3.0",
+      "operations": ["reference_additive_slicing", "reference_support_generation"],
+      "decision": "external_evaluation_only_pending_agpl_approval",
+      "reason": "No approved AGPL distribution or network-service architecture exists.",
+      "distribution_boundary": "Not linked, embedded, redistributed, or used as certifying authority."
+    },
+    {
+      "name": "tetgen",
+      "upstream_version": "not selected",
+      "license": "AGPL-3.0 or commercial license",
+      "operations": ["reference_tetrahedralization"],
+      "decision": "excluded_without_separate_commercial_or_agpl_approval",
+      "reason": "The current distribution has neither a commercial grant nor an approved AGPL architecture; sanitized Geogram builds explicitly remove it.",
+      "distribution_boundary": "Not built, linked, or distributed."
+    },
+    {
+      "name": "manifoldplus",
+      "upstream_version": "not selected",
+      "license": "non-commercial source-available",
+      "operations": ["watertight_reconstruction"],
+      "decision": "excluded_license_ineligible",
+      "reason": "Non-commercial terms do not satisfy the project's open-source and production-use policy.",
+      "distribution_boundary": "Never callable or shipped."
+    }
+  ]
+}

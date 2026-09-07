@@ -1,0 +1,428 @@
+#usda 1.0
+(
+    "Material Library for spraygun2. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "aluminum" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_paint_supplies_spraygun_albedo.png@
+        float inputs:ior = 1.5
+        asset inputs:MetallicTexture = @./Textures/T_paint_supplies_spraygun_metal.png@
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_paint_supplies_spraygun_rough.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/aluminum/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/aluminum/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/aluminum/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/aluminum.inputs:ior>
+            float inputs:metallic.connect = </Materials/aluminum/MetallicTexture.outputs:r>
+            float inputs:opacity.connect = </Materials/aluminum.inputs:opacity>
+            float inputs:roughness.connect = </Materials/aluminum/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/aluminum.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/aluminum/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/aluminum.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/aluminum.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "MetallicTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/aluminum.inputs:MetallicTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/aluminum/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/aluminum.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/aluminum.inputs:wrapMode>
+            float outputs:r
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/aluminum.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/aluminum/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/aluminum.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/aluminum.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+
+    def Material "body_metal" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_paint_supplies_spraygun_albedo.png@
+        float inputs:ior = 1.5
+        asset inputs:MetallicTexture = @./Textures/T_paint_supplies_spraygun_metal.png@
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_paint_supplies_spraygun_rough.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/body_metal/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/body_metal/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/body_metal/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/body_metal.inputs:ior>
+            float inputs:metallic.connect = </Materials/body_metal/MetallicTexture.outputs:r>
+            float inputs:opacity.connect = </Materials/body_metal.inputs:opacity>
+            float inputs:roughness.connect = </Materials/body_metal/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/body_metal.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/body_metal/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/body_metal.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/body_metal.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "MetallicTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/body_metal.inputs:MetallicTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/body_metal/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/body_metal.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/body_metal.inputs:wrapMode>
+            float outputs:r
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/body_metal.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/body_metal/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/body_metal.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/body_metal.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+
+    def Material "cup_plastic" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_paint_supplies_spraygun_albedo.png@
+        float inputs:ior = 1.5
+        asset inputs:MetallicTexture = @./Textures/T_paint_supplies_spraygun_metal.png@
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_paint_supplies_spraygun_rough.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/cup_plastic/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/cup_plastic/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/cup_plastic/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/cup_plastic.inputs:ior>
+            float inputs:metallic.connect = </Materials/cup_plastic/MetallicTexture.outputs:r>
+            float inputs:opacity.connect = </Materials/cup_plastic.inputs:opacity>
+            float inputs:roughness.connect = </Materials/cup_plastic/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/cup_plastic.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/cup_plastic/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/cup_plastic.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/cup_plastic.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "MetallicTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/cup_plastic.inputs:MetallicTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/cup_plastic/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/cup_plastic.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/cup_plastic.inputs:wrapMode>
+            float outputs:r
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/cup_plastic.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/cup_plastic/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/cup_plastic.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/cup_plastic.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+
+    def Material "knob_metal_copper" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_paint_supplies_spraygun_albedo.png@
+        float inputs:ior = 1.5
+        asset inputs:MetallicTexture = @./Textures/T_paint_supplies_spraygun_metal.png@
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_paint_supplies_spraygun_rough.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/knob_metal_copper/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/knob_metal_copper/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/knob_metal_copper/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/knob_metal_copper.inputs:ior>
+            float inputs:metallic.connect = </Materials/knob_metal_copper/MetallicTexture.outputs:r>
+            float inputs:opacity.connect = </Materials/knob_metal_copper.inputs:opacity>
+            float inputs:roughness.connect = </Materials/knob_metal_copper/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/knob_metal_copper.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/knob_metal_copper/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/knob_metal_copper.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/knob_metal_copper.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "MetallicTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/knob_metal_copper.inputs:MetallicTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/knob_metal_copper/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/knob_metal_copper.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/knob_metal_copper.inputs:wrapMode>
+            float outputs:r
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/knob_metal_copper.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/knob_metal_copper/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/knob_metal_copper.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/knob_metal_copper.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+
+    def Material "parts_copper" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_paint_supplies_spraygun_albedo.png@
+        float inputs:ior = 1.5
+        asset inputs:MetallicTexture = @./Textures/T_paint_supplies_spraygun_metal.png@
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_paint_supplies_spraygun_rough.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/parts_copper/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/parts_copper/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/parts_copper/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/parts_copper.inputs:ior>
+            float inputs:metallic.connect = </Materials/parts_copper/MetallicTexture.outputs:r>
+            float inputs:opacity.connect = </Materials/parts_copper.inputs:opacity>
+            float inputs:roughness.connect = </Materials/parts_copper/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/parts_copper.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/parts_copper/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/parts_copper.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/parts_copper.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "MetallicTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/parts_copper.inputs:MetallicTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/parts_copper/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/parts_copper.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/parts_copper.inputs:wrapMode>
+            float outputs:r
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/parts_copper.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/parts_copper/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/parts_copper.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/parts_copper.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+
+    def Material "trigger_pin_aluminum" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/T_paint_supplies_spraygun_albedo.png@
+        float inputs:ior = 1.5
+        asset inputs:MetallicTexture = @./Textures/T_paint_supplies_spraygun_metal.png@
+        float inputs:opacity = 1
+        asset inputs:RoughnessTexture = @./Textures/T_paint_supplies_spraygun_rough.png@
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/trigger_pin_aluminum/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/trigger_pin_aluminum/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/trigger_pin_aluminum/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/trigger_pin_aluminum.inputs:ior>
+            float inputs:metallic.connect = </Materials/trigger_pin_aluminum/MetallicTexture.outputs:r>
+            float inputs:opacity.connect = </Materials/trigger_pin_aluminum.inputs:opacity>
+            float inputs:roughness.connect = </Materials/trigger_pin_aluminum/RoughnessTexture.outputs:r>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/trigger_pin_aluminum.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/trigger_pin_aluminum/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/trigger_pin_aluminum.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/trigger_pin_aluminum.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "MetallicTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/trigger_pin_aluminum.inputs:MetallicTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/trigger_pin_aluminum/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/trigger_pin_aluminum.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/trigger_pin_aluminum.inputs:wrapMode>
+            float outputs:r
+        }
+
+        def Shader "RoughnessTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0, 0, 0, 1)
+            asset inputs:file.connect = </Materials/trigger_pin_aluminum.inputs:RoughnessTexture>
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/trigger_pin_aluminum/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/trigger_pin_aluminum.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/trigger_pin_aluminum.inputs:wrapMode>
+            float outputs:r
+        }
+    }
+}

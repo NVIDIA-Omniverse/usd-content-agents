@@ -8,8 +8,8 @@ authors = [
     {name = "Omniverse GenAI Team"},
 ]
 dependencies = [
-    # The shared rendering backend factory first ships in v0.5.0.
-    "world-understanding>=0.5.0",
+    # Shared rendering and judge-score contracts require v0.5.3.
+    "world-understanding>=0.5.3",
     "setuptools>=80.9.0",
 ]
 
@@ -21,7 +21,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -29,28 +29,34 @@ source = "uv-dynamic-versioning"
 
 [project.optional-dependencies]
 dev = [
-    "world-understanding[dev]>=0.5.0",
+    "world-understanding[dev]>=0.5.3",
 ]
 tuning = [
-    # BoTorch is the first-class production optimizer for `physics-agent tune`.
-    # Pinned per the issue spec.
+    # Physics Agent uses the shared optimization runtime while retaining its
+    # Physics-specific scenarios, candidate constraints, and install hint.
+    "world-understanding[optimization]>=0.5.3",
+    # Keep direct app installs functional before the shared extra is published.
+    # Remove this direct pin once Physics Agent's minimum world-understanding
+    # version includes the published optimization extra.
+    "botorch==0.17.2",
     #
     # NOTE: ovphysx is intentionally NOT listed here. The OvPhysX simulator
-    # bundles its own OpenUSD that conflicts with the parent ``usd-core``,
+    # bundles its own OpenUSD that conflicts with the parent's OpenUSD provider,
     # so it must live in the daemon venv at ``WU_OVPHYSX_VENV_DIR``
     # (managed by ``world_understanding.functions.physics.ovphysx_daemon``),
     # never the parent/service venv. Parent-side tuning interacts with the
     # simulator over IPC via the daemon and never imports ``ovphysx``
     # directly. See ``apps/physics_agent/physics_agent/tuning/backend.py``
     # for the isolation contract.
-    "botorch==0.17.2",
 ]
 newton = [
     # NVIDIA Newton (GPU-accelerated, Warp + MuJoCo-warp) as a second tuning
     # backend peer to OvPhysX, with the sim/importer extras enabled for
-    # SolverMuJoCo and ModelBuilder.add_usd.
+    # SolverMuJoCo and ModelBuilder.add_usd. Keep the runtime and schema plugin
+    # aligned with the root warp extra and the deformable conformance contract.
     "physics-agent[tuning]",
-    "newton[sim,importers]>=1.2.0,<2.0",
+    "newton[sim,importers]==1.4.0",
+    "newton-usd-schemas==0.4.1",
 ]
 all = [
     "physics-agent[dev]",

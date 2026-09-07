@@ -89,6 +89,13 @@ class PipelineStatus(BaseModel):
     """Pipeline execution status with progress."""
 
     session_id: str
+    execution_id: str | None = Field(
+        default=None,
+        description=(
+            "Client execution identifier for the current run, when supplied "
+            "to the regeneration request."
+        ),
+    )
     status: str = Field(
         description="Current status: pending, running, completed, failed, cancelled, cancelling"
     )

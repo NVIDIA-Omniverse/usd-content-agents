@@ -39,13 +39,9 @@ def test_physics_service_image_uses_locked_tuning_and_ovphysx_profiles() -> None
     )
 
     assert_locked_tuning_and_ovphysx_profiles(text)
-    for native_library in ("libgl1", "libgomp1", "libopengl0", "libx11-6", "libxt6"):
-        assert native_library in text
-    assert "from ovphysx import PhysX" in text
-    assert "PhysX(device='cpu')" in text
 
 
-def test_physics_runtime_profiles_pin_optimizer_video_and_daemon_stacks() -> None:
+def test_physics_runtime_profiles_pin_optimizer_and_daemon_stacks() -> None:
     runtime_dir = REPO_ROOT / "apps/physics_agent/runtime"
 
     tuning_lock = _load_lock(runtime_dir / "pylock.physics-tuning-runtime.toml")
@@ -62,8 +58,8 @@ def test_physics_runtime_profiles_pin_optimizer_video_and_daemon_stacks() -> Non
 
     assert tuning_packages["botorch"] == "0.17.2"
     assert tuning_packages["torch"] == "2.12.1+cpu"
-    assert tuning_packages["imageio"] == "2.37.2"
-    assert tuning_packages["imageio-ffmpeg"] == "0.6.0"
+    assert "imageio" not in tuning_packages
+    assert "imageio-ffmpeg" not in tuning_packages
     assert "cuda-toolkit" not in tuning_packages
     assert daemon_packages == {
         "numpy": "2.4.4",

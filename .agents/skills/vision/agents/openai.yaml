@@ -1,4 +1,0 @@
-interface:
-  display_name: "Vision"
-  short_description: "Help with Vision tasks and workflows"
-  default_prompt: "Use $vision to analyze images using a Vision-Language Model via the wu CLI."

@@ -923,6 +923,84 @@ class RigidLinkPlanV1(_ContractModel):
         return self
 
 
+def _validate_rigid_link_cross_link_invariants(
+    links: tuple[RigidLinkPlanV1, ...],
+) -> None:
+    """Validate the aggregate-related invariants shared by every V2 seam."""
+
+    link_ids = [link.link_id for link in links]
+    body_paths = [link.body_prim_path for link in links]
+    if len(link_ids) != len(set(link_ids)):
+        raise ValueError("rigid-link link_id values must be unique")
+    if len(body_paths) != len(set(body_paths)):
+        raise ValueError("rigid-link body_prim_path values must be unique")
+
+    source_paths = [
+        member.source_prim_path for link in links for member in link.members
+    ]
+    authored_paths = [
+        member.authored_prim_path for link in links for member in link.members
+    ]
+    if len(source_paths) != len(set(source_paths)):
+        raise ValueError("source member paths may belong to only one rigid link")
+    if len(authored_paths) != len(set(authored_paths)):
+        raise ValueError("authored member paths may belong to only one rigid link")
+
+    for index, first in enumerate(links):
+        for second in links[index + 1 :]:
+            if (
+                first.body_authoring == "aggregate"
+                or second.body_authoring == "aggregate"
+            ) and _paths_overlap(first.body_prim_path, second.body_prim_path):
+                raise ValueError(
+                    "aggregate rigid-link body paths must be disjoint: "
+                    f"{first.body_prim_path}, {second.body_prim_path}"
+                )
+
+    member_rows = tuple((link, member) for link in links for member in link.members)
+    for attribute in ("source_prim_path", "authored_prim_path"):
+        for index, (first_link, first_member) in enumerate(member_rows):
+            first_path = getattr(first_member, attribute)
+            for second_link, second_member in member_rows[index + 1 :]:
+                second_path = getattr(second_member, attribute)
+                if (
+                    first_link.body_authoring == "aggregate"
+                    or second_link.body_authoring == "aggregate"
+                ) and _paths_overlap(first_path, second_path):
+                    raise ValueError(
+                        "aggregate rigid-link member paths must be disjoint: "
+                        f"{first_path}, {second_path}"
+                    )
+
+    for aggregate in (link for link in links if link.body_authoring == "aggregate"):
+        for link in links:
+            if link is aggregate:
+                continue
+            candidate_paths = (link.body_prim_path,) + tuple(
+                path
+                for member in link.members
+                for path in (member.source_prim_path, member.authored_prim_path)
+            )
+            for candidate in candidate_paths:
+                if _paths_overlap(aggregate.body_prim_path, candidate):
+                    raise ValueError(
+                        "aggregate body paths must be disjoint from every other "
+                        "rigid-link path: "
+                        f"body={aggregate.body_prim_path}, path={candidate}"
+                    )
+        for member in (member for link in links for member in link.members):
+            if _paths_overlap(
+                aggregate.body_prim_path,
+                member.source_prim_path,
+            ):
+                raise ValueError(
+                    "aggregate body paths must be disjoint from every source "
+                    "member path: "
+                    f"body={aggregate.body_prim_path}, "
+                    f"source={member.source_prim_path}"
+                )
+
+
 class JointRiggerInputV2(JointRiggerInputV1):
     """V2 request with exact rigid-link membership and aggregate mappings."""
 
@@ -978,18 +1056,11 @@ class JointRiggerInputV2(JointRiggerInputV1):
 
     def _validate_link_overlaps(self) -> None:
         links = tuple(self.rigid_links)
+        _validate_rigid_link_cross_link_invariants(links)
         for index, first in enumerate(links):
             for second in links[index + 1 :]:
                 if not _paths_overlap(first.body_prim_path, second.body_prim_path):
                     continue
-                if (
-                    first.body_authoring == "aggregate"
-                    or second.body_authoring == "aggregate"
-                ):
-                    raise ValueError(
-                        "aggregate rigid-link body paths must be disjoint: "
-                        f"{first.body_prim_path}, {second.body_prim_path}"
-                    )
                 _require_nested_existing_graph_ancestry(
                     first.body_prim_path,
                     second.body_prim_path,
@@ -1004,46 +1075,10 @@ class JointRiggerInputV2(JointRiggerInputV1):
                     second_path = getattr(second_member, attribute)
                     if not _paths_overlap(first_path, second_path):
                         continue
-                    if (
-                        first_link.body_authoring == "aggregate"
-                        or second_link.body_authoring == "aggregate"
-                    ):
-                        raise ValueError(
-                            "aggregate rigid-link member paths must be disjoint: "
-                            f"{first_path}, {second_path}"
-                        )
                     _require_nested_existing_graph_ancestry(
                         first_link.body_prim_path,
                         second_link.body_prim_path,
                         self.plan.joints,
-                    )
-
-        for aggregate in (link for link in links if link.body_authoring == "aggregate"):
-            for link in links:
-                if link is aggregate:
-                    continue
-                candidate_paths = (link.body_prim_path,) + tuple(
-                    path
-                    for member in link.members
-                    for path in (member.source_prim_path, member.authored_prim_path)
-                )
-                for candidate in candidate_paths:
-                    if _paths_overlap(aggregate.body_prim_path, candidate):
-                        raise ValueError(
-                            "aggregate body paths must be disjoint from every other "
-                            "rigid-link path: "
-                            f"body={aggregate.body_prim_path}, path={candidate}"
-                        )
-            for member in (member for link in links for member in link.members):
-                if _paths_overlap(
-                    aggregate.body_prim_path,
-                    member.source_prim_path,
-                ):
-                    raise ValueError(
-                        "aggregate body paths must be disjoint from every source "
-                        "member path: "
-                        f"body={aggregate.body_prim_path}, "
-                        f"source={member.source_prim_path}"
                     )
 
 

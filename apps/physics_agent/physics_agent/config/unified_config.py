@@ -35,6 +35,50 @@ from physics_agent.config.validator import ConfigValidator
 logger = logging.getLogger(__name__)
 
 
+def _resolve_config_relative_path(value: str | Path, config_dir: Path) -> Path:
+    """Resolve one user-configured path against the configuration directory."""
+    candidate = Path(value).expanduser()
+    if not candidate.is_absolute():
+        candidate = config_dir / candidate
+    return candidate.resolve()
+
+
+def _normalize_apply_dependency_roots(
+    roots: list[Path] | tuple[Path, ...],
+    *,
+    task_owned_working_dir: Path,
+) -> tuple[Path, ...]:
+    """Validate all apply-physics roots, allowing its uncreated workspace only.
+
+    The pipeline owns and later creates ``task_owned_working_dir``. Every other
+    approved root must already be a directory. Filesystem roots remain invalid
+    even when selected as the task-owned workspace.
+    """
+    normalized = tuple(dict.fromkeys(root.expanduser().resolve() for root in roots))
+    if not normalized:
+        raise ValueError("approved_dependency_roots must not be empty")
+
+    filesystem_roots = [str(root) for root in normalized if root.parent == root]
+    if filesystem_roots:
+        raise ValueError(
+            "approved_dependency_roots must not contain filesystem roots: "
+            + ", ".join(filesystem_roots)
+        )
+
+    working_dir = task_owned_working_dir.expanduser().resolve()
+    invalid = [
+        str(root)
+        for root in normalized
+        if not root.is_dir() and not (root == working_dir and not root.exists())
+    ]
+    if invalid:
+        raise ValueError(
+            "approved_dependency_roots must contain existing directories: "
+            + ", ".join(invalid)
+        )
+    return normalized
+
+
 class UnifiedPipelineConfigTask(Task):
     """Unified config loader for all pipeline and step operations.
 
@@ -49,13 +93,17 @@ class UnifiedPipelineConfigTask(Task):
     - Single step: physics-agent predict config.yaml (equivalent to pipeline --only predict)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the unified config task."""
         self.name = "UnifiedConfigLoading"
         self.description = "Load and validate unified pipeline configuration"
         self.validator = ConfigValidator()
 
-    def run(self, context: dict[str, Any], object_store=None) -> dict[str, Any]:
+    def run(
+        self,
+        context: dict[str, Any],
+        object_store: Any = None,
+    ) -> dict[str, Any]:
         """Load and validate unified configuration.
 
         Args:
@@ -106,6 +154,13 @@ class UnifiedPipelineConfigTask(Task):
             logger.error("Configuration validation failed")
             raise
 
+        # Determine which steps to run before constructing the resolver. A
+        # session-managed resolver creates its workspace, so dependency roots
+        # must fail closed before that filesystem side effect.
+        steps_to_run = self._determine_steps(config, context)
+        if "apply_physics" in steps_to_run:
+            self._preflight_apply_dependency_roots(config, config_path)
+
         # Create path resolver
         try:
             path_resolver = ProjectPathResolver(config, config_path)
@@ -113,9 +168,6 @@ class UnifiedPipelineConfigTask(Task):
         except (FileNotFoundError, ValueError):
             logger.error("Path resolution failed")
             raise
-
-        # Determine which steps to run
-        steps_to_run = self._determine_steps(config, context)
 
         # Build step configs with auto-wired paths
         step_configs = self._build_step_configs(steps_to_run, config, path_resolver)
@@ -141,6 +193,42 @@ class UnifiedPipelineConfigTask(Task):
             context["working_dir_base"] = working_dir_base
 
         return context
+
+    def _preflight_apply_dependency_roots(
+        self,
+        config: dict[str, Any],
+        config_path: Path,
+    ) -> None:
+        """Validate apply-physics roots before session creation can write files."""
+        step_config = self._merge_step_config(
+            "apply_physics",
+            (config.get("steps") or {}).get("apply_physics", {}),
+        )
+        self.validator.validate_step_requirements("apply_physics", step_config, config)
+
+        config_dir = config_path.parent.expanduser().resolve()
+        input_usd = _resolve_config_relative_path(
+            config["input"]["usd_path"], config_dir
+        )
+        working_value = (config.get("project") or {}).get("working_dir")
+        if working_value:
+            working_dir = _resolve_config_relative_path(working_value, config_dir)
+        else:
+            # SessionManager owns and creates this directory later. A stable
+            # placeholder is sufficient for the preflight; the concrete UUID
+            # path is validated again after resolver construction.
+            session_id = (config.get("project") or {}).get("session_id")
+            component = f".{session_id}" if session_id else ".pending-session"
+            working_dir = (config_dir / component).resolve()
+
+        configured_roots = [
+            _resolve_config_relative_path(root, config_dir)
+            for root in (step_config.get("approved_dependency_roots") or [])
+        ]
+        _normalize_apply_dependency_roots(
+            [input_usd.parent, working_dir, *configured_roots],
+            task_owned_working_dir=working_dir,
+        )
 
     def _load_config(self, context: dict[str, Any]) -> tuple[dict[str, Any], Path]:
         """Load an isolated unified config and its relative-path anchor."""
@@ -458,6 +546,24 @@ class UnifiedPipelineConfigTask(Task):
             # this to optimize_usd.optimized_usd_path when optimization ran,
             # so physics authoring targets writable deinstanced prims.
             step_config["usd_path"] = str(path_resolver.input_usd)
+            configured_roots = step_config.get("approved_dependency_roots")
+            normalized_configured_roots: list[Path] = []
+            if configured_roots is not None:
+                normalized_configured_roots = [
+                    _resolve_config_relative_path(root, path_resolver.config_dir)
+                    for root in configured_roots
+                ]
+            dependency_roots = _normalize_apply_dependency_roots(
+                (
+                    path_resolver.input_usd.resolve().parent,
+                    path_resolver.working_dir.resolve(),
+                    *normalized_configured_roots,
+                ),
+                task_owned_working_dir=path_resolver.working_dir,
+            )
+            step_config["approved_dependency_roots"] = [
+                str(root) for root in dependency_roots
+            ]
             # Output USD goes into the physics step output dir
             physics_dir = path_resolver.get_step_output_dir("apply_physics")
             stem = path_resolver.input_usd.stem if path_resolver.input_usd else "output"
@@ -475,6 +581,38 @@ class UnifiedPipelineConfigTask(Task):
                     physics_dir / f"{stem}_physics{suffix}"
                 )
             # predictions_path is auto-wired at runtime by the executor.
+
+        elif step_name == "vomp_mass":
+            step_config["usd_path"] = str(path_resolver.input_usd)
+            vomp_dir = path_resolver.get_step_output_dir("vomp_mass")
+            stem = path_resolver.input_usd.stem if path_resolver.input_usd else "output"
+            if "output_usd_path" not in step_config:
+                step_config["output_usd_path"] = str(vomp_dir / f"{stem}_vomp.usda")
+            if "work_dir" not in step_config:
+                step_config["work_dir"] = str(vomp_dir / "artifacts")
+            provenance_path = step_config.get("provenance_path")
+            if provenance_path:
+                step_config["provenance_path"] = str(
+                    _resolve_config_relative_path(
+                        provenance_path,
+                        path_resolver.config_dir,
+                    )
+                )
+            runtime_root = step_config.get("runtime_root")
+            if runtime_root:
+                step_config["runtime_root"] = str(
+                    _resolve_config_relative_path(
+                        runtime_root, path_resolver.config_dir
+                    )
+                )
+            render = step_config.get("render")
+            if isinstance(render, dict) and render.get("ovrtx_venv_dir"):
+                render["ovrtx_venv_dir"] = str(
+                    _resolve_config_relative_path(
+                        render["ovrtx_venv_dir"],
+                        path_resolver.config_dir,
+                    )
+                )
 
         return step_config
 

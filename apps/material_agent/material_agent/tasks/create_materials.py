@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Create run-local materials from explicit WP6 material-creation requests."""
+"""Author run-local materials from explicit fixed-workflow requests."""
 
 from __future__ import annotations
 
@@ -19,6 +19,13 @@ from pxr import Sdf
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
 
+from material_agent.material_library_generation.authoring import (
+    MaterialAuthoringRequest,
+    MaterialPackage,
+    MaterialPackageAuthoringError,
+    SourceMaterialReference,
+    author_material_package,
+)
 from material_agent.material_library_generation.conditioning import (
     MaterialConditioningOptions,
     prepare_material_conditioning,
@@ -39,7 +46,10 @@ from material_agent.material_library_generation.fake_backend import (
     FakeMaterialBackendBehavior,
     FakeMaterialCreationBackend,
 )
-from material_agent.material_library_generation.schema import MaterialRecipe
+from material_agent.material_library_generation.schema import (
+    MaterialRecipe,
+    TextureMapSet,
+)
 from material_agent.tasks.apply_materials_to_usd import (
     clear_color_space_on_empty_asset_inputs,
     remap_asset_paths_in_prim,
@@ -51,12 +61,12 @@ _CANCEL_MONITOR_INTERVAL_SECONDS = 0.05
 _BACKEND_UNSET = object()
 
 
-class CreateMaterialsTask(Task):
-    """Create run-local materials and register results for assignment."""
+class AuthorMaterialsTask(Task):
+    """Create or modify run-local materials and register them for assignment."""
 
     def __init__(self) -> None:
-        self.name = "CreateMaterials"
-        self.description = "Create run-local materials through the WP0/WP2 contract"
+        self.name = "AuthorMaterials"
+        self.description = "Author run-local materials through shared package contracts"
 
     def run(
         self, context: dict[str, Any], object_store: Any | None = None
@@ -64,15 +74,37 @@ class CreateMaterialsTask(Task):
         del object_store
         listener = get_listener(context, logger_name=__name__)
 
-        backend_name = _canonical_backend_name(context.get("backend", _BACKEND_UNSET))
         config_dir = _optional_config_base_dir(context.get("_config_dir"))
 
         creation_requests = context.get("creation_requests") or ()
-        if not isinstance(creation_requests, list | tuple) or not creation_requests:
-            raise ValueError("create_materials requires non-empty creation_requests")
+        authoring_requests = context.get("authoring_requests") or ()
+        modification_requests = context.get("modification_requests") or ()
+        if not isinstance(creation_requests, list | tuple):
+            raise TypeError("creation_requests must be a list or tuple")
+        if not isinstance(authoring_requests, list | tuple):
+            raise TypeError("authoring_requests must be a list or tuple")
+        if not isinstance(modification_requests, list | tuple):
+            raise TypeError("modification_requests must be a list or tuple")
+        if (
+            not creation_requests
+            and not authoring_requests
+            and not modification_requests
+        ):
+            raise ValueError(
+                "material authoring requires creation_requests, authoring_requests, "
+                "or modification_requests"
+            )
+
+        backend_name = (
+            _canonical_backend_name(context.get("backend", _BACKEND_UNSET))
+            if creation_requests
+            else "not_used"
+        )
 
         output_dir = Path(context.get("output_dir", "created_materials")).resolve()
-        source_usd = Path(context["source_usd"]).resolve()
+        source_usd = (
+            Path(context["source_usd"]).resolve() if creation_requests else None
+        )
         predictions_path = _optional_path(context.get("predictions_path"))
         output_predictions_path = Path(
             context.get("output_predictions_path")
@@ -80,12 +112,18 @@ class CreateMaterialsTask(Task):
         ).resolve()
 
         predictions = _read_predictions(predictions_path)
-        registry = _build_backend_registry(context, backend_name)
-        _validate_backend_available(registry, backend_name)
+        registry = (
+            _build_backend_registry(context, backend_name)
+            if creation_requests
+            else None
+        )
+        if registry is not None:
+            _validate_backend_available(registry, backend_name)
         output_dir.mkdir(parents=True, exist_ok=True)
         cancel_event = threading.Event()
 
         created_materials: list[CreatedMaterial] = []
+        authored_packages: list[MaterialPackage] = []
         statuses: list[dict[str, Any]] = []
         assignments = 0
         fail_on_error = bool(context.get("fail_on_error", True))
@@ -94,9 +132,13 @@ class CreateMaterialsTask(Task):
         request_ids_by_material_id: dict[str, str] = {}
         processed_request_ids: set[str] = set()
 
+        if creation_requests:
+            assert source_usd is not None
+            assert registry is not None
         for index, raw_spec in enumerate(creation_requests):
             if not isinstance(raw_spec, dict):
                 raise TypeError("creation_requests entries must be dictionaries")
+            assert source_usd is not None
             conditioning_options = _conditioning_options_for_request(
                 context,
                 request_spec=raw_spec,
@@ -181,10 +223,116 @@ class CreateMaterialsTask(Task):
             assignments += _assign_prediction(predictions, raw_spec, created)
             listener.event("material_creation.completed", status)
 
-        material_library_path = _created_material_library(output_dir, created_materials)
+        direct_requests = [(raw_spec, None) for raw_spec in authoring_requests] + [
+            (raw_spec, "modify") for raw_spec in modification_requests
+        ]
+        for index, (raw_spec, forced_operation) in enumerate(direct_requests):
+            if not isinstance(raw_spec, dict):
+                raise TypeError(
+                    "authoring_requests and modification_requests entries must be "
+                    "dictionaries"
+                )
+            _sync_cancel_event(context, cancel_event)
+            request = _build_authoring_request(
+                raw_spec,
+                material_profile=material_profile,
+                base_dir=config_dir,
+                forced_operation=forced_operation,
+            )
+            material_id = request.recipe.material_id
+            previous_request_id = request_ids_by_material_id.setdefault(
+                material_id, request.request_id
+            )
+            if previous_request_id != request.request_id:
+                raise ValueError(
+                    "material authoring received conflicting requests for "
+                    f"material_id {material_id!r}; use distinct recipe ids"
+                )
+            if request.request_id in processed_request_ids:
+                continue
+            processed_request_ids.add(request.request_id)
+            package_dir = output_dir / "packages" / material_id
+            listener.event(
+                "material_authoring.started",
+                {
+                    "operation": request.operation.value,
+                    "request_id": request.request_id,
+                    "recipe": request.recipe.name,
+                    "index": index,
+                },
+            )
+            try:
+                authored = author_material_package(
+                    request,
+                    package_dir,
+                    overwrite=overwrite,
+                )
+            except (MaterialPackageAuthoringError, FileExistsError) as exc:
+                status = {
+                    "status": "error",
+                    "operation": request.operation.value,
+                    "request_id": request.request_id,
+                    "recipe": request.recipe.name,
+                    "code": "material_authoring_failed",
+                    "message": str(exc),
+                    "diagnostics": [],
+                }
+                statuses.append(status)
+                listener.event("material_authoring.failed", status)
+                if fail_on_error:
+                    raise
+                continue
+
+            authored_packages.append(authored)
+            status = {
+                "status": (
+                    "modified" if request.operation.value == "modify" else "created"
+                ),
+                "operation": request.operation.value,
+                "request_id": request.request_id,
+                "recipe": request.recipe.name,
+                "material_name": authored.material_list_entry["name"],
+                "material_id": authored.material_id,
+                "package_dir": package_dir.as_posix(),
+                "material_usd_path": authored.material_usd_path.as_posix(),
+                "authoring_manifest_path": (
+                    authored.authoring_manifest_path.as_posix()
+                ),
+                "cache_hit": bool(authored.validation.get("cache_hit")),
+                "texture_paths": (
+                    {
+                        "albedo": authored.textures.albedo.as_posix(),
+                        "normal": authored.textures.normal.as_posix(),
+                        "orm": authored.textures.orm.as_posix(),
+                    }
+                    if authored.textures is not None
+                    else {}
+                ),
+            }
+            statuses.append(status)
+            assignments += _assign_authored_prediction(
+                predictions,
+                raw_spec,
+                authored,
+            )
+            listener.event("material_authoring.completed", status)
+
+        authored_materials: list[CreatedMaterial | MaterialPackage] = [
+            *created_materials,
+            *authored_packages,
+        ]
+        directly_created_materials = sum(
+            package.operation.value == "create" for package in authored_packages
+        )
+        modified_material_count = sum(
+            package.operation.value == "modify" for package in authored_packages
+        )
+        material_library_path = _created_material_library(
+            output_dir, authored_materials
+        )
         material_entries = [
-            _aggregate_material_entry(output_dir, created)
-            for created in created_materials
+            _aggregate_material_entry(output_dir, authored)
+            for authored in authored_materials
         ]
         materials_data = {
             "library_path": material_library_path.as_posix()
@@ -208,7 +356,12 @@ class CreateMaterialsTask(Task):
 
         return {
             "output_dir": output_dir.as_posix(),
-            "created_material_count": len(created_materials),
+            "created_material_count": len(created_materials)
+            + directly_created_materials,
+            "generated_material_count": len(created_materials),
+            "directly_authored_material_count": len(authored_packages),
+            "modified_material_count": modified_material_count,
+            "authored_material_count": len(authored_materials),
             "assignment_count": assignments,
             "created_materials_manifest_path": manifest_path.as_posix(),
             "created_materials_yaml_path": materials_yaml_path.as_posix(),
@@ -220,6 +373,14 @@ class CreateMaterialsTask(Task):
             "predictions_path": output_predictions_path.as_posix(),
             "statuses": statuses,
         }
+
+
+class CreateMaterialsTask(AuthorMaterialsTask):
+    """Backward-compatible task name for the shared authoring implementation."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "CreateMaterials"
 
 
 def _canonical_backend_name(raw_backend: Any) -> str:
@@ -651,6 +812,109 @@ def _build_create_request(
     )
 
 
+def _build_authoring_request(
+    spec: dict[str, Any],
+    *,
+    material_profile: str,
+    base_dir: Path | None = None,
+    forced_operation: str | None = None,
+) -> MaterialAuthoringRequest:
+    recipe_data = spec.get("recipe")
+    if not isinstance(recipe_data, dict):
+        raise ValueError("authoring request requires a recipe object")
+
+    operation = str(forced_operation or spec.get("operation", "create")).strip()
+    if forced_operation is not None and spec.get("operation", operation) != operation:
+        raise ValueError(
+            f"compatibility modification request operation must be {operation!r}"
+        )
+    if operation not in {"create", "modify"}:
+        raise ValueError("authoring request operation must be 'create' or 'modify'")
+
+    target_prim_paths = spec.get("target_prim_paths", ())
+    if isinstance(target_prim_paths, str):
+        target_prim_paths = (target_prim_paths,)
+    if not isinstance(target_prim_paths, list | tuple):
+        raise TypeError("authoring request target_prim_paths must be a sequence")
+
+    textures = _texture_map_set_from_spec(spec.get("textures"), base_dir=base_dir)
+    recipe = MaterialRecipe.from_dict(recipe_data, base_dir=base_dir)
+    requested_profile = str(spec.get("material_profile", material_profile))
+
+    if operation == "create":
+        if spec.get("source") or spec.get("source_material_usd"):
+            raise ValueError(
+                "create authoring request must not include a source material"
+            )
+        return MaterialAuthoringRequest(
+            operation="create",
+            recipe=recipe,
+            textures=textures,
+            target_prim_paths=tuple(str(path) for path in target_prim_paths),
+            material_profile=requested_profile,
+        )
+
+    source_data = spec.get("source") or {}
+    if not isinstance(source_data, dict):
+        raise TypeError("modify authoring request source must be a mapping")
+    source_usd_value = source_data.get("usd_path") or spec.get("source_material_usd")
+    source_prim_path = source_data.get("material_prim_path") or spec.get(
+        "source_material_prim_path"
+    )
+    if not source_usd_value or not source_prim_path:
+        raise ValueError(
+            "modify authoring request requires source material USD and prim path"
+        )
+
+    return MaterialAuthoringRequest(
+        operation="modify",
+        recipe=recipe,
+        source=SourceMaterialReference(
+            usd_path=_resolve_config_path(source_usd_value, base_dir),
+            material_prim_path=str(source_prim_path),
+            usd_sha256=(
+                source_data.get("usd_sha256") or spec.get("source_material_sha256")
+            ),
+        ),
+        textures=textures,
+        target_prim_paths=tuple(str(path) for path in target_prim_paths),
+        material_profile=requested_profile,
+    )
+
+
+def _texture_map_set_from_spec(
+    texture_data: Any,
+    *,
+    base_dir: Path | None,
+) -> TextureMapSet | None:
+    if texture_data is None:
+        return None
+    if not isinstance(texture_data, dict):
+        raise TypeError("authoring request textures must be a mapping")
+    missing = [
+        channel
+        for channel in ("albedo", "normal", "orm")
+        if not texture_data.get(channel)
+    ]
+    if missing:
+        raise ValueError(
+            "authoring request textures require albedo, normal, and orm; "
+            f"missing: {', '.join(missing)}"
+        )
+    return TextureMapSet(
+        albedo=_resolve_config_path(texture_data["albedo"], base_dir),
+        normal=_resolve_config_path(texture_data["normal"], base_dir),
+        orm=_resolve_config_path(texture_data["orm"], base_dir),
+    )
+
+
+def _resolve_config_path(value: Any, base_dir: Path | None) -> Path:
+    path = Path(str(value)).expanduser()
+    if not path.is_absolute() and base_dir is not None:
+        path = base_dir / path
+    return path.resolve()
+
+
 def _resolve_local_reference_uri(value: Any, base_dir: Path | None) -> str:
     uri = str(value).strip()
     if not uri or base_dir is None or urlparse(uri).scheme:
@@ -711,6 +975,37 @@ def _assign_prediction(
     return assigned
 
 
+def _assign_authored_prediction(
+    predictions: list[dict[str, Any]],
+    spec: dict[str, Any],
+    authored: MaterialPackage,
+) -> int:
+    prediction_ids = _prediction_ids_for_request(spec)
+    action = "modify_existing" if authored.operation.value == "modify" else "create_new"
+    assigned = 0
+    for prediction in predictions:
+        if prediction.get("id") not in prediction_ids:
+            continue
+        materials = prediction.get("materials")
+        if not isinstance(materials, dict):
+            materials = {}
+            prediction["materials"] = materials
+        material_name = str(authored.material_list_entry["name"])
+        materials["material"] = material_name
+        materials["creation_action"] = action
+        materials["authoring_request_id"] = authored.request_id
+        materials["authoring_manifest"] = authored.authoring_manifest_path.as_posix()
+        prediction["material_creation"] = {
+            "action": action,
+            "material_name": material_name,
+            "material_id": authored.material_id,
+            "authoring_request_id": authored.request_id,
+            "authoring_manifest": authored.authoring_manifest_path.as_posix(),
+        }
+        assigned += 1
+    return assigned
+
+
 def _prediction_ids_for_request(spec: dict[str, Any]) -> set[str]:
     prediction_ids: set[str] = set()
     prediction_id = spec.get("prediction_id") or spec.get("id")
@@ -727,18 +1022,27 @@ def _prediction_ids_for_request(spec: dict[str, Any]) -> set[str]:
 
 
 def _aggregate_material_entry(
-    output_dir: Path, created: CreatedMaterial
+    output_dir: Path,
+    authored: CreatedMaterial | MaterialPackage,
 ) -> dict[str, Any]:
-    entry: dict[str, Any] = dict(created.material_list_entry.to_dict())
-    entry["creation_manifest"] = _relative_path(
-        created.creation_manifest_path,
+    if isinstance(authored, CreatedMaterial):
+        entry: dict[str, Any] = dict(authored.material_list_entry.to_dict())
+        entry["creation_manifest"] = _relative_path(
+            authored.creation_manifest_path,
+            output_dir,
+        )
+        return entry
+    entry = dict(authored.material_list_entry)
+    entry["authoring_manifest"] = _relative_path(
+        authored.authoring_manifest_path,
         output_dir,
     )
     return entry
 
 
 def _created_material_library(
-    output_dir: Path, created_materials: list[CreatedMaterial]
+    output_dir: Path,
+    created_materials: list[CreatedMaterial | MaterialPackage],
 ) -> Path | None:
     if not created_materials:
         return None

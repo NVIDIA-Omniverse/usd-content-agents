@@ -1,0 +1,18 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "light_bulb_01"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./Geometry.usdc@,
+        @./Materials.usda@
+    ]
+    upAxis = "Z"
+)
+
+def Xform "light_bulb_01"
+{
+}

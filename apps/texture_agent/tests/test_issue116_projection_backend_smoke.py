@@ -15,7 +15,11 @@ from typer.testing import CliRunner
 pytest.importorskip("pxr")
 
 from apps.texture_gen_service_common.artifacts import local_path_from_file_uri
-from fake_projection_backend import FakeProjectionBackend
+from fake_projection_backend import (
+    DEFAULT_EXTERNAL_ADAPTER_ID,
+    FakeProjectionBackend,
+    default_external_authoring_preflight,
+)
 
 from texture_agent.cli import app
 from texture_agent.functions.artifact_manifest import (
@@ -192,7 +196,7 @@ def test_issue116_cli_ladder_projection_backend_smoke(
     working_dir = tmp_path / "work"
     _mock_render_all_cameras(monkeypatch)
 
-    with FakeProjectionBackend(tmp_path / "backend") as backend:
+    with FakeProjectionBackend(working_dir / "backend") as backend:
         config_path = tmp_path / "texture_ladder_issue116_projection.yaml"
         config_path.write_text(
             yaml.safe_dump(
@@ -311,7 +315,7 @@ def test_issue116_cli_projection_backend_missing_albedo_fails(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     working_dir = tmp_path / "work"
-    with FakeProjectionBackend(tmp_path / "backend") as backend:
+    with FakeProjectionBackend(working_dir / "backend") as backend:
         config_path = tmp_path / "texture_ladder_issue116_missing_albedo.yaml"
         config_path.write_text(
             yaml.safe_dump(
@@ -357,3 +361,146 @@ def test_issue116_cli_projection_backend_missing_albedo_fails(
     assert manifest["textures"]["generation_errors"] == []
     generated_dir = working_dir / "generated"
     assert not (generated_dir / "Aluminum_Matte_albedo.png").exists()
+
+
+def _enable_external_authoring(config: dict) -> None:
+    config["texture"]["seed"] = 1046
+    config["texture"]["external_authoring"] = {
+        "schema_version": "texture-agent-external-authoring.v1",
+        "adapter_id": DEFAULT_EXTERNAL_ADAPTER_ID,
+        "workflow": "paint",
+        "headless_required": True,
+        "tool_name": "Fake Headless DCC",
+        "tool_version": "2026.1",
+        "required_map_channels": ["albedo", "normal", "orm"],
+        "required_auxiliary_artifacts": ["project"],
+        "normalized_output": "texture_variation_maps",
+        "parameters": {"brush_preset": "painted-metal-v1"},
+    }
+
+
+def test_issue1046_external_authoring_cli_smoke_records_provenance(
+    tmp_path: Path,
+) -> None:
+    working_dir = tmp_path / "work"
+    with FakeProjectionBackend(working_dir / "backend") as backend:
+        config = _base_config(
+            working_dir,
+            endpoint=backend.endpoint_url,
+            variant="success_full_pbr",
+            render_enabled=False,
+        )
+        _enable_external_authoring(config)
+        config_path = tmp_path / "texture_ladder_issue1046_external.yaml"
+        config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+        result = CliRunner().invoke(app, ["run", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert len(backend.preflight_requests) == 1
+    assert len(backend.requests) == 1
+    request = backend.requests[0]
+    assert request["external_authoring"]["adapter_id"] == DEFAULT_EXTERNAL_ADAPTER_ID
+    assert request["external_authoring"]["workflow"] == "paint"
+    assert len(request["external_authoring"]["spec_digest"]) == 64
+
+    manifest = json.loads(
+        (working_dir / "artifacts_manifest.json").read_text(encoding="utf-8")
+    )
+    assert validate_artifacts_manifest_schema(manifest) == []
+    assert manifest["backend"]["external_authoring"]["verdict"] == "go"
+    assert (
+        manifest["backend"]["external_authoring"]["capabilities"]["tool_version"]
+        == "2026.1"
+    )
+    unit_id = json.loads(
+        (working_dir / "texture_plan.json").read_text(encoding="utf-8")
+    )["selected_units"][0]["unit_id"]
+    provenance = manifest["textures"]["projection_backend"][unit_id]["metadata"][
+        "external_authoring"
+    ]
+    assert provenance["adapter_id"] == DEFAULT_EXTERNAL_ADAPTER_ID
+    assert provenance["headless"] is True
+    assert provenance["license_status"] == "valid"
+    assert len(provenance["source_asset_sha256"]) == 64
+    assert set(provenance["output_sha256"]) == {"albedo", "normal", "orm"}
+
+
+def test_issue1046_external_authoring_fake_backend_is_byte_reproducible(
+    tmp_path: Path,
+) -> None:
+    output_digests: list[dict[str, str]] = []
+    request_counts: list[tuple[int, int]] = []
+    for index in range(2):
+        working_dir = tmp_path / f"work-{index}"
+        with FakeProjectionBackend(working_dir / "backend") as backend:
+            config = _base_config(
+                working_dir,
+                endpoint=backend.endpoint_url,
+                variant="success_full_pbr",
+                render_enabled=False,
+            )
+            _enable_external_authoring(config)
+            config_path = tmp_path / f"texture_ladder_issue1046_repeat_{index}.yaml"
+            config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+            result = CliRunner().invoke(app, ["run", str(config_path)])
+
+            assert result.exit_code == 0, result.output
+            manifest = json.loads(
+                (working_dir / "artifacts_manifest.json").read_text(encoding="utf-8")
+            )
+            unit_id = json.loads(
+                (working_dir / "texture_plan.json").read_text(encoding="utf-8")
+            )["selected_units"][0]["unit_id"]
+            output_digests.append(
+                manifest["textures"]["projection_backend"][unit_id]["metadata"][
+                    "external_authoring"
+                ]["output_sha256"]
+            )
+            request_counts.append(
+                (len(backend.preflight_requests), len(backend.requests))
+            )
+
+    assert request_counts == [(1, 1), (1, 1)]
+    assert output_digests[0] == output_digests[1]
+
+
+def test_issue1046_external_authoring_no_go_launches_no_job(
+    tmp_path: Path,
+) -> None:
+    working_dir = tmp_path / "work"
+    no_go = default_external_authoring_preflight(
+        ready=False,
+        license_status="unavailable",
+    )
+    with FakeProjectionBackend(
+        tmp_path / "backend",
+        authoring_preflight=no_go,
+    ) as backend:
+        config = _base_config(
+            working_dir,
+            endpoint=backend.endpoint_url,
+            variant="success_full_pbr",
+            render_enabled=False,
+        )
+        _enable_external_authoring(config)
+        config_path = tmp_path / "texture_ladder_issue1046_no_go.yaml"
+        config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+        result = CliRunner().invoke(app, ["run", str(config_path)])
+
+    assert result.exit_code != 0
+    assert len(backend.preflight_requests) == 1
+    assert backend.requests == []
+    assert not (working_dir / "output" / "textured_output.usd").exists()
+    manifest = json.loads(
+        (working_dir / "artifacts_manifest.json").read_text(encoding="utf-8")
+    )
+    assert validate_artifacts_manifest_schema(manifest) == []
+    feasibility = manifest["backend"]["external_authoring"]
+    assert feasibility["verdict"] == "no_go"
+    assert {item["code"] for item in feasibility["diagnostics"]} >= {
+        "EXTERNAL_AUTHORING_NOT_READY",
+        "EXTERNAL_AUTHORING_LICENSE_UNAVAILABLE",
+    }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Image Gen Brev"
+  short_description: "Fixed pipeline Brev image-generation deployment"
+  default_prompt: "Use $fixed-pipeline to deploy or smoke-test a Brev-hosted FLUX.2 Klein image-generation NIM endpoint for Texture Agent and collection deployment wiring."

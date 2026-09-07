@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 from apps.texture_gen_service_common import CreateJobRequest
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "step1x_service_requests"
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 REQUIRED_CAPABILITIES = {
     "image_conditioning",
@@ -86,3 +88,29 @@ def test_step1x_material_anything_request_fixture_is_opt_in() -> None:
     assert custom["skip_material_anything"] is False
     assert custom["ma_steps"] == 10
     assert custom["upscale"] is False
+
+
+@pytest.mark.parametrize(
+    "compose_path",
+    (
+        "apps/texture_agent_service/docker-compose.yml",
+        "apps/texture_agent_service/docker-compose.step1x.yml",
+        "apps/texture_gen_step1x_service/docker-compose.yml",
+    ),
+)
+def test_public_texture_compose_ports_bind_loopback_by_default(
+    compose_path: str,
+) -> None:
+    compose = yaml.safe_load((REPO_ROOT / compose_path).read_text(encoding="utf-8"))
+
+    published_ports = [
+        port
+        for service in compose["services"].values()
+        for port in service.get("ports", ())
+    ]
+
+    assert published_ports
+    assert all(
+        str(port).startswith("${WU_COMPOSE_BIND_HOST:-127.0.0.1}:")
+        for port in published_ports
+    )

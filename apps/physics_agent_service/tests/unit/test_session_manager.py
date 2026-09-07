@@ -876,3 +876,11 @@ class TestSessionIdValidationEveryMethod:
         manager = SessionManager(tmp_path)
         with pytest.raises(ValueError, match="Invalid session_id"):
             await manager.get_artifact_stream(self.BAD_ID, "predictions")
+
+
+@pytest.mark.asyncio
+async def test_request_pipeline_cancellation_rejects_missing_session(
+    tmp_path: str,
+) -> None:
+    manager = SessionManager(tmp_path)
+    assert await manager.request_pipeline_cancellation(str(uuid4())) is False

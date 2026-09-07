@@ -24,7 +24,7 @@ from ...service.runtime.bus import EventBus, get_event_bus
 from ...service.runtime.events import ProgressEvent, StepState
 from ...service.runtime.registry import JobRegistry, get_job_registry
 from ...service.session import storage as session_storage
-from ...service.storage.base import SessionStore
+from ...service.storage.base import SessionStoragePathError, SessionStore
 from ...service.storage.local_store import LocalSessionStore
 
 
@@ -174,6 +174,63 @@ async def test_local_store_remaining_branches(tmp_path: Path) -> None:
         local_dir / "input" / "nested" / ".pipeline_temp" / "config.yaml"
     ).exists()
     assert await store.sync_to_local("sid", str(local_dir), prefix="input/") == 0
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_local_store_reports_unsafe_symlinked_root(tmp_path: Path) -> None:
+    target = tmp_path / "real-root"
+    target.mkdir()
+    symlink_root = tmp_path / "symlink-root"
+    symlink_root.symlink_to(target, target_is_directory=True)
+    store = LocalSessionStore(str(symlink_root))
+
+    with pytest.raises(SessionStoragePathError, match="storage root is unsafe"):
+        await store.init_session("sid")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_local_store_retry_and_absent_root_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from ...service.storage import local_store as local_store_module
+
+    store = LocalSessionStore(str(tmp_path / "sessions"))
+    calls = 0
+
+    def retry_delete(path: Path, root: Path) -> None:
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise OSError("busy")
+
+    async def no_sleep(delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(local_store_module, "remove_confined_tree", retry_delete)
+    monkeypatch.setattr(local_store_module.asyncio, "sleep", no_sleep)
+    await store.delete_session("sid")
+    assert calls == 3
+
+    monkeypatch.setattr(
+        local_store_module,
+        "remove_confined_tree",
+        lambda *args: (_ for _ in ()).throw(OSError("still busy")),
+    )
+    with pytest.raises(OSError, match="still busy"):
+        await store.delete_session("sid")
+
+    await store.delete_file("sid", "missing.txt")
+    assert await store.get_event_log("../invalid") == []
+    assert await store.sync_to_local("../invalid", str(tmp_path / "copy")) == 0
+
+    monkeypatch.setattr(
+        local_store_module,
+        "open_confined_directory",
+        lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError()),
+    )
+    assert await store.sync_to_local("sid", str(tmp_path / "copy")) == 0
 
 
 @pytest.mark.unit

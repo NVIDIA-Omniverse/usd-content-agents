@@ -7,6 +7,7 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 # Import telemetry initialization functions
 from world_understanding.telemetry import (
@@ -18,9 +19,22 @@ from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     log_durable_failure,
 )
-from world_understanding.utils.logging import setup_logging
+from world_understanding.utils.logging import (
+    configure_service_standard_streams,
+    setup_logging,
+)
 from world_understanding.utils.public_response import (
     PublicJsonResponseSanitizationMiddleware,
+)
+from world_understanding.utils.service_auth import (
+    SESSION_COOKIE_MAX_AGE,
+    SESSION_COOKIE_NAME,
+    auth_is_enforced,
+    build_token_dependency,
+    log_auth_posture,
+    mint_session_cookie,
+    request_scheme,
+    resolve_expected_token,
 )
 
 from .utils import AccessLogFilter
@@ -44,11 +58,11 @@ for path in [str(apps_dir), str(repo_root)]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import io  # noqa: E402
 import os  # noqa: E402
+import secrets  # noqa: E402
 
 from dotenv import dotenv_values, load_dotenv  # noqa: E402
-from fastapi import FastAPI, HTTPException, Request  # noqa: E402
+from fastapi import Depends, FastAPI, HTTPException, Request, Response  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
@@ -77,10 +91,6 @@ load_dotenv()
 
 # setup logging from config
 setup_logging()
-
-if sys.platform == "win32":  # pragma: no cover
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # Configure logging
 logging.basicConfig(
@@ -235,6 +245,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
     # Startup
     logger.info("Starting Material Agent Service...")
+    log_auth_posture(logger, _TOKEN_ENV_NAMES, service_label="Material Agent Service")
     uvicorn_access_logger = logging.getLogger("uvicorn.access")
     uvicorn_access_logger.addFilter(AccessLogFilter())
 
@@ -381,6 +392,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+MATERIAL_TOKEN_ENV = "MATERIAL_AGENT_TOKEN"
+_TOKEN_ENV_NAMES = (MATERIAL_TOKEN_ENV,)
+require_service_token = build_token_dependency(
+    _TOKEN_ENV_NAMES, service_label="Material Agent Service"
+)
+
 # Instrument FastAPI app with OpenTelemetry if available
 if OTEL_INSTRUMENTATION_AVAILABLE:
     FastAPIInstrumentor.instrument_app(app)
@@ -405,7 +422,10 @@ app.add_middleware(
 # subclass (not all ValueError) so unrelated ValueError bugs still surface as
 # 500 — otherwise pydantic / type-conversion errors would silently map to 400.
 from .session.manager import InvalidSessionIdError  # noqa: E402
-from .storage.base import SessionMetadataContentionError  # noqa: E402
+from .storage.base import (  # noqa: E402
+    SessionMetadataContentionError,
+    SessionStoragePathError,
+)
 
 
 @app.exception_handler(InvalidSessionIdError)
@@ -413,6 +433,20 @@ async def _invalid_session_id_handler(
     request: Request, exc: InvalidSessionIdError
 ) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(SessionStoragePathError)
+async def _session_storage_path_handler(
+    request: Request, exc: SessionStoragePathError
+) -> JSONResponse:
+    """Return a safe, actionable response for an unsafe storage root."""
+    del request, exc
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Session storage is unavailable; configure a non-symlinked storage root."
+        },
+    )
 
 
 @app.exception_handler(SessionMetadataContentionError)
@@ -430,11 +464,32 @@ async def _session_metadata_contention_handler(
 
 
 # Include routers
-app.include_router(pipeline_router.router)
-app.include_router(artifacts_router.router)
-app.include_router(assets_router.router)
-app.include_router(sessions_router.router)
-app.include_router(materials_router.router)
+app.include_router(
+    pipeline_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(
+    artifacts_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(assets_router.router, dependencies=[Depends(require_service_token)])
+app.include_router(
+    sessions_router.router, dependencies=[Depends(require_service_token)]
+)
+app.include_router(
+    materials_router.router, dependencies=[Depends(require_service_token)]
+)
+
+_default_openapi = app.openapi
+
+
+def _openapi_with_nvcf_version() -> dict[str, Any]:
+    """Build OpenAPI metadata that identifies the serving NVCF version."""
+    schema: dict[str, Any] = _default_openapi()
+    if version_id := os.getenv("NVCF_FUNCTION_VERSION_ID"):
+        schema["info"]["x-nvcf-function-version-id"] = version_id
+    return schema
+
+
+app.openapi = _openapi_with_nvcf_version
 
 # Mount docs/images as static files for user manual
 docs_images_path = Path(__file__).parent.parent / "docs" / "images"
@@ -490,12 +545,76 @@ async def serve_license_body():
         raise HTTPException(status_code=404, detail="License body file not found")
 
 
+# Browser session exchange. Unprotected by design: it is how a browser obtains
+# a credential in the first place, and it validates the token itself.
+#
+# A browser cannot attach an Authorization header to an EventSource stream, an
+# <img> source, or a download navigation, so a header-only scheme leaves the
+# web UI unusable whenever MATERIAL_AGENT_TOKEN is set. The cookie is signed,
+# expiring, and derived from the token rather than containing it. See
+# world_understanding/utils/service_auth.py and issue #973.
+@app.post("/auth/session", status_code=204)
+async def create_auth_session(request: Request, response: Response) -> Response:
+    """Exchange a bearer token for a short-lived session cookie."""
+    expected = resolve_expected_token(_TOKEN_ENV_NAMES)
+    if expected is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This service is not configured for authentication, so there "
+                "is no session to establish."
+            ),
+        )
+
+    header = request.headers.get("Authorization", "")
+    scheme, _, supplied = header.partition(" ")
+    if scheme.lower() != "bearer" or not supplied:
+        raise HTTPException(
+            status_code=401,
+            detail="Send the service token as an Authorization: Bearer header.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not secrets.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8")):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid service token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=mint_session_cookie(expected, service_label="Material Agent Service"),
+        max_age=SESSION_COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="strict",
+        # Secure is omitted on plain HTTP so localhost development works.
+        # X-Forwarded-Proto is consulted because TLS is usually terminated
+        # upstream (ingress, NVCF), where request.url.scheme is http. Trusting
+        # a spoofed value only ever ADDS Secure, which fails safe: the cookie
+        # stops being sent over plain HTTP rather than becoming forgeable.
+        secure=request_scheme(request) == "https",
+        path="/",
+    )
+    response.status_code = 204
+    return response
+
+
+@app.delete("/auth/session", status_code=204)
+async def delete_auth_session(response: Response) -> Response:
+    """Clear the session cookie."""
+    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
+    response.status_code = 204
+    return response
+
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
+        "auth_enforced": auth_is_enforced(_TOKEN_ENV_NAMES),
         "service": config.service_name,
         "version": config.service_version,
         "api_keys_configured": config.has_required_api_keys,
@@ -509,8 +628,8 @@ async def get_vlm_models():
     """Return available VLM models for the UI dropdown."""
     models = [
         {
-            "value": "nim/google/gemma-4-31b-it",
-            "label": "Gemma 4 31B (Default)",
+            "value": "nim/moonshotai/kimi-k3",
+            "label": "Kimi K3 (Default)",
             "is_default": True,
         },
         {
@@ -577,6 +696,7 @@ def main():
     """Entry point for running the service."""
     import uvicorn
 
+    configure_service_standard_streams()
     uvicorn.run(
         "service.main:app",
         host="0.0.0.0",

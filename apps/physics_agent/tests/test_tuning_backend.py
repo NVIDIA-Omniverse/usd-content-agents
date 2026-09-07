@@ -69,6 +69,7 @@ def test_fake_backend_is_deterministic() -> None:
     assert a == b
     assert "score" in a
     assert isinstance(a["score"], float)
+    assert a["objective_value"] == a["score"]
 
 
 def test_fake_backend_score_minimised_at_seeded_optimum() -> None:
@@ -91,6 +92,7 @@ def test_fake_backend_score_minimised_at_seeded_optimum() -> None:
         seed=99,
     )
     assert res_at_optimum["score"] == pytest.approx(0.0, abs=1e-12)
+    assert res_at_optimum["objective_value"] == res_at_optimum["score"]
     assert res["score"] > 0.0
 
 
@@ -99,8 +101,8 @@ def test_load_ovphysx_does_not_import_ovphysx_in_parent(
 ) -> None:
     """The daemon-isolation contract: the parent process must NOT import
     ``ovphysx`` when ``--engine ovphysx`` is selected. ovphysx ships a
-    bundled OpenUSD that conflicts with ``usd-core``, so any parent-side
-    import either crashes or rejects daemon-only installs (where ovphysx
+    bundled OpenUSD that conflicts with the parent's OpenUSD provider, so any
+    parent-side import either crashes or rejects daemon-only installs (where ovphysx
     lives only in the daemon venv). This test pins the contract by
     blocking ``ovphysx`` at import time and verifying the loader still
     succeeds — the daemon's startup handshake is the authoritative

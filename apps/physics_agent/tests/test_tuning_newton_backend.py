@@ -337,6 +337,45 @@ def test_drop_settle_dispatch_does_not_inject_judge_callback(
     assert "settle_distance" in result
 
 
+def test_drop_settle_trials_share_ground_clearance_support_cache(
+    fake_simulator: _FakeSimulator,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unchanged source geometry must reuse one backend-owned cache entry."""
+    from physics_agent.tuning.scenarios import drop_settle as drop_settle_mod
+
+    calls: list[dict[str, Any]] = []
+
+    def _capture(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        cache = kwargs["ground_clearance_support_cache"]
+        key = kwargs["ground_clearance_support_cache_key"]
+        cache.setdefault(key, {"selected_mode": "mesh_vertices"})
+        return {"score": 0.0}
+
+    monkeypatch.setattr(drop_settle_mod, "evaluate", _capture)
+
+    physics_usd = _physics_usd(tmp_path)
+    backend = NewtonBackend()
+    for seed in (10, 11):
+        backend.evaluate(
+            params={"mass_scale": 1.0},
+            scenario=_drop_settle_scenario(),
+            physics_usd=physics_usd,
+            seed=seed,
+        )
+
+    assert len(calls) == 2
+    first_cache = calls[0]["ground_clearance_support_cache"]
+    first_key = calls[0]["ground_clearance_support_cache_key"]
+    assert first_cache is backend._ground_clearance_support_cache
+    assert calls[1]["ground_clearance_support_cache"] is first_cache
+    assert calls[1]["ground_clearance_support_cache_key"] == first_key
+    assert first_key == f"physics_usd:{physics_usd.resolve()}"
+    assert first_cache[first_key] == {"selected_mode": "mesh_vertices"}
+
+
 def test_direct_evaluate_resolves_newton_contact_bindings(
     fake_simulator: _FakeSimulator,
     tmp_path: Path,

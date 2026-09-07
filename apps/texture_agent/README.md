@@ -3,6 +3,12 @@
 AI-driven texture generation and application for USD assets with OpenPBR,
 MaterialX, and MDL-style material metadata.
 
+> **Content Agents 0.6:** this package is the fixed pipeline, config-driven texture
+> workflow. Start unqualified texture-authoring tasks from the repository root
+> with the default agentic Content Workflow. Use `texture-agent` when you
+> explicitly need fixed pipeline steps, YAML configuration, Python APIs, or the
+> matching REST contract.
+
 ## Overview
 
 The Texture Agent takes a USD file with materials already assigned (e.g., output of the Material Agent) and fills empty texture slots with AI-generated texture maps -- transforming flat, constant-color surfaces into visually rich textured ones.
@@ -46,9 +52,9 @@ arbitrary USDs may require asset-specific UV or backend configuration.
 
 ## Prefer the REST service?
 
-This README covers the `texture-agent` CLI (Option B in the root
-[README](../../README.md#three-ways-to-use-content-agents)). If you'd rather drive the same
-pipeline over HTTP with session management and progress streaming, see
+This README covers the explicit fixed pipeline `texture-agent` CLI described in the
+root [execution-mode guide](../../README.md#choose-an-execution-mode). If you'd
+rather drive the same fixed pipeline over HTTP with session management and progress streaming, see
 [`../texture_agent_service/`](../texture_agent_service/). Its default Compose
 stack starts the Texture Agent service only; optional service-backend runs
 target an operator-provided Texture Variation API endpoint.
@@ -80,6 +86,12 @@ evidence these tasks produce. Options:
 - **Render with local OVRTX** — set `backend: ovrtx` and provide the local OVRTX runtime/GPU prerequisites.
 - **Run a CPU-only rendering smoke test** — set `backend: mock`. Mock images are deterministic placeholders for pipeline testing and are not production visual evidence of texture quality.
 - **Skip the rendering steps** — use `--skip render_previews,render`, or disable them in the config's `steps.render_previews.enabled` / `steps.render.enabled`. Texture generation and application still run; you just don't get previews or a final composite.
+
+Final remote rendering treats the run working directory as an explicit trusted
+bundle root. That permits `output/textured_output.usd` to reference the sibling
+`textures/` directory while still rejecting traversal outside the run,
+unrelated siblings, and symlink escapes. Keep `output/` and `textures/`
+together when moving a run.
 
 ## Quick Start
 
@@ -156,7 +168,10 @@ texture:
 invalid, repaired, generated, and out-of-range UV conditions are inspectable.
 Use `uv_scope: target_prims` when forced projection should apply only to
 geometry prims listed in `material_textures.<name>.prim_paths` or
-`texture.uv_target_prim_paths`.
+`texture.uv_target_prim_paths`. Once an executable texture plan exists, its
+selected geometry members become the authoritative target scope; legacy path
+fields cannot widen it, and all selected members are retained across targeted
+retries.
 Scene Optimizer atlas unwrap is opt-in with `uv_backend: scene_optimizer` and
 `uv_generation_mode: atlas`; authored UVs are still preserved unless overwrite
 is explicitly requested.
@@ -168,9 +183,9 @@ By default, `material_textures` is also a strict processing scope: materials
 not listed there are skipped. Set `auto_prompt.enabled: true` to generate
 prompts for discovered materials that are missing explicit specs.
 
-For the Step1X service backend, transparent overlay, decal, label, and sticker
-targets are rejected before backend dispatch by default. This avoids sending
-thin overlay geometry to Step1X. Set
+For Step1X-compatible service backends, transparent overlay, decal, label, and
+sticker targets are rejected before backend dispatch by default. This avoids
+sending thin overlay geometry to a backend known to reject it. Set
 `texture.custom_parameters.allow_step1x_overlay_targets: true` only when that is
 the intended target and the asset has been validated for it.
 

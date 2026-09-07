@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import pytest
@@ -120,6 +121,46 @@ def test_corner_framing_supports_per_axis_overrides() -> None:
 
     assert camera_position == (10.0, 11.0, 12.0)
     assert look_at == (1.0, 2.0, 3.0)
+
+
+def test_corner_framing_uses_projected_bounds_for_elongated_assets() -> None:
+    from world_understanding.utils.usd.camera import (
+        compute_camera_framing_position_corners,
+    )
+
+    bbox_min = (-5.0, -0.2, -0.1)
+    bbox_max = (5.0, 0.2, 0.1)
+    camera, target = compute_camera_framing_position_corners(
+        bbox_min,
+        bbox_max,
+        direction="+x+y+z",
+        margin=1.2,
+        focal_length=50.0,
+        horizontal_aperture=36.0,
+        vertical_aperture=36.0,
+        up_axis="z",
+    )
+
+    forward = Gf.Vec3d(*(camera[index] - target[index] for index in range(3)))
+    forward.Normalize()
+    right = Gf.Cross(Gf.Vec3d(0.0, 0.0, 1.0), forward).GetNormalized()
+    up = Gf.Cross(forward, right).GetNormalized()
+    tan_half_fov = 36.0 / (2.0 * 50.0)
+    maximum_image_extent = 0.0
+    for x in (bbox_min[0], bbox_max[0]):
+        for y in (bbox_min[1], bbox_max[1]):
+            for z in (bbox_min[2], bbox_max[2]):
+                point = Gf.Vec3d(x, y, z)
+                camera_to_point = point - Gf.Vec3d(*camera)
+                depth = Gf.Dot(camera_to_point, -forward)
+                maximum_image_extent = max(
+                    maximum_image_extent,
+                    abs(Gf.Dot(point - Gf.Vec3d(*target), right))
+                    / (depth * tan_half_fov),
+                    abs(Gf.Dot(point - Gf.Vec3d(*target), up)) / (depth * tan_half_fov),
+                )
+
+    assert 0.75 < maximum_image_extent <= 1.0
 
 
 def test_side_camera_updates_existing_prim_at_time_sample() -> None:
@@ -290,6 +331,29 @@ def test_corner_camera_uses_fallback_up_for_y_up_parallel_view() -> None:
     matrix = UsdGeom.Xformable(camera).GetLocalTransformation()
     right = Gf.Vec3d(matrix[0][0], matrix[1][0], matrix[2][0])
     assert right.GetLength() == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize(
+    ("direction", "up_axis"),
+    (("+0x+0y+z", "z"), ("+0x+y+0z", "y")),
+)
+def test_corner_framing_uses_fallback_up_for_axis_aligned_direction(
+    direction: str,
+    up_axis: str,
+) -> None:
+    from world_understanding.utils.usd.camera import (
+        compute_camera_framing_position_corners,
+    )
+
+    camera_position, target = compute_camera_framing_position_corners(
+        (-1.0, -1.0, -1.0),
+        (1.0, 1.0, 1.0),
+        direction=direction,
+        up_axis=up_axis,
+    )
+
+    assert camera_position != target
+    assert all(math.isfinite(value) for value in camera_position)
 
 
 def test_focused_corner_camera_uses_target_prim_stage() -> None:

@@ -8,10 +8,12 @@ is a drop-in replacement.
 
 from __future__ import annotations
 
+import math
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from service.protocol import PROTOCOL_VERSION
 from world_understanding.functions.graphics.material_targets import RenderMaterialTarget
 
 # Render-mode strings the caller can pass — keep the tokens identical to the
@@ -30,8 +32,8 @@ class FrameRange(BaseModel):
 class CameraParameters(BaseModel):
     """Camera resolution parameters."""
 
-    width: int = 1024
-    height: int = 1024
+    width: int = Field(default=1024, ge=1, le=8192)
+    height: int = Field(default=1024, ge=1, le=8192)
 
 
 class RenderSettings(BaseModel):
@@ -58,6 +60,7 @@ class RenderSettings(BaseModel):
     num_sensor_updates: int | None = Field(
         default=None,
         ge=1,
+        le=5000,
         description=(
             "Number of progressive ``renderer.step(delta_time=0)`` "
             "iterations per frame. This is the guarded quality knob "
@@ -102,6 +105,15 @@ class RenderResponse(BaseModel):
     status: str = "success"
     error: str | None = None
     images: dict[str, dict[str, dict[str, str]]] = Field(default_factory=dict)
+    error_code: str | None = None
+    retryable: bool = False
+    requested_output_count: int | None = None
+    output_count: int | None = None
+    missing_output_count: int | None = None
+    missing_camera_count: int | None = None
+    ovrtx_render_mode: RenderMode | None = None
+    ovrtx_num_sensor_updates: int | None = Field(default=None, ge=1, le=5000)
+    active_aov: str | None = None
 
 
 class HealthResponse(BaseModel):
@@ -111,6 +123,7 @@ class HealthResponse(BaseModel):
     service: str = "ovrtx-rendering-api"
     version: str = "0.1.0"
     renderer: str = "ovrtx"
+    protocol_version: int = PROTOCOL_VERSION
     gpu_initialized: bool = False
     renderer_initialized: bool = False
     daemon_running: bool = False
@@ -123,3 +136,89 @@ class HealthResponse(BaseModel):
     ready_workers: int | None = None
     total_workers: int | None = None
     workers: list[dict[str, Any]] | None = None
+
+
+class ProtocolV3CameraDef(BaseModel):
+    """One package-owned usd-cli render camera transmitted out of band."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(..., min_length=1, max_length=2048)
+    matrix: list[float] = Field(..., min_length=16, max_length=16)
+    focal_length: float | None = Field(None, gt=0)
+    horizontal_aperture: float | None = Field(None, gt=0)
+    vertical_aperture: float | None = Field(None, gt=0)
+    clipping_range: list[float] | None = Field(None, min_length=2, max_length=2)
+    projection: Literal["perspective", "orthographic"] | None = None
+
+    @model_validator(mode="after")
+    def _finite_and_sane(self) -> ProtocolV3CameraDef:
+        values = list(self.matrix) + [
+            value
+            for value in (
+                self.focal_length,
+                self.horizontal_aperture,
+                self.vertical_aperture,
+            )
+            if value is not None
+        ]
+        if self.clipping_range is not None:
+            values.extend(self.clipping_range)
+            near, far = self.clipping_range
+            if not 0 < near < far:
+                raise ValueError("clipping_range must satisfy 0 < near < far")
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError("camera values must be finite")
+        return self
+
+
+class ProtocolV3RenderUploadParams(BaseModel):
+    """Multipart render parameters spoken by usd-cli remote protocol v3."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    cameras: list[str] = Field(..., min_length=1, max_length=8)
+    image_width: int = Field(1024, ge=1, le=4096)
+    image_height: int = Field(1024, ge=1, le=4096)
+    mode: Literal["fast", "quality"] = Field(
+        "quality",
+        description=(
+            "Protocol-compatible client intent. The standalone service's "
+            "OVRTX_RENDER_MODE instance policy remains authoritative; every "
+            "result reports the exact mode that executed."
+        ),
+    )
+    compression: Literal["none", "gzip"] = "none"
+    frames: list[float] | None = Field(None, min_length=1, max_length=240)
+    camera_defs: list[ProtocolV3CameraDef] | None = Field(None, max_length=8)
+
+    @model_validator(mode="after")
+    def _bounded_render(self) -> ProtocolV3RenderUploadParams:
+        frames = self.frames or [0.0]
+        if not all(math.isfinite(frame) for frame in frames):
+            raise ValueError("frames must be finite")
+        renders = len(self.cameras) * len(frames)
+        if renders > 240:
+            raise ValueError("cameras x frames exceeds 240 renders per request")
+        if self.image_width * self.image_height > 16_777_216:
+            raise ValueError("image dimensions exceed 16,777,216 pixels")
+        if renders * self.image_width * self.image_height > 268_435_456:
+            raise ValueError("total render output exceeds the request pixel budget")
+        return self
+
+
+class ProtocolV3RenderResultItem(BaseModel):
+    """One protocol-v3 camera/frame render."""
+
+    camera: str
+    image_base64: str
+    frame: float | None = None
+    ovrtx_render_mode: RenderMode
+    ovrtx_num_sensor_updates: int = Field(..., ge=1, le=5000)
+    active_aov: str = Field(..., min_length=1)
+
+
+class ProtocolV3RenderResponse(BaseModel):
+    """Package-owned usd-cli protocol-v3 render response."""
+
+    results: list[ProtocolV3RenderResultItem] = Field(..., max_length=240)

@@ -21,6 +21,7 @@ from world_understanding.utils.artifacts import (
     open_held_confined_artifact,
     remove_confined_tree,
 )
+from world_understanding.utils.credentials import redact_sensitive_log_text
 from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     log_durable_failure,
@@ -883,7 +884,6 @@ class SessionManager:
                     and current_marker == publication_marker
                 ):
                     return path
-
         return None
 
     async def get_immutable_local_artifact_path_with_filename(
@@ -1054,7 +1054,7 @@ class SessionManager:
                 logger.warning(
                     "Ignoring invalid Joint Rigger publication identity for %s: %r",
                     session_id[:8],
-                    publication_id_value,
+                    redact_sensitive_log_text(publication_id_value),
                 )
                 return (), publication_marker
             publication_relative_paths = relative_paths
@@ -1083,7 +1083,7 @@ class SessionManager:
                 "Ignoring invalid %s binding for %s: %r",
                 artifact_type,
                 session_id[:8],
-                bound_key,
+                redact_sensitive_log_text(bound_key),
             )
             return (), publication_marker
         return (bound_key,), publication_marker

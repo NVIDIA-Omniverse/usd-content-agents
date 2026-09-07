@@ -1,0 +1,136 @@
+#usda 1.0
+(
+    "Material Library for small_sledgehammer. "
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "Materials"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+class Scope "Materials"
+{
+    def Material "opaque__hammer__wood" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/small_sledge_hammer_01_a.png@
+        float inputs:ior = 1.5
+        float inputs:metallic = 0
+        asset inputs:NormalTexture = @./Textures/small_sledge_hammer_01_n.png@
+        float inputs:opacity = 1
+        float inputs:roughness = 0.85
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/opaque__hammer__wood/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/opaque__hammer__wood/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/opaque__hammer__wood/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/opaque__hammer__wood.inputs:ior>
+            float inputs:metallic.connect = </Materials/opaque__hammer__wood.inputs:metallic>
+            normal3f inputs:normal.connect = </Materials/opaque__hammer__wood/NormalTexture.outputs:rgb>
+            float inputs:opacity.connect = </Materials/opaque__hammer__wood.inputs:opacity>
+            float inputs:roughness.connect = </Materials/opaque__hammer__wood.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/opaque__hammer__wood.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/opaque__hammer__wood/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/opaque__hammer__wood.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/opaque__hammer__wood.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "NormalTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:bias = (-1, -1, -1, 0)
+            float4 inputs:fallback = (0, 0, 1, 1)
+            asset inputs:file.connect = </Materials/opaque__hammer__wood.inputs:NormalTexture>
+            float4 inputs:scale = (2, 2, 2, 1)
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/opaque__hammer__wood/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/opaque__hammer__wood.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/opaque__hammer__wood.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+    }
+
+    def Material "opaque__metal__small_sledge_hammer_01" (
+        instanceable = true
+    )
+    {
+        asset inputs:DiffuseTexture = @./Textures/small_sledge_hammer_01_a.png@
+        float inputs:ior = 1.45
+        float inputs:metallic = 1
+        asset inputs:NormalTexture = @./Textures/small_sledge_hammer_01_n.png@
+        float inputs:opacity = 1
+        float inputs:roughness = 0.4
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement.connect = </Materials/opaque__metal__small_sledge_hammer_01/PreviewSurface.outputs:displacement>
+        token outputs:surface.connect = </Materials/opaque__metal__small_sledge_hammer_01/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor.connect = </Materials/opaque__metal__small_sledge_hammer_01/DiffuseTexture.outputs:rgb>
+            float inputs:ior.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:ior>
+            float inputs:metallic.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:metallic>
+            normal3f inputs:normal.connect = </Materials/opaque__metal__small_sledge_hammer_01/NormalTexture.outputs:rgb>
+            float inputs:opacity.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:opacity>
+            float inputs:roughness.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+
+        def Shader "DiffuseTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:fallback = (0.31854683, 0.31854683, 0.31854683, 1)
+            asset inputs:file.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:DiffuseTexture>
+            token inputs:sourceColorSpace = "auto"
+            float2 inputs:st.connect = </Materials/opaque__metal__small_sledge_hammer_01/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+
+        def Shader "Primvar_st_float2"
+        {
+            uniform token info:id = "UsdPrimvarReader_float2"
+            string inputs:varname = "st"
+            float2 outputs:result
+        }
+
+        def Shader "NormalTexture"
+        {
+            uniform token info:id = "UsdUVTexture"
+            float4 inputs:bias = (-1, -1, -1, 0)
+            float4 inputs:fallback = (0, 0, 1, 1)
+            asset inputs:file.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:NormalTexture>
+            float4 inputs:scale = (2, 2, 2, 1)
+            token inputs:sourceColorSpace = "raw"
+            float2 inputs:st.connect = </Materials/opaque__metal__small_sledge_hammer_01/Primvar_st_float2.outputs:result>
+            token inputs:wrapS.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:wrapMode>
+            token inputs:wrapT.connect = </Materials/opaque__metal__small_sledge_hammer_01.inputs:wrapMode>
+            float3 outputs:rgb
+        }
+    }
+}

@@ -12,6 +12,7 @@ Shared across all agents (physics-agent, joint-agent, etc.).
 
 import json
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -59,8 +60,13 @@ class IdentifyAssetTask(Task):
         listener = get_listener(context, logger_name=__name__)
 
         vlm = context.get("vlm")
+        raw_vlm_config = context.get("vlm_config") or {}
+        vlm_config: dict[str, Any] = (
+            dict(raw_vlm_config) if isinstance(raw_vlm_config, Mapping) else {}
+        )
         if isinstance(vlm, dict):
             context.setdefault("vlm_config", vlm)
+            vlm_config = dict(vlm)
             vlm = None
         elif vlm is not None and not hasattr(vlm, "generate_with_image_caption_pairs"):
             raise TypeError(
@@ -75,7 +81,7 @@ class IdentifyAssetTask(Task):
 
         # Self-contained: provision VLM if not already in context
         if vlm is None:
-            vlm_config = apply_vlm_nim_env_override(context.get("vlm_config", {}))
+            vlm_config = apply_vlm_nim_env_override(vlm_config)
             backend = vlm_config.get("backend", "nim")
             model = vlm_config.get("model")
             listener.info(
@@ -139,11 +145,54 @@ class IdentifyAssetTask(Task):
                     (f"3D preview of the asset (view {idx + 1}):", img_path)
                 )
 
+            vlm_invoke_kwargs = {
+                key: value
+                for key, value in vlm_config.items()
+                if key
+                in {
+                    "frequency_penalty",
+                    "max_completion_tokens",
+                    "max_tokens",
+                    "presence_penalty",
+                    "reasoning_effort",
+                    "temperature",
+                    "top_k",
+                    "top_p",
+                }
+                and value is not None
+            }
+            raw_vlm_invoke_kwargs = context.get("vlm_invoke_kwargs") or {}
+            if isinstance(raw_vlm_invoke_kwargs, Mapping):
+                vlm_invoke_kwargs.update(
+                    {
+                        key: value
+                        for key, value in raw_vlm_invoke_kwargs.items()
+                        if value is not None
+                    }
+                )
+            extra_vlm_invoke_kwargs = {
+                key: value
+                for key, value in vlm_invoke_kwargs.items()
+                if key
+                not in {
+                    "max_completion_tokens",
+                    "max_retries",
+                    "max_tokens",
+                    "temperature",
+                }
+            }
+            max_tokens = vlm_invoke_kwargs.get("max_tokens")
+            if max_tokens is None:
+                max_tokens = vlm_invoke_kwargs.get("max_completion_tokens")
+
             response_text = vlm.generate_with_image_caption_pairs(
                 image_caption_pairs=image_caption_pairs,
                 final_prompt=user_prompt,
                 system_prompt=system_prompt
                 or "You are an expert at identifying 3D objects.",
+                temperature=vlm_invoke_kwargs.get("temperature"),
+                max_tokens=max_tokens,
+                **extra_vlm_invoke_kwargs,
             )
 
             identification = self._parse_identification(response_text)

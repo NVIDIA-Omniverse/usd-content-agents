@@ -683,7 +683,7 @@ def _is_low_contrast(
     percentile_range = float(np.percentile(luma, 95) - np.percentile(luma, 5))
     return (
         luma_std <= low_contrast_std_threshold
-        or percentile_range <= low_contrast_percentile_range_threshold
+        and percentile_range <= low_contrast_percentile_range_threshold
     )
 
 

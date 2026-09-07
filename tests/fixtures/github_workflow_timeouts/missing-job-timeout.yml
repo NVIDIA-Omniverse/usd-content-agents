@@ -1,0 +1,7 @@
+name: missing job timeout
+on: push
+jobs:
+  unbounded:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unbounded

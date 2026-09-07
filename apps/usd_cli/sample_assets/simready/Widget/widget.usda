@@ -1,0 +1,22 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "widget"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "widget" (
+    prepend apiSchemas = ["GeomModelAPI"]
+    assetInfo = {
+        string name = "widget"
+    }
+    kind = "component"
+    prepend payload = @./Payload/Contents.usda@
+)
+{
+    float3[] extentsHint = [(-0.155984, -0.155984, -0.156), (0.155984, 0.155984, 0.156)]
+}

@@ -30,6 +30,7 @@ class ChatModelRegistry:
         factory: Callable[..., Any],
         *,
         requires_api_key: bool | None = None,
+        capabilities: frozenset[str] | None = None,
     ) -> None:
         """Register a chat model factory function.
 
@@ -40,6 +41,8 @@ class ChatModelRegistry:
                 API key before calling the factory. When omitted, an existing
                 backend keeps its current setting and a new backend defaults to
                 requiring a key.
+            capabilities: Optional request features accepted by the backend.
+                When omitted, an existing backend keeps its declarations.
         """
         try:
             chat_backend_requires_api_key(name)
@@ -51,6 +54,7 @@ class ChatModelRegistry:
             name,
             factory,
             requires_api_key=requires_api_key,
+            capabilities=capabilities,
         )
         logger.info(f"Registered chat model: {name}")
 

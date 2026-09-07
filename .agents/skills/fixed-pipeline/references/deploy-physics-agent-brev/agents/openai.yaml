@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Physics Agent Brev"
+  short_description: "Fixed pipeline: Run the hybrid Brev physics-agent deployment."
+  default_prompt: "Use $fixed-pipeline to deploy or smoke-test Physics Agent with Brev-hosted OVRTX rendering and a Qwen VLM endpoint, including service-side refine with a registered provider."

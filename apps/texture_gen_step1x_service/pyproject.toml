@@ -13,6 +13,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "pydantic>=2.9.0",
     "Pillow>=10.0.0",
+    "numpy>=2.3,<3.0.0",
     "python-dotenv>=1.0.0",
     "world-understanding>=0.4.2",
     "texture-gen-service-common>=0.4.2",
@@ -37,7 +38,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -47,6 +48,7 @@ source = "uv-dynamic-versioning"
 "__init__.py" = "apps/texture_gen_step1x_service/__init__.py"
 "app.py" = "apps/texture_gen_step1x_service/app.py"
 "backend.py" = "apps/texture_gen_step1x_service/backend.py"
+"weathering.py" = "apps/texture_gen_step1x_service/weathering.py"
 "README.md" = "apps/texture_gen_step1x_service/README.md"
 "scripts/smoke.py" = "apps/texture_gen_step1x_service/scripts/smoke.py"
 

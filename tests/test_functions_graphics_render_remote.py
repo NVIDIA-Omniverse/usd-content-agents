@@ -3,6 +3,7 @@
 """Tests for remote render response parsing, including V2-to-V1 conversion."""
 
 import base64
+import inspect
 import io
 import json
 import threading
@@ -47,6 +48,32 @@ def _png_b64(color: tuple[int, int, int] = (1, 2, 3)) -> str:
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        ({"images": []}, (0, 1)),
+        ({"images": {"0": {"/Camera": "not-camera-data"}}}, (0, 1)),
+        (
+            {"images": {"0": {"/Camera": {"images": "not-an-image"}}}},
+            (0, 1),
+        ),
+    ],
+)
+def test_color_output_coverage_rejects_malformed_payloads(
+    result: dict[str, object],
+    expected: tuple[int, int],
+) -> None:
+    assert (
+        render_remote._color_output_coverage(
+            result,
+            cameras=["/Camera"],
+            frame_start=0,
+            frame_end=0,
+        )
+        == expected
+    )
+
+
 def test_legacy_render_nvcf_module_aliases_remote_helpers() -> None:
     """Old NVCF module imports should keep working during the rename window."""
     from world_understanding.functions.graphics.render_nvcf import (
@@ -70,6 +97,7 @@ def test_export_stage_to_s3_encodes_asset_bundle_as_data_uri(
         stage: object,
         temp_dir: Path,
         base_dir: object | None = None,
+        asset_root: object | None = None,
         has_local_composition_arcs: bool | None = None,
         add_preview_fallbacks: bool | None = None,
     ) -> tuple[Path, bool]:
@@ -114,6 +142,7 @@ def test_export_stage_to_s3_uploads_bundle_and_ignores_cleanup_error(
         stage: object,
         temp_dir: Path,
         base_dir: object | None = None,
+        asset_root: object | None = None,
         has_local_composition_arcs: bool | None = None,
         add_preview_fallbacks: bool | None = None,
     ) -> tuple[Path, bool]:
@@ -167,6 +196,7 @@ def test_export_stage_to_s3_cleans_failed_bundle_attempt_and_falls_back(
         stage: object,
         temp_dir: Path,
         base_dir: object | None = None,
+        asset_root: object | None = None,
         has_local_composition_arcs: bool | None = None,
         add_preview_fallbacks: bool | None = None,
     ) -> tuple[None, bool]:
@@ -235,7 +265,7 @@ def test_export_stage_to_s3_fallback_logs_preview_updates_and_unlink_failure(
     ) == ("data:model/vnd.usd;base64,AA==", None)
 
 
-def test_render_all_cameras_passes_base_dir_to_stage_export(
+def test_render_all_cameras_passes_asset_boundaries_to_stage_export(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -243,11 +273,13 @@ def test_render_all_cameras_passes_base_dir_to_stage_export(
 
     def fake_export_stage_to_s3(**kwargs: object) -> tuple[str, str | None]:
         captured["base_dir"] = kwargs.get("base_dir")
+        captured["asset_root"] = kwargs.get("asset_root")
         captured["material_target"] = kwargs.get("material_target")
         return "data:model/vnd.usd;base64,ZmFrZQ==", None
 
     def fake_render_single_camera_from_url(**kwargs: object) -> dict[str, object]:
         captured["render_material_target"] = kwargs.get("material_target")
+        captured["allow_redirects"] = kwargs.get("allow_redirects")
         return {
             "camera": kwargs["camera"],
             "images": [],
@@ -267,15 +299,46 @@ def test_render_all_cameras_passes_base_dir_to_stage_export(
     result = render_all_cameras(
         stage=object(),
         cameras=["/Camera"],
-        base_dir=tmp_path,
+        base_dir=tmp_path / "output",
+        asset_root=tmp_path,
         material_target="openpbr_materialx",
         max_workers=1,
+        allow_redirects=False,
     )
 
-    assert captured["base_dir"] == tmp_path
+    assert captured["base_dir"] == tmp_path / "output"
+    assert captured["asset_root"] == tmp_path
     assert captured["material_target"] == "openpbr_materialx"
     assert captured["render_material_target"] == "openpbr_materialx"
+    assert captured["allow_redirects"] is False
     assert result["successful_cameras"] == 1
+
+
+@pytest.mark.parametrize(
+    ("function", "legacy_tail"),
+    [
+        (
+            export_stage_to_s3,
+            ("base_dir", "add_preview_fallbacks", "material_target"),
+        ),
+        (
+            render_all_cameras,
+            (
+                "num_sensor_updates",
+                "render_mode",
+            ),
+        ),
+    ],
+)
+def test_remote_render_asset_root_is_appended_after_legacy_parameters(
+    function: object,
+    legacy_tail: tuple[str, ...],
+) -> None:
+    """Adding an opt-in boundary must not shift positional callers."""
+    parameters = tuple(inspect.signature(function).parameters)
+
+    assert parameters[-(len(legacy_tail) + 1) : -1] == legacy_tail
+    assert parameters[-1] == "asset_root"
 
 
 def test_render_all_cameras_returns_structured_failure_on_export_error(
@@ -582,8 +645,11 @@ def test_render_all_cameras_sequential_counts_failed_result(
 def test_render_all_cameras_from_url_default_sequential_and_parallel(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    redirect_policies: dict[str, object] = {}
+
     def fake_render_single_camera_from_url(**kwargs: object) -> dict[str, object]:
         camera = kwargs["camera"]
+        redirect_policies[str(camera)] = kwargs["allow_redirects"]
         if camera == "/Raise":
             raise RuntimeError("render failed")
         return {
@@ -615,9 +681,16 @@ def test_render_all_cameras_from_url_default_sequential_and_parallel(
         "https://example.invalid/stage.usd",
         cameras=["/Ok", "/Bad", "/Raise"],
         max_workers=2,
+        allow_redirects=False,
     )
     assert parallel_result["successful_cameras"] == 1
     assert parallel_result["failed_cameras"] == 2
+    assert redirect_policies == {
+        "/Camera": True,
+        "/Ok": False,
+        "/Bad": False,
+        "/Raise": False,
+    }
 
 
 def test_render_all_cameras_from_url_sequential_counts_failed_result(
@@ -721,6 +794,30 @@ def test_save_render_results_writes_images_depth_and_segmentation(
     assert (tmp_path / "scene_f0000_linear_depth.png").exists()
     assert (tmp_path / "scene_f0001_instance_id_segmentation.npy").exists()
     assert (tmp_path / "scene_f0001_instance_id_segmentation.png").exists()
+
+
+def test_save_render_results_preserves_fractional_sensor_frame_label(
+    tmp_path: Path,
+) -> None:
+    result = {
+        "images": [],
+        "sensors": {
+            "linear_depth": {1.5: np.ones((2, 2, 1), dtype=np.float32)},
+        },
+    }
+
+    stats = save_render_results(
+        result,
+        tmp_path,
+        file_name="scene",
+        image_width=2,
+        image_height=2,
+        save_npy=True,
+    )
+
+    assert stats == {"total_count": 1, "success_count": 1, "error_count": 0}
+    assert (tmp_path / "scene_f01.5_linear_depth.npy").exists()
+    assert (tmp_path / "scene_f01.5_linear_depth.png").exists()
 
 
 def test_http_error_detail_extracts_blank_render_error() -> None:
@@ -875,7 +972,15 @@ def test_render_single_camera_from_url_forwards_material_target(
     captured: dict[str, object] = {}
     response = requests.Response()
     response.status_code = 200
-    response._content = b'{"status":"success","images":{"0":{"/Camera":{}}}}'
+    response._content = json.dumps(
+        {
+            "status": "success",
+            "images": {"0": {"/Camera": {"images": _png_b64()}}},
+            "ovrtx_render_mode": "pt",
+            "ovrtx_num_sensor_updates": 64,
+            "active_aov": "LdrColor",
+        }
+    ).encode()
     response.headers["Content-Type"] = "application/json"
 
     def fake_post(*args: object, **kwargs: object) -> requests.Response:
@@ -891,12 +996,19 @@ def test_render_single_camera_from_url_forwards_material_target(
         base_url="http://renderer",
         max_retries=0,
         material_target="openpbr_materialx",
+        num_sensor_updates=64,
+        render_mode="pt",
     )
 
     assert result["status"] == RenderingStatus.success
     assert captured["json"]["render_settings"]["material_target"] == (
         "openpbr_materialx"
     )
+    assert captured["json"]["render_settings"]["num_sensor_updates"] == 64
+    assert captured["json"]["render_settings"]["render_mode"] == "pt"
+    assert result["ovrtx_render_mode"] == "pt"
+    assert result["ovrtx_num_sensor_updates"] == 64
+    assert result["active_aov"] == "LdrColor"
 
 
 def test_render_single_camera_rejects_non_usd_stage() -> None:
@@ -929,17 +1041,24 @@ def test_render_single_camera_exports_renders_and_cleans_s3(
         "_export_stage_and_get_url",
         fake_export_stage_and_get_url,
     )
-    monkeypatch.setattr(
-        render_remote,
-        "render_single_camera_from_url",
-        lambda **kwargs: {
+
+    def fake_render_single_camera_from_url(
+        **kwargs: object,
+    ) -> dict[str, object]:
+        captured["allow_redirects"] = kwargs["allow_redirects"]
+        return {
             "camera": kwargs["camera"],
             "images": [],
             "sensors": {},
             "render_time": 0.0,
             "frame_count": 0,
             "status": RenderingStatus.success,
-        },
+        }
+
+    monkeypatch.setattr(
+        render_remote,
+        "render_single_camera_from_url",
+        fake_render_single_camera_from_url,
     )
     monkeypatch.setattr(
         render_remote,
@@ -959,11 +1078,47 @@ def test_render_single_camera_exports_renders_and_cleans_s3(
         s3_profile="profile",
         api_key="test-key",
         base_url="http://renderer",
+        allow_redirects=False,
     )
 
     assert result["status"] == RenderingStatus.success
-    assert captured == {"export_exists": True, "use_data_uri": False}
+    assert captured == {
+        "allow_redirects": False,
+        "export_exists": True,
+        "use_data_uri": False,
+    }
     assert deleted == [("s3://bucket/stage", "profile")]
+
+
+def test_render_single_camera_from_url_rejects_redirect_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    response = requests.Response()
+    response.status_code = 307
+    response._content = b'{"status":"success","images":{"0":{"/Camera":{}}}}'
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Location"] = "http://redirected.example/render"
+
+    def fake_post(*args: object, **kwargs: object) -> requests.Response:
+        captured["allow_redirects"] = kwargs["allow_redirects"]
+        return response
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    result = render_single_camera_from_url(
+        "data:model/vnd.usd;base64,ZmFrZQ==",
+        "/Camera",
+        api_key="test-key",
+        base_url="http://renderer",
+        max_retries=0,
+        allow_redirects=False,
+    )
+
+    assert captured["allow_redirects"] is False
+    assert result["status"] == RenderingStatus.exception
+    assert "HTTP 307" in result["error"]
+    assert result["images"] == []
 
 
 def test_render_single_camera_from_url_retries_then_converts_v2_response(
@@ -1008,7 +1163,7 @@ def test_render_single_camera_from_url_retries_then_converts_v2_response(
         "/Camera",
         api_key="test-key",
         base_url="http://renderer",
-        frames="2:4",
+        frames="2",
         max_retries=1,
         retry_delay=0.25,
         retry_jitter=0.0,
@@ -1019,6 +1174,72 @@ def test_render_single_camera_from_url_retries_then_converts_v2_response(
     assert result["status"] == RenderingStatus.success
     assert result["frame_count"] == 1
     assert result["images"][0].size == (2, 2)
+
+
+def test_render_single_camera_retries_http_200_incomplete_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = [
+        {"status": "success", "error": None, "images": {}},
+        {
+            "status": "success",
+            "error": None,
+            "images": {"0": {"/Camera": {"images": _png_b64()}}},
+        },
+    ]
+    calls = {"count": 0}
+
+    def fake_post(*args: object, **kwargs: object) -> requests.Response:
+        response = requests.Response()
+        response.status_code = 200
+        response._content = json.dumps(responses[calls["count"]]).encode()
+        response.headers["Content-Type"] = "application/json"
+        calls["count"] += 1
+        return response
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr(render_remote.time, "sleep", lambda delay: sleeps.append(delay))
+
+    result = render_single_camera_from_url(
+        "data:model/vnd.usd;base64,ZmFrZQ==",
+        "/Camera",
+        api_key="test-key",
+        base_url="http://renderer",
+        max_retries=1,
+        retry_delay=0.25,
+        retry_jitter=0.0,
+    )
+
+    assert calls["count"] == 2
+    assert sleeps == [0.25]
+    assert result["status"] == RenderingStatus.success
+    assert result["frame_count"] == 1
+
+
+def test_render_single_camera_returns_typed_empty_after_incomplete_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = requests.Response()
+    response.status_code = 200
+    response._content = json.dumps(
+        {"status": "success", "error": None, "images": {}}
+    ).encode()
+    response.headers["Content-Type"] = "application/json"
+    monkeypatch.setattr(requests, "post", lambda *args, **kwargs: response)
+
+    result = render_single_camera_from_url(
+        "data:model/vnd.usd;base64,ZmFrZQ==",
+        "/Camera",
+        api_key="test-key",
+        base_url="http://renderer",
+        frames="2:3",
+        max_retries=0,
+    )
+
+    assert result["status"] == RenderingStatus.empty_response
+    assert result["error_code"] == "incomplete_render_output"
+    assert "0/2 requested outputs present" in result["error"]
 
 
 def test_render_single_camera_from_url_rejects_bad_content_types(
@@ -1202,9 +1423,9 @@ def test_render_single_camera_handles_failure_status_and_bad_decodes(
         sensors=["linear_depth"],
         max_retries=0,
     )
-    assert decoded["status"] == RenderingStatus.success
+    assert decoded["status"] == RenderingStatus.empty_response
     assert decoded["frame_count"] == 0
-    assert decoded["sensors"]["linear_depth"] == {}
+    assert decoded["sensors"] == {}
 
 
 def test_local_composition_asset_path_detection_uses_shared_uri_semantics() -> None:
@@ -1300,10 +1521,13 @@ def test_bundle_stage_rewrites_relative_mdl_source_asset(tmp_path: Path) -> None
     asset_root = tmp_path / "asset"
     (asset_root / "materials" / "OmniPBR").mkdir(parents=True)
     (asset_root / "textures").mkdir()
-    (asset_root / "materials" / "OmniPBR" / "OmniPBR.mdl").write_text(
+    mdl_path = asset_root / "materials" / "OmniPBR" / "OmniPBR.mdl"
+    mdl_path.write_text(
         "mdl 1.7;\n",
         encoding="utf-8",
     )
+    alternate_mdl_path = asset_root / "materials" / "OmniPBR" / "Alternate.mdl"
+    alternate_mdl_path.write_text("mdl 1.7;\n", encoding="utf-8")
     (asset_root / "textures" / "albedo.png").write_bytes(b"not-a-real-png")
 
     stage_path = asset_root / "scene.usda"
@@ -1314,14 +1538,20 @@ def test_bundle_stage_rewrites_relative_mdl_source_asset(tmp_path: Path) -> None
         "info:implementationSource",
         Sdf.ValueTypeNames.Token,
     ).Set("sourceAsset")
-    shader.GetPrim().CreateAttribute(
+    mdl_attr = shader.GetPrim().CreateAttribute(
         "info:mdl:sourceAsset",
         Sdf.ValueTypeNames.Asset,
-    ).Set(Sdf.AssetPath("./materials/OmniPBR/OmniPBR.mdl"))
+    )
+    mdl_attr.Set(Sdf.AssetPath("./materials/OmniPBR/OmniPBR.mdl"))
+    mdl_attr.Set(Sdf.AssetPath("./materials/OmniPBR/Alternate.mdl"), 1.0)
     shader.GetPrim().CreateAttribute(
         "inputs:diffuse_texture",
         Sdf.ValueTypeNames.Asset,
     ).Set(Sdf.AssetPath("./textures/albedo.png"))
+    shader.GetPrim().CreateAttribute(
+        "inputs:remote_texture",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("https://example.com/remote.png"))
     stage.GetRootLayer().Save()
 
     zip_path, bundled = _bundle_stage_with_local_assets(stage, tmp_path / "bundle")
@@ -1334,8 +1564,80 @@ def test_bundle_stage_rewrites_relative_mdl_source_asset(tmp_path: Path) -> None
         stage_text = zf.read("stage.usda").decode("utf-8")
 
     assert "@mdl_materials/OmniPBR/OmniPBR.mdl@" in stage_text
+    assert "@mdl_materials/OmniPBR/Alternate.mdl@" in stage_text
     assert "@./materials/OmniPBR/OmniPBR.mdl@" not in stage_text
     assert "@textures/albedo.png@" in stage_text
+    assert "@https://example.com/remote.png@" in stage_text
+
+
+def test_bundle_stage_preserves_complete_usdz_mdl_package(tmp_path: Path) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    from world_understanding.utils.usd.package import (
+        write_usdz_package_from_directory,
+    )
+
+    package_source = tmp_path / "package-source"
+    materials_dir = package_source / "Materials"
+    resources_dir = package_source / "Resources"
+    materials_dir.mkdir(parents=True)
+    resources_dir.mkdir()
+    (materials_dir / "Surface.mdl").write_text(
+        "mdl 1.7; import .::Support::*;\n",
+        encoding="utf-8",
+    )
+    (materials_dir / "Support.mdl").write_text("mdl 1.7;\n", encoding="utf-8")
+    (resources_dir / "albedo.png").write_bytes(b"texture-resource")
+    source_stage = Usd.Stage.CreateNew(str(package_source / "asset.usda"))
+    shader = UsdShade.Shader.Define(source_stage, "/World/Looks/Surface")
+    shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("./Materials/Surface.mdl"))
+    shader.GetPrim().CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("./Resources/albedo.png"))
+    source_stage.GetRootLayer().Save()
+
+    package_path = tmp_path / "asset.usdz"
+    write_usdz_package_from_directory(
+        package_source,
+        Path("asset.usda"),
+        package_path,
+    )
+    original_package_bytes = package_path.read_bytes()
+    stage = Usd.Stage.Open(str(package_path))
+    assert stage is not None
+
+    zip_path, bundled = _bundle_stage_with_local_assets(
+        stage,
+        tmp_path / "bundle",
+    )
+
+    assert bundled is True
+    assert zip_path is not None
+    with zipfile.ZipFile(zip_path) as bundle:
+        names = set(bundle.namelist())
+        stage_text = bundle.read("stage.usda").decode("utf-8")
+        packaged_mdl = next(
+            name
+            for name in names
+            if name.startswith("mdl_packages/")
+            and name.endswith("/Materials/Surface.mdl")
+        )
+        package_prefix = packaged_mdl.removesuffix("Materials/Surface.mdl")
+        assert f"{package_prefix}Materials/Support.mdl" in names
+        assert f"{package_prefix}Resources/albedo.png" in names
+        assert "textures/albedo.png" in names
+        assert f"@{packaged_mdl}@" in stage_text
+        assert "@textures/albedo.png@" in stage_text
+
+    assert package_path.read_bytes() == original_package_bytes
+    assert (
+        stage.GetAttributeAtPath("/World/Looks/Surface.info:mdl:sourceAsset").Get().path
+        == "./Materials/Surface.mdl"
+    )
 
 
 def test_bundle_stage_handles_duplicate_mdl_dir_names_and_fallback_rewrites(
@@ -1405,6 +1707,306 @@ def test_bundle_stage_handles_duplicate_mdl_dir_names_and_fallback_rewrites(
     assert "@mdl_materials/Shared/Main.mdl@" in stage_text
     assert "@mdl_materials/Shared/Other.mdl@" in stage_text
     assert "@mdl_materials/Shared_1/Main.mdl@" in stage_text
+
+
+@pytest.mark.parametrize("asset_kind", ["texture", "mdl"])
+def test_bundle_stage_rejects_assets_outside_stage_root(
+    tmp_path: Path,
+    asset_kind: str,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    asset_root = tmp_path / "asset"
+    asset_root.mkdir()
+    external = tmp_path / ("secret.png" if asset_kind == "texture" else "secret.mdl")
+    external.write_bytes(b"must-not-leave-host")
+
+    stage = Usd.Stage.CreateNew(str(asset_root / "scene.usda"))
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Mat/Shader")
+    attribute = "inputs:file" if asset_kind == "texture" else "info:mdl:sourceAsset"
+    shader.GetPrim().CreateAttribute(attribute, Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath(str(external))
+    )
+    stage.GetRootLayer().Save()
+
+    with pytest.raises(
+        render_remote.UnsafeLocalAssetPathError,
+        match="outside the authorized bundle root",
+    ):
+        _bundle_stage_with_local_assets(stage, tmp_path / "bundle")
+
+    assert not (tmp_path / "bundle" / "bundle.zip").exists()
+
+
+def test_bundle_stage_allows_sibling_texture_inside_explicit_asset_root(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    run_root = tmp_path / "run"
+    output_dir = run_root / "output"
+    texture_dir = run_root / "textures"
+    output_dir.mkdir(parents=True)
+    texture_dir.mkdir()
+    (texture_dir / "albedo.png").write_bytes(b"texture")
+
+    stage = Usd.Stage.CreateNew(str(output_dir / "textured_output.usda"))
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Mat/Texture")
+    shader.CreateIdAttr("UsdUVTexture")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("../textures/albedo.png")
+    )
+    stage.GetRootLayer().Save()
+
+    zip_path, bundled = _bundle_stage_with_local_assets(
+        stage,
+        tmp_path / "bundle",
+        base_dir=output_dir,
+        asset_root=run_root,
+    )
+
+    assert bundled is True
+    assert zip_path is not None
+    with zipfile.ZipFile(zip_path) as zf:
+        assert "textures/albedo.png" in zf.namelist()
+        assert "@textures/albedo.png@" in zf.read("stage.usda").decode("utf-8")
+
+
+def test_bundle_stage_passes_resolved_boundaries_to_package_localizers(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd
+
+    run_root = tmp_path / "run"
+    output_dir = run_root / "output"
+    output_dir.mkdir(parents=True)
+    stage = Usd.Stage.CreateNew(str(output_dir / "scene.usda"))
+    stage.DefinePrim("/World", "Xform")
+    stage.GetRootLayer().Save()
+    captured: dict[str, tuple[object, object]] = {}
+
+    def fake_texture_localizer(
+        *_args: object,
+        base_dir: object,
+        allowed_package_root: object,
+        **_kwargs: object,
+    ) -> list[object]:
+        captured["texture"] = (base_dir, allowed_package_root)
+        return []
+
+    def fake_mdl_localizer(
+        *_args: object,
+        base_dir: object,
+        allowed_package_root: object,
+        **_kwargs: object,
+    ) -> list[object]:
+        captured["mdl"] = (base_dir, allowed_package_root)
+        return []
+
+    monkeypatch.setattr(
+        render_remote,
+        "localize_package_texture_assets_for_render",
+        fake_texture_localizer,
+    )
+    monkeypatch.setattr(
+        render_remote,
+        "localize_package_mdl_assets_for_render",
+        fake_mdl_localizer,
+    )
+
+    assert _bundle_stage_with_local_assets(
+        stage,
+        tmp_path / "bundle",
+        base_dir=output_dir,
+        asset_root=run_root,
+    ) == (None, False)
+    expected = (output_dir.resolve(), run_root.resolve())
+    assert captured == {"texture": expected, "mdl": expected}
+
+
+def test_bundle_stage_rejects_unrelated_sibling_outside_explicit_asset_root(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    run_root = tmp_path / "run"
+    output_dir = run_root / "output"
+    unrelated_dir = tmp_path / "unrelated"
+    output_dir.mkdir(parents=True)
+    unrelated_dir.mkdir()
+    (unrelated_dir / "albedo.png").write_bytes(b"must-not-leave-host")
+
+    stage = Usd.Stage.CreateNew(str(output_dir / "textured_output.usda"))
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Mat/Texture")
+    shader.CreateIdAttr("UsdUVTexture")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("../../unrelated/albedo.png")
+    )
+    stage.GetRootLayer().Save()
+
+    bundle_dir = tmp_path / "bundle"
+    with pytest.raises(
+        render_remote.UnsafeLocalAssetPathError,
+        match="outside the authorized bundle root",
+    ):
+        _bundle_stage_with_local_assets(
+            stage,
+            bundle_dir,
+            base_dir=output_dir,
+            asset_root=run_root,
+        )
+    assert not (bundle_dir / "bundle.zip").exists()
+
+
+def test_bundle_stage_rejects_resolution_base_outside_explicit_asset_root(
+    tmp_path: Path,
+) -> None:
+    from pxr import Usd
+
+    output_dir = tmp_path / "output"
+    authorized_root = tmp_path / "authorized"
+    output_dir.mkdir()
+    authorized_root.mkdir()
+    stage = Usd.Stage.CreateNew(str(output_dir / "scene.usda"))
+    stage.DefinePrim("/World", "Xform")
+    stage.GetRootLayer().Save()
+
+    with pytest.raises(
+        render_remote.UnsafeLocalAssetPathError,
+        match="resolution base is outside the authorized bundle root",
+    ):
+        _bundle_stage_with_local_assets(
+            stage,
+            tmp_path / "bundle",
+            base_dir=output_dir,
+            asset_root=authorized_root,
+        )
+
+
+def test_bundle_stage_rejects_texture_symlink_escape_from_explicit_asset_root(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    run_root = tmp_path / "run"
+    output_dir = run_root / "output"
+    texture_dir = run_root / "textures"
+    output_dir.mkdir(parents=True)
+    texture_dir.mkdir()
+    secret = tmp_path / "secret.png"
+    secret.write_bytes(b"must-not-leave-host")
+    try:
+        (texture_dir / "albedo.png").symlink_to(secret)
+    except OSError:
+        pytest.skip("host does not permit creation of test symlinks")
+
+    stage = Usd.Stage.CreateNew(str(output_dir / "textured_output.usda"))
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Mat/Texture")
+    shader.CreateIdAttr("UsdUVTexture")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("../textures/albedo.png")
+    )
+    stage.GetRootLayer().Save()
+
+    with pytest.raises(
+        render_remote.UnsafeLocalAssetPathError,
+        match="outside the authorized bundle root",
+    ):
+        _bundle_stage_with_local_assets(
+            stage,
+            tmp_path / "bundle",
+            base_dir=output_dir,
+            asset_root=run_root,
+        )
+
+
+def test_bundle_stage_rejects_symlink_in_mdl_package(tmp_path: Path) -> None:
+    from pxr import Sdf, Usd, UsdShade
+
+    asset_root = tmp_path / "asset"
+    mdl_dir = asset_root / "materials" / "Package"
+    mdl_dir.mkdir(parents=True)
+    (mdl_dir / "Package.mdl").write_text("mdl 1.7;\n", encoding="utf-8")
+    secret = tmp_path / "secret.txt"
+    secret.write_text("must-not-leave-host", encoding="utf-8")
+    (mdl_dir / "linked-secret.txt").symlink_to(secret)
+
+    stage = Usd.Stage.CreateNew(str(asset_root / "scene.usda"))
+    shader = UsdShade.Shader.Define(stage, "/World/Looks/Mat/Shader")
+    shader.GetPrim().CreateAttribute(
+        "info:mdl:sourceAsset",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath("./materials/Package/Package.mdl"))
+    stage.GetRootLayer().Save()
+
+    with pytest.raises(
+        render_remote.UnsafeLocalAssetPathError,
+        match="symbolic link",
+    ):
+        _bundle_stage_with_local_assets(stage, tmp_path / "bundle")
+
+    assert not (tmp_path / "bundle" / "bundle.zip").exists()
+
+
+def test_export_stage_does_not_fallback_after_asset_confinement_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pxr import Usd
+
+    stage = Usd.Stage.CreateInMemory()
+    monkeypatch.setattr(
+        render_remote,
+        "_bundle_stage_with_local_assets",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            render_remote.UnsafeLocalAssetPathError("blocked")
+        ),
+    )
+
+    with pytest.raises(render_remote.UnsafeLocalAssetPathError, match="blocked"):
+        export_stage_to_s3(stage, use_data_uri=True)
+
+
+def test_export_stage_does_not_fallback_after_package_localization_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pxr import Usd
+
+    stage = Usd.Stage.CreateInMemory()
+    monkeypatch.setattr(
+        render_remote,
+        "_bundle_stage_with_local_assets",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            render_remote.PackageTextureLocalizationError("blocked package member")
+        ),
+    )
+
+    with pytest.raises(
+        render_remote.PackageTextureLocalizationError,
+        match="blocked package member",
+    ):
+        export_stage_to_s3(stage, use_data_uri=True)
+
+
+def test_export_stage_does_not_fallback_after_package_mdl_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pxr import Usd
+
+    stage = Usd.Stage.CreateInMemory()
+    monkeypatch.setattr(
+        render_remote,
+        "_bundle_stage_with_local_assets",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            render_remote.PackageMdlLocalizationError("blocked package MDL")
+        ),
+    )
+
+    with pytest.raises(
+        render_remote.PackageMdlLocalizationError,
+        match="blocked package MDL",
+    ):
+        export_stage_to_s3(stage, use_data_uri=True)
 
 
 def test_bundle_stage_returns_false_when_asset_copying_fails(
@@ -1814,6 +2416,210 @@ def test_bundle_stage_preserves_texture_material_as_uv_texture_fallback(
     assert reader.GetInput("file").Get() == Sdf.AssetPath(
         "textures/painted_albedo.png",
     )
+
+
+def test_bundle_stage_localizes_post_articulation_usdz_member_on_clone(
+    tmp_path: Path,
+) -> None:
+    """Flattened Joint output must send its package texture, not a host path."""
+    from pxr import Sdf, Usd, UsdShade
+
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    package_path = source_root / "rigged.usdz"
+    texture_bytes = b"post-articulation-albedo"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/albedo.png", texture_bytes)
+
+    stage = Usd.Stage.CreateInMemory()
+    frame = stage.DefinePrim("/Cabinet/Frame", "Xform")
+    joint = stage.DefinePrim("/Cabinet/Joints/Hinge", "PhysicsRevoluteJoint")
+    joint.CreateRelationship("physics:body0").SetTargets([frame.GetPath()])
+    material = UsdShade.Material.Define(stage, "/Cabinet/Looks/Painted")
+    texture = UsdShade.Shader.Define(
+        stage,
+        "/Cabinet/Looks/Painted/Albedo",
+    )
+    texture.CreateIdAttr("UsdUVTexture")
+    file_input = texture.CreateInput("file", Sdf.ValueTypeNames.Asset)
+    package_member = f"{package_path}[0/albedo.png]"
+    file_input.Set(Sdf.AssetPath(package_member))
+    material_input = material.CreateInput("source", Sdf.ValueTypeNames.Asset)
+    material_input.Set(Sdf.AssetPath(package_member))
+
+    zip_path, bundled = _bundle_stage_with_local_assets(
+        stage,
+        tmp_path / "remote-export",
+        base_dir=source_root,
+    )
+
+    assert bundled is True
+    assert zip_path is not None
+    # Discovery/localization must not leave the caller's render stage pointing
+    # into a temporary directory that disappears after upload.
+    assert file_input.Get().path == package_member
+    assert material_input.Get().path == package_member
+    with zipfile.ZipFile(zip_path) as bundle:
+        assert "textures/albedo.png" in bundle.namelist()
+        assert bundle.read("textures/albedo.png") == texture_bytes
+        stage_text = bundle.read("stage.usda").decode("utf-8")
+
+    assert "@textures/albedo.png@" in stage_text
+    assert stage_text.count("@textures/albedo.png@") == 2
+    assert str(package_path) not in stage_text
+    assert "package_textures" not in stage_text
+
+
+def test_bundle_stage_localizes_selected_variant_time_samples_and_instances(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd
+
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    package_path = source_root / "animated.usdz"
+    members = {
+        "0/red.png": b"red",
+        "0/blue.png": b"blue",
+        "0/frame-a.png": b"frame-a",
+        "0/frame-b.png": b"frame-b",
+        "0/instance.png": b"instance",
+    }
+    with zipfile.ZipFile(package_path, "w") as package:
+        for name, content in members.items():
+            package.writestr(name, content)
+
+    stage = Usd.Stage.CreateInMemory()
+    world = stage.DefinePrim("/World")
+    variants = world.GetVariantSets().AddVariantSet("look")
+    for variant_name, member in (("red", "red.png"), ("blue", "blue.png")):
+        variants.AddVariant(variant_name)
+        variants.SetVariantSelection(variant_name)
+        with variants.GetVariantEditContext():
+            stage.DefinePrim("/World/Choice").CreateAttribute(
+                "inputs:file",
+                Sdf.ValueTypeNames.Asset,
+            ).Set(Sdf.AssetPath(f"{package_path}[0/{member}]"))
+    variants.SetVariantSelection("blue")
+
+    animated = stage.DefinePrim("/World/Animated").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    )
+    animated.Set(Sdf.AssetPath(f"{package_path}[0/frame-a.png]"), 1.0)
+    animated.Set(Sdf.AssetPath(f"{package_path}[0/frame-b.png]"), 2.0)
+
+    prototype = stage.DefinePrim("/Prototype")
+    stage.DefinePrim("/Prototype/Texture").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(f"{package_path}[0/instance.png]"))
+    instance = stage.DefinePrim("/World/Instance")
+    instance.GetReferences().AddInternalReference(prototype.GetPath())
+    instance.SetInstanceable(True)
+
+    zip_path, bundled = _bundle_stage_with_local_assets(
+        stage,
+        tmp_path / "remote-export",
+        base_dir=source_root,
+    )
+
+    assert bundled is True
+    assert zip_path is not None
+    with zipfile.ZipFile(zip_path) as bundle:
+        names = set(bundle.namelist())
+        stage_text = bundle.read("stage.usda").decode("utf-8")
+
+    assert {
+        "textures/blue.png",
+        "textures/frame-a.png",
+        "textures/frame-b.png",
+        "textures/instance.png",
+    }.issubset(names)
+    assert "textures/red.png" not in names
+    assert str(package_path) not in stage_text
+    assert "package_textures" not in stage_text
+
+    bundled_layer = Sdf.Layer.CreateAnonymous("bundled-stage.usda")
+    assert bundled_layer.ImportFromString(stage_text)
+    bundled_stage = Usd.Stage.Open(bundled_layer)
+    assert bundled_stage is not None
+    assert bundled_stage.GetAttributeAtPath("/World/Choice.inputs:file").Get().path == (
+        "textures/blue.png"
+    )
+    bundled_animated = bundled_stage.GetAttributeAtPath("/World/Animated.inputs:file")
+    assert bundled_animated.Get(1.0).path == "textures/frame-a.png"
+    assert bundled_animated.Get(2.0).path == "textures/frame-b.png"
+    assert "@textures/instance.png@" in stage_text
+
+
+def test_bundle_stage_fails_closed_when_localized_package_texture_copy_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import shutil
+
+    from pxr import Sdf, Usd
+
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    package_path = source_root / "rigged.usdz"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.writestr("0/albedo.png", b"texture")
+
+    stage = Usd.Stage.CreateInMemory()
+    stage.DefinePrim("/World", "Xform").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(f"{package_path}[0/albedo.png]"))
+    monkeypatch.setattr(
+        shutil,
+        "copy2",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("copy failed")),
+    )
+
+    with pytest.raises(
+        render_remote.PackageTextureLocalizationError,
+        match="Unable to copy a localized USDZ package texture",
+    ):
+        _bundle_stage_with_local_assets(
+            stage,
+            tmp_path / "remote-export",
+            base_dir=source_root,
+        )
+
+    assert not (tmp_path / "remote-export" / "bundle.zip").exists()
+
+
+def test_bundle_stage_rejects_package_texture_outside_authorized_root(
+    tmp_path: Path,
+) -> None:
+    from pxr import Sdf, Usd
+
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    external_package = tmp_path / "external.usdz"
+    with zipfile.ZipFile(external_package, "w") as package:
+        package.writestr("0/albedo.png", b"external-texture")
+
+    stage = Usd.Stage.CreateInMemory()
+    stage.DefinePrim("/World", "Xform").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    ).Set(Sdf.AssetPath(f"{external_package}[0/albedo.png]"))
+
+    with pytest.raises(
+        render_remote.PackageTextureLocalizationError,
+        match="outside the authorized asset root",
+    ):
+        _bundle_stage_with_local_assets(
+            stage,
+            tmp_path / "remote-export",
+            base_dir=source_root,
+        )
+
+    assert not (tmp_path / "remote-export" / "package_textures").exists()
+    assert not (tmp_path / "remote-export" / "bundle.zip").exists()
 
 
 def test_bundle_stage_logs_preview_and_texture_fallback_updates(

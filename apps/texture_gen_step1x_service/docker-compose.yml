@@ -1,6 +1,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+# Operator-provided runtime boundary: this Compose file never installs or
+# downloads runtime code or model assets. Provision both host roots first.
+
 services:
   texture-gen-step1x:
     build:
@@ -8,19 +11,23 @@ services:
       dockerfile: apps/texture_gen_step1x_service/Dockerfile
     image: texture-gen-step1x-service:local
     ports:
-      - "${TEXTURE_STEP1X_PORT:-8000}:8000"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${TEXTURE_STEP1X_PORT:-8000}:8000"
     environment:
       TEXTURE_STEP1X_RUNTIME_DIR: /opt/texture-editing
       TEXTURE_STEP1X_EDIT_SCRIPT: /opt/texture-editing/edit_texture.py
       TEXTURE_STEP1X_PYTHON: "${TEXTURE_STEP1X_PYTHON:-}"
-      TEXTURE_STEP1X_MODEL_DIR: "${TEXTURE_STEP1X_MODEL_DIR:-}"
+      TEXTURE_STEP1X_MODEL_DIR: /opt/texture-models
       TEXTURE_STEP1X_CACHE_DIR: /work/texture_sessions/cache
       TEXTURE_OUTPUT_DIR: /work/texture_sessions/texture_gen_step1x_outputs
+      TEXTURE_STEP1X_ALLOWED_ASSET_ROOTS: /work
       TEXTURE_STEP1X_MAX_WORKERS: "${TEXTURE_STEP1X_MAX_WORKERS:-1}"
       TEXTURE_STEP1X_SKIP_MA: "${TEXTURE_STEP1X_SKIP_MA:-true}"
       TEXTURE_STEP1X_REQUIRE_UPSCALER: "${TEXTURE_STEP1X_REQUIRE_UPSCALER:-false}"
       TEXTURE_STEP1X_VALIDATE_ASSETS: "${TEXTURE_STEP1X_VALIDATE_ASSETS:-true}"
-      TEXTURE_STEP1X_REQUIRED_EXECUTABLES: "${TEXTURE_STEP1X_REQUIRED_EXECUTABLES:-uv}"
+      TEXTURE_STEP1X_REQUIRED_EXECUTABLES: "${TEXTURE_STEP1X_REQUIRED_EXECUTABLES-}"
+      TEXTURE_STEP1X_HF_REVISION: bf7084495b3a72222f36549b7942948aa4d9daa7
+      TEXTURE_SDXL_BASE_REVISION: 462165984030d82259a11f4367a4eed129e94a7b
+      TEXTURE_SDXL_VAE_REVISION: 207b116dae70ace3637169f1ddd2434b91b3a8cd
       TEXTURE_STEP1X_TIMEOUT_SEC: "${TEXTURE_STEP1X_TIMEOUT_SEC:-3600}"
       TEXTURE_UPSCALER_BACKEND: "${TEXTURE_UPSCALER_BACKEND:-swin2sr}"
       TEXTURE_SWIN2SR_DEVICE: "${TEXTURE_SWIN2SR_DEVICE:-auto}"
@@ -32,10 +39,15 @@ services:
       TEXTURE_STEP1X_LD_LIBRARY_PATH: "${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}"
       LD_LIBRARY_PATH: "${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}"
       TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS: "${TEXTURE_STEP1X_HEALTHCHECK_RUNTIME_IMPORTS:-true}"
+      HF_HOME: /opt/texture-models/huggingface
+      HF_HUB_CACHE: /opt/texture-models/huggingface/hub
+      HF_HUB_OFFLINE: "${TEXTURE_STEP1X_HF_OFFLINE:-1}"
+      TRANSFORMERS_OFFLINE: "${TEXTURE_STEP1X_TRANSFORMERS_OFFLINE:-1}"
       NVIDIA_DRIVER_CAPABILITIES: "${NVIDIA_DRIVER_CAPABILITIES:-compute,utility,graphics}"
       NVIDIA_VISIBLE_DEVICES: "${TEXTURE_STEP1X_GPU_DEVICE:-0}"
     volumes:
       - "${TEXTURE_STEP1X_HOST_RUNTIME:?set TEXTURE_STEP1X_HOST_RUNTIME to your Step1X runtime path}:/opt/texture-editing:ro"
+      - "${TEXTURE_STEP1X_HOST_MODEL_ROOT:?set TEXTURE_STEP1X_HOST_MODEL_ROOT to your Step1X model path}:/opt/texture-models:ro"
       - "${TEXTURE_SHARED_HOST_ROOT:-/tmp/texture_gen_shared}:/work"
     deploy:
       resources:

@@ -2,6 +2,7 @@
 #
 # Usage from the repo root:
 #   export TEXTURE_STEP1X_HOST_RUNTIME=/path/to/texture-editing-runtime
+#   export TEXTURE_STEP1X_HOST_MODEL_ROOT=/path/to/texture-model-cache
 #   docker compose --env-file .env \
 #     -f apps/texture_agent_service/docker-compose.yml \
 #     -f apps/texture_agent_service/docker-compose.step1x.yml \
@@ -11,6 +12,8 @@
 # Step1X and OVRTX serially with their standalone compose files instead.
 # It is an overlay for docker-compose.yml, which declares the shared session
 # volume and default network.
+# This file never installs or downloads runtime code or model assets; operators
+# must provision both read-only host roots before starting the services.
 
 services:
   texture-agent-service:
@@ -64,7 +67,7 @@ services:
         "8000",
       ]
     ports:
-      - "${TEXTURE_SIMPLE_PORT:-8019}:8000"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${TEXTURE_SIMPLE_PORT:-8019}:8000"
     env_file:
       - path: ../../.env
         required: false
@@ -104,20 +107,24 @@ services:
       dockerfile: apps/texture_gen_step1x_service/Dockerfile
     image: texture-gen-step1x-service:local
     ports:
-      - "${TEXTURE_STEP1X_PORT:-8018}:8000"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${TEXTURE_STEP1X_PORT:-8018}:8000"
     environment:
       - TEXTURE_STEP1X_RUNTIME_DIR=/opt/texture-editing
       - TEXTURE_STEP1X_EDIT_SCRIPT=${TEXTURE_STEP1X_EDIT_SCRIPT:-/opt/texture-editing/edit_texture.py}
       - TEXTURE_STEP1X_PYTHON=${TEXTURE_STEP1X_PYTHON:-}
       - TEXTURE_STEP1X_COMMAND_TEMPLATE=${TEXTURE_STEP1X_COMMAND_TEMPLATE:-}
-      - TEXTURE_STEP1X_MODEL_DIR=${TEXTURE_STEP1X_MODEL_DIR:-}
+      - TEXTURE_STEP1X_MODEL_DIR=/opt/texture-models
       - TEXTURE_STEP1X_CACHE_DIR=/var/texture-agent/sessions/step1x_cache
       - TEXTURE_OUTPUT_DIR=/var/texture-agent/sessions/texture_gen_step1x_outputs
+      - TEXTURE_STEP1X_ALLOWED_ASSET_ROOTS=/var/texture-agent/sessions
       - TEXTURE_STEP1X_MAX_WORKERS=${TEXTURE_STEP1X_MAX_WORKERS:-1}
       - TEXTURE_STEP1X_SKIP_MA=${TEXTURE_STEP1X_SKIP_MA:-true}
       - TEXTURE_STEP1X_REQUIRE_UPSCALER=${TEXTURE_STEP1X_REQUIRE_UPSCALER:-false}
       - TEXTURE_STEP1X_VALIDATE_ASSETS=${TEXTURE_STEP1X_VALIDATE_ASSETS:-true}
-      - TEXTURE_STEP1X_REQUIRED_EXECUTABLES=${TEXTURE_STEP1X_REQUIRED_EXECUTABLES:-uv}
+      - TEXTURE_STEP1X_REQUIRED_EXECUTABLES=${TEXTURE_STEP1X_REQUIRED_EXECUTABLES-}
+      - TEXTURE_STEP1X_HF_REVISION=bf7084495b3a72222f36549b7942948aa4d9daa7
+      - TEXTURE_SDXL_BASE_REVISION=462165984030d82259a11f4367a4eed129e94a7b
+      - TEXTURE_SDXL_VAE_REVISION=207b116dae70ace3637169f1ddd2434b91b3a8cd
       - TEXTURE_STEP1X_TIMEOUT_SEC=${TEXTURE_STEP1X_TIMEOUT_SEC:-3600}
       - TEXTURE_UPSCALER_BACKEND=${TEXTURE_UPSCALER_BACKEND:-swin2sr}
       - TEXTURE_SWIN2SR_DEVICE=${TEXTURE_SWIN2SR_DEVICE:-auto}
@@ -127,7 +134,10 @@ services:
       - TEXTURE_REALESRGAN_GPU_ID=${TEXTURE_REALESRGAN_GPU_ID:-0}
       - TEXTURE_REALESRGAN_ALLOW_LLVMPIPE_FALLBACK=${TEXTURE_REALESRGAN_ALLOW_LLVMPIPE_FALLBACK:-false}
       - HOME=${TEXTURE_STEP1X_CONTAINER_HOME:-/home/appuser}
-      - HF_HOME=${TEXTURE_STEP1X_HF_HOME:-/home/appuser/.cache/huggingface}
+      - HF_HOME=/opt/texture-models/huggingface
+      - HF_HUB_CACHE=/opt/texture-models/huggingface/hub
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
       - PYTHONPATH=/workspace/world-understanding:${TEXTURE_STEP1X_EXTRA_PYTHONPATH:-}
       - TEXTURE_STEP1X_LD_LIBRARY_PATH=${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}
       - LD_LIBRARY_PATH=${TEXTURE_STEP1X_LD_LIBRARY_PATH:-/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/torch/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_runtime/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cuda_nvrtc/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cublas/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cudnn/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cufft/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/curand/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusolver/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/cusparse/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nccl/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvjitlink/lib:/opt/texture-editing/.venv_gen/lib/python3.10/site-packages/nvidia/nvtx/lib}
@@ -139,6 +149,10 @@ services:
       - type: bind
         source: "${TEXTURE_STEP1X_HOST_RUNTIME:?set TEXTURE_STEP1X_HOST_RUNTIME to your Step1X runtime path}"
         target: /opt/texture-editing
+        read_only: true
+      - type: bind
+        source: "${TEXTURE_STEP1X_HOST_MODEL_ROOT:?set TEXTURE_STEP1X_HOST_MODEL_ROOT to your Step1X model path}"
+        target: /opt/texture-models
         read_only: true
     restart: unless-stopped
     logging:
@@ -166,9 +180,10 @@ services:
       dockerfile: apps/ovrtx_rendering_api/Dockerfile
     image: ovrtx-rendering-api:local
     ports:
-      - "${OVRTX_HOST_PORT:-8002}:8000"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${OVRTX_HOST_PORT:-8002}:8000"
     environment:
       - OVRTX_LOG_LEVEL=${OVRTX_LOG_LEVEL:-warn}
+      - OVRTX_S3_ALLOWED_BUCKETS=${OVRTX_S3_ALLOWED_BUCKETS:-}
       - OVRTX_NUM_SENSOR_UPDATES=${OVRTX_NUM_SENSOR_UPDATES:-500}
       - OVRTX_RENDER_MODE=${OVRTX_RENDER_MODE:-pt}
       - OVRTX_DAEMON_START_TIMEOUT=${OVRTX_DAEMON_START_TIMEOUT:-600}

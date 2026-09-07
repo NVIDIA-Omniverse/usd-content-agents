@@ -121,6 +121,7 @@ def generate_texture_prompts(
     llm: Any,
     user_prompt: str = "",
     default_opacity: float = 0.80,
+    fallback_material_names: set[str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Generate texture prompts for materials using an LLM.
 
@@ -169,6 +170,8 @@ def generate_texture_prompts(
         )
     except Exception as e:
         logger.error("LLM call failed: %s", e)
+        if fallback_material_names is not None:
+            fallback_material_names.update(mat.name for mat in materials)
         return _fallback_prompts(materials, user_prompt, default_opacity)
 
     result = extract_json_from_llm_response(
@@ -179,6 +182,8 @@ def generate_texture_prompts(
             "Failed to parse LLM response for prompt generation. Response: %s",
             response.content[:500],
         )
+        if fallback_material_names is not None:
+            fallback_material_names.update(mat.name for mat in materials)
         return _fallback_prompts(materials, user_prompt, default_opacity)
 
     generated = result["materials"]
@@ -189,6 +194,12 @@ def generate_texture_prompts(
         entry = generated.get(mat.name, {})
         prompt = entry.get("prompt", "")
         if not prompt:
+            logger.warning(
+                "LLM response omitted a prompt for material %r; using fallback prompt",
+                mat.name,
+            )
+            if fallback_material_names is not None:
+                fallback_material_names.add(mat.name)
             prompt = _fallback_prompt_for_material(mat, user_prompt)
         opacity = entry.get("opacity", default_opacity)
         opacity = max(0.3, min(1.0, float(opacity)))

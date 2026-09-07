@@ -153,6 +153,15 @@ def v02_dataset(temp_dataset_dir):
                 "material": "002_plastic_black",
                 "metadata": {"source": "oracle"},
             },
+            "untrusted_spec_evidence": {
+                "extracted_text": "Material Type: Black plastic",
+                "reference_pdf_pages": [
+                    {
+                        "path": "references/spec_page_1.png",
+                        "description": "Datasheet page 1",
+                    }
+                ],
+            },
         },
         {
             "id": "/prim/path/2",
@@ -344,6 +353,20 @@ class TestV02Loading:
         assert entry1.user_prompt == "Identify the material for this component."
         assert len(entry1.media.images) == 1
         assert entry1.ground_truth.material == "002_plastic_black"
+        assert entry1.untrusted_spec_evidence is not None
+        assert (
+            entry1.untrusted_spec_evidence.extracted_text
+            == "Material Type: Black plastic"
+        )
+        assert entry1.model_dump()["untrusted_spec_evidence"] == {
+            "extracted_text": "Material Type: Black plastic",
+            "reference_pdf_pages": [
+                {
+                    "path": "references/spec_page_1.png",
+                    "description": "Datasheet page 1",
+                }
+            ],
+        }
 
         # Check image metadata
         img1 = entry1.media.images[0]

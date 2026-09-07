@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Texture Agent Docker"
+  short_description: "Fixed pipeline Texture Agent Docker deployment"
+  default_prompt: "Use $fixed-pipeline to deploy the texture-agent-service locally using Docker Compose, with an optional FLUX.2 NIM image-gen sidecar."

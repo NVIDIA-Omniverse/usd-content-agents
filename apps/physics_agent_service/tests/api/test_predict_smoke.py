@@ -253,6 +253,210 @@ async def _bootstrap_terminal_predict_session(
     return session_id, config_path, dataset_target, retry_dataset
 
 
+def test_predict_input_snapshot_cleanup_and_inactive_rollback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ...service.routers import predict_router
+
+    with pytest.raises(predict_router.HTTPException) as missing_upload:
+        predict_router._require_predict_upload(None)
+    assert missing_upload.value.status_code == 400
+
+    target = tmp_path / "input.yaml"
+    target.write_bytes(b"original")
+
+    def fail_copy(*_args: Any, **_kwargs: Any) -> None:
+        raise OSError("copy failed")
+
+    with monkeypatch.context() as copy_patch:
+        copy_patch.setattr(predict_router.shutil, "copyfileobj", fail_copy)
+        with pytest.raises(OSError, match="copy failed"):
+            predict_router._FileSnapshot.capture(target)
+
+    snapshot = predict_router._FileSnapshot.capture(target)
+    original_replace = predict_router.os.replace
+
+    def fail_rollback_replace(src: Any, dst: Any) -> None:
+        if Path(dst) == target:
+            raise OSError("rollback replace failed")
+        original_replace(src, dst)
+
+    monkeypatch.setattr(predict_router.os, "replace", fail_rollback_replace)
+    with pytest.raises(OSError, match="rollback replace failed"):
+        snapshot.restore()
+    assert not list(tmp_path.glob(".input.yaml.rollback.*.tmp"))
+    snapshot.close()
+
+    class CloseFailure:
+        def close(self) -> None:
+            raise OSError("close failed")
+
+    close_snapshot = predict_router._FileSnapshot(
+        target=target,
+        existed=True,
+        backup=CloseFailure(),
+    )
+    close_snapshot.close()
+    assert close_snapshot.backup is None
+
+    transaction = predict_router._PredictInputsTransaction((), active=False)
+    transaction.rollback()
+
+
+@pytest.mark.asyncio
+async def test_predict_input_snapshot_and_publication_failures_are_contained(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ...service.routers import predict_router
+
+    class Manager:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def delete_session(self, session_id: str) -> bool:
+            self.deleted.append(session_id)
+            return True
+
+    manager = Manager()
+    source = tmp_path / "source" / "dataset.jsonl"
+    source.parent.mkdir()
+    source.write_text("{}\n", encoding="utf-8")
+    config_path = tmp_path / "session" / "input" / "predict.yaml"
+    dataset_target = tmp_path / "session" / "cache" / "dataset.jsonl"
+    original_capture = predict_router._FileSnapshot.capture
+    capture_calls = 0
+
+    def fail_second_capture(target: Path):
+        nonlocal capture_calls
+        capture_calls += 1
+        if capture_calls == 2:
+            raise OSError("snapshot failed")
+        return original_capture(target)
+
+    monkeypatch.setattr(predict_router._FileSnapshot, "capture", fail_second_capture)
+    with pytest.raises(predict_router.HTTPException) as snapshot_failure:
+        await predict_router._persist_predict_inputs_transactionally(
+            predict_config={"steps": {}},
+            config_path=config_path,
+            dataset_source=source,
+            dataset_target=dataset_target,
+            manager=manager,
+            session_id="fresh-snapshot",
+            session_created_here=True,
+        )
+    assert snapshot_failure.value.status_code == 500
+    assert (
+        snapshot_failure.value.detail
+        == predict_router.PIPELINE_CONFIG_WRITE_FAILED_DETAIL
+    )
+    assert "snapshot failed" not in str(snapshot_failure.value.detail)
+    assert manager.deleted == ["fresh-snapshot"]
+    assert not list(dataset_target.parent.glob(".dataset.jsonl.*.tmp"))
+
+    monkeypatch.setattr(
+        predict_router._FileSnapshot,
+        "capture",
+        original_capture,
+    )
+    original_replace = predict_router.os.replace
+
+    def fail_dataset_publish(src: Any, dst: Any) -> None:
+        if Path(dst) == dataset_target:
+            raise OSError("publish failed")
+        original_replace(src, dst)
+
+    monkeypatch.setattr(predict_router.os, "replace", fail_dataset_publish)
+    with pytest.raises(predict_router.HTTPException) as fresh_failure:
+        await predict_router._persist_predict_inputs_transactionally(
+            predict_config={"steps": {}},
+            config_path=config_path,
+            dataset_source=source,
+            dataset_target=dataset_target,
+            manager=manager,
+            session_id="fresh-publish",
+            session_created_here=True,
+        )
+    assert fresh_failure.value.status_code == 500
+    assert fresh_failure.value.detail == predict_router._DATASET_STAGE_FAILED_DETAIL
+    assert "publish failed" not in str(fresh_failure.value.detail)
+    assert manager.deleted[-1] == "fresh-publish"
+
+    def fail_rollback(
+        _self: predict_router._PredictInputsTransaction,
+    ) -> None:
+        for snapshot in _self.snapshots:
+            snapshot.close()
+        _self.active = False
+        raise RuntimeError("rollback failed")
+
+    monkeypatch.setattr(
+        predict_router._PredictInputsTransaction,
+        "rollback",
+        fail_rollback,
+    )
+    with pytest.raises(predict_router.HTTPException) as existing_failure:
+        await predict_router._persist_predict_inputs_transactionally(
+            predict_config={"steps": {}},
+            config_path=config_path,
+            dataset_source=source,
+            dataset_target=dataset_target,
+            manager=manager,
+            session_id="existing-publish",
+            session_created_here=False,
+        )
+    assert existing_failure.value.status_code == 500
+    assert existing_failure.value.detail == predict_router._DATASET_STAGE_FAILED_DETAIL
+    assert "rollback failed" not in str(existing_failure.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_predict_generic_input_and_metadata_failures(
+    client: httpx.AsyncClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ...service.routers import predict_router
+
+    monkeypatch.setattr(predict_router.config, "s3_allowed_buckets", "bucket")
+    monkeypatch.setattr(predict_router, "_preflight_s3_object_size", lambda *_: None)
+
+    def fail_s3_download(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("download failed")
+
+    monkeypatch.setattr(predict_router, "_download_s3_to_session", fail_s3_download)
+    response = await client.post(
+        "/predict",
+        data={"s3_uri": "s3://bucket/path/scene.usda"},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to download USD from S3"
+
+    async def fail_upload(*_args: Any, **_kwargs: Any) -> int:
+        raise RuntimeError("upload failed")
+
+    monkeypatch.setattr(predict_router, "_stream_copy", fail_upload)
+    response = await client.post("/predict", files=make_pipeline_files())
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to save USD file"
+
+    dataset = tmp_path / "dataset.jsonl"
+    dataset.write_text("{}\n", encoding="utf-8")
+    manager = predict_router.get_session_manager()
+
+    async def missing_metadata(_session_id: str):
+        return None
+
+    monkeypatch.setattr(manager, "get_session_metadata", missing_metadata)
+    response = await client.post(
+        "/predict",
+        data={"dataset_path": str(dataset)},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"] == predict_router._PREDICT_START_FAILED_DETAIL
+
+
 # ============================================================================
 # POST /predict
 # ============================================================================
@@ -478,7 +682,7 @@ class TestPredictCreation:
         assert "dataset" in results["download_urls"]
         dataset_r = await client.get(f"/artifacts/{session_id}/dataset")
         assert dataset_r.status_code == 200
-        assert dataset_r.text == ds.read_text()
+        assert json.loads(dataset_r.text) == json.loads(ds.read_text())
 
     async def test_create_predict_rejects_missing_dataset_path(self, client, tmp_path):
         r = await client.post(

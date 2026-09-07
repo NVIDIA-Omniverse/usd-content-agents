@@ -1,0 +1,4 @@
+interface:
+  display_name: "Geometry Repair Workflow"
+  short_description: "Repair imported geometry with bounded evidence"
+  default_prompt: "Use $content-workflow-geometry-repair to diagnose and conservatively repair this imported asset with source-relative evidence."

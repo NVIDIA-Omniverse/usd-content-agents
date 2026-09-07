@@ -1,0 +1,13 @@
+name: wrapper cannot mask a later raw bootstrap
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Mixed bounded and unbounded installs
+        timeout-minutes: 15
+        run: >-
+          bash ci/github/retry-network-command.sh --
+          python -m pip install first-tool;
+          python -m pip install second-tool

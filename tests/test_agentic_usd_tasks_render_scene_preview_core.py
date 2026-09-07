@@ -199,6 +199,15 @@ def test_render_scene_preview_remote_success_with_filters(
     ]
     stage = _Stage(prims)
     listener = _Listener()
+    worker_counts: list[int] = []
+    real_executor = rsp.ThreadPoolExecutor
+    monkeypatch.setattr(
+        rsp,
+        "ThreadPoolExecutor",
+        lambda *, max_workers: (
+            worker_counts.append(max_workers) or real_executor(max_workers=max_workers)
+        ),
+    )
 
     class _Backend:
         def render(self, stage: _Stage, **kwargs: Any) -> dict[str, Any]:
@@ -234,6 +243,7 @@ def test_render_scene_preview_remote_success_with_filters(
                 "backend": "remote",
                 "image_width": 8,
                 "image_height": 9,
+                "max_concurrent_requests": 1,
                 "cameras": ["+x+y+z", "+x"],
                 "background_color": [2.0, -1.0, 0.5],
             },
@@ -242,6 +252,7 @@ def test_render_scene_preview_remote_success_with_filters(
     )
 
     assert len(context["rendered_preview_paths"]) == 2
+    assert worker_counts == [1]
     assert context["composition_images"] == context["rendered_preview_paths"]
     assert calls["corner"][0]["max_scene_size"] == 4.0
     assert calls["side"][0]["direction"] == "+x"
@@ -250,6 +261,29 @@ def test_render_scene_preview_remote_success_with_filters(
     assert calls["lights"] == [stage]
     assert prims[2].active is False
     assert any("Deactivated 1 prims" in message for message in listener.infos)
+
+
+@pytest.mark.parametrize("max_workers", [0, -1, None, 1.5, True, "2"])
+def test_render_scene_preview_rejects_invalid_remote_concurrency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    max_workers: object,
+) -> None:
+    usd_path = tmp_path / "scene.usd"
+    usd_path.write_text("#usda", encoding="utf-8")
+    _patch_preview_dependencies(monkeypatch, stage=_Stage(), backend=object())
+
+    with pytest.raises(ValueError, match="Remote render max_workers"):
+        rsp.RenderScenePreviewTask().run(
+            {
+                "usd_path": usd_path,
+                "output_dir": tmp_path,
+                "render_config": {
+                    "backend": "remote",
+                    "max_concurrent_requests": max_workers,
+                },
+            }
+        )
 
 
 def test_render_scene_preview_flattened_local_backend_and_render_failure(

@@ -6,12 +6,21 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 import tempfile
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, UsdUtils
+from world_understanding.functions.graphics.so_export import (
+    _atomic_output_file,
+    _lexical_absolute_path,
+    _normalize_dependency_roots,
+    export_stage_portably,
+)
+from world_understanding.functions.graphics.so_export import (
+    is_runtime_resolved_asset_path as _is_runtime_resolved_asset_path,
+)
 from world_understanding.utils.usd.material import ensure_looks_scope
 from world_understanding.utils.usd.package import (
     UsdzPackageError,
@@ -23,6 +32,10 @@ from physics_agent.functions.mass_scale_quality import (
     has_mass_scale_suspicious_warning,
 )
 from physics_agent.functions.prediction_schema import unwrap_output_key_payload
+from physics_agent.physics_units import (
+    STANDARD_GRAVITY_M_PER_S2,
+    acceleration_m_per_s2_to_stage_units,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +46,14 @@ class PhysicsAuthoringError(RuntimeError):
 
 _USD_LAYER_EXTENSIONS = {".usd", ".usda", ".usdc"}
 _USD_EXTENSIONS = _USD_LAYER_EXTENSIONS | {".usdz"}
+_DEFORMABLE_API_SCHEMAS = frozenset(
+    {
+        "PhysicsCurvesDeformableSimAPI",
+        "PhysicsDeformableBodyAPI",
+        "PhysicsSurfaceDeformableSimAPI",
+        "PhysicsVolumeDeformableSimAPI",
+    }
+)
 
 
 def load_predictions(jsonl_path: str) -> list[dict]:
@@ -85,113 +106,6 @@ def _remove_flattened_mass_attributes(
             prim_spec.RemoveProperty(mass_prop)
 
 
-def _is_relative_to(path: Path, base: Path) -> bool:
-    try:
-        path.relative_to(base)
-    except ValueError:
-        return False
-    return True
-
-
-def _is_bare_mdl_token(path_text: str) -> bool:
-    token = path_text.strip("@")
-    return (
-        bool(token)
-        and ":" not in token
-        and "/" not in token
-        and "\\" not in token
-        and Path(token).suffix.lower() == ".mdl"
-    )
-
-
-def _copy_usdz_asset_for_flattened_output(
-    asset_path: Sdf.AssetPath,
-    extract_dir: Path,
-    output: Path,
-) -> Sdf.AssetPath:
-    """Rewrite a flattened USDZ asset path to a portable sidecar path."""
-
-    path_text = asset_path.path or ""
-    resolved_text = asset_path.resolvedPath or ""
-    candidates = [text for text in (path_text, resolved_text) if text]
-
-    for candidate_text in candidates:
-        candidate = Path(candidate_text)
-        if candidate.is_absolute():
-            if not _is_relative_to(candidate, extract_dir):
-                continue
-            rel = candidate.relative_to(extract_dir)
-            source = candidate
-        else:
-            rel = candidate
-            if ".." in rel.parts:
-                continue
-            source = extract_dir / rel
-
-        if not source.is_file():
-            continue
-
-        assets_dir = output.parent / f"{output.stem}_assets"
-        dest = assets_dir / rel
-        extract_root = extract_dir.resolve()
-        source_resolved = source.resolve()
-        assets_root = assets_dir.resolve()
-        dest_resolved = dest.resolve(strict=False)
-        if not _is_relative_to(source_resolved, extract_root):
-            continue
-        if not _is_relative_to(dest_resolved, assets_root):
-            continue
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, dest)
-        return Sdf.AssetPath((Path(assets_dir.name) / rel).as_posix())
-
-    # In Omniverse hosts, bare MDL tokens may resolve during flattening. Keep
-    # those as runtime-resolved module names instead of baking host paths.
-    if path_text and _is_bare_mdl_token(path_text):
-        return Sdf.AssetPath(path_text.strip("@"))
-
-    if candidates:
-        logger.warning(
-            "Leaving flattened USDZ asset path unchanged because it could not "
-            "be resolved under the extracted package: path=%r resolvedPath=%r "
-            "package_root=%s",
-            path_text,
-            resolved_text,
-            extract_dir,
-        )
-
-    return asset_path
-
-
-def _rewrite_flattened_usdz_asset_paths(
-    flattened_layer: Sdf.Layer,
-    extract_dir: Path,
-    output: Path,
-) -> None:
-    """Copy USDZ asset dependencies beside output and rewrite asset paths."""
-
-    def rewrite_value(value: object) -> object:
-        if isinstance(value, Sdf.AssetPath):
-            return _copy_usdz_asset_for_flattened_output(value, extract_dir, output)
-        if isinstance(value, Sdf.AssetPathArray):
-            return Sdf.AssetPathArray(
-                [
-                    _copy_usdz_asset_for_flattened_output(item, extract_dir, output)
-                    for item in value
-                ]
-            )
-        return value
-
-    def rewrite_prim(prim_spec: Sdf.PrimSpec) -> None:
-        for attr_spec in prim_spec.attributes.values():
-            attr_spec.default = rewrite_value(attr_spec.default)
-        for child in prim_spec.nameChildren:
-            rewrite_prim(child)
-
-    for root_prim in flattened_layer.rootPrims:
-        rewrite_prim(root_prim)
-
-
 def _api_enabled(attr: Usd.Attribute | None) -> bool:
     """Treat an applied physics API as enabled unless explicitly authored false."""
 
@@ -221,6 +135,182 @@ def _has_enabled_rigid_body_ancestor(prim: Usd.Prim) -> bool:
             return True
         parent = parent.GetParent()
     return False
+
+
+def _has_deformable_semantics(prim: Usd.Prim) -> bool:
+    """Detect draft deformable schemas without requiring their plugin."""
+
+    applied_schemas = {
+        str(value) for value in prim.GetPrimTypeInfo().GetAppliedAPISchemas()
+    }
+    return (
+        not applied_schemas.isdisjoint(_DEFORMABLE_API_SCHEMAS)
+        or prim.GetCustomDataByKey("physicsAgentVompDeformable") is not None
+    )
+
+
+def _find_deformable_overlap(prim: Usd.Prim) -> tuple[Usd.Prim, str] | None:
+    """Find a deformable contract on, above, or below an authoring target."""
+
+    if _has_deformable_semantics(prim):
+        return prim, "already has"
+
+    parent = prim.GetParent()
+    while parent and parent.IsValid() and not parent.IsPseudoRoot():
+        if _has_deformable_semantics(parent):
+            return parent, "is below"
+        parent = parent.GetParent()
+
+    predicate = Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)
+    for descendant in Usd.PrimRange(prim, predicate):
+        if descendant != prim and _has_deformable_semantics(descendant):
+            return descendant, "contains"
+    return None
+
+
+def _reject_deformable_overlap(prim: Usd.Prim, semantics: str) -> None:
+    overlap = _find_deformable_overlap(prim)
+    if overlap is None:
+        return
+    deformable_prim, relation = overlap
+    if relation == "already has":
+        detail = f"already has a deformable contract at {deformable_prim.GetPath()}"
+    else:
+        detail = f"{relation} deformable prim {deformable_prim.GetPath()}"
+    raise PhysicsAuthoringError(
+        f"Refusing to author {semantics} on {prim.GetPath()}: the target {detail}."
+    )
+
+
+def _accumulate_explicit_body_mass(
+    classification: dict,
+    mass: float,
+    explicit_body_masses: dict[str, float],
+    explicit_mass_keys: set[tuple[str, str]],
+) -> None:
+    """Accumulate one explicit body mass with component-level deduplication."""
+
+    mass_authoring_path = classification.get("mass_authoring_path")
+    if not isinstance(mass_authoring_path, str) or not mass_authoring_path:
+        return
+
+    component_key = classification.get("component_id") or classification.get(
+        "decision_id"
+    )
+    if isinstance(component_key, str) and component_key:
+        mass_key = (mass_authoring_path, component_key)
+        if mass_key in explicit_mass_keys:
+            return
+        explicit_mass_keys.add(mass_key)
+        component_mass = classification.get("component_estimated_mass_kg", mass)
+        try:
+            component_mass_value = float(component_mass)
+        except (TypeError, ValueError):
+            pass
+        else:
+            if component_mass_value <= 0.0:
+                return
+            mass = component_mass_value
+
+    explicit_body_masses[mass_authoring_path] = (
+        explicit_body_masses.get(mass_authoring_path, 0.0) + mass
+    )
+
+
+def _has_blockable_mass(prim: Usd.Prim) -> bool:
+    if not prim.HasAPI(UsdPhysics.MassAPI):
+        mass_attr = prim.GetAttribute("physics:mass")
+        if not mass_attr or not mass_attr.IsAuthored():
+            return False
+    return UsdPhysics.MassAPI(prim).GetMassAttr().HasAuthoredValueOpinion()
+
+
+def _plan_skipped_mass_paths(
+    stage: Usd.Stage,
+    predictions: list[dict],
+    output_key: str,
+    mass_scale_policy: str,
+) -> set[str]:
+    """Find existing mass opinions that ``skip_mass`` would clear."""
+
+    if mass_scale_policy != "skip_mass":
+        return set()
+
+    paths: set[str] = set()
+    for pred in predictions:
+        if not has_mass_scale_suspicious_warning(pred):
+            continue
+        prim_path = pred.get("id", "")
+        classification = unwrap_output_key_payload(pred.get(output_key, {}), output_key)
+        if not isinstance(classification, dict):
+            classification = {}
+        if not prim_path or not classification.get("physical_properties", {}):
+            continue
+
+        collider_prim = stage.GetPrimAtPath(prim_path)
+        if not collider_prim.IsValid():
+            continue
+
+        candidate_paths = [prim_path]
+        mass_authoring_path = classification.get("mass_authoring_path")
+        if (
+            isinstance(mass_authoring_path, str)
+            and mass_authoring_path
+            and mass_authoring_path != prim_path
+        ):
+            candidate_paths.append(mass_authoring_path)
+        for candidate_path in candidate_paths:
+            prim = stage.GetPrimAtPath(candidate_path)
+            if prim.IsValid() and _has_blockable_mass(prim):
+                paths.add(candidate_path)
+    return paths
+
+
+def _plan_explicit_body_masses(
+    stage: Usd.Stage,
+    predictions: list[dict],
+    output_key: str,
+    mass_scale_policy: str,
+    author_rigid_body: bool,
+) -> dict[str, float]:
+    """Plan masses that a successful collider-authoring pass would write.
+
+    Treat every currently valid collider target as potentially authorable.
+    Earlier records can add CollisionAPI for ``preserve_existing`` records or
+    deinstance later targets, so filtering against the pre-loop stage would
+    under-plan writes that the ordered authoring pass eventually performs.
+    """
+
+    if not author_rigid_body:
+        return {}
+
+    explicit_body_masses: dict[str, float] = {}
+    explicit_mass_keys: set[tuple[str, str]] = set()
+    for pred in predictions:
+        prim_path = pred.get("id", "")
+        classification = unwrap_output_key_payload(pred.get(output_key, {}), output_key)
+        if not isinstance(classification, dict):
+            classification = {}
+        physics_props = classification.get("physical_properties", {})
+        if not prim_path or not physics_props:
+            continue
+
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim.IsValid():
+            continue
+
+        suspicious_mass_scale = has_mass_scale_suspicious_warning(pred)
+        if suspicious_mass_scale and mass_scale_policy in {"fail", "skip_mass"}:
+            continue
+        mass = physics_props.get("estimated_mass_kg", 0.0)
+        if mass > 0:
+            _accumulate_explicit_body_mass(
+                classification,
+                mass,
+                explicit_body_masses,
+                explicit_mass_keys,
+            )
+    return explicit_body_masses
 
 
 def _apply_collider_to_prim(
@@ -371,6 +461,11 @@ def _apply_predictions_to_stage(
             "authors the asset's RigidBodyAPI on the default prim; "
             "set defaultPrim in the source USD."
         )
+    if default_prim.IsInstanceProxy():
+        raise PhysicsAuthoringError(
+            f"default prim {default_prim.GetPath()} is an instance proxy "
+            "and cannot be modified. Apply physics to a deinstanced USD."
+        )
     if author_rigid_body and not default_prim.IsA(UsdGeom.Xformable):
         raise PhysicsAuthoringError(
             f"default prim {default_prim.GetPath()} ({default_prim.GetTypeName()}) "
@@ -378,17 +473,100 @@ def _apply_predictions_to_stage(
             "Set defaultPrim to an Xform that wraps the asset's geometry."
         )
 
-    physics_scenes = [p for p in stage.Traverse() if p.IsA(UsdPhysics.Scene)]
+    # Reject every collider target before mutating the stage. The deformable
+    # schemas are drafts and may be unregistered in this USD build, so inspect
+    # raw applied-schema tokens as well as Physics Agent provenance.
+    for pred in predictions:
+        prim_path = pred.get("id", "")
+        classification = unwrap_output_key_payload(pred.get(output_key, {}), output_key)
+        if not isinstance(classification, dict):
+            classification = {}
+        if not prim_path or not classification.get("physical_properties", {}):
+            continue
+        prim = stage.GetPrimAtPath(prim_path)
+        if prim.IsValid():
+            _reject_deformable_overlap(prim, "CollisionAPI/MassAPI")
+
+    scene_traversal = Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)
+    physics_scenes = [
+        prim
+        for prim in Usd.PrimRange.Stage(stage, scene_traversal)
+        if prim.IsA(UsdPhysics.Scene)
+    ]
+    if default_prim.IsInstanceable() and (
+        not physics_scenes or predictions or author_rigid_body
+    ):
+        default_prim.SetInstanceable(False)
+
+    # Deinstancing can expose referenced rigid-body descendants that were
+    # instance proxies during the initial read-only traversal. Recompute the
+    # hierarchy used by both the deformable preflight and final body decision.
+    preserves_existing_articulation = _has_enabled_rigid_body_descendant(
+        default_prim
+    ) or _has_enabled_rigid_body_ancestor(default_prim)
+    if author_rigid_body and not preserves_existing_articulation:
+        _reject_deformable_overlap(default_prim, "RigidBodyAPI/MassAPI")
+
+    # Plan explicit masses after the default prim is deinstanced, because a
+    # predicted instance proxy may become the authorable prim used below. This
+    # still runs before PhysicsScene, collider, material, or mass authoring.
+    explicit_body_masses = _plan_explicit_body_masses(
+        stage,
+        predictions,
+        output_key,
+        mass_scale_policy,
+        author_rigid_body,
+    )
+    for body_path in explicit_body_masses:
+        body_prim = stage.GetPrimAtPath(body_path)
+        # Missing targets retain their existing, more specific error in the
+        # authoring pass. Check instance proxies too: an earlier record can
+        # deinstance their ancestor before explicit masses are written.
+        if body_prim.IsValid():
+            _reject_deformable_overlap(body_prim, "MassAPI")
+
+    for mass_path in _plan_skipped_mass_paths(
+        stage,
+        predictions,
+        output_key,
+        mass_scale_policy,
+    ):
+        _reject_deformable_overlap(stage.GetPrimAtPath(mass_path), "MassAPI")
+
     if not physics_scenes:
         scene_path = default_prim.GetPath().AppendChild("PhysicsScene")
         physics_scene = UsdPhysics.Scene.Define(stage, scene_path)
-        physics_scene.CreateGravityMagnitudeAttr(9.81)
+        meters_per_unit = float(UsdGeom.GetStageMetersPerUnit(stage))
+        try:
+            gravity_stage_units = acceleration_m_per_s2_to_stage_units(
+                STANDARD_GRAVITY_M_PER_S2,
+                meters_per_unit,
+            )
+        except ValueError as exc:
+            raise PhysicsAuthoringError(
+                f"USD stage {stage_path} has invalid linear units: {exc}"
+            ) from exc
+        if not UsdGeom.StageHasAuthoredMetersPerUnit(stage):
+            logger.warning(
+                "USD stage %s does not author metersPerUnit; using the OpenUSD "
+                "fallback %.6g meters per unit for gravity authoring",
+                stage_path,
+                meters_per_unit,
+            )
+        physics_scene.CreateGravityMagnitudeAttr(gravity_stage_units)
         up_axis = UsdGeom.GetStageUpAxis(stage)
         if up_axis == UsdGeom.Tokens.y:
             physics_scene.CreateGravityDirectionAttr(Gf.Vec3f(0, -1, 0))
         else:
             physics_scene.CreateGravityDirectionAttr(Gf.Vec3f(0, 0, -1))
-        logger.info("Created PhysicsScene at %s", scene_path)
+        logger.info(
+            "Created PhysicsScene at %s with gravity %.6g stage units/s^2 "
+            "(%.6g m/s^2, metersPerUnit=%.6g)",
+            scene_path,
+            gravity_stage_units,
+            STANDARD_GRAVITY_M_PER_S2,
+            meters_per_unit,
+        )
 
     materials_root = str(default_prim.GetPath()) + "/Looks"
 
@@ -397,8 +575,6 @@ def _apply_predictions_to_stage(
     applied = 0
     skipped = 0
     aggregated_mass = 0.0
-    explicit_body_masses: dict[str, float] = {}
-    explicit_mass_keys: set[tuple[str, str]] = set()
     any_suspicious = False
 
     for pred in predictions:
@@ -454,40 +630,6 @@ def _apply_predictions_to_stage(
             mass = physics_props.get("estimated_mass_kg", 0.0)
             if mass > 0:
                 aggregated_mass += mass
-                mass_authoring_path = classification.get("mass_authoring_path")
-                if (
-                    isinstance(mass_authoring_path, str)
-                    and mass_authoring_path
-                    and author_rigid_body
-                    and not (suspicious_mass_scale and mass_scale_policy == "skip_mass")
-                ):
-                    should_add_explicit_mass = True
-                    component_key = classification.get("component_id") or (
-                        classification.get("decision_id")
-                    )
-                    if isinstance(component_key, str) and component_key:
-                        mass_key = (mass_authoring_path, component_key)
-                        if mass_key in explicit_mass_keys:
-                            should_add_explicit_mass = False
-                        else:
-                            explicit_mass_keys.add(mass_key)
-                            component_mass = classification.get(
-                                "component_estimated_mass_kg",
-                                mass,
-                            )
-                            try:
-                                component_mass_value = float(component_mass)
-                            except (TypeError, ValueError):
-                                pass
-                            else:
-                                if component_mass_value <= 0.0:
-                                    should_add_explicit_mass = False
-                                else:
-                                    mass = component_mass_value
-                    if should_add_explicit_mass:
-                        explicit_body_masses[mass_authoring_path] = (
-                            explicit_body_masses.get(mass_authoring_path, 0.0) + mass
-                        )
             if suspicious_mass_scale and mass_scale_policy == "skip_mass":
                 mass_paths = [prim_path]
                 mass_authoring_path = classification.get("mass_authoring_path")
@@ -527,6 +669,7 @@ def _apply_predictions_to_stage(
                 f"Explicit mass authoring prim {body_path} is an instance proxy "
                 "and cannot be authored on. Apply physics to a deinstanced USD."
             )
+        _reject_deformable_overlap(body_prim, "MassAPI")
         if body_prim.IsInstanceable():
             body_prim.SetInstanceable(False)
         UsdPhysics.MassAPI.Apply(body_prim).CreateMassAttr(body_mass)
@@ -536,6 +679,10 @@ def _apply_predictions_to_stage(
             body_mass,
         )
 
+    # Explicit mass authoring and suspicious-mass cleanup can deinstance
+    # descendant targets, exposing referenced rigid bodies that were instance
+    # proxies during preflight. Recompute before deciding whether the default
+    # prim may safely become another rigid body.
     preserves_existing_articulation = _has_enabled_rigid_body_descendant(
         default_prim
     ) or _has_enabled_rigid_body_ancestor(default_prim)
@@ -593,29 +740,25 @@ def _export_flattened_stage(
     stage: Usd.Stage,
     output: Path,
     skipped_mass_paths: set[str],
+    approved_dependency_roots: Iterable[Path],
     package_asset_root: Path | None = None,
 ) -> None:
-    # USDZ inputs are flattened from an extracted package. When
-    # package_asset_root is provided, package-local assets are copied beside
-    # the output and rewritten to portable sidecar references.
-    #
-    # FIXME(apply_physics-flatten-anchor): the non-package path can still
-    # inherit absolute asset paths from stage.Flatten() when dependencies live
-    # outside the output directory. For direct CLI working-dir use this points
-    # at the user's own checkout, but a redistributable single-file export
-    # would need the same copy-and-rewrite treatment or a USDZ package output.
-    #
-    # Alternative: skip Flatten() entirely for single-layer inputs and
-    # use a sublayer/reference structure where the original input
-    # layer carries the asset paths (USD resolves them relative to the
-    # layer they're authored in, which would be the original input
-    # location). That preserves the source's anchor at the cost of
-    # losing the single-file output guarantee callers may depend on.
+    # Every flattened output uses the resolver-backed portable exporter so
+    # defaults, time samples, metadata, and composition dependencies share one
+    # strict localization and validation contract. USDZ extraction roots are
+    # transient and therefore added to the approved roots only for this export.
     flattened_layer = stage.Flatten()
     _remove_flattened_mass_attributes(flattened_layer, skipped_mass_paths)
+    dependency_roots = tuple(approved_dependency_roots)
     if package_asset_root is not None:
-        _rewrite_flattened_usdz_asset_paths(flattened_layer, package_asset_root, output)
-    flattened_layer.Export(str(output))
+        dependency_roots = (*dependency_roots, package_asset_root)
+    export_stage_portably(
+        stage,
+        output,
+        approved_dependency_roots=dependency_roots,
+        export_layer=flattened_layer,
+        is_runtime_asset_path=_is_runtime_resolved_asset_path,
+    )
 
 
 def _extract_usdz_for_edit(usdz_path: Path, extract_dir: Path) -> Path:
@@ -626,15 +769,10 @@ def _extract_usdz_for_edit(usdz_path: Path, extract_dir: Path) -> Path:
 
 
 def _create_usdz_package(root_layer_path: Path, output: Path) -> None:
-    with tempfile.NamedTemporaryFile(
-        prefix=f".{output.stem}_",
-        suffix=output.suffix,
-        dir=output.parent,
-        delete=False,
-    ) as temp_file:
-        temp_output = Path(temp_file.name)
-    temp_output.unlink(missing_ok=True)
-    try:
+    with _atomic_output_file(
+        output,
+        clear_portable_sidecar=True,
+    ) as temp_output:
         ok = UsdUtils.CreateNewUsdzPackage(str(root_layer_path), str(temp_output))
         if not ok or not temp_output.exists():
             raise RuntimeError(f"Failed to create USDZ package: {output}")
@@ -642,9 +780,6 @@ def _create_usdz_package(root_layer_path: Path, output: Path) -> None:
             raise RuntimeError(
                 f"CreateNewUsdzPackage wrote a non-ZIP file: {temp_output}"
             )
-        temp_output.replace(output)
-    finally:
-        temp_output.unlink(missing_ok=True)
 
 
 def _save_stage(stage: Usd.Stage) -> None:
@@ -659,6 +794,25 @@ def _open_stage(path: Path) -> Usd.Stage:
     if not stage:
         raise RuntimeError(f"Failed to open USD stage: {path}")
     return stage
+
+
+def _revert_source_layer_edits(source: Path) -> None:
+    """Discard any in-memory physics edits made to the shared source layer.
+
+    ``apply_physics`` opens its input through the process-global ``Sdf.Layer``
+    registry. When a long-lived caller (for example a usd-cli session)
+    holds that same source layer open, authoring here mutates the shared
+    in-memory layer, so a later re-inspection of the source observes the
+    just-authored colliders even though the on-disk file is untouched. The
+    authored result is always written to a distinct output file, so revert the
+    input layer to its on-disk state to keep ``apply_physics`` side-effect-free
+    on its input. A no-op when the source layer is not registered or not dirty
+    (fresh, stateless callers), and harmless for branches that author on an
+    extracted or copied layer rather than the source itself.
+    """
+    layer = Sdf.Layer.Find(str(source))
+    if layer is not None and layer.dirty:
+        layer.Reload()
 
 
 def _open_and_apply(
@@ -695,6 +849,7 @@ def apply_physics(
     mass_scale_policy: str = "skip_mass",
     allow_empty_predictions: bool = False,
     author_rigid_body: bool = True,
+    approved_dependency_roots: Iterable[str | Path] | None = None,
 ) -> str:
     """Apply physics properties from predictions to a USD file.
 
@@ -702,9 +857,9 @@ def apply_physics(
     predicted prim, plus one rigid body on the asset's default prim when
     ``author_rigid_body`` is true. USDZ inputs with USDZ outputs preserve
     package structure by editing the extracted root layer and repackaging bundled
-    dependencies. USDZ inputs with layer outputs flatten composed geometry while
-    copying package-local asset dependencies beside the output and rewriting them
-    to relative paths.
+    dependencies. Flattened layer outputs localize resolvable filesystem
+    dependencies beside the output and rewrite them to portable relative paths;
+    runtime-resolved MDL and URI assets remain unchanged.
 
     Args:
         usd_path: Path to input USD file. Must have a default prim that
@@ -727,6 +882,8 @@ def apply_physics(
             predictions file instead of authoring a rigid body with no colliders.
         author_rigid_body: When ``False``, author per-target collider/material
             data but do not add a default-prim ``RigidBodyAPI`` or body mass.
+        approved_dependency_roots: Filesystem roots from which a flattened
+            export may copy dependencies. Defaults to the input USD's parent.
 
     Returns:
         Absolute path to the created USD file.
@@ -748,7 +905,13 @@ def apply_physics(
         )
 
     source = Path(usd_path).resolve()
-    output = Path(output_path).resolve()
+    output = _lexical_absolute_path(output_path)
+    root_values: tuple[str | Path, ...]
+    if approved_dependency_roots is None:
+        root_values = (source.parent,)
+    else:
+        root_values = tuple(approved_dependency_roots)
+    dependency_roots = _normalize_dependency_roots(root_values)
     if source == output:
         raise ValueError("apply_physics output_path must differ from usd_path")
 
@@ -769,9 +932,6 @@ def apply_physics(
             "permit empty physics authoring."
         )
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    output_preexisted = output.exists()
     body_path = ""
     try:
         if output_suffix == ".usdz":
@@ -822,7 +982,12 @@ def apply_physics(
                         author_rigid_body=author_rigid_body,
                     )
                     flattened_root = temp_dir / f"{output.stem}.usda"
-                    _export_flattened_stage(stage, flattened_root, skipped_mass_paths)
+                    _export_flattened_stage(
+                        stage,
+                        flattened_root,
+                        skipped_mass_paths,
+                        dependency_roots,
+                    )
                     _create_usdz_package(flattened_root, output)
 
         elif input_suffix == ".usdz":
@@ -849,33 +1014,34 @@ def apply_physics(
                     stage,
                     output,
                     skipped_mass_paths,
+                    dependency_roots,
                     package_asset_root=temp_dir,
                 )
 
         elif input_suffix == output_suffix and output.parent == source.parent:
-            with tempfile.NamedTemporaryFile(
-                prefix=f".{output.stem}_",
-                suffix=output.suffix,
-                dir=output.parent,
-                delete=False,
-            ) as temp_file:
-                temp_output = Path(temp_file.name)
-            temp_output.unlink(missing_ok=True)
-            try:
-                shutil.copy2(source, temp_output)
-                stage, applied, skipped, material_count, _, body_path = _open_and_apply(
-                    temp_output,
-                    predictions,
-                    collision_approx,
-                    output_key,
-                    mass_scale_policy,
-                    allow_empty_predictions=allow_empty_predictions,
-                    author_rigid_body=author_rigid_body,
-                )
-                _save_stage(stage)
-                temp_output.replace(output)
-            finally:
-                temp_output.unlink(missing_ok=True)
+            (
+                stage,
+                applied,
+                skipped,
+                material_count,
+                _,
+                body_path,
+            ) = _open_and_apply(
+                source,
+                predictions,
+                collision_approx,
+                output_key,
+                mass_scale_policy,
+                allow_empty_predictions=allow_empty_predictions,
+                author_rigid_body=author_rigid_body,
+            )
+            export_stage_portably(
+                stage,
+                output,
+                approved_dependency_roots=dependency_roots,
+                export_layer=stage.GetRootLayer(),
+                is_runtime_asset_path=_is_runtime_resolved_asset_path,
+            )
 
         else:
             stage, applied, skipped, material_count, skipped_mass_paths, body_path = (
@@ -889,12 +1055,15 @@ def apply_physics(
                     author_rigid_body=author_rigid_body,
                 )
             )
-            _export_flattened_stage(stage, output, skipped_mass_paths)
+            _export_flattened_stage(
+                stage,
+                output,
+                skipped_mass_paths,
+                dependency_roots,
+            )
 
-    except Exception:
-        if not output_preexisted:
-            output.unlink(missing_ok=True)
-        raise
+    finally:
+        _revert_source_layer_edits(source)
 
     logger.info(
         "Saved %s: %s on %s with %d collider(s), %d skipped, %d materials created",

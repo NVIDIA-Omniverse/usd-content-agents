@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from world_understanding.config.s3 import WU_S3_BUCKET, WU_S3_PROFILE, WU_S3_REGION
+from world_understanding.functions.graphics.so_export import (
+    _atomic_output_file,
+    _lexical_absolute_path,
+)
 from world_understanding.utils.data_uri import should_use_data_uri
 from world_understanding.utils.nvcf_utils import (
     create_nvcf_headers,
@@ -209,9 +213,12 @@ async def optimize_usd_from_url(
         stage_bytes = base64.b64decode(optimized_stage_base64)
 
         # Write to output path
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(stage_bytes)
+        output_path = _lexical_absolute_path(output_path)
+        with _atomic_output_file(
+            output_path,
+            clear_portable_sidecar=True,
+        ) as transaction_output:
+            transaction_output.write_bytes(stage_bytes)
 
         output_size = output_path.stat().st_size
         logger.info("Wrote optimized USD to %s (%d bytes)", output_path, output_size)
@@ -322,7 +329,12 @@ async def optimize_usd_from_path(
         from world_understanding.utils.usd.stage import create_data_uri_from_file
 
         logger.info("Using data URI for optimization input (no S3)")
-        input_url = create_data_uri_from_file(input_path)
+        mime_type = (
+            "model/vnd.usdz+zip"
+            if input_path.suffix.lower() == ".usdz"
+            else "model/vnd.usd"
+        )
+        input_url = create_data_uri_from_file(input_path, mime_type=mime_type)
 
         result = await optimize_usd_from_url(
             input_url=input_url,
@@ -343,7 +355,7 @@ async def optimize_usd_from_path(
 
     # S3 path: upload to S3, pass HTTPS URL, clean up after
     suffix = input_path.suffix.lower() if input_path.suffix else ".usd"
-    if suffix not in (".usd", ".usda", ".usdc"):
+    if suffix not in (".usd", ".usda", ".usdc", ".usdz"):
         suffix = ".usd"
     unique_id = uuid.uuid4().hex
     s3_key = f"nvcf-optimization/{unique_id}/input{suffix}"

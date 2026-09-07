@@ -390,14 +390,20 @@ def test_warp_mesh_extraction_and_render_path(
     class FakeContext:
         def __init__(self):
             self.utils = SimpleNamespace(
-                compute_pinhole_camera_rays=lambda *args, **kwargs: "rays"
+                compute_pinhole_camera_rays=lambda *args, **kwargs: "rays",
+                create_shape_index_image_output=self._create_shape_index_image_output,
             )
+            self._wu_render_model = "model"
+            self._wu_render_state = "state"
+            self._wu_render_config_per_call = False
 
-        def create_shape_index_image_output(self, width, height, channels):
+        def _create_shape_index_image_output(self, width, height, channels):
             assert (width, height, channels) == (2, 2, 1)
             return FakeShapeImage()
 
-        def render(self, **kwargs):
+        def render(self, model, state, **kwargs):
+            assert model == "model"
+            assert state == "state"
             assert kwargs["camera_rays"] == "rays"
 
     fake_wp = SimpleNamespace(
@@ -422,6 +428,10 @@ def test_warp_mesh_extraction_and_render_path(
         device="cpu",
     )
     assert len(warp_meshes) == 1
+    assert warp_meshes[0].vertices_in_world_space is True
+    assert vg.render_warp._get_mesh_shape_data(
+        warp_meshes, mesh_prims, vg.Usd.TimeCode.Default()
+    ) == ([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]], [(1.0, 1.0, 1.0)])
     assert [str(prim.GetPath()) for prim in mesh_prims] == ["/World/Panel"]
     assert vg._extract_world_warp_meshes(
         stage=stage,

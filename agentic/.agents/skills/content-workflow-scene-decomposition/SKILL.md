@@ -1,9 +1,17 @@
 ---
 name: content-workflow-scene-decomposition
 description: Decompose a large OpenUSD scene into finalized processable representatives, instance/prototype/payload family mappings, optional extracted assets, and a sealed Workflow 1 handoff. Use for the decomposition phase of a large-scene run, for repeated or heavily instanced scenes, or when material and physics tasks need explicit scene partitions.
+metadata:
+  author: NVIDIA Omniverse
 ---
 
 # content-workflow-scene-decomposition
+
+> **Workflow-owned decomposition:** Manifests, topology mappings, and the
+> sealed Workflow 1 handoff are produced by
+> `content_agent_workflows.scene_decomposition`. For ambiguity that structural
+> USD evidence cannot resolve, inspect/render through usd-cli as frozen in the
+> large-scene request.
 
 Produce finalized manifest views and topology mappings. Do not make material or
 physics assignments and do not mark the umbrella phase complete.
@@ -13,14 +21,15 @@ physics assignments and do not mark the umbrella phase complete.
 1. Read the source scene, requested tasks, phase input digest, and output
    directory from `large_scene_run.json`.
 2. Inspect scene hierarchy, instances, prototypes, payloads, geometry counts,
-   and prior diagnostics. Use `content-workbench` only for ambiguity that
-   structural evidence cannot resolve.
+   and prior diagnostics. Use usd-cli only for ambiguity
+   that structural evidence cannot resolve; do not move decomposition policy
+   into the scene tool.
 3. Choose a decomposition intent and stable manifest ID. Create separate views
    only when requested domains genuinely need different processable boundaries.
 4. Run deterministic decomposition:
 
    ```bash
-   content-workflow-scene-decompose SCENE.usd \
+   content-workflow-cli scene decompose SCENE.usd \
      --output-dir RUN/01-decomposition \
      --manifest-id MANIFEST_ID \
      --intent INTENT \
@@ -45,7 +54,7 @@ physics assignments and do not mark the umbrella phase complete.
    family; keep non-representative instance members non-processable.
 7. Confirm `decomposition_result.json` reports `success: true`, no unresolved
    issues, and a non-empty output digest.
-8. Return the result path to `content-workflow-large-scene` for handoff
+8. Return the result path to `content-workflow-cli scene phase` for handoff
    validation and phase completion.
 
 ## Required Outputs

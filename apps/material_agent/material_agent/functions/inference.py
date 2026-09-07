@@ -40,6 +40,40 @@ _SPEC_MATERIAL_CLAIM = re.compile(
     r"^\s*(?:[-*•]\s*)?material\s+type\s*:\s*(?P<material>[^\r\n]{1,160})",
     re.IGNORECASE | re.MULTILINE,
 )
+_AMBIGUOUS_SPEC_CLAIM_SEPARATORS = re.compile(r"[,;/&+|]")
+_AMBIGUOUS_SPEC_CLAIM_TOKENS = frozenset(
+    {
+        "and",
+        "blend",
+        "blended",
+        "clad",
+        "cladding",
+        "coated",
+        "coating",
+        "composite",
+        "either",
+        "except",
+        "excluding",
+        "filled",
+        "free",
+        "lined",
+        "lining",
+        "mixed",
+        "mixture",
+        "neither",
+        "no",
+        "non",
+        "nor",
+        "not",
+        "or",
+        "plated",
+        "plating",
+        "reinforced",
+        "versus",
+        "vs",
+        "without",
+    }
+)
 
 
 def _extract_untrusted_spec_material_claims(entry: dict[str, Any]) -> list[str]:
@@ -77,12 +111,16 @@ def _spec_claim_supports_visual_material(claim: str, visual_material: str) -> bo
         return False
     if normalized_claim == normalized_visual:
         return True
-    return bool(
-        re.search(
-            rf"(?:^| ){re.escape(normalized_visual)}(?: |$)",
-            normalized_claim,
-        )
-    )
+
+    claim_tokens = normalized_claim.split()
+    visual_tokens = normalized_visual.split()
+    if len(claim_tokens) <= len(visual_tokens):
+        return False
+    if claim_tokens[-len(visual_tokens) :] != visual_tokens:
+        return False
+    if _AMBIGUOUS_SPEC_CLAIM_SEPARATORS.search(claim):
+        return False
+    return not _AMBIGUOUS_SPEC_CLAIM_TOKENS.intersection(claim_tokens)
 
 
 def reconcile_untrusted_spec_evidence(
@@ -356,10 +394,10 @@ def batch_assign_materials(
     entries_by_id = {str(entry.get("id", "unknown")): entry for entry in entries}
 
     def on_visual_prediction(
-        entry_id: str,
+        entry_id: Any,
         prediction: dict[str, Any],
     ) -> None:
-        _reconcile_prediction_in_place(prediction, entries_by_id.get(entry_id))
+        _reconcile_prediction_in_place(prediction, entries_by_id.get(str(entry_id)))
         if on_prediction is not None:
             on_prediction(entry_id, prediction)
 
@@ -423,10 +461,10 @@ async def async_batch_assign_materials(
     entries_by_id = {str(entry.get("id", "unknown")): entry for entry in entries}
 
     def on_visual_prediction(
-        entry_id: str,
+        entry_id: Any,
         prediction: dict[str, Any],
     ) -> None:
-        _reconcile_prediction_in_place(prediction, entries_by_id.get(entry_id))
+        _reconcile_prediction_in_place(prediction, entries_by_id.get(str(entry_id)))
         if on_prediction is not None:
             on_prediction(entry_id, prediction)
 

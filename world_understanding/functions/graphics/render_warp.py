@@ -21,7 +21,10 @@ import inspect
 import logging
 import math
 import time
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from functools import wraps
+from threading import Lock
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -34,6 +37,49 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Newton/WARP kernel compilation writes shared cache metadata and is not safe
+# when two service threads enter different render specializations at once. A
+# single process-wide boundary also keeps the in-process CUDA renderer from
+# overlapping work on one device. Containers do not share this cache unless
+# explicitly mounted.
+_WARP_RENDER_LOCK = Lock()
+
+
+def _serialize_warp_render[**P, R](function: Callable[P, R]) -> Callable[P, R]:
+    """Serialize in-process WARP renders, including first-use compilation."""
+
+    @wraps(function)
+    def serialized(*args: P.args, **kwargs: P.kwargs) -> R:
+        with _WARP_RENDER_LOCK:
+            return function(*args, **kwargs)
+
+    return serialized
+
+
+# Newton 1.4 captures RenderContext.Config.max_distance with wp.static, so each
+# distinct value compiles another render kernel. Keep the specialization set
+# finite while covering every practically representable WARP scene scale.
+_RAY_DISTANCE_BUCKETS = (
+    1.0e3,
+    1.0e4,
+    1.0e5,
+    1.0e6,
+    1.0e7,
+    1.0e8,
+    1.0e9,
+    1.0e10,
+    1.0e12,
+    1.0e15,
+    1.0e18,
+    1.0e21,
+    1.0e24,
+    1.0e27,
+    1.0e30,
+    1.0e33,
+    1.0e36,
+    1.0e38,
+)
+
 
 @dataclass(frozen=True)
 class _RenderMesh:
@@ -42,6 +88,19 @@ class _RenderMesh:
     warp_mesh: Any
     vertices: np.ndarray
     indices: np.ndarray
+    vertex_basis: np.ndarray = field(
+        default_factory=lambda: np.eye(3, dtype=np.float32)
+    )
+    vertices_in_world_space: bool = False
+
+
+@dataclass(frozen=True)
+class _MeshTransform:
+    """Newton-compatible decomposition of a USD mesh world transform."""
+
+    transform_7f: list[float]
+    scale: tuple[float, float, float]
+    vertex_basis: np.ndarray
 
 
 # ---------------------------------------------------------------------------
@@ -118,8 +177,35 @@ def _triangulate(
     return np.array(triangles, dtype=np.int32)
 
 
-def _gf_matrix_to_transform_7f(m) -> list[float]:
-    """Convert a Gf.Matrix4d to 7 floats [px, py, pz, qx, qy, qz, qw].
+def _gf_translation_rotation_to_transform_7f(
+    translation: Any, rotation: Any
+) -> list[float]:
+    """Convert a Gf translation and rotation to a normalized Warp transform."""
+    gf_quat = rotation.GetQuat()
+    real = gf_quat.GetReal()
+    imag = gf_quat.GetImaginary()
+
+    length = math.sqrt(real**2 + imag[0] ** 2 + imag[1] ** 2 + imag[2] ** 2)
+    if length > 0:
+        real /= length
+        imag = [imag[0] / length, imag[1] / length, imag[2] / length]
+    else:
+        imag = [0.0, 0.0, 0.0]
+        real = 1.0
+
+    return [
+        float(translation[0]),
+        float(translation[1]),
+        float(translation[2]),
+        float(imag[0]),
+        float(imag[1]),
+        float(imag[2]),
+        float(real),
+    ]
+
+
+def _gf_matrix_to_transform_7f(m: Any) -> list[float]:
+    """Convert the rigid part of a Gf.Matrix4d to a Warp transform.
 
     This is the format expected by ``wp.transformf``.
 
@@ -132,28 +218,82 @@ def _gf_matrix_to_transform_7f(m) -> list[float]:
     from pxr import Gf
 
     t = m.ExtractTranslation()
-    gf_quat = Gf.Transform(m).GetRotation().GetQuat()
-    real = gf_quat.GetReal()
-    imag = gf_quat.GetImaginary()
+    return _gf_translation_rotation_to_transform_7f(t, Gf.Transform(m).GetRotation())
 
-    # Normalize quaternion
-    length = math.sqrt(real**2 + imag[0] ** 2 + imag[1] ** 2 + imag[2] ** 2)
-    if length > 0:
-        real /= length
-        imag = [imag[0] / length, imag[1] / length, imag[2] / length]
-    else:
-        imag = [0.0, 0.0, 0.0]
-        real = 1.0
 
-    return [
-        float(t[0]),
-        float(t[1]),
-        float(t[2]),
-        float(imag[0]),
-        float(imag[1]),
-        float(imag[2]),
-        float(real),
-    ]
+def _gf_matrix_to_mesh_transform(m: Any) -> _MeshTransform:
+    """Decompose a USD affine transform without dropping scale or shear.
+
+    Newton mesh shapes represent a signed axis-aligned scale followed by a
+    rigid transform. ``Gf.Transform`` factors an arbitrary affine linear part
+    as ``P^-1 * S * P * R``. Baking ``P^-1`` into local mesh vertices lets
+    Newton apply ``S`` and ``P * R`` natively, preserving non-uniform scale,
+    mirroring, and static shear exactly.
+
+    Args:
+        m: A finite ``Gf.Matrix4d`` world transform matrix.
+
+    Returns:
+        Newton-compatible rigid transform, signed scale, and vertex basis.
+
+    Raises:
+        ValueError: If the matrix is non-finite or cannot be decomposed
+            losslessly for WARP rendering.
+    """
+    from pxr import Gf
+
+    matrix_values = np.asarray(m, dtype=np.float64)
+    if not np.isfinite(matrix_values).all():
+        raise ValueError("USD mesh transform contains non-finite values")
+
+    transform = Gf.Transform(m)
+    pivot_orientation = Gf.Matrix3d(1.0)
+    pivot_orientation.SetRotate(transform.GetPivotOrientation())
+    rotation = Gf.Matrix3d(1.0)
+    rotation.SetRotate(transform.GetRotation())
+
+    combined_rotation_matrix = pivot_orientation * rotation
+    combined_rotation = combined_rotation_matrix.ExtractRotation()
+    transform_7f = _gf_translation_rotation_to_transform_7f(
+        m.ExtractTranslation(), combined_rotation
+    )
+    scale_value = transform.GetScale()
+    scale = (
+        float(scale_value[0]),
+        float(scale_value[1]),
+        float(scale_value[2]),
+    )
+    vertex_basis = np.asarray(pivot_orientation, dtype=np.float64).T
+
+    # Gf.Transform can return a plausible-looking factorization for a singular
+    # matrix even when that factorization no longer reconstructs the authored
+    # linear transform (for example, a rotated zero-scale axis). Refuse that
+    # lossy result instead of rendering silently displaced or stretched geometry.
+    linear_part = matrix_values[:3, :3]
+    reconstructed_linear = (
+        vertex_basis
+        @ np.diag(scale)
+        @ np.asarray(combined_rotation_matrix, dtype=np.float64)
+    )
+    linear_magnitude = max(1.0, float(np.max(np.abs(linear_part))))
+    if not np.allclose(
+        reconstructed_linear,
+        linear_part,
+        rtol=1.0e-6,
+        atol=1.0e-6 * linear_magnitude,
+    ):
+        raise ValueError(
+            "USD mesh transform cannot be decomposed losslessly for WARP rendering"
+        )
+
+    if not np.isfinite(np.asarray((*transform_7f, *scale))).all():
+        raise ValueError("USD mesh transform decomposition contains non-finite values")
+
+    return _MeshTransform(
+        transform_7f=transform_7f,
+        scale=scale,
+        vertex_basis=np.ascontiguousarray(vertex_basis, dtype=np.float32),
+    )
 
 
 def _unpack_color_image(packed: np.ndarray, world_idx: int, cam_idx: int) -> np.ndarray:
@@ -235,6 +375,7 @@ def _extract_meshes(stage: "Usd.Stage", time_code, device: str):
 
     warp_meshes = []
     mesh_prims = []
+    xform_cache = UsdGeom.XformCache(time_code)
 
     for prim in stage.TraverseAll():
         if not prim.IsA(UsdGeom.Mesh) or prim.IsInstanceProxy():
@@ -269,15 +410,68 @@ def _extract_meshes(stage: "Usd.Stage", time_code, device: str):
         if len(tri_idx) == 0:
             continue
 
+        mesh_transform = _gf_matrix_to_mesh_transform(
+            xform_cache.GetLocalToWorldTransform(prim)
+        )
+        transformed_points = np.ascontiguousarray(
+            points @ mesh_transform.vertex_basis, dtype=np.float32
+        )
+
         wm = wp.Mesh(
-            points=wp.array(points, dtype=wp.vec3f, device=device),
+            points=wp.array(transformed_points, dtype=wp.vec3f, device=device),
             indices=wp.array(tri_idx, dtype=wp.int32, device=device),
         )
-        warp_meshes.append(_RenderMesh(wm, points, tri_idx))
+        warp_meshes.append(
+            _RenderMesh(
+                wm,
+                transformed_points,
+                tri_idx,
+                vertex_basis=mesh_transform.vertex_basis,
+            )
+        )
         mesh_prims.append(prim)
 
     logger.debug("Extracted %d meshes from USD stage", len(warp_meshes))
     return warp_meshes, mesh_prims
+
+
+def _get_mesh_shape_data(
+    render_meshes: list[_RenderMesh], mesh_prims: list[Any], time_code: Any
+) -> tuple[list[list[float]], list[tuple[float, float, float]]]:
+    """Return Newton shape transforms/scales for one USD evaluation time.
+
+    A fixed vertex basis can represent static shear and ordinary animated TRS.
+    Animated shear changes that basis and cannot be represented by Newton's
+    rigid transform plus per-axis scale without rebuilding mesh geometry, so it
+    fails explicitly rather than silently rendering incorrect frames.
+    """
+    from pxr import UsdGeom
+
+    xform_cache = UsdGeom.XformCache(time_code)
+    shape_transforms: list[list[float]] = []
+    shape_scales: list[tuple[float, float, float]] = []
+    for render_mesh, prim in zip(render_meshes, mesh_prims, strict=True):
+        if render_mesh.vertices_in_world_space:
+            shape_transforms.append([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+            shape_scales.append((1.0, 1.0, 1.0))
+            continue
+        mesh_transform = _gf_matrix_to_mesh_transform(
+            xform_cache.GetLocalToWorldTransform(prim)
+        )
+        if not np.allclose(
+            mesh_transform.vertex_basis,
+            render_mesh.vertex_basis,
+            rtol=1.0e-5,
+            atol=1.0e-6,
+        ):
+            raise ValueError(
+                "WARP rendering does not support time-varying shear or scale-axis "
+                f"orientation on mesh {prim.GetPath()} at {time_code}"
+            )
+        shape_transforms.append(mesh_transform.transform_7f)
+        shape_scales.append(mesh_transform.scale)
+
+    return shape_transforms, shape_scales
 
 
 def _get_display_color(
@@ -399,6 +593,85 @@ def _setup_lights(stage: "Usd.Stage", ctx, time_code, device: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _create_render_context(
+    render_context_type: Any,
+    *,
+    device: str,
+    enable_shadows: bool,
+    enable_backface_culling: bool,
+    max_distance: float = 1000.0,
+) -> Any:
+    """Construct a render context across Newton configuration API versions."""
+
+    config_type = (
+        getattr(render_context_type, "Options", None) or render_context_type.Config
+    )
+    config = config_type(
+        enable_global_world=False,
+        enable_textures=False,
+        enable_shadows=enable_shadows,
+        enable_ambient_lighting=True,
+        enable_particles=False,
+        enable_backface_culling=enable_backface_culling,
+        max_distance=max_distance,
+    )
+
+    constructor_parameters = inspect.signature(render_context_type).parameters
+    constructor_kwargs: dict[str, Any] = {"world_count": 1, "device": device}
+    if "options" in constructor_parameters:
+        constructor_kwargs["options"] = config
+    elif "config" in constructor_parameters:
+        constructor_kwargs["config"] = config
+
+    ctx = render_context_type(**constructor_kwargs)
+    ctx._wu_render_config = config
+    if not hasattr(ctx, "config"):
+        ctx.config = config
+
+    render_method = getattr(ctx, "render", None)
+    ctx._wu_render_config_per_call = render_method is not None and (
+        "config" in inspect.signature(render_method).parameters
+    )
+    return ctx
+
+
+def _ensure_render_context_utils(ctx: Any) -> None:
+    if hasattr(ctx, "utils"):
+        return
+
+    from newton._src.sensors.warp_raytrace import Utils
+
+    ctx.utils = Utils(ctx, ctx._wu_render_config)
+
+
+def _compute_render_camera_rays(
+    ctx: Any,
+    width: int,
+    height: int,
+    camera_fovs: Any,
+) -> Any:
+    compute_rays = getattr(ctx.utils, "compute_camera_rays_pinhole", None)
+    if compute_rays is not None:
+        return compute_rays(width, height, camera_fovs=camera_fovs)
+    return ctx.utils.compute_pinhole_camera_rays(width, height, camera_fovs)
+
+
+def _create_render_output(
+    ctx: Any,
+    output_type: str,
+    width: int,
+    height: int,
+    camera_count: int,
+) -> Any:
+    """Create an output buffer across Newton render-context API versions."""
+
+    factory_name = f"create_{output_type}_image_output"
+    factory = getattr(ctx, factory_name, None)
+    if factory is None:
+        factory = getattr(ctx.utils, factory_name)
+    return factory(width, height, camera_count)
+
+
 def _setup_render_context(
     warp_meshes: list,
     mesh_prims: list,
@@ -407,6 +680,7 @@ def _setup_render_context(
     enable_shadows: bool = True,
     enable_backface_culling: bool = True,
     color_boost: float = 3.0,
+    max_distance: float = 1000.0,
 ):
     """Create and configure a RenderContext with the extracted scene data.
 
@@ -418,6 +692,7 @@ def _setup_render_context(
         enable_shadows: Whether to enable shadow rays.
         enable_backface_culling: Whether to enable backface culling.
         color_boost: Color boost factor for diffuse compensation.
+        max_distance: Maximum ray distance in stage units.
 
     Returns:
         Configured RenderContext.
@@ -426,51 +701,16 @@ def _setup_render_context(
 
     num_meshes = len(warp_meshes)
 
-    # Newton >=0.2.3 renamed Options→Config and options=→config=. Newton
-    # 1.4 moved Config from the constructor to render(), so detect the
-    # supported constructor contract instead of using the class attribute as a
-    # proxy for the accepted keyword arguments.
-    options_cls = getattr(RenderContext, "Options", None) or RenderContext.Config
-    render_config = options_cls(
-        enable_global_world=False,
-        enable_textures=False,
+    ctx = _create_render_context(
+        RenderContext,
+        device=device,
         enable_shadows=enable_shadows,
-        enable_ambient_lighting=True,
-        enable_particles=False,
         enable_backface_culling=enable_backface_culling,
-        max_distance=1000.0,
+        max_distance=max_distance,
     )
-    constructor_parameters = inspect.signature(RenderContext).parameters
-    accepts_arbitrary_keywords = any(
-        parameter.kind is inspect.Parameter.VAR_KEYWORD
-        for parameter in constructor_parameters.values()
-    )
-    if hasattr(RenderContext, "Options"):
-        constructor_config_key = "options"
-    elif "config" in constructor_parameters or accepts_arbitrary_keywords:
-        constructor_config_key = "config"
-    else:
-        constructor_config_key = None
+    _ensure_render_context_utils(ctx)
 
-    constructor_kwargs: dict[str, Any] = {
-        "world_count": 1,
-        "device": device,
-    }
-    if constructor_config_key is not None:
-        constructor_kwargs[constructor_config_key] = render_config
-    ctx = RenderContext(**constructor_kwargs)
-    ctx._wu_render_config = render_config
-    ctx._wu_render_config_on_render = constructor_config_key is None
-
-    if not hasattr(ctx, "utils"):
-        from newton._src.sensors.warp_raytrace import Utils
-
-        # Newton 1.4 stopped owning Utils on RenderContext. Reattach the
-        # package's utility object so the renderer can preserve one code path
-        # for camera rays and output allocation across supported versions.
-        ctx.utils = Utils(ctx, render_config=render_config)
-
-    if not hasattr(ctx.utils, "compute_mesh_bounds"):
+    if not hasattr(getattr(ctx, "utils", None), "compute_mesh_bounds"):
         return _setup_newton_model_render_context(
             ctx=ctx,
             render_meshes=warp_meshes,
@@ -501,6 +741,10 @@ def _setup_render_context(
     ctx.texture_height = wp.zeros(1, dtype=wp.int32, device=device)
     ctx.texture_width = wp.zeros(1, dtype=wp.int32, device=device)
 
+    shape_xforms, shape_scales = _get_mesh_shape_data(
+        warp_meshes, mesh_prims, time_code
+    )
+
     # -- Shape data (all meshes; visibility controlled via shape_enabled per frame) --
     ctx.shape_types = wp.array(
         [mesh_shape_type_int] * num_meshes, dtype=wp.int32, device=device
@@ -508,21 +752,11 @@ def _setup_render_context(
     ctx.shape_mesh_indices = wp.array(
         list(range(num_meshes)), dtype=wp.int32, device=device
     )
-    ctx.shape_sizes = wp.array(
-        [(1.0, 1.0, 1.0)] * num_meshes, dtype=wp.vec3f, device=device
-    )
+    ctx.shape_sizes = wp.array(shape_scales, dtype=wp.vec3f, device=device)
     ctx.shape_materials = wp.array([-1] * num_meshes, dtype=wp.int32, device=device)
     ctx.shape_world_index = wp.array([0] * num_meshes, dtype=wp.int32, device=device)
     ctx.shape_count_total = num_meshes
 
-    # World transforms for mesh prims
-    from pxr import UsdGeom
-
-    xform_cache = UsdGeom.XformCache(time_code)
-    shape_xforms = [
-        _gf_matrix_to_transform_7f(xform_cache.GetLocalToWorldTransform(p))
-        for p in mesh_prims
-    ]
     data = np.array(shape_xforms, dtype=np.float32)
     ctx.shape_transforms = wp.array(data, dtype=wp.transformf, device=device)
 
@@ -551,7 +785,6 @@ def _setup_newton_model_render_context(
 ):
     """Initialize Newton >=1.2 RenderContext, which renders Model/State BVHs."""
     import newton
-    from pxr import UsdGeom
 
     wp, _, _, _ = _import_warp()
 
@@ -560,8 +793,12 @@ def _setup_newton_model_render_context(
     ctx._wu_render_config.enable_global_world = True
 
     builder = newton.ModelBuilder()
-    xform_cache = UsdGeom.XformCache(time_code)
-    for render_mesh, prim in zip(render_meshes, mesh_prims, strict=True):
+    shape_xforms, shape_scales = _get_mesh_shape_data(
+        render_meshes, mesh_prims, time_code
+    )
+    for render_mesh, prim, xform_7f, shape_scale in zip(
+        render_meshes, mesh_prims, shape_xforms, shape_scales, strict=True
+    ):
         color = _get_display_color(prim, time_code, boost=color_boost)
         mesh = newton.Mesh(
             render_mesh.vertices,
@@ -575,14 +812,12 @@ def _setup_newton_model_render_context(
             has_shape_collision=False,
             has_particle_collision=False,
         )
-        xform_7f = _gf_matrix_to_transform_7f(
-            xform_cache.GetLocalToWorldTransform(prim)
-        )
         xform = wp.transform(xform_7f[:3], xform_7f[3:])
         builder.add_shape_mesh(
             body=-1,
             xform=xform,
             mesh=mesh,
+            scale=shape_scale,
             cfg=cfg,
             color=color[:3],
             label=str(prim.GetPath()),
@@ -596,6 +831,7 @@ def _setup_newton_model_render_context(
     ctx._wu_base_shape_flags = [int(flag) for flag in model.shape_flags.numpy()]
     _update_newton_model_render_context(
         ctx,
+        render_meshes=render_meshes,
         mesh_prims=mesh_prims,
         time_code=time_code,
         device=device,
@@ -607,6 +843,7 @@ def _setup_newton_model_render_context(
 def _update_render_context_for_frame(
     ctx,
     *,
+    render_meshes: list[_RenderMesh],
     mesh_prims: list,
     time_code,
     device: str,
@@ -615,6 +852,7 @@ def _update_render_context_for_frame(
     if hasattr(ctx, "_wu_render_model"):
         return _update_newton_model_render_context(
             ctx,
+            render_meshes=render_meshes,
             mesh_prims=mesh_prims,
             time_code=time_code,
             device=device,
@@ -627,6 +865,16 @@ def _update_render_context_for_frame(
         np.array(visible, dtype=np.uint32), dtype=wp.uint32, device=device
     )
     ctx.shape_count_enabled = len(visible)
+
+    shape_xforms, shape_scales = _get_mesh_shape_data(
+        render_meshes, mesh_prims, time_code
+    )
+    ctx.shape_transforms = wp.array(
+        np.array(shape_xforms, dtype=np.float32),
+        dtype=wp.transformf,
+        device=device,
+    )
+    ctx.shape_sizes = wp.array(shape_scales, dtype=wp.vec3f, device=device)
 
     # Force BVH rebuild when visibility changes.
     ctx.bvh_shapes = None
@@ -643,13 +891,12 @@ def _update_render_context_for_frame(
 def _update_newton_model_render_context(
     ctx,
     *,
+    render_meshes: list[_RenderMesh],
     mesh_prims: list,
     time_code,
     device: str,
     color_boost: float,
 ) -> int:
-    from pxr import UsdGeom
-
     try:
         from newton.geometry import ShapeFlags
     except ImportError:
@@ -669,36 +916,41 @@ def _update_newton_model_render_context(
             flags.append(base_flag & ~visible_bit)
     model.shape_flags = wp.array(flags, dtype=wp.int32, device=device)
 
-    xform_cache = UsdGeom.XformCache(time_code)
-    shape_xforms = [
-        _gf_matrix_to_transform_7f(xform_cache.GetLocalToWorldTransform(p))
-        for p in mesh_prims
-    ]
+    shape_xforms, shape_scales = _get_mesh_shape_data(
+        render_meshes, mesh_prims, time_code
+    )
     model.shape_transform = wp.array(
         np.array(shape_xforms, dtype=np.float32), dtype=wp.transform, device=device
     )
+    model.shape_scale = wp.array(shape_scales, dtype=wp.vec3f, device=device)
 
     colors = [
         _get_display_color(p, time_code, boost=color_boost)[:3] for p in mesh_prims
     ]
     ctx.shape_colors = wp.array(colors, dtype=wp.vec3f, device=device)
 
-    if hasattr(model, "bvh_build_shapes"):
-        model.bvh_build_shapes(state)
-    else:
-        from newton.geometry import build_bvh_shape
-
-        build_bvh_shape(model, state)
+    _build_model_shape_bvh(model, state)
     return len(visible)
 
 
-def _render_context_render(ctx, **render_kwargs: Any) -> None:
-    if getattr(ctx, "_wu_render_config_on_render", False):
-        render_kwargs.setdefault("config", ctx._wu_render_config)
+def _render_context_render(ctx: Any, **render_kwargs: Any) -> None:
     if hasattr(ctx, "_wu_render_model"):
+        if getattr(ctx, "_wu_render_config_per_call", False):
+            render_kwargs.setdefault("config", ctx._wu_render_config)
         ctx.render(ctx._wu_render_model, ctx._wu_render_state, **render_kwargs)
     else:
         ctx.render(**render_kwargs)
+
+
+def _build_model_shape_bvh(model: Any, state: Any) -> None:
+    build_shapes = getattr(model, "bvh_build_shapes", None)
+    if build_shapes is not None:
+        build_shapes(state)
+        return
+
+    from newton.geometry import build_bvh_shape
+
+    build_bvh_shape(model, state)
 
 
 def _clear_render_outputs(render_kwargs: dict[str, Any]) -> None:
@@ -711,6 +963,71 @@ def _clear_render_outputs(render_kwargs: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 # Camera helpers
 # ---------------------------------------------------------------------------
+
+
+def _compute_max_camera_distance(
+    stage: "Usd.Stage",
+    camera_paths: list[str],
+    frame_numbers: list[int | float],
+    image_width: int = 1,
+    image_height: int = 1,
+) -> float:
+    """Return a conservative, cache-bounded Newton ray-distance limit.
+
+    USD far clipping is a camera-space Z plane, while Newton limits distance
+    along normalized rays. The most oblique image-corner ray therefore needs a
+    longer interval than the authored far value. Newton also specializes this
+    value into its WARP render kernel, so the result is rounded up to one of a
+    fixed set of buckets instead of compiling once per scene-specific camera.
+    """
+    from pxr import Usd, UsdGeom
+
+    if image_width <= 0 or image_height <= 0:
+        raise ValueError("WARP render dimensions must be positive")
+
+    aspect_ratio = float(image_width) / float(image_height)
+    required_distance = 0.0
+    for frame_number in frame_numbers:
+        time_code = Usd.TimeCode(frame_number)
+        for camera_path in camera_paths:
+            prim = stage.GetPrimAtPath(camera_path)
+            if not prim.IsValid() or not prim.IsA(UsdGeom.Camera):
+                continue
+            clipping_range = UsdGeom.Camera(prim).GetClippingRangeAttr().Get(time_code)
+            if clipping_range is None:
+                continue
+            near_distance = float(clipping_range[0])
+            far_distance = float(clipping_range[1])
+            if (
+                math.isfinite(near_distance)
+                and math.isfinite(far_distance)
+                and 0.0 <= near_distance < far_distance
+            ):
+                vertical_fov = _compute_camera_fov(stage, camera_path, time_code)
+                half_height = math.tan(vertical_fov * 0.5)
+                corner_ray_length = math.sqrt(
+                    1.0 + half_height * half_height + (half_height * aspect_ratio) ** 2
+                )
+                ray_distance = far_distance * corner_ray_length
+                if math.isfinite(ray_distance):
+                    required_distance = max(required_distance, ray_distance)
+
+    if required_distance > 0.0:
+        # Leave a small floating-point margin before selecting the bucket so a
+        # float32 specialization cannot round just below the required bound.
+        required_distance *= 1.0 + 1.0e-6
+        for bucket in _RAY_DISTANCE_BUCKETS:
+            if required_distance <= bucket:
+                return bucket
+        raise ValueError(
+            "Required WARP ray distance exceeds the largest supported "
+            f"finite bucket ({_RAY_DISTANCE_BUCKETS[-1]:.0e})"
+        )
+
+    logger.warning(
+        "No valid camera clipping range found; using a 1000-unit WARP ray limit"
+    )
+    return 1000.0
 
 
 def _compute_camera_fov(stage: "Usd.Stage", camera_path: str, time_code) -> float:
@@ -780,6 +1097,7 @@ def _get_camera_transforms(
 # ---------------------------------------------------------------------------
 
 
+@_serialize_warp_render
 def render_all_cameras(
     stage: "Usd.Stage",
     image_width: int = 1024,
@@ -868,6 +1186,13 @@ def render_all_cameras(
         enable_shadows=enable_shadows,
         enable_backface_culling=enable_backface_culling,
         color_boost=color_boost,
+        max_distance=_compute_max_camera_distance(
+            stage,
+            cameras,
+            frame_list,
+            image_width=image_width,
+            image_height=image_height,
+        ),
     )
 
     # Set up lights
@@ -878,32 +1203,28 @@ def render_all_cameras(
 
     # Pre-compute camera rays (FOV is constant across frames)
     camera_fovs = wp.array(per_camera_fovs, dtype=wp.float32, device=device)
-    if hasattr(ctx.utils, "compute_camera_rays_pinhole"):
-        camera_rays = ctx.utils.compute_camera_rays_pinhole(
-            image_width,
-            image_height,
-            camera_fovs=camera_fovs,
-        )
-    else:
-        camera_rays = ctx.utils.compute_pinhole_camera_rays(
-            image_width, image_height, camera_fovs
-        )
+    camera_rays = _compute_render_camera_rays(
+        ctx,
+        image_width,
+        image_height,
+        camera_fovs,
+    )
 
     # Create output buffers
-    color_image = ctx.utils.create_color_image_output(
-        image_width, image_height, num_cameras
+    color_image = _create_render_output(
+        ctx, "color", image_width, image_height, num_cameras
     )
 
     depth_image = None
     if "depth" in sensors:
-        depth_image = ctx.utils.create_depth_image_output(
-            image_width, image_height, num_cameras
+        depth_image = _create_render_output(
+            ctx, "depth", image_width, image_height, num_cameras
         )
 
     normal_image = None
     if "normal" in sensors:
-        normal_image = ctx.utils.create_normal_image_output(
-            image_width, image_height, num_cameras
+        normal_image = _create_render_output(
+            ctx, "normal", image_width, image_height, num_cameras
         )
 
     # Per-camera result accumulators
@@ -927,6 +1248,7 @@ def render_all_cameras(
 
         visible_count = _update_render_context_for_frame(
             ctx,
+            render_meshes=warp_meshes,
             mesh_prims=mesh_prims,
             time_code=tc,
             device=device,

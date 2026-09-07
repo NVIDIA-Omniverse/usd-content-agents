@@ -173,3 +173,35 @@ def test_near_plane_uses_view_axis_not_euclidean() -> None:
         "regression to Euclidean distance suspected."
     )
     assert far == pytest.approx(back_depth, abs=1e-4)
+
+
+@pytest.mark.parametrize("camera_kind", ["side", "corner"])
+def test_auto_clipping_keeps_millimeter_scale_asset_visible(camera_kind: str) -> None:
+    """The near-plane floor must scale below a sub-millimeter scene depth."""
+    from world_understanding.utils.usd.camera import (
+        add_corner_view_camera,
+        add_side_view_camera,
+    )
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    cube = UsdGeom.Cube.Define(stage, "/TinyCube")
+    cube.CreateSizeAttr(0.001)
+    if camera_kind == "side":
+        camera = add_side_view_camera(
+            stage,
+            camera_path="/Cameras/TinySide",
+            direction="+x",
+            margin=1.2,
+        )
+    else:
+        camera = add_corner_view_camera(
+            stage,
+            camera_path="/Cameras/TinyCorner",
+            direction="+x+y+z",
+            margin=1.2,
+        )
+
+    near, far = _clipping_range(camera)
+
+    assert 0.0 < near < far < 0.01

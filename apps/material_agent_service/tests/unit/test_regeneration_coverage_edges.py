@@ -836,7 +836,10 @@ async def test_claimed_pipeline_failure_publishes_preview_and_finalizes_claim(
     failure_event = await bus.get_queue(session_id).get()
     assert failure_event.state == StepState.FAILED
     assert failure_event.message == "material_pipeline_result_failed"
-    assert failure_event.extra == {"pipeline_failed": True}
+    assert failure_event.extra == {
+        "pipeline_failed": True,
+        "error_diagnostic": metadata["error_diagnostic"],
+    }
 
 
 @pytest.mark.asyncio

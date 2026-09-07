@@ -5,7 +5,7 @@
 import os
 from pathlib import Path
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings
 from texture_agent.api.defaults import DEFAULT_LLM_BACKEND, DEFAULT_LLM_MODEL
 from world_understanding.utils.credentials import (
@@ -59,6 +59,25 @@ class ServiceConfig(BaseSettings):
     service_version: str = get_version()
     api_version: str = "v1"
     description: str | None = None
+
+    # Build provenance. ``service_version`` alone cannot distinguish two builds
+    # of the same version string, which is how a three-week-stale deployment
+    # went unnoticed while reporting healthy. Baked at image build time and
+    # reported by /health so a rollout can be verified from the outside.
+    build_commit_sha: str | None = None
+    build_image_tag: str | None = None
+    build_timestamp: str | None = None
+
+    @field_validator("build_commit_sha", "build_image_tag", "build_timestamp")
+    @classmethod
+    def _empty_provenance_is_absent(cls, value: str | None) -> str | None:
+        """Treat an unset build arg as absent rather than as an empty string.
+
+        The Dockerfiles default these args to empty, so without this any reader
+        of the field sees ``""`` — truthy enough to be mistaken for a real value.
+        Normalising here keeps that from depending on each caller.
+        """
+        return value or None
 
     # Session settings
     session_storage_path: str = "/var/texture-agent/sessions"
@@ -115,7 +134,16 @@ class ServiceConfig(BaseSettings):
         default=None,
         description=(
             "Default Texture Variation API endpoint when texture_backend is "
-            "`service`. Requests can still override this per run."
+            "`service`. Request overrides must match this endpoint or an "
+            "operator-approved TA_TEXTURE_ENDPOINT_ALLOWED_URLS entry."
+        ),
+    )
+    texture_endpoint_allowed_urls: str = Field(
+        default="",
+        description=(
+            "Comma-separated exact Texture Variation API base URLs allowed for "
+            "per-request texture_endpoint overrides. Configured default texture "
+            "endpoints are always allowed."
         ),
     )
     backend_engine: str | None = Field(
@@ -218,6 +246,10 @@ class ServiceConfig(BaseSettings):
     llm_model: str | None = Field(
         default=DEFAULT_LLM_MODEL,
         description="Chat LLM model name (backend-specific).",
+    )
+    llm_reasoning_effort: str | None = Field(
+        default=None,
+        description="Optional reasoning effort for the auto-prompt chat model.",
     )
     llm_base_url: str | None = Field(
         default=None,
@@ -442,3 +474,18 @@ class ServiceConfig(BaseSettings):
 
 # Global config instance
 config = ServiceConfig()
+
+
+def build_provenance() -> dict[str, str | None]:
+    """Return the build identity of the running image.
+
+    ``version`` cannot distinguish two builds of the same version string, so a
+    caller cannot tell a current deployment from a stale one. These fields are
+    baked at image build time; they are ``None`` for a source checkout, which is
+    itself the honest answer rather than a guess.
+    """
+    return {
+        "commit_sha": config.build_commit_sha or None,
+        "image_tag": config.build_image_tag or None,
+        "timestamp": config.build_timestamp or None,
+    }

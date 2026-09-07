@@ -2,7 +2,7 @@
 name: brev-cli
 description: Manage Brev instances safely from the Brev CLI. Use when a workflow needs to list, create, access, copy to, execute on, port-forward, stop, or delete Brev instances for Content Agents dependency endpoints.
 version: "0.1.0"
-author: NVIDIA Content Agents
+author: NVIDIA Omniverse
 tags:
   - content-agents
   - brev
@@ -13,6 +13,12 @@ tools:
   - brev
   - ssh
 compatibility: Requires an installed and authenticated Brev CLI, SSH access to created instances, and explicit user approval before commands that start spend or delete resources.
+metadata:
+  author: NVIDIA Omniverse
+  tags:
+    - content-agents
+    - brev
+    - deployment
 ---
 
 # Brev CLI
@@ -27,8 +33,9 @@ Content Agents deployment skills.
 - The user asks for direct Brev CLI help outside a service-specific deployment
   skill.
 - A collection deployment needs a generic Brev lifecycle step before handing
-  off to `deploy-ovrtx-docker`, `deploy-qwen-vlm-brev`,
-  `deploy-image-gen-brev`, or `deploy-embeddings-brev`.
+  off to `$fixed-pipeline` and its `deploy-ovrtx-docker`,
+  `deploy-qwen-vlm-brev`, `deploy-image-gen-brev`, or
+  `deploy-embeddings-brev` reference.
 
 ## Limitations
 
@@ -47,13 +54,13 @@ Content Agents deployment skills.
 - Network access from the local machine to the Brev control plane.
 - SSH readiness for commands that use `brev exec`, `brev copy`, or direct
   `ssh`.
-- The service-specific deploy skill loaded when configuring OVRTX, model, image
-  generation, or embedding containers.
+- The `$fixed-pipeline` umbrella and selected deployment reference loaded when
+  configuring OVRTX, model, image-generation, or embedding containers.
 
 ## Instructions
 
 1. Check local CLI state, current resources, and available hardware. Skip
-   `brev search --json` only when a service-specific skill already gives an
+   `brev search --json` only when the selected fixed-pipeline reference already gives an
    exact validated instance type:
 
 ```bash
@@ -95,7 +102,7 @@ brev copy <local-path> <name>:<remote-path>
 ```
 
 6. Run remote commands through `brev exec` or a named SSH host. Prefer
-   service-specific deploy skills for container startup commands:
+   the selected fixed-pipeline deployment reference for container startup commands:
 
 ```bash
 brev exec <name> "cd <remote-path> && <command>"

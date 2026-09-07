@@ -384,12 +384,27 @@ class TestVlmInvokeKwargsExtraction:
 
         result = task.run(context, None)
 
-        assert result["vlm_invoke_kwargs"] == {
-            "temperature": 0.7,
-            "reasoning_effort": "high",
-        }
+        assert result["vlm_invoke_kwargs"] == {"temperature": 0.7}
         assert "max_tokens" not in result["vlm_invoke_kwargs"]
         assert "top_p" not in result["vlm_invoke_kwargs"]
+
+    @patch.dict(os.environ, {"NVIDIA_API_KEY": "test_key"})
+    @patch("world_understanding.agentic.domain_tasks.model_provisioning.create_vlm")
+    def test_keeps_reasoning_for_model_aware_nim_vlm(self, mock_create_vlm):
+        mock_create_vlm.return_value = Mock()
+        context = {
+            "config": {
+                "vlm": {
+                    "backend": "nim",
+                    "model": "moonshotai/kimi-k3",
+                    "reasoning_effort": "max",
+                }
+            }
+        }
+
+        result = ModelProvisioningTask().run(context, None)
+
+        assert result["vlm_invoke_kwargs"] == {"reasoning_effort": "max"}
 
     @patch.dict(os.environ, {"NVIDIA_API_KEY": "test_key"})
     @patch("world_understanding.agentic.domain_tasks.model_provisioning.create_vlm")

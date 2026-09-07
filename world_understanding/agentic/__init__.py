@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Agentic framework for workflow orchestration."""
 
+from importlib import import_module
+
 from . import (
     agents,
     base,
@@ -14,7 +16,6 @@ from . import (
     tasks,
     workflows,
 )
-from .usd_workflows import create_usd_dataset_workflow
 
 __all__ = [
     "agents",
@@ -29,3 +30,13 @@ __all__ = [
     "tasks",
     "workflows",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Load the USD workflow only when callers request that public helper."""
+
+    if name != "create_usd_dataset_workflow":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    workflow = import_module(f"{__name__}.usd_workflows").create_usd_dataset_workflow
+    globals()[name] = workflow
+    return workflow

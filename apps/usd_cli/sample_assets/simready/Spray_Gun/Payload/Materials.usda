@@ -1,0 +1,118 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "spraygun2"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "spraygun2"
+{
+    def Scope "Materials"
+    {
+        def Material "body_metal" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/body_metal>
+        )
+        {
+        }
+
+        def Material "cup_plastic" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/cup_plastic>
+        )
+        {
+        }
+
+        def Material "knob_metal_copper" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/knob_metal_copper>
+        )
+        {
+        }
+
+        def Material "parts_copper" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/parts_copper>
+        )
+        {
+        }
+
+        def Material "trigger_pin_aluminum" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/trigger_pin_aluminum>
+        )
+        {
+        }
+
+        def Material "aluminum" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/aluminum>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "spraygun_body" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/body_metal>
+        }
+
+        over "spraygun_cup" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/cup_plastic>
+        }
+
+        over "spraygun_knob1" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/knob_metal_copper>
+        }
+
+        over "spraygun_part_01" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/parts_copper>
+        }
+
+        over "spraygun_trigger_body" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/trigger_pin_aluminum>
+        }
+
+        over "spraygun_trigger_switch" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/aluminum>
+        }
+
+        over "spraygun_part_02" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/parts_copper>
+        }
+
+        over "spraygun_part_03" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/parts_copper>
+        }
+
+        over "spraygun_part_04" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </spraygun2/Materials/parts_copper>
+        }
+    }
+}

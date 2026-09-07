@@ -168,6 +168,13 @@ def test_config_validator_handles_required_fields_and_warns(
             {"project": {"name": "demo"}, "input": {"usd_path": "/tmp/a.usd"}},
         )
 
+    with pytest.raises(ValueError, match="apply_physics.approved_dependency_roots"):
+        validator.validate_step_requirements(
+            "apply_physics",
+            {"approved_dependency_roots": []},
+            {"project": {"name": "demo"}, "input": {"usd_path": "/tmp/a.usd"}},
+        )
+
 
 def test_validator_unknown_step_log_redacts_credential_key(
     caplog: pytest.LogCaptureFixture,
@@ -248,6 +255,64 @@ def test_unified_renderer_validation_error_is_value_free(tmp_path: Path) -> None
     observable = "".join(traceback.format_exception(exc_info.value))
     assert secret not in observable
     assert str(exc_info.value) == "Invalid renderer configuration"
+    assert exc_info.value.__cause__ is None
+
+
+def test_unified_config_task_logs_and_reraises_validation_and_path_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = {
+        "project": {"name": "demo"},
+        "input": {"usd_path": str(tmp_path / "asset.usd")},
+        "steps": {"predict": {"enabled": True}},
+    }
+    task = UnifiedPipelineConfigTask()
+    monkeypatch.setattr(
+        task.validator,
+        "validate",
+        lambda _config: (_ for _ in ()).throw(ValueError("invalid config")),
+    )
+    with pytest.raises(ValueError, match="invalid config"):
+        task.run({"config_dict": config})
+
+    task = UnifiedPipelineConfigTask()
+    monkeypatch.setattr(task.validator, "validate", lambda _config: None)
+    monkeypatch.setattr(
+        "physics_agent.config.unified_config.ProjectPathResolver",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            FileNotFoundError("missing input")
+        ),
+    )
+    with pytest.raises(FileNotFoundError, match="missing input"):
+        task.run({"config_dict": config})
+
+
+def test_unified_config_task_normalizes_unexpected_renderer_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Resolver:
+        input_usd = tmp_path / "asset.usd"
+
+        @staticmethod
+        def get_usd_dataset_dir() -> Path:
+            return tmp_path / "dataset"
+
+    monkeypatch.setattr(
+        "physics_agent.config.unified_config.RendererConfig",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("renderer failed")),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Unable to create renderer configuration",
+    ) as exc_info:
+        UnifiedPipelineConfigTask()._autowire_paths(
+            "build_dataset_usd",
+            {"renderer": {"rendering_modes": {"beauty": {}}}},
+            Resolver(),
+            {},
+        )
+
     assert exc_info.value.__cause__ is None
 
 
@@ -386,6 +451,14 @@ def test_unified_pipeline_config_task_derives_apply_output_suffix(
     )
 
     apply_physics = result["step_configs"]["apply_physics"]
+    assert apply_physics["approved_dependency_roots"][0] == str(
+        usd_path.resolve().parent
+    )
+    assert _path_endswith(
+        apply_physics["approved_dependency_roots"][1],
+        "runs",
+        "demo",
+    )
     assert _path_endswith(
         apply_physics["output_usd_path"],
         "runs",
@@ -401,6 +474,8 @@ def test_unified_pipeline_config_task_respects_explicit_apply_output_path(
     usd_path = tmp_path / "asset.usdz"
     usd_path.write_bytes(b"fake-usd")
     output_path = tmp_path / "custom_physics.usdz"
+    shared_root = tmp_path / "shared-assets"
+    shared_root.mkdir()
 
     result = UnifiedPipelineConfigTask().run(
         {
@@ -411,6 +486,10 @@ def test_unified_pipeline_config_task_respects_explicit_apply_output_path(
                     "apply_physics": {
                         "enabled": True,
                         "output_usd_path": str(output_path),
+                        "approved_dependency_roots": [
+                            str(shared_root),
+                            str(shared_root / "."),
+                        ],
                     }
                 },
             },
@@ -421,6 +500,119 @@ def test_unified_pipeline_config_task_respects_explicit_apply_output_path(
     assert result["step_configs"]["apply_physics"]["output_usd_path"] == str(
         output_path
     )
+    approved_roots = result["step_configs"]["apply_physics"][
+        "approved_dependency_roots"
+    ]
+    assert approved_roots[0] == str(usd_path.resolve().parent)
+    assert _path_endswith(
+        approved_roots[1],
+        "runs",
+        "demo",
+    )
+    assert approved_roots[2] == str(shared_root.resolve())
+    assert len(approved_roots) == 3
+
+
+def test_unified_pipeline_config_task_accepts_null_apply_dependency_roots(
+    tmp_path: Path,
+) -> None:
+    usd_path = tmp_path / "asset.usdz"
+    usd_path.write_bytes(b"fake-usd")
+
+    result = UnifiedPipelineConfigTask().run(
+        {
+            "config_dict": {
+                "project": {"name": "demo", "working_dir": "runs/demo"},
+                "input": {"usd_path": str(usd_path)},
+                "steps": {
+                    "apply_physics": {
+                        "enabled": True,
+                        "approved_dependency_roots": None,
+                    }
+                },
+            },
+            "only_steps": ["apply_physics"],
+        }
+    )
+
+    approved_roots = result["step_configs"]["apply_physics"][
+        "approved_dependency_roots"
+    ]
+    assert approved_roots[0] == str(usd_path.resolve().parent)
+    assert _path_endswith(approved_roots[1], "runs", "demo")
+
+
+def test_unified_pipeline_config_task_rejects_broad_apply_dependency_root(
+    tmp_path: Path,
+) -> None:
+    usd_path = tmp_path / "asset.usdz"
+    usd_path.write_bytes(b"fake-usd")
+
+    with pytest.raises(ValueError, match="must not contain filesystem roots"):
+        UnifiedPipelineConfigTask().run(
+            {
+                "config_dict": {
+                    "project": {"name": "demo", "working_dir": "runs/demo"},
+                    "input": {"usd_path": str(usd_path)},
+                    "steps": {
+                        "apply_physics": {
+                            "enabled": True,
+                            "approved_dependency_roots": [str(Path(tmp_path.anchor))],
+                        }
+                    },
+                },
+                "only_steps": ["apply_physics"],
+            }
+        )
+
+
+def test_unified_pipeline_config_task_rejects_filesystem_root_working_dir(
+    tmp_path: Path,
+) -> None:
+    usd_path = tmp_path / "asset.usdz"
+    usd_path.write_bytes(b"fake-usd")
+
+    with pytest.raises(ValueError, match="must not contain filesystem roots"):
+        UnifiedPipelineConfigTask().run(
+            {
+                "config_dict": {
+                    "project": {
+                        "name": "demo",
+                        "working_dir": str(Path(tmp_path.anchor)),
+                    },
+                    "input": {"usd_path": str(usd_path)},
+                    "steps": {"apply_physics": {"enabled": True}},
+                },
+                "only_steps": ["apply_physics"],
+            }
+        )
+
+
+def test_unified_pipeline_preflights_missing_implicit_root_before_session_write(
+    tmp_path: Path,
+) -> None:
+    config_dir = tmp_path / "configs"
+    config_dir.mkdir()
+    config_path = config_dir / "pipeline.yaml"
+    session_dir = config_dir / ".preflight-session"
+
+    with pytest.raises(ValueError, match="must contain existing directories"):
+        UnifiedPipelineConfigTask().run(
+            {
+                "config_dict": {
+                    "project": {
+                        "name": "demo",
+                        "session_id": "preflight-session",
+                    },
+                    "input": {"usd_path": "missing/asset.usdz"},
+                    "steps": {"apply_physics": {"enabled": True}},
+                },
+                "config_path": config_path,
+                "only_steps": ["apply_physics"],
+            }
+        )
+
+    assert not session_dir.exists()
 
 
 def test_unified_pipeline_config_task_nests_optimize_options(tmp_path: Path):

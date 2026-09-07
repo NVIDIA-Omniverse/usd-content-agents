@@ -4,6 +4,8 @@
 
 import json
 import logging
+import os
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,6 +15,13 @@ from typing import Any
 from filelock import FileLock, Timeout
 from world_understanding.agentic.events import get_listener
 from world_understanding.agentic.tasks import Task
+from world_understanding.utils.model_timeout import (
+    NON_RETRYABLE_VLM_TIMEOUT_MESSAGE,
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    NonRetryableVLMTimeoutError,
+    is_terminal_vlm_timeout_marker,
+    make_terminal_vlm_timeout_marker,
+)
 from world_understanding.utils.object_store import ObjectStore
 from world_understanding.utils.token_tracking import TokenTracker, format_token_stats
 
@@ -32,6 +41,74 @@ from material_agent.tasks.prepare_dataset import (
 logger = logging.getLogger(__name__)
 _TOKEN_USAGE_ARTIFACT_LOCK_TIMEOUT_SECONDS = 30
 _TOKEN_USAGE_ARTIFACT_LOCK = Lock()
+_PREDICTION_TIMEOUT_MARKER_STEP = "VLMInference"
+
+
+def _prediction_timeout_marker_path(predictions_path: Path) -> Path:
+    """Return the terminal-timeout sidecar dedicated to one predictions file."""
+    return predictions_path.with_name(f"{predictions_path.name}.terminal.json")
+
+
+def _write_prediction_timeout_marker(
+    predictions_path: Path,
+    context: dict[str, Any],
+) -> None:
+    """Fsync and atomically publish a value-safe terminal timeout marker."""
+    marker = make_terminal_vlm_timeout_marker(_PREDICTION_TIMEOUT_MARKER_STEP)
+    context[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] = marker
+    marker_path = _prediction_timeout_marker_path(predictions_path)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=marker_path.parent,
+            prefix=f".{marker_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
+            json.dump(marker, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, marker_path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def _prepare_prediction_timeout_marker(
+    predictions_path: Path,
+    context: dict[str, Any],
+    *,
+    resume: bool,
+) -> None:
+    """Block unsafe resume or clear terminal state for an explicit fresh run."""
+    marker_path = _prediction_timeout_marker_path(predictions_path)
+    if not resume:
+        try:
+            marker_path.unlink(missing_ok=True)
+        except OSError:
+            raise RuntimeError(
+                "Failed to clear terminal prediction timeout marker"
+            ) from None
+        context.pop(TERMINAL_VLM_TIMEOUT_CONTEXT_KEY, None)
+        return
+
+    if not marker_path.exists():
+        return
+    try:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeError):
+        marker = None
+    if not is_terminal_vlm_timeout_marker(marker):
+        # A damaged marker cannot prove that the prior remote request completed.
+        marker = make_terminal_vlm_timeout_marker(_PREDICTION_TIMEOUT_MARKER_STEP)
+    context[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] = marker
+    raise NonRetryableVLMTimeoutError(NON_RETRYABLE_VLM_TIMEOUT_MESSAGE) from None
 
 
 def _as_int(value: Any) -> int:
@@ -39,6 +116,17 @@ def _as_int(value: Any) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _merge_optional_count(
+    existing: dict[str, Any],
+    current: dict[str, Any],
+    key: str,
+) -> int | None:
+    values = [
+        source.get(key) for source in (existing, current) if source.get(key) is not None
+    ]
+    return sum(_as_int(value) for value in values) if values else None
 
 
 def _merge_count_buckets(
@@ -54,6 +142,11 @@ def _merge_count_buckets(
         bucket = merged.setdefault(key, {})
         bucket["input_tokens"] = _as_int(bucket.get("input_tokens")) + _as_int(
             value.get("input_tokens")
+        )
+        bucket["cached_input_tokens"] = _merge_optional_count(
+            bucket,
+            value,
+            "cached_input_tokens",
         )
         bucket["output_tokens"] = _as_int(bucket.get("output_tokens")) + _as_int(
             value.get("output_tokens")
@@ -75,6 +168,11 @@ def _merge_token_usage_stats(
     return {
         "total_input_tokens": _as_int(existing.get("total_input_tokens"))
         + _as_int(current.get("total_input_tokens")),
+        "cached_input_tokens": _merge_optional_count(
+            existing,
+            current,
+            "cached_input_tokens",
+        ),
         "total_output_tokens": _as_int(existing.get("total_output_tokens"))
         + _as_int(current.get("total_output_tokens")),
         "total_tokens": _as_int(existing.get("total_tokens"))
@@ -750,6 +848,14 @@ class VLMInferenceTask(Task):
                     f"{len(multi_results)}/{len(group)} prims parsed"
                 )
 
+            except NonRetryableVLMTimeoutError as e:
+                logger.error(
+                    f"Group {group_idx} timed out with unverified remote "
+                    f"completion: {e}",
+                    exc_info=True,
+                )
+                listener.error(f"Group {group_idx} failed: {e}")
+                raise
             except Exception as e:
                 logger.error(f"Group {group_idx} failed entirely: {e}", exc_info=True)
                 listener.error(f"Group {group_idx} failed: {e}")
@@ -775,6 +881,11 @@ class VLMInferenceTask(Task):
                         group_results, group_retry_entries = future.result()
                         all_results.extend(group_results)
                         retry_entries.extend(group_retry_entries)
+                    except NonRetryableVLMTimeoutError:
+                        for sibling in future_to_group:
+                            if sibling is not future:
+                                sibling.cancel()
+                        raise
                     except Exception as e:
                         logger.error(
                             f"Unexpected error in group {group_idx}: {e}",
@@ -1108,6 +1219,12 @@ class VLMInferenceTask(Task):
             output_dir.mkdir(parents=True, exist_ok=True)
             predictions_path = output_dir / "predictions.jsonl"
 
+        _prepare_prediction_timeout_marker(
+            predictions_path,
+            context,
+            resume=bool(resume_enabled),
+        )
+
         # If not resuming and streaming, clear any existing predictions file to avoid duplicates
         if stream_predictions and not resume_enabled and predictions_path.exists():
             try:
@@ -1202,45 +1319,58 @@ class VLMInferenceTask(Task):
         # Check prediction_batch_size for multi-prim mode
         prediction_batch_size = context.get("prediction_batch_size", 1)
 
-        if prediction_batch_size > 1 and len(dataset) > 0:
-            # --- Multi-prim path ---
-            listener.info(
-                f"Using multi-prim inference (prediction_batch_size="
-                f"{prediction_batch_size})"
-            )
-            results = self._run_multi_prim_inference(
-                dataset=dataset,
-                context=context,
-                prediction_batch_size=prediction_batch_size,
-                vlm=vlm,
-                llm=llm,
-                system_prompt=system_prompt,
-                vlm_invoke_kwargs=vlm_invoke_kwargs,
-                max_retries=max_retries,
-                predictions_path=predictions_path,
-                stream_predictions=stream_predictions,
-                listener=listener,
-                token_tracker=token_tracker,
-            )
-        else:
-            # --- Standard single-prim path (batch_size=1, unchanged) ---
-            # Run inference using core function with streaming and resume support
-            results = batch_assign_materials(
-                vlm=vlm,
-                entries=dataset,
-                llm=llm,
-                image_base_dir=Path(context["image_base_dir"]),
-                system_prompt=system_prompt,
-                invoke_kwargs=vlm_invoke_kwargs,
-                on_progress=on_progress,
-                on_error=on_error,
-                processed_ids=processed_ids,
-                on_result=on_result,
-                on_prediction=on_prediction,
-                max_workers=max_workers,
-                max_retries=max_retries,
-                token_tracker=token_tracker,
-            )
+        try:
+            if prediction_batch_size > 1 and len(dataset) > 0:
+                # --- Multi-prim path ---
+                listener.info(
+                    f"Using multi-prim inference (prediction_batch_size="
+                    f"{prediction_batch_size})"
+                )
+                results = self._run_multi_prim_inference(
+                    dataset=dataset,
+                    context=context,
+                    prediction_batch_size=prediction_batch_size,
+                    vlm=vlm,
+                    llm=llm,
+                    system_prompt=system_prompt,
+                    vlm_invoke_kwargs=vlm_invoke_kwargs,
+                    max_retries=max_retries,
+                    predictions_path=predictions_path,
+                    stream_predictions=stream_predictions,
+                    listener=listener,
+                    token_tracker=token_tracker,
+                )
+            else:
+                # --- Standard single-prim path (batch_size=1, unchanged) ---
+                # Run inference using core function with streaming and resume support
+                results = batch_assign_materials(
+                    vlm=vlm,
+                    entries=dataset,
+                    llm=llm,
+                    image_base_dir=Path(context["image_base_dir"]),
+                    system_prompt=system_prompt,
+                    invoke_kwargs=vlm_invoke_kwargs,
+                    on_progress=on_progress,
+                    on_error=on_error,
+                    processed_ids=processed_ids,
+                    on_result=on_result,
+                    on_prediction=on_prediction,
+                    max_workers=max_workers,
+                    max_retries=max_retries,
+                    token_tracker=token_tracker,
+                )
+        except NonRetryableVLMTimeoutError:
+            try:
+                _write_prediction_timeout_marker(predictions_path, context)
+            except Exception:
+                logger.error(
+                    "Failed to persist terminal prediction timeout marker",
+                    exc_info=False,
+                )
+                raise NonRetryableVLMTimeoutError(
+                    NON_RETRYABLE_VLM_TIMEOUT_MESSAGE
+                ) from None
+            raise
 
         # Get and log token usage statistics
         token_stats = token_tracker.get_stats()
@@ -1586,6 +1716,12 @@ class VLMInferenceTask(Task):
             output_dir.mkdir(parents=True, exist_ok=True)
             predictions_path = output_dir / "predictions.jsonl"
 
+        _prepare_prediction_timeout_marker(
+            predictions_path,
+            context,
+            resume=bool(resume_enabled),
+        )
+
         if stream_predictions and not resume_enabled and predictions_path.exists():
             try:
                 predictions_path.unlink()
@@ -1674,49 +1810,62 @@ class VLMInferenceTask(Task):
         # Check prediction_batch_size for multi-prim mode
         prediction_batch_size = context.get("prediction_batch_size", 1)
 
-        if prediction_batch_size > 1 and len(dataset) > 0:
-            # --- Multi-prim path ---
-            listener.info(
-                f"Using multi-prim inference (prediction_batch_size="
-                f"{prediction_batch_size})"
-            )
-            # _run_multi_prim_inference is synchronous; run in thread
-            import asyncio
+        try:
+            if prediction_batch_size > 1 and len(dataset) > 0:
+                # --- Multi-prim path ---
+                listener.info(
+                    f"Using multi-prim inference (prediction_batch_size="
+                    f"{prediction_batch_size})"
+                )
+                # _run_multi_prim_inference is synchronous; run in thread
+                import asyncio
 
-            results = await asyncio.to_thread(
-                self._run_multi_prim_inference,
-                dataset=dataset,
-                context=context,
-                prediction_batch_size=prediction_batch_size,
-                vlm=vlm,
-                llm=llm,
-                system_prompt=system_prompt,
-                vlm_invoke_kwargs=vlm_invoke_kwargs,
-                max_retries=max_retries,
-                predictions_path=predictions_path,
-                stream_predictions=stream_predictions,
-                listener=listener,
-                token_tracker=token_tracker,
-            )
-        else:
-            # --- Standard single-prim path (batch_size=1) ---
-            # Run async inference
-            results = await async_batch_assign_materials(
-                vlm=vlm,
-                entries=dataset,
-                llm=llm,
-                image_base_dir=Path(context["image_base_dir"]),
-                system_prompt=system_prompt,
-                invoke_kwargs=vlm_invoke_kwargs,
-                on_progress=on_progress,
-                on_error=on_error,
-                processed_ids=processed_ids,
-                on_result=on_result,
-                on_prediction=on_prediction,
-                max_workers=max_workers,
-                max_retries=max_retries,
-                token_tracker=token_tracker,
-            )
+                results = await asyncio.to_thread(
+                    self._run_multi_prim_inference,
+                    dataset=dataset,
+                    context=context,
+                    prediction_batch_size=prediction_batch_size,
+                    vlm=vlm,
+                    llm=llm,
+                    system_prompt=system_prompt,
+                    vlm_invoke_kwargs=vlm_invoke_kwargs,
+                    max_retries=max_retries,
+                    predictions_path=predictions_path,
+                    stream_predictions=stream_predictions,
+                    listener=listener,
+                    token_tracker=token_tracker,
+                )
+            else:
+                # --- Standard single-prim path (batch_size=1) ---
+                # Run async inference
+                results = await async_batch_assign_materials(
+                    vlm=vlm,
+                    entries=dataset,
+                    llm=llm,
+                    image_base_dir=Path(context["image_base_dir"]),
+                    system_prompt=system_prompt,
+                    invoke_kwargs=vlm_invoke_kwargs,
+                    on_progress=on_progress,
+                    on_error=on_error,
+                    processed_ids=processed_ids,
+                    on_result=on_result,
+                    on_prediction=on_prediction,
+                    max_workers=max_workers,
+                    max_retries=max_retries,
+                    token_tracker=token_tracker,
+                )
+        except NonRetryableVLMTimeoutError:
+            try:
+                _write_prediction_timeout_marker(predictions_path, context)
+            except Exception:
+                logger.error(
+                    "Failed to persist terminal prediction timeout marker",
+                    exc_info=False,
+                )
+                raise NonRetryableVLMTimeoutError(
+                    NON_RETRYABLE_VLM_TIMEOUT_MESSAGE
+                ) from None
+            raise
 
         # Get and log token usage statistics
         token_stats = token_tracker.get_stats()

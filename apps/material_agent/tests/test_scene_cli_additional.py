@@ -91,6 +91,17 @@ def _record_and_return_value(
     return ret
 
 
+def test_load_scene_config_rejects_nonflattened_extraction(tmp_path: Path) -> None:
+    config_path = tmp_path / "scene.yaml"
+    config_path.write_text(
+        "scene:\n  extract:\n    flatten: false\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(typer.BadParameter, match="population masks are runtime-only"):
+        scene_cli._load_scene_config(config_path)
+
+
 def test_print_manifest_summary_and_validation_stats(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -899,7 +910,7 @@ def test_run_cmd_legacy_fresh_run_warning_validation_and_empty_renders(
                 "llm": {"backend": "custom"},
             },
             "filters": {"kind": "mesh"},
-            "extract": {"flatten": False, "max_workers": 3},
+            "extract": {"flatten": True, "max_workers": 3},
             "reconcile": {"enabled": True, "llm": {"backend": "judge"}},
             "harmonize": {"enabled": True},
         },
@@ -1007,7 +1018,7 @@ def test_run_cmd_legacy_fresh_run_warning_validation_and_empty_renders(
     assert called["analyze"]["skip_geometry"] is True
     assert called["analyze"]["building_block_min_reuse"] == 7
     assert called["analyze"]["filters"] == {"kind": "mesh"}
-    assert called["extract"]["flatten"] is False
+    assert called["extract"]["flatten"] is True
     assert called["extract"]["max_workers"] == 3
     assert called["configs"]["configs_dir"] == working_dir / "configs"
     assert called["payload_configs"]["configs_dir"] == working_dir / "configs"

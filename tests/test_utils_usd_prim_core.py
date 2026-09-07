@@ -3,6 +3,7 @@
 """Focused coverage tests for USD prim utility helpers."""
 
 import itertools
+from pathlib import Path
 
 import pytest
 
@@ -619,6 +620,113 @@ def test_flatten_prototype_references_and_property_copy_helpers():
     metadata_target = Sdf.Layer.CreateAnonymous("metadata-target.usda")
     _copy_layer_metadata(metadata_source, metadata_target)
     assert metadata_target.pseudoRoot.GetInfo("documentation") == "pseudo-doc"
+
+
+def test_flatten_can_preserve_composed_asset_anchors_for_portable_export(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    layer_dir = source / "layers"
+    texture_dir = source / "textures"
+    layer_dir.mkdir(parents=True)
+    texture_dir.mkdir()
+    texture_a = texture_dir / "a.png"
+    texture_b = texture_dir / "b.png"
+    texture_a.write_bytes(b"a")
+    texture_b.write_bytes(b"b")
+
+    authored = Usd.Stage.CreateNew(str(layer_dir / "material.usda"))
+    shader = UsdShade.Shader.Define(authored, "/World/Shader")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("../textures/a.png")
+    )
+    asset_array = shader.GetPrim().CreateAttribute(
+        "inputs:files", Sdf.ValueTypeNames.AssetArray
+    )
+    asset_array.Set(
+        Sdf.AssetPathArray(
+            [
+                Sdf.AssetPath("../textures/a.png"),
+                Sdf.AssetPath("../textures/b.png"),
+            ]
+        )
+    )
+    animated = shader.GetPrim().CreateAttribute(
+        "inputs:animated", Sdf.ValueTypeNames.Asset
+    )
+    animated.Set(Sdf.AssetPath("../textures/b.png"), 1.0)
+    shader.CreateInput("mdl", Sdf.ValueTypeNames.Asset).Set(
+        Sdf.AssetPath("OmniPBR.mdl", "/runtime/search/OmniPBR.mdl")
+    )
+    authored.GetRootLayer().Save()
+
+    root = Usd.Stage.CreateNew(str(source / "root.usda"))
+    root.GetRootLayer().subLayerPaths.append("layers/material.usda")
+    root.GetRootLayer().Save()
+    composed = Usd.Stage.Open(str(source / "root.usda"))
+
+    ordinary = Usd.Stage.Open(flatten_prototype_references(composed))
+    assert ordinary.GetAttributeAtPath("/World/Shader.inputs:file").Get().path == (
+        "../textures/a.png"
+    )
+
+    flattened = Usd.Stage.Open(
+        flatten_prototype_references(
+            composed,
+            preserve_resolved_asset_paths=True,
+        )
+    )
+    assert flattened.GetAttributeAtPath("/World/Shader.inputs:file").Get().path == str(
+        texture_a
+    )
+    assert [
+        value.path
+        for value in flattened.GetAttributeAtPath("/World/Shader.inputs:files").Get()
+    ] == [str(texture_a), str(texture_b)]
+    assert flattened.GetAttributeAtPath("/World/Shader.inputs:animated").Get(
+        1.0
+    ).path == str(texture_b)
+    assert flattened.GetAttributeAtPath("/World/Shader.inputs:mdl").Get().path == (
+        "OmniPBR.mdl"
+    )
+
+
+def test_flatten_asset_owner_layer_skips_invalid_specs_and_uses_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    texture = tmp_path / "texture.png"
+    texture.write_bytes(b"texture")
+
+    owner_stage = Usd.Stage.CreateNew(str(tmp_path / "owner.usda"))
+    owner_prim = Sdf.CreatePrimInLayer(owner_stage.GetRootLayer(), "/Owner")
+    owner_attr = Sdf.AttributeSpec(
+        owner_prim,
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+        Sdf.VariabilityVarying,
+        False,
+    )
+    stage = Usd.Stage.CreateInMemory()
+    asset_attr = stage.DefinePrim("/World").CreateAttribute(
+        "inputs:file",
+        Sdf.ValueTypeNames.Asset,
+    )
+    asset_attr.Set(Sdf.AssetPath("texture.png"))
+    monkeypatch.setattr(
+        prim_module.Usd.Attribute,
+        "GetPropertyStack",
+        lambda _attr, _time_code: [object(), owner_attr],
+    )
+
+    flattened = Usd.Stage.Open(
+        flatten_prototype_references(
+            stage,
+            preserve_resolved_asset_paths=True,
+        )
+    )
+
+    assert flattened.GetAttributeAtPath("/World.inputs:file").Get().path == str(texture)
 
 
 @pytest.mark.parametrize("indexed", [False, True], ids=["unindexed", "indexed"])

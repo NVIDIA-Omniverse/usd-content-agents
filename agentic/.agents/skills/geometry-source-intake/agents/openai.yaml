@@ -1,0 +1,4 @@
+interface:
+  display_name: "Geometry Source Intake"
+  short_description: "Route geometry sources without losing fidelity."
+  default_prompt: "Use $geometry-source-intake to classify and prepare this geometry source with explicit fidelity and provenance."

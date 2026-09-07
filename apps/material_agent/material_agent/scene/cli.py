@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -17,11 +18,12 @@ import typer
 import yaml
 from rich.console import Console
 from rich.table import Table
+from world_understanding.agentic.cli.console import EncodingSafeTextIO
 
 from .manifest import SceneManifest
 
 logger = logging.getLogger(__name__)
-console = Console()
+console = Console(file=EncodingSafeTextIO(lambda: sys.stdout))
 
 scene_app = typer.Typer(
     name="scene",
@@ -71,6 +73,13 @@ def _load_scene_config(config: Path) -> dict:
             f"Scene config must be a YAML mapping: {config}",
             param_hint="config",
         )
+
+    from .extract import validate_scene_extraction_config
+
+    try:
+        validate_scene_extraction_config(data)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="config") from exc
     return data
 
 
@@ -304,7 +313,7 @@ def analyze(
             # Default LLM config if not explicitly configured
             llm_config = {
                 "backend": "nim",
-                "model": "google/gemma-4-31b-it",
+                "model": "moonshotai/kimi-k3",
                 "temperature": 0.1,
                 "max_tokens": 256,
             }
@@ -764,7 +773,7 @@ def _run_validation(config: Path, verbose: bool) -> int:
             console.print(line)
 
     if report.payloads:
-        console.print(f"\n  {'─' * 40}")
+        console.print(f"\n  {'-' * 40}")
         console.print("  Payload Groups:")
         for pr in report.payloads:
             status_icon = "PASS" if pr.ok else "FAIL"
@@ -1115,7 +1124,7 @@ def _run_cmd_legacy(
         bool, typer.Option("--verbose", "-v", help="Verbose output")
     ] = False,
 ) -> None:
-    """Run the full scene pipeline end-to-end (analyze → extract → pipeline → collect → validate)."""
+    """Run the full scene pipeline (analyze -> extract -> pipeline -> collect -> validate)."""
     _setup_logging(verbose)
 
     scene_config = _load_scene_config(config)
@@ -1205,7 +1214,7 @@ def _run_cmd_legacy(
         llm_section = analyze_opts.get("llm")
         llm_config = llm_section or {
             "backend": "nim",
-            "model": "google/gemma-4-31b-it",
+            "model": "moonshotai/kimi-k3",
             "temperature": 0.1,
             "max_tokens": 256,
         }

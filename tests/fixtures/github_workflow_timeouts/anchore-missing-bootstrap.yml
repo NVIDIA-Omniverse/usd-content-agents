@@ -1,0 +1,13 @@
+name: Anchore missing bootstrap
+on: push
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Generate SBOM
+        timeout-minutes: 10
+        uses: anchore/sbom-action@pinned
+        with:
+          path: .
+          syft-version: v1.42.3

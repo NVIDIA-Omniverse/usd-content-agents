@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+import hashlib
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -264,6 +265,7 @@ def test_render_preview_delegates_supported_backend_to_shared_factory(
     render_call = captured["render"]
     assert render_call["cameras"] == ["/Root/thumbnail_CAM"]  # type: ignore[index]
     assert render_call["base_dir"] == source.parent  # type: ignore[index]
+    assert "asset_root" not in render_call  # type: ignore[operator]
 
 
 def test_render_helpers_cover_fallback_shapes_and_config_branches() -> None:
@@ -491,7 +493,10 @@ def test_render_output_delegates_supported_backend_to_shared_factory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    usd_path = tmp_path / "output.usda"
+    work_dir = tmp_path / "work"
+    output_dir = work_dir / "output"
+    output_dir.mkdir(parents=True)
+    usd_path = output_dir / "output.usda"
     stage = Usd.Stage.CreateNew(str(usd_path))
     UsdGeom.Camera.Define(stage, "/Camera")
     stage.GetRootLayer().Save()
@@ -513,12 +518,13 @@ def test_render_output_delegates_supported_backend_to_shared_factory(
     result = render_task.RenderOutputTask().run(
         {
             "output_usd_paths": [str(usd_path)],
+            "usd_path": str(usd_path),
             "render_config": {
                 "backend": "ovrtx",
                 "timeout_sec": 17,
                 "render_slot_timeout_sec": 3,
             },
-            "working_dir": str(tmp_path / "work"),
+            "working_dir": str(work_dir),
         }
     )
 
@@ -528,8 +534,84 @@ def test_render_output_delegates_supported_backend_to_shared_factory(
     render_call = captured["render"]
     assert render_call["render_slot_timeout_sec"] == 3.0  # type: ignore[index]
     assert render_call["base_dir"] == usd_path.parent  # type: ignore[index]
+    assert render_call["asset_root"] == work_dir  # type: ignore[index]
     assert result["render_stats"]["backend"] == "ovrtx"
     assert result["render_stats"]["production_visual_evidence"] is True
+    expected_usd_sha256 = hashlib.sha256(usd_path.read_bytes()).hexdigest()
+    assert result["render_stats"]["source_usd_sha256"] == expected_usd_sha256
+    assert result["render_stats"]["ovrtx"]["renderer"] == "OVRTX"
+    assert result["render_stats"]["ovrtx"]["rendered_usd_sha256"] == [
+        expected_usd_sha256
+    ]
+    assert len(result["render_stats"]["ovrtx"]["request_sha256"]) == 64
+
+
+def test_render_provenance_hash_helpers_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.usda"
+    source.write_text("#usda 1.0\n", encoding="utf-8")
+    expected = hashlib.sha256(source.read_bytes()).hexdigest()
+
+    assert render_task._local_file_sha256(None) is None
+    assert render_task._local_file_sha256(tmp_path / "missing.usda") is None
+    assert (
+        render_task._source_usd_sha256({"config": {"input": {"usd_path": str(source)}}})
+        == expected
+    )
+
+    monkeypatch.setattr(Path, "is_file", lambda _self: (_ for _ in ()).throw(OSError()))
+    assert render_task._local_file_sha256(source) is None
+
+
+def test_render_output_prefers_reconstructed_layered_stage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Service-prepared layered outputs must drive visual evidence."""
+    incomplete_output = tmp_path / "output" / "textured_output.usda"
+    incomplete_output.parent.mkdir()
+    incomplete_output.write_text("#usda 1.0\n", encoding="utf-8")
+
+    reconstructed = tmp_path / "staged" / "Scene" / "scene.usda"
+    reconstructed.parent.mkdir(parents=True)
+    stage = Usd.Stage.CreateNew(str(reconstructed))
+    UsdGeom.Camera.Define(stage, "/Camera")
+    stage.GetRootLayer().Save()
+    captured: dict[str, object] = {}
+
+    class FakeBackend:
+        def render(self, **kwargs: object) -> dict[str, object]:
+            captured["render"] = kwargs
+            return {"results": [{"images": [Image.new("RGB", (2, 2))]}]}
+
+    import world_understanding.functions.graphics.rendering_backend_factory as factory
+
+    monkeypatch.setattr(
+        factory,
+        "create_rendering_backend",
+        lambda _backend_type, _config: FakeBackend(),
+    )
+
+    result = render_task.RenderOutputTask().run(
+        {
+            "output_usd_paths": [str(incomplete_output)],
+            "render_output_usd_paths": [str(reconstructed)],
+            "render_config": {"backend": "ovrtx"},
+            "working_dir": str(tmp_path / "work"),
+        }
+    )
+
+    render_call = captured["render"]
+    assert render_call["base_dir"] == reconstructed.parent  # type: ignore[index]
+    assert result["render_stats"]["render_available"] is True
+    assert result["render_stats"]["ovrtx"]["rendered_usd_sha256"] == [
+        hashlib.sha256(reconstructed.read_bytes()).hexdigest()
+    ]
+    assert result["render_stats"]["ovrtx"]["rendered_usd_sha256"] != [
+        hashlib.sha256(incomplete_output.read_bytes()).hexdigest()
+    ]
 
 
 def test_render_output_does_not_misclassify_ovrtx_daemon_timeout(

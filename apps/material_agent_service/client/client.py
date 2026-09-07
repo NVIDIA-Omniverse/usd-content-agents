@@ -169,6 +169,8 @@ class MaterialAgentClient:
         self._http.headers.update({"User-Agent": "material-agent-client/1.0"})
         if self._token:
             self._http.headers.update({"Authorization": f"Bearer {self._token}"})
+        if version_id := os.getenv("NVCF_INVOKE_VERSION_ID"):
+            self._http.headers.update({"Function-Version-Id": version_id})
 
     # -------- Core operations
     def upload_usd(self, usd_path: str) -> str:
@@ -283,12 +285,15 @@ class MaterialAgentClient:
         scene_simulate_mock_analyze: bool = False,
         scene_fail_on_validation_error: bool = False,
         scene_filters: dict[str, object] | None = None,
+        s3_uri: str | None = None,
     ) -> str:
         """
-        Start the pipeline. You can either pass a pre-created session_id (from upload_usd)
-        or provide a usd_path directly (server will accept the file inline).
+        Start the pipeline from a pre-created session, an allowlisted S3 URI, or
+        a local USD path. Input precedence is session_id, s3_uri, then usd_path.
 
         Args:
+            s3_uri: S3 URI whose exact bucket is authorized by the service's
+                MA_S3_ALLOWED_BUCKETS setting.
             materials_zip_path: Optional path to a ZIP file containing custom materials
                                (materials.yaml + USD library). Overrides server defaults.
             vlm_model: Optional VLM model override (e.g. "nim/nvidia/cosmos-reason2-8b").
@@ -381,6 +386,8 @@ class MaterialAgentClient:
         with ExitStack() as stack:
             if session_id:
                 data["session_id"] = session_id
+            elif s3_uri:
+                data["s3_uri"] = s3_uri
             elif usd_path:
                 f = stack.enter_context(open(usd_path, "rb"))
                 files.append(
@@ -390,7 +397,9 @@ class MaterialAgentClient:
                     )
                 )
             else:
-                raise ValueError("Either session_id or usd_path must be provided.")
+                raise ValueError(
+                    "One of session_id, s3_uri, or usd_path must be provided."
+                )
 
             user_email = user_email.strip()
             if user_email:
@@ -662,9 +671,18 @@ class MaterialAgentClient:
             if final_msg:
                 yield final_msg
 
-    def get_status(self, session_id: str) -> dict:
+    def get_status(
+        self,
+        session_id: str,
+        request_timeout: float | None = None,
+    ) -> dict:
         url = f"{self.base_url}/pipeline/{session_id}/status"
-        resp = self._http.get(url, timeout=self.timeout_seconds)
+        resp = self._http.get(
+            url,
+            timeout=self.timeout_seconds
+            if request_timeout is None
+            else request_timeout,
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -713,7 +731,7 @@ class MaterialAgentClient:
     # -------- Convenience workflow
     def run_and_monitor(
         self,
-        usd_path: str,
+        usd_path: str | None = None,
         reference_images: Iterable[str] | None = None,
         reference_pdfs: Iterable[str] | None = None,
         reference_descriptions: Iterable[str] | None = None,
@@ -762,11 +780,15 @@ class MaterialAgentClient:
         scene_simulate_mock_analyze: bool = False,
         scene_fail_on_validation_error: bool = False,
         scene_filters: dict[str, object] | None = None,
+        s3_uri: str | None = None,
     ) -> tuple[str, dict | None]:
         """
         High-level helper that starts the pipeline and monitors it until completion.
 
         Args:
+            usd_path: Optional local USD path. Required unless s3_uri is provided.
+            s3_uri: Optional service-authorized S3 USD URI. It cannot be combined
+                with upload_first or generated_reference_prompt.
             materials_zip_path: Optional path to a ZIP file containing custom materials
                                (materials.yaml + USD library). Overrides server defaults.
             vlm_model: Optional VLM model override (e.g. "nim/nvidia/cosmos-reason2-8b").
@@ -850,6 +872,13 @@ class MaterialAgentClient:
             enable_material_generation,
         )
         generated_reference_id = None
+        if not usd_path and not s3_uri:
+            raise ValueError("One of usd_path or s3_uri must be provided.")
+        if s3_uri and (upload_first or generated_reference_prompt):
+            raise ValueError(
+                "s3_uri is not compatible with upload_first or "
+                "generated_reference_prompt"
+            )
         if large_scene and (upload_first or generated_reference_prompt):
             raise ValueError(
                 "large_scene is not compatible with upload_first or "
@@ -862,6 +891,7 @@ class MaterialAgentClient:
         )
 
         if upload_first or generated_reference_prompt:
+            assert usd_path is not None
             session_id = self.upload_usd(usd_path)
             if generated_reference_prompt:
                 if print_stream:
@@ -929,6 +959,7 @@ class MaterialAgentClient:
         else:
             session_id = self.start_pipeline(
                 usd_path=usd_path,
+                s3_uri=s3_uri,
                 reference_images=reference_images,
                 reference_pdfs=reference_pdfs,
                 reference_descriptions=reference_descriptions,
@@ -1160,7 +1191,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "VLM model override "
-            "(e.g. 'gcp/google/gemini-3.1-pro-preview', 'nim/nvidia/cosmos-reason2-8b')"
+            "(e.g. 'openai/openai/gpt-5.6-sol', 'nim/nvidia/cosmos-reason2-8b')"
         ),
     )
     parser.add_argument(

@@ -57,6 +57,7 @@ from world_understanding.functions.physics.joint_rigger import (
     canonical_sha256,
     identify_usd_artifact,
     local_usd_dependency_paths,
+    require_joint_rigger_authoring_platform,
     sidecar_dependency_bundle_sha256,
     validate_authored_joint_topology,
 )
@@ -821,6 +822,7 @@ def author_stage2_candidate_edges_via_core(
     unchanged; callers must opt into this transitional helper directly.
     """
 
+    require_joint_rigger_authoring_platform()
     input_path = Path(input_usd_path)
     candidates_path = Path(articulation_candidates_path)
     predictions = Path(predictions_path) if predictions_path is not None else None
@@ -3310,8 +3312,14 @@ def build_stage2_articulation_contract_input(
     predictions_path: str | Path,
     expected_articulation_candidates_sha256: str | None = None,
     allow_ready_subset: bool = False,
+    enable_source_backed_v1_breadth: bool = False,
 ) -> JointRiggerInputV1 | JointRiggerInputV2:
-    """Project exact Stage 1/Stage 2 evidence into the owned topology request."""
+    """Project exact Stage 1/Stage 2 evidence into the owned topology request.
+
+    ``enable_source_backed_v1_breadth`` forwards the internal Joint 0.6 opt-in to
+    the Stage 2 contract producer. The default keeps the released 0.5 request
+    surface limited to the public revolute and prismatic shapes.
+    """
 
     from joint_agent.functions.articulation_contract_stage2 import (
         build_articulation_contract_from_stage2,
@@ -3329,6 +3337,7 @@ def build_stage2_articulation_contract_input(
             expected_articulation_candidates_sha256
         ),
         allow_ready_subset=allow_ready_subset,
+        enable_source_backed_v1_breadth=enable_source_backed_v1_breadth,
     )
     source_asset = identify_usd_artifact(input_path, uri=str(input_path))
     return cast(
@@ -3404,6 +3413,7 @@ class Stage2ArticulationContractBackend:
     predictions_path: Path
     candidate_readiness: Mapping[str, Any] | None = None
     allow_ready_subset: bool = False
+    enable_source_backed_v1_breadth: bool = False
 
     name: ClassVar[str] = "owned_topology"
     backend_name: ClassVar[str] = "owned_topology"
@@ -3450,6 +3460,7 @@ class Stage2ArticulationContractBackend:
                 _candidate_readiness_sha256(self.candidate_readiness)
             ),
             allow_ready_subset=self.allow_ready_subset,
+            enable_source_backed_v1_breadth=self.enable_source_backed_v1_breadth,
         )
         if canonical_sha256(expected) != canonical_sha256(request):
             raise JointRiggerBackendIncompatibleError(
@@ -3710,9 +3721,16 @@ def author_stage2_articulation_contract_via_core(
     artifact_targets: JointRiggerArtifactTargets,
     candidate_readiness: Mapping[str, Any] | None = None,
     allow_ready_subset: bool = False,
+    enable_source_backed_v1_breadth: bool = False,
 ) -> JointRiggerResultV1:
-    """Author the exact contract-derived V1/V2 request through shared semantics."""
+    """Author the exact contract-derived V1/V2 request through shared semantics.
 
+    ``enable_source_backed_v1_breadth`` is the internal Joint 0.6 opt-in. It has
+    to reach both the request projection and the backend, because the backend
+    re-derives the expected request and compares canonical digests.
+    """
+
+    require_joint_rigger_authoring_platform()
     input_path = Path(input_usd_path)
     candidates_path = Path(articulation_candidates_path)
     predictions = Path(predictions_path)
@@ -3736,6 +3754,7 @@ def author_stage2_articulation_contract_via_core(
                     _candidate_readiness_sha256(candidate_readiness)
                 ),
                 allow_ready_subset=allow_ready_subset,
+                enable_source_backed_v1_breadth=enable_source_backed_v1_breadth,
             )
         except NoReadyJointCandidatesError as exc:
             raise InitialNoReadyJointCandidatesError(str(exc)) from exc
@@ -3749,6 +3768,7 @@ def author_stage2_articulation_contract_via_core(
             predictions_path=predictions,
             candidate_readiness=candidate_readiness,
             allow_ready_subset=allow_ready_subset,
+            enable_source_backed_v1_breadth=enable_source_backed_v1_breadth,
         )
 
     return author_joint_rig_from_factory(

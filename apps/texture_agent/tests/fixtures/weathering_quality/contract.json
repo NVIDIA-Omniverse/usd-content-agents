@@ -1,0 +1,140 @@
+{
+  "schema_version": "texture-agent-weathering-benchmark.v2",
+  "issue": 1045,
+  "fixtures": [
+    {
+      "id": "cleaning-bucket-public",
+      "source": {
+        "kind": "huggingface_dataset_file",
+        "repository": "nvidia/PhysicalAI-SimReady-Warehouse-01",
+        "revision": "c7fe115cb79c7ddbd0532630d7768b5736b0ecc4",
+        "path": "Props/general/HandManipulation/cleaning_bucket_a/sm_cleaning_bucket_iron_a01_simready_01.usd",
+        "sha256": "963b78395bed492237df76eda5f650659c777411f6b3f8cada364f658d0a7d11"
+      }
+    },
+    {
+      "id": "steel-rolling-scaffold-uv-sensitive",
+      "source": {
+        "kind": "huggingface_dataset_file",
+        "repository": "nvidia/PhysicalAI-SimReady-Warehouse-01",
+        "revision": "c7fe115cb79c7ddbd0532630d7768b5736b0ecc4",
+        "path": "Props/general/SM_SteelRollingScaffold_A01_01/SM_SteelRollingScaffold_A01_01.usd",
+        "sha256": "9dd9bd2a30c423efb8b42dd67fe3237d53a8f2a92304eb487a25538894b25a75"
+      }
+    },
+    {
+      "id": "ladder-checked-in-multi-material",
+      "source": {
+        "kind": "repository_file",
+        "path": "apps/texture_agent/data/examples/ladder/sources/usd/ladder.usd",
+        "sha256": "be8ff3bf74539c422b9a5051c7adf42e139717f946acf8ca796346eecb1960b2"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "bucket-localized-rust",
+      "fixture": "cleaning-bucket-public",
+      "target": {
+        "material_name": "opaque__metal__cleaning_bucket_a",
+        "material_path": "/RootNode/Materials/opaque__metal__cleaning_bucket_a",
+        "prim_paths": [
+          "/RootNode/Geometry/sm_cleaning_bucket_a01_01"
+        ]
+      },
+      "prompt": "localized orange-brown rust around seams and worn edges; preserve clean painted areas",
+      "optional_public_controls": {
+        "strength": 0.75
+      },
+      "expected_material_behavior": {
+        "weathering_class": "rust",
+        "source_material_class": "metal"
+      },
+      "seeds": [104501, 104502, 104503],
+      "control_prompt": "clean yellow-painted metal bucket; preserve seams, edge geometry, and painted areas without corrosion"
+    },
+    {
+      "id": "scaffold-joint-rust",
+      "fixture": "steel-rolling-scaffold-uv-sensitive",
+      "target": {
+        "material_name": "Steel_A",
+        "material_path": "/RootNode/Materials/Steel_A",
+        "prim_paths": [
+          "/RootNode/Geometry/M_SteelRollingScaffold_A01_Metal",
+          "/RootNode/Geometry/Steel_A"
+        ]
+      },
+      "prompt": "localized rust at steel joints and water-trap edges with non-repeating oxidation",
+      "optional_public_controls": {
+        "strength": 0.8
+      },
+      "expected_material_behavior": {
+        "weathering_class": "rust",
+        "source_material_class": "metal"
+      },
+      "seeds": [104511, 104512, 104513],
+      "control_prompt": "clean protected steel scaffold joints and water-trap edges without corrosion"
+    },
+    {
+      "id": "ladder-rubber-dust",
+      "fixture": "ladder-checked-in-multi-material",
+      "target": {
+        "material_name": "Rubber_Black_Matte",
+        "material_path": "/RootNode/Looks/Rubber_Black_Matte",
+        "prim_paths": [
+          "/RootNode/Geometry/M_AluminumStepLadder_B01_Rubber"
+        ]
+      },
+      "prompt": "localized pale worksite dust on black rubber feet with protected aluminum rails",
+      "optional_public_controls": {
+        "strength": 0.65
+      },
+      "expected_material_behavior": {
+        "weathering_class": "dust",
+        "source_material_class": "dielectric"
+      },
+      "seeds": [104521, 104522, 104523],
+      "control_prompt": "clean black rubber feet with protected aluminum rails and no surface dust"
+    }
+  ],
+  "internal_quality_gates": {
+    "repetition_peak_max": 0.65,
+    "localization_ratio_min": 0.95,
+    "protected_max_delta": 0.00196078431372549,
+    "material_boundary_max_delta": 0.00196078431372549,
+    "uv_seam_rgb_delta_p95_max": 0.12549019607843137,
+    "roughness_mask_correlation_min": 0.5,
+    "rust_metallic_mask_correlation_max": -0.5,
+    "non_rust_metallic_max_delta": 0.00196078431372549,
+    "strict_material_scope": true,
+    "seed_pair_control_required": true
+  },
+  "required_evidence": [
+    "source_usd_sha256",
+    "request_sha256",
+    "final_usdz_sha256",
+    "final_albedo_sha256",
+    "final_orm_sha256",
+    "weathering_mask_sha256",
+    "ovrtx_render_sha256",
+    "ovrtx_render_metadata",
+    "objective_metrics",
+    "control_render_sha256"
+  ],
+  "fail_closed": {
+    "quality_failure_publishes_final_variant": false,
+    "missing_orm_for_weathering_is_error": true,
+    "rust_on_dielectric_is_error": true,
+    "non_ovrtx_render_is_final_evidence": false
+  },
+  "partner_validation": {
+    "owner": "Lightwheel",
+    "status": "pending",
+    "required_later": [
+      "partner-provided representative assets",
+      "partner reference images and acceptance thresholds",
+      "partner review of rust and material-specific weathering realism",
+      "partner sign-off on production suitability"
+    ]
+  }
+}

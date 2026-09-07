@@ -41,6 +41,9 @@ class _StubSessionManager:
     def session_exists(self, session_id: str) -> bool:
         return True
 
+    def sync_to_store(self, session_id: str, prefix: str = "") -> int:
+        return 0
+
 
 class GenerateTexturesTask:  # name mirrors the real task so executor's
     # ``_TASK_CLASS_TO_STEP`` mapping resolves it to ``generate_textures``.
@@ -126,6 +129,62 @@ async def test_failed_step_persists_structured_errors_in_metadata(
             "message": "HTTP 403 Forbidden",
         },
     ]
+
+
+async def test_failed_artifact_sync_exception_cannot_forge_log_lines(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The terminal artifact-sync diagnostic omits exception-controlled text."""
+
+    class FailingSyncManager(_StubSessionManager):
+        def sync_to_store(self, session_id: str, prefix: str = "") -> int:
+            raise RuntimeError("sync failed\nforged-log-line")
+
+    class FailingPlanTask:
+        name = "PlanTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            context["texture_plan_path"] = str(tmp_path / "cache" / "texture_plan.json")
+            raise RuntimeError("plan failed")
+
+    session_id = "failed-sync-log"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = FailingSyncManager(session_dir)
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+
+    with pytest.raises(RuntimeError, match="plan failed"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={"input": {"usd_path": "/tmp/in.usd"}},
+            session_manager=manager,
+            event_bus=bus_module.get_event_bus(),
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=lambda context, skip=None, only=None: [
+                FailingPlanTask()
+            ],
+        )
+
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == executor.__name__
+    ]
+    assert "code=pipeline_step_failed step_index=1 total_steps=1" in messages
+    assert "code=failed_step_artifact_sync_failed" in messages
+    fixed_schema_messages = [
+        message
+        for message in messages
+        if message.startswith("code=failed_step_artifact_sync_failed")
+    ]
+    assert all("sync failed" not in message for message in fixed_schema_messages)
+    assert all("sync failed\nforged-log-line" not in message for message in messages)
+    assert all("\n" not in message and "\r" not in message for message in messages)
 
 
 async def test_failed_step_emits_structured_errors_on_progress_event(
@@ -383,3 +442,152 @@ async def test_apply_hydration_runs_off_the_asyncio_event_loop(
 
     assert len(hydration_threads) == 1
     assert hydration_threads[0] != event_loop_thread
+
+
+async def test_layered_output_is_packaged_before_render(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Layered render evidence must consume the rewritten package stage."""
+    session_id = "layered-render-order-001"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = _StubSessionManager(session_dir)
+    call_order: list[str] = []
+
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+
+    output_usd = session_dir / "cache" / "output" / "textured_output.usda"
+    staged_usd = session_dir / "cache" / "staged" / "scene.usda"
+    output_usdz = session_dir / "cache" / "output" / "textured_output.usdz"
+
+    def prepare(context: dict[str, Any], _session_dir: Path) -> Path:
+        call_order.append("prepare")
+        context["source_usdz_stage_path"] = str(staged_usd)
+        context["render_output_usd_paths"] = [str(staged_usd)]
+        return staged_usd
+
+    def package(context: dict[str, Any], _session_dir: Path) -> str:
+        call_order.append("package")
+        assert context["render_output_usd_paths"] == [str(staged_usd)]
+        return str(output_usdz)
+
+    monkeypatch.setattr(executor, "_prepare_source_usdz_stage", prepare)
+    monkeypatch.setattr(executor, "_package_usdz", package)
+
+    class ApplyTexturesTask:
+        name = "ApplyTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            context["output_usd_paths"] = [str(output_usd)]
+            return context
+
+    class RenderOutputTask:
+        name = "RenderOutput"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            call_order.append("render")
+            assert context["output_usdz_path"] == str(output_usdz)
+            assert context["render_output_usd_paths"] == [str(staged_usd)]
+            raise RuntimeError("render-order-proof")
+
+    def factory(context: dict[str, Any], skip=None, only=None):
+        return [ApplyTexturesTask(), RenderOutputTask()]
+
+    with pytest.raises(RuntimeError, match="render-order-proof"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={"input": {"usd_path": "/tmp/in.usdz"}},
+            session_manager=manager,
+            event_bus=bus_module.get_event_bus(),
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=factory,
+        )
+
+    assert call_order == ["prepare", "package", "render"]
+
+
+async def test_layered_packaging_failure_syncs_partial_apply_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail-closed packaging keeps maps, apply USD, and diagnostics durable."""
+    session_id = "layered-package-failure-001"
+    session_dir = tmp_path / session_id
+    session_dir.mkdir()
+    manager = _StubSessionManager(session_dir)
+    synced_prefixes: list[str] = []
+    drained_step_names: list[str] = []
+
+    monkeypatch.setattr(bus_module, "_event_bus", None)
+    bus_module.init_event_bus(manager)
+
+    output_usd = session_dir / "cache" / "output" / "textured_output.usda"
+    staged_usd = session_dir / "cache" / "staged" / "scene.usda"
+
+    def prepare(context: dict[str, Any], _session_dir: Path) -> Path:
+        context["source_usdz_stage_path"] = str(staged_usd)
+        context["render_output_usd_paths"] = [str(staged_usd)]
+        return staged_usd
+
+    def package(context: dict[str, Any], _session_dir: Path) -> None:
+        context["usdz_packaging_failed"] = True
+        context["usdz_packaging_error"] = "layer dependency is missing"
+        return None
+
+    monkeypatch.setattr(executor, "_prepare_source_usdz_stage", prepare)
+    monkeypatch.setattr(executor, "_package_usdz", package)
+
+    async def drain_sync(
+        _manager: Any,
+        _session_id: str,
+        prefix: str,
+        *,
+        step_name: str,
+    ) -> int:
+        synced_prefixes.append(prefix)
+        drained_step_names.append(step_name)
+        return 1
+
+    monkeypatch.setattr(
+        executor,
+        "_sync_prefix_to_store_with_cancel_drain",
+        drain_sync,
+    )
+
+    class ApplyTexturesTask:
+        name = "ApplyTextures"
+
+        def run(self, context: dict[str, Any]) -> dict[str, Any]:
+            output_usd.parent.mkdir(parents=True, exist_ok=True)
+            output_usd.write_text("#usda 1.0\n", encoding="utf-8")
+            texture = session_dir / "cache" / "textures" / "Paint_albedo.png"
+            texture.parent.mkdir(parents=True, exist_ok=True)
+            texture.write_bytes(b"generated-map")
+            context["output_usd_paths"] = [str(output_usd)]
+            return context
+
+    def factory(context: dict[str, Any], skip=None, only=None):
+        return [ApplyTexturesTask()]
+
+    with pytest.raises(RuntimeError, match="layer dependency is missing"):
+        await executor._execute_pipeline_inner(
+            session_id=session_id,
+            config_dict={"input": {"usd_path": "/tmp/in.usdz"}},
+            session_manager=manager,
+            event_bus=bus_module.get_event_bus(),
+            session_dir=session_dir,
+            only_steps=None,
+            skip_steps=None,
+            create_texture_pipeline_workflow=factory,
+        )
+
+    assert synced_prefixes == [
+        "cache/textures/",
+        "cache/output/",
+        "cache/artifacts_manifest.json",
+    ]
+    assert drained_step_names == ["checkpoint_failed_step_artifacts"] * 3

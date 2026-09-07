@@ -15,7 +15,7 @@ from world_understanding.utils.credentials import redact_sensitive_path
 
 def build_nested_config_key_schema(
     root_defaults: Mapping[str, Any],
-    step_names: list[str],
+    step_names: Collection[str],
     get_step_defaults: Callable[[str], dict[str, Any]],
 ) -> dict[str, Any]:
     """Build an isolated root-and-step key schema from runtime defaults."""

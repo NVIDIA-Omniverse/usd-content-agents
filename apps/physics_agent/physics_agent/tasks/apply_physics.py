@@ -30,6 +30,8 @@ class ApplyPhysicsTask(Task):
         - mass_scale_policy: warn | skip_mass | fail for mass/scale QA warnings
         - allow_empty_predictions: Allow authoring a rigid-body-only USD from
           an empty predictions file (default: False)
+        - approved_dependency_roots: Filesystem roots from which portable
+          exports may copy dependencies
 
     Output context keys:
         - output_usd_path: Absolute path to the written USD file
@@ -49,6 +51,7 @@ class ApplyPhysicsTask(Task):
         output_key = context.get("output_key", "classification")
         mass_scale_policy = context.get("mass_scale_policy", "skip_mass")
         allow_empty_predictions = context.get("allow_empty_predictions", False)
+        approved_dependency_roots = context.get("approved_dependency_roots")
 
         if not usd_path:
             raise ValueError("usd_path not in context")
@@ -69,6 +72,7 @@ class ApplyPhysicsTask(Task):
             output_key=output_key,
             mass_scale_policy=mass_scale_policy,
             allow_empty_predictions=allow_empty_predictions,
+            approved_dependency_roots=approved_dependency_roots,
         )
 
         context["output_usd_path"] = output

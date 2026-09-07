@@ -11,6 +11,9 @@ from urllib.parse import urlparse
 import pytest
 from PIL import Image
 
+from texture_agent.functions.external_authoring import (
+    ExternalAuthoringCapabilityReceipt,
+)
 from texture_agent.functions.material_discovery import MaterialInfo, PrimTextureUnit
 from texture_agent.functions.texture_generation import (
     Conditioning,
@@ -171,6 +174,87 @@ def test_generate_textures_small_helper_edges(
     assert gt._positive_int(True) is None
     assert gt._positive_int(3.0) == 3
     assert gt._expected_size_tuple([8, 9]) == (8, 9)
+
+
+def test_external_authoring_preflight_disabled_and_unavailable_edges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    external = {
+        "adapter_id": "approved-painter-adapter",
+        "workflow": "paint",
+        "tool_name": "Approved Painter",
+        "tool_version": "1.2.3",
+    }
+    assert (
+        gt._external_authoring_spec_from_config(
+            {"external_authoring": {"enabled": False}}
+        )
+        is None
+    )
+
+    unit = _unit()
+    for config in (
+        {"backend": "simple_image_gen", "external_authoring": external},
+        {"backend": "service", "endpoint": "", "external_authoring": external},
+    ):
+        supported, errors, metadata, diagnostics, spec, receipt, feasibility = (
+            gt._preflight_external_authoring([unit], config)
+        )
+        assert supported == []
+        assert errors[0]["type"] == "ExternalAuthoringNoGo"
+        assert metadata[unit.key]["metadata"]["external_authoring_preflight"] == (
+            feasibility
+        )
+        assert diagnostics[0]["code"] == "EXTERNAL_AUTHORING_PREFLIGHT_UNAVAILABLE"
+        assert spec is not None
+        assert receipt is None
+        assert feasibility["verdict"] == "no_go"
+
+    receipt = ExternalAuthoringCapabilityReceipt.from_payload(
+        {
+            "schema_version": "texture-agent-external-authoring-capabilities.v1",
+            "ready": True,
+            "adapter_id": "approved-painter-adapter",
+            "adapter_version": "4.5.6",
+            "tool_name": "Approved Painter",
+            "tool_version": "1.2.3",
+            "headless": True,
+            "license_status": "valid",
+            "deployment_mode": "remote_headless",
+            "environment_digest": "sha256:" + "a" * 64,
+            "supported_workflows": ["paint"],
+            "supported_map_channels": ["albedo"],
+            "supported_auxiliary_artifacts": [],
+            "seed_control": True,
+            "deterministic_parameters": True,
+            "normalized_output": "texture_variation_maps",
+            "diagnostics": [],
+        }
+    )
+
+    class _PreflightClient:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def preflight_external_authoring(self, _spec: object) -> object:
+            return receipt
+
+    from texture_agent.functions import rest_client
+
+    monkeypatch.setattr(rest_client, "RestTextureVariationClient", _PreflightClient)
+    result = gt._preflight_external_authoring(
+        [unit],
+        {
+            "backend": "service",
+            "endpoint": "http://approved-adapter.invalid",
+            "external_authoring": external,
+        },
+    )
+    assert result[-1]["verdict"] == "no_go"
+    assert any(
+        item["code"] == "EXTERNAL_AUTHORING_REPRODUCIBILITY_UNSUPPORTED"
+        for item in result[-1]["diagnostics"]
+    )
 
 
 def test_resolve_texture_path_preserves_percent_sequences_in_bare_paths(
@@ -454,6 +538,7 @@ def test_materialization_and_localization_edges(tmp_path: Path) -> None:
     ]
 
     generated_albedo = _write_rgb(tmp_path / "fallback_albedo.png", (1, 2, 3))
+    weathering_mask = _write_rgb(tmp_path / "weathering_mask.png", (255, 255, 255))
     service_result = GenerationResult(
         variant_asset_uri="file:///asset.usd",
         variant_name="Body",
@@ -462,9 +547,17 @@ def test_materialization_and_localization_edges(tmp_path: Path) -> None:
         ),
         maps={},
         metadata={},
+        auxiliary_artifacts={
+            "masks": {
+                "weathering": {
+                    "uri": Path(weathering_mask).as_uri(),
+                    "sha256": "f" * 64,
+                }
+            }
+        },
         diagnostics=[],
     )
-    textures, record = task._materialize_service_result(
+    textures, record, backend_map_paths = task._materialize_service_result(
         service_result,
         unit=unit,
         conditioning=Conditioning(),
@@ -475,6 +568,12 @@ def test_materialization_and_localization_edges(tmp_path: Path) -> None:
     assert Path(textures.normal).is_file()
     assert Path(textures.orm).is_file()
     assert record["endpoint"] == "http://backend"
+    localized_weathering_mask = record["auxiliary_artifacts"]["masks"]["weathering"][
+        "uri"
+    ]
+    assert Path(localized_weathering_mask).is_file()
+    assert Path(localized_weathering_mask).parent == out_dir
+    assert backend_map_paths == {"albedo": textures.albedo, "normal": "", "orm": ""}
 
     with pytest.raises(gt._BackendResultError):
         task._materialize_service_result(
@@ -712,8 +811,11 @@ def test_author_unit_source_usd_skips_instance_proxy_child(
     from pxr import Usd
 
     class FakeLayer:
-        def Export(self, _path: str) -> None:
-            return None
+        def Export(self, path: str) -> bool:
+            # _author_unit_source_usd exports the composed stage and checks the
+            # result, so this must report success.
+            Path(path).write_text("usd", encoding="utf-8")
+            return True
 
         def Save(self) -> None:
             return None
@@ -740,6 +842,10 @@ def test_author_unit_source_usd_skips_instance_proxy_child(
 
     class FakeStage:
         def GetRootLayer(self):
+            return FakeLayer()
+
+        def Flatten(self, *, addSourceFileComment: bool = True) -> FakeLayer:
+            assert addSourceFileComment is False
             return FakeLayer()
 
         def GetPrimAtPath(self, _path: str):
@@ -775,3 +881,122 @@ def test_drop_blank_optional_map_returns_original_on_probe_error(
         unit=_unit(),
         diagnostics=[],
     ) == str(path)
+
+
+def test_author_unit_source_usd_keeps_geometry_from_a_layered_asset(
+    tmp_path: Path,
+) -> None:
+    """A layered source must not lose its geometry on the way out.
+
+    Exporting only the root layer leaves relative composition arcs dangling once
+    the output lands in a different directory. USD drops an unresolved sublayer
+    with a warning rather than an error, so the export looks successful and the
+    stage composes to nothing. On the acceptance asset that turned 13 meshes into
+    0, and surfaced only as Step1X rejecting a target prim path that is valid in
+    the source. See issue #957.
+    """
+    pytest.importorskip("pxr")
+    from pxr import Gf, Usd, UsdGeom
+
+    # Geometry lives in a sublayer reached by a relative path, as in a packaged
+    # CAD asset.
+    payload_dir = tmp_path / "source"
+    payload_dir.mkdir()
+    geometry = payload_dir / "0" / "Body.usda"
+    geometry.parent.mkdir(parents=True)
+    geometry_stage = Usd.Stage.CreateNew(str(geometry))
+    mesh = UsdGeom.Mesh.Define(geometry_stage, "/World/Body/Mesh")
+    mesh.CreatePointsAttr(
+        [Gf.Vec3f(0, 0, 0), Gf.Vec3f(1, 0, 0), Gf.Vec3f(1, 1, 0), Gf.Vec3f(0, 1, 0)]
+    )
+    mesh.CreateFaceVertexCountsAttr([4])
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    UsdShadeMaterial = pytest.importorskip("pxr.UsdShade").Material
+    UsdShadeMaterial.Define(geometry_stage, "/World/Looks/Paint")
+    geometry_stage.GetRootLayer().Save()
+
+    root = payload_dir / "root.usda"
+    root_stage = Usd.Stage.CreateNew(str(root))
+    root_stage.GetRootLayer().subLayerPaths.append("0/Body.usda")
+    root_stage.GetRootLayer().Save()
+
+    # Hold the stage: Usd.Stage.Open(x).Traverse() in one expression releases the
+    # stage before traversal and raises on an expired prim.
+    check_stage = Usd.Stage.Open(str(root))
+    assert len([p for p in check_stage.Traverse() if p.IsA(UsdGeom.Mesh)]) == 1, (
+        "fixture must start with reachable geometry"
+    )
+
+    # Export into a different directory, as the rebake path does.
+    output = tmp_path / "rebaked_source_assets" / "unit_source_asset.usda"
+    output.parent.mkdir(parents=True)
+    gt._author_unit_source_usd(
+        prepared_usd=root,
+        output_usd=output,
+        material_path="/World/Looks/Paint",
+        texture_paths={},
+        required_prim_paths=["/World/Body/Mesh"],
+    )
+
+    exported = Usd.Stage.Open(str(output))
+    assert exported is not None
+    meshes = [p for p in exported.Traverse() if p.IsA(UsdGeom.Mesh)]
+    assert meshes, "geometry was lost: the relative sublayer did not survive export"
+    assert exported.GetPrimAtPath("/World/Body/Mesh").IsValid()
+
+    missing_output = tmp_path / "rebaked_source_assets" / "missing_target.usda"
+    with pytest.raises(
+        RuntimeError,
+        match="lost required target prim path.*World/Missing",
+    ):
+        gt._author_unit_source_usd(
+            prepared_usd=root,
+            output_usd=missing_output,
+            material_path="/World/Looks/Paint",
+            texture_paths={},
+            required_prim_paths=["/World/Missing"],
+        )
+    assert not missing_output.exists()
+
+
+def test_author_unit_source_usd_raises_when_export_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed export must raise rather than leave an empty file behind.
+
+    Continuing past a failed export is how issue #957 stayed hidden: the stage
+    composed to nothing and the first symptom appeared much later, in a backend
+    rejecting a prim path that was valid in the source.
+    """
+    pytest.importorskip("pxr")
+    from pxr import Usd
+
+    class FailingLayer:
+        def Export(self, path: str) -> bool:
+            Path(path).write_text("partial export", encoding="utf-8")
+            return False
+
+        def Save(self) -> None:
+            return None
+
+    class FailingStage:
+        def GetRootLayer(self) -> FailingLayer:
+            return FailingLayer()
+
+        def Flatten(self, *, addSourceFileComment: bool = True) -> FailingLayer:
+            assert addSourceFileComment is False
+            return FailingLayer()
+
+    monkeypatch.setattr(Usd.Stage, "Open", lambda *_a, **_k: FailingStage())
+
+    output = tmp_path / "unit_source_asset.usda"
+    with pytest.raises(RuntimeError, match="Failed to export rebaked source USD"):
+        gt._author_unit_source_usd(
+            prepared_usd=tmp_path / "prepared.usda",
+            output_usd=output,
+            material_path="/World/Looks/Paint",
+            texture_paths={},
+        )
+    assert not output.exists()
+    assert list(tmp_path.glob(".unit_source_asset.*")) == []

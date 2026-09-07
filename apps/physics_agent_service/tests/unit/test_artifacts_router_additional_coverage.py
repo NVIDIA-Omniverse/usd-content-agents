@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import logging
+import os
 import sys
 import zipfile
 from pathlib import Path
@@ -12,8 +14,9 @@ from types import ModuleType
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from fastapi.responses import FileResponse, StreamingResponse
+from pxr import Sdf, Usd
 from world_understanding.utils.held_file_response import open_held_artifact_file
 
 from ...service.routers import artifacts_router
@@ -29,6 +32,44 @@ class _Store:
 
     async def open_read(self, _session_id: str, key: str) -> io.BytesIO:
         return io.BytesIO(self.objects[key])
+
+
+class _BoundedReadBytesIO(io.BytesIO):
+    """Reject unbounded reads while recording requested chunk sizes."""
+
+    def __init__(self, value: bytes) -> None:
+        super().__init__(value)
+        self.read_sizes: list[int] = []
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            raise AssertionError("bundle writer attempted an unbounded read")
+        self.read_sizes.append(size)
+        return super().read(size)
+
+
+def _write_test_usd_layer(
+    path: Path,
+    *,
+    asset_paths: tuple[str, ...] = (),
+    sublayer_paths: tuple[str, ...] = (),
+) -> None:
+    """Write one real USDA/USDC layer with selected authored dependencies."""
+
+    _ = Usd.GetVersion()
+    layer = Sdf.Layer.CreateNew(str(path))
+    assert layer is not None
+    prim = Sdf.CreatePrimInLayer(layer, "/Root")
+    prim.specifier = Sdf.SpecifierDef
+    for index, asset_path in enumerate(asset_paths):
+        attribute = Sdf.AttributeSpec(
+            prim,
+            f"asset_{index}",
+            Sdf.ValueTypeNames.Asset,
+        )
+        attribute.default = Sdf.AssetPath(asset_path)
+    layer.subLayerPaths = list(sublayer_paths)
+    layer.Save()
 
 
 class _Manager:
@@ -92,6 +133,13 @@ class _Manager:
         self.sync_calls.append(prefix)
         return 0
 
+    async def _expected_output_usd_suffix(
+        self,
+        _session_id: str,
+        _session_dir: Path | None = None,
+    ) -> str:
+        return ".usda"
+
 
 @pytest.mark.asyncio
 async def test_generate_report_on_demand_uses_reporting_task(
@@ -121,6 +169,228 @@ async def test_generate_report_on_demand_uses_reporting_task(
 
     assert calls[0]["predictions"] == [{"id": "/a"}]
     assert calls[0]["dataset"] == [{"id": "/a"}]
+
+
+@pytest.mark.asyncio
+async def test_s3_report_prefers_published_html_without_regeneration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+    published = b"<html>published-with-images-and-metadata</html>"
+
+    async def sync_to_local(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix,
+    ) -> int:
+        assert prefix == (
+            "cache/predictions/",
+            "cache/dataset/dataset.jsonl",
+        )
+        report = Path(local_session_dir) / "cache" / "predictions" / "report.html"
+        report.parent.mkdir(parents=True)
+        report.write_bytes(published)
+        return 1
+
+    async def fail_generate(*_args, **_kwargs) -> None:
+        raise AssertionError("published reports must not be regenerated")
+
+    manager.store.sync_to_local = sync_to_local
+    monkeypatch.setattr(artifacts_router, "_generate_report_on_demand", fail_generate)
+
+    response = await artifacts_router._serve_s3_prediction_report(manager, "sid")
+    try:
+        assert response._stream.read() == published
+    finally:
+        response._stream.close()
+        assert response.background is not None
+        await response.background()
+
+
+@pytest.mark.asyncio
+async def test_s3_report_generates_from_published_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+
+    async def sync_to_local(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix,
+    ) -> int:
+        root = Path(local_session_dir)
+        predictions = root / "cache" / "predictions" / "predictions.jsonl"
+        dataset = root / "cache" / "dataset" / "dataset.jsonl"
+        predictions.parent.mkdir(parents=True)
+        dataset.parent.mkdir(parents=True)
+        predictions.write_text("{}\n", encoding="utf-8")
+        dataset.write_text("{}\n", encoding="utf-8")
+        return 2
+
+    async def generate(
+        session_dir: Path,
+        _predictions_path: Path,
+        _dataset_path: Path,
+    ) -> None:
+        (session_dir / "cache" / "predictions" / "report.html").write_text(
+            "generated",
+            encoding="utf-8",
+        )
+
+    manager.store.sync_to_local = sync_to_local
+    monkeypatch.setattr(artifacts_router, "_generate_report_on_demand", generate)
+
+    response = await artifacts_router._serve_s3_prediction_report(manager, "sid")
+    try:
+        assert response._stream.read() == b"generated"
+    finally:
+        response._stream.close()
+        assert response.background is not None
+        await response.background()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("write_predictions", "write_dataset", "detail"),
+    [
+        (False, False, "Predictions not available yet"),
+        (True, False, "Dataset not available"),
+    ],
+)
+async def test_s3_report_missing_published_inputs_are_404(
+    tmp_path: Path,
+    write_predictions: bool,
+    write_dataset: bool,
+    detail: str,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+
+    async def sync_to_local(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix,
+    ) -> int:
+        root = Path(local_session_dir)
+        if write_predictions:
+            path = root / "cache" / "predictions" / "predictions.jsonl"
+            path.parent.mkdir(parents=True)
+            path.write_text("{}\n", encoding="utf-8")
+        if write_dataset:
+            path = root / "cache" / "dataset" / "dataset.jsonl"
+            path.parent.mkdir(parents=True)
+            path.write_text("{}\n", encoding="utf-8")
+        return 0
+
+    manager.store.sync_to_local = sync_to_local
+    with pytest.raises(HTTPException, match=detail) as error:
+        await artifacts_router._serve_s3_prediction_report(manager, "sid")
+    assert error.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_s3_report_sync_failure_is_sanitized_500(tmp_path: Path) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+
+    async def fail_sync(*_args, **_kwargs) -> int:
+        raise RuntimeError("remote secret")
+
+    manager.store.sync_to_local = fail_sync
+    with pytest.raises(HTTPException, match="Report generation failed") as error:
+        await artifacts_router._serve_s3_prediction_report(manager, "sid")
+    assert error.value.status_code == 500
+
+
+@pytest.mark.asyncio
+async def test_s3_report_cancellation_cleans_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+    snapshot_dir = tmp_path / "cancelled-report-snapshot"
+    snapshot_dir.mkdir()
+
+    async def cancel_sync(*_args, **_kwargs) -> int:
+        raise asyncio.CancelledError
+
+    manager.store.sync_to_local = cancel_sync
+    monkeypatch.setattr(
+        artifacts_router.tempfile,
+        "mkdtemp",
+        lambda **_kwargs: str(snapshot_dir),
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await artifacts_router._serve_s3_prediction_report(manager, "sid")
+    assert not snapshot_dir.exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("response_error", "expected_type", "expected_status"),
+    [
+        (RuntimeError("response construction failed"), HTTPException, 500),
+        (
+            HTTPException(status_code=409, detail="response conflict"),
+            HTTPException,
+            409,
+        ),
+        (asyncio.CancelledError(), asyncio.CancelledError, None),
+    ],
+)
+async def test_s3_report_response_failure_closes_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    response_error: BaseException,
+    expected_type: type[BaseException],
+    expected_status: int | None,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+    snapshot_dir = tmp_path / "failed-report-response"
+    snapshot_dir.mkdir()
+    opened_streams: list[io.BufferedReader] = []
+
+    async def sync_to_local(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix,
+    ) -> int:
+        report = Path(local_session_dir) / "cache" / "predictions" / "report.html"
+        report.parent.mkdir(parents=True)
+        report.write_text("report", encoding="utf-8")
+        return 1
+
+    def fail_response(artifact, **_kwargs):
+        opened_streams.append(artifact.stream)
+        raise response_error
+
+    manager.store.sync_to_local = sync_to_local
+    monkeypatch.setattr(
+        artifacts_router.tempfile,
+        "mkdtemp",
+        lambda **_kwargs: str(snapshot_dir),
+    )
+    monkeypatch.setattr(artifacts_router, "HeldFileResponse", fail_response)
+
+    with pytest.raises(expected_type) as error:
+        await artifacts_router._serve_s3_prediction_report(manager, "sid")
+    if expected_status is not None:
+        assert isinstance(error.value, HTTPException)
+        assert error.value.status_code == expected_status
+    assert len(opened_streams) == 1
+    assert opened_streams[0].closed
+    assert not snapshot_dir.exists()
 
 
 @pytest.mark.asyncio
@@ -261,21 +531,54 @@ def test_artifact_zip_helpers_cover_safe_and_unsafe_paths(
         artifacts_router._archive_name_for_sidecar("assets", Path("bad:name.txt"))
 
     output = tmp_path / "scene_physics.usda"
-    output.write_text("#usda\n", encoding="utf-8")
+    _write_test_usd_layer(output)
     assert artifacts_router._write_local_output_usd_bundle(output) is None
 
-    sidecar = tmp_path / "scene_physics_assets"
+    sidecar = tmp_path / "scene_physics.usda_assets"
     sidecar.mkdir()
     assert artifacts_router._write_local_output_usd_bundle(output) is None
+
+    empty_output = tmp_path / "empty_sidecar.usda"
+    _write_test_usd_layer(
+        empty_output,
+        asset_paths=("empty_sidecar.usda_assets/missing.png",),
+    )
+    (tmp_path / "empty_sidecar.usda_assets").mkdir()
+    assert artifacts_router._write_local_output_usd_bundle(empty_output) is None
+
     (sidecar / "texture.png").write_bytes(b"png")
     (sidecar / "bad:name.txt").write_bytes(b"bad")
+    legacy_shadow = tmp_path / "scene_physics_assets"
+    legacy_shadow.mkdir()
+    (legacy_shadow / "stale.png").write_bytes(b"stale")
+    assert artifacts_router._write_local_output_usd_bundle(output) is None
+    output.unlink()
+    _write_test_usd_layer(
+        output,
+        asset_paths=("scene_physics.usda_assets/texture.png",),
+    )
     zip_path = artifacts_router._write_local_output_usd_bundle(output)
     assert zip_path is not None
     with zipfile.ZipFile(zip_path) as archive:
         assert "scene_physics.usda" in archive.namelist()
-        assert "scene_physics_assets/texture.png" in archive.namelist()
-        assert "scene_physics_assets/bad:name.txt" not in archive.namelist()
+        assert "scene_physics.usda_assets/texture.png" in archive.namelist()
+        assert "scene_physics.usda_assets/bad:name.txt" not in archive.namelist()
+        assert "scene_physics_assets/stale.png" not in archive.namelist()
     artifacts_router._cleanup_temp_file(zip_path)
+
+    legacy_output = tmp_path / "legacy.usda"
+    _write_test_usd_layer(
+        legacy_output,
+        asset_paths=("legacy_assets/texture.png",),
+    )
+    legacy_sidecar = tmp_path / "legacy_assets"
+    legacy_sidecar.mkdir()
+    (legacy_sidecar / "texture.png").write_bytes(b"legacy")
+    legacy_zip = artifacts_router._write_local_output_usd_bundle(legacy_output)
+    assert legacy_zip is not None
+    with zipfile.ZipFile(legacy_zip) as archive:
+        assert archive.read("legacy_assets/texture.png") == b"legacy"
+    artifacts_router._cleanup_temp_file(legacy_zip)
 
     real_zipfile = zipfile.ZipFile
 
@@ -308,18 +611,32 @@ def test_artifact_zip_helpers_cover_safe_and_unsafe_paths(
 async def test_store_output_usd_bundle_and_helpers(tmp_path: Path) -> None:
     manager = _Manager(tmp_path)
     output_key = "cache/physics/scene_physics.usda"
-    good_sidecar = "cache/physics/scene_physics_assets/texture.png"
+    good_sidecar = "cache/physics/scene_physics.usda_assets/texture.png"
     bad_sidecar = "cache/physics/other_assets/skip.png"
-    manager.store.objects[output_key] = b"#usda\n"
+    current_store_root = tmp_path / "current-store-root.usda"
+    _write_test_usd_layer(
+        current_store_root,
+        asset_paths=("scene_physics.usda_assets/texture.png",),
+    )
+    manager.store.objects[output_key] = current_store_root.read_bytes()
     manager.store.objects[good_sidecar] = b"png"
+    manager.store.objects["cache/physics/scene_physics_assets/stale.png"] = b"stale"
     manager.store.objects[bad_sidecar] = b"bad"
 
     assert artifacts_router._store_output_sidecar_prefix(output_key) == (
-        "cache/physics/scene_physics_assets/"
+        "cache/physics/scene_physics.usda_assets/"
     )
     assert await artifacts_router._list_store_output_sidecar_keys(
         manager, "sid", output_key
     ) == [good_sidecar]
+    assert (
+        await artifacts_router._list_store_output_sidecar_keys(
+            manager,
+            "sid",
+            "cache/physics/extensionless",
+        )
+        == []
+    )
 
     zip_path = await artifacts_router._write_store_output_usd_bundle(
         manager,
@@ -329,7 +646,7 @@ async def test_store_output_usd_bundle_and_helpers(tmp_path: Path) -> None:
     )
     with zipfile.ZipFile(zip_path) as archive:
         assert "scene_physics.usda" in archive.namelist()
-        assert "scene_physics_assets/texture.png" in archive.namelist()
+        assert "scene_physics.usda_assets/texture.png" in archive.namelist()
         assert "other_assets/skip.png" not in archive.namelist()
     artifacts_router._cleanup_temp_file(zip_path)
 
@@ -338,8 +655,456 @@ async def test_store_output_usd_bundle_and_helpers(tmp_path: Path) -> None:
             manager,
             "sid",
             output_key,
-            ["cache/physics/scene_physics_assets/missing.png"],
+            ["cache/physics/scene_physics.usda_assets/missing.png"],
         )
+
+    legacy_output_key = "cache/physics/legacy.usda"
+    legacy_sidecar = "cache/physics/legacy_assets/texture.png"
+    legacy_store_root = tmp_path / "legacy-store-root.usda"
+    _write_test_usd_layer(
+        legacy_store_root,
+        asset_paths=("legacy_assets/texture.png",),
+    )
+    manager.store.objects[legacy_output_key] = legacy_store_root.read_bytes()
+    manager.store.objects[legacy_sidecar] = b"legacy"
+    assert await artifacts_router._list_store_output_sidecar_keys(
+        manager,
+        "sid",
+        legacy_output_key,
+    ) == [legacy_sidecar]
+    legacy_zip = await artifacts_router._write_store_output_usd_bundle(
+        manager,
+        "sid",
+        legacy_output_key,
+        [legacy_sidecar],
+    )
+    with zipfile.ZipFile(legacy_zip) as archive:
+        assert archive.read("legacy_assets/texture.png") == b"legacy"
+    artifacts_router._cleanup_temp_file(legacy_zip)
+
+
+@pytest.mark.parametrize(
+    "sidecar_name",
+    ["scene.usda_assets", "scene_assets"],
+    ids=["current", "legacy"],
+)
+def test_open_output_ignores_unreferenced_sidecar(
+    tmp_path: Path,
+    sidecar_name: str,
+) -> None:
+    root = tmp_path / "store"
+    output = root / "sid" / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True)
+    _write_test_usd_layer(output)
+    sidecar_file = output.parent / sidecar_name / "stale.png"
+    sidecar_file.parent.mkdir()
+    sidecar_file.write_bytes(b"stale")
+
+    artifact = open_held_artifact_file(root, "sid/cache/physics/scene.usda")
+    try:
+        assert artifact.stream.tell() == 0
+        assert (
+            artifacts_router._write_open_output_usd_bundle(
+                root,
+                "sid",
+                artifact,
+                "cache/physics/scene.usda",
+            )
+            is None
+        )
+        assert artifact.stream.tell() == 0
+        assert artifacts_router._write_local_output_usd_bundle(output) is None
+    finally:
+        artifact.stream.close()
+
+
+@pytest.mark.parametrize("unsafe_kind", ["symlink", "fifo"])
+def test_open_output_ignores_unreferenced_unsafe_sidecar(
+    tmp_path: Path,
+    unsafe_kind: str,
+) -> None:
+    root = tmp_path / "store"
+    output = root / "sid" / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True)
+    _write_test_usd_layer(output)
+    unsafe_entry = output.parent / "scene.usda_assets" / "unsafe"
+    unsafe_entry.parent.mkdir()
+    if unsafe_kind == "symlink":
+        outside = tmp_path / "outside.png"
+        outside.write_bytes(b"unsafe")
+        unsafe_entry.symlink_to(outside)
+    else:
+        os.mkfifo(unsafe_entry)
+
+    artifact = open_held_artifact_file(root, "sid/cache/physics/scene.usda")
+    try:
+        assert (
+            artifacts_router._write_open_output_usd_bundle(
+                root,
+                "sid",
+                artifact,
+                "cache/physics/scene.usda",
+            )
+            is None
+        )
+        assert artifact.stream.tell() == 0
+    finally:
+        artifact.stream.close()
+
+
+@pytest.mark.parametrize("unsafe_kind", ["symlink", "fifo"])
+def test_open_output_rejects_referenced_unsafe_sidecar(
+    tmp_path: Path,
+    unsafe_kind: str,
+) -> None:
+    root = tmp_path / "store"
+    output = root / "sid" / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True)
+    _write_test_usd_layer(
+        output,
+        asset_paths=("scene.usda_assets/unsafe",),
+    )
+    unsafe_entry = output.parent / "scene.usda_assets" / "unsafe"
+    unsafe_entry.parent.mkdir()
+    if unsafe_kind == "symlink":
+        outside = tmp_path / "outside.png"
+        outside.write_bytes(b"unsafe")
+        unsafe_entry.symlink_to(outside)
+    else:
+        os.mkfifo(unsafe_entry)
+
+    artifact = open_held_artifact_file(root, "sid/cache/physics/scene.usda")
+    try:
+        with pytest.raises(artifacts_router.ArtifactPathError):
+            artifacts_router._write_open_output_usd_bundle(
+                root,
+                "sid",
+                artifact,
+                "cache/physics/scene.usda",
+            )
+        assert artifact.stream.tell() == 0
+    finally:
+        artifact.stream.close()
+
+
+def test_open_output_legacy_parse_failure_fails_closed(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "store"
+    output = root / "sid" / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True)
+    output.write_bytes(b"not-a-usd-layer")
+    legacy_file = output.parent / "scene_assets" / "texture.png"
+    legacy_file.parent.mkdir()
+    legacy_file.write_bytes(b"stale-or-required")
+
+    artifact = open_held_artifact_file(root, "sid/cache/physics/scene.usda")
+    try:
+        with pytest.raises(artifacts_router.ArtifactPathError):
+            artifacts_router._write_open_output_usd_bundle(
+                root,
+                "sid",
+                artifact,
+                "cache/physics/scene.usda",
+            )
+        assert artifact.stream.tell() == 0
+        with pytest.raises(artifacts_router.ArtifactPathError):
+            artifacts_router._write_local_output_usd_bundle(output)
+    finally:
+        artifact.stream.close()
+
+
+@pytest.mark.parametrize(
+    "sidecar_name",
+    ["scene.usda_assets", "scene_assets"],
+    ids=["current", "legacy"],
+)
+def test_open_output_bundles_authored_composition_sidecar(
+    tmp_path: Path,
+    sidecar_name: str,
+) -> None:
+    root = tmp_path / "store"
+    output = root / "sid" / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True)
+    _write_test_usd_layer(
+        output,
+        sublayer_paths=(f"{sidecar_name}/sub.usda",),
+    )
+    sidecar_file = output.parent / sidecar_name / "sub.usda"
+    sidecar_file.parent.mkdir()
+    sidecar_file.write_bytes(b"#usda 1.0\n")
+
+    artifact = open_held_artifact_file(root, "sid/cache/physics/scene.usda")
+    zip_path = artifacts_router._write_open_output_usd_bundle(
+        root,
+        "sid",
+        artifact,
+        "cache/physics/scene.usda",
+    )
+    assert zip_path is not None
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            assert archive.read(f"{sidecar_name}/sub.usda") == b"#usda 1.0\n"
+    finally:
+        artifact.stream.close()
+        artifacts_router._cleanup_temp_file(zip_path)
+
+
+@pytest.mark.asyncio
+async def test_store_legacy_sidecar_handles_extension_collision_exactly(
+    tmp_path: Path,
+) -> None:
+    manager = _Manager(tmp_path)
+    output_key = "cache/physics/scene.usda"
+    stale_legacy = "cache/physics/scene_assets/from-usdc.png"
+    root = tmp_path / "scene-root.usda"
+    _write_test_usd_layer(
+        root,
+        asset_paths=(
+            "scene.usdc_assets/texture.png",
+            "nested/scene_assets/not-root-relative.png",
+        ),
+    )
+    manager.store.objects[output_key] = root.read_bytes()
+    manager.store.objects[stale_legacy] = b"stale"
+    assert not artifacts_router._authored_asset_uses_sidecar_directory(
+        "../scene_assets/escape.png",
+        "scene_assets",
+    )
+
+    assert (
+        await artifacts_router._list_store_output_sidecar_keys(
+            manager,
+            "sid",
+            output_key,
+        )
+        == []
+    )
+
+
+@pytest.mark.asyncio
+async def test_store_ignores_unreferenced_current_sidecar(tmp_path: Path) -> None:
+    manager = _Manager(tmp_path)
+    output_key = "cache/physics/scene.usda"
+    current_key = "cache/physics/scene.usda_assets/stale.png"
+    root = tmp_path / "scene-root.usda"
+    _write_test_usd_layer(root)
+    manager.store.objects[output_key] = root.read_bytes()
+    manager.store.objects[current_key] = b"stale"
+
+    assert (
+        await artifacts_router._list_store_output_sidecar_keys(
+            manager,
+            "sid",
+            output_key,
+        )
+        == []
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sidecar_name",
+    ["scene.usda_assets", "scene_assets"],
+    ids=["current", "legacy"],
+)
+async def test_store_sidecar_parse_failure_fails_closed_and_closes_stream(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sidecar_name: str,
+) -> None:
+    manager = _Manager(tmp_path)
+    output_key = "cache/physics/scene.usda"
+    sidecar_key = f"cache/physics/{sidecar_name}/texture.png"
+    manager.store.objects[output_key] = b"not-a-usd-layer"
+    manager.store.objects[sidecar_key] = b"stale-or-required"
+    output_stream = _BoundedReadBytesIO(manager.store.objects[output_key])
+
+    async def open_output(_session_id: str, key: str) -> _BoundedReadBytesIO:
+        assert key == output_key
+        return output_stream
+
+    monkeypatch.setattr(manager.store, "open_read", open_output)
+    with pytest.raises(artifacts_router.ArtifactPathError):
+        await artifacts_router._list_store_output_sidecar_keys(
+            manager,
+            "sid",
+            output_key,
+        )
+
+    assert output_stream.closed
+    assert output_stream.read_sizes
+
+
+@pytest.mark.asyncio
+async def test_store_bundles_authored_legacy_usdc_sidecar(
+    tmp_path: Path,
+) -> None:
+    manager = _Manager(tmp_path)
+    output_key = "cache/physics/scene.usdc"
+    legacy_key = "cache/physics/scene_assets/sub.usda"
+    root = tmp_path / "scene-root.usdc"
+    _write_test_usd_layer(
+        root,
+        sublayer_paths=("scene_assets/sub.usda",),
+    )
+    manager.store.objects[output_key] = root.read_bytes()
+    manager.store.objects[legacy_key] = b"#usda 1.0\n"
+
+    sidecar_keys = await artifacts_router._list_store_output_sidecar_keys(
+        manager,
+        "sid",
+        output_key,
+    )
+    assert sidecar_keys == [legacy_key]
+    zip_path = await artifacts_router._write_store_output_usd_bundle(
+        manager,
+        "sid",
+        output_key,
+        sidecar_keys,
+    )
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            assert archive.read("scene_assets/sub.usda") == b"#usda 1.0\n"
+    finally:
+        artifacts_router._cleanup_temp_file(zip_path)
+
+
+def test_open_output_usd_bundle_uses_bounded_stream_reads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "store"
+    root.mkdir()
+    output_file = root / "output-metadata"
+    sidecar_file = root / "sidecar-metadata"
+    authored_root = tmp_path / "authored-root.usda"
+    _write_test_usd_layer(
+        authored_root,
+        asset_paths=("scene.usda_assets/texture.png",),
+    )
+    output_file.write_bytes(authored_root.read_bytes())
+    sidecar_file.write_bytes(b"metadata")
+
+    output_stream = _BoundedReadBytesIO(output_file.read_bytes())
+    sidecar_stream = _BoundedReadBytesIO(b"texture-bytes")
+    output_artifact = artifacts_router.OpenArtifactFile(
+        "sid/cache/physics/scene.usda",
+        output_stream,
+        output_file.stat(),
+    )
+    sidecar_artifact = artifacts_router.OpenArtifactFile(
+        "sid/cache/physics/scene.usda_assets/texture.png",
+        sidecar_stream,
+        sidecar_file.stat(),
+    )
+
+    def fake_sidecars(_root_descriptor: int, *, prefix: str = ""):
+        if prefix.endswith("scene.usda_assets/"):
+            try:
+                yield sidecar_artifact
+            finally:
+                sidecar_stream.close()
+
+    monkeypatch.setattr(
+        artifacts_router,
+        "iter_open_regular_files",
+        fake_sidecars,
+    )
+
+    zip_path = artifacts_router._write_open_output_usd_bundle(
+        root,
+        "sid",
+        output_artifact,
+        "cache/physics/scene.usda",
+    )
+    assert zip_path is not None
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            assert archive.read("scene.usda") == output_file.read_bytes()
+            assert archive.read("scene.usda_assets/texture.png") == b"texture-bytes"
+        assert output_stream.read_sizes
+        assert sidecar_stream.read_sizes
+        assert max(output_stream.read_sizes) <= artifacts_router._ZIP_COPY_CHUNK_SIZE
+        assert max(sidecar_stream.read_sizes) <= artifacts_router._ZIP_COPY_CHUNK_SIZE
+    finally:
+        output_stream.close()
+        sidecar_stream.close()
+        artifacts_router._cleanup_temp_file(zip_path)
+
+
+@pytest.mark.asyncio
+async def test_store_output_usd_bundle_uses_bounded_stream_reads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    output_key = "cache/physics/scene.usda"
+    sidecar_key = "cache/physics/scene.usda_assets/texture.png"
+    streams: dict[str, _BoundedReadBytesIO] = {}
+    objects = {
+        output_key: b"root-usd-bytes",
+        sidecar_key: b"texture-bytes",
+    }
+
+    async def open_read(_session_id: str, key: str) -> _BoundedReadBytesIO:
+        stream = _BoundedReadBytesIO(objects[key])
+        streams[key] = stream
+        return stream
+
+    monkeypatch.setattr(manager.store, "open_read", open_read)
+    zip_path = await artifacts_router._write_store_output_usd_bundle(
+        manager,
+        "sid",
+        output_key,
+        [sidecar_key],
+    )
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            assert archive.read("scene.usda") == b"root-usd-bytes"
+            assert archive.read("scene.usda_assets/texture.png") == b"texture-bytes"
+        assert set(streams) == {output_key, sidecar_key}
+        for stream in streams.values():
+            assert stream.closed
+            assert stream.read_sizes
+            assert max(stream.read_sizes) <= artifacts_router._ZIP_COPY_CHUNK_SIZE
+    finally:
+        artifacts_router._cleanup_temp_file(zip_path)
+
+
+@pytest.mark.asyncio
+async def test_store_output_usd_bundle_cancellation_cleans_temp_zip_and_stream(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    output_key = "cache/physics/scene.usda"
+    sidecar_key = "cache/physics/scene.usda_assets/texture.png"
+    output_stream = _BoundedReadBytesIO(b"root-usd-bytes")
+
+    async def cancel_during_sidecar_open(
+        _session_id: str,
+        key: str,
+    ) -> _BoundedReadBytesIO:
+        if key == output_key:
+            return output_stream
+        raise asyncio.CancelledError
+
+    zip_path = tmp_path / "cancelled.zip"
+    zip_path.write_bytes(b"named-temp-placeholder")
+    monkeypatch.setattr(manager.store, "open_read", cancel_during_sidecar_open)
+    monkeypatch.setattr(artifacts_router, "_new_temp_zip_path", lambda: zip_path)
+
+    with pytest.raises(asyncio.CancelledError):
+        await artifacts_router._write_store_output_usd_bundle(
+            manager,
+            "sid",
+            output_key,
+            [sidecar_key],
+        )
+
+    assert output_stream.closed
+    assert not zip_path.exists()
 
 
 @pytest.mark.asyncio
@@ -439,30 +1204,338 @@ async def test_download_output_usd_local_store_and_missing(tmp_path: Path) -> No
     manager = _Manager(tmp_path)
     artifacts_router.set_session_manager(manager)
     output = tmp_path / "scene_physics.usda"
-    output.write_text("#usda\n", encoding="utf-8")
+    _write_test_usd_layer(output)
 
     manager.local_artifacts["output_usd"] = output
     response = await artifacts_router.download_output_usd("sid")
     assert isinstance(response, FileResponse)
 
-    sidecar = tmp_path / "scene_physics_assets"
+    sidecar = tmp_path / "scene_physics.usda_assets"
     sidecar.mkdir()
     (sidecar / "texture.png").write_bytes(b"png")
+    _write_test_usd_layer(
+        output,
+        asset_paths=("scene_physics.usda_assets/texture.png",),
+    )
     response = await artifacts_router.download_output_usd("sid")
     assert isinstance(response, FileResponse)
 
     manager.local_artifacts["output_usd"] = None
     key = "cache/physics/scene_physics.usda"
     manager.store_keys["output_usd"] = [key]
-    manager.store.objects[key] = b"#usda\n"
+    _write_test_usd_layer(output)
+    manager.store.objects[key] = output.read_bytes()
     response = await artifacts_router.download_output_usd("sid")
     assert isinstance(response, StreamingResponse)
 
-    sidecar_key = "cache/physics/scene_physics_assets/texture.png"
+    sidecar_key = "cache/physics/scene_physics.usda_assets/texture.png"
     manager.store.objects[sidecar_key] = b"png"
+    _write_test_usd_layer(
+        output,
+        asset_paths=("scene_physics.usda_assets/texture.png",),
+    )
+    manager.store.objects[key] = output.read_bytes()
     response = await artifacts_router.download_output_usd("sid")
     assert isinstance(response, FileResponse)
 
     manager.store_keys["output_usd"] = []
     with pytest.raises(HTTPException, match="Output USD not available"):
         await artifacts_router.download_output_usd("sid")
+
+
+def test_open_output_bundle_cleans_partial_zip(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "store"
+    output = root / "sid" / "cache" / "physics" / "scene.usda"
+    sidecar = root / "sid" / "cache" / "physics" / "scene_assets" / "tex.png"
+    output.parent.mkdir(parents=True)
+    sidecar.parent.mkdir(parents=True)
+    _write_test_usd_layer(
+        output,
+        asset_paths=("scene_assets/tex.png",),
+    )
+    sidecar.write_bytes(b"png")
+    artifact = open_held_artifact_file(
+        root,
+        "sid/cache/physics/scene.usda",
+    )
+    zip_path = tmp_path / "partial.zip"
+
+    class FailingZip:
+        def __init__(self, *_args, **_kwargs) -> None:
+            zip_path.write_bytes(b"partial")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def open(self, *_args, **_kwargs) -> None:
+            raise OSError("zip write failed")
+
+    monkeypatch.setattr(artifacts_router, "_new_temp_zip_path", lambda: zip_path)
+    monkeypatch.setattr(artifacts_router.zipfile, "ZipFile", FailingZip)
+    with pytest.raises(OSError, match="zip write failed"):
+        artifacts_router._write_open_output_usd_bundle(
+            root,
+            "sid",
+            artifact,
+            "cache/physics/scene.usda",
+        )
+    artifact.stream.close()
+    assert not zip_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_local_output_bundle_fails_closed_after_unsafe_sidecar(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path / "store")
+    artifacts_router.set_session_manager(manager)
+    output = manager.get_session_dir("sid") / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(b"complete-root-usd")
+    sidecar = output.parent / "scene.usda_assets"
+    sidecar.mkdir()
+    (sidecar / "a-safe.png").write_bytes(b"safe")
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"unsafe")
+    (sidecar / "z-unsafe.png").symlink_to(outside)
+    captured: dict[str, object] = {}
+
+    async def open_local_output(*_args, **_kwargs):
+        artifact = open_held_artifact_file(
+            manager.storage_path,
+            "sid/cache/physics/scene.usda",
+        )
+        captured["artifact"] = artifact
+        return artifact, "cache/physics/scene.usda"
+
+    zip_path = tmp_path / "partial.zip"
+    monkeypatch.setattr(manager, "get_local_artifact_stream", open_local_output)
+    monkeypatch.setattr(artifacts_router, "_new_temp_zip_path", lambda: zip_path)
+
+    with pytest.raises(artifacts_router.ArtifactPathError):
+        await artifacts_router.download_output_usd("sid")
+
+    assert captured["artifact"].stream.closed
+    assert not zip_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_report_and_local_output_response_defensive_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    artifacts_router.set_session_manager(manager)
+    report = manager.get_session_dir("sid") / "cache" / "predictions" / "report.html"
+    report.parent.mkdir(parents=True)
+    report.write_text("<html></html>", encoding="utf-8")
+
+    async def missing_report(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(manager, "open_local_artifact_key", missing_report)
+    with pytest.raises(HTTPException, match="Prediction report not available"):
+        await artifacts_router.view_prediction_report("sid")
+
+    output = manager.get_session_dir("sid") / "cache" / "physics" / "scene.usda"
+    output.parent.mkdir(parents=True)
+    output.write_text("#usda\n", encoding="utf-8")
+    manager.local_artifacts["output_usd"] = output
+
+    def unsafe_sidecars(*_args, **_kwargs):
+        raise artifacts_router.ArtifactPathError("unsafe sidecars")
+
+    monkeypatch.setattr(
+        artifacts_router,
+        "_write_open_output_usd_bundle",
+        unsafe_sidecars,
+    )
+    with pytest.raises(artifacts_router.ArtifactPathError, match="unsafe sidecars"):
+        await artifacts_router.download_output_usd("sid")
+
+    captured: dict[str, object] = {}
+    original_get = manager.get_local_artifact_stream
+
+    async def capture_artifact(*args, **kwargs):
+        value = await original_get(*args, **kwargs)
+        captured["artifact"] = value[0]
+        return value
+
+    def fail_response(*_args, **_kwargs):
+        raise RuntimeError("response construction failed")
+
+    monkeypatch.setattr(manager, "get_local_artifact_stream", capture_artifact)
+    monkeypatch.setattr(
+        artifacts_router,
+        "_write_open_output_usd_bundle",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(artifacts_router, "HeldFileResponse", fail_response)
+    with pytest.raises(RuntimeError, match="response construction failed"):
+        await artifacts_router.download_output_usd("sid")
+    assert captured["artifact"].stream.closed
+
+
+@pytest.mark.asyncio
+async def test_s3_output_snapshot_missing_and_direct_response(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+
+    async def empty_sync(*_args, **_kwargs) -> int:
+        return 0
+
+    manager.store.sync_to_local = empty_sync
+    with pytest.raises(HTTPException, match="Output USD not available") as error:
+        await artifacts_router._serve_s3_output_usd_snapshot(manager, "sid")
+    assert error.value.status_code == 404
+
+    async def sync_candidates(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix: str,
+    ) -> int:
+        assert prefix == "cache/physics/"
+        physics = Path(local_session_dir) / "cache" / "physics"
+        physics.mkdir(parents=True)
+        (physics / "scene_physics.usda").write_bytes(b"preferred-usda")
+        (physics / "scene_physics.usdc").write_bytes(b"secondary-usdc")
+        return 2
+
+    manager.store.sync_to_local = sync_candidates
+    monkeypatch.setattr(
+        artifacts_router,
+        "_write_open_output_usd_bundle",
+        lambda *_args, **_kwargs: None,
+    )
+    response = await artifacts_router._serve_s3_output_usd_snapshot(manager, "sid")
+    try:
+        assert response._stream.read() == b"preferred-usda"
+        assert response.headers["content-disposition"].endswith(
+            'filename="scene_physics.usda"'
+        )
+    finally:
+        response._stream.close()
+        assert response.background is not None
+        await response.background()
+
+
+@pytest.mark.asyncio
+async def test_s3_output_snapshot_returns_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+
+    async def sync_output(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix: str,
+    ) -> int:
+        output = Path(local_session_dir) / "cache" / "physics" / "scene_physics.usda"
+        output.parent.mkdir(parents=True)
+        output.write_bytes(b"usd")
+        return 1
+
+    manager.store.sync_to_local = sync_output
+    bundle = tmp_path / "output-bundle.zip"
+    bundle.write_bytes(b"zip")
+    monkeypatch.setattr(
+        artifacts_router,
+        "_write_open_output_usd_bundle",
+        lambda *_args, **_kwargs: bundle,
+    )
+
+    response = await artifacts_router._serve_s3_output_usd_snapshot(manager, "sid")
+    assert isinstance(response, FileResponse)
+    assert response.background is not None
+    await response.background()
+    assert not bundle.exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_kind", ["http", "base"])
+async def test_s3_output_snapshot_closes_selected_artifact_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_kind: str,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+
+    async def sync_output(
+        _session_id: str,
+        local_session_dir: str,
+        *,
+        prefix: str,
+    ) -> int:
+        output = Path(local_session_dir) / "cache" / "physics" / "scene_physics.usda"
+        output.parent.mkdir(parents=True)
+        output.write_bytes(b"usd")
+        return 1
+
+    manager.store.sync_to_local = sync_output
+
+    def fail_bundle(*_args, **_kwargs):
+        if failure_kind == "http":
+            raise HTTPException(status_code=409, detail="bundle conflict")
+        raise KeyboardInterrupt("bundle interrupted")
+
+    monkeypatch.setattr(
+        artifacts_router,
+        "_write_open_output_usd_bundle",
+        fail_bundle,
+    )
+    if failure_kind == "http":
+        with pytest.raises(HTTPException, match="bundle conflict"):
+            await artifacts_router._serve_s3_output_usd_snapshot(manager, "sid")
+    else:
+        with pytest.raises(KeyboardInterrupt, match="bundle interrupted"):
+            await artifacts_router._serve_s3_output_usd_snapshot(manager, "sid")
+
+
+@pytest.mark.asyncio
+async def test_s3_artifact_endpoints_delegate_to_pinned_snapshot_helpers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+    manager.store.kind = "s3"
+    artifacts_router.set_session_manager(manager)
+
+    async def report(*_args, **_kwargs) -> Response:
+        return Response(b"report")
+
+    async def output(*_args, **_kwargs) -> Response:
+        return Response(b"output")
+
+    monkeypatch.setattr(artifacts_router, "_serve_s3_prediction_report", report)
+    monkeypatch.setattr(artifacts_router, "_serve_s3_output_usd_snapshot", output)
+    assert (await artifacts_router.view_prediction_report("sid")).body == b"report"
+    assert (await artifacts_router.download_output_usd("sid")).body == b"output"
+
+
+def test_cleanup_temp_tree_logs_remove_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def fail_remove(_path: Path) -> None:
+        raise OSError("busy")
+
+    monkeypatch.setattr(artifacts_router.shutil, "rmtree", fail_remove)
+    with caplog.at_level(logging.WARNING):
+        artifacts_router._cleanup_temp_tree(tmp_path)
+    assert "Failed to remove temporary artifact snapshot" in caplog.text

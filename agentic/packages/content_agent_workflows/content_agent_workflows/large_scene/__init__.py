@@ -21,6 +21,7 @@ from .state import (
     load_run_state,
     revise_additional_instructions,
     validate_phase_handoff,
+    verify_run_source_inputs,
 )
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "load_run_state",
     "revise_additional_instructions",
     "validate_phase_handoff",
+    "verify_run_source_inputs",
 ]

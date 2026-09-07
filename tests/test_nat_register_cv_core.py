@@ -182,7 +182,7 @@ def test_nat_register_cv_vlm_paths(
     )
     info = asyncio.run(_function_info(module, "vlm", "VLMToolConfig"))
     assert asyncio.run(info.fn(str(image_path), "describe")) == "caption"
-    assert create_calls[-1]["model"] == "google/gemma-4-31b-it"
+    assert create_calls[-1]["model"] == "moonshotai/kimi-k3"
 
     monkeypatch.setattr(
         models_module,

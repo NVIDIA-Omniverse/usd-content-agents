@@ -11,6 +11,7 @@ inject lightweight fakes through the same runner interface.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -21,6 +22,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import defaultdict
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from importlib.util import find_spec
@@ -45,6 +47,11 @@ from apps.texture_gen_service_common.usd_package import (
     extract_usdz_member_to_dir,
     package_member_cache_name,
     parse_package_member_asset_path,
+)
+from apps.texture_gen_step1x_service.weathering import (
+    WeatheringPlan,
+    apply_weathering_plan,
+    plan_weathering_request,
 )
 
 _IMAGE_SUFFIXES = {
@@ -118,7 +125,71 @@ _BUNDLED_RUNTIME_SOURCE_PATHS = (
 )
 _COMPOSE_RUNTIME_MARKER = ".texture-agent-runtime.json"
 _MAX_PACKAGE_ASSET_BYTES = 512 * 1024 * 1024
+_MAX_UPSCALE_TARGET_SIZE = 8192
+_STEP1X_MODEL_REVISION = "bf7084495b3a72222f36549b7942948aa4d9daa7"
+_SDXL_BASE_REVISION = "462165984030d82259a11f4367a4eed129e94a7b"
+_SDXL_VAE_REVISION = "207b116dae70ace3637169f1ddd2434b91b3a8cd"
+_CORE_MODEL_FILES: dict[str, tuple[str, str, tuple[str, ...]]] = {
+    "step1x_texture": (
+        "stepfun-ai/Step1X-3D",
+        _STEP1X_MODEL_REVISION,
+        ("Step1X-3D-Texture/step1x-3d-ig2v.safetensors",),
+    ),
+    "sdxl_base": (
+        "stabilityai/stable-diffusion-xl-base-1.0",
+        _SDXL_BASE_REVISION,
+        (
+            "model_index.json",
+            "scheduler/scheduler_config.json",
+            "text_encoder/config.json",
+            "text_encoder/model.safetensors",
+            "text_encoder_2/config.json",
+            "text_encoder_2/model.safetensors",
+            "tokenizer/merges.txt",
+            "tokenizer/special_tokens_map.json",
+            "tokenizer/tokenizer_config.json",
+            "tokenizer/vocab.json",
+            "tokenizer_2/merges.txt",
+            "tokenizer_2/special_tokens_map.json",
+            "tokenizer_2/tokenizer_config.json",
+            "tokenizer_2/vocab.json",
+            "unet/config.json",
+            "unet/diffusion_pytorch_model.safetensors",
+        ),
+    ),
+    "sdxl_vae": (
+        "madebyollin/sdxl-vae-fp16-fix",
+        _SDXL_VAE_REVISION,
+        ("config.json", "diffusion_pytorch_model.safetensors"),
+    ),
+}
+_RUNTIME_PROFILE_CAPABILITIES: dict[str, frozenset[str]] = {
+    "texture-step1x-core": frozenset({"step1x"}),
+    "texture-material-anything": frozenset({"material_anything"}),
+    "texture-swin2sr": frozenset({"swin2sr"}),
+    "texture-full-pbr-upscale": frozenset({"step1x", "material_anything", "swin2sr"}),
+}
+_VALID_RUNTIME_PROFILE_SETS = (
+    ("texture-step1x-core",),
+    ("texture-step1x-core", "texture-material-anything"),
+    ("texture-step1x-core", "texture-swin2sr"),
+    ("texture-full-pbr-upscale",),
+)
+_STEP1X_CORE_REQUIRED_MODULES = (
+    "torch",
+    "torchvision",
+    "cupy",
+    "pytorch3d",
+    "trimesh",
+    "diffusers",
+    "transformers",
+    "xatlas",
+    "imageio",
+    "pxr",
+    "step1x3d_texture.pipelines.step1x_3d_texture_synthesis_pipeline",
+)
 _MATERIAL_ANYTHING_REQUIRED_MODULES = (
+    "accelerate",
     "kaolin",
     "pytorch3d",
     "torch",
@@ -127,24 +198,34 @@ _MATERIAL_ANYTHING_REQUIRED_MODULES = (
     "numpy",
     "diffusers",
     "transformers",
-    "open_clip",
     "cv2",
-    "trimesh",
-    "xatlas",
-    "sklearn",
     "skimage",
     "scipy",
-    "matplotlib",
     "imageio",
     "tqdm",
     "cupy",
     "einops",
-    "gradio",
-    "pkg_resources",
-    "pytorch_lightning",
-    "omegaconf",
-    "pymeshlab",
+    "scripts.generate_texture_pbr_3d",
 )
+_MATERIAL_ANYTHING_MODEL_FILES = (
+    "feature_extractor/preprocessor_config.json",
+    "model_index.json",
+    "scheduler/scheduler_config.json",
+    "text_encoder/config.json",
+    "text_encoder/model.safetensors",
+    "tokenizer/merges.txt",
+    "tokenizer/special_tokens_map.json",
+    "tokenizer/tokenizer_config.json",
+    "tokenizer/vocab.json",
+    "unet/config.json",
+    "unet/diffusion_pytorch_model.safetensors",
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+)
+_SWIN2SR_MODEL_FILES = {
+    "x2": ("config.json", "preprocessor_config.json", "model.safetensors"),
+    "x4": ("config.json", "preprocessor_config.json", "pytorch_model.bin"),
+}
 
 
 class _SafeFormatDict(dict[str, str]):
@@ -171,8 +252,10 @@ class Step1XBackendConfig:
     validate_assets: bool = True
     skip_material_anything: bool = True
     require_upscaler: bool = False
+    runtime_profiles: tuple[str, ...] | None = None
     extra_args: tuple[str, ...] = field(default_factory=tuple)
     required_executables: tuple[str, ...] = field(default_factory=tuple)
+    allowed_asset_roots: tuple[Path, ...] | None = None
 
     @classmethod
     def from_env(cls) -> Step1XBackendConfig:
@@ -195,12 +278,19 @@ class Step1XBackendConfig:
                 "TEXTURE_STEP1X_REQUIRE_UPSCALER",
                 False,
             ),
+            runtime_profiles=_optional_runtime_profiles(),
             extra_args=tuple(
                 shlex.split(os.environ.get("TEXTURE_STEP1X_EXTRA_ARGS", ""))
             ),
             required_executables=_optional_executables(
                 "TEXTURE_STEP1X_REQUIRED_EXECUTABLES",
-                default=("uv",),
+                default=(),
+            ),
+            # The HTTP service fails closed when the operator has not declared
+            # the shared roots from which source assets may be consumed.
+            allowed_asset_roots=_optional_paths(
+                "TEXTURE_STEP1X_ALLOWED_ASSET_ROOTS",
+                default=(),
             ),
         )
 
@@ -216,6 +306,8 @@ class Step1XScopeInfo:
     source_albedo_path: Path | None = None
     source_normal_path: Path | None = None
     source_orm_path: Path | None = None
+    source_roughness: float = 0.5
+    source_metalness: float = 0.0
     diagnostics: tuple[dict[str, Any], ...] = ()
 
 
@@ -257,6 +349,20 @@ class Step1XRunResult:
     auxiliary_artifacts: dict[str, Any] | None = None
 
 
+def _merge_auxiliary_artifacts(
+    base: dict[str, Any] | None,
+    addition: dict[str, Any],
+) -> dict[str, Any]:
+    """Merge weathering artifacts without discarding runner-owned entries."""
+    merged = dict(base or {})
+    for key, value in addition.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = {**merged[key], **value}
+        else:
+            merged[key] = value
+    return merged
+
+
 def _scope_metadata(scope: Step1XScopeInfo) -> dict[str, Any]:
     metadata = {
         "material_path": scope.material_path,
@@ -271,6 +377,8 @@ def _scope_metadata(scope: Step1XScopeInfo) -> dict[str, Any]:
         "source_orm_path": str(scope.source_orm_path)
         if scope.source_orm_path
         else None,
+        "source_roughness": scope.source_roughness,
+        "source_metalness": scope.source_metalness,
     }
     if scope.diagnostics:
         metadata["diagnostics"] = list(scope.diagnostics)
@@ -308,7 +416,8 @@ class ExternalStep1XRunner:
             raise RuntimeError("STEP1X_PROMPT_MISSING: text_prompt is required.")
 
         source_asset_path = request.source_asset_path or _local_path_from_uri(
-            request.source_asset_uri
+            request.source_asset_uri,
+            allowed_roots=self.config.allowed_asset_roots,
         )
         if source_asset_path is None:
             raise RuntimeError(
@@ -358,6 +467,12 @@ class ExternalStep1XRunner:
         elapsed = time.monotonic() - start
         if process.returncode != 0:
             stderr_tail = _tail_text(stderr_path)
+            child_code = _step1x_child_error_code(stderr_tail)
+            if child_code is not None:
+                raise RuntimeError(
+                    f"{child_code}: external Step1X command exited with "
+                    f"{process.returncode}.\n{stderr_tail}"
+                )
             raise RuntimeError(
                 "STEP1X_COMMAND_FAILED: external Step1X command exited with "
                 f"{process.returncode}.\n{stderr_tail}"
@@ -423,6 +538,21 @@ class ExternalStep1XRunner:
         source_asset_path: Path,
     ) -> list[str]:
         if self.config.command_template:
+            if "{upscale_target_size}" in self.config.command_template:
+                raise ValueError(
+                    "command templates must use the atomic "
+                    "{upscale_target_size_arg} placeholder"
+                )
+            upscale_target_size = _upscale_target_size(
+                request.custom_parameters.get("upscale_target_size")
+            )
+            upscale = (
+                _coerce_bool(
+                    request.custom_parameters.get("upscale"),
+                    default=False,
+                )
+                or upscale_target_size is not None
+            )
             mapping = {
                 "source_asset": str(source_asset_path),
                 "source_asset_uri": source_asset_path.as_uri(),
@@ -447,6 +577,15 @@ class ExternalStep1XRunner:
                 "reference_image_uris": ",".join(request.reference_image_uris),
                 "turntable_video_uri": request.turntable_video_uri or "",
                 "multiview_image_uris": ",".join(request.multiview_image_uris),
+                "upscale": "--upscale" if upscale else "",
+                "upscale_target_size": (
+                    str(upscale_target_size) if upscale_target_size is not None else ""
+                ),
+                "upscale_target_size_arg": (
+                    f"--upscale-target-size={upscale_target_size}"
+                    if upscale_target_size is not None
+                    else ""
+                ),
             }
             return [
                 substituted
@@ -490,12 +629,17 @@ class ExternalStep1XRunner:
         )
         if skip_ma:
             cmd.append("--skip-ma")
-        for key, cli_name in (
-            ("upscale", "--upscale"),
-            ("debug", "--debug"),
-        ):
-            if _coerce_bool(custom.get(key), default=False):
-                cmd.append(cli_name)
+        upscale_target_size = _upscale_target_size(custom.get("upscale_target_size"))
+        upscale = (
+            _coerce_bool(custom.get("upscale"), default=False)
+            or upscale_target_size is not None
+        )
+        if upscale:
+            cmd.append("--upscale")
+        if _coerce_bool(custom.get("debug"), default=False):
+            cmd.append("--debug")
+        if upscale_target_size is not None:
+            cmd.extend(["--upscale-target-size", str(upscale_target_size)])
         cmd.extend(self.config.extra_args)
         return cmd
 
@@ -544,16 +688,19 @@ class Step1XBackend(TextureGenerationBackend):
 
     def capabilities(self) -> BackendCapabilities:
         template_conditioning = self.config.command_template is not None
+        material_anything = self._material_anything_info()
+        weathering_ready = template_conditioning or bool(material_anything["ready"])
         return BackendCapabilities(
             image_conditioning=template_conditioning,
             multiview=template_conditioning,
             normal_map=False,
             orm=False,
-            masks=False,
-            coverage=False,
+            masks=weathering_ready,
+            coverage=weathering_ready,
+            weathering=weathering_ready,
             geometry_output="source_asset",
             external_runtime=self._external_runtime_info(),
-            material_anything=self._material_anything_info(),
+            material_anything=material_anything,
             upscaler=self._upscaler_info(),
         )
 
@@ -584,7 +731,28 @@ class Step1XBackend(TextureGenerationBackend):
         output_dir: Path,
         cancel_event: threading.Event,
     ) -> GenerationResult:
-        self._raise_if_requested_features_unavailable(request, job_id)
+        try:
+            weathering_plan = plan_weathering_request(
+                text_prompt=request.conditioning.text_prompt,
+                controls=request.configuration.weathering,
+                strength=request.configuration.strength,
+            )
+        except ValueError as exc:
+            message = f"STEP1X_WEATHERING_PROMPT_INVALID: {exc}"
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_WEATHERING_PROMPT_INVALID",
+                    message=message,
+                ),
+            ) from exc
+        self._raise_if_requested_features_unavailable(
+            request,
+            job_id,
+            weathering_plan=weathering_plan,
+        )
         try:
             scope = (
                 _inspect_step1x_scope(
@@ -592,6 +760,7 @@ class Step1XBackend(TextureGenerationBackend):
                     request.target,
                     output_dir=output_dir,
                     texture_size=request.configuration.texture_size,
+                    allowed_roots=self.config.allowed_asset_roots,
                 )
                 if self.config.validate_assets
                 else None
@@ -612,8 +781,15 @@ class Step1XBackend(TextureGenerationBackend):
         source_asset_path = (
             scope.source_asset_path
             if scope is not None
-            else _local_path_from_uri(request.source_asset_uri, require_exists=False)
+            else _local_path_from_uri(
+                request.source_asset_uri,
+                require_exists=False,
+                allowed_roots=self.config.allowed_asset_roots,
+            )
         )
+        custom_parameters = dict(request.configuration.custom_parameters)
+        if weathering_plan is not None:
+            custom_parameters["skip_material_anything"] = False
         run_request = Step1XRunRequest(
             prompt=request.conditioning.text_prompt,
             seed=request.configuration.seed,
@@ -632,7 +808,7 @@ class Step1XBackend(TextureGenerationBackend):
             runtime_dir=self.config.runtime_dir,
             model_dir=self.config.model_dir,
             cache_dir=self.config.cache_dir,
-            custom_parameters=dict(request.configuration.custom_parameters),
+            custom_parameters=custom_parameters,
         )
         try:
             raw_result = self.runner.run(run_request, cancel_event=cancel_event)
@@ -663,23 +839,321 @@ class Step1XBackend(TextureGenerationBackend):
                 scope=scope,
                 output_dir=output_dir,
             )
-        return self._to_generation_result(request, job_id, raw_result)
+        if weathering_plan is not None:
+            if scope is None or scope.source_albedo_path is None:
+                message = (
+                    "STEP1X_WEATHERING_SCOPE_REQUIRED: prompt-requested "
+                    "weathering requires "
+                    "validated material scope and a visible source albedo"
+                )
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_WEATHERING_SCOPE_REQUIRED",
+                        message=message,
+                    ),
+                )
+            try:
+                weathering_outputs = apply_weathering_plan(
+                    albedo_uri=raw_result.albedo_uri,
+                    orm_uri=raw_result.orm_uri,
+                    source_albedo_path=scope.source_albedo_path,
+                    source_orm_path=scope.source_orm_path,
+                    source_roughness=scope.source_roughness,
+                    source_metalness=scope.source_metalness,
+                    spec=weathering_plan,
+                    output_dir=output_dir,
+                )
+            except (OSError, ValueError) as exc:
+                message = f"STEP1X_WEATHERING_INVALID: {exc}"
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_WEATHERING_INVALID",
+                        message=message,
+                    ),
+                ) from exc
+            continuity = _measure_weathering_uv_seam_continuity(
+                scope,
+                scope.source_albedo_path,
+                weathering_outputs.albedo_uri,
+            )
+            evidence_metrics = weathering_outputs.metadata["metrics"]
+            evidence_metrics.update(continuity)
+            weathering_outputs.metadata["thresholds"]["uv_seam_rgb_delta_p95_max"] = (
+                32.0 / 255.0
+            )
+            seam_p95 = continuity["uv_seam_rgb_delta_p95"]
+            if seam_p95 is not None and seam_p95 > (32.0 / 255.0):
+                weathering_outputs.metadata["failures"].append(
+                    "weathering is discontinuous across source UV seams"
+                )
+                weathering_outputs.metadata["status"] = "fail"
+            weathering_artifacts = weathering_outputs.metadata["artifacts"]
+            weathering_artifacts["source_usd_sha256"] = _file_sha256(
+                scope.source_asset_path
+            )
+            weathering_artifacts["request_sha256"] = hashlib.sha256(
+                json.dumps(
+                    request.model_dump(mode="json"),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            metadata = dict(raw_result.metadata or {})
+            metadata["weathering"] = weathering_outputs.metadata
+            auxiliary = _merge_auxiliary_artifacts(
+                raw_result.auxiliary_artifacts,
+                weathering_outputs.auxiliary_artifacts,
+            )
+            raw_result = replace(
+                raw_result,
+                albedo_uri=weathering_outputs.albedo_uri,
+                orm_uri=weathering_outputs.orm_uri,
+                metadata=metadata,
+                auxiliary_artifacts=auxiliary,
+            )
+        skip_material_anything = _coerce_bool(
+            request.configuration.custom_parameters.get("skip_material_anything"),
+            default=(
+                False
+                if weathering_plan is not None
+                else self.config.skip_material_anything
+            ),
+        )
+        if not skip_material_anything and raw_result.orm_uri is None:
+            message = (
+                "STEP1X_PBR_OUTPUT_INCOMPLETE: Material Anything was requested, "
+                "but the runner returned no packed ORM roughness/metallic map"
+            )
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_PBR_OUTPUT_INCOMPLETE",
+                    message=message,
+                ),
+            )
+        try:
+            map_dimensions = _result_map_dimensions(raw_result)
+        except (OSError, ValueError) as exc:
+            message = f"STEP1X_OUTPUT_INVALID: could not inspect output maps: {exc}"
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_OUTPUT_INVALID",
+                    message=message,
+                ),
+            ) from exc
+        upscale_target_size = _upscale_target_size(
+            request.configuration.custom_parameters.get("upscale_target_size")
+        )
+        if upscale_target_size is not None:
+            expected_size = (upscale_target_size, upscale_target_size)
+            mismatches = {
+                channel: dimensions
+                for channel, dimensions in map_dimensions.items()
+                if dimensions != expected_size
+            }
+            if mismatches:
+                details = ", ".join(
+                    f"{channel}={width}x{height}"
+                    for channel, (width, height) in mismatches.items()
+                )
+                message = (
+                    "STEP1X_UPSCALE_TARGET_MISMATCH: requested all published maps "
+                    f"at {upscale_target_size}x{upscale_target_size}, but runner "
+                    f"returned {details}"
+                )
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_UPSCALE_TARGET_MISMATCH",
+                        message=message,
+                    ),
+                )
+        result = self._to_generation_result(
+            request,
+            job_id,
+            raw_result,
+            map_dimensions=map_dimensions,
+        )
+        weathering_evidence = result.metadata.get("weathering")
+        if (
+            isinstance(weathering_evidence, dict)
+            and weathering_evidence.get("status") != "pass"
+        ):
+            message = "STEP1X_WEATHERING_QUALITY_FAILED: " + "; ".join(
+                str(item) for item in weathering_evidence.get("failures", [])
+            )
+            diagnostics = [
+                *result.diagnostics,
+                {
+                    "code": "STEP1X_WEATHERING_QUALITY_FAILED",
+                    "severity": "error",
+                    "message": message,
+                    "details": weathering_evidence,
+                },
+            ]
+            raise TextureGenerationBackendError(
+                message,
+                result=result.model_copy(
+                    update={
+                        "variant_asset_uri": "",
+                        "generated_textures": GeneratedTextures(),
+                        "maps": {},
+                        "auxiliary_artifacts": {},
+                        "diagnostics": diagnostics,
+                    }
+                ),
+            )
+        return result
 
     def _raise_if_requested_features_unavailable(
         self,
         request: CreateJobRequest,
         job_id: str,
+        *,
+        weathering_plan: WeatheringPlan | None,
     ) -> None:
-        if self.config.command_template:
-            return
-
         custom = request.configuration.custom_parameters
+        if weathering_plan is not None and not self.config.validate_assets:
+            message = (
+                "STEP1X_WEATHERING_SCOPE_REQUIRED: prompt-requested weathering "
+                "cannot run "
+                "when source material validation is disabled"
+            )
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_WEATHERING_SCOPE_REQUIRED",
+                    message=message,
+                ),
+            )
+        try:
+            template_upscale_target_size = _upscale_target_size(
+                custom.get("upscale_target_size")
+            )
+        except ValueError as exc:
+            message = f"STEP1X_INVALID_UPSCALE_TARGET_SIZE: {exc}"
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_INVALID_UPSCALE_TARGET_SIZE",
+                    message=message,
+                ),
+            ) from exc
+        if self.config.command_template:
+            if "{upscale_target_size}" in self.config.command_template:
+                message = (
+                    "STEP1X_COMMAND_TEMPLATE_UPSCALE_UNSUPPORTED: the bare "
+                    "{upscale_target_size} placeholder can leave a dangling "
+                    "flag; use atomic {upscale_target_size_arg}"
+                )
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_COMMAND_TEMPLATE_UPSCALE_UNSUPPORTED",
+                        message=message,
+                    ),
+                )
+            if (
+                template_upscale_target_size is not None
+                and "{upscale_target_size_arg}" not in self.config.command_template
+            ):
+                message = (
+                    "STEP1X_COMMAND_TEMPLATE_UPSCALE_UNSUPPORTED: requests with "
+                    "upscale_target_size require an atomic "
+                    "{upscale_target_size_arg} placeholder"
+                )
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_COMMAND_TEMPLATE_UPSCALE_UNSUPPORTED",
+                        message=message,
+                    ),
+                )
+
+        profile_issues = self._runtime_profile_configuration_issues()
+        if profile_issues:
+            message = "STEP1X_RUNTIME_PROFILE_INVALID: " + "; ".join(profile_issues)
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_RUNTIME_PROFILE_INVALID",
+                    message=message,
+                ),
+            )
+
+        requested_skip_ma = _coerce_bool(
+            custom.get("skip_material_anything"),
+            default=False,
+        )
+        if weathering_plan is not None and requested_skip_ma:
+            message = (
+                "STEP1X_WEATHERING_REQUIRES_MATERIAL_ANYTHING: prompt-requested "
+                "weathering "
+                "cannot set skip_material_anything=true"
+            )
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_WEATHERING_REQUIRES_MATERIAL_ANYTHING",
+                    message=message,
+                ),
+            )
         skip_ma = _coerce_bool(
             custom.get("skip_material_anything"),
-            default=self.config.skip_material_anything,
+            default=(
+                False
+                if weathering_plan is not None
+                else self.config.skip_material_anything
+            ),
         )
         if not skip_ma:
-            missing = self._missing_material_anything_inputs()
+            if self._runtime_profile_enforced() and not self._runtime_profile_has(
+                "material_anything"
+            ):
+                message = (
+                    "STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY: selected profile "
+                    f"{self._selected_runtime_profiles()!r} do not include "
+                    "Material Anything"
+                )
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY",
+                        message=message,
+                    ),
+                )
+            missing = (
+                []
+                if self.config.command_template
+                else self._missing_material_anything_inputs()
+            )
             if missing:
                 message = (
                     "STEP1X_MATERIAL_ANYTHING_UNAVAILABLE: request set "
@@ -696,9 +1170,46 @@ class Step1XBackend(TextureGenerationBackend):
                     ),
                 )
 
-        if _coerce_bool(custom.get("upscale"), default=False):
-            upscaler_info = self._upscaler_info()
-            if not upscaler_info["ready"]:
+        try:
+            upscale_target_size = _upscale_target_size(
+                custom.get("upscale_target_size")
+            )
+        except ValueError as exc:
+            message = f"STEP1X_INVALID_UPSCALE_TARGET_SIZE: {exc}"
+            raise TextureGenerationBackendError(
+                message,
+                result=self._failure_result(
+                    request,
+                    job_id,
+                    code="STEP1X_INVALID_UPSCALE_TARGET_SIZE",
+                    message=message,
+                ),
+            ) from exc
+        upscale = (
+            _coerce_bool(custom.get("upscale"), default=False)
+            or upscale_target_size is not None
+        )
+        if upscale:
+            if self._runtime_profile_enforced() and not self._runtime_profile_has(
+                "swin2sr"
+            ):
+                message = (
+                    "STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY: selected profile "
+                    f"{self._selected_runtime_profiles()!r} do not include Swin2SR"
+                )
+                raise TextureGenerationBackendError(
+                    message,
+                    result=self._failure_result(
+                        request,
+                        job_id,
+                        code="STEP1X_RUNTIME_PROFILE_MISSING_CAPABILITY",
+                        message=message,
+                    ),
+                )
+            upscaler_info = (
+                None if self.config.command_template else self._upscaler_info()
+            )
+            if upscaler_info is not None and not upscaler_info["ready"]:
                 missing = ", ".join(upscaler_info["missing"])
                 message = (
                     "STEP1X_UPSCALER_UNAVAILABLE: request set upscale=true, "
@@ -741,7 +1252,7 @@ class Step1XBackend(TextureGenerationBackend):
         )
 
     def _missing_runtime_inputs(self) -> list[str]:
-        missing: list[str] = []
+        missing = self._runtime_profile_configuration_issues()
         if self.config.command_template:
             optional_paths = (
                 (
@@ -803,13 +1314,167 @@ class Step1XBackend(TextureGenerationBackend):
                 issue = _path_readiness_issue(label, source_path, require_read=True)
                 if issue is not None:
                     missing.append(f"{issue}; run setup_env.sh")
-        if not self.config.skip_material_anything:
+        if self._runtime_profile_enforced():
+            runtime_python = self._runtime_python_executable()
+            if runtime_python is None:
+                missing.append(
+                    "TEXTURE_STEP1X_PYTHON (required to validate selected "
+                    f"runtime profiles {self._selected_runtime_profiles()!r})"
+                )
+            else:
+                missing.extend(
+                    f"Step1X core {item}"
+                    for item in _missing_python_modules_in_runtime(
+                        runtime_python,
+                        _STEP1X_CORE_REQUIRED_MODULES,
+                        runtime_dir=self.config.runtime_dir,
+                        include_material_anything=self._runtime_profile_has(
+                            "material_anything"
+                        ),
+                    )
+                )
+            missing.extend(
+                f"Step1X core {item}"
+                for item in _missing_core_model_inputs(self.config.model_dir)
+            )
+        if self._runtime_profile_has("material_anything"):
             missing.extend(self._missing_material_anything_inputs())
-        if self.config.require_upscaler:
+        if self._runtime_profile_has("swin2sr"):
             upscaler_info = self._upscaler_info()
             if not upscaler_info["ready"]:
                 missing.extend(f"upscaler {item}" for item in upscaler_info["missing"])
         return missing
+
+    def _runtime_marker(self) -> dict[str, Any] | None:
+        if self.config.runtime_dir is None:
+            return None
+        marker, _issue = _runtime_marker_state(
+            self.config.runtime_dir / _COMPOSE_RUNTIME_MARKER
+        )
+        return marker
+
+    def _runtime_marker_issue(self) -> str | None:
+        if self.config.runtime_dir is None:
+            return None
+        marker, issue = _runtime_marker_state(
+            self.config.runtime_dir / _COMPOSE_RUNTIME_MARKER
+        )
+        if issue is not None:
+            return issue
+        if marker is None or marker.get("runtime_source") != "compose_managed":
+            return None
+        if "runtime_profiles" not in marker:
+            return (
+                "STEP1X_RUNTIME_PROFILES_MISSING_FROM_MARKER "
+                "(.texture-agent-runtime.json has no runtime_profiles)"
+            )
+        marker_profiles = _marker_runtime_profiles(marker, allow_legacy=False)
+        if marker_profiles is None:
+            return (
+                "STEP1X_RUNTIME_PROFILES_INVALID_IN_MARKER "
+                "(.texture-agent-runtime.json runtime_profiles must be a "
+                "non-empty list of non-empty strings)"
+            )
+        return None
+
+    def _selected_runtime_profiles(self) -> tuple[str, ...]:
+        if self.config.runtime_profiles is not None:
+            return self.config.runtime_profiles
+        marker = self._runtime_marker()
+        if marker is not None:
+            marker_profiles = _marker_runtime_profiles(marker)
+            if marker_profiles is not None:
+                return marker_profiles
+        if not self.config.skip_material_anything and self.config.require_upscaler:
+            return ("texture-full-pbr-upscale",)
+        if not self.config.skip_material_anything:
+            return ("texture-step1x-core", "texture-material-anything")
+        if self.config.require_upscaler:
+            return ("texture-step1x-core", "texture-swin2sr")
+        return ("texture-step1x-core",)
+
+    def _runtime_profile_selection_source(self) -> str:
+        if self.config.runtime_profiles is not None:
+            return "explicit"
+        if self._runtime_marker_issue() is not None:
+            return "invalid_runtime_marker"
+        marker = self._runtime_marker()
+        if marker is not None and _marker_runtime_profiles(marker) is not None:
+            return "runtime_marker"
+        return "legacy_flags"
+
+    def _runtime_profile_enforced(self) -> bool:
+        return self._runtime_profile_selection_source() != "legacy_flags"
+
+    def _runtime_profile_definition_issue(self) -> str | None:
+        profiles = self._selected_runtime_profiles()
+        if profiles in _VALID_RUNTIME_PROFILE_SETS:
+            return None
+        supported = "; ".join(",".join(item) for item in _VALID_RUNTIME_PROFILE_SETS)
+        return (
+            f"unsupported TEXTURE_STEP1X_RUNTIME_PROFILES={','.join(profiles)!r}; "
+            f"expected one canonical set: {supported}"
+        )
+
+    def _runtime_profile_has(self, capability: str) -> bool:
+        return any(
+            capability in _RUNTIME_PROFILE_CAPABILITIES.get(profile, frozenset())
+            for profile in self._selected_runtime_profiles()
+        )
+
+    def _runtime_profile_configuration_issues(self) -> list[str]:
+        marker_issue = self._runtime_marker_issue()
+        if marker_issue is not None:
+            return [marker_issue]
+        issue = self._runtime_profile_definition_issue()
+        if issue is not None:
+            return [f"STEP1X_RUNTIME_PROFILE_INVALID ({issue})"]
+        if self.config.runtime_profiles is None:
+            return []
+        marker = self._runtime_marker()
+        if marker is None or marker.get("runtime_source") != "compose_managed":
+            return []
+        marker_profiles = _marker_runtime_profiles(marker, allow_legacy=False)
+        if marker_profiles is None:
+            return [
+                "STEP1X_RUNTIME_PROFILES_MISSING_FROM_MARKER "
+                "(.texture-agent-runtime.json has no runtime_profiles)"
+            ]
+        if marker_profiles != self.config.runtime_profiles:
+            return [
+                "STEP1X_RUNTIME_PROFILES_MISMATCH "
+                f"(configured {self.config.runtime_profiles!r}, marker has "
+                f"{marker_profiles!r})"
+            ]
+        return []
+
+    def _runtime_profile_info(self) -> dict[str, Any]:
+        profiles = self._selected_runtime_profiles()
+        marker = self._runtime_marker()
+        marker_profiles = (
+            _marker_runtime_profiles(marker, allow_legacy=False) if marker else None
+        )
+        capabilities = {
+            capability
+            for profile in profiles
+            for capability in _RUNTIME_PROFILE_CAPABILITIES.get(profile, frozenset())
+        }
+        return {
+            "selected": list(profiles),
+            "selection_source": self._runtime_profile_selection_source(),
+            "valid": (
+                profiles in _VALID_RUNTIME_PROFILE_SETS
+                and self._runtime_marker_issue() is None
+            ),
+            "capabilities": sorted(capabilities),
+            "supported_sets": [list(item) for item in _VALID_RUNTIME_PROFILE_SETS],
+            "marker_profiles": list(marker_profiles)
+            if marker_profiles is not None
+            else None,
+            "marker_matches_selected": (
+                marker_profiles == profiles if marker_profiles is not None else None
+            ),
+        }
 
     def _missing_required_executables(self) -> list[str]:
         missing: list[str] = []
@@ -831,6 +1496,12 @@ class Step1XBackend(TextureGenerationBackend):
     def _external_runtime_info(self) -> dict[str, Any]:
         edit_script = self._configured_edit_script()
         runtime_source = self._runtime_source()
+        if runtime_source == "operator_mounted":
+            weights_policy = "operator_preloaded_runtime_required"
+        elif self._runtime_profile_enforced():
+            weights_policy = "pinned_preloaded_cache_required"
+        else:
+            weights_policy = "downloadable_not_committed"
         return {
             "api_service": "repo_owned",
             "step1x_runtime": runtime_source,
@@ -850,7 +1521,8 @@ class Step1XBackend(TextureGenerationBackend):
             "validate_assets": self.config.validate_assets,
             "skip_material_anything_default": self.config.skip_material_anything,
             "require_upscaler": self.config.require_upscaler,
-            "weights_policy": "downloadable_not_committed",
+            "runtime_profiles": self._runtime_profile_info(),
+            "weights_policy": weights_policy,
             "required_executables": _required_executable_status(
                 self.config.required_executables
             ),
@@ -860,6 +1532,9 @@ class Step1XBackend(TextureGenerationBackend):
         paths = _material_anything_paths(self.config.runtime_dir)
         missing = self._missing_material_anything_inputs()
         return {
+            "selected": self._runtime_profile_has("material_anything"),
+            "required_for_ready": self._runtime_profile_has("material_anything"),
+            "mode": "pbr_only",
             "enabled_by_default": not self.config.skip_material_anything,
             "ready": not missing,
             "missing": missing,
@@ -867,30 +1542,57 @@ class Step1XBackend(TextureGenerationBackend):
             "required_assets": [
                 "third_party/MaterialAnything/pretrained_models/material_estimator",
                 "third_party/MaterialAnything/pretrained_models/material_refiner",
-                "third_party/MaterialAnything/models/ControlNet/models/control_sd15_depth.pth",
+            ],
+            "optional_legacy_assets": [
+                "third_party/MaterialAnything/models/ControlNet/models/control_sd15_depth.pth"
             ],
         }
 
     def _upscaler_info(self) -> dict[str, Any]:
         paths = _upscaler_paths(self.config.runtime_dir)
+        operator_mounted = self._runtime_source() == "operator_mounted"
+        require_selected_swin2sr = (
+            self._runtime_profile_enforced() and self._runtime_profile_has("swin2sr")
+        )
         missing = _missing_upscaler_inputs(
             self.config.runtime_dir,
             python_executable=self._runtime_python_executable(),
+            model_dir=self.config.model_dir,
+            require_swin2sr=require_selected_swin2sr,
+            include_material_anything=self._runtime_profile_has("material_anything"),
         )
-        can_auto_download = _upscaler_auto_download_writable(self.config.runtime_dir)
+        can_auto_download = not operator_mounted and _upscaler_auto_download_writable(
+            self.config.runtime_dir
+        )
+        require_preloaded_models = require_selected_swin2sr or operator_mounted
+        if operator_mounted:
+            model_policy = "operator_preloaded_cache_required"
+        elif require_selected_swin2sr:
+            model_policy = "preloaded_pinned_cache_required"
+        else:
+            model_policy = "huggingface_cache_downloadable_not_committed"
         return {
+            "selected": self._runtime_profile_has("swin2sr"),
             "backend": _upscaler_backend(),
             "available_backends": ["swin2sr", "auto", "ncnn-vulkan"],
-            "required_for_ready": self.config.require_upscaler,
-            "ready": not missing or can_auto_download,
+            "required_for_ready": self._runtime_profile_has("swin2sr"),
+            "ready": not missing
+            if require_preloaded_models
+            else not missing or can_auto_download,
             "missing": missing,
             "auto_download_writable": can_auto_download,
-            "model_policy": "huggingface_cache_downloadable_not_committed",
+            "model_policy": model_policy,
             "swin2sr_models": {
                 "x2": "caidas/swin2SR-classical-sr-x2-64",
                 "x4": "caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr",
             },
             "paths": {label: str(path) for label, path in paths.items()},
+            "swin2sr_cache_paths": {
+                label: str(path)
+                for label, path in _swin2sr_model_cache_paths(
+                    self.config.model_dir
+                ).items()
+            },
         }
 
     def _missing_material_anything_inputs(self) -> list[str]:
@@ -933,45 +1635,50 @@ class Step1XBackend(TextureGenerationBackend):
         request: CreateJobRequest,
         job_id: str,
         raw_result: Step1XRunResult,
+        *,
+        map_dimensions: dict[str, tuple[int, int]],
     ) -> GenerationResult:
-        degraded_channels = [
-            name
-            for name, uri in (
-                ("normal", raw_result.normal_uri),
-                ("orm", raw_result.orm_uri),
-            )
-            if uri is None
-        ]
         metadata = dict(raw_result.metadata or {})
+        declared_degraded_channels = metadata.get("degraded_channels")
+        degraded_channels = (
+            list(dict.fromkeys(declared_degraded_channels))
+            if isinstance(declared_degraded_channels, list)
+            and all(isinstance(channel, str) for channel in declared_degraded_channels)
+            else []
+        )
         metadata.setdefault("backend_name", self.name)
+        metadata["capabilities"] = self.capabilities().model_dump(exclude_none=True)
         if request.target is not None:
             metadata.setdefault(
                 "target",
                 request.target.model_dump(exclude_none=True),
             )
-        if degraded_channels:
-            metadata["degraded_channels"] = degraded_channels
+        # Missing maps are not inherently degraded: the fast profile deliberately
+        # produces albedo only, and a normal is preserved only when the source has
+        # one. A runner must explicitly declare a channel degraded; requested PBR
+        # without ORM is rejected before this conversion.
+        metadata["degraded_channels"] = degraded_channels
 
         maps = {
             "albedo": MapArtifact(
                 uri=raw_result.albedo_uri,
-                width=raw_result.width,
-                height=raw_result.height,
+                width=map_dimensions["albedo"][0],
+                height=map_dimensions["albedo"][1],
                 colorspace="srgb",
             )
         }
         if raw_result.normal_uri is not None:
             maps["normal"] = MapArtifact(
                 uri=raw_result.normal_uri,
-                width=raw_result.width,
-                height=raw_result.height,
+                width=map_dimensions["normal"][0],
+                height=map_dimensions["normal"][1],
                 colorspace="linear",
             )
         if raw_result.orm_uri is not None:
             maps["orm"] = MapArtifact(
                 uri=raw_result.orm_uri,
-                width=raw_result.width,
-                height=raw_result.height,
+                width=map_dimensions["orm"][0],
+                height=map_dimensions["orm"][1],
                 colorspace="linear",
                 packing="occlusion_roughness_metallic",
             )
@@ -987,7 +1694,7 @@ class Step1XBackend(TextureGenerationBackend):
                 {
                     "code": "STEP1X_MAPS_DEGRADED",
                     "severity": "warning",
-                    "message": "Step1X output omitted optional PBR maps.",
+                    "message": "Step1X runner reported degraded texture channels.",
                     "channels": degraded_channels,
                 }
             )
@@ -1094,6 +1801,21 @@ def _optional_path(env_name: str) -> Path | None:
     return Path(value).expanduser()
 
 
+def _optional_paths(
+    env_name: str,
+    *,
+    default: tuple[Path, ...] | None = None,
+) -> tuple[Path, ...] | None:
+    value = os.environ.get(env_name)
+    if value is None:
+        return default
+    return tuple(
+        Path(item.strip()).expanduser()
+        for item in value.split(os.pathsep)
+        if item.strip()
+    )
+
+
 def _bundled_runtime_dir() -> Path | None:
     runtime_dir = Path(__file__).parent / _BUNDLED_RUNTIME_RELATIVE
     if (runtime_dir / "edit_texture.py").exists():
@@ -1106,6 +1828,14 @@ def _optional_str(env_name: str) -> str | None:
     if value is None or not value.strip():
         return None
     return value.strip()
+
+
+def _optional_runtime_profiles() -> tuple[str, ...] | None:
+    value = _optional_str("TEXTURE_STEP1X_RUNTIME_PROFILES")
+    if value is not None:
+        return tuple(profile.strip() for profile in value.split(","))
+    legacy_value = _optional_str("TEXTURE_STEP1X_RUNTIME_PROFILE")
+    return (legacy_value,) if legacy_value is not None else None
 
 
 def _optional_int(env_name: str, *, default: int) -> int:
@@ -1139,6 +1869,33 @@ def _coerce_bool(value: Any, *, default: bool) -> bool:
         if stripped in {"0", "false", "no", "off"}:
             return False
     return bool(value)
+
+
+def _upscale_target_size(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(
+            f"must be an integer from 1 through {_MAX_UPSCALE_TARGET_SIZE}"
+        )
+    if isinstance(value, int):
+        result = value
+    elif isinstance(value, str):
+        normalized = value.strip()
+        if not normalized or not normalized.isdecimal():
+            raise ValueError(
+                f"must be an integer from 1 through {_MAX_UPSCALE_TARGET_SIZE}"
+            )
+        result = int(normalized)
+    else:
+        raise ValueError(
+            f"must be an integer from 1 through {_MAX_UPSCALE_TARGET_SIZE}"
+        )
+    if not 1 <= result <= _MAX_UPSCALE_TARGET_SIZE:
+        raise ValueError(
+            f"must be an integer from 1 through {_MAX_UPSCALE_TARGET_SIZE}"
+        )
+    return result
 
 
 def _optional_executables(
@@ -1175,12 +1932,43 @@ def _required_executable_status(
     return status
 
 
-def _is_compose_managed_runtime_marker(marker_path: Path) -> bool:
+def _runtime_marker_state(
+    marker_path: Path,
+) -> tuple[dict[str, Any] | None, str | None]:
     try:
-        marker = json.loads(marker_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return False
-    return marker.get("runtime_source") == "compose_managed"
+        marker_text = marker_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None, None
+    except OSError as exc:
+        return None, f"STEP1X_RUNTIME_MARKER_UNREADABLE ({_format_os_error(exc)})"
+    try:
+        marker = json.loads(marker_text)
+    except json.JSONDecodeError as exc:
+        return None, f"STEP1X_RUNTIME_MARKER_INVALID (invalid JSON: {exc})"
+    if not isinstance(marker, dict):
+        return None, "STEP1X_RUNTIME_MARKER_INVALID (expected a JSON object)"
+    return marker, None
+
+
+def _marker_runtime_profiles(
+    marker: dict[str, Any], *, allow_legacy: bool = True
+) -> tuple[str, ...] | None:
+    values = marker.get("runtime_profiles")
+    if isinstance(values, list) and all(
+        isinstance(value, str) and value for value in values
+    ):
+        return tuple(values)
+    if not allow_legacy:
+        return None
+    legacy_value = marker.get("runtime_profile")
+    if isinstance(legacy_value, str) and legacy_value:
+        return (legacy_value,)
+    return None
+
+
+def _is_compose_managed_runtime_marker(marker_path: Path) -> bool:
+    marker, _issue = _runtime_marker_state(marker_path)
+    return marker is not None and marker.get("runtime_source") == "compose_managed"
 
 
 def _detect_gpu_available() -> bool | None:
@@ -1270,6 +2058,10 @@ def _missing_material_anything_inputs(
         return ["TEXTURE_STEP1X_RUNTIME_DIR (required for Material Anything)"]
     missing: list[str] = []
     for label, path in _material_anything_paths(runtime_dir).items():
+        if label == "controlnet_depth":
+            # The managed Texture Agent path always selects the patched
+            # --pbr_only mode, which neither initializes nor calls ControlNet.
+            continue
         issue = _path_readiness_issue(
             f"Material Anything {label}",
             path,
@@ -1277,12 +2069,23 @@ def _missing_material_anything_inputs(
         )
         if issue is not None:
             missing.append(issue)
+            continue
+        if label in {"material_estimator", "material_refiner"}:
+            for relative_path in _MATERIAL_ANYTHING_MODEL_FILES:
+                model_issue = _nonempty_model_file_issue(
+                    f"Material Anything {label} {relative_path}",
+                    path / relative_path,
+                )
+                if model_issue is not None:
+                    missing.append(model_issue)
     if python_executable is not None:
         missing.extend(
             f"Material Anything {item}"
             for item in _missing_python_modules_in_runtime(
                 python_executable,
                 _MATERIAL_ANYTHING_REQUIRED_MODULES,
+                runtime_dir=runtime_dir,
+                include_material_anything=True,
             )
         )
     return missing
@@ -1303,6 +2106,9 @@ def _missing_upscaler_inputs(
     runtime_dir: Path | None,
     *,
     python_executable: Path | None = None,
+    model_dir: Path | None = None,
+    require_swin2sr: bool = False,
+    include_material_anything: bool = False,
 ) -> list[str]:
     if runtime_dir is None:
         return ["TEXTURE_STEP1X_RUNTIME_DIR (required for upscaler)"]
@@ -1319,25 +2125,191 @@ def _missing_upscaler_inputs(
             "expected auto, swin2sr, or ncnn-vulkan variants)"
         )
         return missing
+    if require_swin2sr:
+        if backend in {"ncnn", "ncnn-vulkan", "vulkan"}:
+            missing.append(
+                "backend (selected texture-swin2sr profile requires Swin2SR, "
+                f"not {backend!r})"
+            )
+            return missing
+        missing.extend(
+            _missing_swin2sr_upscaler_inputs(
+                python_executable,
+                runtime_dir=runtime_dir,
+                include_material_anything=include_material_anything,
+            )
+        )
+        missing.extend(_missing_swin2sr_model_inputs(model_dir))
+        return missing
     if backend in {"swin2sr", "swin2sr-pytorch", "transformers"}:
-        missing.extend(_missing_swin2sr_upscaler_inputs(python_executable))
+        missing.extend(
+            _missing_swin2sr_upscaler_inputs(
+                python_executable,
+                runtime_dir=runtime_dir,
+                include_material_anything=include_material_anything,
+            )
+        )
+        missing.extend(_missing_swin2sr_model_inputs(model_dir))
     elif backend in {"ncnn", "ncnn-vulkan", "vulkan"}:
         missing.extend(_missing_ncnn_upscaler_inputs(paths))
     else:
-        swin2sr_missing = _missing_swin2sr_upscaler_inputs(python_executable)
+        swin2sr_missing = _missing_swin2sr_upscaler_inputs(
+            python_executable,
+            runtime_dir=runtime_dir,
+            include_material_anything=include_material_anything,
+        )
         ncnn_missing = _missing_ncnn_upscaler_inputs(paths)
         if swin2sr_missing and ncnn_missing:
             missing.extend([f"swin2sr {item}" for item in swin2sr_missing])
             missing.extend([f"ncnn-vulkan {item}" for item in ncnn_missing])
+        elif not swin2sr_missing:
+            missing.extend(_missing_swin2sr_model_inputs(model_dir))
     return missing
+
+
+def _swin2sr_model_cache_paths(model_dir: Path | None) -> dict[str, Path]:
+    root = _canonical_hf_hub_cache(model_dir)
+
+    result: dict[str, Path] = {}
+    for label, repo_id, revision in (
+        (
+            "x2",
+            "caidas/swin2SR-classical-sr-x2-64",
+            "cee1c923c6a37361c6e5650b65dcf4be821e5d52",
+        ),
+        (
+            "x4",
+            "caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr",
+            "bb13f02e45e88d00b6c202b3fbe6a181af144606",
+        ),
+    ):
+        repo_cache = "models--" + repo_id.replace("/", "--")
+        result[label] = root / repo_cache / "snapshots" / revision
+    return result
+
+
+def _missing_swin2sr_model_inputs(model_dir: Path | None) -> list[str]:
+    missing: list[str] = []
+    for label, path in _swin2sr_model_cache_paths(model_dir).items():
+        issue = _path_readiness_issue(
+            f"Swin2SR {label} model snapshot",
+            path,
+            require_read=True,
+            require_directory=True,
+        )
+        if issue is not None:
+            missing.append(issue)
+            continue
+        for relative_path in _SWIN2SR_MODEL_FILES[label]:
+            model_issue = _nonempty_model_file_issue(
+                f"Swin2SR {label} {relative_path}",
+                path / relative_path,
+            )
+            if model_issue is not None:
+                missing.append(model_issue)
+    return missing
+
+
+def _canonical_hf_hub_cache(model_dir: Path | None) -> Path:
+    configured_hub_cache = os.environ.get("HF_HUB_CACHE", "").strip()
+    if configured_hub_cache:
+        return Path(configured_hub_cache)
+    configured_hf_home = os.environ.get("HF_HOME", "").strip()
+    if configured_hf_home:
+        return Path(configured_hf_home) / "hub"
+    if model_dir is not None:
+        return model_dir / "huggingface" / "hub"
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def _core_model_cache_paths(model_dir: Path | None) -> dict[str, Path]:
+    hub_cache = _canonical_hf_hub_cache(model_dir)
+    return {
+        label: hub_cache
+        / ("models--" + repo_id.replace("/", "--"))
+        / "snapshots"
+        / revision
+        for label, (repo_id, revision, _files) in _CORE_MODEL_FILES.items()
+    }
+
+
+def _missing_core_model_inputs(model_dir: Path | None) -> list[str]:
+    missing = _core_model_identity_issues()
+    if missing:
+        return missing
+    snapshots = _core_model_cache_paths(model_dir)
+    for label, (_repo_id, _revision, required_files) in _CORE_MODEL_FILES.items():
+        snapshot = snapshots[label]
+        issue = _path_readiness_issue(
+            f"{label} model snapshot",
+            snapshot,
+            require_read=True,
+            require_directory=True,
+        )
+        if issue is not None:
+            missing.append(issue)
+            continue
+        for relative_path in required_files:
+            path = snapshot / relative_path
+            issue = _nonempty_model_file_issue(f"{label} {relative_path}", path)
+            if issue is not None:
+                missing.append(issue)
+    return missing
+
+
+def _core_model_identity_issues() -> list[str]:
+    issues: list[str] = []
+    repo_id = os.environ.get("TEXTURE_STEP1X_HF_REPO", "stepfun-ai/Step1X-3D")
+    if repo_id != "stepfun-ai/Step1X-3D":
+        issues.append(
+            "TEXTURE_STEP1X_HF_REPO does not match reviewed Texture Agent 0.6 "
+            "value 'stepfun-ai/Step1X-3D'"
+        )
+    for env_name, expected in (
+        ("TEXTURE_STEP1X_HF_REVISION", _STEP1X_MODEL_REVISION),
+        ("TEXTURE_SDXL_BASE_REVISION", _SDXL_BASE_REVISION),
+        ("TEXTURE_SDXL_VAE_REVISION", _SDXL_VAE_REVISION),
+    ):
+        actual = os.environ.get(env_name, expected)
+        if not re.fullmatch(r"[0-9a-f]{40}", actual):
+            issues.append(
+                f"{env_name} must be a reviewed 40-character lowercase commit SHA"
+            )
+        elif actual != expected:
+            issues.append(
+                f"{env_name}={actual} does not match reviewed Texture Agent 0.6 "
+                f"pin {expected}"
+            )
+    return issues
+
+
+def _nonempty_model_file_issue(label: str, path: Path) -> str | None:
+    try:
+        if not path.is_file():
+            return f"{label} (missing file: {path})"
+        if path.stat().st_size <= 0:
+            return f"{label} (empty file: {path})"
+    except OSError as exc:
+        return f"{label} ({_format_os_error(exc)}: {path})"
+    if not os.access(path, os.R_OK):
+        return f"{label} (not readable: {path})"
+    return None
 
 
 def _missing_swin2sr_upscaler_inputs(
     python_executable: Path | None = None,
+    *,
+    runtime_dir: Path | None = None,
+    include_material_anything: bool = False,
 ) -> list[str]:
     required_modules = ("torch", "transformers", "PIL", "numpy")
     if python_executable is not None:
-        return _missing_python_modules_in_runtime(python_executable, required_modules)
+        return _missing_python_modules_in_runtime(
+            python_executable,
+            required_modules,
+            runtime_dir=runtime_dir,
+            include_material_anything=include_material_anything,
+        )
     return [
         f"python module {module_name} (not importable)"
         for module_name in required_modules
@@ -1348,6 +2320,9 @@ def _missing_swin2sr_upscaler_inputs(
 def _missing_python_modules_in_runtime(
     python_executable: Path,
     module_names: tuple[str, ...],
+    *,
+    runtime_dir: Path | None = None,
+    include_material_anything: bool = False,
 ) -> list[str]:
     issue = _path_readiness_issue(
         "TEXTURE_STEP1X_PYTHON",
@@ -1375,6 +2350,10 @@ def _missing_python_modules_in_runtime(
             capture_output=True,
             text=True,
             timeout=timeout_sec,
+            env=_runtime_probe_environment(
+                runtime_dir,
+                include_material_anything=include_material_anything,
+            ),
         )
     except subprocess.TimeoutExpired as exc:
         timeout = (
@@ -1407,6 +2386,29 @@ def _missing_python_modules_in_runtime(
     if not isinstance(missing, list):
         return ["runtime python module probe failed (unexpected output)"]
     return [f"python module {name} (not importable)" for name in missing]
+
+
+def _runtime_probe_environment(
+    runtime_dir: Path | None,
+    *,
+    include_material_anything: bool,
+) -> dict[str, str]:
+    environment = dict(os.environ)
+    if runtime_dir is None:
+        return environment
+    python_paths = [
+        runtime_dir / "src",
+        runtime_dir / "third_party" / "Step1X-3D",
+    ]
+    if include_material_anything:
+        python_paths.append(runtime_dir / "third_party" / "MaterialAnything")
+    configured = environment.get("PYTHONPATH", "")
+    if configured:
+        python_paths.extend(
+            Path(value) for value in configured.split(os.pathsep) if value
+        )
+    environment["PYTHONPATH"] = os.pathsep.join(str(path) for path in python_paths)
+    return environment
 
 
 def _runtime_module_probe_timeout_sec() -> float:
@@ -1505,15 +2507,35 @@ def _step1x_error_code(message: str) -> str | None:
     return None
 
 
-def _local_path_from_uri(uri: str, *, require_exists: bool = True) -> Path | None:
+_PASSTHROUGH_CHILD_ERROR_CODES = frozenset({"STEP1X_PBR_OUTPUT_INCOMPLETE"})
+
+
+def _step1x_child_error_code(message: str) -> str | None:
+    for code in _PASSTHROUGH_CHILD_ERROR_CODES:
+        if f"{code}:" in message:
+            return code
+    return None
+
+
+def _local_path_from_uri(
+    uri: str,
+    *,
+    require_exists: bool = True,
+    allowed_roots: tuple[Path, ...] | None = None,
+) -> Path | None:
     path = local_path_from_file_uri(uri)
     if path is None:
         return None
-    if require_exists and not path.exists():
-        raise RuntimeError(
-            f"STEP1X_ASSET_UNREACHABLE: source asset is not visible: {path}"
-        )
-    return path.resolve() if path.exists() else path
+    resolved = path.resolve(strict=False)
+    if allowed_roots is not None:
+        resolved_roots = tuple(root.resolve(strict=False) for root in allowed_roots)
+        if not any(resolved.is_relative_to(root) for root in resolved_roots):
+            raise RuntimeError(
+                "STEP1X_ASSET_UNREACHABLE: source asset is outside the configured roots."
+            )
+    if require_exists and not resolved.exists():
+        raise RuntimeError("STEP1X_ASSET_UNREACHABLE: source asset is not visible.")
+    return resolved
 
 
 def _inspect_step1x_scope(
@@ -1522,8 +2544,12 @@ def _inspect_step1x_scope(
     *,
     output_dir: Path | None = None,
     texture_size: int | None = None,
+    allowed_roots: tuple[Path, ...] | None = None,
 ) -> Step1XScopeInfo:
-    source_asset_path = _local_path_from_uri(source_asset_uri)
+    source_asset_path = _local_path_from_uri(
+        source_asset_uri,
+        allowed_roots=allowed_roots,
+    )
     if source_asset_path is None:
         raise RuntimeError(
             "STEP1X_ASSET_UNREACHABLE: only local file:// source_asset_uri values "
@@ -1611,6 +2637,16 @@ def _inspect_step1x_scope(
         source_albedo_path=albedo_path,
         source_normal_path=texture_paths.get("normal"),
         source_orm_path=texture_paths.get("orm"),
+        source_roughness=_material_scalar(
+            material_prim,
+            _ROUGHNESS_INPUTS,
+            default=0.5,
+        ),
+        source_metalness=_material_scalar(
+            material_prim,
+            _METALNESS_INPUTS,
+            default=0.0,
+        ),
         diagnostics=tuple(diagnostics),
     )
     _validate_step1x_scope_uvs(stage, scope)
@@ -1630,6 +2666,149 @@ def _validate_step1x_scope_uvs(stage: Any, scope: Step1XScopeInfo) -> None:
             point_count=len(mesh_points),
             face_vertex_indices=mesh_indices,
         )
+
+
+def _measure_weathering_uv_seam_continuity(
+    scope: Step1XScopeInfo,
+    source_albedo_path: Path,
+    albedo_uri: str,
+) -> dict[str, int | float | None]:
+    """Compare weathering deltas on both sides of source UV seams."""
+    from PIL import Image
+    from pxr import Usd, UsdGeom
+
+    albedo_path = _local_path_from_uri(albedo_uri)
+    stage = Usd.Stage.Open(str(scope.source_asset_path))
+    if albedo_path is None or stage is None:
+        return {
+            "uv_seam_sample_count": 0,
+            "uv_seam_rgb_delta_mean": None,
+            "uv_seam_rgb_delta_p95": None,
+            "uv_seam_rgb_delta_max": None,
+        }
+    with Image.open(albedo_path) as image:
+        albedo = image.convert("RGB")
+    with Image.open(source_albedo_path) as image:
+        source_albedo = image.convert("RGB")
+        if source_albedo.size != albedo.size:
+            source_albedo = source_albedo.resize(albedo.size, Image.Resampling.LANCZOS)
+
+    deltas: list[float] = []
+    for prim in _target_mesh_prims(stage, scope):
+        mesh = UsdGeom.Mesh(prim)
+        face_indices = [
+            int(value) for value in (mesh.GetFaceVertexIndicesAttr().Get() or [])
+        ]
+        face_counts = [
+            int(value) for value in (mesh.GetFaceVertexCountsAttr().Get() or [])
+        ]
+        point_count = len(mesh.GetPointsAttr().Get() or [])
+        source_st = UsdGeom.PrimvarsAPI(prim).GetPrimvar("st")
+        face_uvs = _resolve_face_varying_st_values(
+            source_st,
+            point_count=point_count,
+            face_vertex_indices=face_indices,
+        )
+        if face_uvs is None:
+            continue
+
+        edges: dict[
+            tuple[int, int],
+            list[tuple[tuple[float, float], tuple[float, float]]],
+        ] = defaultdict(list)
+        cursor = 0
+        for count in face_counts:
+            indices = face_indices[cursor : cursor + count]
+            uvs = face_uvs[cursor : cursor + count]
+            for offset in range(count):
+                next_offset = (offset + 1) % count
+                point_a = indices[offset]
+                point_b = indices[next_offset]
+                uv_a = (float(uvs[offset][0]), float(uvs[offset][1]))
+                uv_b = (
+                    float(uvs[next_offset][0]),
+                    float(uvs[next_offset][1]),
+                )
+                if point_a <= point_b:
+                    edges[(point_a, point_b)].append((uv_a, uv_b))
+                else:
+                    edges[(point_b, point_a)].append((uv_b, uv_a))
+            cursor += count
+
+        for representations in edges.values():
+            if len(representations) < 2:
+                continue
+            reference = representations[0]
+            for candidate in representations[1:]:
+                if _uv_edges_match(reference, candidate):
+                    continue
+                for fraction in (0.25, 0.5, 0.75):
+                    reference_rgb = _sample_texture_edge(albedo, reference, fraction)
+                    candidate_rgb = _sample_texture_edge(albedo, candidate, fraction)
+                    reference_source = _sample_texture_edge(
+                        source_albedo,
+                        reference,
+                        fraction,
+                    )
+                    candidate_source = _sample_texture_edge(
+                        source_albedo,
+                        candidate,
+                        fraction,
+                    )
+                    deltas.append(
+                        max(
+                            abs((left - source_left) - (right - source_right)) / 255.0
+                            for left, right, source_left, source_right in zip(
+                                reference_rgb,
+                                candidate_rgb,
+                                reference_source,
+                                candidate_source,
+                            )
+                        )
+                    )
+
+    if not deltas:
+        return {
+            "uv_seam_sample_count": 0,
+            "uv_seam_rgb_delta_mean": None,
+            "uv_seam_rgb_delta_p95": None,
+            "uv_seam_rgb_delta_max": None,
+        }
+    ordered = sorted(deltas)
+    p95_index = min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1)
+    return {
+        "uv_seam_sample_count": len(ordered),
+        "uv_seam_rgb_delta_mean": sum(ordered) / len(ordered),
+        "uv_seam_rgb_delta_p95": ordered[p95_index],
+        "uv_seam_rgb_delta_max": ordered[-1],
+    }
+
+
+def _uv_edges_match(
+    left: tuple[tuple[float, float], tuple[float, float]],
+    right: tuple[tuple[float, float], tuple[float, float]],
+) -> bool:
+    return all(
+        math.isclose(left_uv[channel], right_uv[channel], abs_tol=1e-5)
+        for left_uv, right_uv in zip(left, right)
+        for channel in (0, 1)
+    )
+
+
+def _sample_texture_edge(
+    image: Any,
+    edge: tuple[tuple[float, float], tuple[float, float]],
+    fraction: float,
+) -> tuple[int, int, int]:
+    u = edge[0][0] * (1.0 - fraction) + edge[1][0] * fraction
+    v = edge[0][1] * (1.0 - fraction) + edge[1][1] * fraction
+    if not 0.0 <= u <= 1.0:
+        u %= 1.0
+    if not 0.0 <= v <= 1.0:
+        v %= 1.0
+    x = min(image.width - 1, max(0, round(u * (image.width - 1))))
+    y = min(image.height - 1, max(0, round((1.0 - v) * (image.height - 1))))
+    return image.getpixel((x, y))
 
 
 def _prepare_scoped_usd(scope: Step1XScopeInfo, output_dir: Path) -> Path:
@@ -2083,6 +3262,20 @@ _BASE_COLOR_INPUTS = {
     "diffusetint",
 }
 
+_ROUGHNESS_INPUTS = (
+    "specular_roughness",
+    "roughness",
+    "roughness_constant",
+    "base_diffuse_roughness",
+)
+_METALNESS_INPUTS = (
+    "base_metalness",
+    "metallic",
+    "metallicity",
+    "metalness",
+    "metalness_constant",
+)
+
 
 def _synthesize_source_albedo_texture(
     *,
@@ -2122,6 +3315,43 @@ def _material_base_color(material_prim: Any) -> tuple[float, float, float] | Non
             if color is not None:
                 return color
     return None
+
+
+def _material_scalar(
+    material_prim: Any,
+    names: tuple[str, ...],
+    *,
+    default: float,
+) -> float:
+    attributes = [
+        attr
+        for prim in _iter_prim_subtree(material_prim)
+        for attr in prim.GetAttributes()
+    ]
+    for preferred_name in names:
+        preferred_compact = preferred_name.replace("_", "")
+        for attr in attributes:
+            name = attr.GetName().split(":")[-1].replace("-", "_").lower()
+            if name != preferred_name and name.replace("_", "") != preferred_compact:
+                continue
+            value = attr.Get()
+            if isinstance(value, bool):
+                continue
+            try:
+                scalar = float(value)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(scalar):
+                return max(0.0, min(1.0, scalar))
+    return default
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _coerce_color3(value: Any) -> tuple[float, float, float] | None:
@@ -2327,6 +3557,45 @@ def _validate_albedo(path: Path) -> tuple[int, int]:
                 f"STEP1X_OUTPUT_BLANK: generated albedo is blank: {path}"
             )
         return rgb.size
+
+
+def _result_map_dimensions(
+    result: Step1XRunResult,
+) -> dict[str, tuple[int, int]]:
+    fallback = (
+        (result.width, result.height)
+        if result.width is not None and result.height is not None
+        else None
+    )
+    dimensions: dict[str, tuple[int, int]] = {}
+    for channel, uri in (
+        ("albedo", result.albedo_uri),
+        ("normal", result.normal_uri),
+        ("orm", result.orm_uri),
+    ):
+        if uri is None:
+            continue
+        actual = _local_image_dimensions(uri)
+        if actual is not None:
+            dimensions[channel] = actual
+        elif fallback is not None:
+            dimensions[channel] = fallback
+        else:
+            raise ValueError(f"{channel} dimensions are unavailable for {uri}")
+    if "albedo" not in dimensions:
+        raise ValueError("albedo URI is missing")
+    return dimensions
+
+
+def _local_image_dimensions(uri: str) -> tuple[int, int] | None:
+    path = _local_path_from_uri(uri, require_exists=False)
+    if path is None or not path.exists():
+        return None
+
+    from PIL import Image
+
+    with Image.open(path) as image:
+        return image.size
 
 
 def _terminate_process(process: subprocess.Popen[str]) -> None:

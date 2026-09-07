@@ -19,6 +19,7 @@ closed issue #51.
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +31,7 @@ from physics_agent.tuning.artifacts import (
     ARTIFACT_RESULTS,
     write_report_md,
 )
-from physics_agent.tuning.scenario import parse_scenario
+from physics_agent.tuning.scenario import ScenarioParseError, parse_scenario
 from physics_agent.tuning.types import Scenario, TrialRecord
 
 # ---------------------------------------------------------------------------
@@ -555,6 +556,87 @@ def test_newton_static_friction_override_rejected_before_interpreter(
                 physics_usd=_physics_usd(tmp_path),
                 output_dir=tmp_path / "out",
                 engine="newton",
+                optimizer="random",
+                max_trials=3,
+                enable_judge=False,
+            )
+        )
+
+    assert get_backend_calls == 0
+
+
+def test_mixed_friction_override_rejected_before_backend_and_interpreter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _unexpected_infer(*args: Any, **kwargs: Any) -> Scenario:
+        raise AssertionError("interpreter should not be called")
+
+    monkeypatch.setattr(
+        "physics_agent.tasks.interpret_user_prompt_tuning.infer_scenario_from_prompt",
+        _unexpected_infer,
+    )
+    import physics_agent.tuning.runner as runner_mod
+
+    get_backend_calls = 0
+
+    def _unexpected_get_backend(engine: str) -> Any:
+        nonlocal get_backend_calls
+        get_backend_calls += 1
+        raise AssertionError("backend should not be constructed")
+
+    monkeypatch.setattr(runner_mod, "get_backend", _unexpected_get_backend)
+
+    with pytest.raises(ScenarioParseError, match="must both use automatic bounds"):
+        run_tune(
+            TuneInput(
+                user_prompt="make it realistic",
+                scenario={
+                    "parameters": [
+                        {"name": "static_friction", "min": 0.01, "max": 0.02},
+                        {"name": "dynamic_friction"},
+                    ],
+                },
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=tmp_path / "out",
+                engine="ovphysx",
+                optimizer="random",
+                max_trials=3,
+                enable_judge=False,
+            )
+        )
+
+    assert get_backend_calls == 0
+
+
+def test_mixed_friction_scenario_rejected_before_backend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import physics_agent.tuning.runner as runner_mod
+
+    get_backend_calls = 0
+
+    def _unexpected_get_backend(engine: str) -> Any:
+        nonlocal get_backend_calls
+        get_backend_calls += 1
+        raise AssertionError("backend should not be constructed")
+
+    monkeypatch.setattr(runner_mod, "get_backend", _unexpected_get_backend)
+
+    with pytest.raises(ScenarioParseError, match="must both use automatic bounds"):
+        run_tune(
+            TuneInput(
+                scenario={
+                    "name": "drop_settle",
+                    "metric": "settle_distance",
+                    "target": {"drop_height_m": 0.5, "duration_s": 1.0},
+                    "parameters": [
+                        {"name": "static_friction", "min": 0.01, "max": 0.02},
+                        {"name": "dynamic_friction"},
+                    ],
+                },
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=tmp_path / "out",
+                engine="ovphysx",
                 optimizer="random",
                 max_trials=3,
                 enable_judge=False,
@@ -1233,10 +1315,16 @@ def test_judge_llm_timeout_is_non_fatal(
     """A hung judge VLM call is non-fatal: tune artifacts are written
     with a persisted failed judge section, and a tune.judge.failed event
     is emitted with error_type=_LLMTimeoutError."""
-    import time as _time
+    block_started = threading.Event()
+    block_release = threading.Event()
+    block_finished = threading.Event()
 
     def _block(*args: Any, **kwargs: Any) -> Any:
-        _time.sleep(5.0)
+        block_started.set()
+        try:
+            block_release.wait(timeout=5.0)
+        finally:
+            block_finished.set()
         raise AssertionError("should have timed out")
 
     monkeypatch.setattr(
@@ -1251,22 +1339,25 @@ def test_judge_llm_timeout_is_non_fatal(
         def event(self, event_type: str, data: dict[str, Any]) -> None:
             events.append((event_type, data))
 
-    start = _time.monotonic()
     out = tmp_path / "out"
-    result = run_tune(
-        TuneInput(
-            scenario=_scenario_dict(),
-            physics_usd=_physics_usd(tmp_path),
-            output_dir=out,
-            engine="fake",
-            optimizer="random",
-            max_trials=2,
-            enable_judge=True,
-            llm_timeout_seconds=0.5,
-            event_listener=_Listener(),
+    try:
+        result = run_tune(
+            TuneInput(
+                scenario=_scenario_dict(),
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=out,
+                engine="fake",
+                optimizer="random",
+                max_trials=2,
+                enable_judge=True,
+                llm_timeout_seconds=0.5,
+                event_listener=_Listener(),
+            )
         )
-    )
-    assert _time.monotonic() - start < 2.0
+        assert block_started.is_set()
+        assert not block_finished.is_set()
+    finally:
+        block_release.set()
     assert result.success
     tr = json.loads((out / ARTIFACT_RESULTS).read_text())
     # Codex round 3: durable failure status — judge timeout writes a
@@ -1293,12 +1384,18 @@ def test_reference_media_judge_timeout_fails_closed(
     compare the candidate against the user-provided visual target, so the
     runner must not accept a programmatic-only fallback verdict.
     """
-    import time as _time
-
     from physics_agent.tuning.visual_evidence import JudgeVisualEvidence
 
+    block_started = threading.Event()
+    block_release = threading.Event()
+    block_finished = threading.Event()
+
     def _block(*args: Any, **kwargs: Any) -> Any:
-        _time.sleep(5.0)
+        block_started.set()
+        try:
+            block_release.wait(timeout=5.0)
+        finally:
+            block_finished.set()
         raise AssertionError("should have timed out")
 
     monkeypatch.setattr(
@@ -1319,23 +1416,25 @@ def test_reference_media_judge_timeout_fails_closed(
         _fake_prepare_visual_evidence,
     )
 
-    start = _time.monotonic()
     out = tmp_path / "out"
-    result = run_tune(
-        TuneInput(
-            scenario=_scenario_dict(),
-            physics_usd=_physics_usd(tmp_path),
-            output_dir=out,
-            engine="fake",
-            optimizer="random",
-            max_trials=2,
-            enable_judge=True,
-            reference_images=[reference],
-            llm_timeout_seconds=0.5,
+    try:
+        result = run_tune(
+            TuneInput(
+                scenario=_scenario_dict(),
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=out,
+                engine="fake",
+                optimizer="random",
+                max_trials=2,
+                enable_judge=True,
+                reference_images=[reference],
+                llm_timeout_seconds=0.5,
+            )
         )
-    )
-
-    assert _time.monotonic() - start < 2.0
+        assert block_started.is_set()
+        assert not block_finished.is_set()
+    finally:
+        block_release.set()
     assert result.success is False
     assert result.error == (
         "Judge VLM unavailable with reference media; refusing to fall back "
@@ -1352,11 +1451,17 @@ def test_reference_media_visual_evidence_timeout_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A hung render/prep step must not bypass the judge deadline."""
-    import time as _time
+    block_started = threading.Event()
+    block_release = threading.Event()
+    block_finished = threading.Event()
 
     def _block_render(*args: Any, **kwargs: Any) -> tuple[list[Path], str | None]:
-        _time.sleep(5.0)
-        return [], None
+        block_started.set()
+        try:
+            block_release.wait(timeout=5.0)
+            return [], None
+        finally:
+            block_finished.set()
 
     def _should_not_call_judge(*args: Any, **kwargs: Any) -> Any:
         raise AssertionError("judge should not run after visual prep timeout")
@@ -1372,23 +1477,25 @@ def test_reference_media_visual_evidence_timeout_fails_closed(
     reference = tmp_path / "reference.png"
     reference.write_bytes(b"fake image bytes")
 
-    start = _time.monotonic()
     out = tmp_path / "out"
-    result = run_tune(
-        TuneInput(
-            scenario=_scenario_dict(),
-            physics_usd=_physics_usd(tmp_path),
-            output_dir=out,
-            engine="fake",
-            optimizer="random",
-            max_trials=2,
-            enable_judge=True,
-            reference_images=[reference],
-            llm_timeout_seconds=0.2,
+    try:
+        result = run_tune(
+            TuneInput(
+                scenario=_scenario_dict(),
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=out,
+                engine="fake",
+                optimizer="random",
+                max_trials=2,
+                enable_judge=True,
+                reference_images=[reference],
+                llm_timeout_seconds=0.2,
+            )
         )
-    )
-
-    assert _time.monotonic() - start < 2.0
+        assert block_started.is_set()
+        assert not block_finished.is_set()
+    finally:
+        block_release.set()
     assert result.success is False
     assert result.error == (
         "Judge VLM unavailable with reference media; refusing to fall back "
@@ -1523,9 +1630,11 @@ def test_reference_media_judge_vlm_setup_timeout_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Default VLM construction is also bounded before visual judging."""
-    import time as _time
-
     from physics_agent.tuning.visual_evidence import JudgeVisualEvidence
+
+    block_started = threading.Event()
+    block_release = threading.Event()
+    block_finished = threading.Event()
 
     def _fake_prepare_visual_evidence(**kwargs: Any) -> JudgeVisualEvidence:
         return JudgeVisualEvidence(
@@ -1533,7 +1642,11 @@ def test_reference_media_judge_vlm_setup_timeout_fails_closed(
         )
 
     def _block_vlm_setup() -> None:
-        _time.sleep(5.0)
+        block_started.set()
+        try:
+            block_release.wait(timeout=5.0)
+        finally:
+            block_finished.set()
 
     def _should_not_call_judge(*args: Any, **kwargs: Any) -> Any:
         raise AssertionError("judge should not run after VLM setup timeout")
@@ -1553,23 +1666,25 @@ def test_reference_media_judge_vlm_setup_timeout_fails_closed(
     reference = tmp_path / "reference.png"
     reference.write_bytes(b"fake image bytes")
 
-    start = _time.monotonic()
     out = tmp_path / "out"
-    result = run_tune(
-        TuneInput(
-            scenario=_scenario_dict(),
-            physics_usd=_physics_usd(tmp_path),
-            output_dir=out,
-            engine="fake",
-            optimizer="random",
-            max_trials=2,
-            enable_judge=True,
-            reference_images=[reference],
-            llm_timeout_seconds=0.2,
+    try:
+        result = run_tune(
+            TuneInput(
+                scenario=_scenario_dict(),
+                physics_usd=_physics_usd(tmp_path),
+                output_dir=out,
+                engine="fake",
+                optimizer="random",
+                max_trials=2,
+                enable_judge=True,
+                reference_images=[reference],
+                llm_timeout_seconds=0.2,
+            )
         )
-    )
-
-    assert _time.monotonic() - start < 2.0
+        assert block_started.is_set()
+        assert not block_finished.is_set()
+    finally:
+        block_release.set()
     assert result.success is False
     assert result.error == (
         "Judge VLM unavailable with reference media; refusing to fall back "

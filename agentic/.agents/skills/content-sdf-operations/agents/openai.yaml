@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDF Operations"
+  short_description: "Run bounded SDF operations through admitted backends"
+  default_prompt: "Use $content-sdf-operations to perform these signed-distance-field operations through the backend-neutral, policy-admitted in-process tool contract."

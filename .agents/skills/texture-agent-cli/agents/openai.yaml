@@ -1,4 +1,0 @@
-interface:
-  display_name: "Texture Agent CLI"
-  short_description: "Run the Texture Agent CLI"
-  default_prompt: "Use $texture-agent-cli to run the Texture Agent CLI for AI-driven texture generation on USD materials."

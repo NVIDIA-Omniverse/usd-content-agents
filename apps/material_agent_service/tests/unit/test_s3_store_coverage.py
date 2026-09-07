@@ -737,6 +737,38 @@ async def test_s3_cleanup_stale_local_sessions(tmp_path: Path) -> None:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_s3_sync_filters_provider_mismatch_and_contains_cleanup_failure(
+    tmp_path: Path,
+) -> None:
+    client = _FakeS3Client()
+    store = _store_with_client(client)
+
+    class _BroadPaginator:
+        async def paginate(self, **kwargs: object):
+            yield {"Contents": [{"Key": store._key("sid", "output/other.txt")}]}
+
+    client.get_paginator = lambda name: _BroadPaginator()  # type: ignore[method-assign]
+    assert await store.sync_to_local("sid", str(tmp_path / "download"), "input/") == 0
+
+    local_root = tmp_path / "sessions"
+    stale = local_root / "stale"
+    stale.mkdir(parents=True)
+    old = datetime.now(UTC) - timedelta(hours=48)
+
+    async def stale_timestamp(session_id: str) -> datetime:
+        return old
+
+    async def fail_sync(*args: object, **kwargs: object) -> int:
+        raise RuntimeError("sync failed")
+
+    store._get_session_last_updated = stale_timestamp  # type: ignore[method-assign]
+    store.sync_from_local = fail_sync  # type: ignore[method-assign]
+    assert await store.cleanup_stale_local_sessions(str(local_root)) == 0
+    assert stale.exists()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_s3_get_session_last_updated_paths() -> None:
     client = _FakeS3Client()
     store = _store_with_client(client)

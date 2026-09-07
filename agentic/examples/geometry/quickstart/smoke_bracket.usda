@@ -1,0 +1,79 @@
+#usda 1.0
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Scope "Looks"
+    {
+        def Material "Blue"
+        {
+            token outputs:surface.connect = </World/Looks/Blue/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.12, 0.42, 0.78)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+    }
+
+    def Mesh "Geometry" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [
+            (-0.06, -0.05, -0.015),
+            ( 0.06, -0.05, -0.015),
+            ( 0.06, -0.01, -0.015),
+            (-0.01, -0.01, -0.015),
+            (-0.01,  0.05, -0.015),
+            (-0.06,  0.05, -0.015),
+            (-0.06, -0.05,  0.015),
+            ( 0.06, -0.05,  0.015),
+            ( 0.06, -0.01,  0.015),
+            (-0.01, -0.01,  0.015),
+            (-0.01,  0.05,  0.015),
+            (-0.06,  0.05,  0.015)
+        ]
+        int[] faceVertexCounts = [
+            3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+            3, 3, 3, 3, 3, 3, 3, 3, 3, 3
+        ]
+        int[] faceVertexIndices = [
+            0, 2, 1,  0, 3, 2,  0, 4, 3,  0, 5, 4,
+            6, 7, 8,  6, 8, 9,  6, 9, 10,  6, 10, 11,
+            0, 1, 7,  0, 7, 6,
+            1, 2, 8,  1, 8, 7,
+            2, 3, 9,  2, 9, 8,
+            3, 4, 10,  3, 10, 9,
+            4, 5, 11,  4, 11, 10,
+            5, 0, 6,  5, 6, 11
+        ]
+        float3[] extent = [(-0.06, -0.05, -0.015), (0.06, 0.05, 0.015)]
+        normal3f[] normals = [
+            ( 0,  0, -1), ( 0,  0, -1),
+            ( 0,  0, -1), ( 0,  0, -1),
+            ( 0,  0,  1), ( 0,  0,  1),
+            ( 0,  0,  1), ( 0,  0,  1),
+            ( 0, -1,  0), ( 0, -1,  0),
+            ( 1,  0,  0), ( 1,  0,  0),
+            ( 0,  1,  0), ( 0,  1,  0),
+            ( 1,  0,  0), ( 1,  0,  0),
+            ( 0,  1,  0), ( 0,  1,  0),
+            (-1,  0,  0), (-1,  0,  0)
+        ] (
+            interpolation = "uniform"
+        )
+        rel material:binding = </World/Looks/Blue>
+    }
+}

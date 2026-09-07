@@ -1,0 +1,114 @@
+[project]
+name = "geometry-repair"
+dynamic = ["version"]
+description = "Deterministic, profile-driven geometry diagnosis and repair for imported simulation assets"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+authors = [
+    {name = "Omniverse GenAI Team"},
+]
+dependencies = [
+    "coacd==1.0.11",
+    # Optional Embree ray acceleration has no Linux aarch64 wheel. Trimesh's
+    # portable ray path remains available on ARM64.
+    "embreex==4.4.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "fast-simplification==0.1.13",
+    "lxml>=5,<7",
+    "manifold3d==3.5.2",
+    "networkx>=3.4,<4",
+    "numpy>=1.26",
+    "sdf-tools",
+    "pillow>=10.4",
+    "pydantic>=2.11,<3.0.0",
+    "rtree>=1.3",
+    "scipy>=1.14",
+    "trimesh>=4.5",
+    "usd-cli",
+    # world-understanding is the sole pxr provider through usd-exchange. Do not
+    # co-install usd-core: both
+    # distributions own the same pxr files and concurrent installs can create a
+    # nondeterministic mixed native ABI.
+    "world-understanding",
+]
+
+[tool.uv.sources]
+openvdb-runtime = { path = "../openvdb_runtime", editable = true }
+sdf-tools = { path = "../sdf_tools", editable = true }
+usd-cli = { path = "../../../apps/usd_cli", editable = true }
+world-understanding = { path = "../../..", editable = true }
+
+[tool.uv]
+override-dependencies = [
+    # world-understanding supplies usd-exchange as the sole pxr provider.
+    "usd-core; python_version < '0'",
+]
+
+[project.optional-dependencies]
+openvdb = [
+    # Install the current reviewed driver for the backend-neutral SDF worker.
+    # Other kernels remain separate, explicitly qualified optional dependencies.
+    "openvdb-runtime; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+dev = [
+    "pytest>=9.0.3,<10",
+    "pytest-asyncio>=1.3.0,<2",
+    "ruff>=0.12",
+]
+portability = [
+    "mujoco==3.3.7",
+    "pybullet==3.2.7",
+]
+
+[project.scripts]
+geometry-repair = "geometry_repair.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["geometry_repair"]
+ignore-vcs = true
+
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSE" = "geometry_repair/LICENSE"
+"geometry_repair/DEPENDENCY_AUDIT.md" = "geometry_repair/DEPENDENCY_AUDIT.md"
+"geometry_repair/GEOGRAM_THIRD_PARTY_NOTICES.md" = "geometry_repair/GEOGRAM_THIRD_PARTY_NOTICES.md"
+"geometry_repair/OPEN_SOURCE_POLICY.md" = "geometry_repair/OPEN_SOURCE_POLICY.md"
+"geometry_repair/sdf_backend_qualifications.json" = "geometry_repair/sdf_backend_qualifications.json"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/geometry_repair",
+    "/native",
+    "/scripts",
+    "/tests",
+    "/uv.lock",
+]
+ignore-vcs = true
+
+[build-system]
+requires = ["hatchling<1.32.0", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.uv-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern = "default-unprefixed"
+fallback-version = "0.6.0"
+from-file = { source = "../../../VERSION.md" }
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4"]
+ignore = ["E501", "B008", "C901"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

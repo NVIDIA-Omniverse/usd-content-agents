@@ -13,6 +13,10 @@ from typing import Any
 from world_understanding.functions.graphics.rendering_backend_factory import (
     validate_rendering_backend_name,
 )
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+    resolve_reasoning_effort_for_model_config,
+)
 from world_understanding.utils.environment import parse_int_env
 
 from joint_agent.joint_rigger_options import (
@@ -83,19 +87,30 @@ DEFAULT_USD_PRIM_WARNING_THRESHOLD = 1000
 # ============================================================================
 
 DEFAULT_VLM_BACKEND = os.environ.get("JA_VLM_BACKEND", "nim")
-DEFAULT_VLM_MODEL = os.environ.get("JA_VLM_MODEL", "google/gemma-4-31b-it")
+DEFAULT_VLM_MODEL = os.environ.get("JA_VLM_MODEL", "moonshotai/kimi-k3")
 DEFAULT_VLM_TEMPERATURE = 1.0
 DEFAULT_VLM_MAX_TOKENS = parse_int_env(
     "JA_VLM_MAX_TOKENS", 24576, minimum=1, logger=logger
 )
-DEFAULT_VLM_REASONING_EFFORT = "high"  # for reasoning-capable models (e.g. gpt-5)
+DEFAULT_VLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
+    DEFAULT_VLM_BACKEND,
+    DEFAULT_VLM_MODEL,
+    explicit=os.environ.get("JA_VLM_REASONING_EFFORT"),
+    fallback="high",
+)
 DEFAULT_VLM_MAX_WORKERS = 64
 DEFAULT_PREDICTION_COMPLETION_RETRIES = 3
 
 DEFAULT_LLM_BACKEND = os.environ.get("JA_LLM_BACKEND", "nim")
-DEFAULT_LLM_MODEL = os.environ.get("JA_LLM_MODEL", "google/gemma-4-31b-it")
+DEFAULT_LLM_MODEL = os.environ.get("JA_LLM_MODEL", "moonshotai/kimi-k3")
 DEFAULT_LLM_TEMPERATURE = 0.1
 DEFAULT_LLM_MAX_TOKENS = 512
+DEFAULT_LLM_REASONING_EFFORT = resolve_reasoning_effort_for_backend(
+    DEFAULT_LLM_BACKEND,
+    DEFAULT_LLM_MODEL,
+    explicit=os.environ.get("JA_LLM_REASONING_EFFORT"),
+    interface="chat",
+)
 
 
 # ============================================================================
@@ -108,7 +123,11 @@ PREDICT_DEFAULTS = {
         "model": DEFAULT_VLM_MODEL,
         "temperature": DEFAULT_VLM_TEMPERATURE,
         "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-        "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+        **(
+            {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+            if DEFAULT_VLM_REASONING_EFFORT
+            else {}
+        ),
     },
     # No separate parser LLM by default. Predict falls back to llm = vlm
     # unless the caller explicitly configures a dedicated llm backend/model.
@@ -284,6 +303,7 @@ def build_default_pipeline_config(
     llm_backend: str | None = None,
     llm_model: str | None = None,
     joint_rigger_output_suffix: str = ".usd",
+    llm_reasoning_effort: str | None = None,
 ) -> dict[str, Any]:
     """Build a complete pipeline config dict from server defaults.
 
@@ -306,6 +326,8 @@ def build_default_pipeline_config(
             / ``DEFAULT_LLM_MODEL``.
         joint_rigger_output_suffix: USD-family suffix for the disabled-by-default
             Joint Rigger output. The public owned-core service uses ``.usdz``.
+        llm_reasoning_effort: Optional reasoning effort for ``analyze_structure``.
+            When *None*, uses the environment override or selected model's default.
 
     Returns:
         Full pipeline configuration dictionary ready for ``execute_pipeline_async``.
@@ -318,8 +340,22 @@ def build_default_pipeline_config(
 
     vlm_backend = vlm_backend or DEFAULT_VLM_BACKEND
     vlm_model = vlm_model or DEFAULT_VLM_MODEL
+    vlm_reasoning_effort = resolve_reasoning_effort_for_backend(
+        vlm_backend,
+        vlm_model,
+        explicit=os.environ.get("JA_VLM_REASONING_EFFORT"),
+        fallback="high",
+    )
     llm_backend = llm_backend or DEFAULT_LLM_BACKEND
     llm_model = llm_model or DEFAULT_LLM_MODEL
+    if llm_reasoning_effort is None:
+        llm_reasoning_effort = os.environ.get("JA_LLM_REASONING_EFFORT")
+    llm_reasoning_effort = resolve_reasoning_effort_for_backend(
+        llm_backend,
+        llm_model,
+        explicit=llm_reasoning_effort,
+        interface="chat",
+    )
 
     config: dict[str, Any] = {
         "project": {
@@ -350,6 +386,11 @@ def build_default_pipeline_config(
                     "model": llm_model,
                     "temperature": DEFAULT_LLM_TEMPERATURE,
                     "max_tokens": DEFAULT_LLM_MAX_TOKENS,
+                    **(
+                        {"reasoning_effort": llm_reasoning_effort}
+                        if llm_reasoning_effort
+                        else {}
+                    ),
                 },
             },
             "build_dataset_usd": {
@@ -435,6 +476,11 @@ def build_default_pipeline_config(
                     "model": vlm_model,
                     "temperature": 0.3,
                     "max_tokens": DEFAULT_VLM_MAX_TOKENS,
+                    **(
+                        {"reasoning_effort": vlm_reasoning_effort}
+                        if vlm_reasoning_effort
+                        else {}
+                    ),
                 },
                 "max_workers": DEFAULT_VLM_MAX_WORKERS,
                 "completion_retries": DEFAULT_PREDICTION_COMPLETION_RETRIES,
@@ -572,10 +618,10 @@ def apply_defaults(config: dict[str, Any], defaults: dict[str, Any]) -> dict[str
         Config with defaults applied
 
     Example:
-        >>> user_config = {"vlm": {"model": "google/gemma-4-31b-it"}}
+        >>> user_config = {"vlm": {"model": "moonshotai/kimi-k3"}}
         >>> full_config = apply_defaults(user_config, PREDICT_DEFAULTS)
         >>> # Result:
-        >>> # {"vlm": {"model": "google/gemma-4-31b-it",
+        >>> # {"vlm": {"model": "moonshotai/kimi-k3",
         >>> #          "backend": "nim", ...}}
     """
     result = config.copy()
@@ -608,7 +654,15 @@ def get_predict_config_with_defaults(
         >>> full = get_predict_config_with_defaults(minimal)
         >>> # VLM backend, temperature, etc. auto-filled
     """
-    return apply_defaults(user_config, PREDICT_DEFAULTS)
+    config = apply_defaults(user_config, PREDICT_DEFAULTS)
+    vlm = config.get("vlm")
+    user_vlm = user_config.get("vlm")
+    if isinstance(vlm, dict):
+        resolve_reasoning_effort_for_model_config(
+            vlm,
+            user_vlm if isinstance(user_vlm, dict) else None,
+        )
+    return config
 
 
 def get_minimal_required_fields() -> dict[str, list[str]]:

@@ -1,0 +1,43 @@
+# Build context is the in-tree usd-cli component directory so its managed OVRTX adapter can COPY both src/ and apps/.
+#   docker compose -f apps/ovrtx_rendering_api/docker-compose.yml up --build
+services:
+  ovrtx-rendering-api:
+    build:
+      context: ../..
+      dockerfile: apps/ovrtx_rendering_api/Dockerfile
+      args:
+        CUDA_BASE_IMAGE: "${CUDA_BASE_IMAGE:-nvidia/cuda:12.6.3-runtime-ubuntu24.04@sha256:92906d87596d638d35015c6353053121bd299d25943b875763321653884ba924}"
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      PORT: "8000"
+      OVRTX_LOG_LEVEL: "warn"
+      OVRTX_NUM_SENSOR_UPDATES: "64"
+      OVRTX_RENDER_MODE: ""          # "" = derive from request mode (fast->rt1, quality->rt2)
+      OVRTX_API_KEY: "${OVRTX_API_KEY:?set a strong OVRTX_API_KEY}"
+      # Default aligns with the client's render.remote_max_upload_mb = 512 — a
+      # fixed 70 MB here silently 413'd uploads the client-side cap allowed
+      # (round-7: "the service-side cap the agent can't see").
+      OVRTX_MAX_BODY_BYTES: "${OVRTX_MAX_BODY_BYTES:-2147483648}"
+      OVRTX_REQUEST_TIMEOUT: "1800"
+      OVRTX_PHYSICS_TIMEOUT: "1800"  # POST /physics/simulate (ovphysx drop-settle sim)
+      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "all"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import os, urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/ready', headers={'Authorization': 'Bearer ' + os.environ['OVRTX_API_KEY']}); urllib.request.urlopen(request, timeout=5).read()\" || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 12
+      start_period: 120s

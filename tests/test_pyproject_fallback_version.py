@@ -73,5 +73,5 @@ def test_dynamic_versioning_reads_version_md(pyproject_path: Path) -> None:
     assert fallback == expected, (
         f"{pyproject_path.relative_to(REPO_ROOT)} fallback-version={fallback!r} "
         f"does not match VERSION.md={expected!r}. Bump these in "
-        "lockstep — see CLAUDE.md 'Version Bumping' step."
+        "lockstep — see AGENTS.md 'Version Bumping' step."
     )

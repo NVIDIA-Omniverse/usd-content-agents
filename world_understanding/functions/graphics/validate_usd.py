@@ -9,11 +9,15 @@ and OpenUSD.
 Install: uv pip install usd-validation-nvidia
 """
 
+import base64
+import hashlib
 import logging
 import sys
 import time
 from functools import lru_cache
+from importlib import metadata
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -72,6 +76,70 @@ def normalize_validation_categories(categories: list[str]) -> list[str]:
     return normalized
 
 
+def _installed_distribution_owners(
+    relative_path: str,
+    actual_sha256: str,
+) -> set[str]:
+    """Return distributions whose RECORD digest matches one installed file."""
+
+    actual_record_digest = (
+        base64.urlsafe_b64encode(bytes.fromhex(actual_sha256)).decode().rstrip("=")
+    )
+    owners: set[str] = set()
+    for distribution in metadata.distributions():
+        for entry in distribution.files or []:
+            if str(entry) != relative_path or entry.hash is None:
+                continue
+            if entry.hash.mode == "sha256" and entry.hash.value == actual_record_digest:
+                owners.add(str(distribution.metadata.get("Name") or "unknown"))
+    return owners
+
+
+def _usd_validation_binary_set_is_coherent() -> bool:
+    """Reject mixed pxr extension ownership before loading native validation code."""
+
+    try:
+        import pxr
+
+        package_root = Path(next(iter(pxr.__path__))).resolve()
+        relative_paths = (
+            "pxr/Tf/_tf.so",
+            "pxr/UsdValidation/_usdValidation.so",
+        )
+        owner_sets: list[set[str]] = []
+        for relative_path in relative_paths:
+            path = package_root.parent / relative_path
+            if not path.is_file():
+                return True
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            owners = _installed_distribution_owners(relative_path, digest)
+            owner_sets.append(owners)
+        known_owner_sets = [owners for owners in owner_sets if owners]
+        if not known_owner_sets:
+            return True
+        if len(known_owner_sets) != len(owner_sets):
+            return False
+        return bool(set.intersection(*known_owner_sets))
+    except (OSError, RuntimeError, StopIteration):
+        return True
+
+
+def _install_usd_validation_stub(reason: str) -> None:
+    logger.warning(
+        "pxr.UsdValidation is unsafe or unavailable (%s); validation rules that "
+        "depend on that extension will be skipped.",
+        reason,
+    )
+    module = ModuleType("pxr.UsdValidation")
+
+    class ValidationRegistry:
+        def GetOrLoadValidatorByName(self, _name: str) -> None:
+            return None
+
+    module.ValidationRegistry = ValidationRegistry  # type: ignore[attr-defined]
+    sys.modules["pxr.UsdValidation"] = module
+
+
 def _ensure_usd_validation_compat() -> None:
     """Apply compatibility shim for unavailable or broken UsdValidation bindings.
 
@@ -83,22 +151,16 @@ def _ensure_usd_validation_compat() -> None:
     if "pxr.UsdValidation" in sys.modules:
         return
 
+    if not _usd_validation_binary_set_is_coherent():
+        _install_usd_validation_stub("mixed OpenUSD extension ownership")
+        return
+
     try:
         from pxr import UsdValidation  # noqa: F401
     except (ImportError, TypeError):
         # Create a stub that makes UsdValidatorAdapter.__contains__ return False
         # This disables the UsdValidation-based rules but keeps all other rules working
-        logger.debug(
-            "pxr.UsdValidation not available (broken bindings or missing). "
-            "Using stub — UsdValidation-based rules will be skipped."
-        )
-
-        class _StubUsdValidation:
-            class ValidationRegistry:
-                def GetOrLoadValidatorByName(self, _name: str) -> None:
-                    return None
-
-        sys.modules["pxr.UsdValidation"] = _StubUsdValidation()  # type: ignore[assignment]
+        _install_usd_validation_stub("missing or broken bindings")
 
 
 def is_available() -> bool:

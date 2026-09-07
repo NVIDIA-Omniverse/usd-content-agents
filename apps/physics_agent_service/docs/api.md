@@ -31,9 +31,25 @@ reachable.
 
 ## Authentication
 
-No authentication is required. The service accepts all origins via permissive CORS.
+Unauthenticated by default. Set `PHYSICS_AGENT_TOKEN` **in the server's environment** to require
+`Authorization: Bearer <token>` on `/pipeline`, `/predict`, `/artifacts`, `/sessions`, `/tune`, and `/refine` endpoints; requests without a matching
+token get `401` with `WWW-Authenticate: Bearer`. When the variable is unset — the
+default — the service accepts unauthenticated requests and must run behind a trusted
+network boundary. `/health`, `/api`, `/`, `/docs`, and `/openapi.json` never require a
+token so liveness probes keep working, and `GET /health` reports `auth_enforced`.
+Set `WU_SERVICE_AUTH_REQUIRED=1` to refuse startup without a token.
 
-Optional: set `PHYSICS_AGENT_TOKEN` and pass it as `Authorization: Bearer <token>` from clients. The service does not currently enforce this.
+An empty or whitespace-only `PHYSICS_AGENT_TOKEN` counts as **unset**, so enforcement stays off.
+That is deliberate: Compose `${VAR:-}` passthrough and Helm `value: ""` defaults both
+deliver an empty string, and treating those as "enabled" would reject every request
+with a token nobody can supply.
+
+Under Docker Compose, set `PHYSICS_AGENT_TOKEN` in the repo-root `.env`, which every service
+loads via `env_file`. Do not add it to the compose `environment:` block: that
+section overrides `env_file`, and `${VAR:-}` interpolation would replace a
+configured token with an empty string and silently disable enforcement.
+
+CORS remains permissive (`allow_origins=["*"]`); the token is the access control.
 
 ---
 
@@ -51,7 +67,7 @@ Returns service info and a map of all available endpoints.
 ```json
 {
   "service": "Physics Agent Service",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "docs": "/docs",
   "health": "/health",
   "api": {
@@ -109,8 +125,9 @@ Health check.
 {
   "status": "healthy",
   "service": "Physics Agent Service",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "api_keys_configured": true,
+  "auth_enforced": false,
   "max_active_sessions": 1,
   "tuning_extra_available": true,
   "ovphysx_runtime_available": true
@@ -212,6 +229,7 @@ FastAPI accepts common boolean form values for the optimizer flags, including
 - `400` Neither `usd_file`, `session_id`, nor `s3_uri` provided; invalid file extension; unknown `render_backend`; input USD not found for session; `optimize_usd=true` with all optimizer operation flags disabled
 - `403` S3 URI is not permitted by the configured bucket allowlist, or S3 access is denied
 - `404` Session not found (when using `session_id`)
+- `409` Another worker already owns an active generation of the reused session
 - `413` File too large
 
 ---
@@ -385,6 +403,7 @@ Re-run specific pipeline steps using cached data from a previous run. Useful for
 **Errors:**
 - `400` Pipeline still running/pending/cancelling; original config not found
 - `404` Session not found
+- `409` Another worker already owns an active generation of the session
 
 ---
 
@@ -688,11 +707,8 @@ job is registered.
 | `scenario_yaml` | string | conditional | Tuning scenario YAML body. Optional when `user_prompt` is supplied. |
 | `user_prompt` | string | conditional | Natural-language description such as `make this object bouncy`. Optional when full `scenario_yaml` is supplied. |
 | `reference_images` | file[] | no | Optional reference images for the visual/VLM judge. |
-| `reference_videos` | file[] | no | Optional reference videos for the visual/VLM judge. |
 | `reference_descriptions` | JSON string[] | no | Descriptions parallel to `reference_images`. |
-| `reference_video_descriptions` | JSON string[] | no | Descriptions parallel to `reference_videos`. |
-| `reference_video_frames` | int | no | Frames to extract from each reference video. Default `8`; valid range `1-64`. |
-| `judge_reference_frames` | int | no | Max reference images/video frames sent to the VLM judge. Default `8`; valid range `1-64`. |
+| `judge_reference_frames` | int | no | Max reference images sent to the VLM judge. Default `8`; valid range `1-64`. |
 | `judge_generated_frames` | int | no | Max generated render frames sent to the VLM judge. Default `16`; valid range `1-64`. |
 | `optimizer` | string | no | `auto` (default, resolves to BoTorch), `botorch`, `random`, or `cma-es`. |
 | `engine` | string | no | `ovphysx` (default) or `fake` for tests. |
@@ -706,9 +722,10 @@ job is registered.
 Either `scenario_yaml` or `user_prompt` must be non-empty. When both are
 provided, explicit YAML fields win and the prompt interpreter fills gaps.
 
-Reference media uploads are capped by the same upload budget as USD uploads.
-`reference_descriptions` and `reference_video_descriptions` must be JSON arrays
-with one string per corresponding file.
+Reference-image uploads are capped by the same upload budget as USD uploads.
+`reference_descriptions` must be a JSON array with one string per corresponding
+file. Public 0.6 accepts PNG, JPEG, WebP, and BMP reference images only; legacy
+video fields and video-suffix uploads receive `400`.
 
 `optimizer` and `engine` are submitted as form strings. Some invalid values are
 not rejected before the `202` response and can instead fail the queued tune job;
@@ -908,26 +925,27 @@ Create and queue an iterative refine session. Execution is async and returns
 | `scenario_yaml` | string | yes | Initial tuning scenario YAML body. Must validate for the selected engine. |
 | `user_prompt` | string | yes | Natural-language target behavior/objective for judge and scenario-refine calls. |
 | `reference_images` | file[] | no | Optional reference images for the visual/VLM judge. |
-| `reference_videos` | file[] | no | Optional reference videos for the visual/VLM judge. |
 | `reference_descriptions` | JSON string[] | no | Descriptions parallel to `reference_images`. |
-| `reference_video_descriptions` | JSON string[] | no | Descriptions parallel to `reference_videos`. |
-| `reference_video_frames` | int | no | Frames to extract from each reference video. Default `8`; valid range `1-64`. |
-| `judge_reference_frames` | int | no | Max reference images/video frames sent to the VLM judge. Default `8`; valid range `1-64`. |
+| `judge_reference_frames` | int | no | Max reference images sent to the VLM judge. Default `8`; valid range `1-64`. |
 | `judge_generated_frames` | int | no | Max generated render frames sent to the VLM judge. Default `16`; valid range `1-64`. |
 | `optimizer` | string | no | `botorch` by default; also accepts `auto`, `random`, or `cma-es`. |
-| `engine` | string | no | `ovphysx` by default; `fake` is available for tests. |
+| `engine` | string | no | `ovphysx` by default; `fake` is available for text-only tests when `visual_evidence_enabled=false`. |
 | `max_trials` | int | no | Trial budget per refine iteration. Default `30`; must be 1-1000. |
 | `max_iterations` | int | no | Refine loop cap. Default `5`; must be 1-12. |
 | `score_threshold` | float | no | Judge approval threshold. Default `0.9`; must be finite and in `[0, 1]`. |
 | `seed` | int | no | Seed for optimizer and backend. Default `42`. |
 | `judge_max_tokens` | int or null | no | Optional judge response token cap. |
 | `judge_temperature` | float or null | no | Optional judge temperature. |
-| `visual_evidence_enabled` | bool | no | Include generated/reference media in judge calls. Default `true`. |
+| `visual_evidence_enabled` | bool | no | Include generated/reference media in judge calls. Default `true`; requires a winning `recording_usd` and renderer. |
+| `visual_evidence_timeout_seconds` | float | no | Reference-preparation and winning-render timeout. Default `600`; non-positive disables. |
 | `llm_timeout_seconds` | float | no | Per-call judge/refiner timeout. Default `180`. |
 
 Unlike `/tune`, both `scenario_yaml` and `user_prompt` are required. Explicit
 YAML anchors the initial search space; the prompt supplies the target objective
 that the judge and scenario-refiner use between iterations.
+With visual evidence enabled, a missing winning recording or renderer failure
+fails the session closed. The `fake` engine must set
+`visual_evidence_enabled=false`.
 
 **Response** `202` -- [SessionCreated](#sessioncreated)
 ```json
@@ -1180,7 +1198,9 @@ instead of being bundled into a new USDZ package. Package-local asset
 dependencies from the source USDZ are copied beside the USDA and rewritten to
 relative paths when the output references them. When those sidecar assets are
 present, the endpoint returns a ZIP bundle containing `scene_physics.usda` and
-the `scene_physics_assets/` directory; otherwise it returns the single USD file.
+the `scene_physics.usda_assets/` directory; otherwise it returns the single USD
+file. Downloads also recognize the legacy `scene_physics_assets/` name for
+artifacts produced before the collision-safe naming change.
 
 **Response** `200`
 Content-Type: `text/plain` for USDA, `model/vnd.usdz+zip` for USDZ artifacts,
@@ -1253,6 +1273,7 @@ Delete a session and all its artifacts. Cancels any running pipeline first.
 
 **Errors:**
 - `404` Session not found
+- `409` Session is active on another worker or became active during deletion
 - `500` Deletion failed after retries
 
 ---
@@ -1555,7 +1576,7 @@ Full session metadata stored on disk (`session.json`).
 | `can_cancel` | bool | Cancellation availability |
 | `elapsed_seconds` | int | Elapsed time |
 | `kind` | string or null | `tune` for `/tune` sessions, `refine` for `/refine` sessions; absent for older pipeline/predict sessions |
-| `config` | object | Route-specific request metadata. Pipeline/predict sessions include `{project_name, usd_path, has_usd_upload, user_prompt, predict_route?}`. Tune sessions include `{kind: "tune", engine, optimizer, max_trials, seed, physics_usd, scenario_path?, user_prompt?, reference_images, reference_videos, reference_video_frames, judge_*, enable_judge}`. Refine sessions include `{kind: "refine", engine, optimizer, max_trials, max_iterations, score_threshold, seed, physics_usd, scenario_path, user_prompt, reference_images, reference_videos, reference_video_frames, judge_*, visual_evidence_enabled}`. |
+| `config` | object | Route-specific request metadata. Pipeline/predict sessions include `{project_name, usd_path, has_usd_upload, user_prompt, predict_route?}`. Tune sessions include `{kind: "tune", engine, optimizer, max_trials, seed, physics_usd, scenario_path?, user_prompt?, reference_images, judge_*, enable_judge}`. Refine sessions include `{kind: "refine", engine, optimizer, max_trials, max_iterations, score_threshold, seed, physics_usd, scenario_path, user_prompt, reference_images, judge_*, visual_evidence_enabled, visual_evidence_timeout_seconds}`. |
 | `ttl_expires_at` | string | Expiration timestamp |
 | `results` | object | Final stats |
 | `duration_seconds` | int | Total duration |
@@ -1636,12 +1657,14 @@ request authorization.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PA_VLM_BACKEND` | `nim` | VLM inference backend |
-| `PA_VLM_MODEL` | `google/gemma-4-31b-it` | VLM model identifier |
+| `PA_VLM_MODEL` | `moonshotai/kimi-k3` | VLM model identifier |
 | `PA_VLM_TEMPERATURE` | `1.0` | VLM sampling temperature |
 | `PA_TUNE_BACKEND` | unset; falls back to `PA_REFINE_BACKEND`, then `PA_VLM_BACKEND` | Optional `/tune` prompt-to-scenario interpreter backend override |
 | `PA_TUNE_MODEL` | unset; falls back to `PA_REFINE_MODEL`, then `PA_VLM_MODEL` or the deployment default | Optional `/tune` prompt-to-scenario interpreter model override |
+| `PA_TUNE_REASONING_EFFORT` | unset; falls back to refine/VLM settings and the model default | Optional `/tune` reasoning override |
 | `PA_REFINE_BACKEND` | unset; falls back to `PA_VLM_BACKEND` | Optional `/refine` judge/refiner backend override |
 | `PA_REFINE_MODEL` | unset; falls back to `PA_VLM_MODEL` or the deployment default | Optional `/refine` judge/refiner model override |
+| `PA_REFINE_REASONING_EFFORT` | unset; falls back to the selected model default, then the built-in VLM reasoning default | Optional `/refine` reasoning override |
 | `PA_RENDER_BACKEND` | `remote` | Rendering backend: `remote`, `warp`, `ovrtx`, or `mock` |
 | `RENDER_ENDPOINT` | `http://ovrtx-rendering-api:8000` in bundled Docker Compose | Base URL for the remote HTTP renderer used when `PA_RENDER_BACKEND=remote` |
 
@@ -1668,6 +1691,29 @@ using another documented public provider.
 | `PA_STORAGE_S3_BUCKET` | S3 bucket for shared session storage |
 | `PA_STORAGE_S3_PREFIX` | S3 key prefix for sessions |
 | `PA_STORAGE_S3_REGION` | S3 region |
+| `PA_STORAGE_S3_GENERATION_RETENTION` | Number of newest completed, failed, or incomplete immutable generations retained for diagnosis (minimum `1`, default `5`) |
+
+Multi-replica S3 storage requires the configured S3-compatible endpoint to
+enforce conditional `PutObject` requests using `IfMatch` and `IfNoneMatch`.
+The service verifies that contract during startup and fails closed if the
+endpoint rejects or ignores it. Each selected publication prefix replaces its
+prior logical snapshot, while artifact families outside those prefixes are
+copied into the new immutable generation. Replica hydration also removes local
+files omitted within prefixes the manifest declares complete, preventing a
+stale cache from being republished without deleting intentionally local-only
+pipeline intermediates.
+
+The Helm chart uses a `Recreate` deployment strategy for S3-backed service
+upgrades. All old replicas must stop before a new protocol version starts;
+pre-generation replicas write canonical session state without conditional
+updates and cannot safely overlap generation-aware replicas. An active session
+created by a pre-generation service version remains fenced until that legacy
+worker records a terminal status. If a legacy worker is permanently lost,
+operators must stop every pre-generation replica and remove the orphaned
+session from S3 before reusing its identifier. Automatic takeover is
+intentionally unavailable because a delayed legacy worker can still write
+canonical artifact keys. Deployments outside this Helm chart must enforce the
+same no-overlap upgrade policy.
 
 ---
 

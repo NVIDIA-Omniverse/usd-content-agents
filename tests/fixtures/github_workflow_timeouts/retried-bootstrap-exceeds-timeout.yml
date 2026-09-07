@@ -1,0 +1,14 @@
+name: retry envelope exceeds step timeout
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Retried install with an excessive envelope
+        timeout-minutes: 10
+        run: >-
+          bash ci/github/retry-network-command.sh
+          --max-attempts 3 --attempt-timeout-seconds 240
+          --backoff-seconds 5 --
+          python -m pip install example-tool

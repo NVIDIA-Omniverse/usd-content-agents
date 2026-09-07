@@ -4,10 +4,12 @@
 
 import asyncio
 import logging
+import operator
 from abc import ABC, abstractmethod
 from typing import Any
 
 from world_understanding.agentic.base import BaseAgent
+from world_understanding.optimization import RefinementLoop
 from world_understanding.tools.base import get_tool_registry
 from world_understanding.utils.credentials import redact_sensitive_path
 from world_understanding.utils.object_store import ObjectStore
@@ -119,8 +121,25 @@ class AgenticLoopTask(Task):
 
             object_store = InMemoryObjectStore()
 
-        for iteration in range(self.max_iterations):
-            context["refinement_iteration"] = iteration
+        # Preserve the historical range()-based behavior for programmatic
+        # callers, including bool values, while using the shared loop for
+        # every actual agent turn.
+        iteration_limit = operator.index(self.max_iterations)
+        if iteration_limit <= 0:
+            context["completed"] = True
+            context["completion_reason"] = "max_iterations_reached"
+            context["final_iteration"] = self.max_iterations
+            return context
+
+        refinement = RefinementLoop[dict[str, Any]](
+            initial_state=context,
+            max_iterations=iteration_limit,
+        )
+        while (refinement_iteration := refinement.begin_iteration()) is not None:
+            context = refinement_iteration.state
+            # This public context field predates RefinementLoop and remains
+            # zero-based for compatibility.
+            context["refinement_iteration"] = refinement_iteration.iteration - 1
 
             # Execute agent asynchronously
             context = await self.planner_agent.arun(
@@ -133,10 +152,12 @@ class AgenticLoopTask(Task):
                 context["completed"] = True
                 context["early_exit"] = True
                 context["completion_reason"] = "confidence_threshold_met"
+                refinement.approve()
                 break
 
             # Check if agent marked as completed
             if context.get("completed", False):
+                refinement.stop("agent_completed")
                 break
 
             # Check if refinement is needed
@@ -144,8 +165,12 @@ class AgenticLoopTask(Task):
                 # Agent didn't request refinement but also didn't complete
                 context["completed"] = True
                 context["completion_reason"] = "no_refinement_requested"
+                refinement.stop("no_refinement_requested")
                 break
-        else:
+
+            refinement.continue_with(context)
+
+        if refinement.termination_reason == "max_iterations":
             # Max iterations reached
             context["completed"] = True
             context["completion_reason"] = "max_iterations_reached"

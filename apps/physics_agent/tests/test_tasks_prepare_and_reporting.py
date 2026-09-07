@@ -361,6 +361,44 @@ def test_generate_prediction_report_task_unwraps_nested_output_key_payload(
     assert "raw nested output" in html
 
 
+def test_generate_prediction_report_escapes_physical_property_values(
+    tmp_path: Path,
+) -> None:
+    predictions_path = tmp_path / "predictions.jsonl"
+    script = '<img src=x onerror="alert(1)">'
+    predictions_path.write_text(
+        json.dumps(
+            {
+                "id": "prim-1",
+                "classification": {
+                    "component_type": "panel",
+                    "physical_properties": {
+                        "estimated_mass_kg": script,
+                        "density": script,
+                        "static_friction": script,
+                        "dynamic_friction": script,
+                        "restitution": script,
+                    },
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = GeneratePredictionReportTask().run(
+        {
+            "predictions_path": str(predictions_path),
+            "predictions_count": 1,
+            "failed_count": 0,
+        }
+    )
+
+    html = Path(result["report_path"]).read_text(encoding="utf-8")
+    assert script not in html
+    assert html.count("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;") == 5
+
+
 def test_generate_prediction_report_task_builds_warnings_from_nested_payload(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

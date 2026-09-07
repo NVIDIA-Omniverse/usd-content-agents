@@ -1,9 +1,7 @@
 # Simple Image-Gen Bucket Example
 
 This example runs the Texture Agent CLI on the public SimReady cleaning bucket
-asset using the lightweight `simple_image_gen` backend. It is the baseline path
-for comparing a direct image-generation texture pass against the UV-aware
-Step1X service example.
+asset using the lightweight `simple_image_gen` backend.
 
 Reference outputs:
 
@@ -27,8 +25,7 @@ Run the example in this order:
 4. Create the exact config below.
 5. Run `texture-agent run`.
 6. Check the manifest, output USD, texture maps, and render.
-7. Create the visual evidence sheet and compare it with the Step1X reference
-   comparison.
+7. Create and inspect the visual evidence sheet.
 
 ## Prerequisites
 
@@ -92,8 +89,7 @@ PY
 ## Create the Config
 
 This config edits only the bucket metal material. It intentionally uses scoped
-forced projection to match the simple image-gen baseline comparison. The Step1X
-example uses existing UVs for this same bucket.
+forced projection for a reproducible simple image-gen baseline.
 The config uses Gemini by default; switch `backend` and `model` if your
 environment uses NIM or OpenAI image generation.
 

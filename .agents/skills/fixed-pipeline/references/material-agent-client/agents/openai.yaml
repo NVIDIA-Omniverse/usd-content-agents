@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Material Agent Client"
+  short_description: "Fixed pipeline: Call the Material Agent service"
+  default_prompt: "Use $fixed-pipeline to make requests to the Material Agent REST API service for VLM-based material assignment."

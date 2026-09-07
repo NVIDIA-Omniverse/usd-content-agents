@@ -59,9 +59,12 @@ assert callable(joint_rigger.physics_schema_counts)
 assert callable(joint_rigger.validate_authored_joint_topology)
 assert callable(joint_rigger.validate_authored_joint_rig_with_physics)
 assert callable(joint_rigger.validate_authored_physics_schemas)
+assert callable(joint_rigger.validate_authored_rigid_links)
+assert callable(joint_rigger.validate_diagnostic_decisions)
 assert callable(joint_rigger.validate_joint_rigger_stage_preservation)
 assert callable(joint_rigger.validate_joint_topology_plan)
 assert callable(joint_rigger.validate_physics_plan_evidence)
+assert callable(joint_rigger.validate_v2_articulation_roots)
 assert joint_rigger.JointRiggerInputV1.__name__ == "JointRiggerInputV1"
 assert joint_rigger.JointFrictionV1.__name__ == "JointFrictionV1"
 assert joint_rigger.JointType is not None

@@ -2,6 +2,12 @@
 
 VLM-based classification agent for 3D assets that identifies component types, surface materials, and physical properties for physics simulation.
 
+> **Content Agents 0.6:** this package is the fixed pipeline, config-driven physics
+> workflow. Start unqualified physics-authoring tasks from the repository root
+> with the default agentic Content Workflow. Use `physics-agent` when you
+> explicitly need fixed pipeline steps, YAML configuration, tuning/benchmark
+> compatibility, Python APIs, or the matching REST contract.
+
 ## Overview
 
 Physics Agent processes USD files to classify components using Vision-Language Models. Given rendered views of an asset, it predicts:
@@ -14,7 +20,11 @@ Results are structured for downstream physics simulation pipelines.
 
 ## Prefer the REST service?
 
-This README covers the `physics-agent` CLI (Option B in the root [README](../../README.md#three-ways-to-use-content-agents)). If you'd rather drive the same pipeline over HTTP with session management and progress streaming, see [`../physics_agent_service/`](../physics_agent_service/) — it brings up with a single `docker compose up`.
+This README covers the explicit fixed pipeline `physics-agent` CLI described in the
+root [execution-mode guide](../../README.md#choose-an-execution-mode). If you'd
+rather drive the same fixed pipeline over HTTP with session management and
+progress streaming, see [`../physics_agent_service/`](../physics_agent_service/)
+— it brings up with a single `docker compose up`.
 
 ## Installation
 
@@ -71,7 +81,7 @@ apps/physics_agent/configs/.lightbulb/
     └── light_bulb_01_physics.usda               # simulation-ready USD (apply_physics output)
 ```
 
-The simulation-ready USD is at `<working_dir>/physics/<input-stem>_physics<output-ext>`, where `<input-stem>` is the input USD filename without its extension. The output extension preserves `.usd`, `.usda`, and `.usdc` inputs; `.usdz` inputs default to `.usda` so Omniverse MDL shader references can remain as runtime-resolved asset paths instead of being bundled into a new USDZ package. Package-local asset dependencies from the source USDZ are copied beside the USDA output and rewritten to relative paths when referenced. For the bundled `lightbulb.yaml`, `light_bulb_01.usdz` produces `light_bulb_01_physics.usda`. This default applies to unified pipeline autowiring; lower-level `apply_physics` calls with an explicit `.usdz` output path still write USDZ when the host can resolve every referenced asset. It is the input USD with `UsdPhysics.RigidBodyAPI` / `CollisionAPI` / `MassAPI` / `MaterialAPI` schemas applied to each predicted prim. Under the default `mass_scale_policy: skip_mass`, scale-driven mass estimates omit `MassAPI.mass` while still authoring density and collision/material properties.
+The simulation-ready USD is at `<working_dir>/physics/<input-stem>_physics<output-ext>`, where `<input-stem>` is the input USD filename without its extension. The output extension preserves `.usd`, `.usda`, and `.usdc` inputs; `.usdz` inputs default to `.usda` so Omniverse MDL shader references can remain as runtime-resolved asset paths instead of being bundled into a new USDZ package. Flattened outputs copy resolvable local dependencies into `<output-filename>_assets/` and rewrite their asset paths relative to the output; including the extension in this deterministic sidecar name lets same-stem outputs coexist safely. Service downloads include the root layer and this sidecar directory in one ZIP when sidecars exist. For the bundled `lightbulb.yaml`, `light_bulb_01.usdz` produces `light_bulb_01_physics.usda`. This default applies to unified pipeline autowiring; lower-level `apply_physics` calls with an explicit `.usdz` output path still write USDZ when the host can resolve every referenced asset. It is the input USD with `UsdPhysics.RigidBodyAPI` / `CollisionAPI` / `MassAPI` / `MaterialAPI` schemas applied to each predicted prim. Under the default `mass_scale_policy: skip_mass`, scale-driven mass estimates omit `MassAPI.mass` while still authoring density and collision/material properties.
 
 ## CLI Reference
 
@@ -92,6 +102,18 @@ physics-agent predict CONFIG                         # VLM prediction only
 physics-agent build-dataset usd CONFIG               # Build dataset from USD
 physics-agent build-dataset prepare-dataset CONFIG   # Prepare dataset for VLM
 
+# OVRTX + official VoMP -> rigid-body mass properties
+physics-agent run-vomp object_physics.usda object_vomp.usda \
+  --target-prim /World/Object \
+  --vomp-root /opt/VoMP
+
+# Advanced precomputed-NPZ adapter
+physics-agent apply-vomp object.usda materials.npz object_vomp_physics.usda \
+  --target-prim /World/Object \
+  --voxel-size-m 0.003125 \
+  --coordinate-unit-meters 1.0 \
+  --complete-voxel-field
+
 # Physics auto-tuning over an apply_physics output USD
 physics-agent tune apps/physics_agent/configs/tuning/drop_settle.yaml \
   --physics-usd path/to/asset_physics.usda \
@@ -108,7 +130,17 @@ physics-agent tune \
 physics-agent refine apps/physics_agent/configs/tuning/drop_settle.yaml \
   --physics-usd path/to/asset_physics.usda \
   --user-prompt "match this observed motion" \
-  --max-iterations 3
+  --max-iterations 3 \
+  --no-visual-evidence
+
+# Trusted local customer-runtime tuning (qualifies and stops on the first call)
+physics-agent tune-external path/to/runtime.yaml \
+  --output-dir output/external
+
+# Trusted local customer-runtime iterative refinement
+physics-agent refine-external path/to/runtime.yaml \
+  --output-dir output/external-refine \
+  --user-prompt "match the requested behavior"
 ```
 
 ## Configuration
@@ -125,7 +157,7 @@ input:
 predict:
   vlm:
     backend: nim                    # or: openai, anthropic, gemini
-    model: google/gemma-4-31b-it
+    model: moonshotai/kimi-k3
 ```
 
 Paths in config files are relative to the config file's directory.
@@ -133,4 +165,8 @@ Paths in config files are relative to the config file's directory.
 ## Documentation
 
 - **[API Reference](docs/api.md)** -- Python API reference
-- **[Auto-Tuning Guide](docs/tuning.md)** -- architecture, extension points, CLI modes, examples, and service integration status
+- **[VoMP Mass Properties](docs/vomp.md)** -- OVRTX + official VoMP commands,
+  prerequisites, strict NPZ adapter, and runnable examples
+- **[Auto-Tuning Guide](docs/tuning.md)** -- workflows, extension points, CLI
+  modes, examples, and service integration status
+- **[External Runtime Tuning](docs/external_runtime_tuning.md)** -- trusted local BYOR adapter, qualification, evidence, and artifact contract

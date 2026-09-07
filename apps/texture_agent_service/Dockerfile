@@ -3,7 +3,7 @@
 #
 # Texture Agent Service Dockerfile
 # No GPU/CUDA needed — texture generation uses API calls (Gemini/NVIDIA Inference)
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
 
 ARG WU_REQUIRED_OPTIONAL_BACKEND
 
@@ -52,8 +52,34 @@ COPY apps/texture_gen_service_common /app/apps/texture_gen_service_common
 COPY apps/texture_gen_simple_service /app/apps/texture_gen_simple_service
 COPY apps/texture_agent_service /app/apps/texture_agent_service
 
-# Release automation may stage an optional backend wheel here.
-COPY .build-resources/optional-backend /app/.build-resources/optional-backend
+# Release automation stages optional runtime resources here. Copy the complete
+# directory so Texture Agent can use the same local Scene Optimizer Core bundle
+# as Material and Physics Agent when UV projection is requested.
+COPY .build-resources /app/.build-resources
+
+# Local Scene Optimizer backend. Populate `.build-resources/scene_optimizer_core`
+# on the host by running `scripts/fetch_build_resources.sh` before
+# `docker compose build`. The compiled extensions are cpython-312-only, so fail
+# the image build when a staged bundle is malformed or the interpreter drifts.
+RUN BUILD_RESOURCES=/app/.build-resources; \
+    SO=$BUILD_RESOURCES/scene_optimizer_core; \
+    if [ -d "$BUILD_RESOURCES" ]; then \
+      chmod a+X "$BUILD_RESOURCES"; \
+    fi; \
+    if [ -d "$SO" ]; then \
+      chmod -R a+rX "$SO"; \
+    fi; \
+    if [ ! -d "$SO" ]; then \
+      echo "Scene Optimizer Core not provided - scene_optimizer UV projection will be unavailable"; \
+    elif [ -d "$SO/python" ] && [ -d "$SO/lib" ] && \
+         [ -d "$SO/extraLibs" ] && [ -d "$SO/usdpy" ]; then \
+      python3 -c "import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 12) else 1)" && \
+      echo "Scene Optimizer Core present at $SO"; \
+    else \
+      echo "Scene Optimizer Core bundle is incomplete at $SO" >&2; \
+      exit 1; \
+    fi
+ENV WU_SO_PACKAGE_DIR=/app/.build-resources/scene_optimizer_core
 
 # Install world_understanding package and dependencies.
 # --no-config + --no-sources keep the install self-contained inside the repo
@@ -138,6 +164,24 @@ ENV TA_SESSION_STORAGE_PATH=/var/texture-agent/sessions \
     TA_MAX_ACTIVE_SESSIONS=4 \
     TA_MAX_UPLOAD_SIZE_MB=500 \
     TA_TEXTURE_BACKEND=simple_image_gen
+
+# Build provenance, reported by /health so a running deployment can be
+# identified from the outside. GIT_COMMIT and APP_VERSION are already supplied
+# by the NGC Upload workflow; they were simply never carried into the image.
+# IMAGE_VERSION is the resolved NGC tag, which is what distinguishes two builds
+# of the same VERSION.md string. Declared last so a provenance change only
+# invalidates this layer. Empty rather than "unknown" so a source checkout
+# reports null instead of a placeholder that reads like a real value.
+ARG GIT_COMMIT=""
+ARG APP_VERSION=""
+ARG IMAGE_VERSION=""
+ARG BUILD_TIMESTAMP=""
+ENV TA_BUILD_COMMIT_SHA=${GIT_COMMIT} \
+    TA_BUILD_IMAGE_TAG=${IMAGE_VERSION} \
+    TA_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+LABEL org.opencontainers.image.revision=${GIT_COMMIT} \
+      org.opencontainers.image.version=${APP_VERSION} \
+      org.opencontainers.image.created=${BUILD_TIMESTAMP}
 
 # Expose port
 EXPOSE 8001

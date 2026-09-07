@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy Image Gen Brev"
-  short_description: "Deploy a Brev-hosted FLUX image-generation NIM endpoint for Content Agents"
-  default_prompt: "Use $deploy-image-gen-brev to deploy or smoke-test a Brev-hosted FLUX.2 Klein image-generation NIM endpoint for Texture Agent and collection deployment wiring."

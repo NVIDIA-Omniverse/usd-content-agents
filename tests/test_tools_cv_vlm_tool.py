@@ -87,7 +87,7 @@ def test_vlm_tool_accepts_gemini_api_key_alias(
     ("backend", "expected_model", "custom_base_url"),
     (
         ("test-provider", None, None),
-        ("nim", "google/gemma-4-31b-it", None),
+        ("nim", "moonshotai/kimi-k3", None),
         ("openai", "gpt-5.4", "https://api.openai.example/v1"),
         ("anthropic", "claude-opus-4-6", None),
     ),

@@ -709,7 +709,13 @@ class TestRefineLifecycle:
         events_response = await client.get(f"/refine/{sid}/events")
         assert events_response.status_code == 200, events_response.text
         assert "event: done" in events_response.text
-        assert '"final_state": "completed"' in events_response.text
+        data_line = next(
+            line
+            for line in events_response.text.splitlines()
+            if line.startswith("data: ")
+        )
+        terminal_event = json.loads(data_line.removeprefix("data: "))
+        assert terminal_event == {"session_id": sid, "final_state": "completed"}
 
 
 @pytest.mark.api

@@ -8,13 +8,16 @@ import pytest
 from world_understanding.utils.object_store import InMemoryObjectStore
 
 from material_agent.material_library_generation.creation_contract import MaterialAction
+from material_agent.material_library_generation.schema import MaterialRecipe
 from material_agent.materials import FALLBACK_MATERIAL_NAME, UNKNOWN_MATERIAL_SENTINEL
 from material_agent.tasks.material_creation_policy import (
     MaterialCreationIntent,
     MaterialDecision,
     MaterialDecisionPlan,
     MaterialDecisionPolicyTask,
+    MaterialModificationIntent,
     MaterialPolicyConflict,
+    MaterialSource,
     plan_material_actions,
 )
 
@@ -52,6 +55,7 @@ def test_adequate_existing_matches_never_create() -> None:
         "create_new": 0,
         "modify_existing": 0,
         "creation_intents": 0,
+        "modification_intents": 0,
         "conflicts": 0,
     }
 
@@ -158,6 +162,112 @@ def test_modify_existing_remains_distinct_from_create_new() -> None:
     assert plan.decisions[0].action is MaterialAction.MODIFY_EXISTING
     assert plan.decisions[0].matched_existing is True
     assert plan.creation_intents == ()
+    assert plan.modification_intents == ()
+    assert plan.conflicts[0].code == "missing_modifiable_material_source"
+
+
+def test_modify_existing_emits_executable_authoring_intent() -> None:
+    plan = plan_material_actions(
+        [
+            {
+                "id": "/World/Geom/Cover",
+                "materials": {
+                    "material": "Painted metal",
+                    "action": "modify_existing",
+                    "appearance_prompt": "scratched dark painted metal",
+                    "description": "a scratched variation of the supplied coating",
+                    "base_color_hint": [0.12, 0.14, 0.16],
+                    "pbr_hints": {"roughness": 0.72, "metallic": 1.0},
+                },
+            }
+        ],
+        matched_materials={"Painted metal": _match("/World/Looks/PaintedMetal")},
+        material_sources={
+            "Painted metal": {
+                "source_material_usd": "/materials/painted_metal.usda",
+                "source_material_prim_path": "/World/Looks/PaintedMetal",
+            }
+        },
+    )
+
+    assert plan.conflicts == ()
+    assert len(plan.modification_intents) == 1
+    intent = plan.modification_intents[0]
+    assert intent.intent_id.startswith("mmi_")
+    assert intent.target_prim_paths == ("/World/Geom/Cover",)
+    assert intent.source.source_material_usd == "/materials/painted_metal.usda"
+    assert intent.recipe.appearance_prompt == "scratched dark painted metal"
+    assert intent.recipe.base_color_hint == (0.12, 0.14, 0.16)
+    assert plan.decisions[0].modification_intent_id == intent.intent_id
+    assert (
+        plan.to_dict()["modification_intents"][0]["source_material_prim_path"]
+        == "/World/Looks/PaintedMetal"
+    )
+
+
+def test_modify_existing_accepts_library_mapping_with_explicit_library_metadata() -> (
+    None
+):
+    plan = plan_material_actions(
+        [
+            {
+                "id": "/World/Geom/Cover",
+                "materials": {
+                    "material": "Painted metal",
+                    "action": "modify_existing",
+                    "appearance_prompt": "rough painted metal",
+                },
+            }
+        ],
+        matched_materials={
+            "Painted metal": [
+                {
+                    "source_path": "/World/Looks/PaintedMetal",
+                    "metadata": {
+                        "is_library_material": True,
+                        "library_path": "/materials/library.usda",
+                    },
+                }
+            ]
+        },
+    )
+
+    assert plan.conflicts == ()
+    assert plan.modification_intents[0].source.source_material_usd == (
+        "/materials/library.usda"
+    )
+    assert plan.modification_intents[0].source.source_material_prim_path == (
+        "/World/Looks/PaintedMetal"
+    )
+
+
+def test_modify_existing_never_treats_a_retrieval_file_as_a_prim_path() -> None:
+    plan = plan_material_actions(
+        [
+            {
+                "id": "/World/Geom/Cover",
+                "materials": {
+                    "material": "Painted metal",
+                    "action": "modify_existing",
+                    "appearance_prompt": "rough painted metal",
+                },
+            }
+        ],
+        matched_materials={
+            "Painted metal": [
+                {
+                    "source_path": "/cache/painted_metal.usda",
+                    "s3_path": "s3://materials/painted_metal.usda",
+                }
+            ]
+        },
+        resolved_materials={
+            "Painted metal": ("https://materials.s3.amazonaws.com/painted_metal.usda")
+        },
+    )
+
+    assert plan.modification_intents == ()
+    assert plan.conflicts[0].code == "missing_modifiable_material_source"
 
 
 def test_task_wrapper_writes_policy_context_from_object_store() -> None:
@@ -736,6 +846,144 @@ def test_material_policy_conflict_round_trips_from_dict() -> None:
     conflict = MaterialPolicyConflict.from_dict(payload)
 
     assert conflict.to_dict() == payload
+
+
+def test_material_source_and_modification_intent_round_trip() -> None:
+    source = MaterialSource(
+        source_material_usd="/materials/source.usda",
+        source_material_prim_path="/World/Looks/Source",
+        source_material_sha256="a" * 64,
+    )
+    intent = MaterialModificationIntent(
+        intent_id="mmi_round_trip",
+        reuse_key="round_trip_coating",
+        source=source,
+        recipe=MaterialRecipe(
+            id="round_trip_coating",
+            name="Round Trip Coating",
+            description="A modification intent serialization fixture.",
+            appearance_prompt="rough blue round trip coating",
+        ),
+        target_prim_paths=("/World/Geom/Panel",),
+        decision_indices=(1, 2),
+    )
+
+    payload = intent.to_dict()
+    restored = MaterialModificationIntent.from_dict(payload)
+
+    assert payload["source_material_sha256"] == "a" * 64
+    assert restored.to_dict() == payload
+    with pytest.raises(ValueError, match="requires a recipe mapping"):
+        MaterialModificationIntent.from_dict({"recipe": None})
+
+
+def test_modify_existing_requires_target_and_complete_source_mapping() -> None:
+    without_target = plan_material_actions(
+        [
+            {
+                "materials": {
+                    "material": "Painted metal",
+                    "action": "modify_existing",
+                    "appearance_prompt": "rough painted metal",
+                }
+            }
+        ],
+        matched_materials={"Painted metal": _match("/World/Looks/PaintedMetal")},
+        material_sources={
+            "Painted metal": {
+                "source_material_usd": "/materials/painted_metal.usda",
+                "source_material_prim_path": "/World/Looks/PaintedMetal",
+            }
+        },
+    )
+    incomplete_source = plan_material_actions(
+        [
+            {
+                "id": "/World/Geom/Cover",
+                "materials": {
+                    "material": "Painted metal",
+                    "action": "modify_existing",
+                    "appearance_prompt": "rough painted metal",
+                },
+            }
+        ],
+        matched_materials={"Painted metal": _match("/World/Looks/PaintedMetal")},
+        material_sources={
+            "Painted metal": {
+                "source_material_usd": "/materials/painted_metal.usda",
+            }
+        },
+    )
+
+    assert [conflict.code for conflict in without_target.conflicts] == [
+        "missing_target_prim_path"
+    ]
+    assert incomplete_source.modification_intents == ()
+    assert incomplete_source.conflicts[0].code == "missing_modifiable_material_source"
+
+
+def test_modify_existing_uses_resolved_usd_with_matched_binding() -> None:
+    plan = plan_material_actions(
+        [
+            {
+                "id": "/World/Geom/Cover",
+                "materials": {
+                    "material": "Resolved paint",
+                    "action": "modify_existing",
+                    "appearance_prompt": "rough resolved paint",
+                },
+            }
+        ],
+        matched_materials={
+            "Resolved paint": [
+                "non-mapping match metadata",
+                {"binding": "/World/Looks/ResolvedPaint"},
+            ]
+        },
+        resolved_materials={"Resolved paint": "/materials/resolved_paint.usda"},
+    )
+
+    assert plan.conflicts == ()
+    assert plan.modification_intents[0].source == MaterialSource(
+        source_material_usd="/materials/resolved_paint.usda",
+        source_material_prim_path="/World/Looks/ResolvedPaint",
+    )
+
+
+def test_incompatible_modification_recipes_suppress_shared_reuse_key() -> None:
+    predictions = [
+        {
+            "id": "/World/Geom/A",
+            "materials": {
+                "material": "Shared paint",
+                "action": "modify_existing",
+                "appearance_prompt": "smooth shared paint",
+            },
+        },
+        {
+            "id": "/World/Geom/B",
+            "materials": {
+                "material": "Shared paint",
+                "action": "modify_existing",
+                "appearance_prompt": "rough chipped shared paint",
+            },
+        },
+    ]
+    plan = plan_material_actions(
+        predictions,
+        matched_materials={"Shared paint": _match("/World/Looks/SharedPaint")},
+        material_sources={
+            "Shared paint": {
+                "source_material_usd": "/materials/shared_paint.usda",
+                "source_material_prim_path": "/World/Looks/SharedPaint",
+            }
+        },
+    )
+
+    assert plan.modification_intents == ()
+    assert plan.conflicts[0].code == "modification_reuse_key_conflict"
+    assert plan.conflicts[0].prim_paths == ("/World/Geom/A", "/World/Geom/B")
+    assert all(decision.modification_intent_id is None for decision in plan.decisions)
 
 
 def test_policy_result_from_dict_rejects_invalid_shapes() -> None:

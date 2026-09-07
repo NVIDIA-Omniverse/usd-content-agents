@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -17,11 +18,12 @@ from joint_agent.functions.articulation_adjudication import (
     ADJUDICATION_ARTIFACT_SCHEMA_VERSION,
     ArticulationAdjudicationArtifact,
     ArticulationConflictAdjudication,
+    ArticulationTopologyReconciliationDiagnostics,
     ArticulationTopologyReconciliationDocument,
     adjudicate_articulation_conflicts_with_model,
     apply_articulation_conflict_adjudications,
     apply_articulation_topology_reconciliation,
-    reconcile_articulation_topology_with_model,
+    reconcile_articulation_topology_with_model_result,
     recover_articulation_topology_reconciliation_from_history,
     restore_articulation_topology_reconciliation_originals,
 )
@@ -38,6 +40,10 @@ from joint_agent.functions.consistency import (
 )
 
 logger = logging.getLogger(__name__)
+
+_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY = (
+    "_articulation_topology_reconciliation_diagnostics"
+)
 
 _SOURCE_STRUCTURE_FIELDS = frozenset(
     {
@@ -80,6 +86,65 @@ _RECONCILABLE_ROLE_SOURCES = frozenset(
 )
 
 
+def _verified_non_articulated_structure(context: dict[str, Any]) -> bool:
+    """Validate the bound zero-DOF result produced by analyze_structure."""
+
+    metadata = context.get("verified_structure_metadata")
+    if not isinstance(metadata, dict):
+        return False
+    if metadata.get("structure_outcome") != "not_articulated":
+        return False
+
+    reasoning = metadata.get("reasoning")
+    evidence = metadata.get("evidence")
+    if not isinstance(reasoning, str) or not reasoning.strip():
+        raise ValueError("not_articulated structure result is missing reasoning")
+    if not isinstance(evidence, dict) or evidence.get("accepted") is not True:
+        raise ValueError(
+            "not_articulated structure result is missing accepted evidence"
+        )
+    dof = evidence.get("dof")
+    segment_names = evidence.get("segment_names")
+    source_prims = evidence.get("source_prim_inventory")
+    if (
+        isinstance(dof, bool)
+        or dof != 0
+        or segment_names != []
+        or not isinstance(source_prims, list)
+        or not source_prims
+        or any(
+            not isinstance(path, str) or not path.startswith("/")
+            for path in source_prims
+        )
+    ):
+        raise ValueError(
+            "not_articulated structure result is not a coherent zero-DOF finding"
+        )
+
+    diagnostics_value = evidence.get("provider_response_diagnostics_path")
+    expected_sha256 = evidence.get("provider_response_diagnostics_sha256")
+    if (
+        not isinstance(diagnostics_value, str)
+        or not isinstance(expected_sha256, str)
+        or len(expected_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in expected_sha256)
+    ):
+        raise ValueError(
+            "not_articulated structure result is missing provider diagnostics binding"
+        )
+    diagnostics_path = Path(diagnostics_value)
+    if diagnostics_path.is_symlink() or not diagnostics_path.is_file():
+        raise ValueError(
+            "not_articulated structure provider diagnostics are not a regular file"
+        )
+    actual_sha256 = hashlib.sha256(diagnostics_path.read_bytes()).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError(
+            "not_articulated structure provider diagnostics digest does not match"
+        )
+    return True
+
+
 def _has_authoritative_source_structure(row: dict[str, Any]) -> bool:
     usd_metadata = row.get("usd_metadata")
     provenance_values = [row.get("structure_provenance")]
@@ -116,6 +181,44 @@ def _merge_source_metadata_row(
             and overlay_row.get("usd_metadata") != verified_structure
         )
     return merged_row, suppressed_structure
+
+
+def load_articulation_source_metadata(
+    dataset_entries: list[dict[str, Any]] | None,
+    prim_metadata_path: str | Path | None,
+) -> tuple[dict[str, dict[str, Any]], int]:
+    """Load Stage 2 source metadata with the canonical dataset precedence."""
+    source_metadata_by_id: dict[str, dict[str, Any]] = {}
+    for row in dataset_entries or []:
+        row_id = str(row.get("id", ""))
+        if row_id:
+            source_metadata_by_id[row_id] = dict(row)
+    dataset_row_ids = frozenset(source_metadata_by_id)
+    dataset_has_authoritative_structure = any(
+        _has_authoritative_source_structure(row)
+        for row in source_metadata_by_id.values()
+    )
+    suppressed_structure_rows = 0
+    if prim_metadata_path:
+        prim_metadata_path_obj = Path(prim_metadata_path)
+        if prim_metadata_path_obj.exists():
+            for row in load_predictions_jsonl(prim_metadata_path_obj):
+                row_id = str(
+                    row.get("id") or row.get("prim_path") or row.get("path") or ""
+                )
+                if not row_id:
+                    continue
+                merged_row, suppressed_structure = _merge_source_metadata_row(
+                    source_metadata_by_id.get(row_id, {}),
+                    row,
+                    allow_overlay_structure=(
+                        not dataset_has_authoritative_structure
+                        and (dataset_entries is None or row_id in dataset_row_ids)
+                    ),
+                )
+                source_metadata_by_id[row_id] = merged_row
+                suppressed_structure_rows += int(suppressed_structure)
+    return source_metadata_by_id, suppressed_structure_rows
 
 
 class AdjudicationModelProvisioningTask(ModelProvisioningTask):
@@ -187,46 +290,21 @@ class ArticulationCandidatesTask(Task):
             if dataset_path_obj.exists():
                 dataset_entries = load_predictions_jsonl(dataset_path_obj)
 
-        source_metadata_by_id: dict[str, dict[str, Any]] = {}
-        for row in dataset_entries or []:
-            row_id = str(row.get("id", ""))
-            if row_id:
-                source_metadata_by_id[row_id] = dict(row)
-        dataset_has_authoritative_structure = any(
-            _has_authoritative_source_structure(row)
-            for row in source_metadata_by_id.values()
-        )
         prim_metadata_path = context.get("prim_metadata_path")
-        if prim_metadata_path:
-            prim_metadata_path_obj = Path(prim_metadata_path)
-            if prim_metadata_path_obj.exists():
-                suppressed_structure_rows = 0
-                for row in load_predictions_jsonl(prim_metadata_path_obj):
-                    row_id = str(
-                        row.get("id") or row.get("prim_path") or row.get("path") or ""
-                    )
-                    if not row_id:
-                        continue
-                    merged_row, suppressed_structure = _merge_source_metadata_row(
-                        source_metadata_by_id.get(row_id, {}),
-                        row,
-                        allow_overlay_structure=(
-                            not dataset_has_authoritative_structure
-                        ),
-                    )
-                    source_metadata_by_id[row_id] = merged_row
-                    suppressed_structure_rows += int(suppressed_structure)
-                if suppressed_structure_rows:
-                    listener.warning(
-                        "Ignored prim_metadata_path source-structure fields in "
-                        f"{suppressed_structure_rows} row(s); dataset source "
-                        "structure remains authoritative"
-                    )
-            else:
-                listener.warning(
-                    "Prim metadata path does not exist; continuing without it: "
-                    f"{prim_metadata_path_obj}"
-                )
+        source_metadata_by_id, suppressed_structure_rows = (
+            load_articulation_source_metadata(dataset_entries, prim_metadata_path)
+        )
+        if prim_metadata_path and not Path(prim_metadata_path).exists():
+            listener.warning(
+                "Prim metadata path does not exist; continuing without it: "
+                f"{Path(prim_metadata_path)}"
+            )
+        if suppressed_structure_rows:
+            listener.warning(
+                "Ignored prim_metadata_path source-structure fields in "
+                f"{suppressed_structure_rows} row(s); dataset source "
+                "structure remains authoritative"
+            )
         if source_metadata_by_id:
             listener.info(
                 f"Loaded source metadata for {len(source_metadata_by_id)} "
@@ -250,6 +328,35 @@ class ArticulationCandidatesTask(Task):
                 else "not_requested"
             ),
         }
+        if _verified_non_articulated_structure(context):
+            candidate_document = infer_articulation_candidates(
+                [],
+                output_key=output_key,
+                candidate_joint_types=context.get("candidate_joint_types"),
+                enable_source_backed_v1_breadth=context.get(
+                    "enable_source_backed_v1_breadth",
+                    False,
+                ),
+                prim_metadata={},
+            )
+            self._remove_adjudication_artifact(context)
+            context["articulation_topology_reconciliation_status"] = {
+                "requested": topology_reconciliation_requested,
+                "attempted": False,
+                "accepted": False,
+                "outcome": "not_required",
+            }
+            listener.info(
+                "Preserving the verified non-articulated structure result as an "
+                "empty Stage 2 candidate set"
+            )
+            return self._publish_candidate_document(
+                context=context,
+                candidate_document=candidate_document,
+                output_candidates_path=output_candidates_path,
+                output_report_path=output_report_path,
+                listener=listener,
+            )
         if self._has_topology_reconciliation_trace(
             predictions,
             output_key=output_key,
@@ -298,6 +405,12 @@ class ArticulationCandidatesTask(Task):
             predictions,
             output_key=output_key,
             candidate_joint_types=context.get("candidate_joint_types"),
+            # Passed through unwidened so a malformed context value trips the
+            # strict bool gate instead of being coerced into an opt-in.
+            enable_source_backed_v1_breadth=context.get(
+                "enable_source_backed_v1_breadth",
+                False,
+            ),
             prim_metadata=source_metadata_by_id,
         )
         if adjudication_enabled:
@@ -352,17 +465,17 @@ class ArticulationCandidatesTask(Task):
                 # containing its reversible receipt have been committed. This
                 # prevents a failed prediction write from leaving a false
                 # durable claim that reconciliation was accepted.
-                self._write_adjudication_artifact(
-                    context,
-                    topology_reconciliation=pending_topology_reconciliation,
-                )
-                context["articulation_topology_reconciled"] = True
                 self._record_topology_reconciliation_status(
                     context,
                     attempted=True,
                     accepted=True,
                     outcome="accepted",
                 )
+                self._write_adjudication_artifact(
+                    context,
+                    topology_reconciliation=pending_topology_reconciliation,
+                )
+                context["articulation_topology_reconciled"] = True
                 moving_link_count = sum(
                     link.kind == "moving"
                     for link in pending_topology_reconciliation.links
@@ -383,6 +496,23 @@ class ArticulationCandidatesTask(Task):
             # place as if they were current evidence.
             self._remove_adjudication_artifact(context)
 
+        return self._publish_candidate_document(
+            context=context,
+            candidate_document=candidate_document,
+            output_candidates_path=output_candidates_path,
+            output_report_path=output_report_path,
+            listener=listener,
+        )
+
+    @staticmethod
+    def _publish_candidate_document(
+        *,
+        context: dict[str, Any],
+        candidate_document: dict[str, Any],
+        output_candidates_path: Path,
+        output_report_path: Path,
+        listener: Any,
+    ) -> dict[str, Any]:
         write_json(output_candidates_path, candidate_document)
         write_articulation_candidate_report_html(
             output_report_path,
@@ -427,7 +557,37 @@ class ArticulationCandidatesTask(Task):
             status["failure_stage"] = failure_stage
         if error_type is not None:
             status["error_type"] = error_type
+        raw_diagnostics = context.get(_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY)
+        if isinstance(raw_diagnostics, dict):
+            raw_attempts = raw_diagnostics.get("attempts")
+            if isinstance(raw_attempts, list) and raw_attempts:
+                status["attempt_diagnostics"] = raw_attempts
         context["articulation_topology_reconciliation_status"] = status
+
+    @staticmethod
+    def _replace_topology_reconciliation_diagnostics_failure(
+        context: dict[str, Any],
+        *,
+        failure_stage: Literal["replay", "reinference"],
+        error_type: str,
+    ) -> None:
+        raw_diagnostics = context.get(_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY)
+        attempts = (
+            raw_diagnostics.get("attempts", [])
+            if isinstance(raw_diagnostics, dict)
+            else []
+        )
+        diagnostics = ArticulationTopologyReconciliationDiagnostics.model_validate(
+            {
+                "outcome": "failed",
+                "failure_stage": failure_stage,
+                "error_type": error_type,
+                "attempts": attempts,
+            }
+        )
+        context[_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY] = (
+            diagnostics.model_dump(mode="json")
+        )
 
     def _run_adjudication(
         self,
@@ -483,12 +643,28 @@ class ArticulationCandidatesTask(Task):
                     )
                     return candidate_document, predictions, None
                 self._remove_adjudication_artifact(context)
+                self._record_topology_reconciliation_status(
+                    context,
+                    attempted=False,
+                    accepted=False,
+                    outcome="failed",
+                    failure_stage="reinference",
+                    error_type="ValueError",
+                )
                 raise ValueError(
                     "Stored topology reconciliation no longer survives strict "
                     "Stage 2 inference"
                 )
             if has_topology_trace:
                 self._remove_adjudication_artifact(context)
+                self._record_topology_reconciliation_status(
+                    context,
+                    attempted=False,
+                    accepted=False,
+                    outcome="failed",
+                    failure_stage="receipt_recovery",
+                    error_type="ValueError",
+                )
                 raise ValueError(
                     "Stored topology reconciliation history is incomplete or no "
                     "longer matches the current rows"
@@ -502,6 +678,20 @@ class ArticulationCandidatesTask(Task):
                 output_key=context.get("output_key", "classification"),
             )
         )
+        if (
+            topology_reconciliation_required
+            and adjudication_config.get("require_source_images") is not True
+        ):
+            self._record_topology_reconciliation_status(
+                context,
+                attempted=False,
+                accepted=False,
+                outcome="failed",
+                failure_stage="request",
+                error_type="ValueError",
+            )
+            self._write_empty_adjudication_artifact(context)
+            return candidate_document, predictions, None
         if (
             adjudication_config.get("reconcile_topology", False)
             and not topology_reconciliation_required
@@ -558,8 +748,7 @@ class ArticulationCandidatesTask(Task):
                 accepted=False,
                 outcome="attempting",
             )
-            reconciliation_diagnostics: dict[str, str] = {}
-            reconciliation = reconcile_articulation_topology_with_model(
+            reconciliation_result = reconcile_articulation_topology_with_model_result(
                 model=model,
                 candidate_document=candidate_document,
                 source_predictions=predictions,
@@ -567,7 +756,9 @@ class ArticulationCandidatesTask(Task):
                 dataset_entries=dataset_entries,
                 image_base_dir=image_base_dir,
                 max_images=int(adjudication_config.get("max_images", 64)),
-                require_images=True,
+                require_images=bool(
+                    adjudication_config.get("require_source_images", False)
+                ),
                 use_images=True,
                 min_confidence=cast(
                     Literal["high", "medium", "low"],
@@ -576,20 +767,20 @@ class ArticulationCandidatesTask(Task):
                 temperature=float(adjudication_config.get("temperature", 0.0)),
                 max_tokens=int(adjudication_config.get("max_tokens", 8192)),
                 output_key=context.get("output_key", "classification"),
-                diagnostics=reconciliation_diagnostics,
             )
+            reconciliation_diagnostics = reconciliation_result.diagnostics
+            context[_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY] = (
+                reconciliation_diagnostics.model_dump(mode="json")
+            )
+            reconciliation = reconciliation_result.reconciliation
             if reconciliation is None:
                 self._record_topology_reconciliation_status(
                     context,
                     attempted=True,
                     accepted=False,
                     outcome="failed",
-                    failure_stage=reconciliation_diagnostics.get(
-                        "failure_stage", "unknown"
-                    ),
-                    error_type=reconciliation_diagnostics.get(
-                        "error_type", "RuntimeError"
-                    ),
+                    failure_stage=reconciliation_diagnostics.failure_stage or "unknown",
+                    error_type=reconciliation_diagnostics.error_type or "RuntimeError",
                 )
                 self._write_empty_adjudication_artifact(context)
                 return candidate_document, predictions, None
@@ -606,17 +797,30 @@ class ArticulationCandidatesTask(Task):
                     predictions,
                     reconciliation,
                     output_key=context.get("output_key", "classification"),
+                    source_metadata=source_metadata_by_id,
                 )
+                # The replay must run under the same Stage 2 profile as the
+                # original inference, or completeness is compared across two
+                # different candidate surfaces.
                 reconciled_document = infer_articulation_candidates(
                     reconciled_predictions,
                     output_key=context.get("output_key", "classification"),
                     candidate_joint_types=context.get("candidate_joint_types"),
+                    enable_source_backed_v1_breadth=context.get(
+                        "enable_source_backed_v1_breadth",
+                        False,
+                    ),
                     prim_metadata=source_metadata_by_id,
                 )
             except (TypeError, ValueError) as exc:
                 listener.warning(
                     "Validated topology reconciliation could not be strictly "
                     f"replayed; predictions remain unchanged ({type(exc).__name__})"
+                )
+                self._replace_topology_reconciliation_diagnostics_failure(
+                    context,
+                    failure_stage="replay",
+                    error_type=type(exc).__name__,
                 )
                 self._record_topology_reconciliation_status(
                     context,
@@ -639,6 +843,11 @@ class ArticulationCandidatesTask(Task):
                 listener.warning(
                     "Topology reconciliation did not survive strict Stage 2 "
                     "reinference; predictions remain unchanged"
+                )
+                self._replace_topology_reconciliation_diagnostics_failure(
+                    context,
+                    failure_stage="reinference",
+                    error_type="ValueError",
                 )
                 self._record_topology_reconciliation_status(
                     context,
@@ -790,6 +999,7 @@ class ArticulationCandidatesTask(Task):
         if output_adjudications_path:
             Path(output_adjudications_path).unlink(missing_ok=True)
         context.pop("articulation_adjudications_path", None)
+        context.pop(_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY, None)
 
     @staticmethod
     def _write_adjudication_artifact(
@@ -799,6 +1009,17 @@ class ArticulationCandidatesTask(Task):
         | None = None,
         adjudications: list[ArticulationConflictAdjudication] | None = None,
     ) -> None:
+        raw_topology_diagnostics = context.get(
+            _TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY
+        )
+        topology_diagnostics = (
+            ArticulationTopologyReconciliationDiagnostics.model_validate(
+                raw_topology_diagnostics
+            )
+            if isinstance(raw_topology_diagnostics, dict)
+            and raw_topology_diagnostics.get("outcome") == "failed"
+            else None
+        )
         output_adjudications_path = context.get("output_adjudications_path")
         if output_adjudications_path:
             if topology_reconciliation is not None:
@@ -816,10 +1037,22 @@ class ArticulationCandidatesTask(Task):
             artifact = ArticulationAdjudicationArtifact(
                 schema_version=ADJUDICATION_ARTIFACT_SCHEMA_VERSION,
                 topology_reconciliation=topology_reconciliation,
+                topology_reconciliation_diagnostics=topology_diagnostics,
                 adjudications=adjudications or [],
             )
+            artifact_payload = artifact.model_dump(mode="json")
+            if topology_diagnostics is None:
+                artifact_payload.pop("topology_reconciliation_diagnostics", None)
             write_json(
                 output_adjudications_path,
-                artifact.model_dump(mode="json"),
+                artifact_payload,
             )
             context["articulation_adjudications_path"] = str(output_adjudications_path)
+            status = context.get("articulation_topology_reconciliation_status")
+            if (
+                topology_diagnostics is not None
+                and topology_diagnostics.outcome == "failed"
+                and isinstance(status, dict)
+            ):
+                status["diagnostics_artifact_path"] = str(output_adjudications_path)
+        context.pop(_TOPOLOGY_RECONCILIATION_DIAGNOSTICS_CONTEXT_KEY, None)

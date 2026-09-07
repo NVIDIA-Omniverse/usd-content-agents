@@ -479,6 +479,46 @@ def test_live_look_right_model_config_helpers(
     assert "temperature" not in created_chat["kwargs"]
     assert created_vlm["kwargs"]["api_key"] == "explicit"
 
+    monkeypatch.setenv("LOOK_RIGHT_TEST_API_KEY", "explicit-env-key")
+    monkeypatch.setattr(
+        vs,
+        "get_nim_api_key_for_base_url",
+        lambda base_url, key: key,
+    )
+    created_chat.clear()
+    created_vlm.clear()
+    env_config = {
+        "backend": "nim",
+        "api_key_env": "${LOOK_RIGHT_TEST_API_KEY}",
+        "base_url": "https://integrate.api.nvidia.com/v1",
+    }
+    vs._create_live_look_right_llm(env_config)
+    vs._create_live_look_right_vlm(env_config)
+    assert created_chat["kwargs"]["api_key"] == "explicit-env-key"
+    assert created_vlm["kwargs"]["api_key"] == "explicit-env-key"
+    assert "api_key_env" not in created_chat["kwargs"]
+    assert "api_key_env" not in created_vlm["kwargs"]
+
+
+@pytest.mark.parametrize("explicit_api_key", ("", "YOUR_API_KEY"))
+def test_live_look_right_missing_explicit_env_never_uses_provider_global_key(
+    monkeypatch: pytest.MonkeyPatch,
+    explicit_api_key: str,
+) -> None:
+    monkeypatch.setenv("NVIDIA_API_KEY", "provider-global-key")
+    monkeypatch.delenv("LOOK_RIGHT_MISSING", raising=False)
+
+    with pytest.raises(
+        ValueError,
+        match="^configured API key environment variable is not set or empty$",
+    ):
+        vs._resolve_live_vlm_api_key(
+            "nim",
+            base_url="https://integrate.api.nvidia.com/v1",
+            explicit_api_key=explicit_api_key,
+            api_key_env="${LOOK_RIGHT_MISSING}",
+        )
+
 
 def test_adapter_mapping_and_render_response_helpers() -> None:
     assert vs._render_response_camera_names("not-mapping") == ()

@@ -25,7 +25,7 @@ from world_understanding.utils.credentials import (
 logger = logging.getLogger(__name__)
 
 # Default VLM configurations
-_DEFAULT_NIM_VLM_MODEL = "google/gemma-4-31b-it"
+_DEFAULT_NIM_VLM_MODEL = "moonshotai/kimi-k3"
 _DEFAULT_OPENAI_VLM_MODEL = "gpt-5.4"
 _DEFAULT_ANTHROPIC_VLM_MODEL = "claude-opus-4-6"
 _DEFAULT_GEMINI_VLM_MODEL = "gemini-3-pro-preview"

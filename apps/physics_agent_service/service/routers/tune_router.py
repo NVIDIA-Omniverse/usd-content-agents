@@ -21,17 +21,32 @@ import shutil
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import yaml
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from physics_agent.config.usd_suffixes import USD_ARTIFACT_EXTENSIONS
+from physics_agent.tuning.backend import SUPPORTED_ENGINES
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
     DEFAULT_JUDGE_REFERENCE_FRAMES,
-    DEFAULT_REFERENCE_VIDEO_FRAMES,
     validate_visual_frame_count,
 )
+from PIL import Image, UnidentifiedImageError
 from sse_starlette import EventSourceResponse
+from world_understanding.functions.graphics.so_export import (
+    PORTABLE_SIDECAR_MARKER_BYTES,
+    PORTABLE_SIDECAR_MARKER_NAME,
+)
 from world_understanding.functions.physics import ovphysx_runtime_available
+from world_understanding.utils.artifacts import (
+    ArtifactPathError,
+    copy_open_file_to_confined,
+    iter_open_regular_files,
+    open_confined_directory,
+    open_regular_file_no_follow,
+    write_bytes_to_confined,
+)
 from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     log_durable_failure,
@@ -60,6 +75,8 @@ from ..models.responses import (
 from ..runtime import get_event_bus, get_job_registry
 from ..runtime.events import StepState
 from ..session.manager import SessionManager
+from ..storage.base import SessionNotCompletedError
+from .artifacts_router import _local_output_sidecar_dir
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +108,14 @@ def _validate_ovphysx_runtime_for_request(engine: str) -> None:
 
 _VALID_USD_EXTENSIONS = {".usd", ".usda", ".usdc", ".usdz"}
 _VALID_REFERENCE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
-_VALID_REFERENCE_VIDEO_EXTENSIONS = {
+_REFERENCE_IMAGE_FORMATS = {
+    ".png": {"PNG"},
+    ".jpg": {"JPEG"},
+    ".jpeg": {"JPEG"},
+    ".webp": {"WEBP"},
+    ".bmp": {"BMP"},
+}
+_UNSUPPORTED_VIDEO_EXTENSIONS = {
     ".mp4",
     ".mov",
     ".m4v",
@@ -99,6 +123,65 @@ _VALID_REFERENCE_VIDEO_EXTENSIONS = {
     ".avi",
     ".mkv",
 }
+_UNSUPPORTED_VIDEO_FORM_FIELDS = {
+    "reference_videos",
+    "reference_video_descriptions",
+    "reference_video_frames",
+}
+
+
+def _validate_reference_image_content(path: Path, *, extension: str) -> None:
+    """Reject renamed video or malformed bytes at the shared upload boundary."""
+    try:
+        with Image.open(path) as image:
+            detected_format = str(image.format or "").upper()
+            image.verify()
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid reference image content: {path.name}",
+        ) from None
+
+    expected_formats = _REFERENCE_IMAGE_FORMATS.get(extension, set())
+    if detected_format not in expected_formats:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid reference image content for {extension}: "
+                f"detected {detected_format or 'unknown'}"
+            ),
+        )
+
+
+async def _reject_unsupported_video_request(request: Request) -> None:
+    """Reject removed video fields and video-suffixed multipart uploads."""
+
+    # FastAPI's multipart parameter binding and Request.form() share Starlette's
+    # cached FormData, so this inspects the parsed body without reading it again.
+    form = await request.form()
+    legacy_fields = sorted(_UNSUPPORTED_VIDEO_FORM_FIELDS.intersection(form.keys()))
+    video_uploads = sorted(
+        str(filename)
+        for _, value in form.multi_items()
+        if (filename := getattr(value, "filename", None))
+        and Path(str(filename)).suffix.lower() in _UNSUPPORTED_VIDEO_EXTENSIONS
+    )
+    if legacy_fields or video_uploads:
+        details: list[str] = []
+        if legacy_fields:
+            details.append(f"removed fields: {', '.join(legacy_fields)}")
+        if video_uploads:
+            details.append(f"video uploads: {', '.join(video_uploads)}")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Video inputs are unsupported in the public 0.6 API; submit "
+                "reference_images as PNG/JPEG/WebP/BMP files instead ("
+                + "; ".join(details)
+                + ")."
+            ),
+        )
+
 
 # Hard limits on tune-creation inputs. The optimizer trial budget is the
 # primary cost driver for a tune session — capping it at the request layer
@@ -264,6 +347,11 @@ async def _copy_reference_uploads(
             max_bytes=copy_limit,
             too_large_detail=too_large_detail,
         )
+        try:
+            _validate_reference_image_content(dest, extension=ext)
+        except HTTPException:
+            dest.unlink(missing_ok=True)
+            raise
         copied.append(dest)
         batch_bytes += total
     return copied, batch_bytes
@@ -351,34 +439,205 @@ def _download_s3_to_session(s3_uri: str, session_dir: Path) -> Path:
     return local_path
 
 
+def _copy_source_session_bundle(
+    src_path: Path,
+    target_session_dir: Path,
+) -> Path:
+    """Copy one securely opened source USD bundle into a new session."""
+    dest = target_session_dir / "input" / "physics.usda"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        source_sidecar = _local_output_sidecar_dir(src_path)
+    except (ArtifactPathError, OSError, RuntimeError, ValueError):
+        raise HTTPException(
+            status_code=400,
+            detail="source_session_id output bundle is unsafe or unreadable",
+        ) from None
+    # Keep the source sidecar name even though the copied root is normalized
+    # to ``physics.usda``: authored USD asset paths name this directory, and
+    # renaming it without rewriting every asset-valued field would break the
+    # bundle. USD resolution does not infer sidecars from the root-layer stem.
+    target_sidecar = (
+        dest.parent / source_sidecar.name if source_sidecar is not None else None
+    )
+    if (
+        dest.exists()
+        or dest.is_symlink()
+        or (
+            target_sidecar is not None
+            and (target_sidecar.exists() or target_sidecar.is_symlink())
+        )
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="source_session_id target bundle already exists",
+        )
+    try:
+        with (
+            open_regular_file_no_follow(src_path) as (source, metadata),
+            open_confined_directory(dest.parent) as target_descriptor,
+        ):
+            copy_open_file_to_confined(
+                target_descriptor,
+                dest.name,
+                source,
+                metadata,
+                overwrite=True,
+            )
+        if source_sidecar is not None:
+            assert target_sidecar is not None
+            with (
+                open_confined_directory(source_sidecar) as source_descriptor,
+                open_confined_directory(
+                    target_sidecar, create=True
+                ) as target_descriptor,
+            ):
+                for artifact in iter_open_regular_files(source_descriptor):
+                    if artifact.relative_key == PORTABLE_SIDECAR_MARKER_NAME:
+                        marker_bytes = artifact.stream.read(
+                            len(PORTABLE_SIDECAR_MARKER_BYTES) + 1
+                        )
+                        if marker_bytes != PORTABLE_SIDECAR_MARKER_BYTES:
+                            raise ArtifactPathError(
+                                "Portable output sidecar ownership marker is invalid"
+                            )
+                        continue
+                    if not copy_open_file_to_confined(
+                        target_descriptor,
+                        artifact.relative_key,
+                        artifact.stream,
+                        artifact.metadata,
+                        overwrite=False,
+                    ):
+                        raise ArtifactPathError(
+                            "Portable output sidecar destination already exists"
+                        )
+                # Legacy completed sessions may predate the marker contract.
+                # The target directory is newly created and populated solely
+                # from this securely traversed source bundle, so it is safe to
+                # claim it for future exporter replacement. A present marker,
+                # however, must be valid rather than silently re-blessed.
+                if not write_bytes_to_confined(
+                    target_descriptor,
+                    PORTABLE_SIDECAR_MARKER_NAME,
+                    PORTABLE_SIDECAR_MARKER_BYTES,
+                    overwrite=False,
+                    file_mode=0o444,
+                ):
+                    raise ArtifactPathError(
+                        "Portable output sidecar ownership marker already exists"
+                    )
+    except (ArtifactPathError, OSError):
+        dest.unlink(missing_ok=True)
+        if target_sidecar is not None:
+            shutil.rmtree(target_sidecar, ignore_errors=True)
+        raise HTTPException(
+            status_code=400,
+            detail="source_session_id output bundle is unsafe or unreadable",
+        ) from None
+    return dest
+
+
+def _snapshot_output_path(
+    snapshot_dir: Path,
+    preferred_keys: list[str],
+) -> Path | None:
+    """Select one output USD from an isolated publication snapshot."""
+    for key in preferred_keys:
+        if Path(key).suffix.lower() not in USD_ARTIFACT_EXTENSIONS:
+            continue
+        candidate = snapshot_dir / key
+        if candidate.exists() or candidate.is_symlink():
+            return candidate
+    for suffix in USD_ARTIFACT_EXTENSIONS:
+        candidate = snapshot_dir / "cache" / "physics" / f"scene_physics{suffix}"
+        if candidate.exists() or candidate.is_symlink():
+            return candidate
+    return None
+
+
 async def _copy_from_source_session(
     manager: SessionManager,
     source_session_id: str,
     target_session_dir: Path,
 ) -> Path:
     """Copy the apply_physics output USD from a completed pipeline session."""
-    if not await manager.session_exists(source_session_id):
-        raise HTTPException(
-            status_code=404,
-            detail=f"source_session_id not found: {source_session_id}",
-        )
-    src_path = await manager.get_artifact_path(source_session_id, "output_usd")
-    if src_path is None:
-        # Try pulling cache/physics from the store (cross-instance case).
-        await manager.sync_from_store(source_session_id, prefix="cache/physics/")
-        src_path = await manager.get_artifact_path(source_session_id, "output_usd")
-    if src_path is None or not src_path.exists():
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"source_session_id {source_session_id} has no apply_physics "
-                "output_usd; run the pipeline to completion first."
-            ),
-        )
-    dest = target_session_dir / "input" / "physics.usda"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src_path, dest)
-    return dest
+    s3_store = getattr(getattr(manager, "store", None), "kind", "local") == "s3"
+    snapshot: TemporaryDirectory[str] | None = None
+    try:
+        if s3_store:
+            # Validate metadata and hydrate artifacts from one envelope and
+            # immutable manifest. Never reconcile a source publication into
+            # that session's live worker cache.
+            snapshot = TemporaryDirectory(
+                prefix="physics-source-snapshot-",
+                ignore_cleanup_errors=True,
+            )
+            snapshot_dir = Path(snapshot.name)
+            try:
+                completed_snapshot = await manager.snapshot_completed_publication(
+                    source_session_id,
+                    snapshot_dir,
+                    prefix="cache/physics/",
+                )
+            except FileNotFoundError:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"source_session_id not found: {source_session_id}",
+                ) from None
+            except SessionNotCompletedError:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"source_session_id {source_session_id} is not completed; "
+                        "wait for it to reach completed status."
+                    ),
+                ) from None
+            src_path = _snapshot_output_path(
+                snapshot_dir,
+                list(completed_snapshot.artifact_keys),
+            )
+        else:
+            metadata = await manager.get_session_metadata(source_session_id)
+            if metadata is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"source_session_id not found: {source_session_id}",
+                )
+            if metadata.get("status") != "completed":
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"source_session_id {source_session_id} is not completed; "
+                        "wait for it to reach completed status."
+                    ),
+                )
+            src_path = await manager.get_artifact_path(
+                source_session_id,
+                "output_usd",
+            )
+            if src_path is None:
+                # Try pulling cache/physics from a non-S3 store implementation.
+                await manager.sync_from_store(
+                    source_session_id,
+                    prefix="cache/physics/",
+                )
+                src_path = await manager.get_artifact_path(
+                    source_session_id,
+                    "output_usd",
+                )
+        if src_path is None or not src_path.exists():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"source_session_id {source_session_id} has no apply_physics "
+                    "output_usd; run the pipeline to completion first."
+                ),
+            )
+        return _copy_source_session_bundle(src_path, target_session_dir)
+    finally:
+        if snapshot is not None:
+            snapshot.cleanup()
 
 
 def _find_input_physics(session_dir: Path) -> Path | None:
@@ -424,8 +683,6 @@ def _validate_engine_supports_param_names_for_request(
 
 
 def _validate_engine_name_for_request(engine: str) -> None:
-    from physics_agent.tuning.backend import SUPPORTED_ENGINES
-
     if engine not in SUPPORTED_ENGINES:
         raise HTTPException(
             status_code=400,
@@ -440,6 +697,7 @@ def _validate_engine_name_for_request(engine: str) -> None:
     responses=S3_INPUT_ERROR_RESPONSES,
 )
 async def create_tune(
+    request: Request,
     physics_usd: UploadFile = File(
         None,
         description="Physics-authored USD (output of apply_physics) to tune",
@@ -456,29 +714,15 @@ async def create_tune(
         default=[],
         description="Optional reference images for the visual/VLM judge",
     ),
-    reference_videos: list[UploadFile] = File(
-        default=[],
-        description="Optional reference videos for the visual/VLM judge",
-    ),
     reference_descriptions: str = Form(
         default="",
         description=(
             "Optional JSON array of descriptions parallel to reference_images"
         ),
     ),
-    reference_video_descriptions: str = Form(
-        default="",
-        description=(
-            "Optional JSON array of descriptions parallel to reference_videos"
-        ),
-    ),
-    reference_video_frames: int = Form(
-        default=DEFAULT_REFERENCE_VIDEO_FRAMES,
-        description="Frames to extract from each reference video for visual judging",
-    ),
     judge_reference_frames: int = Form(
         default=DEFAULT_JUDGE_REFERENCE_FRAMES,
-        description="Max reference images/video frames to send to the VLM judge",
+        description="Max reference images to send to the VLM judge",
     ),
     judge_generated_frames: int = Form(
         default=DEFAULT_JUDGE_GENERATED_FRAMES,
@@ -508,6 +752,7 @@ async def create_tune(
     ),
     engine: str = Form(
         default="ovphysx",
+        json_schema_extra={"enum": list(SUPPORTED_ENGINES)},
         description=(
             "Tuning engine: ovphysx (PhysX 5 daemon, production), "
             "newton (NVIDIA Newton GPU/MuJoCo-warp; requires the "
@@ -546,6 +791,7 @@ async def create_tune(
     ),
 ) -> SessionCreated:
     """Create a tuning session and queue it for background execution."""
+    await _reject_unsupported_video_request(request)
     sources_set = sum(1 for s in (physics_usd, s3_uri, source_session_id) if s)
     if sources_set != 1:
         raise HTTPException(
@@ -596,7 +842,6 @@ async def create_tune(
         {
             "user_prompt": user_prompt_text or None,
             "reference_descriptions": reference_descriptions,
-            "reference_video_descriptions": reference_video_descriptions,
             "s3_uri": s3_uri,
         },
         yaml_documents={"scenario_yaml": scenario_yaml_text},
@@ -626,10 +871,6 @@ async def create_tune(
             ),
         )
     try:
-        reference_video_frames = validate_visual_frame_count(
-            "reference_video_frames",
-            reference_video_frames,
-        )
         judge_reference_frames = validate_visual_frame_count(
             "judge_reference_frames",
             judge_reference_frames,
@@ -641,22 +882,14 @@ async def create_tune(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     reference_image_uploads = _nonempty_uploads(reference_images)
-    reference_video_uploads = _nonempty_uploads(reference_videos)
-    reference_upload_count = len(reference_image_uploads) + len(reference_video_uploads)
-    if reference_upload_count > _MAX_REFERENCE_UPLOADS:
+    if len(reference_image_uploads) > _MAX_REFERENCE_UPLOADS:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Too many reference media files. Max total: {_MAX_REFERENCE_UPLOADS}"
-            ),
+            detail=f"Too many reference images. Max total: {_MAX_REFERENCE_UPLOADS}",
         )
     parsed_reference_descriptions = _parse_reference_descriptions(
         reference_descriptions,
         "reference_descriptions",
-    )
-    parsed_reference_video_descriptions = _parse_reference_descriptions(
-        reference_video_descriptions,
-        "reference_video_descriptions",
     )
     if parsed_reference_descriptions is not None and len(
         parsed_reference_descriptions
@@ -666,16 +899,6 @@ async def create_tune(
             detail=(
                 "reference_descriptions must have one item per reference image "
                 f"({len(reference_image_uploads)} expected)"
-            ),
-        )
-    if parsed_reference_video_descriptions is not None and len(
-        parsed_reference_video_descriptions
-    ) != len(reference_video_uploads):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "reference_video_descriptions must have one item per reference "
-                f"video ({len(reference_video_uploads)} expected)"
             ),
         )
     if source_session_id is not None and source_session_id.strip():
@@ -708,11 +931,9 @@ async def create_tune(
     # interpreter merges (explicit fields win on every conflict). A partial
     # override (e.g. just ``parameters: ...`` to lock the search bounds) is
     # legitimate, so we only enforce the full ``load_scenario`` schema here
-    # for YAML-only submissions. With ``user_prompt`` present we do the
-    # cheap YAML-shape validation (parses to a mapping, has a known
-    # ``name``) so we still gate engine/scenario capability up-front, but we
-    # leave the full ``parameters`` / ``target`` requirements to the
-    # interpreter+merge inside the worker.
+    # for YAML-only submissions. With ``user_prompt`` present we still validate
+    # any supplied parameter block independently, then leave the remaining
+    # scenario fields to the interpreter+merge inside the worker.
     if has_scenario:
         try:
             scenario_data = yaml.safe_load(scenario_yaml_text)
@@ -726,6 +947,15 @@ async def create_tune(
                 status_code=400,
                 detail="scenario_yaml must parse to a mapping",
             )
+        if user_prompt_text and "parameters" in scenario_data:
+            try:
+                from physics_agent.tuning.scenario import (
+                    validate_scenario_parameters,
+                )
+
+                validate_scenario_parameters(scenario_data["parameters"])
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid scenario: {e}")
         scenario_param_names = _scenario_param_names_from_mapping(scenario_data)
         # Resolve the scenario name for the capability check.
         scenario_name_value = scenario_data.get("name")
@@ -850,23 +1080,13 @@ async def create_tune(
 
     try:
         max_reference_batch_bytes = config.max_upload_size_mb * 1024 * 1024
-        reference_image_paths, reference_batch_bytes = await _copy_reference_uploads(
+        reference_image_paths, _ = await _copy_reference_uploads(
             uploads=reference_image_uploads,
             session_dir=session_dir,
             subdir="reference_images",
             file_prefix="reference_image",
             valid_extensions=_VALID_REFERENCE_IMAGE_EXTENSIONS,
             label="reference image",
-            max_batch_bytes=max_reference_batch_bytes,
-        )
-        reference_video_paths, _reference_batch_bytes = await _copy_reference_uploads(
-            uploads=reference_video_uploads,
-            session_dir=session_dir,
-            subdir="reference_videos",
-            file_prefix="reference_video",
-            valid_extensions=_VALID_REFERENCE_VIDEO_EXTENSIONS,
-            label="reference video",
-            current_batch_bytes=reference_batch_bytes,
             max_batch_bytes=max_reference_batch_bytes,
         )
     except HTTPException:
@@ -911,10 +1131,7 @@ async def create_tune(
                     str(user_prompt_path) if user_prompt_path else None
                 ),
                 "reference_images": [str(p) for p in reference_image_paths],
-                "reference_videos": [str(p) for p in reference_video_paths],
                 "reference_descriptions": parsed_reference_descriptions,
-                "reference_video_descriptions": (parsed_reference_video_descriptions),
-                "reference_video_frames": reference_video_frames,
                 "judge_reference_frames": judge_reference_frames,
                 "judge_generated_frames": judge_generated_frames,
                 "enable_judge": enable_judge,
@@ -932,31 +1149,34 @@ async def create_tune(
     # /pipeline (executor lives in workers/, imported only when registering).
     from ..workers.tune_executor import execute_tune_async
 
-    await job_registry.register(
-        session_id,
-        execute_tune_async(
-            session_id=session_id,
-            session_manager=manager,
-            scenario_path=scenario_path,
-            user_prompt=user_prompt_text or None,
-            physics_usd=input_physics,
-            reference_images=reference_image_paths,
-            reference_videos=reference_video_paths,
-            reference_descriptions=parsed_reference_descriptions,
-            reference_video_descriptions=parsed_reference_video_descriptions,
-            reference_video_frames=reference_video_frames,
-            judge_reference_frames=judge_reference_frames,
-            judge_generated_frames=judge_generated_frames,
-            engine=engine,
-            optimizer=optimizer,
-            max_trials=max_trials,
-            seed=seed,
-            enable_judge=enable_judge,
-            judge_max_iterations=judge_max_iterations,
-            judge_max_tokens=judge_max_tokens,
-            judge_temperature=judge_temperature,
-        ),
+    worker = execute_tune_async(
+        session_id=session_id,
+        session_manager=manager,
+        scenario_path=scenario_path,
+        user_prompt=user_prompt_text or None,
+        physics_usd=input_physics,
+        reference_images=reference_image_paths,
+        reference_descriptions=parsed_reference_descriptions,
+        judge_reference_frames=judge_reference_frames,
+        judge_generated_frames=judge_generated_frames,
+        engine=engine,
+        optimizer=optimizer,
+        max_trials=max_trials,
+        seed=seed,
+        enable_judge=enable_judge,
+        judge_max_iterations=judge_max_iterations,
+        judge_max_tokens=judge_max_tokens,
+        judge_temperature=judge_temperature,
     )
+    maintain_lease = getattr(manager, "maintain_generation_lease", None)
+    if maintain_lease is None:
+        await job_registry.register(session_id, worker)
+    else:
+        await job_registry.register(
+            session_id,
+            worker,
+            wait_heartbeat=maintain_lease,
+        )
 
     logger.info(f"Tune queued for session {session_id}")
     return SessionCreated(
@@ -993,10 +1213,15 @@ async def get_tune_status(session_id: str) -> TuneStatus:
         created_at = created_at.replace(tzinfo=UTC)
     elapsed = int((now - created_at).total_seconds())
 
-    snapshot = event_bus.get_snapshot(session_id) or {}
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    ) or {}
     n_trials = 0
     max_trials = 0
     best_score: float | None = None
+    best_objective: float | None = None
     best_params: dict[str, float] | None = None
 
     # Trial counters live on the live snapshot for in-flight runs.
@@ -1019,6 +1244,7 @@ async def get_tune_status(session_id: str) -> TuneStatus:
     # Pass the raw value through the same coercion helper so the
     # symmetry holds and the status response stays JSON-serialisable.
     best_score = _coerce_finite_score(results.get("best_score", best_score))
+    best_objective = _coerce_finite_score(results.get("best_objective", best_objective))
     best_params = results.get("best_params", best_params)
 
     config = metadata.get("config") or {}
@@ -1031,6 +1257,7 @@ async def get_tune_status(session_id: str) -> TuneStatus:
         n_trials=n_trials,
         max_trials=max_trials,
         best_score=best_score,
+        best_objective=best_objective,
         best_params=best_params,
         elapsed_seconds=elapsed,
         can_cancel=metadata.get("status") in ("pending", "running"),
@@ -1058,6 +1285,9 @@ async def get_tune_results(session_id: str):
             best_score=_coerce_finite_score(
                 metadata.get("results", {}).get("best_score")
             ),
+            best_objective=_coerce_finite_score(
+                metadata.get("results", {}).get("best_objective")
+            ),
             n_trials=metadata.get("results", {}).get("n_trials", 0),
             optimizer_used=metadata.get("results", {}).get("optimizer_used", ""),
             engine_used=metadata.get("results", {}).get("engine_used", ""),
@@ -1073,6 +1303,7 @@ async def get_tune_results(session_id: str):
                 status=status,
                 best_params=results.get("best_params", {}),
                 best_score=_coerce_finite_score(results.get("best_score")),
+                best_objective=_coerce_finite_score(results.get("best_objective")),
                 n_trials=results.get("n_trials", 0),
                 optimizer_used=results.get("optimizer_used", ""),
                 engine_used=results.get("engine_used", ""),
@@ -1103,6 +1334,7 @@ async def get_tune_results(session_id: str):
             status=status,
             best_params=results.get("best_params", {}),
             best_score=_coerce_finite_score(results.get("best_score")),
+            best_objective=_coerce_finite_score(results.get("best_objective")),
             n_trials=results.get("n_trials", 0),
             optimizer_used=results.get("optimizer_used", ""),
             engine_used=results.get("engine_used", ""),
@@ -1200,7 +1432,11 @@ async def stream_tune_events(session_id: str):
     event_bus = get_event_bus()
     manager = get_session_manager()
 
-    snapshot = event_bus.get_snapshot(session_id)
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    )
     if snapshot is None and not await manager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
 

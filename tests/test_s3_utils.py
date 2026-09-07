@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for S3 utility functions."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from botocore.exceptions import NoCredentialsError, ProfileNotFound
+from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 
 
 class TestCreateS3Client:
@@ -34,6 +35,31 @@ class TestCreateS3Client:
             client = _create_s3_client(None)
             mock_ctor.assert_called_once_with("s3")
             assert client == mock_client
+
+    def test_with_explicit_s3_compatible_client_settings(self) -> None:
+        """Explicit endpoint and credentials are forwarded to boto3."""
+        from world_understanding.utils.s3_utils import _create_s3_client
+
+        mock_client = MagicMock()
+        with patch("boto3.client", return_value=mock_client) as mock_ctor:
+            client = _create_s3_client(
+                None,
+                region_name="us-west-2",
+                endpoint_url="https://s3.example.com",
+                aws_access_key_id="test-access-key",
+                aws_secret_access_key="test-secret-key",
+                aws_session_token="test-session-token",
+                use_path_style=True,
+            )
+
+        assert client == mock_client
+        _, kwargs = mock_ctor.call_args
+        assert kwargs["region_name"] == "us-west-2"
+        assert kwargs["endpoint_url"] == "https://s3.example.com"
+        assert kwargs["aws_access_key_id"] == "test-access-key"
+        assert kwargs["aws_secret_access_key"] == "test-secret-key"
+        assert kwargs["aws_session_token"] == "test-session-token"
+        assert kwargs["config"].s3 == {"addressing_style": "path"}
 
     def test_fallback_when_profile_not_found(self) -> None:
         """Test that missing profile falls back to default credentials."""
@@ -81,6 +107,207 @@ class TestCreateS3Client:
             pytest.raises(ValueError, match="No AWS credentials available"),
         ):
             _create_s3_client(None)
+
+
+class TestDownloadFileFromS3:
+    """Tests for configured downloads and stable error translation."""
+
+    def test_forwards_explicit_client_settings(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        destination = tmp_path / "scene.usda"
+        with patch.object(
+            s3_utils,
+            "_create_s3_client",
+            return_value=mock_client,
+        ) as mock_create:
+            result = s3_utils.download_file_from_s3(
+                "s3://approved/scene.usda",
+                destination,
+                region_name="us-west-2",
+                endpoint_url="https://s3.example.com",
+                aws_access_key_id="test-access-key",
+                aws_secret_access_key="test-secret-key",
+                aws_session_token="test-session-token",
+                use_path_style=True,
+            )
+
+        assert result == str(destination)
+        mock_create.assert_called_once_with(
+            None,
+            region_name="us-west-2",
+            endpoint_url="https://s3.example.com",
+            aws_access_key_id="test-access-key",
+            aws_secret_access_key="test-secret-key",
+            aws_session_token="test-session-token",
+            use_path_style=True,
+        )
+
+    def test_success_log_escapes_destination_line_breaks(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        destination = tmp_path / "scene\nforged-log-line.usda"
+        with (
+            patch.object(s3_utils, "_create_s3_client", return_value=mock_client),
+            caplog.at_level("INFO"),
+        ):
+            result = s3_utils.download_file_from_s3(
+                "s3://approved/scene.usda",
+                destination,
+            )
+
+        assert result == str(destination)
+        assert r"scene\nforged-log-line.usda" in caplog.text
+        assert str(destination) not in caplog.text
+
+    @pytest.mark.parametrize("error_code", ["403", "AccessDenied", "Forbidden"])
+    def test_translates_access_denials_to_permission_error(
+        self,
+        tmp_path,  # type: ignore[no-untyped-def]
+        error_code: str,
+    ) -> None:
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        mock_client.download_file.side_effect = ClientError(
+            {"Error": {"Code": error_code, "Message": "denied"}},
+            "HeadObject",
+        )
+        with (
+            patch.object(
+                s3_utils,
+                "_create_s3_client",
+                return_value=mock_client,
+            ),
+            pytest.raises(PermissionError, match="Access denied"),
+        ):
+            s3_utils.download_file_from_s3(
+                "s3://approved/scene.usda",
+                tmp_path / "scene.usda",
+            )
+
+    @pytest.mark.parametrize("error_code", ["404", "NoSuchKey"])
+    def test_translates_missing_object_preflight_to_file_not_found(
+        self,
+        tmp_path,  # type: ignore[no-untyped-def]
+        error_code: str,
+    ) -> None:
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        mock_client.head_object.side_effect = ClientError(
+            {"Error": {"Code": error_code, "Message": "missing"}},
+            "HeadObject",
+        )
+        with (
+            patch.object(
+                s3_utils,
+                "_create_s3_client",
+                return_value=mock_client,
+            ),
+            pytest.raises(FileNotFoundError, match="does not exist"),
+        ):
+            s3_utils.download_file_from_s3(
+                "s3://approved/missing.usda",
+                tmp_path / "missing.usda",
+                max_bytes=10,
+            )
+
+        mock_client.download_file.assert_not_called()
+
+    def test_rejects_oversized_object_before_transfer(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        mock_client.head_object.return_value = {"ContentLength": 11}
+        with (
+            patch.object(
+                s3_utils,
+                "_create_s3_client",
+                return_value=mock_client,
+            ),
+            pytest.raises(s3_utils.S3DownloadSizeExceededError),
+        ):
+            s3_utils.download_file_from_s3(
+                "s3://approved/scene.usda",
+                tmp_path / "scene.usda",
+                max_bytes=10,
+            )
+
+        mock_client.download_file.assert_not_called()
+
+    def test_aborts_transfer_if_object_grows_past_limit(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        mock_client.head_object.return_value = {"ContentLength": 10}
+
+        def transfer(
+            _bucket: str,
+            _key: str,
+            _destination: str,
+            *,
+            Callback,
+        ) -> None:  # type: ignore[no-untyped-def]
+            Callback(6)
+            Callback(5)
+
+        mock_client.download_file.side_effect = transfer
+        with (
+            patch.object(
+                s3_utils,
+                "_create_s3_client",
+                return_value=mock_client,
+            ),
+            pytest.raises(s3_utils.S3DownloadSizeExceededError),
+        ):
+            s3_utils.download_file_from_s3(
+                "s3://approved/scene.usda",
+                tmp_path / "scene.usda",
+                max_bytes=10,
+            )
+
+    def test_bounded_transfer_forwards_progress_callback(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        from world_understanding.utils import s3_utils
+
+        mock_client = MagicMock()
+        mock_client.head_object.return_value = {"ContentLength": 10}
+        forwarded: list[int] = []
+
+        def transfer(
+            _bucket: str,
+            _key: str,
+            _destination: str,
+            *,
+            Callback,
+        ) -> None:  # type: ignore[no-untyped-def]
+            Callback(4)
+            Callback(6)
+
+        mock_client.download_file.side_effect = transfer
+        with patch.object(
+            s3_utils,
+            "_create_s3_client",
+            return_value=mock_client,
+        ):
+            result = s3_utils.download_file_from_s3(
+                "s3://approved/scene.usda",
+                tmp_path / "scene.usda",
+                callback=forwarded.append,
+                max_bytes=10,
+            )
+
+        assert result == str(tmp_path / "scene.usda")
+        assert forwarded == [4, 6]
 
 
 class TestUploadFileToS3Preconditions:

@@ -47,6 +47,10 @@ OVRTX_RENDERING_API_PUBLIC_DOCKERFILES = [
     REPO_ROOT / "apps" / "ovrtx_rendering_api" / "Dockerfile",
 ]
 
+USD_CLI_OVRTX_RENDERING_API_DOCKERFILES = [
+    REPO_ROOT / "apps" / "usd_cli" / "apps" / "ovrtx_rendering_api" / "Dockerfile",
+]
+
 TEXTURE_AGENT_DOCKERFILES = [
     REPO_ROOT / "apps" / "texture_agent_service" / "Dockerfile",
     REPO_ROOT / "apps" / "texture_agent_service" / "Dockerfile.ci",
@@ -709,6 +713,209 @@ def test_joint_ci_installs_app_before_ovrtx_provisioning() -> None:
         f"provisioning; found install at instruction {install_idx} and "
         f"provisioning at instruction {provision_idx}"
     )
+
+
+@pytest.mark.parametrize(
+    "dockerfile",
+    JOINT_AGENT_DOCKERFILES,
+    ids=[_rel(path) for path in JOINT_AGENT_DOCKERFILES],
+)
+def test_joint_ovrtx_runtime_stays_root_owned_and_is_executable(
+    dockerfile: Path,
+) -> None:
+    """Keep OVRTX immutable except for its redirected runtime shader cache."""
+    if not dockerfile.exists():
+        pytest.skip(f"{dockerfile} not present in this checkout (e.g. public mirror)")
+
+    content = dockerfile.read_text()
+    instructions = _docker_instructions(content)
+    assert "chown -R joint-agent:joint-agent /opt/ovrtx_venv" not in content
+    assert any(
+        instruction.startswith("RUN ")
+        and "su -s /bin/sh -c" in instruction
+        and "/opt/ovrtx_venv/bin/python" in instruction
+        and "import ovrtx" in instruction
+        for instruction in instructions
+    )
+
+    cache_index = next(
+        index
+        for index, instruction in enumerate(instructions)
+        if instruction.startswith("RUN ")
+        and 'OVRTX_BIN="$(/opt/ovrtx_venv/bin/python' in instruction
+        and "Path(ovrtx.__file__).resolve().parent" in instruction
+        and "install -d -o joint-agent -g joint-agent" in instruction
+        and "/home/joint-agent/.cache/ovrtx-nv-shadercache" in instruction
+        and 'chown -R joint-agent:joint-agent "$OVRTX_BIN/cache"' in instruction
+        and 'rm -rf "$OVRTX_BIN/cache/nv_shadercache"' in instruction
+        and "ln -s /home/joint-agent/.cache/ovrtx-nv-shadercache" in instruction
+    )
+    assert cache_index < instructions.index("USER joint-agent")
+    assert any(
+        instruction.startswith("RUN ")
+        and "su -s /bin/sh -c" in instruction
+        and 'test -w "$cache"' in instruction
+        and 'touch "$cache/.write-probe"' in instruction
+        and 'rm "$cache/.write-probe"' in instruction
+        for instruction in instructions[: instructions.index("USER joint-agent")]
+    )
+    assert "HOME=/home/joint-agent" in content
+    assert "XDG_CACHE_HOME=/home/joint-agent/.cache" in content
+
+
+@pytest.mark.parametrize(
+    "dockerfile",
+    USD_CLI_OVRTX_RENDERING_API_DOCKERFILES,
+    ids=[_rel(path) for path in USD_CLI_OVRTX_RENDERING_API_DOCKERFILES],
+)
+def test_usd_cli_ovrtx_image_prebuilt_runtimes_are_ready_for_nonroot_runtime(
+    dockerfile: Path,
+) -> None:
+    """Guard both root-owned native venvs used by the nested service image."""
+    if not dockerfile.exists():
+        pytest.skip(f"{dockerfile} not present in this checkout (e.g. public mirror)")
+
+    content = dockerfile.read_text()
+    instructions = _docker_instructions(content)
+    assert "chown -R dsc:dsc /opt/ovrtx_venv" not in content
+    assert "chown -R dsc:dsc /opt/ovphysx_venv" not in content
+
+    # Generate the same canonical profile-and-lock marker usd_core validates.
+    # Importing the helper keeps the schema and qualified native versions in
+    # one place; the selected lock digest also binds numpy and pillow.
+    ovrtx_provision = next(
+        instruction
+        for instruction in instructions
+        if "/opt/ovrtx_venv/.usd-cli-ovrtx-ready" in instruction
+    )
+    assert (
+        "from usd_core.render.ovrtx import OVRTX_RUNTIME_LOCK, "
+        "_readiness_marker_body" in ovrtx_provision
+    )
+    assert (
+        "print(_readiness_marker_body(OVRTX_RUNTIME_LOCK), end='')" in ovrtx_provision
+    )
+    assert "_READY_MARKER_VALUE" not in content
+    assert "runtime_lock_sha256=$(sha256sum" not in content
+    assert "touch /opt/ovrtx_venv/.usd-cli-ovrtx-ready" not in content
+    assert "touch /opt/ovphysx_venv/.usd-cli-ovphysx-ready" not in content
+    ovphysx_provision = next(
+        instruction
+        for instruction in instructions
+        if "/opt/ovphysx_venv/.usd-cli-ovphysx-ready" in instruction
+    )
+    assert "_ovphysx_readiness_marker_body" in ovphysx_provision
+    assert "Path('/opt/ovphysx_venv/bin/python')" in ovphysx_provision
+    assert "PHYSX_LOCK=/app/repo/src/usd_core/pylock.ovphysx-runtime.toml" in content
+    assert "pylock.ovphysx-runtime.aarch64.toml" in content
+    assert "pylock.ovphysx-runtime.py311.toml" in content
+    assert "pylock.ovphysx-runtime.py311.aarch64.toml" in content
+    assert "PhysX(device='cpu'); physics.release()" in ovphysx_provision
+    assert '"ovphysx @ ${OVPHYSX_WHEEL}"' in content
+    assert '"numpy @ ${NUMPY_PHYSX_WHEEL}"' in content
+    assert '"packaging @ ${PACKAGING_WHEEL}"' in content
+    assert "ovphysx==" not in content
+
+    # BuildKit must identify one of the two qualified architectures, and the
+    # ABI-specific packages must cover both supported Python minors.
+    assert 'case "${TARGETARCH}" in amd64|arm64' in content
+    assert 'case "${PYTHON_MINOR}/${TARGETARCH}" in' in content
+    for target in ("3.11/amd64", "3.11/arm64", "3.12/amd64", "3.12/arm64"):
+        assert f"{target})" in content
+
+    for variable in ("OVRTX_WHEEL", "OVSTAGE_WHEEL", "WARP_WHEEL"):
+        artifacts = re.findall(rf'{variable}="([^"]+)"', content)
+        assert len(artifacts) == 2
+        assert any("x86_64" in artifact for artifact in artifacts)
+        assert any("aarch64" in artifact for artifact in artifacts)
+        assert all(
+            re.search(r"#sha256=[0-9a-f]{64}$", artifact) for artifact in artifacts
+        )
+
+    for variable in ("NUMPY_WHEEL", "PILLOW_WHEEL"):
+        artifacts = re.findall(rf'{variable}="([^"]+)"', content)
+        assert len(artifacts) == 4
+        for python_tag in ("cp311-cp311", "cp312-cp312"):
+            assert sum(python_tag in artifact for artifact in artifacts) == 2
+        assert sum("x86_64" in artifact for artifact in artifacts) == 2
+        assert sum("aarch64" in artifact for artifact in artifacts) == 2
+        assert all(
+            re.search(r"#sha256=[0-9a-f]{64}$", artifact) for artifact in artifacts
+        )
+
+    for requirement in (
+        '"ovrtx @ ${OVRTX_WHEEL}"',
+        '"ovstage @ ${OVSTAGE_WHEEL}"',
+        '"warp-lang @ ${WARP_WHEEL}"',
+        '"numpy @ ${NUMPY_WHEEL}"',
+        '"pillow @ ${PILLOW_WHEEL}"',
+    ):
+        assert requirement in content
+    assert '"numpy==' not in content
+    assert '"pillow==' not in content
+
+    root_probe_index = content.index("import importlib.metadata as m")
+    marker_index = content.index(
+        "from usd_core.render.ovrtx import OVRTX_RUNTIME_LOCK, _readiness_marker_body"
+    )
+    assert root_probe_index < marker_index
+    for package, version in (
+        ("ovrtx", "0.4.1.364340"),
+        ("ovstage", "0.1.1.355824"),
+        ("warp-lang", "1.16.0"),
+        ("numpy", "2.4.6"),
+        ("pillow", "12.3.0"),
+    ):
+        assert f"'{package}': '{version}'" in content
+
+    runtime_user_index = instructions.index("USER 10001:10001")
+    cache_index = next(
+        index
+        for index, instruction in enumerate(instructions)
+        if instruction.startswith("RUN ")
+        and 'OVRTX_BIN="$(/opt/ovrtx_venv/bin/python' in instruction
+        and "Path(ovrtx.__file__).resolve().parent" in instruction
+        and "install -d -o dsc -g dsc" in instruction
+        and "/home/dsc/.cache/ovrtx-nv-shadercache" in instruction
+        and 'chown -R dsc:dsc "$OVRTX_BIN/cache"' in instruction
+        and 'rm -rf "$OVRTX_BIN/cache/nv_shadercache"' in instruction
+        and "ln -s /home/dsc/.cache/ovrtx-nv-shadercache" in instruction
+    )
+    assert cache_index < runtime_user_index
+    assert any(
+        instruction.startswith("RUN ")
+        and "su -s /bin/sh -c" in instruction
+        and 'test -w "$cache"' in instruction
+        and 'touch "$cache/.write-probe"' in instruction
+        and 'rm "$cache/.write-probe"' in instruction
+        for instruction in instructions[:runtime_user_index]
+    )
+    assert "HOME=/home/dsc" in content
+    assert "XDG_CACHE_HOME=/home/dsc/.cache" in content
+
+    nonroot_ovrtx_probe = next(
+        instruction
+        for instruction in instructions[:runtime_user_index]
+        if instruction.startswith("RUN ")
+        and "su -s /bin/sh -c" in instruction
+        and "/opt/ovrtx_venv/bin/python" in instruction
+    )
+    assert "import ovrtx, ovstage, warp, numpy" in nonroot_ovrtx_probe
+    assert "from PIL import Image" in nonroot_ovrtx_probe
+
+    for python, import_probe in (
+        ("/opt/ovrtx_venv/bin/python", "import ovrtx"),
+        ("/opt/ovphysx_venv/bin/python", "from ovphysx import PhysX"),
+    ):
+        probe_index = next(
+            index
+            for index, instruction in enumerate(instructions)
+            if instruction.startswith("RUN ")
+            and "su -s /bin/sh -c" in instruction
+            and python in instruction
+            and import_probe in instruction
+        )
+        assert probe_index < runtime_user_index
 
 
 @pytest.mark.parametrize(

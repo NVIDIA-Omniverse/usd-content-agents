@@ -95,8 +95,10 @@ class MaterialDecision:
     prim_path: str | None = None
     reuse_key: str | None = None
     creation_intent_id: str | None = None
+    modification_intent_id: str | None = None
     explicit_action: MaterialAction | None = None
     recipe: MaterialRecipe | None = field(default=None, repr=False, compare=False)
+    source: MaterialSource | None = field(default=None, repr=False, compare=False)
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -112,10 +114,14 @@ class MaterialDecision:
             data["reuse_key"] = self.reuse_key
         if self.creation_intent_id is not None:
             data["creation_intent_id"] = self.creation_intent_id
+        if self.modification_intent_id is not None:
+            data["modification_intent_id"] = self.modification_intent_id
         if self.explicit_action is not None:
             data["explicit_action"] = self.explicit_action.value
         if self.recipe is not None:
             data["recipe"] = self.recipe.to_dict()
+        if self.source is not None:
+            data["source"] = self.source.to_dict()
         return data
 
     @classmethod
@@ -124,6 +130,7 @@ class MaterialDecision:
             raise TypeError("material decision entries must be mappings")
         explicit_action = data.get("explicit_action")
         recipe_data = data.get("recipe")
+        source_data = data.get("source")
         recipe = (
             MaterialRecipe.from_dict(dict(recipe_data))
             if isinstance(recipe_data, Mapping)
@@ -138,12 +145,18 @@ class MaterialDecision:
             prim_path=_optional_text(data.get("prim_path")),
             reuse_key=_optional_text(data.get("reuse_key")),
             creation_intent_id=_optional_text(data.get("creation_intent_id")),
+            modification_intent_id=_optional_text(data.get("modification_intent_id")),
             explicit_action=(
                 MaterialAction(str(explicit_action))
                 if explicit_action is not None
                 else None
             ),
             recipe=recipe,
+            source=(
+                MaterialSource.from_dict(source_data)
+                if isinstance(source_data, Mapping)
+                else None
+            ),
         )
 
 
@@ -190,11 +203,81 @@ class MaterialCreationIntent:
 
 
 @dataclass(frozen=True)
+class MaterialSource:
+    """Exact existing USD material selected for deterministic modification."""
+
+    source_material_usd: str
+    source_material_prim_path: str
+    source_material_sha256: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "source_material_usd": self.source_material_usd,
+            "source_material_prim_path": self.source_material_prim_path,
+        }
+        if self.source_material_sha256 is not None:
+            data["source_material_sha256"] = self.source_material_sha256
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> MaterialSource:
+        return cls(
+            source_material_usd=str(data.get("source_material_usd", "")),
+            source_material_prim_path=str(data.get("source_material_prim_path", "")),
+            source_material_sha256=_optional_text(data.get("source_material_sha256")),
+        )
+
+
+@dataclass(frozen=True)
+class MaterialModificationIntent:
+    """Run-local modification intent shared by compatible prim requirements."""
+
+    intent_id: str
+    reuse_key: str
+    source: MaterialSource
+    recipe: MaterialRecipe
+    target_prim_paths: tuple[str, ...]
+    decision_indices: tuple[int, ...]
+    explicit: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "intent_id": self.intent_id,
+            "reuse_key": self.reuse_key,
+            **self.source.to_dict(),
+            "recipe": self.recipe.to_dict(),
+            "target_prim_paths": list(self.target_prim_paths),
+            "decision_indices": list(self.decision_indices),
+            "explicit": self.explicit,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> MaterialModificationIntent:
+        recipe_data = data.get("recipe")
+        if not isinstance(recipe_data, Mapping):
+            raise ValueError("material modification intent requires a recipe mapping")
+        return cls(
+            intent_id=str(data.get("intent_id", "")),
+            reuse_key=str(data.get("reuse_key", "")),
+            source=MaterialSource.from_dict(data),
+            recipe=MaterialRecipe.from_dict(dict(recipe_data)),
+            target_prim_paths=_string_tuple(data.get("target_prim_paths")),
+            decision_indices=tuple(
+                int(index)
+                for index in data.get("decision_indices", ())
+                if isinstance(index, int | str)
+            ),
+            explicit=bool(data.get("explicit", True)),
+        )
+
+
+@dataclass(frozen=True)
 class MaterialDecisionPlan:
     """Policy result consumed by later workflow and creation packages."""
 
     decisions: tuple[MaterialDecision, ...]
     creation_intents: tuple[MaterialCreationIntent, ...]
+    modification_intents: tuple[MaterialModificationIntent, ...] = ()
     conflicts: tuple[MaterialPolicyConflict, ...] = ()
 
     @property
@@ -207,6 +290,7 @@ class MaterialDecisionPlan:
         for decision in self.decisions:
             counts[decision.action.value] += 1
         counts["creation_intents"] = len(self.creation_intents)
+        counts["modification_intents"] = len(self.modification_intents)
         counts["conflicts"] = len(self.conflicts)
         return counts
 
@@ -214,6 +298,9 @@ class MaterialDecisionPlan:
         return {
             "decisions": [decision.to_dict() for decision in self.decisions],
             "creation_intents": [intent.to_dict() for intent in self.creation_intents],
+            "modification_intents": [
+                intent.to_dict() for intent in self.modification_intents
+            ],
             "conflicts": [conflict.to_dict() for conflict in self.conflicts],
             "stats": self.stats,
         }
@@ -233,6 +320,11 @@ class MaterialDecisionPlan:
                 for intent in data.get("creation_intents", ())
                 if isinstance(intent, Mapping)
             ),
+            modification_intents=tuple(
+                MaterialModificationIntent.from_dict(intent)
+                for intent in data.get("modification_intents", ())
+                if isinstance(intent, Mapping)
+            ),
             conflicts=tuple(
                 MaterialPolicyConflict.from_dict(conflict)
                 for conflict in data.get("conflicts", ())
@@ -246,6 +338,7 @@ def plan_material_actions(
     *,
     matched_materials: Mapping[str, Sequence[Any]] | None = None,
     resolved_materials: Mapping[str, str] | None = None,
+    material_sources: Mapping[str, Mapping[str, Any]] | None = None,
     allow_creation: bool = True,
 ) -> MaterialDecisionPlan:
     """Select material actions after existing material retrieval has run.
@@ -260,6 +353,7 @@ def plan_material_actions(
 
     matched_by_name = _normalize_mapping_keys(matched_materials or {})
     resolved_by_name = _normalize_mapping_keys(resolved_materials or {})
+    sources_by_name = _normalize_mapping_keys(material_sources or {})
 
     decisions: list[MaterialDecision] = []
     conflicts: list[MaterialPolicyConflict] = []
@@ -315,6 +409,7 @@ def plan_material_actions(
             reason = "creation disabled; leaving unresolved material for existing path"
 
         recipe = None
+        source = None
         reuse_key = None
         if action is MaterialAction.CREATE_NEW:
             try:
@@ -343,17 +438,60 @@ def plan_material_actions(
                             reuse_key=reuse_key,
                         )
                     )
-        elif action is MaterialAction.MODIFY_EXISTING and not has_existing:
-            conflicts.append(
-                MaterialPolicyConflict(
-                    code="missing_existing_material_match",
-                    message=(
-                        "modify_existing requires a matched existing material "
-                        "before texture variation can run"
-                    ),
-                    prim_paths=_prim_paths_for_conflict(prim_path),
+        elif action is MaterialAction.MODIFY_EXISTING:
+            if not has_existing:
+                conflicts.append(
+                    MaterialPolicyConflict(
+                        code="missing_existing_material_match",
+                        message="modify_existing requires a matched existing material",
+                        prim_paths=_prim_paths_for_conflict(prim_path),
+                    )
                 )
-            )
+            else:
+                try:
+                    recipe = _recipe_from_prediction(prediction, material, prim_path)
+                except Exception as exc:
+                    conflicts.append(
+                        MaterialPolicyConflict(
+                            code="invalid_modification_recipe",
+                            message=(
+                                "modification prediction could not be normalized "
+                                f"into a valid MaterialRecipe: {exc}"
+                            ),
+                            prim_paths=_prim_paths_for_conflict(prim_path),
+                        )
+                    )
+                else:
+                    reuse_key = recipe.material_id
+                    source = _material_source_for(
+                        material,
+                        material_sources=sources_by_name,
+                        matched_materials=matched_by_name,
+                        resolved_materials=resolved_by_name,
+                    )
+                    if source is None:
+                        conflicts.append(
+                            MaterialPolicyConflict(
+                                code="missing_modifiable_material_source",
+                                message=(
+                                    "modify_existing requires an exact source "
+                                    "material USD and material prim path"
+                                ),
+                                reuse_key=reuse_key,
+                                prim_paths=_prim_paths_for_conflict(prim_path),
+                            )
+                        )
+                    if prim_path is None:
+                        conflicts.append(
+                            MaterialPolicyConflict(
+                                code="missing_target_prim_path",
+                                message=(
+                                    "modification requires an absolute target prim "
+                                    "path before a MaterialAuthoringRequest can be built"
+                                ),
+                                reuse_key=reuse_key,
+                            )
+                        )
         elif action is MaterialAction.ASSIGN_EXISTING and (
             not has_existing
             or (explicit_action is MaterialAction.CREATE_NEW and not allow_creation)
@@ -386,16 +524,26 @@ def plan_material_actions(
                 reuse_key=reuse_key,
                 explicit_action=explicit_action,
                 recipe=recipe,
+                source=source,
             )
         )
 
     creation_intents, reuse_conflicts = _build_creation_intents(decisions)
     conflicts.extend(reuse_conflicts)
-    decisions = _attach_creation_intent_ids(decisions, creation_intents)
+    modification_intents, modification_conflicts = _build_modification_intents(
+        decisions
+    )
+    conflicts.extend(modification_conflicts)
+    decisions = _attach_intent_ids(
+        decisions,
+        creation_intents,
+        modification_intents,
+    )
 
     return MaterialDecisionPlan(
         decisions=tuple(decisions),
         creation_intents=tuple(creation_intents),
+        modification_intents=tuple(modification_intents),
         conflicts=tuple(conflicts),
     )
 
@@ -434,12 +582,14 @@ class MaterialDecisionPolicyTask(Task):
             predictions_data,
             matched_materials=context.get("matched_materials"),
             resolved_materials=context.get("resolved_materials"),
+            material_sources=context.get("material_sources"),
             allow_creation=allow_creation,
         )
         result = plan.to_dict()
         context["material_decision_policy_result"] = result
         context["material_action_decisions"] = result["decisions"]
         context["material_creation_intents"] = result["creation_intents"]
+        context["material_modification_intents"] = result["modification_intents"]
         context["material_creation_policy_conflicts"] = result["conflicts"]
         context["material_creation_policy_stats"] = result["stats"]
 
@@ -560,6 +710,72 @@ def _has_existing_match(
     return bool(matches)
 
 
+def _source_from_mapping(value: Mapping[str, Any]) -> MaterialSource | None:
+    metadata = value.get("metadata")
+    metadata = metadata if isinstance(metadata, Mapping) else {}
+    library_path = value.get("library_path") or metadata.get("library_path")
+    usd_path = value.get("source_material_usd") or value.get("usd_path") or library_path
+    prim_path = (
+        value.get("source_material_prim_path")
+        or value.get("material_prim_path")
+        or value.get("binding")
+        or (value.get("source_path") if library_path else None)
+    )
+    if not isinstance(usd_path, str) or not usd_path.strip():
+        return None
+    if not isinstance(prim_path, str) or not prim_path.startswith("/"):
+        return None
+    digest = value.get("source_material_sha256") or value.get("usd_sha256")
+    return MaterialSource(
+        source_material_usd=usd_path.strip(),
+        source_material_prim_path=prim_path.strip(),
+        source_material_sha256=(
+            digest.strip() if isinstance(digest, str) and digest.strip() else None
+        ),
+    )
+
+
+def _material_source_for(
+    material: str,
+    *,
+    material_sources: Mapping[str, Any],
+    matched_materials: Mapping[str, Sequence[Any]],
+    resolved_materials: Mapping[str, str],
+) -> MaterialSource | None:
+    explicit = material_sources.get(material)
+    if isinstance(explicit, Mapping):
+        source = _source_from_mapping(explicit)
+        if source is not None:
+            return source
+
+    matches = matched_materials.get(material) or ()
+    for match in matches:
+        if isinstance(match, Mapping):
+            source = _source_from_mapping(match)
+            if source is not None:
+                return source
+
+    resolved = resolved_materials.get(material)
+    if not isinstance(resolved, str) or not resolved.lower().endswith(
+        (".usd", ".usda", ".usdc", ".usdz")
+    ):
+        return None
+    for match in matches:
+        if not isinstance(match, Mapping):
+            continue
+        prim_path = (
+            match.get("source_material_prim_path")
+            or match.get("material_prim_path")
+            or match.get("binding")
+        )
+        if isinstance(prim_path, str) and prim_path.startswith("/"):
+            return MaterialSource(
+                source_material_usd=resolved,
+                source_material_prim_path=prim_path,
+            )
+    return None
+
+
 def _material_payload(prediction: Mapping[str, Any]) -> Mapping[str, Any]:
     materials = prediction.get("materials")
     if isinstance(materials, Mapping):
@@ -673,6 +889,20 @@ def _recipe_from_prediction(
         _mapping_or_none(payload.get("pbr_hints"))
         or _mapping_or_none(prediction.get("pbr_hints"))
     )
+    raw_base_color_hint = payload.get("base_color_hint")
+    if raw_base_color_hint is None:
+        raw_base_color_hint = prediction.get("base_color_hint")
+    base_color_hint = (0.5, 0.5, 0.5)
+    if raw_base_color_hint is not None:
+        if not isinstance(raw_base_color_hint, list | tuple):
+            raise TypeError("base_color_hint must be a sequence")
+        if len(raw_base_color_hint) != 3:
+            raise ValueError("base_color_hint must contain exactly three values")
+        base_color_hint = (
+            float(raw_base_color_hint[0]),
+            float(raw_base_color_hint[1]),
+            float(raw_base_color_hint[2]),
+        )
     intended_parts: tuple[IntendedPart, ...] = ()
     if prim_path is not None:
         label = _first_text(
@@ -703,6 +933,7 @@ def _recipe_from_prediction(
             payload.get("material_type") or prediction.get("material_type")
         ),
         finish=_optional_text(payload.get("finish") or prediction.get("finish")),
+        base_color_hint=base_color_hint,
         pbr_hints=pbr_hints,
         reference_image_uris=_string_tuple(
             payload.get("reference_image_uris")
@@ -828,13 +1059,105 @@ def _build_creation_intents(
     return intents, conflicts
 
 
-def _attach_creation_intent_ids(
+def _build_modification_intents(
     decisions: Sequence[MaterialDecision],
-    intents: Sequence[MaterialCreationIntent],
+) -> tuple[list[MaterialModificationIntent], list[MaterialPolicyConflict]]:
+    grouped: dict[tuple[str, str, str], list[MaterialDecision]] = {}
+    fingerprints_by_reuse_key: dict[str, set[tuple[str, str]]] = {}
+    conflicts: list[MaterialPolicyConflict] = []
+    conflicting_reuse_keys: set[str] = set()
+
+    for decision in decisions:
+        if (
+            decision.action is not MaterialAction.MODIFY_EXISTING
+            or decision.recipe is None
+            or decision.source is None
+            or decision.prim_path is None
+        ):
+            continue
+        reuse_key = decision.reuse_key or decision.recipe.material_id
+        recipe_fingerprint = _recipe_fingerprint(decision.recipe)
+        source_fingerprint = hashlib.sha256(
+            json.dumps(
+                decision.source.to_dict(), sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        ).hexdigest()
+        grouped.setdefault(
+            (reuse_key, recipe_fingerprint, source_fingerprint), []
+        ).append(decision)
+        fingerprints_by_reuse_key.setdefault(reuse_key, set()).add(
+            (recipe_fingerprint, source_fingerprint)
+        )
+
+    for reuse_key, fingerprints in fingerprints_by_reuse_key.items():
+        if len(fingerprints) <= 1:
+            continue
+        conflicting_reuse_keys.add(reuse_key)
+        conflicts.append(
+            MaterialPolicyConflict(
+                code="modification_reuse_key_conflict",
+                message=(
+                    "multiple incompatible modification recipes or sources share "
+                    "one run-local reuse key"
+                ),
+                reuse_key=reuse_key,
+                prim_paths=tuple(
+                    sorted(
+                        {
+                            decision.prim_path
+                            for (key, _, _), values in grouped.items()
+                            if key == reuse_key
+                            for decision in values
+                            if decision.prim_path is not None
+                        }
+                    )
+                ),
+            )
+        )
+
+    intents: list[MaterialModificationIntent] = []
+    for (reuse_key, recipe_fingerprint, source_fingerprint), values in sorted(
+        grouped.items()
+    ):
+        if reuse_key in conflicting_reuse_keys:
+            continue
+        source = values[0].source
+        assert source is not None
+        target_paths = tuple(
+            sorted({value.prim_path for value in values if value.prim_path is not None})
+        )
+        intent_id = _modification_intent_id(
+            reuse_key,
+            recipe_fingerprint,
+            source_fingerprint,
+            target_paths,
+        )
+        intents.append(
+            MaterialModificationIntent(
+                intent_id=intent_id,
+                reuse_key=reuse_key,
+                source=source,
+                recipe=_merge_recipe_intended_parts(values),
+                target_prim_paths=target_paths,
+                decision_indices=tuple(value.prediction_index for value in values),
+            )
+        )
+    return intents, conflicts
+
+
+def _attach_intent_ids(
+    decisions: Sequence[MaterialDecision],
+    creation_intents: Sequence[MaterialCreationIntent],
+    modification_intents: Sequence[MaterialModificationIntent],
 ) -> list[MaterialDecision]:
-    intent_by_decision = {
+    creation_intent_by_decision = {
         decision_index: intent.intent_id
-        for intent in intents
+        for intent in creation_intents
+        for decision_index in intent.decision_indices
+    }
+    modification_intent_by_decision = {
+        decision_index: intent.intent_id
+        for intent in modification_intents
         for decision_index in intent.decision_indices
     }
     return [
@@ -846,9 +1169,15 @@ def _attach_creation_intent_ids(
             matched_existing=decision.matched_existing,
             reason=decision.reason,
             reuse_key=decision.reuse_key,
-            creation_intent_id=intent_by_decision.get(decision.prediction_index),
+            creation_intent_id=creation_intent_by_decision.get(
+                decision.prediction_index
+            ),
+            modification_intent_id=modification_intent_by_decision.get(
+                decision.prediction_index
+            ),
             explicit_action=decision.explicit_action,
             recipe=decision.recipe,
+            source=decision.source,
         )
         for decision in decisions
     ]
@@ -876,6 +1205,24 @@ def _intent_id(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     return f"mci_{digest[:16]}"
+
+
+def _modification_intent_id(
+    reuse_key: str,
+    recipe_fingerprint: str,
+    source_fingerprint: str,
+    target_prim_paths: tuple[str, ...],
+) -> str:
+    payload = {
+        "reuse_key": reuse_key,
+        "recipe_fingerprint": recipe_fingerprint,
+        "source_fingerprint": source_fingerprint,
+        "target_prim_paths": target_prim_paths,
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return f"mmi_{digest[:16]}"
 
 
 def _merge_recipe_intended_parts(

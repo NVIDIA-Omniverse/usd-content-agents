@@ -1,0 +1,385 @@
+{
+  "schema": "world-understanding.sdf-native-license-policy.v2",
+  "scope": {
+    "subject": "Native members introduced or compiled into the repaired OpenVDB SDF driver wheel and their complete ELF dependency closure",
+    "claim": "No LGPL, GPL, or AGPL component is introduced, compiled in, bundled, or selected as a driver-owned non-platform runtime dependency",
+    "excludes": [
+      "Pre-existing application Python dependency closure",
+      "Non-bundled Linux and compiler platform ABI libraries listed in platform_abi"
+    ]
+  },
+  "artifact_modes": [
+    "repaired"
+  ],
+  "allowed_selected_licenses": [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "MIT",
+    "Zlib"
+  ],
+  "forbidden_introduced_license_families": [
+    "LGPL",
+    "GPL",
+    "AGPL"
+  ],
+  "runtime_pseudo_sonames": [
+    "^linux-vdso[.]so[.]1$"
+  ],
+  "components": [
+    {
+      "id": "openvdb",
+      "version": "13.0.0",
+      "relationship": "bundled",
+      "selected_license": "Apache-2.0",
+      "source_ids": [
+        "openvdb"
+      ],
+      "elf_without_soname_member_patterns": [
+        "^openvdb/lib/openvdb[.]cpython-312-[A-Za-z0-9_]+-linux-gnu[.]so$"
+      ],
+      "runtime_location": {
+        "repaired": "bundled"
+      },
+      "soname_patterns": [
+        "^libopenvdb[.]so[.]13[.]0$"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb/__init__[.]py$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb/_source_lock[.]json$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb/include/openvdb/.+$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb/lib/libopenvdb[.]so(?:[.]13[.]0(?:[.]0)?)?$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb/lib/openvdb[.]cpython-312-[A-Za-z0-9_]+-linux-gnu[.]so$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSE$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "openexr-half",
+      "version": "openvdb-13.0.0-embedded",
+      "relationship": "compiled_in",
+      "selected_license": "BSD-3-Clause",
+      "source_ids": [
+        "openexr-half"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/openexr-half-BSD-3-Clause[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "openvdb-wheel-metadata",
+      "version": "13.0.0+wu.3",
+      "relationship": "metadata",
+      "selected_license": "Apache-2.0",
+      "source_ids": [
+        "openvdb"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/(?:METADATA|WHEEL|RECORD)$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/SOURCE_PROVENANCE[.]md$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/THIRD_PARTY_NOTICES[.]md$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/NATIVE_DEPENDENCY_PROVENANCE[.]json$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nanobind",
+      "version": "2.13.0",
+      "relationship": "compiled_in",
+      "selected_license": "BSD-3-Clause",
+      "source_ids": [
+        "nanobind"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/nanobind-BSD-3-Clause[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "robin-map",
+      "version": "1.4.0",
+      "relationship": "compiled_in",
+      "selected_license": "MIT",
+      "source_ids": [
+        "robin-map"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/robin-map-MIT[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "onetbb",
+      "version": "2022.2.0",
+      "relationship": "native_runtime",
+      "selected_license": "Apache-2.0",
+      "source_ids": [
+        "onetbb"
+      ],
+      "runtime_location": {
+        "repaired": "bundled"
+      },
+      "soname_patterns": [
+        "^libtbb(?:-[0-9a-f]{8})?[.]so[.]12(?:[.][0-9]+)?$"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb[.]libs/libtbb-[0-9a-f]{8}[.]so[.]12(?:[.][0-9]+)?$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/oneTBB-Apache-2[.]0[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        },
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/oneTBB-third-party-programs[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c-blosc",
+      "version": "1.21.6",
+      "relationship": "compiled_in",
+      "selected_license": "BSD-3-Clause",
+      "source_ids": [
+        "c-blosc"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/c-blosc-BSD-3-Clause[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lz4",
+      "version": "1.9.4",
+      "relationship": "compiled_in",
+      "selected_license": "BSD-2-Clause",
+      "source_ids": [
+        "lz4"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/lz4-BSD-2-Clause[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zstandard",
+      "version": "1.5.6",
+      "relationship": "compiled_in",
+      "selected_license": "BSD-3-Clause",
+      "license_selection_note": "The BSD-3-Clause alternative is selected from upstream's BSD-3-Clause OR GPL-2.0-only offer",
+      "source_ids": [
+        "zstandard"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/zstd-BSD-3-Clause[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "libdivsufsort-lite",
+      "version": "zstd-1.5.6-vendored",
+      "relationship": "compiled_in",
+      "selected_license": "MIT",
+      "source_ids": [
+        "libdivsufsort-lite"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/libdivsufsort-lite-MIT[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bitshuffle",
+      "version": "c-blosc-1.21.6-adapted",
+      "relationship": "compiled_in",
+      "selected_license": "MIT",
+      "source_ids": [
+        "bitshuffle"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/bitshuffle-MIT[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fastlz",
+      "version": "c-blosc-1.21.6-derived",
+      "relationship": "compiled_in",
+      "selected_license": "MIT",
+      "source_ids": [
+        "fastlz"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/fastlz-MIT[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zlib-ng",
+      "version": "c-blosc-1.21.6-derived",
+      "relationship": "compiled_in",
+      "selected_license": "Zlib",
+      "source_ids": [
+        "zlib-ng"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/zlib-ng-Zlib[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zlib",
+      "version": "1.3.1",
+      "relationship": "compiled_in",
+      "selected_license": "Zlib",
+      "source_ids": [
+        "zlib"
+      ],
+      "archive_members": [
+        {
+          "pattern": "^openvdb-13[.]0[.]0[+]wu[.]3[.]dist-info/licenses/LICENSES/zlib[.]txt$",
+          "required_in": [
+            "repaired"
+          ]
+        }
+      ]
+    }
+  ],
+  "platform_abi": [
+    {
+      "id": "glibc",
+      "relationship": "platform_abi",
+      "license": "LGPL-2.1-or-later",
+      "must_be_external": true,
+      "required": true,
+      "rationale": "The pre-existing manylinux CPython/Linux ABI; never bundled by this SDF driver wheel",
+      "provider_packages": [
+        "libc6"
+      ],
+      "soname_patterns": [
+        "^libc[.]so[.]6$",
+        "^libm[.]so[.]6$",
+        "^libpthread[.]so[.]0$",
+        "^libdl[.]so[.]2$",
+        "^librt[.]so[.]1$",
+        "^libutil[.]so[.]1$",
+        "^libresolv[.]so[.]2$",
+        "^ld-linux-x86-64[.]so[.]2$",
+        "^ld-linux-aarch64[.]so[.]1$"
+      ]
+    },
+    {
+      "id": "gcc-runtime",
+      "relationship": "platform_abi",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "must_be_external": true,
+      "required": true,
+      "rationale": "The pre-existing C++ compiler runtime ABI; never bundled by this SDF driver wheel",
+      "provider_packages": [
+        "libgcc-s1",
+        "libstdc++6"
+      ],
+      "soname_patterns": [
+        "^libgcc_s[.]so[.]1$",
+        "^libstdc[+][+][.]so[.]6$"
+      ]
+    }
+  ]
+}

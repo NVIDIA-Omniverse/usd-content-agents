@@ -75,7 +75,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]

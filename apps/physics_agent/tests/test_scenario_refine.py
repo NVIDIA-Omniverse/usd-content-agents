@@ -23,6 +23,7 @@ from physics_agent.tasks.scenario_refine import (
     _summarise_history,
     run_scenario_refine,
 )
+from physics_agent.tuning.scenario import parse_scenario
 from physics_agent.tuning.types import Scenario, TunableParam
 
 
@@ -120,6 +121,17 @@ def test_scenario_to_dict_round_trips_through_yaml() -> None:
     assert parsed["name"] == "drop_settle"
     assert parsed["metric"] == "settle_distance"
     assert {p["name"] for p in parsed["parameters"]} == {"restitution", "mass_scale"}
+
+
+def test_scenario_to_dict_preserves_omitted_bounds() -> None:
+    scenario = parse_scenario(
+        {
+            "name": "drop_settle",
+            "parameters": [{"name": "mass_scale"}],
+        }
+    )
+
+    assert _scenario_to_dict(scenario)["parameters"] == [{"name": "mass_scale"}]
 
 
 def test_summarise_history_picks_best_scores_and_trims() -> None:
@@ -281,6 +293,10 @@ def test_backend_allowlist_scopes_refine_prompt(
     assert result.llm_unavailable is False
     assert "Active backend: ovphysx" in str(captured["system_prompt"])
     assert "contact_ke" not in str(captured["system_prompt"])
+    assert "MUST use the same bound mode" in str(captured["system_prompt"])
+    assert "Never mix automatic and explicit bounds" in str(captured["system_prompt"])
+    assert "duration_s, gravity" not in str(captured["system_prompt"])
+    assert "preserve ``target.gravity`` exactly" in str(captured["system_prompt"])
     assert "allowed_tunable_parameters" in str(captured["prompt"])
 
 
@@ -404,6 +420,37 @@ def test_llm_widens_bounds_and_swaps_metric(monkeypatch: pytest.MonkeyPatch) -> 
     assert parsed_back["metric"] == "max_bounce_height"
 
 
+def test_llm_can_reset_parameter_to_authored_value_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sc = _scenario()
+    refined = {
+        "scenario": {
+            "name": "drop_settle",
+            "metric": "settle_distance",
+            "target": dict(sc.target),
+            "parameters": [{"name": "restitution"}],
+        },
+        "reasoning": "reset around the authored value",
+    }
+    _patch_chat(monkeypatch, json.dumps(refined))
+
+    result = run_scenario_refine(
+        current_scenario=sc,
+        judge_result=_judge(),
+        user_goal_text="preserve the authored response",
+        chat_model=_StubChat(),
+    )
+
+    assert result.llm_unavailable is False
+    assert result.scenario.auto_bound_fields == {
+        "restitution": frozenset({"min", "max"})
+    }
+    assert yaml.safe_load(result.refined_yaml)["parameters"] == [
+        {"name": "restitution"}
+    ]
+
+
 def test_drop_settle_metric_preserved_when_llm_omits_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -506,7 +553,7 @@ def test_target_keys_omitted_by_llm_are_carried_forward(
 ) -> None:
     """When the refine LLM authors a refined ``target`` dict that omits
     a key the current scenario sets (e.g. ``camera_ground_bias_fraction``,
-    ``sample_fps``, ``record_video``), the preservation helper carries it
+    ``sample_fps``, ``record_frames``), the preservation helper carries it
     forward so the loop doesn't silently regress to that key's default
     behavior between iterations. This guards against the LLM never being
     told a key existed (system-prompt enumeration drift)."""
@@ -522,7 +569,7 @@ def test_target_keys_omitted_by_llm_are_carried_forward(
             "gravity": -9.81,
             "camera_ground_bias_fraction": 0.75,
             "sample_fps": 30,
-            "record_video": "always",
+            "record_frames": "always",
         },
         metric="settle_distance",
     )
@@ -559,7 +606,7 @@ def test_target_keys_omitted_by_llm_are_carried_forward(
     # Omitted keys are carried forward verbatim:
     assert result.scenario.target["camera_ground_bias_fraction"] == 0.75
     assert result.scenario.target["sample_fps"] == 30
-    assert result.scenario.target["record_video"] == "always"
+    assert result.scenario.target["record_frames"] == "always"
     # The serialized YAML reflects the merged target.
     parsed_back = yaml.safe_load(result.refined_yaml)
     assert parsed_back["target"]["camera_ground_bias_fraction"] == 0.75
@@ -684,9 +731,7 @@ def test_target_wrong_shape_defers_to_parse_scenario(
 def test_target_key_explicit_overrides_win_over_preservation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An explicit refined value for a previously-set target key REPLACES
-    the current value — preservation only fires on omission, not on
-    intentional change."""
+    """An explicit mutable target value replaces the current value."""
     sc = Scenario(
         name="drop_settle",
         params=(
@@ -729,6 +774,53 @@ def test_target_key_explicit_overrides_win_over_preservation(
     )
 
     assert result.scenario.target["camera_ground_bias_fraction"] == 0.5
+
+
+def test_gravity_change_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sc = _scenario()
+    refined = _scenario_to_dict(sc)
+    refined["target"]["gravity"] = -12.5
+    _patch_chat(
+        monkeypatch,
+        json.dumps({"scenario": refined, "reasoning": "increased gravity"}),
+    )
+
+    result = run_scenario_refine(
+        current_scenario=sc,
+        judge_result=_judge(),
+        user_goal_text="bouncy",
+        chat_model=_StubChat(),
+    )
+
+    assert result.llm_unavailable is False
+    assert result.scenario.target["gravity"] == -9.81
+    assert yaml.safe_load(result.refined_yaml)["target"]["gravity"] == -9.81
+
+
+def test_gravity_cannot_be_added_when_original_target_omits_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sc = _scenario()
+    sc.target.pop("gravity")
+    refined = _scenario_to_dict(sc)
+    refined["target"]["gravity"] = -3.71
+    _patch_chat(
+        monkeypatch,
+        json.dumps({"scenario": refined, "reasoning": "changed environment"}),
+    )
+
+    result = run_scenario_refine(
+        current_scenario=sc,
+        judge_result=_judge(),
+        user_goal_text="bouncy",
+        chat_model=_StubChat(),
+    )
+
+    assert result.llm_unavailable is False
+    assert "gravity" not in result.scenario.target
+    assert "gravity" not in yaml.safe_load(result.refined_yaml)["target"]
 
 
 def test_non_judge_extra_is_not_reinjected_when_llm_omits_it(

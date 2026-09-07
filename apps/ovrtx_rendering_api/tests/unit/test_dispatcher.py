@@ -6,8 +6,10 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pytest
+import requests
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 app_root = str(APP_ROOT)
@@ -24,6 +26,7 @@ for module_name in list(sys.modules):
 
 from service.dispatcher import (  # noqa: E402
     OVRTXDispatcher,
+    WorkerState,
     _is_renderer_not_initialized_response,
     parse_gpu_workers,
 )
@@ -36,10 +39,12 @@ class _FakeResponse:
         *,
         status_code: int = 200,
         text: str | None = None,
+        headers: dict[str, str] | None = None,
     ):
         self._payload = payload
         self.status_code = status_code
         self.text = text if text is not None else json_dumps(payload)
+        self.headers = headers or {}
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
@@ -104,6 +109,7 @@ def test_health_aggregates_ready_workers() -> None:
     payload = dispatcher.health()
 
     assert payload["status"] == "healthy"
+    assert payload["protocol_version"] == 3
     assert payload["gpu_initialized"] is True
     assert payload["ready_workers"] == 1
     assert payload["total_workers"] == 2
@@ -169,6 +175,129 @@ def test_render_routes_to_idle_workers(monkeypatch) -> None:
         "http://127.0.0.1:8100/render",
         "http://127.0.0.1:8101/render",
     ]
+
+
+def test_protocol_v3_upload_routes_multipart_to_worker(monkeypatch) -> None:
+    dispatcher = OVRTXDispatcher(gpu_ids=["0"])
+    worker = dispatcher._workers[0]
+    worker.ready = True
+    worker.status = "healthy"
+    captured: dict[str, Any] = {}
+
+    def fake_post(url: str, **kwargs):
+        captured["url"] = url
+        captured.update(kwargs)
+        return _FakeResponse(
+            {
+                "results": [
+                    {
+                        "camera": "/World/Camera",
+                        "image_base64": "aW1hZ2U=",
+                        "frame": 0.0,
+                        "ovrtx_render_mode": "pt",
+                        "ovrtx_num_sensor_updates": 8,
+                        "active_aov": "LdrColor",
+                    }
+                ]
+            },
+            headers={"Retry-After": "2"},
+        )
+
+    monkeypatch.setattr("service.dispatcher.requests.post", fake_post)
+
+    response = dispatcher.render_protocol_v3_upload(
+        data=b"scene",
+        filename="scene.usdz",
+        content_type="application/octet-stream",
+        params='{"cameras":["/World/Camera"]}',
+    )
+
+    assert response.status_code == 200
+    assert response.payload["results"][0]["camera"] == "/World/Camera"
+    assert response.retry_after == "2"
+    assert captured["url"] == "http://127.0.0.1:8100/render/upload"
+    assert captured["files"] == {
+        "file": ("scene.usdz", b"scene", "application/octet-stream")
+    }
+    assert captured["data"] == {"params": '{"cameras":["/World/Camera"]}'}
+    assert worker.in_flight == 0
+
+
+def test_protocol_v3_upload_times_out_when_no_worker_is_ready() -> None:
+    dispatcher = OVRTXDispatcher(gpu_ids=["0"], queue_timeout_seconds=0.01)
+
+    response = dispatcher.render_protocol_v3_upload(
+        data=b"scene",
+        filename="scene.usdz",
+        content_type="application/octet-stream",
+        params='{"cameras":["/World/Camera"]}',
+    )
+
+    assert response.status_code == 503
+    assert response.retry_after == "1"
+    assert "Timed out waiting for a ready OVRTX worker" in response.payload["detail"]
+
+
+def test_protocol_v3_upload_adds_retry_hint_for_worker_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dispatcher = OVRTXDispatcher(gpu_ids=["0"])
+    worker = dispatcher._workers[0]
+    worker.ready = True
+    worker.renderer_initialized = True
+    worker.daemon_running = True
+    worker.status = "healthy"
+
+    def fake_post(url: str, **_kwargs: Any) -> _FakeResponse:
+        return _FakeResponse(
+            {"detail": "protocol-v3 render failed"},
+            status_code=500,
+        )
+
+    monkeypatch.setattr("service.dispatcher.requests.post", fake_post)
+
+    response = dispatcher.render_protocol_v3_upload(
+        data=b"scene",
+        filename="scene.usdz",
+        content_type="application/octet-stream",
+        params='{"cameras":["/World/Camera"]}',
+    )
+
+    assert response.status_code == 500
+    assert response.retry_after == "1"
+    assert worker.ready is False
+    assert worker.status == "unhealthy"
+    assert worker.in_flight == 0
+
+
+def test_protocol_v3_upload_treats_chunked_response_failure_as_retryable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dispatcher = OVRTXDispatcher(gpu_ids=["0"])
+    worker = dispatcher._workers[0]
+    worker.ready = True
+    worker.renderer_initialized = True
+    worker.daemon_running = True
+    worker.status = "healthy"
+
+    def fake_post(url: str, **_kwargs: Any) -> _FakeResponse:
+        raise requests.exceptions.ChunkedEncodingError("worker response truncated")
+
+    monkeypatch.setattr("service.dispatcher.requests.post", fake_post)
+
+    response = dispatcher.render_protocol_v3_upload(
+        data=b"scene",
+        filename="scene.usdz",
+        content_type="application/octet-stream",
+        params='{"cameras":["/World/Camera"]}',
+    )
+
+    assert response.status_code == 503
+    assert response.retry_after == "1"
+    assert "worker response truncated" in response.payload["detail"]
+    assert worker.ready is False
+    assert worker.status == "unhealthy"
+    assert worker.in_flight == 0
 
 
 def test_render_times_out_when_no_worker_is_ready() -> None:
@@ -286,6 +415,51 @@ def test_render_marks_worker_unhealthy_for_server_http_error(monkeypatch):
     assert worker.daemon_running is False
     assert worker.status == "unhealthy"
     assert worker.unhealthy_since is not None
+
+
+def test_render_preserves_retryable_incomplete_output_and_restarts_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dispatcher = OVRTXDispatcher(gpu_ids=["0"], restart_cooldown_seconds=3600.0)
+    worker = dispatcher._workers[0]
+    worker.ready = True
+    worker.renderer_initialized = True
+    worker.daemon_running = True
+    worker.status = "healthy"
+    starts = 0
+
+    def fake_post(url: str, **_kwargs: Any) -> _FakeResponse:
+        return _FakeResponse(
+            {
+                "status": "exception",
+                "error": "OVRTX returned incomplete color output coverage: 0/1",
+                "error_code": "incomplete_render_output",
+                "retryable": True,
+                "requested_output_count": 1,
+                "output_count": 0,
+                "missing_output_count": 1,
+                "missing_camera_count": 1,
+                "images": {},
+            },
+            status_code=503,
+        )
+
+    def fake_start_worker(_worker: WorkerState) -> None:
+        nonlocal starts
+        starts += 1
+        _worker.status = "starting"
+
+    monkeypatch.setattr("service.dispatcher.requests.post", fake_post)
+    monkeypatch.setattr(dispatcher, "_start_worker", fake_start_worker)
+
+    response = dispatcher.render({"url": "data:,x"})
+
+    assert response["error_code"] == "incomplete_render_output"
+    assert response["retryable"] is True
+    assert starts == 1
+    assert worker.ready is False
+    assert worker.restart_count == 1
+    assert worker.status == "starting"
 
 
 def test_render_restarts_worker_for_renderer_not_initialized_payload(monkeypatch):

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from PIL import Image
 
+import material_agent.functions.inference as inference_module
 from material_agent.functions.inference import (
     assign_material,
     async_batch_assign_materials,
@@ -23,7 +24,13 @@ from material_agent.materials import UNKNOWN_MATERIAL_SENTINEL
     [
         ("Steel", "304 Stainless Steel", "corroborated", False),
         ("Steel", "Brass", "conflict", True),
+        ("Steel", "not steel", "conflict", True),
+        ("Steel", "steel-free plastic", "conflict", True),
+        ("Steel", "steel or brass", "conflict", True),
+        ("Steel", "brass/steel", "conflict", True),
+        ("Steel", "brass-coated steel", "conflict", True),
         (UNKNOWN_MATERIAL_SENTINEL, "Brass", "unsupported_spec_material", True),
+        ("---", "Steel", "conflict", True),
     ],
 )
 def test_untrusted_spec_only_corroborates_image_supported_material(
@@ -63,6 +70,41 @@ def test_image_only_prediction_is_unchanged_without_spec_claims() -> None:
 
     assert result is visual_prediction
     assert result == {"material": "Steel", "confidence": 0.9}
+
+
+def test_untrusted_spec_evidence_ignores_non_text_and_missing_entry() -> None:
+    visual_prediction = {"material": "Steel", "confidence": 0.9}
+    entry = {"untrusted_spec_evidence": {"extracted_text": None}}
+
+    result = reconcile_untrusted_spec_evidence(visual_prediction, entry)
+    inference_module._reconcile_prediction_in_place(visual_prediction, None)
+
+    assert result is visual_prediction
+    assert visual_prediction == {"material": "Steel", "confidence": 0.9}
+
+
+def test_untrusted_spec_evidence_deduplicates_and_reports_mixed_claims() -> None:
+    visual_prediction = {"material": "Steel", "confidence": 0.9}
+    entry = {
+        "untrusted_spec_evidence": {
+            "extracted_text": (
+                "Material Type: Steel\nMaterial Type: steel.\nMaterial Type: Brass"
+            )
+        }
+    }
+
+    result = reconcile_untrusted_spec_evidence(visual_prediction, entry)
+
+    assert result["material"] == "Steel"
+    reconciliation = result["evidence_reconciliation"]
+    assert reconciliation == {
+        "status": "conflict",
+        "review_required": True,
+        "visual_material": "Steel",
+        "untrusted_spec_material_claims": ["Steel", "Brass"],
+        "conflicting_spec_materials": ["Brass"],
+        "corroborating_spec_materials": ["Steel"],
+    }
 
 
 class TestAssignMaterial:
@@ -426,6 +468,43 @@ class TestBatchAssignMaterials:
         assert call_kwargs["temperature"] == 0.8
         assert call_kwargs["max_tokens"] == 1024
 
+    def test_batch_assign_materials_reconciles_numeric_entry_ids(
+        self,
+        monkeypatch,
+        mock_vlm,
+        mock_llm,
+    ):
+        def fake_batch_classify_objects(**kwargs):
+            prediction = {"material": "Steel"}
+            kwargs["on_prediction"](1, prediction)
+            return [{"id": 1, "status": "success", "vlm_response": prediction}]
+
+        monkeypatch.setattr(
+            inference_module,
+            "batch_classify_objects",
+            fake_batch_classify_objects,
+        )
+        predictions = []
+
+        results = batch_assign_materials(
+            vlm=mock_vlm,
+            entries=[
+                {
+                    "id": 1,
+                    "text": "part",
+                    "images": [],
+                    "untrusted_spec_evidence": {
+                        "extracted_text": "Material Type: Brass"
+                    },
+                }
+            ],
+            llm=mock_llm,
+            on_prediction=lambda _entry_id, prediction: predictions.append(prediction),
+        )
+
+        assert results[0]["vlm_response"]["material"] == "Steel"
+        assert predictions[0]["evidence_reconciliation"]["status"] == "conflict"
+
     @pytest.mark.asyncio
     async def test_async_batch_assign_materials_delegates_with_material_options(
         self,
@@ -433,17 +512,15 @@ class TestBatchAssignMaterials:
         mock_vlm,
         mock_llm,
     ):
-        import material_agent.functions.inference as inference_module
-
         calls = []
 
         async def fake_async_batch_classify_objects(**kwargs):
             calls.append(kwargs)
             prediction = {"material": "Steel"}
-            kwargs["on_prediction"]("entry-1", prediction)
+            kwargs["on_prediction"](1, prediction)
             return [
                 {
-                    "id": "entry-1",
+                    "id": 1,
                     "status": "success",
                     "vlm_response": prediction,
                 }
@@ -460,7 +537,7 @@ class TestBatchAssignMaterials:
             vlm=mock_vlm,
             entries=[
                 {
-                    "id": "entry-1",
+                    "id": 1,
                     "text": "part",
                     "images": [],
                     "untrusted_spec_evidence": {

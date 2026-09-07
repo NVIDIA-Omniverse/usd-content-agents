@@ -1,0 +1,232 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geometry-agent-service.fullname" . }}
+  labels:
+    {{- include "geometry-agent-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "geometry-agent-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "geometry-agent-service.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: geometry-agent-service
+          image: "{{ required "geometry-agent-service: image.repository is required" .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: GEOMETRY_AGENT_SERVICE_HOST
+              value: "0.0.0.0"
+            - name: GEOMETRY_AGENT_SERVICE_PORT
+              value: {{ .Values.service.port | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_WORKSPACE_ROOT
+              value: /var/geometry-agent-service/workspace
+            - name: GEOMETRY_AGENT_SERVICE_INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: GEOMETRY_AGENT_SERVICE_RENDER_BACKEND
+              value: {{ .Values.render.backend | quote }}
+            {{- if eq .Values.render.backend "ovrtx" }}
+            - name: HOME
+              value: "/var/cache/geometry-agent-service/home"
+            - name: XDG_CACHE_HOME
+              value: "/var/cache/geometry-agent-service/xdg"
+            - name: UV_CACHE_DIR
+              value: "/var/cache/geometry-agent-service/uv"
+            - name: WU_OVRTX_VENV_DIR
+              value: "/var/cache/geometry-agent-service/ovrtx-venv"
+            {{- end }}
+            - name: GEOMETRY_AGENT_SERVICE_DEFAULT_RUNTIME_ENGINE
+              value: {{ .Values.runtime.defaultEngine | quote }}
+            {{- if eq .Values.render.backend "remote" }}
+            - name: GEOMETRY_AGENT_SERVICE_RENDER_REMOTE_BASE_URL
+              value: {{ .Values.render.remoteBaseUrl | quote }}
+            {{- if .Values.render.existingApiKeySecretName }}
+            - name: GEOMETRY_AGENT_SERVICE_RENDER_REMOTE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.render.existingApiKeySecretName }}
+                  key: {{ .Values.render.apiKeySecretKey }}
+            {{- end }}
+            {{- if .Values.render.allowUnauthenticatedIdentity }}
+            - name: GEOMETRY_AGENT_SERVICE_RENDER_REMOTE_ALLOW_UNAUTHENTICATED_IDENTITY
+              value: "true"
+            {{- end }}
+            {{- end }}
+            - name: GEOMETRY_AGENT_SERVICE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "geometry-agent-service.apiSecretName" . }}
+                  key: api-key
+            {{- if .Values.delegatedAuthoring.enabled }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_PROVIDER_ID
+              value: {{ .Values.delegatedAuthoring.providerId | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_PROVIDER_LABEL
+              value: {{ .Values.delegatedAuthoring.providerLabel | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_ENDPOINT_URL
+              value: {{ .Values.delegatedAuthoring.endpointUrl | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_RIGHTS_ASSERTION
+              value: {{ .Values.delegatedAuthoring.rightsAssertion | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_SUPPORTED_FORMATS
+              value: {{ .Values.delegatedAuthoring.supportedFormats | toJson | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_SUPPORTS_IMAGE
+              value: {{ .Values.delegatedAuthoring.supportsImage | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_SUPPORTS_REVISION
+              value: {{ .Values.delegatedAuthoring.supportsRevision | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_SUPPORTS_EXPORT
+              value: {{ .Values.delegatedAuthoring.supportsExport | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_RETURNS_NATIVE_SOURCE
+              value: {{ .Values.delegatedAuthoring.returnsNativeSource | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_DELEGATED_AUTHORING_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.delegatedAuthoring.existingTokenSecretName }}
+                  key: {{ .Values.delegatedAuthoring.tokenSecretKey }}
+            {{- end }}
+            {{- if .Values.build123d.enabled }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_ENDPOINT_URL
+              value: {{ .Values.build123d.endpointUrl | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_RIGHTS_ASSERTION
+              value: {{ .Values.build123d.rightsAssertion | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTED_FORMATS
+              value: {{ .Values.build123d.supportedFormats | toJson | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_TEXT
+              value: {{ .Values.build123d.supportsText | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_IMAGE
+              value: {{ .Values.build123d.supportsImage | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_REVISION
+              value: {{ .Values.build123d.supportsRevision | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_EXPORT
+              value: {{ .Values.build123d.supportsExport | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_SEMANTIC_PARAMETERS
+              value: {{ .Values.build123d.supportsSemanticParameters | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_PARAMETER_DEFINITIONS
+              value: {{ .Values.build123d.supportsParameterDefinitions | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_SEMANTIC_PARTS
+              value: {{ .Values.build123d.supportsSemanticParts | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_SUPPORTS_PROVIDER_ASSERTIONS
+              value: {{ .Values.build123d.supportsProviderAssertions | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_MAX_FAMILY_VARIANTS
+              value: {{ .Values.build123d.maxFamilyVariants | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_BUILD123D_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.build123d.existingTokenSecretName }}
+                  key: {{ .Values.build123d.tokenSecretKey }}
+            {{- end }}
+            {{- if .Values.forgecadAuthoring.enabled }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_ENDPOINT_URL
+              value: {{ .Values.forgecadAuthoring.endpointUrl | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_RIGHTS_ASSERTION
+              value: {{ .Values.forgecadAuthoring.rightsAssertion | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTOMATED_USE_AUTHORIZED
+              value: {{ .Values.forgecadAuthoring.automatedUseAuthorized | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTED_FORMATS
+              value: {{ .Values.forgecadAuthoring.supportedFormats | toJson | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_TEXT
+              value: {{ .Values.forgecadAuthoring.supportsText | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_IMAGE
+              value: {{ .Values.forgecadAuthoring.supportsImage | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_REVISION
+              value: {{ .Values.forgecadAuthoring.supportsRevision | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_EXPORT
+              value: {{ .Values.forgecadAuthoring.supportsExport | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_SEMANTIC_PARAMETERS
+              value: {{ .Values.forgecadAuthoring.supportsSemanticParameters | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_PARAMETER_DEFINITIONS
+              value: {{ .Values.forgecadAuthoring.supportsParameterDefinitions | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_SEMANTIC_PARTS
+              value: {{ .Values.forgecadAuthoring.supportsSemanticParts | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_SUPPORTS_PROVIDER_ASSERTIONS
+              value: {{ .Values.forgecadAuthoring.supportsProviderAssertions | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_MAX_FAMILY_VARIANTS
+              value: {{ .Values.forgecadAuthoring.maxFamilyVariants | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_RETURNS_NATIVE_SOURCE
+              value: {{ .Values.forgecadAuthoring.returnsNativeSource | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_CONNECT_TIMEOUT_SECONDS
+              value: {{ .Values.forgecadAuthoring.connectTimeoutSeconds | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_READ_TIMEOUT_SECONDS
+              value: {{ .Values.forgecadAuthoring.readTimeoutSeconds | quote }}
+            - name: GEOMETRY_AGENT_SERVICE_FORGECAD_AUTHORING_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.forgecadAuthoring.existingTokenSecretName }}
+                  key: {{ .Values.forgecadAuthoring.tokenSecretKey }}
+            {{- end }}
+          volumeMounts:
+            - name: workspace
+              mountPath: /var/geometry-agent-service/workspace
+            - name: tmp
+              mountPath: /tmp
+            {{- if eq .Values.render.backend "ovrtx" }}
+            - name: ovrtx-cache
+              mountPath: /var/cache/geometry-agent-service
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if eq .Values.render.backend "ovrtx" }}
+        - name: ovrtx-cache
+          emptyDir: {}
+        {{- end }}
+        - name: workspace
+          {{- if eq .Values.workspace.kind "pvc" }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.workspace.existingClaim | default (include "geometry-agent-service.fullname" .) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

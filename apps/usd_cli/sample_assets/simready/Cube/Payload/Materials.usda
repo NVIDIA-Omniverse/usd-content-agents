@@ -1,0 +1,100 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "cube"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "cube"
+{
+    def Scope "Materials"
+    {
+        def Material "red" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/red>
+        )
+        {
+        }
+
+        def Material "green" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/green>
+        )
+        {
+        }
+
+        def Material "blue" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/blue>
+        )
+        {
+        }
+
+        def Material "yellow" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/yellow>
+        )
+        {
+        }
+
+        def Material "cyan" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/cyan>
+        )
+        {
+        }
+
+        def Material "magenta" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/magenta>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "color_cube"
+        {
+            over "Subset" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </cube/Materials/red>
+            }
+
+            over "Subset_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </cube/Materials/green>
+            }
+
+            over "Subset_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </cube/Materials/blue>
+            }
+
+            over "Subset_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </cube/Materials/yellow>
+            }
+
+            over "Subset_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </cube/Materials/cyan>
+            }
+
+            over "Subset_5" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </cube/Materials/magenta>
+            }
+        }
+    }
+}

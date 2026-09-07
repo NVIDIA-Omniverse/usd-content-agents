@@ -58,7 +58,7 @@ class CancellationSignal(Protocol):
 
     def is_set(self) -> bool:
         """Return whether cancellation has been requested."""
-        ...
+        ...  # pragma: no cover - structural protocol declaration
 
 
 @dataclass
@@ -380,7 +380,7 @@ def _dry_run_pipeline(params: PipelineInput) -> PipelineOutput:
             with open(params.config, encoding="utf-8") as f:
                 pipeline_config = yaml.safe_load(f)
 
-        from physics_agent.api.defaults import PIPELINE_STEP_NAMES
+        from physics_agent.config.schema import STEP_ORDER
 
         # Detect unified config format
         steps_section = pipeline_config.get("steps", pipeline_config)
@@ -388,7 +388,7 @@ def _dry_run_pipeline(params: PipelineInput) -> PipelineOutput:
         planned_steps = []
         skipped_steps = []
 
-        for step in PIPELINE_STEP_NAMES:
+        for step in STEP_ORDER:
             if step not in steps_section:
                 continue
 

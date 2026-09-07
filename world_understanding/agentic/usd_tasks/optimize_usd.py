@@ -17,15 +17,21 @@ from world_understanding.config.s3 import WU_S3_BUCKET, WU_S3_PROFILE, WU_S3_REG
 from world_understanding.functions.graphics.scene_optimizer_nvcf import (
     optimize_usd_from_path,
 )
+from world_understanding.functions.graphics.so_export import (
+    _atomic_output_file,
+    export_stage_portably,
+)
 from world_understanding.utils.credentials import (
     find_inline_secret_paths,
     redact_sensitive_config,
 )
 from world_understanding.utils.object_store import ObjectStore
+from world_understanding.utils.usd.package import write_usdz_package_from_directory
 
 logger = logging.getLogger(__name__)
 
 _OPTIMIZATION_FAILURE_MESSAGE = "USD optimization failed"
+_LOCAL_BACKEND_FALLBACK_REASON = "local_backend_unavailable"
 _LOCAL_BACKEND_UNAVAILABLE_MESSAGE = (
     "Scene optimization failed: local backend unavailable and no remote "
     "backend is configured. Fix one of: (a) run "
@@ -511,7 +517,9 @@ def _restore_optimized_stage_metadata(
             "kilogramsPerUnit",
             source_root.pseudoRoot.GetInfo("kilogramsPerUnit"),
         )
-    optimized_root.Save()
+    with _atomic_output_file(output_usd) as transaction_output:
+        if not optimized_root.Export(str(transaction_output)):
+            raise _SafeOptimizationError(_OPTIMIZATION_FAILURE_MESSAGE) from None
     return (
         {
             "restored": True,
@@ -734,6 +742,7 @@ class OptimizeUSDTask(Task):
                 )
 
         safe_failure_message: str | None = None
+        temp_flattened_workspace: tempfile.TemporaryDirectory | None = None
         try:
             # Flatten prototypes BEFORE optimization
             # This converts over/class to def, resolves all references, and removes prototypes
@@ -746,7 +755,7 @@ class OptimizeUSDTask(Task):
 
             # Track if we need to use a flattened input file
             actual_input = input_usd
-            temp_flattened_input = None
+            temp_flattened_input: Path | None = None
             pre_converted_count = 0
 
             # Count original prims BEFORE any optimization
@@ -781,19 +790,40 @@ class OptimizeUSDTask(Task):
                     )
 
                 # Step 2: Flatten - resolve references and remove prototypes
-                flattened_layer = flatten_prototype_references(stage)
+                flattened_layer = flatten_prototype_references(
+                    stage,
+                    preserve_resolved_asset_paths=True,
+                )
 
-                # Save to the output workspace, not beside the source file. Source
-                # stages are often mounted read-only in service containers.
+                # Build one self-contained input for both backends. A portable
+                # root plus sidecar is sufficient locally but not when the remote
+                # backend uploads a single object, so package the complete private
+                # workspace as USDZ before handing it off.
                 output_usd.parent.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile(
-                    prefix=f"_flattened_{input_usd.stem}_",
-                    suffix=".usd",
+                temp_flattened_workspace = tempfile.TemporaryDirectory(
+                    prefix="_flattened_input_",
                     dir=output_usd.parent,
-                    delete=False,
-                ) as temp_file:
-                    temp_flattened_input = Path(temp_file.name)
-                flattened_layer.Export(str(temp_flattened_input))
+                )
+                workspace = Path(temp_flattened_workspace.name)
+                workspace.chmod(0o700)
+                package_source = workspace / "package"
+                package_source.mkdir(mode=0o700)
+                portable_root = package_source / "flattened.usdc"
+                if not export_stage_portably(
+                    stage,
+                    portable_root,
+                    approved_dependency_roots=(input_usd.resolve().parent,),
+                    export_layer=flattened_layer,
+                ):
+                    raise _SafeOptimizationError(
+                        _OPTIMIZATION_FAILURE_MESSAGE
+                    ) from None
+                temp_flattened_input = workspace / "flattened.usdz"
+                write_usdz_package_from_directory(
+                    package_source,
+                    Path(portable_root.name),
+                    temp_flattened_input,
+                )
                 actual_input = temp_flattened_input
                 pre_converted_count = converted_count
 
@@ -808,6 +838,9 @@ class OptimizeUSDTask(Task):
 
             # Determine backend: "local" (default) or "remote"
             backend = optimization_config.get("backend", "local")
+            actual_backend = backend
+            fallback_used = False
+            fallback_reason: str | None = None
 
             async def _run_nvcf() -> dict[str, Any]:
                 """Run NVCF cloud backend."""
@@ -825,72 +858,57 @@ class OptimizeUSDTask(Task):
                     optimization_config=optimization_config,
                 )
 
-            try:
-                if backend == "local":
-                    import asyncio
+            if backend == "local":
+                import asyncio
 
-                    local_backend_unavailable: bool | None = None
-                    try:
-                        from world_understanding.functions.graphics.scene_optimizer_local import (
-                            optimize_usd_local,
-                        )
-
-                        listener.info("Running local Scene Optimizer backend...")
-                        result = await asyncio.to_thread(
-                            optimize_usd_local,
-                            input_path=actual_input,
-                            output_path=output_usd,
-                            optimization_config=optimization_config,
-                        )
-                    except (RuntimeError, FileNotFoundError) as local_error:
-                        # Auto-fallback to NVCF if local backend is unavailable.
-                        # Covers: macOS (.so missing → RuntimeError), and
-                        # environments where WU_SO_PYTHON binary doesn't exist
-                        # (e.g. Python 3.13 distroless image has no python3.12 →
-                        # subprocess.run raises FileNotFoundError).
-                        local_backend_unavailable = _is_local_backend_unavailable(
-                            local_error
-                        )
-
-                    # Leave the rejected exception handler before either
-                    # publishing a replacement error or invoking the fallback.
-                    # Otherwise Python retains the local backend exception in
-                    # the replacement/fallback exception's ``__context__``.
-                    if local_backend_unavailable is not None:
-                        if not local_backend_unavailable:
-                            raise _SafeOptimizationError(_OPTIMIZATION_FAILURE_MESSAGE)
-                        if not (
-                            os.getenv("NVCF_OPTIMIZER_FUNCTION_ID")
-                            or os.getenv("OPTIMIZER_ENDPOINT")
-                        ):
-                            raise _SafeOptimizationError(
-                                _LOCAL_BACKEND_UNAVAILABLE_MESSAGE
-                            )
-                        listener.warning(
-                            "Local SO backend unavailable; falling back to NVCF"
-                        )
-                        result = await _run_nvcf()
-                elif backend == "remote":
-                    result = await _run_nvcf()
-                else:
-                    raise _SafeOptimizationError(
-                        "Invalid optimization backend; expected 'local' or 'remote'"
+                local_backend_unavailable: bool | None = None
+                try:
+                    from world_understanding.functions.graphics.scene_optimizer_local import (
+                        optimize_usd_local,
                     )
-            finally:
-                # Clean up temp file if created (even on failure)
-                if (
-                    temp_flattened_input
-                    and temp_flattened_input.exists()
-                    and temp_flattened_input.resolve() != output_usd.resolve()
-                ):
-                    try:
-                        temp_flattened_input.unlink()
-                        listener.debug(
-                            "Cleaned up temp flattened input: "
-                            f"{_redacted_derived_path(temp_flattened_input, source_redaction=derived_path_redaction)}"
-                        )
-                    except FileNotFoundError:
-                        pass
+
+                    listener.info("Running local Scene Optimizer backend...")
+                    result = await asyncio.to_thread(
+                        optimize_usd_local,
+                        input_path=actual_input,
+                        output_path=output_usd,
+                        optimization_config=optimization_config,
+                    )
+                except (RuntimeError, FileNotFoundError) as local_error:
+                    # Auto-fallback to NVCF if local backend is unavailable.
+                    # Covers: macOS (.so missing → RuntimeError), and
+                    # environments where WU_SO_PYTHON binary doesn't exist
+                    # (e.g. Python 3.13 distroless image has no python3.12 →
+                    # subprocess.run raises FileNotFoundError).
+                    local_backend_unavailable = _is_local_backend_unavailable(
+                        local_error
+                    )
+
+                # Leave the rejected exception handler before either
+                # publishing a replacement error or invoking the fallback.
+                # Otherwise Python retains the local backend exception in
+                # the replacement/fallback exception's ``__context__``.
+                if local_backend_unavailable is not None:
+                    if not local_backend_unavailable:
+                        raise _SafeOptimizationError(_OPTIMIZATION_FAILURE_MESSAGE)
+                    if not (
+                        os.getenv("NVCF_OPTIMIZER_FUNCTION_ID")
+                        or os.getenv("OPTIMIZER_ENDPOINT")
+                    ):
+                        raise _SafeOptimizationError(_LOCAL_BACKEND_UNAVAILABLE_MESSAGE)
+                    listener.warning(
+                        "Local SO backend unavailable; falling back to NVCF"
+                    )
+                    actual_backend = "remote"
+                    fallback_used = True
+                    fallback_reason = _LOCAL_BACKEND_FALLBACK_REASON
+                    result = await _run_nvcf()
+            elif backend == "remote":
+                result = await _run_nvcf()
+            else:
+                raise _SafeOptimizationError(
+                    "Invalid optimization backend; expected 'local' or 'remote'"
+                )
 
             if result.get("status") != "success":
                 # Backend diagnostics are untrusted and may reflect request
@@ -916,6 +934,10 @@ class OptimizeUSDTask(Task):
                 "prototypes_converted_pre": pre_converted_count,
                 "original_prim_count": original_prim_count,
                 "preserved_stage_metadata": preserved_stage_metadata,
+                "requested_backend": backend,
+                "actual_backend": actual_backend,
+                "fallback_used": fallback_used,
+                "fallback_reason": fallback_reason,
             }
 
             # Keep non-sensitive reproducibility settings without turning the
@@ -951,6 +973,13 @@ class OptimizeUSDTask(Task):
             # Do not propagate arbitrary exception text into logs, workflow
             # context, API responses, or later persisted service metadata.
             safe_failure_message = _OPTIMIZATION_FAILURE_MESSAGE
+        finally:
+            if temp_flattened_workspace is not None:
+                try:
+                    temp_flattened_workspace.cleanup()
+                    listener.debug("Cleaned up temporary flattened input workspace")
+                except FileNotFoundError:
+                    pass
 
         if safe_failure_message is not None:
             # Publish and raise only after the rejected exception handler has

@@ -40,7 +40,8 @@ def sha256_file(path: Path | str) -> str:
         from pxr import Usd
 
         stage = Usd.Stage.Open(str(resolved))
-        assert stage is not None
+        if stage is None:
+            raise PhysicsTopologyPlanError("Failed to open the USD stage for hashing")
         digest = hashlib.sha256()
         digest.update(b"content-workflows-usd-stage-dependency-digest-v1\0")
         for layer in sorted(stage.GetUsedLayers(), key=lambda layer: layer.identifier):
@@ -119,15 +120,6 @@ def _relationship_targets(joint: Any) -> tuple[list[str], list[str]]:
     )
 
 
-def _path_in_scope(path: str, root_prim_path: str | None) -> bool:
-    if not root_prim_path:
-        return True
-    root = root_prim_path.rstrip("/") or "/"
-    if root == "/":
-        return path.startswith("/")
-    return path == root or path.startswith(f"{root}/")
-
-
 def _path_is_or_under(path: str, root: str) -> bool:
     root = root.rstrip("/") or "/"
     if root == "/":
@@ -141,13 +133,63 @@ def _path_overlaps_any_root(path: str, roots: list[str]) -> bool:
     )
 
 
+def _traverse_instance_proxies(
+    stage: Any,
+    Usd: Any,
+    *,
+    root_prim_path: str | None = None,
+) -> Any:
+    """Traverse composed prims, including descendants of USD instances."""
+
+    predicate = Usd.TraverseInstanceProxies()
+    if root_prim_path:
+        return Usd.PrimRange(stage.GetPrimAtPath(root_prim_path), predicate)
+    return Usd.PrimRange.Stage(stage, predicate)
+
+
+def _deinstance_topology_target(stage: Any, prim_path: str) -> Any:
+    """Return an editable target, de-instancing only its owning roots."""
+
+    prim = stage.GetPrimAtPath(prim_path)
+    deinstanced_roots: set[str] = set()
+    while prim and prim.IsValid() and prim.IsInstanceProxy():
+        instance_root = prim
+        while (
+            instance_root
+            and instance_root.IsValid()
+            and not instance_root.IsPseudoRoot()
+            and (not instance_root.IsInstance() or instance_root.IsInstanceProxy())
+        ):
+            instance_root = instance_root.GetParent()
+        if (
+            not instance_root
+            or not instance_root.IsValid()
+            or instance_root.IsPseudoRoot()
+            or not instance_root.IsInstance()
+            or instance_root.IsInstanceProxy()
+        ):
+            raise PhysicsTopologyPlanError(
+                f"Topology target has no editable instance root: {prim_path}"
+            )
+        root_path = str(instance_root.GetPath())
+        if root_path in deinstanced_roots:
+            raise PhysicsTopologyPlanError(
+                "Topology target remained an instance proxy after de-instancing "
+                f"{root_path}: {prim_path}"
+            )
+        deinstanced_roots.add(root_path)
+        instance_root.SetInstanceable(False)
+        prim = stage.GetPrimAtPath(prim_path)
+    return prim
+
+
 def _non_fixed_joint_endpoint_paths(topology: dict[str, Any]) -> list[str]:
     endpoints: set[str] = set()
     for joint in topology.get("joints", []):
         if joint.get("enabled") is False or joint.get("is_fixed_joint"):
             continue
-        endpoints.update(joint.get("body0_rigid_body_paths") or [])
-        endpoints.update(joint.get("body1_rigid_body_paths") or [])
+        endpoints.update(joint.get("body0_targets") or [])
+        endpoints.update(joint.get("body1_targets") or [])
     return sorted(endpoints)
 
 
@@ -161,11 +203,269 @@ def _non_fixed_joint_endpoint_signature(
         records.append(
             (
                 str(joint.get("prim_path") or ""),
-                tuple(sorted(joint.get("body0_rigid_body_paths") or [])),
-                tuple(sorted(joint.get("body1_rigid_body_paths") or [])),
+                tuple(sorted(joint.get("body0_targets") or [])),
+                tuple(sorted(joint.get("body1_targets") or [])),
             )
         )
     return tuple(sorted(records))
+
+
+def _joint_attribute_signature(prim: Any, attribute_name: str) -> tuple[Any, ...]:
+    attribute = prim.GetAttribute(attribute_name)
+    if not attribute or not attribute.IsValid():
+        return (False,)
+    value = attribute.Get()
+    return (
+        True,
+        str(attribute.GetTypeName()),
+        bool(attribute.HasAuthoredValueOpinion()),
+        repr(value),
+    )
+
+
+def _non_fixed_joint_structural_signature(stage: Any) -> tuple[tuple[Any, ...], ...]:
+    """Capture relationship order plus joint type, axis, and limit signatures."""
+
+    from pxr import Usd, UsdPhysics
+
+    records: list[tuple[Any, ...]] = []
+    for prim in stage.Traverse(Usd.TraverseInstanceProxies()):
+        if not prim.IsA(UsdPhysics.Joint) or prim.IsA(UsdPhysics.FixedJoint):
+            continue
+        joint = UsdPhysics.Joint(prim)
+        if not _api_enabled(joint.GetJointEnabledAttr()):
+            continue
+        body0_targets, body1_targets = _relationship_targets(joint)
+        records.append(
+            (
+                str(prim.GetPath()),
+                str(prim.GetTypeName()),
+                tuple(body0_targets),
+                tuple(body1_targets),
+                _joint_attribute_signature(prim, "physics:axis"),
+                _joint_attribute_signature(prim, "physics:lowerLimit"),
+                _joint_attribute_signature(prim, "physics:upperLimit"),
+            )
+        )
+    return tuple(sorted(records, key=lambda record: record[0]))
+
+
+_JOINT_ENDPOINT_OWNER_PROMOTION_FIELDS = {
+    "joint_prim_path",
+    "relationship",
+    "relationship_target_path",
+    "requested_rigid_body_ancestor_path",
+}
+
+
+def _normalize_joint_endpoint_owner_promotions(
+    promotions: list[dict[str, Any]] | None,
+    *,
+    topology: dict[str, Any],
+) -> list[dict[str, str]]:
+    if promotions is None:
+        return []
+    if not isinstance(promotions, list):
+        raise PhysicsTopologyPlanError("joint_endpoint_owner_promotions must be a list")
+    joints = {
+        str(joint.get("prim_path") or ""): joint
+        for joint in topology.get("joints", [])
+        if joint.get("enabled") is not False and not joint.get("is_fixed_joint")
+    }
+    normalized: list[dict[str, str]] = []
+    identities: set[tuple[str, str, str]] = set()
+    for index, promotion in enumerate(promotions):
+        if not isinstance(promotion, dict) or set(promotion) != (
+            _JOINT_ENDPOINT_OWNER_PROMOTION_FIELDS
+        ):
+            raise PhysicsTopologyPlanError(
+                "joint endpoint owner promotion "
+                f"{index} must contain exactly "
+                f"{sorted(_JOINT_ENDPOINT_OWNER_PROMOTION_FIELDS)}"
+            )
+        joint_path = promotion.get("joint_prim_path")
+        relationship = promotion.get("relationship")
+        target_path = promotion.get("relationship_target_path")
+        owner_path = promotion.get("requested_rigid_body_ancestor_path")
+        if (
+            not isinstance(joint_path, str)
+            or not joint_path.startswith("/")
+            or not isinstance(target_path, str)
+            or not target_path.startswith("/")
+            or not isinstance(owner_path, str)
+            or not owner_path.startswith("/")
+        ):
+            raise PhysicsTopologyPlanError(
+                f"joint endpoint owner promotion {index} has an invalid prim path"
+            )
+        if not isinstance(relationship, str) or relationship not in {"body0", "body1"}:
+            raise PhysicsTopologyPlanError(
+                f"joint endpoint owner promotion {index} has an invalid relationship"
+            )
+        joint = joints.get(joint_path)
+        if joint is None:
+            raise PhysicsTopologyPlanError(
+                "joint endpoint owner promotion references a missing, fixed, or "
+                f"disabled joint: {joint_path}"
+            )
+        targets = list(joint.get(f"{relationship}_targets") or [])
+        if targets != [target_path]:
+            raise PhysicsTopologyPlanError(
+                "joint endpoint owner promotion does not match one unambiguous "
+                f"relationship target: {joint_path} {relationship}"
+            )
+        if not _path_is_or_under(target_path, owner_path):
+            raise PhysicsTopologyPlanError(
+                "requested rigid-body owner must be the relationship target or a "
+                f"strict ancestor: {owner_path}"
+            )
+        identity = (joint_path, relationship, target_path)
+        if identity in identities:
+            raise PhysicsTopologyPlanError(
+                "duplicate joint endpoint owner promotion is ambiguous: "
+                f"{joint_path} {relationship} {target_path}"
+            )
+        identities.add(identity)
+        normalized.append(
+            {
+                "joint_prim_path": joint_path,
+                "relationship": relationship,
+                "relationship_target_path": target_path,
+                "requested_rigid_body_ancestor_path": owner_path,
+            }
+        )
+    return normalized
+
+
+def _validate_joint_endpoint_owner_promotions(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    *,
+    ensured_paths: set[str],
+    promotions: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Validate and report the exact allowlisted endpoint owner changes."""
+
+    before_joints = {
+        str(joint.get("prim_path") or ""): joint
+        for joint in before.get("joints", [])
+        if joint.get("enabled") is not False and not joint.get("is_fixed_joint")
+    }
+    after_joints = {
+        str(joint.get("prim_path") or ""): joint
+        for joint in after.get("joints", [])
+        if joint.get("enabled") is not False and not joint.get("is_fixed_joint")
+    }
+    if set(before_joints) != set(after_joints):
+        raise PhysicsTopologyPlanError(
+            "Topology plan changed the set of enabled non-fixed joints"
+        )
+    promotion_by_identity = {
+        (
+            promotion["joint_prim_path"],
+            promotion["relationship"],
+            promotion["relationship_target_path"],
+        ): promotion
+        for promotion in promotions
+    }
+    applied: list[dict[str, Any]] = []
+    observed_identities: set[tuple[str, str, str]] = set()
+    for joint_path, before_joint in before_joints.items():
+        after_joint = after_joints[joint_path]
+        for endpoint in ("body0", "body1"):
+            targets = tuple(before_joint.get(f"{endpoint}_targets") or [])
+            before_owners = tuple(
+                sorted(before_joint.get(f"{endpoint}_rigid_body_paths") or [])
+            )
+            after_owners = tuple(
+                sorted(after_joint.get(f"{endpoint}_rigid_body_paths") or [])
+            )
+            if before_owners == after_owners:
+                continue
+            if len(targets) != 1:
+                raise PhysicsTopologyPlanError(
+                    "Topology plan changed ownership for an ambiguous non-fixed "
+                    f"joint relationship: {joint_path} {endpoint}"
+                )
+            target = targets[0]
+            identity = (joint_path, endpoint, target)
+            promotion = promotion_by_identity.get(identity)
+            if promotion is None:
+                raise PhysicsTopologyPlanError(
+                    "Topology plan changed non-fixed joint endpoint ownership "
+                    "outside the explicit promotion allowlist: "
+                    f"{joint_path} {endpoint} {target}"
+                )
+            owner_path = promotion["requested_rigid_body_ancestor_path"]
+            if owner_path not in ensured_paths or after_owners != (owner_path,):
+                raise PhysicsTopologyPlanError(
+                    "Topology plan produced a mismatched joint endpoint owner: "
+                    f"{joint_path} {endpoint} requested {owner_path}, observed "
+                    f"{list(after_owners)}"
+                )
+            if any(not _path_is_or_under(target, owner) for owner in before_owners):
+                raise PhysicsTopologyPlanError(
+                    "Topology plan encountered ambiguous prior endpoint ownership: "
+                    f"{joint_path} {endpoint}"
+                )
+            observed_identities.add(identity)
+            applied.append(
+                {
+                    **promotion,
+                    "before_rigid_body_paths": list(before_owners),
+                    "after_rigid_body_paths": list(after_owners),
+                }
+            )
+    unused = set(promotion_by_identity) - observed_identities
+    if unused:
+        joint_path, relationship, target_path = sorted(unused)[0]
+        raise PhysicsTopologyPlanError(
+            "joint endpoint owner promotion did not produce the requested owner "
+            f"change: {joint_path} {relationship} {target_path}"
+        )
+    return sorted(
+        applied,
+        key=lambda item: (
+            item["joint_prim_path"],
+            item["relationship"],
+            item["relationship_target_path"],
+        ),
+    )
+
+
+def _reset_xform_stack_preserving_world(prim: Any, Usd: Any, UsdGeom: Any) -> None:
+    """Decouple a nested body without changing its authored world transforms."""
+
+    xformable = UsdGeom.Xformable(prim)
+    if xformable.GetResetXformStack():
+        return
+    current = prim
+    while current and current.IsValid() and not current.IsPseudoRoot():
+        current_xformable = UsdGeom.Xformable(current)
+        if current_xformable:
+            order_attribute = current.GetAttribute("xformOpOrder")
+            if order_attribute and (
+                order_attribute.HasAuthoredConnections()
+                or order_attribute.GetTimeSamples()
+            ):
+                raise PhysicsTopologyPlanError(
+                    "Cannot reset a nested rigid body with animated or connected "
+                    f"transform ancestry: {prim.GetPath()}"
+                )
+            for op in current_xformable.GetOrderedXformOps():
+                attribute = op.GetAttr()
+                if attribute.HasAuthoredConnections() or attribute.GetTimeSamples():
+                    raise PhysicsTopologyPlanError(
+                        "Cannot reset a nested rigid body with animated or connected "
+                        f"transform ancestry: {prim.GetPath()}"
+                    )
+            if current_xformable.GetResetXformStack():
+                break
+        current = current.GetParent()
+    world_transform = xformable.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    matrix_op = xformable.MakeMatrixXform()
+    matrix_op.Set(world_transform, Usd.TimeCode.Default())
+    xformable.SetResetXformStack(True)
 
 
 def _unowned_static_group_key(prim_path: str) -> str:
@@ -188,7 +488,7 @@ def inspect_physics_topology(
 ) -> dict[str, Any]:
     """Return authored rigid-body, collider, joint, and articulation facts."""
 
-    from pxr import Usd, UsdPhysics
+    from pxr import Usd, UsdGeom, UsdPhysics
 
     path = Path(usd_path).resolve()
     if not path.is_file():
@@ -201,11 +501,13 @@ def inspect_physics_topology(
         if not root or not root.IsValid():
             raise RuntimeError(f"Root prim not found: {root_prim_path}")
 
-    prims = [
-        prim
-        for prim in stage.Traverse()
-        if _path_in_scope(str(prim.GetPath()), root_prim_path)
-    ]
+    prims = list(
+        _traverse_instance_proxies(
+            stage,
+            Usd,
+            root_prim_path=root_prim_path,
+        )
+    )
     rigid_body_paths = sorted(
         str(prim.GetPath()) for prim in prims if _enabled_rigid_body(prim, UsdPhysics)
     )
@@ -297,7 +599,12 @@ def inspect_physics_topology(
             stage.GetPrimAtPath(body_path).GetPath().GetParentPath(),
             owner_rigid_body_set,
         )
-        if parent_body:
+        if (
+            parent_body
+            and not UsdGeom.Xformable(
+                stage.GetPrimAtPath(body_path)
+            ).GetResetXformStack()
+        ):
             findings.append(
                 {
                     "code": "nested_enabled_rigid_body",
@@ -345,7 +652,7 @@ def inspect_physics_topology(
             )
 
     return {
-        "schema_version": "content-workbench.physics-topology.v1",
+        "schema_version": "usd-cli.physics-topology.v1",
         "asset": str(path),
         "source_digest": sha256_file(path),
         "path_space": path_space,
@@ -571,10 +878,12 @@ def inspect_physics_components(
     for collider_path, group_key in collider_to_group.items():
         role_records[group_key]["collider_paths"].append(collider_path)
 
-    for prim in stage.Traverse():
+    for prim in _traverse_instance_proxies(
+        stage,
+        Usd,
+        root_prim_path=root_prim_path,
+    ):
         prim_path = str(prim.GetPath())
-        if not _path_in_scope(prim_path, root_prim_path):
-            continue
         if not prim.IsA(UsdGeom.Gprim):
             continue
         owner = _nearest_path(prim.GetPath(), body_set)
@@ -637,7 +946,7 @@ def inspect_physics_components(
         )
         roles = role_records[group_key]
         visual_paths = sorted(set(roles["visual_evidence_paths"]))
-        collider_paths = sorted(set(roles["collider_paths"]))
+        group_collider_paths = sorted(set(roles["collider_paths"]))
         helper_paths = sorted(set(roles["helper_paths"]))
         body_root = (
             min(group_bodies, key=lambda item: (item.count("/"), item))
@@ -655,7 +964,7 @@ def inspect_physics_components(
                 "path_space": path_space,
                 "body_root_path": body_root,
                 "visual_evidence_paths": visual_paths,
-                "collider_paths": collider_paths,
+                "collider_paths": group_collider_paths,
                 "helper_paths": helper_paths,
                 "rigid_body_paths": group_bodies,
                 "joint_paths": relevant_joints,
@@ -665,7 +974,7 @@ def inspect_physics_components(
                 ),
                 "bounds_m": _component_bounds(
                     stage,
-                    visual_paths or collider_paths,
+                    visual_paths or group_collider_paths,
                     Usd,
                     UsdGeom,
                 ),
@@ -674,7 +983,7 @@ def inspect_physics_components(
         )
 
     return {
-        "schema_version": "content-workbench.physics-components.v2",
+        "schema_version": "usd-cli.physics-components.v2",
         "asset": str(path),
         "source_digest": topology["source_digest"],
         "path_space": path_space,
@@ -698,6 +1007,7 @@ def apply_physics_topology_plan(
     mobility_intent: str = "preserve",
     operations: list[dict[str, Any]],
     invariants: dict[str, Any] | None = None,
+    joint_endpoint_owner_promotions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Apply an allowlisted topology plan to a flattened derivative USD."""
 
@@ -748,9 +1058,18 @@ def apply_physics_topology_plan(
 
     stage = Usd.Stage.Open(str(source))
     if stage is None:
-        raise RuntimeError(f"Failed to open USD stage: {source}")
+        raise PhysicsTopologyPlanError("Failed to open the source USD stage")
     articulation_roots = list(before["articulation_root_paths"])
     non_fixed_joint_endpoints = _non_fixed_joint_endpoint_paths(before)
+    before_joint_signature = _non_fixed_joint_structural_signature(stage)
+    normalized_promotions = _normalize_joint_endpoint_owner_promotions(
+        joint_endpoint_owner_promotions,
+        topology=before,
+    )
+    promotion_owner_paths = {
+        promotion["requested_rigid_body_ancestor_path"]
+        for promotion in normalized_promotions
+    }
     normalized: list[tuple[str, str]] = []
     for index, operation in enumerate(operations):
         if not isinstance(operation, dict):
@@ -787,8 +1106,8 @@ def apply_physics_topology_plan(
             )
         if op == "remove_fixed_joint" and prim.GetChildren():
             raise PhysicsTopologyPlanError(
-                "remove_fixed_joint refuses to delete a joint prim with children "
-                f"because RemovePrim would delete the child subtree: {prim_path}"
+                "remove_fixed_joint refuses to deactivate a joint prim with children "
+                f"because deactivation would hide the child subtree: {prim_path}"
             )
         if op == "remove_rigid_body_api" and not prim.HasAPI(UsdPhysics.RigidBodyAPI):
             raise PhysicsTopologyPlanError(
@@ -799,7 +1118,13 @@ def apply_physics_topology_plan(
             raise PhysicsTopologyPlanError(
                 f"Only Xformable prims may receive UsdPhysics.RigidBodyAPI: {prim_path}"
             )
-        if _path_overlaps_any_root(prim_path, articulation_roots):
+        allowlisted_articulation_owner_promotion = (
+            op == "ensure_rigid_body_api" and prim_path in promotion_owner_paths
+        )
+        if (
+            _path_overlaps_any_root(prim_path, articulation_roots)
+            and not allowlisted_articulation_owner_promotion
+        ):
             raise PhysicsTopologyPlanError(
                 "Topology operation would violate "
                 f"reject_articulation_changes=true: {prim_path}"
@@ -824,37 +1149,87 @@ def apply_physics_topology_plan(
             )
         normalized.append((op, prim_path))
 
+    ensure_operation_paths = {
+        prim_path for op, prim_path in normalized if op == "ensure_rigid_body_api"
+    }
+    missing_ensure_operations = promotion_owner_paths - ensure_operation_paths
+    if missing_ensure_operations:
+        raise PhysicsTopologyPlanError(
+            "joint endpoint owner promotion requires an exact "
+            "ensure_rigid_body_api operation: "
+            f"{sorted(missing_ensure_operations)[0]}"
+        )
+    if normalized_promotions:
+        unlisted_ensure_operations = ensure_operation_paths - promotion_owner_paths
+        if unlisted_ensure_operations:
+            raise PhysicsTopologyPlanError(
+                "ensure_rigid_body_api operation is not covered by the joint "
+                "endpoint owner promotion allowlist: "
+                f"{sorted(unlisted_ensure_operations)[0]}"
+            )
+
     flattened = stage.Flatten()
     editable = Usd.Stage.Open(flattened)
     if editable is None:
-        raise RuntimeError(f"Failed to create editable flattened stage: {source}")
+        raise PhysicsTopologyPlanError("Failed to create an editable flattened stage")
     applied: list[dict[str, str]] = []
+    ensured_paths: set[str] = set()
     for op, prim_path in normalized:
-        prim = editable.GetPrimAtPath(prim_path)
+        prim = _deinstance_topology_target(editable, prim_path)
         if not prim or not prim.IsValid():
             raise PhysicsTopologyPlanError(
-                f"Topology target disappeared after flattening: {prim_path}"
-            )
-        if prim.IsInstanceProxy():
-            raise PhysicsTopologyPlanError(
-                f"Topology target is an instance proxy and cannot be edited: {prim_path}"
+                "Topology target disappeared while preparing an editable derivative: "
+                f"{prim_path}"
             )
         if prim.IsInstanceable():
             prim.SetInstanceable(False)
         if op == "ensure_rigid_body_api":
             api = UsdPhysics.RigidBodyAPI.Apply(prim)
             api.CreateRigidBodyEnabledAttr(True)
+            ensured_paths.add(prim_path)
         elif op == "remove_rigid_body_api":
             prim.RemoveAPI(UsdPhysics.RigidBodyAPI)
         else:
-            editable.RemovePrim(prim_path)
+            if not prim.SetActive(False):
+                raise PhysicsTopologyPlanError(
+                    f"Failed to deactivate fixed joint: {prim_path}"
+                )
+            current = editable.GetPrimAtPath(prim_path)
+            if current and current.IsValid() and current.IsActive():
+                raise PhysicsTopologyPlanError(
+                    f"Fixed joint remained active after removal: {prim_path}"
+                )
         applied.append({"op": op, "prim_path": prim_path})
+
+    enabled_paths = {
+        str(prim.GetPath())
+        for prim in editable.Traverse(Usd.TraverseInstanceProxies())
+        if _enabled_rigid_body(prim, UsdPhysics)
+    }
+    reset_paths: set[str] = set()
+    for prim_path in sorted(ensured_paths, key=lambda path: (path.count("/"), path)):
+        if prim_path not in enabled_paths:
+            continue
+        prim = editable.GetPrimAtPath(prim_path)
+        parent_body = _nearest_path(prim.GetPath().GetParentPath(), enabled_paths)
+        if not parent_body:
+            continue
+        xformable = UsdGeom.Xformable(prim)
+        if not xformable.GetResetXformStack():
+            _reset_xform_stack_preserving_world(prim, Usd, UsdGeom)
+            reset_paths.add(prim_path)
+    for operation in applied:
+        if (
+            operation["op"] == "ensure_rigid_body_api"
+            and operation["prim_path"] in reset_paths
+        ):
+            operation["reset_xform_stack"] = "preserve_world"
 
     output.parent.mkdir(parents=True, exist_ok=True)
     temp = output.with_name(f".{output.stem}.{uuid.uuid4().hex}{output.suffix}")
     try:
         if not editable.GetRootLayer().Export(str(temp)):
-            raise RuntimeError(f"Failed to export topology derivative: {temp}")
+            raise PhysicsTopologyPlanError("Failed to export the topology derivative")
         temp_after = inspect_physics_topology(temp)
         if temp_after["enabled_collider_count"] != before["enabled_collider_count"]:
             raise PhysicsTopologyPlanError(
@@ -879,9 +1254,30 @@ def apply_physics_topology_plan(
                 "Topology plan changed articulation roots despite "
                 "reject_articulation_changes=true"
             )
-        if _non_fixed_joint_endpoint_signature(temp_after) != (
-            _non_fixed_joint_endpoint_signature(before)
-        ):
+        temp_stage = Usd.Stage.Open(str(temp))
+        if temp_stage is None:
+            raise PhysicsTopologyPlanError(
+                "Failed to reopen the exported topology derivative"
+            )
+        if _non_fixed_joint_structural_signature(temp_stage) != before_joint_signature:
+            raise PhysicsTopologyPlanError(
+                "Topology plan changed a non-fixed joint prim, type, relationship "
+                "target, axis, or limit signature"
+            )
+        applied_promotions = _validate_joint_endpoint_owner_promotions(
+            before,
+            temp_after,
+            ensured_paths=ensured_paths,
+            promotions=normalized_promotions,
+        )
+        before_enabled_endpoints = {
+            endpoint
+            for _, body0_targets, body1_targets in (
+                _non_fixed_joint_endpoint_signature(before)
+            )
+            for endpoint in (*body0_targets, *body1_targets)
+        } & set(before["rigid_body_paths"])
+        if not before_enabled_endpoints.issubset(set(temp_after["rigid_body_paths"])):
             raise PhysicsTopologyPlanError(
                 "Topology plan changed non-fixed joint endpoint ownership"
             )
@@ -899,6 +1295,7 @@ def apply_physics_topology_plan(
         "output_digest": sha256_file(output),
         "mobility_intent": mobility_intent,
         "applied_operations": applied,
+        "applied_joint_endpoint_owner_promotions": applied_promotions,
         "rejected_operations": [],
         "warnings": [],
         "invariants": {

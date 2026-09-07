@@ -2,40 +2,85 @@
 name = "content-workflow-cli"
 version = "0.1.0"
 description = "Batch launcher for agentic USD asset workflows"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [
     {name = "Omniverse GenAI Team"},
 ]
 dependencies = [
     "content-agent-workflows",
-    "content-workbench-agent-client",
+    "joint-agent",
+    "jsonschema>=4.26,<5",
     "numpy>=1.26",
     "Pillow>=10",
     "physics-agent",
     "PyYAML>=6,<7",
+    "python-dotenv>=1.0,<2",
+    # Imported at module scope by the content-workflow-physics-tune-sweep
+    # console script; declared directly so the entry point does not depend on
+    # the transitive edge through content-agent-workflows.
+    "requests>=2.32,<3",
+    # Canonical mesh-segmentation tools import these directly. Keep them at
+    # the CLI boundary so a clean public install can execute the skill.
+    "trimesh>=4.10,<5.0.0",
+    "usd-cli[cli,server]",
+    "warp-lang>=1.11.0",
+    "world-understanding",
 ]
 
 [project.optional-dependencies]
+materials = [
+    "material-agent",
+]
 dev = [
     "pytest>=9.0.3,<10",
     "ruff>=0.12",
 ]
 
 [project.scripts]
-content-workflow-cli = "content_workflow_cli.cli:main"
-content-workbench-snapshot-scene = "content_workflow_cli.workbench_tools.snapshot_scene:main"
+content-workflow-cli = "content_workflow_cli.entrypoint:main"
+content-workflow-physics-tune-sweep = "content_workflow_cli.agent_tools.physics_tune_sweep:main"
+content-workflow-physics-external-sweep = "content_workflow_cli.agent_tools.physics_external_sweep:main"
+content-workflow-vlm-observe = "content_workflow_cli.vision_observer:main"
+content-workflow-material-author = "content_workflow_cli.agent_tools.material_author:main"
+content-workflow-composed-leaf = "content_workflow_cli.composed_leaf_cli:main"
 
 [tool.uv.sources]
 content-agent-workflows = { path = "../content_agent_workflows", editable = true }
-content-workbench-agent-client = { path = "../content_workbench_agent_client", editable = true }
+joint-agent = { path = "../../../apps/joint_agent", editable = true }
+material-agent = { path = "../../../apps/material_agent", editable = true }
 physics-agent = { path = "../../../apps/physics_agent", editable = true }
+usd-cli = { path = "../../../apps/usd_cli", editable = true }
+world-understanding = { path = "../../..", editable = true }
+
+[tool.uv]
+override-dependencies = [
+    # world-understanding supplies usd-exchange as the sole pxr provider.
+    "usd-core; python_version < '0'",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["content_workflow_cli"]
 ignore-vcs = true
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README_PUBLIC.md",
+    "/pyproject.toml",
+    "/content_workflow_cli",
+    "/examples",
+    "/tests",
+]
+exclude = [
+    "/docs/internal",
+    "/tests/internal",
+]
+ignore-vcs = true
+
 [build-system]
-requires = ["hatchling<1.27.0"]
+requires = ["hatchling<1.32.0"]
 build-backend = "hatchling.build"
 
 [tool.ruff]

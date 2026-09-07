@@ -1,9 +1,17 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Exact isolated OVRTX runtime. OVRTX is intentionally resolved with --no-deps;
-# its compatible NumPy/Pillow pair is reviewed and installed explicitly.
-ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_x86_64.whl#sha256=a6b2b3c357f6487451c8d71e96cc4f83156c08fd9747d10e1b65f3866bed4b8f ; platform_machine == 'x86_64'
-ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.3.0.312915-py3-none-manylinux_2_35_aarch64.whl#sha256=958d254cebeb271ac397f5b760ff5def84a02d04b23f610c31d456c7c8e871af ; platform_machine == 'aarch64'
+# Exact isolated OVRTX runtime shared by World Understanding and usd-cli. Native
+# packages are intentionally resolved with --no-deps; the qualified ovstage/Warp
+# pair and compatible NumPy/Pillow pair are reviewed and installed explicitly.
+ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.4.1.364340-py3-none-manylinux_2_35_x86_64.whl#sha256=597e09f34819f31a71fb919c9b0024c3b652588bdfa4d1858b2222f219d0ec09 ; platform_machine == 'x86_64'
+ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.4.1.364340-py3-none-manylinux_2_35_aarch64.whl#sha256=38b33e5052b81572c11af317fd9f214b873a631ae727e448f6a6b990597c0320 ; platform_machine == 'aarch64'
+ovrtx @ https://pypi.nvidia.com/ovrtx/ovrtx-0.4.1.364340-py3-none-win_amd64.whl#sha256=f1a8e160912a503a5e536143f7bc1bca7048b3941a4c2756c5b661961bcb5752 ; platform_machine == 'AMD64'
+ovstage @ https://pypi.nvidia.com/ovstage/ovstage-0.1.1.355824-py3-none-manylinux_2_35_x86_64.whl#sha256=b4affd9e5b23620ec71901a164df4ae373d25de2c76b9fae4d193d97aa2df0ec ; platform_machine == 'x86_64'
+ovstage @ https://pypi.nvidia.com/ovstage/ovstage-0.1.1.355824-py3-none-manylinux_2_35_aarch64.whl#sha256=046aa360959bf5344d912470aaa11d3ec1fc750e28816e5239ce0438864c9863 ; platform_machine == 'aarch64'
+ovstage @ https://pypi.nvidia.com/ovstage/ovstage-0.1.1.355824-py3-none-win_amd64.whl#sha256=fc8ae7fe950aa2ff8fd24643047f7156ffa1b9b384ce3f024ee2193929e21a3b ; platform_machine == 'AMD64'
+warp-lang @ https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-manylinux_2_28_x86_64.whl#sha256=96449fc1e3b354185e2f09434fb794b5953ab2e8673b104d7e7f48d5d418bb35 ; platform_machine == 'x86_64'
+warp-lang @ https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-manylinux_2_34_aarch64.whl#sha256=d4715171bd6821436b82293d774c9a082ace08215c189572b4348d1e48fb8ee8 ; platform_machine == 'aarch64'
+warp-lang @ https://pypi.nvidia.com/warp-lang/warp_lang-1.16.0-py3-none-win_amd64.whl#sha256=8690c9096e0a271985339d4aa4b37675e7d62852620ca861ac032dc85b124542 ; platform_machine == 'AMD64'
 numpy==2.2.6
 pillow==12.3.0

@@ -1,0 +1,117 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "light_bulb_01"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "light_bulb_01"
+{
+    def Scope "Materials"
+    {
+        def Material "LightBulb_Glass" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/LightBulb_Glass>
+        )
+        {
+        }
+
+        def Material "Cap_Plastic" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Cap_Plastic>
+        )
+        {
+        }
+
+        def Material "Internal_Chamber_Glass" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Internal_Chamber_Glass>
+        )
+        {
+        }
+
+        def Material "Filament_Holder_Metal" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Filament_Holder_Metal>
+        )
+        {
+        }
+
+        def Material "Filament_Metal" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Filament_Metal>
+        )
+        {
+        }
+
+        def Material "Internal_Metal" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Internal_Metal>
+        )
+        {
+        }
+
+        def Material "Screw_Metal" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/Screw_Metal>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "Bulb_Main" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/LightBulb_Glass>
+        }
+
+        over "Bulb_Screw_Cap" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Cap_Plastic>
+        }
+
+        over "Internal_Chamber" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Internal_Chamber_Glass>
+        }
+
+        over "Filament_Big" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Filament_Holder_Metal>
+        }
+
+        over "Filament_Small" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Filament_Holder_Metal>
+        }
+
+        over "Filament" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Filament_Metal>
+        }
+
+        over "Bulb_Screw_Internal" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Internal_Metal>
+        }
+
+        over "Bulb_Screw" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </light_bulb_01/Materials/Screw_Metal>
+        }
+    }
+}

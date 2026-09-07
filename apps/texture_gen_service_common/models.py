@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 JobState = Literal["queued", "processing", "completed", "failed", "cancelled"]
 
@@ -38,15 +38,57 @@ class Conditioning(BaseModel):
         return self
 
 
+class WeatheringControls(BaseModel):
+    """Optional precision masks for prompt-requested weathering.
+
+    The text prompt is the product-facing source of weathering intent and
+    placement. White editable-mask pixels admit changes while white protected-
+    mask pixels suppress them. Seed and overall strength remain the existing
+    top-level configuration fields; normalized effect parameters and quality
+    thresholds are backend planning state, not request controls.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    editable_mask_uri: str | None = None
+    protected_mask_uri: str | None = None
+
+    @model_validator(mode="after")
+    def check_mask_uris(self) -> WeatheringControls:
+        for field_name in ("editable_mask_uri", "protected_mask_uri"):
+            value = getattr(self, field_name)
+            if value is not None and not value.strip():
+                raise ValueError(f"{field_name} must be a non-empty URI when set")
+        return self
+
+
 class Configuration(BaseModel):
     """Texture generation configuration."""
 
     strength: float = Field(default=0.8, ge=0.0, le=1.0)
     seed: int | None = None
-    variant_name: str | None = None
+    variant_name: str | None = Field(default=None, min_length=1, max_length=128)
     engine: str | None = None
     texture_size: int | None = Field(default=None, ge=1, le=4096)
+    weathering: WeatheringControls | None = None
     custom_parameters: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("variant_name")
+    @classmethod
+    def validate_variant_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value.strip() in {"", ".", ".."}:
+            raise ValueError("variant_name must be a non-empty filename label")
+        if (
+            "/" in value
+            or "\\" in value
+            or any(ord(character) < 32 for character in value)
+        ):
+            raise ValueError(
+                "variant_name must not contain path separators or control characters"
+            )
+        return value
 
 
 class TextureTarget(BaseModel):
@@ -70,6 +112,7 @@ class BackendCapabilities(BaseModel):
     orm: bool | None = None
     masks: bool | None = None
     coverage: bool | None = None
+    weathering: bool | None = None
     geometry_output: str | None = None
 
 
@@ -81,6 +124,13 @@ class CreateJobRequest(BaseModel):
     conditioning: Conditioning
     configuration: Configuration = Field(default_factory=Configuration)
     capabilities: BackendCapabilities | None = None
+
+
+class AssetUploadResponse(BaseModel):
+    """Service-owned input artifact accepted for a later generation request."""
+
+    asset_uri: str
+    byte_size: int = Field(ge=1)
 
 
 class GeneratedTextures(BaseModel):

@@ -12,7 +12,10 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-CLIENT_PATH = REPO_ROOT / ".agents/skills/material-agent-client/references/client.py"
+CLIENT_PATH = (
+    REPO_ROOT
+    / ".agents/skills/fixed-pipeline/references/material-agent-client/references/client.py"
+)
 SPEC = importlib.util.spec_from_file_location(
     "material_agent_skill_reference_client", CLIENT_PATH
 )
@@ -52,6 +55,14 @@ def _client() -> tuple[MaterialAgentClient, _FakeSession]:
     return client, session
 
 
+def test_client_uses_nvcf_version_header(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NVCF_INVOKE_VERSION_ID", "version-under-test")
+
+    client = MaterialAgentClient(base_url="http://service")
+
+    assert client._http.headers["Function-Version-Id"] == "version-under-test"
+
+
 def test_public_methods_preserve_legacy_positional_parameter_order() -> None:
     start_parameters = list(
         inspect.signature(MaterialAgentClient.start_pipeline).parameters
@@ -89,6 +100,17 @@ def test_start_pipeline_omits_optional_defaults(tmp_path: Path) -> None:
     client.start_pipeline(usd_path=str(usd_path))
 
     assert session.posts[0]["data"] == {}
+
+
+def test_start_pipeline_posts_s3_uri_without_local_file() -> None:
+    client, session = _client()
+
+    client.start_pipeline(s3_uri="s3://material-intake/scenes/chair.usda")
+
+    assert session.posts[0]["data"] == {
+        "s3_uri": "s3://material-intake/scenes/chair.usda"
+    }
+    assert session.posts[0]["files"] is None
 
 
 def test_start_pipeline_omits_blank_email_and_normalizes_explicit_email(
@@ -256,6 +278,25 @@ def test_run_and_monitor_forwards_initial_pipeline_options(
         "enable_prim_clustering": "true",
         "cluster_min_prims": "25",
         "layer_only": "false",
+    }
+
+
+def test_run_and_monitor_forwards_s3_uri(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, session = _client()
+    monkeypatch.setattr(client, "stream_events", lambda _session_id: iter(()))
+    monkeypatch.setattr(
+        client, "get_status", lambda _session_id: {"status": "completed"}
+    )
+
+    client.run_and_monitor(
+        s3_uri="s3://material-intake/scenes/chair.usda",
+        print_stream=False,
+    )
+
+    assert session.posts[0]["data"] == {
+        "s3_uri": "s3://material-intake/scenes/chair.usda"
     }
 
 

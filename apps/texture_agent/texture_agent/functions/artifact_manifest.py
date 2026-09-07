@@ -4,22 +4,28 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+from collections.abc import Iterator
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from pxr import Sdf, Usd, UsdShade
+from pxr import Ar, Sdf, Usd, UsdShade
+
+from texture_agent.config.rendering_backends import ovrtx_request_sha256
 
 ARTIFACTS_MANIFEST_SCHEMA_VERSION = "texture-agent-artifacts.v1"
 DIAGNOSTIC_SCHEMA_VERSION = "texture-agent-diagnostic.v1"
+_TEXTURE_IMAGE_SUFFIXES = frozenset({".jpeg", ".jpg", ".png"})
 PIPELINE_FAILURE_CODE = "TEXTURE_PIPELINE_STEP_FAILED"
 PIPELINE_FAILURE_MESSAGE = "Texture Agent pipeline step failed."
 
 _URI_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _SENSITIVE_QUERY_RE = re.compile(
     r"(?i)(api[_-]?key|access[_-]?token|authorization|credential|token|password|secret)=([^&\s]+)"
 )
@@ -94,7 +100,12 @@ def _display_path(path: str | Path | None, root: Path) -> str | None:
         return _redact_string(raw)
 
 
-def _path_entry(path: str | Path | None, root: Path) -> dict[str, Any] | None:
+def _path_entry(
+    path: str | Path | None,
+    root: Path,
+    *,
+    include_sha256: bool = False,
+) -> dict[str, Any] | None:
     if path is None:
         return None
     raw = str(path)
@@ -107,8 +118,14 @@ def _path_entry(path: str | Path | None, root: Path) -> dict[str, Any] | None:
         entry["exists"] = local.exists()
         if local.is_file():
             entry["size_bytes"] = local.stat().st_size
+            if include_sha256:
+                digest = hashlib.sha256()
+                with local.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                entry["sha256"] = digest.hexdigest()
     except (OSError, ValueError):
-        entry["exists"] = False
+        entry.setdefault("exists", False)
     return entry
 
 
@@ -206,6 +223,21 @@ def _read_uv_report(path: str | None) -> dict[str, Any] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return data if isinstance(data, dict) else None
+
+
+def _external_authoring_preflight(context: dict[str, Any]) -> dict[str, Any] | None:
+    value = context.get("external_authoring_preflight")
+    if isinstance(value, dict):
+        return value
+    working_dir = context.get("working_dir")
+    if not working_dir:
+        return None
+    path = Path(str(working_dir)) / "external_authoring_feasibility.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def _material_entries(context: dict[str, Any]) -> list[dict[str, Any]]:
@@ -537,6 +569,195 @@ def _projection_backend_summary(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _variant_prim_specs(
+    prim_spec: Any,
+    *,
+    inside_variant: bool = False,
+) -> Iterator[Any]:
+    """Yield authored prim specs inside every variant branch of a layer."""
+    if inside_variant:
+        yield prim_spec
+    for child in prim_spec.nameChildren:
+        yield from _variant_prim_specs(child, inside_variant=inside_variant)
+    for variant_set in prim_spec.variantSets.values():
+        for variant in variant_set.variants.values():
+            yield from _variant_prim_specs(variant.primSpec, inside_variant=True)
+
+
+def _all_prim_specs(prim_spec: Any) -> Iterator[Any]:
+    """Yield every authored prim spec in a layer, variant branches included."""
+    yield prim_spec
+    for child in prim_spec.nameChildren:
+        yield from _all_prim_specs(child)
+    for variant_set in prim_spec.variantSets.values():
+        for variant in variant_set.variants.values():
+            yield from _all_prim_specs(variant.primSpec)
+
+
+def _dormant_composition_layers(
+    stage: Usd.Stage,
+    used_identifiers: set[str],
+) -> list[Any]:
+    """Return layers reachable only through unselected composition arcs.
+
+    A layer pulled in solely by a dormant variant never contributes to the
+    current composition, so it is absent from ``stage.GetUsedLayers()`` and
+    its texture dependencies would otherwise escape validation entirely.
+    """
+    get_root_layer = getattr(stage, "GetRootLayer", None)
+    if not callable(get_root_layer):
+        return []
+
+    discovered: dict[str, Any] = {}
+    queue = [get_root_layer()]
+    while queue:
+        layer = queue.pop()
+        identifier = str(layer.identifier)
+        if identifier in discovered:
+            continue
+        discovered[identifier] = layer
+        try:
+            dependencies = list(layer.GetCompositionAssetDependencies())
+        except (AttributeError, RuntimeError, ValueError):
+            continue
+        for dependency in dependencies:
+            try:
+                resolved = Sdf.ComputeAssetPathRelativeToLayer(layer, dependency)
+                next_layer = Sdf.Layer.FindOrOpen(resolved) if resolved else None
+            except (AttributeError, RuntimeError, ValueError):
+                continue
+            if next_layer is not None:
+                queue.append(next_layer)
+
+    return [
+        layer
+        for identifier, layer in discovered.items()
+        if identifier not in used_identifiers
+    ]
+
+
+def _variant_opinion_is_masked(
+    stage: Usd.Stage,
+    prim_path: str,
+    attr_name: str,
+) -> bool:
+    """True when a non-variant opinion outranks every variant opinion.
+
+    Variant arcs are weaker than a direct opinion authored on the same prim,
+    and changing the selection cannot reorder that. Such a variant value can
+    never reach the composed result, so validating it would reject a package
+    over a texture the output never resolves.
+    """
+    try:
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim.IsValid():
+            return False
+        attr = prim.GetAttribute(attr_name)
+        if not attr:
+            return False
+        property_stack = attr.GetPropertyStack()
+    except (AttributeError, RuntimeError, ValueError):
+        return False
+    if not property_stack:
+        return False
+    return not property_stack[0].path.ContainsPrimVariantSelection()
+
+
+def _inactive_variant_texture_references(
+    stage: Usd.Stage,
+    active_references: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Collect String/Token texture refs hidden in unselected variant branches."""
+    active_keys = {
+        (
+            str(ref["prim_path"]),
+            str(ref["attribute"]),
+            str(ref["path"]),
+        )
+        for ref in active_references
+    }
+    variant_refs: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str, str]] = set()
+    get_used_layers = getattr(stage, "GetUsedLayers", None)
+    if not callable(get_used_layers):
+        return variant_refs
+
+    used_layers = list(get_used_layers())
+    used_identifiers = {
+        str(getattr(layer, "identifier", "") or "") for layer in used_layers
+    }
+    layer_specs: list[tuple[Any, Any]] = [
+        (layer, prim_spec)
+        for layer in used_layers
+        for root_prim in layer.pseudoRoot.nameChildren
+        for prim_spec in _variant_prim_specs(root_prim)
+    ]
+    # Every spec in a dormant-only layer is unreachable in the current
+    # composition, not just the ones nested inside a variant branch.
+    layer_specs.extend(
+        (layer, prim_spec)
+        for layer in _dormant_composition_layers(stage, used_identifiers)
+        for root_prim in layer.pseudoRoot.nameChildren
+        for prim_spec in _all_prim_specs(root_prim)
+    )
+
+    for layer, prim_spec in layer_specs:
+        prim_path = str(prim_spec.path.StripAllVariantSelections())
+        is_shader = str(prim_spec.typeName) == "Shader"
+        if not is_shader and not str(prim_spec.typeName):
+            composed_prim = stage.GetPrimAtPath(prim_path)
+            is_shader = bool(
+                composed_prim.IsValid() and composed_prim.IsA(UsdShade.Shader)
+            )
+        if not is_shader:
+            continue
+        for prop_spec in prim_spec.properties:
+            attr_name = str(prop_spec.name)
+            if not (attr_name.startswith("inputs:") and attr_name.endswith("_texture")):
+                continue
+            value = getattr(prop_spec, "default", None)
+            if not isinstance(value, str) or not value:
+                continue
+            texture_path = value
+            while Ar.IsPackageRelativePath(texture_path):
+                _outer, texture_path = Ar.SplitPackageRelativePathInner(texture_path)
+            if Path(texture_path).suffix.lower() not in _TEXTURE_IMAGE_SUFFIXES:
+                continue
+            active_key = (prim_path, attr_name, value)
+            if active_key in active_keys:
+                continue
+            if _variant_opinion_is_masked(stage, prim_path, attr_name):
+                continue
+            key = (layer.identifier, prim_path, attr_name, value)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved_path = ""
+            try:
+                resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value)
+                # The resolver returns the authored value unchanged for a
+                # missing asset; anchor it so validation does not resolve
+                # against the process working directory.
+                if resolved_path and not Path(resolved_path).is_absolute():
+                    layer_real_path = getattr(layer, "realPath", "")
+                    if layer_real_path:
+                        resolved_path = str(
+                            Path(layer_real_path).parent / resolved_path
+                        )
+            except (RuntimeError, ValueError):
+                pass
+            variant_refs.append(
+                {
+                    "prim_path": prim_path,
+                    "attribute": attr_name,
+                    "value_type": "string",
+                    "path": value,
+                    "resolved_path": resolved_path,
+                }
+            )
+    return variant_refs
+
+
 def _output_texture_references(output_usd: Path) -> list[dict[str, Any]] | None:
     try:
         stage = Usd.Stage.Open(str(output_usd))
@@ -546,30 +767,77 @@ def _output_texture_references(output_usd: Path) -> list[dict[str, Any]] | None:
         return None
 
     refs: list[dict[str, Any]] = []
-    for prim in stage.Traverse():
+    # Shaders reachable only through instanceable references are instance
+    # proxies, which a default traversal skips. Missing their texture inputs
+    # reports a portable package for an archive that lacks the texture, so
+    # traverse proxies. Every instance shares one prototype spec; dedupe on
+    # the prototype path so a shared texture is reported once.
+    seen_prototype_refs: set[tuple[str, str, str]] = set()
+    for prim in stage.Traverse(Usd.TraverseInstanceProxies()):
         is_shader = prim.IsA(UsdShade.Shader)
         for attr in prim.GetAttributes():
             val = attr.Get()
             path: str | None = None
+            resolved_path = ""
             value_type = ""
             if isinstance(val, Sdf.AssetPath) and val.path:
                 path = val.path
+                resolved_path = val.resolvedPath
                 value_type = "asset"
             elif isinstance(val, str) and val and is_shader:
                 attr_name = attr.GetName()
                 if attr_name.startswith("inputs:") and attr_name.endswith("_texture"):
                     path = val
                     value_type = "string"
+                    for spec in attr.GetPropertyStack():
+                        try:
+                            authored_value = spec.default
+                            if isinstance(authored_value, Sdf.AssetPath):
+                                authored_value = authored_value.path
+                            if authored_value != path:
+                                continue
+                            resolved_path = Sdf.ComputeAssetPathRelativeToLayer(
+                                spec.layer,
+                                path,
+                            )
+                            # The resolver hands back the authored value
+                            # unchanged when the asset does not exist. Anchor
+                            # it to the authoring layer so a missing texture
+                            # is reported as missing rather than resolving
+                            # against the process working directory.
+                            if resolved_path and not Path(resolved_path).is_absolute():
+                                layer_real_path = spec.layer.realPath
+                                if layer_real_path:
+                                    resolved_path = str(
+                                        Path(layer_real_path).parent / resolved_path
+                                    )
+                            break
+                        except (AttributeError, RuntimeError):
+                            continue
 
-            if path and path.lower().endswith(".png"):
+            texture_path = path or ""
+            while Ar.IsPackageRelativePath(texture_path):
+                _outer, texture_path = Ar.SplitPackageRelativePathInner(texture_path)
+            if path and Path(texture_path).suffix.lower() in _TEXTURE_IMAGE_SUFFIXES:
+                if prim.IsInstanceProxy():
+                    prototype_key = (
+                        str(prim.GetPrimInPrototype().GetPath()),
+                        attr.GetName(),
+                        path,
+                    )
+                    if prototype_key in seen_prototype_refs:
+                        continue
+                    seen_prototype_refs.add(prototype_key)
                 refs.append(
                     {
                         "prim_path": str(prim.GetPath()),
                         "attribute": attr.GetName(),
                         "value_type": value_type,
                         "path": path,
+                        "resolved_path": resolved_path,
                     }
                 )
+    refs.extend(_inactive_variant_texture_references(stage, refs))
     return refs
 
 
@@ -642,7 +910,11 @@ def validate_output_texture_portability(
             "path": path,
             "value_type": ref["value_type"],
         }
-        if _URI_SCHEME_RE.match(path) or Path(path).is_absolute():
+        if (
+            Ar.IsPackageRelativePath(path)
+            or _URI_SCHEME_RE.match(path)
+            or Path(path).is_absolute()
+        ):
             non_relative.append(path)
             diagnostics.append(
                 make_diagnostic(
@@ -660,7 +932,11 @@ def validate_output_texture_portability(
             )
             continue
 
-        resolved = (output_usd.parent / path).resolve()
+        resolved_path = str(ref.get("resolved_path") or "")
+        if resolved_path and not _URI_SCHEME_RE.match(resolved_path):
+            resolved = Path(resolved_path).resolve()
+        else:
+            resolved = (output_usd.parent / path).resolve()
         try:
             resolved.relative_to(resolved_bundle_root)
         except ValueError:
@@ -734,6 +1010,77 @@ def validate_artifacts_manifest_schema(manifest: dict[str, Any]) -> list[str]:
         if not isinstance(manifest.get(section), dict):
             errors.append(f"{section} section must be present")
 
+    input_section = manifest.get("input") or {}
+    input_usd = input_section.get("usd") if isinstance(input_section, dict) else None
+    input_sha256 = input_usd.get("sha256") if isinstance(input_usd, dict) else None
+    renders = manifest.get("renders") or {}
+    render_stats = renders.get("render_stats") if isinstance(renders, dict) else None
+    if isinstance(render_stats, dict) and render_stats.get(
+        "production_visual_evidence"
+    ):
+        if str(render_stats.get("backend", "")).lower() != "ovrtx":
+            errors.append(
+                "renders.render_stats.backend must be ovrtx for production "
+                "visual evidence"
+            )
+        elif not isinstance(render_stats.get("ovrtx"), dict):
+            errors.append(
+                "renders.render_stats.ovrtx metadata is required for production "
+                "visual evidence"
+            )
+        else:
+            ovrtx_metadata = render_stats["ovrtx"]
+            source_sha256 = render_stats.get("source_usd_sha256")
+            if (
+                not isinstance(source_sha256, str)
+                or _SHA256_RE.fullmatch(source_sha256) is None
+            ):
+                errors.append(
+                    "renders.render_stats.source_usd_sha256 must be a 64-character "
+                    "lowercase hexadecimal digest"
+                )
+            elif source_sha256 != input_sha256:
+                errors.append(
+                    "renders.render_stats.source_usd_sha256 must match input.usd.sha256"
+                )
+            render_roots = (
+                renders.get("render_roots") if isinstance(renders, dict) else None
+            )
+            render_root_digests = (
+                [
+                    entry.get("sha256") if isinstance(entry, dict) else None
+                    for entry in render_roots
+                ]
+                if isinstance(render_roots, list)
+                else []
+            )
+            if ovrtx_metadata.get("renderer") != "OVRTX":
+                errors.append(
+                    "renders.render_stats.ovrtx.renderer must be OVRTX for "
+                    "production visual evidence"
+                )
+            if ovrtx_metadata.get("rendered_usd_sha256") != render_root_digests:
+                errors.append(
+                    "renders.render_stats.ovrtx.rendered_usd_sha256 must match "
+                    "renders.render_roots digests"
+                )
+            expected_request_sha256 = ovrtx_request_sha256(
+                source_usd_sha256=input_sha256,
+                rendered_usd_sha256=render_root_digests,
+                camera_paths=render_stats.get("camera_paths"),
+                image_width=render_stats.get("image_width"),
+                image_height=render_stats.get("image_height"),
+                render_mode=ovrtx_metadata.get("render_mode"),
+                num_sensor_updates=ovrtx_metadata.get("num_sensor_updates"),
+            )
+            if (
+                expected_request_sha256 is None
+                or ovrtx_metadata.get("request_sha256") != expected_request_sha256
+            ):
+                errors.append(
+                    "renders.render_stats.ovrtx.request_sha256 must match the "
+                    "digest-bound OVRTX render request"
+                )
     if "planning" in manifest:
         planning = manifest.get("planning")
         if not isinstance(planning, dict):
@@ -804,6 +1151,22 @@ def validate_artifacts_manifest_schema(manifest: dict[str, Any]) -> list[str]:
     ):
         if key not in projection:
             errors.append(f"backend.projection.{key} is required")
+    external_authoring = backend.get("external_authoring")
+    if external_authoring is not None:
+        if not isinstance(external_authoring, dict):
+            errors.append("backend.external_authoring must be an object")
+        else:
+            for key in (
+                "schema_version",
+                "verdict",
+                "spec",
+                "capabilities",
+                "diagnostics",
+            ):
+                if key not in external_authoring:
+                    errors.append(f"backend.external_authoring.{key} is required")
+            if external_authoring.get("verdict") not in {"go", "no_go"}:
+                errors.append("backend.external_authoring.verdict must be go or no_go")
 
     status = manifest.get("status") or {}
     for key in ("state", "warnings", "errors", "diagnostics", "service_urls"):
@@ -865,6 +1228,7 @@ def _backend_section(context: dict[str, Any]) -> dict[str, Any]:
             texture_config.get("custom_parameters", {})
         ),
         "projection": _projection_backend_summary(context),
+        "external_authoring": _redact_sensitive(_external_authoring_preflight(context)),
     }
 
 
@@ -890,22 +1254,42 @@ def build_artifacts_manifest(
     output_portability = context.get("output_portability")
     if output_portability is None and output_paths:
         output_portability = validate_output_texture_portability(output_paths[0])
+    usdz_portability = context.get("usdz_source_portability") or {
+        "portable": False,
+        "texture_reference_count": 0,
+        "non_relative_texture_paths": [],
+        "missing_texture_paths": [],
+        "diagnostics": [],
+    }
 
     package_diagnostics = context.get("package_diagnostics") or []
     generation_diagnostics = context.get("generate_textures_diagnostics") or []
+    blend_diagnostics = context.get("blend_textures_diagnostics") or []
     render_diagnostics = context.get("render_diagnostics") or []
     all_diagnostics = [*_redact_sensitive(package_diagnostics)]
     all_diagnostics.extend(_redact_sensitive(generation_diagnostics))
+    all_diagnostics.extend(_redact_sensitive(blend_diagnostics))
     all_diagnostics.extend(_redact_sensitive(render_diagnostics))
     if output_portability:
         all_diagnostics.extend(
             _redact_sensitive(output_portability.get("diagnostics", []))
+        )
+    if usdz_portability:
+        all_diagnostics.extend(
+            _redact_sensitive(usdz_portability.get("diagnostics", []))
         )
     all_diagnostics = _dedupe_diagnostics(all_diagnostics)
 
     generated = context.get("generated_textures") or {}
     blended = context.get("blended_textures") or {}
     render_paths = [str(p) for p in context.get("rendered_image_paths", [])]
+    render_root_paths = [
+        str(p)
+        for p in (
+            context.get("render_output_usd_paths")
+            or context.get("output_usd_paths", [])
+        )
+    ]
     projection_entries = _projection_backend_entries(context, root)
 
     return {
@@ -915,6 +1299,7 @@ def build_artifacts_manifest(
                 (context.get("config") or {}).get("input", {}).get("usd_path")
                 or context.get("usd_path"),
                 root,
+                include_sha256=True,
             ),
             "current_usd": _path_entry(context.get("usd_path"), root),
             "config": _config_summary(context),
@@ -927,6 +1312,7 @@ def build_artifacts_manifest(
             "prepared_usd": _path_entry(
                 uv_report.get("prepared_usd") if uv_report else context.get("usd_path"),
                 root,
+                include_sha256=True,
             ),
             "uv_report": _path_entry(uv_report_path, root),
             "uv_summary": (uv_report or {}).get("summary", {}),
@@ -942,9 +1328,11 @@ def build_artifacts_manifest(
         },
         "prompts": {
             "units": _selected_materials(context),
-            "prompt_source": "auto_prompt"
-            if context.get("auto_prompt_additions")
-            else "material_textures",
+            "prompt_source": context.get("auto_prompt_source", "material_textures"),
+            "fallback_materials": _jsonable(
+                context.get("auto_prompt_fallback_materials", [])
+            ),
+            "fallback_count": len(context.get("auto_prompt_fallback_materials", [])),
         },
         "textures": {
             "generated": _texture_set_entries(generated, root),
@@ -958,18 +1346,32 @@ def build_artifacts_manifest(
             "blend_errors": _redact_sensitive(context.get("blend_textures_errors", [])),
         },
         "outputs": {
-            "output_usd": [_path_entry(path, root) for path in output_paths],
-            "output_usdz": _path_entry(context.get("output_usdz_path"), root),
+            "output_usd": [
+                _path_entry(path, root, include_sha256=True) for path in output_paths
+            ],
+            "output_usdz": _path_entry(
+                context.get("output_usdz_path"),
+                root,
+                include_sha256=True,
+            ),
             "portability": output_portability
             or {
                 "portable": False,
                 "texture_reference_count": 0,
                 "diagnostics": [],
             },
+            "usdz_portability": usdz_portability,
         },
         "renders": {
             "render_available": bool(render_paths),
-            "final": [_path_entry(path, root) for path in render_paths],
+            "render_roots": [
+                _path_entry(path, root, include_sha256=True)
+                for path in render_root_paths
+            ],
+            "final": [
+                _path_entry(path, root, include_sha256=True) for path in render_paths
+            ],
+            "render_stats": _redact_sensitive(context.get("render_stats", {})),
             "diagnostics": _redact_sensitive(context.get("render_diagnostics", [])),
         },
         "backend": _backend_section(context),
@@ -1021,6 +1423,7 @@ def build_failed_artifacts_manifest(
             "render_errors": [],
             "projection_backend_results": {},
             "output_portability": {},
+            "usdz_source_portability": {},
         }
     )
     return build_artifacts_manifest(safe_context, status="failed")

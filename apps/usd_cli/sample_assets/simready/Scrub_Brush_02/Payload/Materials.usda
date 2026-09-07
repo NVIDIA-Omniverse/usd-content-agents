@@ -1,0 +1,88 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "scrubbrush_02"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "scrubbrush_02"
+{
+    def Scope "Materials"
+    {
+        def Material "opaque__plastic_white_01" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/opaque__plastic_white_01>
+        )
+        {
+        }
+
+        def Material "opaque__plastic_blue_01" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/opaque__plastic_blue_01>
+        )
+        {
+        }
+
+        def Material "opaque__sponge__green_rough_01" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/opaque__sponge__green_rough_01>
+        )
+        {
+        }
+
+        def Material "opaque__sponge__orange_01" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/opaque__sponge__orange_01>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "handle_mesh_00" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </scrubbrush_02/Materials/opaque__plastic_white_01>
+        }
+
+        over "pump_nob_mesh_00" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </scrubbrush_02/Materials/opaque__plastic_blue_01>
+        }
+
+        over "refill_cap_mesh_00" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </scrubbrush_02/Materials/opaque__plastic_blue_01>
+        }
+
+        over "sponge_mesh"
+        {
+            over "Subset" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </scrubbrush_02/Materials/opaque__sponge__green_rough_01>
+            }
+
+            over "Subset_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </scrubbrush_02/Materials/opaque__sponge__orange_01>
+            }
+        }
+
+        over "sponge_plastic" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </scrubbrush_02/Materials/opaque__plastic_white_01>
+        }
+    }
+}

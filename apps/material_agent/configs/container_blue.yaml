@@ -104,12 +104,12 @@ steps:
     prediction_batch_size: 1
     vlm:
       backend: nim
-      model: google/gemma-4-31b-it
+      model: moonshotai/kimi-k3
       temperature: 0.3
       max_completion_tokens: 4096
     llm:
       backend: nim
-      model: google/gemma-4-31b-it
+      model: moonshotai/kimi-k3
       temperature: 0.1
       max_tokens: 2048
     max_workers: 1

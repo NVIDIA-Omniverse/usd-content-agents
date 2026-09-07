@@ -25,13 +25,21 @@ class ValidationResult:
         return not self.errors
 
 
-def _asset_attr_paths(stage) -> list[str]:
+def _texture_asset_attr_paths(stage: Any) -> list[str]:
     from pxr import Sdf
 
     paths: list[str] = []
     for prim in stage.Traverse():
         for attr in prim.GetAttributes():
             if attr.GetTypeName() != Sdf.ValueTypeNames.Asset:
+                continue
+            # MDL source assets identify a shader implementation; they are not
+            # package texture files.  Treating ``OmniPBR.mdl`` as a PNG made the
+            # package validator reject valid scalar OmniPBR material graphs.
+            attr_name = attr.GetName()
+            if attr_name == "info:sourceAsset" or (
+                attr_name.startswith("info:") and attr_name.endswith(":sourceAsset")
+            ):
                 continue
             value = attr.Get()
             if value is None:
@@ -50,7 +58,7 @@ def _is_nonblank_png(path: Path) -> bool:
             if image.format != "PNG":
                 return False
             _alpha_min, alpha_max = image.convert("RGBA").getchannel("A").getextrema()
-            return alpha_max > 0
+            return bool(alpha_max > 0)
     except (OSError, UnidentifiedImageError):
         return False
 
@@ -116,7 +124,7 @@ def validate_generated_material_library(
 
     texture_count = 0
     library_dir = library_path.parent
-    for asset_path in _asset_attr_paths(stage):
+    for asset_path in _texture_asset_attr_paths(stage):
         if "://" in asset_path or asset_path.startswith("/"):
             warnings.append(
                 f"non-relative asset path in material library: {asset_path}"

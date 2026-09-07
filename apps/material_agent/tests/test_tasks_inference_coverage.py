@@ -10,12 +10,18 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from world_understanding.utils.model_timeout import (
+    TERMINAL_VLM_TIMEOUT_CONTEXT_KEY,
+    NonRetryableVLMTimeoutError,
+    make_terminal_vlm_timeout_marker,
+)
 from world_understanding.utils.object_store import InMemoryObjectStore
 
 import material_agent.tasks.inference as inference_module
 from material_agent.tasks.inference import (
     VLMInferenceTask,
     _merge_token_usage_stats,
+    _prediction_timeout_marker_path,
 )
 
 
@@ -23,21 +29,30 @@ def test_token_usage_merging_tolerates_bad_bucket_values() -> None:
     merged = _merge_token_usage_stats(
         {
             "total_input_tokens": "bad",
+            "cached_input_tokens": 3,
             "total_output_tokens": 2,
             "total_tokens": None,
             "invocation_count": 1,
-            "by_model": {"vlm": {"input_tokens": "bad", "count": "2"}},
+            "by_model": {
+                "vlm": {
+                    "input_tokens": "bad",
+                    "cached_input_tokens": 2,
+                    "count": "2",
+                }
+            },
             "by_type": "not-a-dict",
             "all_usages": "not-a-list",
         },
         {
             "total_input_tokens": 3,
+            "cached_input_tokens": 4,
             "total_output_tokens": "4",
             "total_tokens": "bad",
             "invocation_count": "bad",
             "by_model": {
                 "vlm": {
                     "input_tokens": 5,
+                    "cached_input_tokens": 1,
                     "output_tokens": 6,
                     "total_tokens": 11,
                     "count": 1,
@@ -50,10 +65,12 @@ def test_token_usage_merging_tolerates_bad_bucket_values() -> None:
     )
 
     assert merged["total_input_tokens"] == 3
+    assert merged["cached_input_tokens"] == 7
     assert merged["total_output_tokens"] == 6
     assert merged["total_tokens"] == 0
     assert merged["invocation_count"] == 1
     assert merged["by_model"]["vlm"]["input_tokens"] == 5
+    assert merged["by_model"]["vlm"]["cached_input_tokens"] == 3
     assert merged["by_model"]["vlm"]["output_tokens"] == 6
     assert merged["by_model"]["vlm"]["total_tokens"] == 11
     assert merged["by_model"]["vlm"]["count"] == 3
@@ -337,6 +354,195 @@ def _write_jsonl(path: Path, entries: list[dict[str, Any]]) -> Path:
 
 def _zero_token_artifact(*_args: Any, **_kwargs: Any) -> Path | None:
     return None
+
+
+def test_run_persists_terminal_timeout_and_blocks_resume_until_fresh_run(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    dataset_path = _write_jsonl(tmp_path / "dataset.jsonl", [{"id": "/A"}])
+    predictions_path = tmp_path / "predictions.jsonl"
+    calls = 0
+    should_timeout = True
+
+    def fake_multi_prim_inference(**_kwargs: Any) -> list[dict[str, Any]]:
+        nonlocal calls
+        calls += 1
+        if should_timeout:
+            raise NonRetryableVLMTimeoutError("provider-secret")
+        return [
+            {
+                "id": "/A",
+                "vlm_response": {"material": "Steel"},
+                "status": "success",
+            }
+        ]
+
+    monkeypatch.setattr(
+        VLMInferenceTask,
+        "_run_multi_prim_inference",
+        lambda _self, **kwargs: fake_multi_prim_inference(**kwargs),
+    )
+    monkeypatch.setattr(inference_module, "get_listener", lambda *_a, **_k: MagicMock())
+    monkeypatch.setattr(
+        inference_module, "_write_token_usage_artifact", _zero_token_artifact
+    )
+    base_context = {
+        "dataset_path": str(dataset_path),
+        "image_base_dir": str(tmp_path),
+        "predictions_path": str(predictions_path),
+        "prediction_batch_size": 2,
+        "stream_predictions": False,
+        "config": {},
+    }
+
+    first_context = dict(base_context)
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        VLMInferenceTask(vlm=object()).run(first_context)
+
+    marker_path = _prediction_timeout_marker_path(predictions_path)
+    expected_marker = make_terminal_vlm_timeout_marker("VLMInference")
+    assert json.loads(marker_path.read_text(encoding="utf-8")) == expected_marker
+    assert first_context[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == expected_marker
+    assert calls == 1
+
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        VLMInferenceTask(vlm=object()).run({**base_context, "resume": True})
+    assert calls == 1
+
+    should_timeout = False
+    result = VLMInferenceTask(vlm=object()).run(base_context)
+    assert result["predictions_count"] == 1
+    assert calls == 2
+    assert not marker_path.exists()
+
+
+def test_run_fails_closed_on_malformed_terminal_timeout_marker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    dataset_path = _write_jsonl(tmp_path / "dataset.jsonl", [{"id": "/A"}])
+    predictions_path = tmp_path / "predictions.jsonl"
+    marker_path = _prediction_timeout_marker_path(predictions_path)
+    marker_path.write_text("{damaged", encoding="utf-8")
+    dispatch = MagicMock()
+    monkeypatch.setattr(inference_module, "batch_assign_materials", dispatch)
+    monkeypatch.setattr(inference_module, "get_listener", lambda *_a, **_k: MagicMock())
+
+    context = {
+        "dataset_path": str(dataset_path),
+        "image_base_dir": str(tmp_path),
+        "predictions_path": str(predictions_path),
+        "stream_predictions": False,
+        "resume": True,
+        "config": {},
+    }
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        VLMInferenceTask(vlm=object()).run(context)
+
+    dispatch.assert_not_called()
+    assert context[
+        TERMINAL_VLM_TIMEOUT_CONTEXT_KEY
+    ] == make_terminal_vlm_timeout_marker("VLMInference")
+
+
+def test_run_preserves_terminal_type_when_sidecar_publish_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    dataset_path = _write_jsonl(tmp_path / "dataset.jsonl", [{"id": "/A"}])
+    predictions_path = tmp_path / "predictions.jsonl"
+
+    def fail_with_terminal_timeout(**_kwargs: Any) -> list[dict[str, Any]]:
+        raise NonRetryableVLMTimeoutError("provider-secret")
+
+    monkeypatch.setattr(
+        inference_module,
+        "batch_assign_materials",
+        fail_with_terminal_timeout,
+    )
+    monkeypatch.setattr(inference_module.os, "replace", MagicMock(side_effect=OSError))
+    monkeypatch.setattr(inference_module, "get_listener", lambda *_a, **_k: MagicMock())
+    context = {
+        "dataset_path": str(dataset_path),
+        "image_base_dir": str(tmp_path),
+        "predictions_path": str(predictions_path),
+        "stream_predictions": False,
+        "config": {},
+    }
+
+    with pytest.raises(NonRetryableVLMTimeoutError) as exc_info:
+        VLMInferenceTask(vlm=object()).run(context)
+
+    assert str(exc_info.value) != "provider-secret"
+    assert context[
+        TERMINAL_VLM_TIMEOUT_CONTEXT_KEY
+    ] == make_terminal_vlm_timeout_marker("VLMInference")
+    assert not _prediction_timeout_marker_path(predictions_path).exists()
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
+@pytest.mark.asyncio
+async def test_arun_persists_terminal_timeout_and_blocks_resume_until_fresh_run(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    dataset_path = _write_jsonl(tmp_path / "dataset.jsonl", [{"id": "/A"}])
+    predictions_path = tmp_path / "predictions.jsonl"
+    calls = 0
+    should_timeout = True
+
+    async def fake_async_batch_assign_materials(
+        **_kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        nonlocal calls
+        calls += 1
+        if should_timeout:
+            raise NonRetryableVLMTimeoutError("provider-secret")
+        return [
+            {
+                "id": "/A",
+                "vlm_response": {"material": "Steel"},
+                "status": "success",
+            }
+        ]
+
+    monkeypatch.setattr(
+        inference_module,
+        "async_batch_assign_materials",
+        fake_async_batch_assign_materials,
+    )
+    monkeypatch.setattr(inference_module, "get_listener", lambda *_a, **_k: MagicMock())
+    monkeypatch.setattr(
+        inference_module, "_write_token_usage_artifact", _zero_token_artifact
+    )
+    base_context = {
+        "dataset_path": str(dataset_path),
+        "image_base_dir": str(tmp_path),
+        "predictions_path": str(predictions_path),
+        "stream_predictions": False,
+        "config": {},
+    }
+
+    first_context = dict(base_context)
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        await VLMInferenceTask(vlm=object()).arun(first_context)
+
+    marker_path = _prediction_timeout_marker_path(predictions_path)
+    expected_marker = make_terminal_vlm_timeout_marker("VLMInference")
+    assert json.loads(marker_path.read_text(encoding="utf-8")) == expected_marker
+    assert first_context[TERMINAL_VLM_TIMEOUT_CONTEXT_KEY] == expected_marker
+    assert calls == 1
+
+    with pytest.raises(NonRetryableVLMTimeoutError):
+        await VLMInferenceTask(vlm=object()).arun({**base_context, "resume": True})
+    assert calls == 1
+
+    should_timeout = False
+    result = await VLMInferenceTask(vlm=object()).arun(base_context)
+    assert result["predictions_count"] == 1
+    assert calls == 2
+    assert not marker_path.exists()
 
 
 def test_attach_visual_refinement_images_replaces_non_list_bucket() -> None:
@@ -817,6 +1023,11 @@ async def test_arun_standard_path_covers_prompt_callbacks_and_stream_reload(
     output_dir.mkdir()
     (output_dir / "predictions.jsonl").write_text("stale\n", encoding="utf-8")
     listener = MagicMock()
+    reconciliation = {
+        "status": "corroborated",
+        "review_required": False,
+        "visual_material": "Steel",
+    }
 
     async def fake_async_batch_assign_materials(**kwargs: Any) -> list[dict[str, Any]]:
         results = []
@@ -828,6 +1039,7 @@ async def test_arun_standard_path_covers_prompt_callbacks_and_stream_reload(
                     "material": "Steel",
                     "confidence": 0.8,
                     "original_response": "steel",
+                    "evidence_reconciliation": reconciliation,
                 },
             )
             result = {
@@ -880,6 +1092,16 @@ async def test_arun_standard_path_covers_prompt_callbacks_and_stream_reload(
     assert "Base prompt" in result["actual_system_prompt_used"]
     assert streamed[0]["image_path"] == "a0.png"
     assert streamed[0]["confidence"] == 0.8
+    listener.event.assert_any_call(
+        "prediction.completed",
+        {
+            "entry_id": "/A0",
+            "material": "Steel",
+            "confidence": 0.8,
+            "response_snippet": "steel",
+            "evidence_reconciliation": reconciliation,
+        },
+    )
 
 
 @pytest.mark.asyncio

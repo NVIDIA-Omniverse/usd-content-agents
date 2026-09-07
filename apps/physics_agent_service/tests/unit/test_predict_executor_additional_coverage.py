@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from ...service import runtime as runtime_module
 from ...service.runtime import get_event_bus
 from ...service.runtime.events import ProgressEvent, StepState
 from ...service.workers import predict_executor as executor
@@ -73,6 +74,85 @@ def _config() -> dict:
     }
 
 
+@pytest.mark.asyncio
+async def test_predict_generation_watcher_cancels_stale_execution() -> None:
+    class CancelledManager:
+        def __init__(self) -> None:
+            self.checks = 0
+
+        async def is_cancelled(self, _session_id: str) -> bool:
+            self.checks += 1
+            return True
+
+    manager = CancelledManager()
+    execution = asyncio.create_task(asyncio.Event().wait())
+    await executor._watch_predict_generation(
+        manager,
+        "stale-predict",
+        execution,
+        poll_interval=0,
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await execution
+    assert manager.checks == 1
+
+
+@pytest.mark.asyncio
+async def test_predict_generation_watcher_recovers_after_transient_store_error() -> (
+    None
+):
+    class FlakyManager:
+        def __init__(self) -> None:
+            self.checks = 0
+
+        async def is_cancelled(self, _session_id: str) -> bool:
+            self.checks += 1
+            if self.checks == 1:
+                raise RuntimeError("transient")
+            return True
+
+    manager = FlakyManager()
+    execution = asyncio.create_task(asyncio.Event().wait())
+    await executor._watch_predict_generation(
+        manager,
+        "flaky-predict",
+        execution,
+        poll_interval=0,
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await execution
+    assert manager.checks == 2
+
+
+@pytest.mark.asyncio
+async def test_predict_generation_watcher_stops_cleanly_when_cancelled() -> None:
+    entered = asyncio.Event()
+
+    class WaitingManager:
+        async def is_cancelled(self, _session_id: str) -> bool:
+            entered.set()
+            await asyncio.Event().wait()
+            return False
+
+    execution = asyncio.create_task(asyncio.Event().wait())
+    watcher = asyncio.create_task(
+        executor._watch_predict_generation(
+            WaitingManager(),
+            "cancelled-watcher",
+            execution,
+            poll_interval=0,
+        )
+    )
+    await asyncio.wait_for(entered.wait(), timeout=1)
+    watcher.cancel()
+    assert await watcher is None
+    execution.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await execution
+
+
 def test_predict_image_helpers_cover_remaining_shapes(tmp_path: Path) -> None:
     assert executor._extract_image_paths(
         {"media": {"images": ["media.png", {"path": "dict.png"}, {"bad": "x"}]}}
@@ -100,7 +180,7 @@ def test_predict_image_helpers_cover_remaining_shapes(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_predict_dataset_only_success_and_sync_warning(
+async def test_execute_predict_dataset_only_success_and_sync_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -142,18 +222,23 @@ async def test_execute_predict_dataset_only_success_and_sync_warning(
     assert manager.metadata["predict_mode"] == "dataset_only"
     assert manager.metadata["predict_steps_run"] == ["predict"]
     assert manager.sync_to_calls == [
-        "cache/predictions/",
-        "cache/dataset/dataset.jsonl",
+        (
+            "input/",
+            "cache/predictions/",
+            "cache/dataset/dataset.jsonl",
+        )
     ]
 
     manager.fail_sync_to = True
-    await executor.execute_predict_async(
-        session_id,
-        _config(),
-        manager,
-        dataset_path=dataset_path,
-    )
-    assert manager.metadata["status"] == "completed"
+    with pytest.raises(RuntimeError, match="physics_predict_artifact_sync_failed"):
+        await executor.execute_predict_async(
+            session_id,
+            _config(),
+            manager,
+            dataset_path=dataset_path,
+        )
+    assert manager.metadata["status"] == "failed"
+    assert manager.metadata["error"] == "physics_predict_artifact_sync_failed"
     assert "push failed" not in caplog.text
 
 
@@ -204,6 +289,25 @@ async def test_execute_predict_dataset_only_failure_and_cancel(
             dataset_path=dataset_path,
         )
     assert manager.metadata["status"] == "cancelled"
+
+    class CancellationPersistenceFailureManager(_Manager):
+        async def update_session(
+            self,
+            session_id: str,
+            updates: dict[str, object],
+        ) -> None:
+            if updates.get("status") == "cancelled":
+                raise RuntimeError("cancellation persistence failed")
+            await super().update_session(session_id, updates)
+
+    manager = CancellationPersistenceFailureManager(tmp_path / "cancel-failure")
+    with pytest.raises(asyncio.CancelledError):
+        await executor.execute_predict_async(
+            "predict-cancel-failure",
+            _config(),
+            manager,
+            dataset_path=dataset_path,
+        )
 
 
 @pytest.mark.asyncio
@@ -291,7 +395,7 @@ async def test_mark_failed_handles_update_and_bus_errors(
         async def emit(self, _event: ProgressEvent) -> None:
             raise RuntimeError("emit failed")
 
-    monkeypatch.setattr(executor, "get_event_bus", lambda: BadBus())
+    monkeypatch.setattr(runtime_module, "get_event_bus", lambda: BadBus())
     manager = _Manager(tmp_path / "bus")
     await executor._mark_failed(manager, "sid", diagnostic, "predict")
     assert manager.metadata["status"] == "failed"
@@ -393,3 +497,56 @@ async def test_execute_predict_emits_terminal_events_when_snapshot_exists(
     while not queue.empty():
         queued.append(await queue.get())
     assert any(event.extra and event.extra.get("pipeline_ready") for event in queued)
+
+
+@pytest.mark.asyncio
+async def test_predict_completion_loses_atomic_cancellation_race(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _Manager(tmp_path)
+
+    async def reject_terminal_update(_session_id: str, _updates: dict) -> bool:
+        return False
+
+    manager.update_session_if_not_cancelled = reject_terminal_update  # type: ignore[attr-defined]
+    dataset_path = tmp_path / "dataset.jsonl"
+    dataset_path.write_text("{}\n", encoding="utf-8")
+
+    async def fake_arun_predict(_params):
+        return SimpleNamespace(
+            success=True,
+            error=None,
+            predictions_count=1,
+            failed_count=0,
+            predictions_path=None,
+            token_stats=None,
+        )
+
+    monkeypatch.setattr(executor, "arun_predict", fake_arun_predict)
+    with pytest.raises(asyncio.CancelledError):
+        await executor.execute_predict_async(
+            "predict-race",
+            _config(),
+            manager,
+            dataset_path=dataset_path,
+        )
+    assert manager.metadata["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_predict_failure_loses_atomic_cancellation_race(tmp_path: Path) -> None:
+    manager = _Manager(tmp_path)
+
+    async def reject_terminal_update(_session_id: str, _updates: dict) -> bool:
+        return False
+
+    manager.update_session_if_not_cancelled = reject_terminal_update  # type: ignore[attr-defined]
+    diagnostic = executor.durable_diagnostic(
+        "physics_predict_failed",
+        phase=executor.FailurePhase.PIPELINE_EXECUTION,
+        retryable=False,
+    )
+    await executor._mark_failed(manager, "sid", diagnostic, "predict")
+    assert manager.metadata["status"] == "cancelled"
+    assert manager.metadata["can_cancel"] is False

@@ -31,10 +31,11 @@ dependencies = [
     # to vulnerable releases.
     "urllib3>=2.7.0,<3.0.0",
     # Floors lifted for high source-scan findings in transitive auth/telemetry
-    # deps: pyasn1 DoS decoder issues (GHSA-jr27-m4p2-rc6r,
-    # GHSA-63vm-454h-vhhq) and protobuf JSON recursion bypass
+    # deps: pyasn1 decoder issues (GHSA-jr27-m4p2-rc6r,
+    # GHSA-63vm-454h-vhhq, CVE-2026-59884, CVE-2026-59885,
+    # CVE-2026-59886) and protobuf JSON recursion bypass
     # (GHSA-7gcm-g887-7qv7).
-    "pyasn1>=0.6.3,<1.0.0",
+    "pyasn1>=0.6.4,<1.0.0",
     "protobuf>=6.33.6,<7.0.0",
     "python-dotenv==1.2.2",
     # Floor lifted for GHSA-w853-jp5j-5j7f and GHSA-qmgc-5h2g-mvrw
@@ -72,7 +73,6 @@ dependencies = [
     "google-genai>=1.56.0,<2.0.0",
     "pypdfium2>=4.30.0",
     "usd-validation-nvidia>=1.19.3",
-    "opencv-python-headless>=4.8.0",
     # OpenTelemetry API + SDK are imported unconditionally at module load
     # (world_understanding.tools.base, world_understanding.telemetry.*).
     # Keep them in core deps so `import world_understanding` works without
@@ -82,6 +82,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+optimization = [
+    # Production Bayesian optimization used by the shared tune runtime.
+    "botorch==0.17.2",
+    # Optimization is CPU-bound; simulation and rendering use isolated runtimes.
+    "torch>=2.13,<2.14",
+]
 dev = [
     # pytest >=9.0.3 fixes CVE-2025-71176 (TOCTOU symlink race).
     # pytest-asyncio >=1.3.0 is required for pytest 9 compatibility.
@@ -98,8 +104,10 @@ dev = [
     "types-pillow==10.2.0.20240822",
     "types-aiofiles==24.1.0.20250809",
     "types-pyyaml==6.0.12.20250809",
-    "reportlab>=4.2.0",
     "greenlet>=3.0.0",  # Required by .coveragerc concurrency=greenlet
+    # PartObjaverse-Tiny benchmark preparation reads GLB geometry while
+    # preserving source triangle order for exact face-label scoring.
+    "trimesh>=4.10,<5.0.0",
 ]
 telemetry = [
     # OpenTelemetry core
@@ -133,12 +141,17 @@ aws = [
 usd = [
     "usd-exchange>=2.3,<3",
 ]
-ovrtx = ["ovrtx==0.3.0.312915"]
+ovrtx = ["ovrtx==0.4.1.364340"]
 warp = [
-    "warp-lang>=1.11.0",
-    "newton>=1.2.0,<2.0",
+    # Qualified WSL2 service baseline for the Content Agents 0.6 release.
+    "warp-lang==1.15.0",
+    # VoMP volume-deformable USD conformance is pinned to this importer.
+    "newton==1.4.0",
+    # Required for ModelBuilder.add_usd deformable conformance coverage.
+    "newton-usd-schemas==0.4.1",
 ]
 all = [
+    "world-understanding[optimization]",
     "world-understanding[dev]",
     "world-understanding[aws]",
     # [nat] excluded: nvidia-nat's aioboto3 requires boto3<1.40.62 which
@@ -157,6 +170,8 @@ ignore-vcs = true
 
 [tool.hatch.build.targets.wheel.force-include]
 "world_understanding/functions/graphics/pylock.ovrtx-runtime.toml" = "world_understanding/functions/graphics/pylock.ovrtx-runtime.toml"
+"world_understanding/functions/physics/pylock.ovphysx-runtime.toml" = "world_understanding/functions/physics/pylock.ovphysx-runtime.toml"
+"world_understanding/functions/physics/pylock.ovphysx-runtime.aarch64.toml" = "world_understanding/functions/physics/pylock.ovphysx-runtime.aarch64.toml"
 
 [build-system]
 requires = ["hatchling<1.27.0", "uv-dynamic-versioning"]
@@ -166,7 +181,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "VERSION.md" }
 
 [tool.hatch.version]
@@ -199,21 +214,89 @@ constraint-dependencies = [
     # staying above GHSA-82w8-qh3p-5jfq and GHSA-jp82-jpqv-5vv3.
     "starlette==1.3.1",
 ]
+# The root [all] extra includes [aws], while the service test packages require
+# aioboto3's incompatible boto3 range. The aggregate test group deliberately
+# uses the explicit root extras in its documented command instead.
+conflicts = [
+    [
+        { extra = "aws" },
+        { group = "root-tests" },
+    ],
+    [
+        { extra = "all" },
+        { group = "root-tests" },
+    ],
+]
 
 [[tool.uv.index]]
 name = "nvidia-pypi"
 url = "https://pypi.nvidia.com"
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
 nvidia-nat = { index = "nvidia-pypi" }
 ovrtx = { index = "nvidia-pypi" }
+torch = { index = "pytorch-cpu" }
+cad-verifier = { path = "agentic/packages/cad_verifier", editable = true }
+content-agent-workflows = { path = "agentic/packages/content_agent_workflows", editable = true }
+content-workflow-cli = { path = "agentic/packages/content_workflow_cli", editable = true }
+geometry-authoring-connectors = { path = "agentic/packages/geometry_authoring_connectors", editable = true }
+geometry-authoring-contracts = { path = "agentic/packages/geometry_authoring_contracts", editable = true }
+geometry-agent-service = { path = "apps/geometry_agent_service", editable = true }
+geometry-repair = { path = "agentic/packages/geometry_repair", editable = true }
+joint-agent = { path = "apps/joint_agent", editable = true }
+material-agent = { path = "apps/material_agent", editable = true }
+material-agent-service = { path = "apps/material_agent_service", editable = true }
+ovrtx-rendering-api = { path = "apps/ovrtx_rendering_api", editable = true }
+physics-agent = { path = "apps/physics_agent", editable = true }
+physics-agent-service = { path = "apps/physics_agent_service", editable = true }
+texture-agent = { path = "apps/texture_agent", editable = true }
+texture-agent-service = { path = "apps/texture_agent_service", editable = true }
+texture-gen-service-common = { path = "apps/texture_gen_service_common", editable = true }
+texture-gen-step1x-service = { path = "apps/texture_gen_step1x_service", editable = true }
+usd-cli = { path = "apps/usd_cli", editable = true }
+validation-agent = { path = "apps/validation_agent", editable = true }
+
+[dependency-groups]
+# The root pytest configuration collects tests owned by these independently
+# distributed local packages. Keep the aggregate test environment explicit and
+# locked; developers use it with `--group root-tests` and release CI checks its
+# exact lock graph before running the same package closure in shards.
+root-tests = [
+    "cad-verifier",
+    "content-agent-workflows",
+    "content-workflow-cli",
+    "geometry-authoring-connectors",
+    "geometry-authoring-contracts",
+    "geometry-agent-service",
+    "geometry-repair[openvdb]",
+    "joint-agent",
+    "material-agent",
+    "material-agent-service[dev]",
+    "ovrtx-rendering-api[dev]",
+    "physics-agent",
+    "physics-agent-service[dev]",
+    "texture-agent",
+    "texture-agent-service[dev]",
+    "texture-gen-service-common",
+    "texture-gen-step1x-service[dev]",
+    "usd-cli[cli,server,test]",
+    "validation-agent",
+]
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+force-exclude = true
 extend-exclude = [
     "*.spec",
     "apps/texture_gen_step1x_service/internal/texture_editing_runtime",
+    # Nested first-party component; its dedicated component gate owns its lint contract.
+    "apps/usd_cli",
 ]
 
 [tool.ruff.lint]
@@ -255,8 +338,10 @@ ignore_missing_imports = true
 testpaths = [
     "tests",
     "apps/material_agent/tests",
+    "apps/content_agents_dashboard/tests",
     "apps/material_agent_service/tests",
     "apps/validation_agent/tests",
+    "apps/geometry_agent_service/tests",
     "apps/physics_agent/tests",
     "apps/physics_agent_service/tests",
     "apps/texture_agent/tests",
@@ -264,19 +349,24 @@ testpaths = [
     "apps/texture_agent_service/tests",
     "apps/ovrtx_rendering_api/tests",
     "agentic/packages/content_agent_workflows/tests",
+    "agentic/packages/geometry_repair/tests",
+    "agentic/packages/geometry_authoring_contracts/tests",
+    "agentic/packages/geometry_authoring_connectors/tests",
     "agentic/packages/content_workflow_cli/tests",
-    "agentic/packages/content_workbench/tests/unit",
 ]
 pythonpath = [
     "apps/material_agent/tests",
     "apps/texture_agent/tests",
     "apps/ovrtx_rendering_api",
     "agentic/packages/content_workflow_cli",
-    "agentic/packages/content_workbench",
+    "agentic/packages/cad_verifier",
     "agentic/packages/content_agent_workflows",
-    "agentic/packages/content_workbench_agent_client",
+    "agentic/packages/geometry_authoring_contracts",
+    "agentic/packages/geometry_authoring_connectors",
     "apps/material_agent",
     "apps/validation_agent",
+    "apps/joint_agent",
+    "apps/geometry_agent_service",
     "apps/physics_agent",
     "apps/texture_agent",
 ]
@@ -291,7 +381,7 @@ filterwarnings = [
 markers = [
     "live_inference: runs live provider inference (requires API keys and opt-in)",
 ]
-addopts = "-ra --showlocals --color yes --cov-report term --cov-report html --cov-report xml --cov=./ --import-mode=importlib"
+addopts = "-ra --showlocals --color yes --cov-report term --cov-report html --cov-report xml --cov=./ --import-mode=importlib --ignore=tests/internal"
 
 [tool.coverage.run]
 source = ["world_understanding"]

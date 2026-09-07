@@ -1,0 +1,12 @@
+name: cumulative retry envelope exceeds step timeout
+on: push
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Sequential retry envelopes exceed the outer bound
+        timeout-minutes: 15
+        run: |
+          bash ci/github/retry-network-command.sh -- python -m pip install first
+          bash ci/github/retry-network-command.sh -- python -m pip install second

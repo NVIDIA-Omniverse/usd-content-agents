@@ -463,4 +463,3 @@ async def build_and_write_pipeline_config(
         # provider diagnostics cannot survive through this frame's locals.
         del writer
         _raise_http_exception(status_code, detail)
-    return pipeline_config

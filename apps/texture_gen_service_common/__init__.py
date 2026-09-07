@@ -9,6 +9,7 @@ from .backend import (
     TextureGenerationBackendError,
 )
 from .models import (
+    AssetUploadResponse,
     BackendCapabilities,
     Conditioning,
     Configuration,
@@ -19,6 +20,7 @@ from .models import (
     JobStatus,
     MapArtifact,
     TextureTarget,
+    WeatheringControls,
 )
 from .prompting import (
     NIM_MAX_PROMPT_CHARS,
@@ -33,6 +35,7 @@ from .service import (
 )
 
 __all__ = [
+    "AssetUploadResponse",
     "BackendCapabilities",
     "BackendHealth",
     "Conditioning",
@@ -51,6 +54,7 @@ __all__ = [
     "TextureGenerationBackendError",
     "TextureTarget",
     "TextureVariationService",
+    "WeatheringControls",
     "append_bounded_instruction",
     "create_app",
     "local_file_uri",

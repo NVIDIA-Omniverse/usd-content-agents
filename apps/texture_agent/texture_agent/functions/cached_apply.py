@@ -21,6 +21,18 @@ def is_cached_apply_context(context: dict[str, Any]) -> bool:
     )
 
 
+def allows_non_executable_cached_apply_plan(context: dict[str, Any]) -> bool:
+    """Return whether legacy cache keys must ignore a compatibility-only plan."""
+
+    planning_config = context.get("planning_config") or {}
+    return bool(
+        is_cached_apply_context(context)
+        and planning_config.get("resume_apply_textures") is True
+        and planning_config.get("apply_texture_plan_unit_ids") is False
+        and planning_config.get("allow_non_executable_cached_apply_plan") is True
+    )
+
+
 def is_valid_cached_texture_png(path: str | Path) -> bool:
     """Return whether a cached texture is a safe, decodable non-empty PNG."""
     try:

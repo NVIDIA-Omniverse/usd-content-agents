@@ -1,0 +1,13 @@
+# uv override: keep usd-exchange the single owner of the native `pxr` modules.
+#
+# usd-cli declares `usd-core>=23.5,<27` for isolated artifact tests. Inside a
+# Content Agents environment the OpenUSD provider is already installed as
+# `usd-exchange` (the root `[usd]` extra). Installing both
+# leaves two distributions owning `pxr/`, which makes `pxr.Usd` API availability
+# depend on install order and can silently disable USD validation rules.
+#
+# The marker below is unsatisfiable on every interpreter, so usd-cli's usd-core
+# requirement resolves to nothing instead of pulling a second provider.
+#
+# This override is specifically for the shared Content Agents environment.
+usd-core; python_version < '0'

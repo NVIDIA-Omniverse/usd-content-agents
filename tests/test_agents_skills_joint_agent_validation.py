@@ -14,7 +14,9 @@ from typing import Any
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKILL_ROOT = REPO_ROOT / ".agents/skills/joint-agent-validation"
+SKILL_ROOT = (
+    REPO_ROOT / ".agents/skills/fixed-pipeline/references/joint-agent-validation"
+)
 RUNNER_PATH = SKILL_ROOT / "scripts/run_gate3a.py"
 
 
@@ -30,7 +32,7 @@ def _load_runner() -> ModuleType:
 
 
 def test_joint_agent_validation_skill_has_runnable_gate_commands() -> None:
-    skill_text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    skill_text = (SKILL_ROOT / "reference.md").read_text(encoding="utf-8")
 
     assert "name: joint-agent-validation" in skill_text
     assert "run_gate3a.py" in skill_text

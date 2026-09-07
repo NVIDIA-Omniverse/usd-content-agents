@@ -1,0 +1,10 @@
+name: step exceeds job
+on: push
+jobs:
+  short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Overlong step
+        timeout-minutes: 16
+        run: echo overlong

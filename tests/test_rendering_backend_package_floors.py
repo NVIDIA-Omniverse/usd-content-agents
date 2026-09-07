@@ -13,6 +13,7 @@ from packaging.version import Version
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE_API_FLOOR = Version("0.5.0")
+MATERIAL_AGENT_RENDERER_ROUTING_FLOOR = Version("0.6.0")
 PRE_FACTORY_RELEASE = Version("0.4.11")
 SERVICE_DOCKERFILES = (
     REPO_ROOT / "apps/material_agent_service/Dockerfile",
@@ -33,9 +34,9 @@ def _requirement(dependencies: list[str], name: str) -> Requirement:
 
 
 def _requires_explicit_api_floor(requirement: Requirement) -> bool:
-    """Return whether the requirement declares the 0.5 factory API floor."""
+    """Return whether the requirement declares at least the 0.5 factory API floor."""
     return any(
-        specifier.operator == ">=" and Version(specifier.version) == PACKAGE_API_FLOOR
+        specifier.operator == ">=" and Version(specifier.version) >= PACKAGE_API_FLOOR
         for specifier in requirement.specifier
     )
 
@@ -45,6 +46,7 @@ def _requires_explicit_api_floor(requirement: Requirement) -> bool:
     (
         (">=0.5.0", True),
         (">=0.5.0,<0.6", True),
+        (">=0.5.3", True),
         (">=0.4.12", False),
         (">0.4.11", False),
         ("!=0.4.11", False),
@@ -107,6 +109,21 @@ def test_services_require_compatible_agent_and_core_releases(
         assert PRE_FACTORY_RELEASE not in requirement.specifier
 
 
+def test_material_service_requires_agent_renderer_routing_release() -> None:
+    pyproject = tomllib.loads(
+        (REPO_ROOT / "apps/material_agent_service/pyproject.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+    requirement = _requirement(pyproject["project"]["dependencies"], "material-agent")
+
+    assert any(
+        specifier.operator == ">="
+        and Version(specifier.version) >= MATERIAL_AGENT_RENDERER_ROUTING_FLOOR
+        for specifier in requirement.specifier
+    )
+
+
 @pytest.mark.parametrize(
     "dockerfile",
     SERVICE_DOCKERFILES,
@@ -125,3 +142,14 @@ def test_service_images_use_release_version_for_editable_packages(
         == editable_install_count
     )
     assert 'SETUPTOOLS_SCM_PRETEND_VERSION="$(cat /app/VERSION.md)"' in text
+
+
+def test_material_service_public_image_installs_qualified_warp_runtime() -> None:
+    dockerfile = REPO_ROOT / "apps/material_agent_service/Dockerfile"
+    text = dockerfile.read_text(encoding="utf-8")
+    pyproject = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    assert 'uv pip install -e ".[telemetry,warp]"' in text
+    assert "warp-lang==1.15.0" in pyproject["project"]["optional-dependencies"]["warp"]

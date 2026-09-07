@@ -4,16 +4,38 @@ Use profile conformance to route failing SimReady requirements to the
 appropriate Foundation FET conformance skill or helper. Conformance works on
 staged outputs and must not silently mutate the source asset.
 
+Profile conformance is owned by `content_agent_workflows.simready`, not by a
+scene backend. Run `content-workflow-cli simready conform-profile`
+automatically only after dependency preflight and formal validation of the
+current staged USD identifies failed requirements. Pass that failed validation
+report to conformance, then formally revalidate the conformed output. Stage the
+asset and resolved USD dependencies under the requested output directory, map
+failed requirement IDs to the matching Foundation FET conformance areas, and
+preserve the normalized conformance report. Do not prompt merely because
+usd-cli has no SimReady command, and do not silently mutate the source asset.
+
+Required sequence:
+
+1. Preflight the SimReady Foundation toolchain.
+2. Validate the current staged USD and preserve its failed validation report.
+3. Conform the staged USD using that report.
+4. Revalidate the `output_usd_path` returned by conformance.
+
 Command shape:
 
 ```bash
 content-workflow-simready-conform-profile asset.usda \
   --output-dir simready-conform \
   --validation-report simready-profile.json \
+  --venv "$SIMREADY_VENV" \
   --profile Prop-Robotics-Neutral \
   --profile-version 1.0.0 \
   --report simready-conform/simready-conform-profile.json
 ```
+
+When validation uses an explicit `--venv`, pass the same venv to conformance.
+Validation reports are bound to the validator runtime identity and conformance
+must reject evidence produced by a different or unresolved runtime.
 
 `G3A.HYG.001` is restricted to generated Joint Agent physics assets. Its caller
 must supply the trusted inventory fingerprint captured before hygiene; the

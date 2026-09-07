@@ -6,22 +6,26 @@ import logging
 import math
 import os
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, Vt
 
 from world_understanding.utils.archive import ArchiveSizeLimitExceeded
+from world_understanding.utils.usd.asset_paths import usd_asset_uri_scheme
 from world_understanding.utils.usd.package import (
     extract_usdz_member_to_path,
+    extract_usdz_package_for_edit,
     package_member_cache_name,
     parse_package_member_asset_path,
     resolve_local_package_path,
+    safe_usdz_member_parts,
+    split_package_member_asset_path,
 )
 
 logger = logging.getLogger(__name__)
-_NON_LOCAL_ASSET_SCHEMES = frozenset({"http", "https", "data"})
 _OVRTX_PREVIEW_FALLBACK_SHADER_NAME = "OVRTXPreviewSurface"
 _OVRTX_PREVIEW_ALBEDO_TEXTURE_NAME = "OVRTXPreviewAlbedoTexture"
 _OVRTX_PREVIEW_DISPLAY_COLOR_READER_NAME = "OVRTXPreviewDisplayColorReader"
@@ -30,6 +34,7 @@ _MATERIALX_OPENPBR_SHADER_ID = "ND_open_pbr_surface_surfaceshader"
 _OPENPBR_DEFAULT_BASE_COLOR = (0.8, 0.8, 0.8)
 _OPENPBR_FULL_TRANSMISSION_PREVIEW_OPACITY = 0.35
 _OPENPBR_TRANSMISSION_PREVIEW_THRESHOLD = 0.5
+_MDL_SOURCE_ASSET_ATTRIBUTE = "info:mdl:sourceAsset"
 _MDL_TEXTURE_INPUT_NAMES = frozenset(
     {
         "diffuse_texture",
@@ -48,6 +53,11 @@ _MDL_TEXTURE_INPUT_NAMES = frozenset(
         "metalness_texture",
     }
 )
+
+
+def get_sdf_attribute_owner_path(attr_spec: Sdf.AttributeSpec) -> Sdf.Path:
+    """Return an attribute spec's prim owner without dropping variants."""
+    return attr_spec.path.GetPrimOrPrimVariantSelectionPath()
 
 
 def _output_has_connected_source(output: UsdShade.Output) -> bool:
@@ -94,8 +104,8 @@ def _normalized_asset_path_key(path: str) -> str:
     normalized = unquote(path.strip()).replace("\\", "/")
     if not normalized:
         return ""
-    parsed = urlparse(normalized)
-    if parsed.scheme and parsed.scheme in _NON_LOCAL_ASSET_SCHEMES:
+    scheme = usd_asset_uri_scheme(normalized)
+    if scheme and scheme != "file":
         return normalized
     return os.path.normpath(normalized).replace("\\", "/")
 
@@ -254,6 +264,198 @@ def _connected_materialx_openpbr_surface(
         if shader_id_attr and shader_id_attr.Get() == _MATERIALX_OPENPBR_SHADER_ID:
             return shader
     return None
+
+
+def _prepare_material_path_for_authoring(stage: Usd.Stage, path: Sdf.Path) -> None:
+    existing_prims: list[Usd.Prim] = []
+    current = path
+    while current != Sdf.Path.absoluteRootPath:
+        prim = stage.GetPrimAtPath(current)
+        if prim and prim.IsValid():
+            if prim.IsInstanceProxy():
+                raise ValueError(
+                    "Cannot author material beneath read-only instance proxy "
+                    f"{prim.GetPath()}"
+                )
+            existing_prims.append(prim)
+        current = current.GetParentPath()
+
+    for prim in reversed(existing_prims):
+        if prim.IsInstance() or prim.IsInstanceable():
+            prim.SetInstanceable(False)
+
+
+def define_materialx_openpbr_material(
+    stage: Usd.Stage,
+    material_path: str | Sdf.Path,
+    *,
+    base_color: Gf.Vec3f | tuple[float, float, float],
+    opacity: float,
+    roughness: float,
+    metallic: float,
+    albedo_texture: str | Sdf.AssetPath | None,
+    normal_texture: str | Sdf.AssetPath | None,
+    orm_texture: str | Sdf.AssetPath | None,
+    transmission_weight: float = 0.0,
+    specular_ior: float = 1.5,
+    thin_walled: bool = False,
+) -> UsdShade.Material:
+    """Author a portable scalar or textured OpenPBR graph with ``UsdShade``.
+
+    Texture paths are all-or-none. The ORM texture follows the repository
+    convention: R is ambient occlusion provenance, G drives specular roughness,
+    and B drives base metalness. The normal texture is interpreted as an OpenGL
+    tangent-space normal map.
+    """
+    path = Sdf.Path(material_path)
+    if not path.IsAbsolutePath() or not path.IsPrimPath():
+        raise ValueError(f"material_path must be an absolute prim path: {path}")
+
+    def asset_path(value: str | Sdf.AssetPath | None, *, channel: str) -> Sdf.AssetPath:
+        result = (
+            value if isinstance(value, Sdf.AssetPath) else Sdf.AssetPath(value or "")
+        )
+        if not result.path:
+            raise ValueError(f"{channel} texture path must not be empty")
+        return result
+
+    texture_values = {
+        "Albedo": albedo_texture,
+        "Normal": normal_texture,
+        "ORM": orm_texture,
+    }
+    textures = (
+        {
+            name: asset_path(value, channel=name)
+            for name, value in texture_values.items()
+        }
+        if any(value is not None for value in texture_values.values())
+        else None
+    )
+    _prepare_material_path_for_authoring(stage, path)
+    ensure_looks_scope(stage, path)
+    material = UsdShade.Material.Define(stage, path)
+    color = Gf.Vec3f(*base_color)
+
+    # Direct values are retained on the material for consumers that inspect
+    # the OpenPBR interface without traversing the shader network.
+    material.CreateInput("base_color", Sdf.ValueTypeNames.Color3f).Set(color)
+    material.CreateInput("base_metalness", Sdf.ValueTypeNames.Float).Set(
+        float(metallic)
+    )
+    material.CreateInput("specular_roughness", Sdf.ValueTypeNames.Float).Set(
+        float(roughness)
+    )
+    material.CreateInput("geometry_opacity", Sdf.ValueTypeNames.Float).Set(
+        float(opacity)
+    )
+    material.CreateInput("transmission_weight", Sdf.ValueTypeNames.Float).Set(
+        float(transmission_weight)
+    )
+    material.CreateInput("specular_ior", Sdf.ValueTypeNames.Float).Set(
+        float(specular_ior)
+    )
+    material.CreateInput("geometry_thin_walled", Sdf.ValueTypeNames.Bool).Set(
+        bool(thin_walled)
+    )
+
+    openpbr = UsdShade.Shader.Define(stage, path.AppendChild("OpenPBR"))
+    openpbr.CreateIdAttr(_MATERIALX_OPENPBR_SHADER_ID)
+    openpbr.CreateInput("geometry_opacity", Sdf.ValueTypeNames.Float).Set(
+        float(opacity)
+    )
+    openpbr.CreateInput("transmission_weight", Sdf.ValueTypeNames.Float).Set(
+        float(transmission_weight)
+    )
+    openpbr.CreateInput("specular_ior", Sdf.ValueTypeNames.Float).Set(
+        float(specular_ior)
+    )
+    openpbr.CreateInput("geometry_thin_walled", Sdf.ValueTypeNames.Bool).Set(
+        bool(thin_walled)
+    )
+    material.CreateSurfaceOutput("mtlx").ConnectToSource(
+        openpbr.CreateOutput("out", Sdf.ValueTypeNames.Token)
+    )
+
+    if textures is None:
+        openpbr.CreateInput("base_color", Sdf.ValueTypeNames.Color3f).Set(color)
+        openpbr.CreateInput("specular_roughness", Sdf.ValueTypeNames.Float).Set(
+            float(roughness)
+        )
+        openpbr.CreateInput("base_metalness", Sdf.ValueTypeNames.Float).Set(
+            float(metallic)
+        )
+        return material
+
+    texcoord = UsdShade.Shader.Define(stage, path.AppendChild("Texcoord"))
+    texcoord.CreateIdAttr("ND_texcoord_vector2")
+    texcoord.CreateInput("index", Sdf.ValueTypeNames.Int).Set(0)
+    texcoord_output = texcoord.CreateOutput("out", Sdf.ValueTypeNames.Float2)
+
+    def tiled_image(
+        name: str,
+        shader_id: str,
+        output_type: Sdf.ValueTypeName,
+        color_space: str,
+    ) -> UsdShade.Shader:
+        shader = UsdShade.Shader.Define(stage, path.AppendChild(name))
+        shader.CreateIdAttr(shader_id)
+        file_input = shader.CreateInput("file", Sdf.ValueTypeNames.Asset)
+        file_input.Set(textures[name])
+        file_input.GetAttr().SetColorSpace(color_space)
+        shader.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(
+            texcoord_output
+        )
+        shader.CreateOutput("out", output_type)
+        return shader
+
+    albedo = tiled_image(
+        "Albedo",
+        "ND_tiledimage_color3",
+        Sdf.ValueTypeNames.Color3f,
+        "sRGB",
+    )
+    openpbr.CreateInput("base_color", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+        albedo.GetOutput("out")
+    )
+
+    normal = tiled_image(
+        "Normal",
+        "ND_tiledimage_vector3",
+        Sdf.ValueTypeNames.Float3,
+        "raw",
+    )
+    normalmap = UsdShade.Shader.Define(stage, path.AppendChild("NormalMap"))
+    normalmap.CreateIdAttr("ND_normalmap")
+    normalmap.CreateInput("in", Sdf.ValueTypeNames.Float3).ConnectToSource(
+        normal.GetOutput("out")
+    )
+    normalmap_output = normalmap.CreateOutput("out", Sdf.ValueTypeNames.Float3)
+    openpbr.CreateInput("geometry_normal", Sdf.ValueTypeNames.Float3).ConnectToSource(
+        normalmap_output
+    )
+
+    orm = tiled_image(
+        "ORM",
+        "ND_tiledimage_color3",
+        Sdf.ValueTypeNames.Color3f,
+        "raw",
+    )
+    separate = UsdShade.Shader.Define(stage, path.AppendChild("SeparateORM"))
+    separate.CreateIdAttr("ND_separate3_color3")
+    separate.CreateInput("in", Sdf.ValueTypeNames.Color3f).ConnectToSource(
+        orm.GetOutput("out")
+    )
+    separate.CreateOutput("outr", Sdf.ValueTypeNames.Float)
+    roughness_output = separate.CreateOutput("outg", Sdf.ValueTypeNames.Float)
+    metallic_output = separate.CreateOutput("outb", Sdf.ValueTypeNames.Float)
+    openpbr.CreateInput("specular_roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        roughness_output
+    )
+    openpbr.CreateInput("base_metalness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        metallic_output
+    )
+    return material
 
 
 def _float_material_input(
@@ -1278,7 +1480,8 @@ def _safe_exists(path: str | Path) -> bool:
 
 def _is_non_local_asset_uri(asset_path: str) -> bool:
     """Return true for asset URI values that should not be treated as files."""
-    return urlparse(asset_path).scheme.lower() in _NON_LOCAL_ASSET_SCHEMES
+    scheme = usd_asset_uri_scheme(asset_path)
+    return bool(scheme and scheme != "file")
 
 
 def get_local_mdl_assets(
@@ -1304,6 +1507,8 @@ def get_local_mdl_assets(
                 - Path is a remote URL (http/https)
                 - File doesn't exist locally
             - is_local: True if the file exists locally
+            - time_code: Authored sample time for time-sampled opinions; omitted
+              for the default opinion
     """
     if base_dir is None:
         # Use the root layer's directory as base
@@ -1315,42 +1520,43 @@ def get_local_mdl_assets(
     else:
         base_dir = Path(base_dir)
 
-    mdl_assets = []
+    mdl_assets: list[dict] = []
+    seen_opinions: set[tuple[str, float | None]] = set()
 
-    for prim in stage.Traverse():
-        # Check if it's a Shader prim
-        if not prim.IsA(UsdShade.Shader):
-            continue
+    def record_mdl_asset(
+        *,
+        shader_path: str,
+        time_code: float | None,
+        asset_val: object,
+    ) -> None:
+        opinion_key = (shader_path, time_code)
+        if opinion_key in seen_opinions or asset_val is None:
+            return
+        seen_opinions.add(opinion_key)
 
-        # Look for MDL sourceAsset attribute
-        mdl_attr = prim.GetAttribute("info:mdl:sourceAsset")
-        if not mdl_attr or not mdl_attr.IsValid():
-            continue
-
-        asset_val = mdl_attr.Get()
-        if asset_val is None:
-            continue
-
-        # Get the path from Sdf.AssetPath
         try:
             mdl_path = asset_val.path if hasattr(asset_val, "path") else str(asset_val)
         except Exception:
             mdl_path = str(asset_val)
-
         if not mdl_path:
-            continue
+            return
 
-        # Check if it's a remote or embedded URI - skip these
+        asset_record: dict[str, Any] = {
+            "shader_path": shader_path,
+            "mdl_path": mdl_path,
+        }
+        if time_code is not None:
+            asset_record["time_code"] = time_code
+
         if _is_non_local_asset_uri(mdl_path):
             mdl_assets.append(
                 {
-                    "shader_path": str(prim.GetPath()),
-                    "mdl_path": mdl_path,
+                    **asset_record,
                     "resolved_path": None,
                     "is_local": False,
                 }
             )
-            continue
+            return
 
         resolved_path, is_local = _resolve_local_asset_path(
             asset_val,
@@ -1360,12 +1566,55 @@ def get_local_mdl_assets(
 
         mdl_assets.append(
             {
-                "shader_path": str(prim.GetPath()),
-                "mdl_path": mdl_path,
+                **asset_record,
                 "resolved_path": resolved_path,
                 "is_local": is_local,
             }
         )
+
+    for prim in stage.Traverse():
+        if not prim.IsA(UsdShade.Shader):
+            continue
+        mdl_attr = prim.GetAttribute(_MDL_SOURCE_ASSET_ATTRIBUTE)
+        if not mdl_attr or not mdl_attr.IsValid():
+            continue
+        record_mdl_asset(
+            shader_path=str(prim.GetPath()),
+            time_code=None,
+            asset_val=mdl_attr.Get(),
+        )
+        for time_code in getattr(mdl_attr, "GetTimeSamples", lambda: [])():
+            record_mdl_asset(
+                shader_path=str(prim.GetPath()),
+                time_code=time_code,
+                asset_val=mdl_attr.Get(time_code),
+            )
+
+    # Flattened instance prototypes are raw layer specs which stage traversal
+    # omits. Include their MDL opinions so render bundling cannot silently lose
+    # a package used only by an instance.
+    get_root_layer = getattr(stage, "GetRootLayer", None)
+    if get_root_layer is None:
+        return mdl_assets
+    root_layer = get_root_layer()
+    for attr_spec in iter_sdf_layer_attribute_specs(root_layer):
+        if (
+            attr_spec.name != _MDL_SOURCE_ASSET_ATTRIBUTE
+            or attr_spec.typeName != Sdf.ValueTypeNames.Asset
+        ):
+            continue
+        shader_path = str(get_sdf_attribute_owner_path(attr_spec))
+        record_mdl_asset(
+            shader_path=shader_path,
+            time_code=None,
+            asset_val=attr_spec.default,
+        )
+        for time_code in root_layer.ListTimeSamplesForPath(attr_spec.path):
+            record_mdl_asset(
+                shader_path=shader_path,
+                time_code=time_code,
+                asset_val=root_layer.QueryTimeSample(attr_spec.path, time_code),
+            )
 
     return mdl_assets
 
@@ -1397,6 +1646,14 @@ _TEXTURE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".exr", ".tga", ".hdr", ".bmp"}
 _MAX_PACKAGE_TEXTURE_BYTES = 512 * 1024 * 1024
 
 
+class PackageTextureLocalizationError(ValueError):
+    """Raised when a USDZ texture cannot be localized without dropping it."""
+
+
+class PackageMdlLocalizationError(ValueError):
+    """Raised when a USDZ MDL package cannot be localized without dropping it."""
+
+
 def _package_member_asset_parts(
     asset_path: str,
     *,
@@ -1413,92 +1670,576 @@ def _localized_package_texture_root(package_path: Path) -> str:
     return package_member_cache_name(package_path, digest_len=12)
 
 
+def iter_sdf_layer_attribute_specs(
+    layer: Sdf.Layer,
+) -> Iterator[Sdf.AttributeSpec]:
+    """Yield every attribute spec, including variant and prototype opinions."""
+    pending = list(reversed(list(layer.rootPrims)))
+    while pending:
+        prim_spec = pending.pop()
+        yield from prim_spec.attributes.values()
+        pending.extend(reversed(list(prim_spec.nameChildren)))
+        for variant_set in reversed(list(prim_spec.variantSets.values())):
+            pending.extend(
+                variant.primSpec
+                for variant in reversed(list(variant_set.variants.values()))
+            )
+
+
+def localize_package_mdl_assets_for_render(
+    stage: Usd.Stage,
+    output_dir: str | Path,
+    *,
+    base_dir: str | Path | None = None,
+    allowed_package_root: str | Path | None = None,
+    strict: bool = False,
+) -> int:
+    """Extract complete USDZ packages behind MDL source assets for rendering.
+
+    A flattened USDZ represents an MDL source as
+    ``/path/asset.usdz[Materials/Surface.mdl]``. Merely extracting that one MDL
+    file is insufficient because MDL imports and texture resources are not USD
+    dependencies. This helper therefore extracts the complete, bounded package
+    into a private directory and rewrites only the render clone to the extracted
+    MDL member. The caller's source stage and package remain unchanged.
+
+    Args:
+        stage: Mutable, flattened render-only stage whose packaged MDL paths
+            are rewritten.
+        output_dir: Private directory that receives complete package contents.
+        base_dir: Optional anchor for relative outer package paths.
+        allowed_package_root: Optional directory that must contain every outer
+            package before it is read.
+        strict: Raise instead of skipping a packaged MDL that cannot be safely
+            resolved, bounded, extracted, or rewritten.
+
+    Raises:
+        PackageMdlLocalizationError: If ``strict`` is true and localization
+            would omit a package-backed MDL dependency.
+    """
+    out_dir = Path(output_dir)
+    if base_dir is None:
+        root_layer_path = (
+            stage.GetRootLayer().realPath or stage.GetRootLayer().identifier
+        )
+        resolved_base_dir = Path(root_layer_path).parent if root_layer_path else None
+    else:
+        resolved_base_dir = Path(base_dir)
+
+    resolved_allowed_package_root: Path | None = None
+    if allowed_package_root is not None:
+        try:
+            resolved_allowed_package_root = Path(allowed_package_root).resolve(
+                strict=True
+            )
+        except (OSError, RuntimeError) as exc:
+            raise PackageMdlLocalizationError(
+                "Authorized USDZ package root is unavailable"
+            ) from exc
+        if not resolved_allowed_package_root.is_dir():
+            raise PackageMdlLocalizationError(
+                "Authorized USDZ package root is not a directory"
+            )
+
+    extracted_packages: dict[Path, Path] = {}
+
+    def packaged_mdl_path(asset_val: object) -> str | None:
+        authored_path = str(getattr(asset_val, "path", "") or "")
+        authored_identity = split_package_member_asset_path(authored_path)
+        if authored_identity is not None and _is_non_local_asset_uri(
+            authored_identity[0]
+        ):
+            return None
+        candidates = (
+            authored_path,
+            str(getattr(asset_val, "resolvedPath", "") or ""),
+        )
+        for candidate in candidates:
+            package_identity = split_package_member_asset_path(candidate)
+            if package_identity is None:
+                continue
+            if Path(package_identity[1]).suffix.lower() == ".mdl":
+                return candidate
+        return None
+
+    def localize_asset_value(
+        asset_val: Sdf.AssetPath,
+        *,
+        opinion_context: str,
+    ) -> Sdf.AssetPath | None:
+        package_asset_path = packaged_mdl_path(asset_val)
+        if package_asset_path is None:
+            return None
+        try:
+            package_parts = _package_member_asset_parts(
+                package_asset_path,
+                base_dir=resolved_base_dir,
+            )
+        except Exception as exc:
+            if strict:
+                raise PackageMdlLocalizationError(
+                    f"Unable to resolve USDZ package MDL safely: {opinion_context}"
+                ) from exc
+            return None
+        if package_parts is None:
+            if strict:
+                raise PackageMdlLocalizationError(
+                    f"Unable to resolve USDZ package MDL safely: {opinion_context}"
+                )
+            return None
+
+        package_path, member = package_parts
+        try:
+            package_path = package_path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            if strict:
+                raise PackageMdlLocalizationError(
+                    f"Unable to resolve USDZ package MDL safely: {opinion_context}"
+                ) from exc
+            return None
+        if resolved_allowed_package_root is not None:
+            try:
+                package_path.relative_to(resolved_allowed_package_root)
+            except ValueError as exc:
+                raise PackageMdlLocalizationError(
+                    "USDZ package MDL resolves outside the authorized asset root: "
+                    f"{opinion_context}"
+                ) from exc
+
+        member_parts = safe_usdz_member_parts(member, allow_leading_slash=True)
+        if member_parts is None or Path(member_parts[-1]).suffix.lower() != ".mdl":
+            if strict:
+                raise PackageMdlLocalizationError(
+                    f"USDZ package MDL member is unsafe: {opinion_context}"
+                )
+            return None
+
+        extract_dir = extracted_packages.get(package_path)
+        if extract_dir is None:
+            extract_dir = out_dir / package_member_cache_name(
+                package_path, digest_len=12
+            )
+            try:
+                extract_usdz_package_for_edit(package_path, extract_dir)
+            except Exception as exc:
+                if strict:
+                    raise PackageMdlLocalizationError(
+                        "Unable to extract complete USDZ package for MDL rendering: "
+                        f"{opinion_context}"
+                    ) from exc
+                logger.warning(
+                    "Failed to extract USDZ package for MDL %s[%s]: %s",
+                    package_path,
+                    member,
+                    exc,
+                )
+                return None
+            extracted_packages[package_path] = extract_dir
+
+        try:
+            localized_path = extract_dir.joinpath(*member_parts).resolve(strict=True)
+            localized_path.relative_to(extract_dir.resolve(strict=True))
+        except (OSError, RuntimeError, ValueError) as exc:
+            if strict:
+                raise PackageMdlLocalizationError(
+                    f"USDZ package MDL member is unavailable: {opinion_context}"
+                ) from exc
+            return None
+        if not localized_path.is_file():
+            if strict:
+                raise PackageMdlLocalizationError(
+                    f"USDZ package MDL member is not a regular file: {opinion_context}"
+                )
+            return None
+        return Sdf.AssetPath(str(localized_path))
+
+    # Callers provide a flattened, private render clone. Its root layer contains
+    # the composed opinions, including prototype specs, so one Sdf pass can
+    # rewrite defaults and time samples without mutating or de-instancing the
+    # source stage.
+    updated = 0
+    root_layer = stage.GetRootLayer()
+    for attr_spec in iter_sdf_layer_attribute_specs(root_layer):
+        if (
+            attr_spec.name != _MDL_SOURCE_ASSET_ATTRIBUTE
+            or attr_spec.typeName != Sdf.ValueTypeNames.Asset
+        ):
+            continue
+        opinions = [(None, attr_spec.default)]
+        opinions.extend(
+            (time_code, root_layer.QueryTimeSample(attr_spec.path, time_code))
+            for time_code in root_layer.ListTimeSamplesForPath(attr_spec.path)
+        )
+        for time_code, asset_val in opinions:
+            if not isinstance(asset_val, Sdf.AssetPath):
+                continue
+            package_asset_path = packaged_mdl_path(asset_val)
+            if package_asset_path is None:
+                continue
+            opinion_context = (
+                f"layer={root_layer.identifier!r}, path={attr_spec.path}, "
+                f"time={time_code!r}, asset={package_asset_path!r}"
+            )
+            localized_value = localize_asset_value(
+                asset_val,
+                opinion_context=opinion_context,
+            )
+            if localized_value is None:
+                continue
+            if time_code is None:
+                attr_spec.default = localized_value
+            else:
+                root_layer.SetTimeSample(attr_spec.path, time_code, localized_value)
+            updated += 1
+
+    return updated
+
+
 def localize_package_texture_assets_for_render(
     stage: Usd.Stage,
     output_dir: str | Path,
+    *,
+    base_dir: str | Path | None = None,
+    allowed_package_root: str | Path | None = None,
+    strict: bool = False,
+    layer_specs_only: bool = False,
 ) -> int:
-    """Extract USDZ package-member texture refs for render-only remote export.
+    """Extract USDZ package-member texture refs for a render-only export.
 
-    Flattening a USDZ for the REST renderer can leave asset paths such as
-    ``/path/asset.usdz[0/albedo.png]``. A data-URI stage upload does not include
-    that package member, so remote OVRTX can resolve the shader graph but not the
-    texture image. This extracts image members to ``output_dir`` and rewrites
-    matching ``SdfAssetPath`` attributes to ordinary local file paths that the
-    existing render bundler can include.
+    Relocating or flattening a USDZ can leave asset paths such as
+    ``/path/asset.usdz[0/albedo.png]``. Neither a standalone local IPC layer nor
+    a remote data-URI stage carries that package member. This extracts image
+    members to ``output_dir`` and rewrites matching ``SdfAssetPath`` attributes
+    to ordinary local file paths that either render transport can stage.
+
+    Args:
+        stage: Render-only stage whose package-member texture paths are rewritten.
+        output_dir: Private directory that receives validated extracted members.
+        base_dir: Optional anchor for relative outer package paths.
+        allowed_package_root: Optional directory that must contain every outer
+            package before any member is read.
+        strict: Raise instead of skipping a package member that cannot be safely
+            resolved, bounded, read, extracted, or rewritten.
+        layer_specs_only: Rewrite raw layer specs without authoring composed
+            opinions. Use this for a layer-stack-preserving render clone whose
+            variant and instance topology must remain identical to its export.
+
+    Raises:
+        PackageTextureLocalizationError: If ``strict`` is true and localization
+            would omit a package-member texture dependency.
     """
     out_dir = Path(output_dir)
-    root_layer_path = stage.GetRootLayer().realPath or stage.GetRootLayer().identifier
-    base_dir = Path(root_layer_path).parent if root_layer_path else None
+    if base_dir is None:
+        root_layer_path = (
+            stage.GetRootLayer().realPath or stage.GetRootLayer().identifier
+        )
+        resolved_base_dir = Path(root_layer_path).parent if root_layer_path else None
+    else:
+        resolved_base_dir = Path(base_dir)
+    resolved_allowed_package_root: Path | None = None
+    if allowed_package_root is not None:
+        try:
+            resolved_allowed_package_root = Path(allowed_package_root).resolve(
+                strict=True
+            )
+        except (OSError, RuntimeError) as exc:
+            raise PackageTextureLocalizationError(
+                "Authorized USDZ package root is unavailable"
+            ) from exc
+        if not resolved_allowed_package_root.is_dir():
+            raise PackageTextureLocalizationError(
+                "Authorized USDZ package root is not a directory"
+            )
     updated = 0
     extracted: dict[tuple[Path, str], Path] = {}
 
-    for prim in stage.Traverse():
-        if prim.IsInstanceProxy():
-            continue
-        for attr in prim.GetAttributes():
-            if attr.GetTypeName() != Sdf.ValueTypeNames.Asset:
-                continue
+    def localize_asset_value(
+        asset_val: Sdf.AssetPath,
+        *,
+        opinion_context: str,
+    ) -> Sdf.AssetPath | None:
+        asset_path = getattr(asset_val, "path", "")
+        if not asset_path:
+            return None
 
-            asset_val = attr.Get()
-            if asset_val is None:
+        package_identity = split_package_member_asset_path(str(asset_path))
+        if package_identity is None:
+            return None
+        if _is_non_local_asset_uri(package_identity[0]):
+            return None
+        package_parts = _package_member_asset_parts(
+            str(asset_path),
+            base_dir=resolved_base_dir,
+        )
+        if package_parts is None:
+            if strict:
+                raise PackageTextureLocalizationError(
+                    f"Unable to resolve USDZ package texture safely: {opinion_context}"
+                )
+            return None
+        package_path, member = package_parts
+        try:
+            package_path = package_path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            if strict:
+                raise PackageTextureLocalizationError(
+                    f"Unable to resolve USDZ package texture safely: {opinion_context}"
+                ) from exc
+            return None
+        if resolved_allowed_package_root is not None:
+            try:
+                package_path.relative_to(resolved_allowed_package_root)
+            except ValueError as exc:
+                raise PackageTextureLocalizationError(
+                    "USDZ package texture resolves outside the authorized "
+                    f"asset root: {opinion_context}"
+                ) from exc
+        if Path(member).suffix.lower() not in _TEXTURE_EXTENSIONS:
+            return None
+
+        key = (package_path, member)
+        dest = extracted.get(key)
+        if dest is None:
+            dest = out_dir / _localized_package_texture_root(package_path) / member
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                written = extract_usdz_member_to_path(
+                    package_path,
+                    member,
+                    dest,
+                    allowed_suffixes=_TEXTURE_EXTENSIONS,
+                    max_bytes=_MAX_PACKAGE_TEXTURE_BYTES,
+                )
+                if written is None:
+                    if strict:
+                        raise PackageTextureLocalizationError(
+                            f"USDZ package texture member is missing: {opinion_context}"
+                        )
+                    return None
+            except ArchiveSizeLimitExceeded as exc:
+                if strict:
+                    raise PackageTextureLocalizationError(
+                        "USDZ package texture exceeds the render-export limit: "
+                        f"{opinion_context}, limit={_MAX_PACKAGE_TEXTURE_BYTES}"
+                    ) from exc
+                logger.warning(
+                    "Skipped USDZ texture %s[%s] because it exceeds %d bytes",
+                    package_path,
+                    member,
+                    _MAX_PACKAGE_TEXTURE_BYTES,
+                )
+                return None
+            except PackageTextureLocalizationError:
+                raise
+            except Exception as exc:
+                if strict:
+                    raise PackageTextureLocalizationError(
+                        f"Unable to extract USDZ package texture safely: {opinion_context}"
+                    ) from exc
+                logger.warning(
+                    "Failed to extract USDZ texture %s[%s]: %s",
+                    package_path,
+                    member,
+                    exc,
+                )
+                return None
+            extracted[key] = dest
+
+        return Sdf.AssetPath(str(dest.resolve()))
+
+    localized_opinions: set[tuple[str, float | None]] = set()
+
+    def is_package_texture_asset(asset_val: Sdf.AssetPath) -> bool:
+        asset_path = getattr(asset_val, "path", "")
+        package_identity = split_package_member_asset_path(str(asset_path))
+        return bool(
+            package_identity is not None
+            and not _is_non_local_asset_uri(package_identity[0])
+            and Path(package_identity[1]).suffix.lower() in _TEXTURE_EXTENSIONS
+        )
+
+    def reject_package_texture_array(
+        asset_values: Sdf.AssetPathArray,
+        *,
+        opinion_context: str,
+    ) -> None:
+        for element_index, asset_val in enumerate(asset_values):
+            if not is_package_texture_asset(asset_val):
+                continue
+            if strict:
+                raise PackageTextureLocalizationError(
+                    "USDZ package texture arrays cannot be localized without "
+                    "losing authored element identity: "
+                    f"{opinion_context}, element={element_index}"
+                )
+            logger.warning(
+                "Skipped USDZ package texture array element %s: %s",
+                element_index,
+                opinion_context,
+            )
+
+    def localize_composed_opinion(
+        prim: Usd.Prim,
+        attr: Usd.Attribute,
+        asset_val: Sdf.AssetPath,
+        *,
+        time_code: float | None,
+    ) -> int:
+        asset_path = getattr(asset_val, "path", "")
+        opinion_context = (
+            f"prim={prim.GetPath()}, attribute={attr.GetName()!r}, "
+            f"time={time_code!r}, path={asset_path!r}"
+        )
+        localized_value = localize_asset_value(
+            asset_val,
+            opinion_context=opinion_context,
+        )
+        if localized_value is None:
+            return 0
+        authored = (
+            attr.Set(localized_value)
+            if time_code is None
+            else attr.Set(localized_value, time_code)
+        )
+        if not authored:
+            raise PackageTextureLocalizationError(
+                f"Unable to rewrite USDZ package texture safely: {opinion_context}"
+            )
+        localized_opinions.add((str(attr.GetPath()), time_code))
+        return 1
+
+    composed_opinions: list[tuple[Sdf.Path, float | None]] = []
+    deinstance_prim_paths: set[Sdf.Path] = set()
+    if not layer_specs_only:
+        for prim in stage.Traverse():
+            if prim.IsInstanceProxy():
+                continue
+            for attr in prim.GetAttributes():
+                if attr.GetTypeName() not in (
+                    Sdf.ValueTypeNames.Asset,
+                    Sdf.ValueTypeNames.AssetArray,
+                ):
+                    continue
+
+                default_value = attr.Get()
+                has_scalar_package_texture = isinstance(
+                    default_value, Sdf.AssetPath
+                ) and is_package_texture_asset(default_value)
+                if isinstance(default_value, Sdf.AssetPathArray):
+                    has_package_texture = any(
+                        is_package_texture_asset(value) for value in default_value
+                    )
+                else:
+                    has_package_texture = has_scalar_package_texture
+                if has_package_texture:
+                    composed_opinions.append((attr.GetPath(), None))
+                for time_code in attr.GetTimeSamples():
+                    sample_value = attr.Get(time_code)
+                    if isinstance(sample_value, Sdf.AssetPathArray):
+                        sample_has_package_texture = any(
+                            is_package_texture_asset(value) for value in sample_value
+                        )
+                    else:
+                        sample_has_package_texture = isinstance(
+                            sample_value, Sdf.AssetPath
+                        ) and is_package_texture_asset(sample_value)
+                        has_scalar_package_texture = (
+                            has_scalar_package_texture or sample_has_package_texture
+                        )
+                    if sample_has_package_texture:
+                        composed_opinions.append((attr.GetPath(), time_code))
+                if has_scalar_package_texture and (
+                    prim.IsInstance() or prim.IsInstanceable()
+                ):
+                    deinstance_prim_paths.add(prim.GetPath())
+
+    # SetInstanceable can recompose the stage, so finish the active PrimRange
+    # before mutating it and re-fetch every prim/attribute afterward.
+    for prim_path in sorted(deinstance_prim_paths, key=str):
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim or not prim.SetInstanceable(False):
+            raise PackageTextureLocalizationError(
+                "Unable to de-instance a prim for package texture localization: "
+                f"prim={prim_path}"
+            )
+    for attr_path, time_code in composed_opinions:
+        attr = stage.GetAttributeAtPath(attr_path)
+        if not attr:
+            raise PackageTextureLocalizationError(
+                "Package texture attribute disappeared after stage recomposition: "
+                f"path={attr_path}, time={time_code!r}"
+            )
+        asset_val = attr.Get() if time_code is None else attr.Get(time_code)
+        if asset_val is None:
+            continue
+        prim = attr.GetPrim()
+        if isinstance(asset_val, Sdf.AssetPathArray):
+            reject_package_texture_array(
+                asset_val,
+                opinion_context=(
+                    f"prim={prim.GetPath()}, attribute={attr.GetName()!r}, "
+                    f"time={time_code!r}"
+                ),
+            )
+            continue
+        updated += localize_composed_opinion(
+            prim,
+            attr,
+            asset_val,
+            time_code=time_code,
+        )
+
+    # Stage traversal intentionally excludes flattened instance prototypes. Walk
+    # the exported root layer as Sdf specs as a second, compatible semantic pass
+    # so no prototype-authored package dependency remains host-bound.
+    root_layer = stage.GetRootLayer()
+    for attr_spec in iter_sdf_layer_attribute_specs(root_layer):
+        if attr_spec.typeName not in (
+            Sdf.ValueTypeNames.Asset,
+            Sdf.ValueTypeNames.AssetArray,
+        ):
+            continue
+        opinions = [(None, attr_spec.default)]
+        opinions.extend(
+            (time_code, root_layer.QueryTimeSample(attr_spec.path, time_code))
+            for time_code in root_layer.ListTimeSamplesForPath(attr_spec.path)
+        )
+        for time_code, asset_val in opinions:
+            opinion_key = (str(attr_spec.path), time_code)
+            if opinion_key in localized_opinions or asset_val is None:
                 continue
             asset_path = getattr(asset_val, "path", "")
-            if not asset_path:
-                continue
-
-            package_parts = _package_member_asset_parts(
-                str(asset_path),
-                base_dir=base_dir,
+            opinion_context = (
+                f"layer={root_layer.identifier!r}, path={attr_spec.path}, "
+                f"time={time_code!r}, asset={asset_path!r}"
             )
-            if package_parts is None:
+            if isinstance(asset_val, Sdf.AssetPathArray):
+                reject_package_texture_array(
+                    asset_val,
+                    opinion_context=opinion_context,
+                )
                 continue
-            package_path, member = package_parts
-            if Path(member).suffix.lower() not in _TEXTURE_EXTENSIONS:
+            localized_value = localize_asset_value(
+                asset_val,
+                opinion_context=opinion_context,
+            )
+            if localized_value is None:
                 continue
-
-            key = (package_path.resolve(), member)
-            dest = extracted.get(key)
-            if dest is None:
-                dest = out_dir / _localized_package_texture_root(package_path) / member
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    written = extract_usdz_member_to_path(
-                        package_path,
-                        member,
-                        dest,
-                        allowed_suffixes=_TEXTURE_EXTENSIONS,
-                        max_bytes=_MAX_PACKAGE_TEXTURE_BYTES,
-                    )
-                    if written is None:
-                        continue
-                except ArchiveSizeLimitExceeded:
-                    logger.warning(
-                        "Skipped USDZ texture %s[%s] because it exceeds %d bytes",
-                        package_path,
-                        member,
-                        _MAX_PACKAGE_TEXTURE_BYTES,
-                    )
-                    continue
-                except Exception as exc:
-                    logger.warning(
-                        "Failed to extract USDZ texture %s[%s]: %s",
-                        package_path,
-                        member,
-                        exc,
-                    )
-                    continue
-                extracted[key] = dest
-
-            if prim.IsInstance() or prim.IsInstanceable():
-                prim.SetInstanceable(False)
-            attr.Set(Sdf.AssetPath(str(dest.resolve())))
+            if time_code is None:
+                attr_spec.default = localized_value
+            else:
+                root_layer.SetTimeSample(attr_spec.path, time_code, localized_value)
+            localized_opinions.add(opinion_key)
             updated += 1
 
     return updated
 
 
 def get_local_texture_file_assets(
-    stage: Usd.Stage, base_dir: str | Path | None = None
+    stage: Usd.Stage,
+    base_dir: str | Path | None = None,
+    *,
+    deduplicate: bool = True,
 ) -> list[dict]:
     """Get all local texture file asset paths from the stage.
 
@@ -1513,6 +2254,9 @@ def get_local_texture_file_assets(
         base_dir: Fallback base directory for resolving relative paths when
             USD does not provide ``Sdf.AssetPath.resolvedPath``. If None, uses
             the stage's root layer directory.
+        deduplicate: Whether repeated attributes resolving to the same file are
+            collapsed. Disable this when every authored attribute must be
+            rewritten even though the outbound file is copied only once.
 
     Returns:
         List of dicts (deduplicated by resolved_path), each containing:
@@ -1521,6 +2265,8 @@ def get_local_texture_file_assets(
             - file_path: Original file path as stored in the attribute
             - resolved_path: Resolved absolute path to the texture file, or None
             - is_local: True if the file exists locally
+            - time_code: Authored sample time for time-sampled opinions; omitted
+              for the default opinion
     """
     if base_dir is None:
         root_layer = stage.GetRootLayer()
@@ -1533,6 +2279,71 @@ def get_local_texture_file_assets(
 
     texture_assets: list[dict] = []
     seen_resolved: set[str] = set()
+    seen_opinions: set[tuple[str, str, float | None]] = set()
+
+    def record_texture_asset(
+        *,
+        prim_path: str,
+        attr_name: str,
+        time_code: float | None,
+        asset_val: Any,
+    ) -> None:
+        opinion_key = (prim_path, attr_name, time_code)
+        if opinion_key in seen_opinions or asset_val is None:
+            return
+        seen_opinions.add(opinion_key)
+
+        try:
+            file_path = asset_val.path if hasattr(asset_val, "path") else str(asset_val)
+        except Exception:
+            file_path = str(asset_val)
+
+        if not file_path:
+            return
+
+        asset_record = {
+            "prim_path": prim_path,
+            "attr_name": attr_name,
+            "file_path": file_path,
+        }
+        if time_code is not None:
+            asset_record["time_code"] = time_code
+
+        # Skip remote or embedded URIs before treating the value as a path.
+        if _is_non_local_asset_uri(file_path):
+            texture_assets.append(
+                {
+                    **asset_record,
+                    "resolved_path": None,
+                    "is_local": False,
+                }
+            )
+            return
+
+        # Check if extension is a known texture format
+        ext = Path(file_path).suffix.lower()
+        if ext not in _TEXTURE_EXTENSIONS:
+            return
+
+        resolved_path, is_local = _resolve_local_asset_path(
+            asset_val,
+            file_path,
+            base_dir,
+        )
+
+        # Deduplicate by resolved_path
+        if deduplicate and resolved_path and resolved_path in seen_resolved:
+            return
+        if resolved_path:
+            seen_resolved.add(resolved_path)
+
+        texture_assets.append(
+            {
+                **asset_record,
+                "resolved_path": resolved_path,
+                "is_local": is_local,
+            }
+        )
 
     for prim in stage.Traverse():
         for attr in prim.GetAttributes():
@@ -1540,58 +2351,37 @@ def get_local_texture_file_assets(
             if type_name.type.typeName != "SdfAssetPath":
                 continue
 
-            asset_val = attr.Get()
-            if asset_val is None:
-                continue
-
-            try:
-                file_path = (
-                    asset_val.path if hasattr(asset_val, "path") else str(asset_val)
-                )
-            except Exception:
-                file_path = str(asset_val)
-
-            if not file_path:
-                continue
-
-            # Skip remote or embedded URIs before treating the value as a path.
-            if _is_non_local_asset_uri(file_path):
-                texture_assets.append(
-                    {
-                        "prim_path": str(prim.GetPath()),
-                        "attr_name": attr.GetName(),
-                        "file_path": file_path,
-                        "resolved_path": None,
-                        "is_local": False,
-                    }
-                )
-                continue
-
-            # Check if extension is a known texture format
-            ext = Path(file_path).suffix.lower()
-            if ext not in _TEXTURE_EXTENSIONS:
-                continue
-
-            resolved_path, is_local = _resolve_local_asset_path(
-                asset_val,
-                file_path,
-                base_dir,
+            opinions: list[tuple[float | None, Any]] = [(None, attr.Get())]
+            opinions.extend(
+                (time_code, attr.Get(time_code)) for time_code in attr.GetTimeSamples()
             )
+            for time_code, asset_val in opinions:
+                record_texture_asset(
+                    prim_path=str(prim.GetPath()),
+                    attr_name=attr.GetName(),
+                    time_code=time_code,
+                    asset_val=asset_val,
+                )
 
-            # Deduplicate by resolved_path
-            if resolved_path and resolved_path in seen_resolved:
-                continue
-            if resolved_path:
-                seen_resolved.add(resolved_path)
-
-            texture_assets.append(
-                {
-                    "prim_path": str(prim.GetPath()),
-                    "attr_name": attr.GetName(),
-                    "file_path": file_path,
-                    "resolved_path": resolved_path,
-                    "is_local": is_local,
-                }
+    # A flattened stage can carry instance prototypes as root-layer specs which
+    # Usd.Stage.Traverse() omits by design. Collect those raw authored opinions
+    # without changing composed stage-traversal semantics for ordinary prims.
+    root_layer = stage.GetRootLayer()
+    for attr_spec in iter_sdf_layer_attribute_specs(root_layer):
+        if attr_spec.typeName != Sdf.ValueTypeNames.Asset:
+            continue
+        record_texture_asset(
+            prim_path=str(get_sdf_attribute_owner_path(attr_spec)),
+            attr_name=attr_spec.name,
+            time_code=None,
+            asset_val=attr_spec.default,
+        )
+        for time_code in root_layer.ListTimeSamplesForPath(attr_spec.path):
+            record_texture_asset(
+                prim_path=str(get_sdf_attribute_owner_path(attr_spec)),
+                attr_name=attr_spec.name,
+                time_code=time_code,
+                asset_val=root_layer.QueryTimeSample(attr_spec.path, time_code),
             )
 
     return texture_assets

@@ -135,8 +135,10 @@ refine_result = run_refine(
         physics_usd=Path("asset_physics.usda"),
         user_prompt="match this observed motion",
         output_dir=Path("output/refine"),
-        reference_videos=[Path("observed_motion.mp4")],
-        reference_video_frames=32,
+        reference_images=[
+            Path("observed_contact.png"),
+            Path("observed_rebound.png"),
+        ],
         judge_reference_frames=32,
         judge_generated_frames=32,
         judge_max_tokens=2048,
@@ -159,12 +161,14 @@ defaults. Precedence is CLI/API argument, then scenario YAML `judge:`, then
 environment defaults, then built-in defaults.
 
 The judge always uses the VLM interface. Reference media and generated frames
-are supplied when available. The media list is empty only when no visual
-evidence is constructed; iterative refine can still send generated best-trial
-frames without user reference media when winning-trial rendering is enabled.
-By default, the judge samples up to 8 reference images/video frames and 16
-generated frames per call. Callers can override those caps with
-`reference_video_frames`, `judge_reference_frames`, and
+are supplied when visual evidence is enabled. Iterative refine renders the
+winning trial even without user reference media; this requires a persisted
+`recording_usd` and a working USD renderer. Set `visual_evidence_enabled=False`
+for an intentional text-only judge and for `engine="fake"`, which does not
+produce recordings. Reference preparation and the winning-trial render use
+`visual_evidence_timeout_seconds`, independently of `llm_timeout_seconds`.
+By default, the judge samples up to 8 reference images and 16 generated frames
+per call. Callers can override those caps with `judge_reference_frames` and
 `judge_generated_frames`.
 Media-backed tune/refine runs persist copied reference media, rendered generated
 frames, and a best-effort `comparison.png` contact sheet; their paths are
@@ -182,6 +186,47 @@ the optimizer result can still be returned. Media-backed `run_tune` and all
 iterative `run_refine` judging fail closed, because visual comparison and loop
 continuation decisions require a real VLM verdict.
 
+### Trusted External Runtime
+
+`run_external_tune` and `run_external_refine` optimize inside a trusted local
+customer runtime. They are Python API and CLI surfaces only; Physics Agent
+Service does not expose them. The first call performs one nominal qualification
+and stops. Review its report and digest-bound PNG frame manifest, then pass the
+exact digest to the second call:
+
+```python
+from pathlib import Path
+
+from physics_agent.api import ExternalTuneInput, run_external_tune
+
+config = Path("path/to/runtime.yaml")
+output_dir = Path("output/external")
+
+qualification = run_external_tune(
+    ExternalTuneInput(config=config, output_dir=output_dir)
+)
+assert qualification.status == "awaiting_approval"
+
+result = run_external_tune(
+    ExternalTuneInput(
+        config=config,
+        output_dir=output_dir,
+        approval_digest=qualification.qualification_digest,
+        render_winning_trial=True,
+    )
+)
+```
+
+Iterative BYOR uses `ExternalRefineInput` and `run_external_refine`. Approved
+completion returns `validated=True`. Reaching the iteration cap preserves the
+best terminal bundle with `status="completed"`, `termination_reason` set to
+`"max_iterations"`, and `validated=False`. API callers must supply a working
+`vlm_model` for judging and a working `chat_model` if a `continue` verdict must
+refine the next search. The CLI constructs both from its model options. See
+[External Runtime Tuning and Local Refinement](external_runtime_tuning.md) for
+the full adapter request/result schemas, qualification boundary, evidence
+contract, artifacts, and credential handling.
+
 ## Config Requirements
 
 **API parameters have defaults, but config contents don't!**
@@ -195,7 +240,7 @@ config = {
     "predict": {
         "vlm": {
             "backend": "nim",                    # REQUIRED
-            "model": "google/gemma-4-31b-it",    # REQUIRED
+            "model": "moonshotai/kimi-k3",       # REQUIRED
         },
     },
     "input": {

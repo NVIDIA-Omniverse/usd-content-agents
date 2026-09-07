@@ -329,3 +329,92 @@ def test_predict_and_apply_commands_delegate_to_pipeline(
     assert calls[0]["only"] == "predict"
     assert calls[1]["only"] == "apply"
     assert all(call["config"] == config for call in calls)
+
+
+def test_refine_material_command_reports_package_and_evidence(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _patch_cli_common(monkeypatch)
+    config = _config(tmp_path)
+    output_dir = tmp_path / "refined"
+    captured = _capture_init(
+        monkeypatch,
+        "MaterialRefinementInput",
+        "run_material_refinement_api",
+        SimpleNamespace(
+            success=True,
+            approved=True,
+            trial_count=4,
+            best_material_dir=output_dir / "best_material",
+            summary_path=output_dir / "summary.json",
+        ),
+    )
+
+    result = runner.invoke(
+        cli.app,
+        ["refine-material", str(config), "--output-dir", str(output_dir)],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {"config": config, "output_dir_override": output_dir}
+
+
+def test_refine_material_command_propagates_api_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _patch_cli_common(monkeypatch)
+    config = _config(tmp_path)
+    _capture_init(
+        monkeypatch,
+        "MaterialRefinementInput",
+        "run_material_refinement_api",
+        SimpleNamespace(success=False, error=None),
+    )
+
+    result = runner.invoke(cli.app, ["refine-material", str(config)])
+
+    assert result.exit_code == 1
+
+
+def test_optimize_variations_command_reports_library_and_evidence(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _patch_cli_common(monkeypatch)
+    config = _config(tmp_path)
+    output_dir = tmp_path / "variations"
+    captured = _capture_init(
+        monkeypatch,
+        "MaterialRefinementInput",
+        "run_material_variations_api",
+        SimpleNamespace(
+            success=True,
+            selected_count=3,
+            material_library_path=output_dir / "material_library.usda",
+            manifest_path=output_dir / "manifest.json",
+        ),
+    )
+
+    result = runner.invoke(
+        cli.app,
+        ["optimize-variations", str(config), "--output-dir", str(output_dir)],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {"config": config, "output_dir_override": output_dir}
+
+
+def test_optimize_variations_command_propagates_api_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _patch_cli_common(monkeypatch)
+    config = _config(tmp_path)
+    _capture_init(
+        monkeypatch,
+        "MaterialRefinementInput",
+        "run_material_variations_api",
+        SimpleNamespace(success=False, error=None),
+    )
+
+    result = runner.invoke(cli.app, ["optimize-variations", str(config)])
+
+    assert result.exit_code == 1

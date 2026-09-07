@@ -77,7 +77,7 @@ STEP_ORDER = [
     "benchmark",
     "validate_predictions",  # Validate/repair VLM predictions against material library
     "harmonize_predictions",  # Resolve conflicts for instanced parts
-    "create_materials",  # Create run-local materials before restore/apply
+    "create_materials",  # Author run-local materials before restore/apply
     "restore_usd",  # Restore predictions before applying materials
     "apply",
     "evaluate",
@@ -232,7 +232,11 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+                **(
+                    {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+                    if DEFAULT_VLM_REASONING_EFFORT
+                    else {}
+                ),
             },
             "llm": {},  # Optional LLM for response parsing
             "max_workers": 64,
@@ -277,7 +281,11 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+                **(
+                    {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+                    if DEFAULT_VLM_REASONING_EFFORT
+                    else {}
+                ),
             },
             "llm": {},
             "llm_judge": {
@@ -293,7 +301,7 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "enabled": False,
             "llm_judge": {
                 "backend": "nim",
-                "model": "google/gemma-4-31b-it",
+                "model": "moonshotai/kimi-k3",
                 "temperature": 0.7,
                 "max_tokens": 1024,
             },
@@ -371,7 +379,11 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
                 "model": DEFAULT_VLM_MODEL,
                 "temperature": DEFAULT_VLM_TEMPERATURE,
                 "max_tokens": DEFAULT_VLM_MAX_TOKENS,
-                "reasoning_effort": DEFAULT_VLM_REASONING_EFFORT,
+                **(
+                    {"reasoning_effort": DEFAULT_VLM_REASONING_EFFORT}
+                    if DEFAULT_VLM_REASONING_EFFORT
+                    else {}
+                ),
             },
             "texture_generation": {
                 "texture_size": 1024,
@@ -393,7 +405,9 @@ def get_step_defaults(step_name: str) -> dict[str, Any]:
             "enabled": False,
             "backend": "fake",
             "fake_behavior": "success",
+            "authoring_requests": [],
             "creation_requests": [],
+            "modification_requests": [],
             "fail_on_error": True,
             "overwrite": False,
         },

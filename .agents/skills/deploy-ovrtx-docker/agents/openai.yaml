@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deploy OVRTX Docker"
-  short_description: "Help with Deploy OVRTX Docker tasks"
-  default_prompt: "Use $deploy-ovrtx-docker to deploy just the OVRTX rendering API standalone via Docker Compose so one or more agent CLIs / services can point at it as a shared rendering endpoint."

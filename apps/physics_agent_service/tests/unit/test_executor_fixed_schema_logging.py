@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Security tests for the physics executor final logging boundary."""
+
+from __future__ import annotations
+
+import logging
+
+import pytest
+
+from ...service.workers import executor
+
+_HOSTILE = "forged\nAuthorization: Bearer physics-secret\r\x1b[31m"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (True, 1),
+        (False, 0),
+        (2.0, 2),
+    ],
+)
+def test_bounded_log_count_accepts_only_safe_integral_scalars(
+    value: object, expected: int
+) -> None:
+    assert executor._bounded_log_count(value) == expected
+
+
+def test_pipeline_stats_log_uses_only_bounded_fixed_schema_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger=executor.__name__)
+
+    executor._log_pipeline_stats(
+        {
+            "prims_processed": _HOSTILE,
+            "images_generated": -1,
+            "predictions_made": 2**80,
+            "free_form": _HOSTILE,
+        }
+    )
+
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == executor.__name__
+    ]
+    assert messages == [
+        "Pipeline stats: prims_processed=0 images_generated=0 "
+        "predictions_made=2147483647"
+    ]
+    assert all("\n" not in message and "\r" not in message for message in messages)
+    assert all(
+        "\x1b" not in message and "physics-secret" not in message
+        for message in messages
+    )

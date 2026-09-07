@@ -24,6 +24,7 @@ from world_understanding.rendering_backend_contract import (
     validate_rendering_backend_for_surface,
     validate_rendering_backend_name,
 )
+from world_understanding.utils.credentials import is_nvidia_provider_base_url
 
 __all__ = [
     "RENDERING_BACKEND_NAMES",
@@ -39,6 +40,8 @@ __all__ = [
 
 _REMOTE_CONFIG_KEYS = (
     "base_url",
+    "api_key",
+    "allow_redirects",
     "s3_bucket",
     "s3_region",
     "s3_profile",
@@ -51,6 +54,8 @@ _REMOTE_CONFIG_KEYS = (
     "use_data_uri",
     "add_preview_fallbacks",
     "material_target",
+    "num_sensor_updates",
+    "render_mode",
 )
 _OVRTX_CONFIG_KEYS = (
     "log_level",
@@ -110,7 +115,18 @@ def create_rendering_backend(
 
     if backend_type == "remote":
         kwargs = _select_config(config, _REMOTE_CONFIG_KEYS)
-        kwargs["api_key"] = os.environ.get("NGC_API_KEY")
+        # An explicit endpoint-scoped key stays authoritative; NGC_API_KEY is
+        # only the automatic default for NVIDIA provider endpoints when the
+        # caller does not supply one.
+        if "api_key" not in kwargs:
+            effective_base_url = kwargs.get("base_url") or os.environ.get(
+                "RENDER_ENDPOINT"
+            )
+            kwargs["api_key"] = (
+                os.environ.get("NGC_API_KEY")
+                if is_nvidia_provider_base_url(effective_base_url)
+                else ""
+            )
         return RemoteRenderingBackend(**kwargs)
 
     if backend_type == "warp":

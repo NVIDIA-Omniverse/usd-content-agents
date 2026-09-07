@@ -7,6 +7,11 @@
 FastAPI service for Joint Agent classification, candidate inference, and
 owned-core USDZ publication.
 
+> **Content Agents 0.6 routing:** this service is an explicit fixed-pipeline
+> REST interface. For an unqualified articulation task, start at the repository
+> root with `content-workflow-cli articulation run`. Use this service when its
+> stable HTTP, session, or deployment contract is specifically required.
+
 ## Quickstart
 
 Set `NVIDIA_API_KEY` and `RENDER_ENDPOINT` in the repo-root `.env`, then run:
@@ -16,30 +21,9 @@ docker compose --env-file .env \
   -f apps/joint_agent_service/docker-compose.yml up --build
 ```
 
-The public service defaults to `nim`, `google/gemma-4-31b-it`, and remote
+The public service defaults to `nim`, `moonshotai/kimi-k3`, and remote
 rendering through `RENDER_ENDPOINT`. Uploads have no fixed size cap by default;
 operators can set a positive `JA_MAX_UPLOAD_SIZE_MB` guard.
-
-> **Status: Research Preview (0.5).** A successful request can publish a
-> self-contained USDZ package whose readback matches the accepted structured
-> joint graph. It does not guarantee simulation-ready output. Generated
-> packages may lack complete rigid-body, mass/collider, joint-state, or
-> drive/mimic schemas, can fail Gate 3 validation, and may not
-> simulate correctly. Validate each output before simulation use.
-
-## Run Locally
-
-From the repository root:
-
-```bash
-docker compose --env-file .env \
-  -f apps/joint_agent_service/docker-compose.yml up --build
-
-curl http://localhost:8000/health
-```
-
-Use `apps/joint_agent_service/client/client.py` or the `joint-agent-client`
-skill to submit and monitor a USD-family asset.
 
 ## Client-supplied S3 inputs
 
@@ -92,8 +76,9 @@ requests are rejected. Service-generated candidates are limited to revolute and
 prismatic joints because the 0.5 owned bridge does not support spherical
 topology. Empty or all-unready candidate sets complete without a package. The
 Research Preview does not claim rigid-body, mass, collision, drive, joint-state,
-mimic, or simulation-readiness authoring. The public path uses `owned_core` and
-has no external-rigger fallback.
+mimic, or simulation-readiness authoring. The optional external
+`usd_joint_rigger` capability is reported separately by `/health` and is not a
+fallback for `owned_core`.
 
 New owned-core output downloads use
 `GET /artifacts/{session_id}/joint-rigger-output` with filename `rigged.usdz`.
@@ -123,8 +108,9 @@ copying the full dataset/prediction cache solely to publish one HTML report.
 ## Validate Output
 
 After downloading the final Joint Rigger USD/USDZ, use the bundled
-`joint-agent-validation` skill to run optional Gate 3A and Gate 3B checks. The
-validation reports are diagnostics and do not alter the service output.
+`$fixed-pipeline` umbrella and its `joint-agent-validation` reference to run
+optional Gate 3A and Gate 3B checks. The validation reports are diagnostics and
+do not alter the service output.
 Both gates are static checks; a pass does not replace dynamic simulation
-testing. Use `validation-agent-cli` for separate visual or behavior-evidence
-validation.
+testing. Load the umbrella's `validation-agent-cli` reference for separate
+visual or behavior-evidence validation.

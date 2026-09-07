@@ -1,11 +1,59 @@
-# Content Agents
+# USD Content Agents
 
-AI-powered agents for automating 3D content workflows using Vision-Language
-Models (VLMs). Content Agents analyze 3D assets, automate material assignment,
-classify physics properties, generate textures, and validate generated content
-for [Universal Scene Description (USD)](https://openusd.org/) files.
+![USD Content Agents workflow overview from geometry through validation](assets/images/usd_content_agents_overview.png)
 
-![Cleaning trolley SimReady teaser](assets/images/simready_teaser_cleaning_trolley.gif)
+![Four frames from robot-learning polish training on the generated keyboard](assets/images/keyboard_typing_rl_polish_4frame_strip.png)
+
+*Generated asset in action during robot-learning polish training.*
+
+USD Content Agents is a **reference implementation** of agentic workflows for
+generating, understanding, enriching, simulating, and validating
+[OpenUSD](https://openusd.org/) assets. It demonstrates how long-running coding
+agents, reusable workflows, and typed Omniverse tools can produce inspectable,
+testable changes with reviewable evidence. The repository is intended to be
+read, forked, and adapted—not consumed as a stable SDK or deployed as-is;
+interfaces, skills, and artifact contracts may change between releases.
+
+See [Requirements](#requirements) for the minimum toolchain, recommended setup,
+supported platforms and hardware, WSL2 rendering limits, and coding-agent model
+policy.
+
+The default experience is the **Agentic Content Workflow**: start at the
+repository root, describe the asset outcome you want, and let a coding agent
+plan and execute the appropriate workflow. Existing application CLIs, YAML
+configurations, Python APIs, and REST services remain available as the
+**fixed pipeline** (deterministic, non-agentic application interfaces) when that
+interface is explicitly required.
+
+## 1. Overview
+
+### Capabilities
+
+| Capability | Maturity | What it does | Typical outputs |
+|---|---|---|---|
+| **Geometry Agent** | Research Preview | Generates or revises geometry through explicitly configured external providers, prepares and repairs geometry, and separates fused meshes into semantic parts. | Source bundles, exported geometry, segmented USD, validation and OVRTX evidence |
+| **Material Agent** | Beta | Analyzes rendered views, selects physically based materials, and assigns them to the correct objects. | Material decisions, authored USD, comparison renders |
+| **Texture Agent** | Research Preview | Generates and applies texture maps with explicit material or prim scope and UV-readiness checks. | Texture maps, UV diagnostics, textured USD |
+| **Physics Agent** | Beta | Classifies physical properties, authors USD physics, and refines simulated behavior against text or reference media. | Physics schemas, simulation results, tuning evidence |
+| **Joint Agent** | Research Preview | Infers articulation candidates and authors reviewed joint topology. | Candidate graphs, review artifacts, articulated USDZ |
+| **Validation Agent** | Research Preview | Evaluates USD, images, renders, video, and physics evidence against deterministic and model-assisted checks. | Structured verdicts, issues, evidence, repair guidance |
+
+**Maturity:** Beta capabilities have broader validation but may still change;
+Research Preview capabilities are exploratory and have more rapidly evolving
+interfaces and support boundaries.
+
+See the owning agent documentation for each capability's precise supported
+surface and acceptance boundary.
+
+### What This Is Not
+
+This reference implementation is not a DCC plug-in, a real-time authoring
+runtime, or a standalone text-to-3D generator. Geometry workflows orchestrate
+explicitly configured external providers and retain auditable source,
+validation, and render evidence.
+
+<details>
+<summary>More workflow examples</summary>
 
 ![Electrician's toolbox SimReady teaser](assets/images/simready_teaser_electricians_toolbox.gif)
 
@@ -15,746 +63,511 @@ for [Universal Scene Description (USD)](https://openusd.org/) files.
 
 ![KUKA arm SimReady teaser](assets/images/simready_teaser_kuka_arm.gif)
 
-Each GIF shows one asset: cleaning trolley, electrician's toolbox, steel rolling scaffold, UR10, and KUKA arm. Columns: input gray asset, Material Agent material assignment, Texture Agent rusty texture pass, Physics Agent physical properties and drop simulation.
+These additional SimReady examples follow individual assets from gray input
+through material assignment, texture generation, and physics simulation.
 
-## Physics Agent: Video- and Text-Guided Refinement
+</details>
 
-![Real tire drop beside a refined tire simulation, followed by a blue container sliding to rest](assets/images/physics_agent_refine_examples.gif)
+### How It Works
 
-Physics Agent tunes simulated behavior against reference video or a text goal.
-The video-guided tire simulation is refined to match the observed bounce. The
-text-guided container uses Material Agent's blue-plastic output and is refined
-to slide, decelerate, and settle naturally.
+A run separates reasoning from execution:
 
-Reproduce the [video-guided Tire_B01 example](apps/physics_agent/data/examples/Tire_B01/README.md)
-or the [text-guided Container_Gray_C04 example](apps/physics_agent/data/examples/Container_Gray_C04/README.md).
-Both use real OvPhysX trials, BoTorch optimization, and a VLM judge.
+1. **The coding-agent runtime owns intent and reasoning.** It interprets the
+   request, plans the run, evaluates evidence, and decides whether to refine.
+2. **Skills and workflows own policy and run state.** They define evidence
+   requirements, budgets, checkpoints, completion criteria, and recovery.
+3. **Typed tools perform deterministic operations.** `usd-cli` and Omniverse
+   libraries inspect, convert, optimize, author, render, simulate, restore, and
+   export USD.
+4. **Validation closes the loop.** Render, schema, simulation, and visual
+   evidence determine whether the result is accepted or sent through another
+   bounded refinement pass.
 
-## Platform Support
+Every workflow writes a durable run directory. Depending on the task, it
+contains frozen inputs, structured decisions, authored USD, renders, validation
+reports, execution traces, and a final summary.
 
-Content Agents are supported on Linux, Linux containers, and WSL2 on Windows.
-Native Windows shell execution is not an official runtime target for the agent
-CLIs, local rendering, OVRTX, or physics daemon paths in this release line.
-
-Windows-style path parsing may appear in tests or utility code so USD assets
-and archives remain portable, but that does not imply native Windows execution
-support. Treat native Windows support as future planned work that needs an
-approved design and CI/security plan before implementation.
-
-Local USD validation uses `usd-validation-nvidia`. Agent profiles include shared
-schema coverage (`Basic`, `Layer`, `Layout`, `Other`) and then add the rule
-group for authored changes. Pre-validation can apply validator auto-fix
-suggestions when available, revalidate the repaired USD, and continue with the
-repaired file.
-
-## Agents
-
-### Material Agent (Beta)
-
-Assigns physically-based materials to 3D objects by analyzing multi-view renders with a VLM. Given a USD file and a material library, the Material Agent identifies object parts, selects appropriate materials, and applies them back to the USD file.
-
-- Multi-view rendering and VLM-based material prediction
-- Material library matching with fuzzy validation
-- Scene pipeline for large multi-asset USD files
-- Specification evidence that can corroborate visual material predictions or
-  flag conflicts for review without overriding the visual result
-- Local USD validation coverage for schema (`Basic`, `Layer`, `Layout`,
-  `Other`) and `Material` rule groups
-
-### Physics Agent (Beta)
-
-Classifies physical properties of 3D asset components and tunes authored
-rigid-body behavior through simulation. It analyzes rendered views to identify
-component types, surface materials, and physical characteristics, then can
-iteratively compare simulated motion with text or reference-media goals.
-
-- Component-level classification (material, type, physics properties)
-- Asset-type-aware analysis (vehicles, robots, props)
-- Structured prediction output for downstream simulation
-- Simulation-backed parameter tuning with OvPhysX and BoTorch
-- Iterative tune, visual judge, and scenario-refine workflows with reference
-  images or video
-- Local USD validation coverage for schema (`Basic`, `Layer`, `Layout`,
-  `Other`) and `Physics` rule groups
-
-### Joint Agent (Research Preview)
-
-Joint Agent 0.5 classifies articulated components, infers structured Stage 2
-joint candidates, and publishes accepted topology as a self-contained
-`owned_core` USDZ package.
-
-![Eight articulated USDZ examples showing joint-driven motion previews with cyan markers for predicted bodies](assets/images/joint_agent_physics_agent_working_examples.gif)
-
-- Public NIM defaults: `nim` with `google/gemma-4-31b-it`
-- Remote rendering through `RENDER_ENDPOINT` by default
-- Repo-owned, topology-only authoring with no external-rigger fallback
-- USDZ package readback and joint-graph evidence
-- Optional Gate 3A Isaac Sim Asset Validator and Gate 3B SimReady Foundation
-  checks through the `joint-agent-validation` skill
-
-The Research Preview guarantee covers deterministic package generation and
-graph readback from accepted structured input. The frozen 17-asset release
-candidate passes Gate 3A and Gate 3B on exact-byte-bound packages, but this does
-not guarantee that model inference is correct for arbitrary assets or prove
-dynamic contact, motion, containment, travel limits, or stability. Gate 3A and
-Gate 3B are static checks; run dynamic simulation separately.
-
-### Texture Agent (Research Preview)
-
-Generates and applies AI-driven texture maps to USD materials. Takes a materialized USD file (e.g., output of the Material Agent) and fills empty texture slots with generated textures, transforming flat-color surfaces into visually rich textured ones.
-
-- Texture generation for OpenPBR, MaterialX, and MDL-style material metadata
-- Per-material or per-prim texture modes
-- Texture blending and compositing
-- Simple image-generation backend for lightweight text-to-texture runs
-- UV-aware Texture Variation API backend path for projection/reference-image
-  workflows. This public release ships the API adapter and service wiring, but
-  not a managed Step1X runtime, model checkpoints, or downloader/setup package.
-- Local USD validation coverage for schema (`Basic`, `Layer`, `Layout`,
-  `Other`) and `Material` rule groups, with UV readiness covered by the
-  preparation report
-
-Use `TA_TEXTURE_BACKEND=service`, `TA_TEXTURE_ENDPOINT`, and
-`TA_BACKEND_ENGINE` to point Texture Agent at an operator-provided Texture
-Variation API-compatible backend after that backend has been reviewed and
-deployed in your environment. The simple image-gen example provides the
-lightweight public baseline. Other assets should be run with explicit
-material/prim scope and checked against the emitted UV/backend diagnostics.
-
-### Validation Agent (Research Preview)
-
-Validates generated USD, render, image, video, and physics-evidence artifacts
-with release-scoped CLI/Python contracts. Validation Agent is the release-gate
-tool for checking whether generated assets render correctly, look like their
-prompt or reference evidence, have sane authored physics, or have approved
-behavior evidence.
-
-- Prompt-driven `validation-agent validate --task ... INPUT...` runs
-- Config-driven `validation-agent run CONFIG` runs for repeatable QA
-- Structured `validation_request.json`, `validation_plan.json`, and
-  `validation_result.json` artifacts for CI and review
-
-## Three Ways to Use Content Agents
-
-Material, Physics, Joint, and Texture provide REST and local CLI surfaces over
-their config-driven pipelines. The Agentic Workflow Research Preview adds a third,
-agent-native experience in which a long-running coding agent operates USD
-assets through Content Workbench. Validation Agent V1 is CLI/Python-contract
-first for release 0.5; REST, OpenAPI, and hosted service surfaces are not part
-of the V1 release scope.
-
-### Option A — REST service (Docker Compose)
-
-Material, Physics, Joint, and Texture each have a matching FastAPI service
-(`apps/<agent>_service/`) packaged with Docker Compose. Material and Physics
-default stacks include the bundled GPU rendering sidecar. Texture's default
-stack is CPU-only and uses the configured image-generation backend; optional
-Texture Compose paths add local NIM sidecars. The Texture Variation API backend
-path can target an operator-provided service such as a separately deployed
-Step1X-compatible endpoint. Bring the selected stack up with `docker compose up`, then drive the
-pipeline over HTTP from any language — using the included Python client or the
-OpenAPI spec.
-
-**Pick this when:** you want the fastest "submit a USD, get results back"
-experience from an application, on a single GPU box for Material/Physics or on
-a CPU host for Texture with hosted backends.
-
-### Option B — Local CLI
-
-Install the agent's Python package (`material-agent`, `physics-agent`,
-`joint-agent`, `texture-agent`, `validation-agent`) and invoke
-`<agent> run CONFIG` against a local YAML config. The CLIs expose agent-specific
-controls such as skip steps, resume partial runs, prompt tuning, prim-path
-targeting, validation templates, and rendering-backend selection. For texture generation,
-`texture-agent run --resume` reuses generated artifacts in the configured
-working directory; `texture-agent generate` followed by `texture-agent apply`
-is the explicit two-step resume path after generation succeeds.
-
-**Pick this when:** you want fine-grained control over pipeline steps, you're iterating on configs, running supported benchmarks, or wiring the pipeline into scripted workflows. Batch and benchmark helpers are agent-specific; texture-agent runs one config at a time and can be scripted externally for multi-asset batches.
-
-Under the hood, the REST service wraps the same pipeline steps the CLI runs, so configs and findings port between the two. Most users start with Option A for a quick win, then drop into Option B when they need deeper control.
-
-### Option C — Agentic Workflow Research Preview
-
-<p align="center">
-  <img src="assets/images/agentic_content_authoring_g1.gif" alt="Agentic G1 content-authoring workflow" width="960">
-</p>
-
-<p align="center">
-  <img src="assets/images/agentic_workflow_architecture.png" alt="Agentic workflow architecture" width="960">
-</p>
-
-The Agentic Workflow Research Preview gives Codex or Claude Code a persistent workspace
-for inspecting a USD scene, choosing evidence, applying edits through Content
-Workbench, validating the result, and iterating when visual or physical quality
-is not yet good enough. Unlike the config-driven app pipelines, the coding
-agent can adapt its next action to scene structure, renders, validation
-findings, and prior attempts while preserving reviewable run artifacts.
-
-The current preview surface includes:
-
-| Goal | Batch entry point |
-|---|---|
-| Convert a supported source asset to USD | `content-workflow-cli convert-to-usd` |
-| Assign materials to one asset with visual review | `content-workflow-cli materials assign` |
-| Process and collect materials across a composed scene | `content-workflow-cli scene run` |
-| Author physics and collect validation evidence | `content-workflow-cli physics apply` |
-| Validate a staged asset against the SimReady profile | `content-workflow-cli simready validate-profile` |
-
-The same Workbench and workflow skills can be used directly in an interactive
-coding-agent session. Batch and interactive runs write a self-contained result
-directory with the authored USD output, renders or validation evidence,
-structured JSON artifacts, an operation trace, and a final summary as
-applicable to the workflow.
-
-Start from the isolated preview workspace so the coding agent loads the
-Agentic Workflow skills rather than the repo-root app and deployment skills:
-
-```bash
-cd agentic
-../scripts/setup_content_agent.sh
-source ../.venv/bin/activate
-content-workflow-cli --help
-```
-
-When targeting a remote Workbench and local Scene Optimizer resources are not
-needed, pass `--skip-build-resources` to the setup script.
-
-**Pick this when:** the task benefits from iterative scene inspection,
-evidence-grounded decisions, visual or physical review, or multi-phase
-large-scene orchestration. Start with the complete
-[Agentic Workflow quickstart](agentic/README.md).
-
-## Use a Coding Agent
-
-The Codex app, [Codex CLI](https://developers.openai.com/codex/cli), [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/cli-usage), and [OpenClaw CLI](https://docs.openclaw.ai/cli) can each set up this repo end to end: inspect the docs, check prerequisites, install the CLI path, configure `.env`, run a first example, and diagnose missing render or API-key setup.
-
-For repo-level workflows, start a local coding agent from the cloned repository
-root. For the Agentic Workflow Research Preview, start it from `agentic/`. Keep API keys
-in `.env`, review commands before approval, and avoid pasting secrets directly
-into chat.
-
-For the shortest local service path, ask the agent to use `/quickstart`. It
-starts one existing per-agent Docker Compose stack: Material, Physics, Joint,
-or Texture. Use `deploy-collection` for the full package with shared dependency
-endpoints.
-
-For the Agentic Workflow Research Preview, start the coding agent from `agentic/` and
-follow [`agentic/README.md`](agentic/README.md). That isolated workspace contains
-the Workbench and workflow skills used by interactive sessions and by the child
-agents launched through `content-workflow-cli`.
-
-Install and sign in to your preferred agent first (`codex login`,
-`claude auth login`, or `openclaw setup`, as applicable).
-
-For the simplest path, paste this prompt:
+A representative run makes those artifacts explicit; exact names vary by
+workflow:
 
 ```text
-Set up this repo for me, then run the material-agent hello-world example. If
-anything fails, tell me exactly what prerequisite or API key is missing and the
-next command I should run.
+runs/<run-id>/
+├── inputs/              # Frozen source assets and references
+├── request.json         # Normalized user intent and selected workflow
+├── workflow_state.json  # Phase state and safe resume information
+├── decisions/           # Structured agent choices and review records
+├── artifacts/           # Authored USD/USDZ and generated content
+├── renders/             # Visual evidence and render metadata
+├── validation/          # Checks, reports, and acceptance evidence
+├── traces/              # Tool and workflow execution records
+└── summary.md           # Final outcome, caveats, and artifact links
 ```
 
-For a more explicit setup, paste this prompt:
+### Benchmarking and evaluation
 
-```text
-Set up NVIDIA Content Agents in this repository for me.
+The repository evaluates workflows with versioned asset cases and durable
+evidence rather than relying only on a final image or a single aggregate score.
+Completion and evidence-integrity checks are kept separate from
+domain-specific quality measurements, so a visually plausible output cannot
+hide an incomplete workflow. See [Benchmarking USD Content Agents](agentic/docs/benchmarks.md)
+for the evaluation design, coverage, reproducibility rules, and limitations.
 
-1. Inspect README.md, .env_example, and the agent README files under apps/.
-2. Check whether this machine has Docker Compose v2.24+, Python 3.12+, uv,
-   NVIDIA drivers, and the NVIDIA Container Toolkit.
-3. Create .env from .env_example if it does not exist. Tell me which VLM API
-   key is missing — do not print or expose secrets.
-4. Install the local CLI path with uv and fetch build resources, or start the
-   material agent REST service with Docker Compose if the machine is better
-   suited for Docker.
-5. Run a hello-world example:
-   material-agent run apps/material_agent/configs/unified_example.yaml
-6. If the run fails, diagnose the exact missing prerequisite, render backend,
-   or API key, then give me the next command to fix it.
-```
+## 2. Quick Start
 
-Or launch the agent with a shorter inline prompt:
+<a id="requirements"></a>
 
-```bash
-# Codex app
-# Open this folder in the Codex app, then paste a prompt above.
+### Requirements
 
-# Codex CLI
-codex "Set up NVIDIA Content Agents in this repo and run the material-agent hello-world example. If anything fails, tell me the missing prerequisite or API key and the next command to fix it."
+The minimum local-rendering figures below use NVIDIA's published
+[Omniverse Kit baseline](https://docs.omniverse.nvidia.com/launcher/latest/common/technical-requirements.html#minimum-requirements).
+The recommendation is the reference setup, not a maximum scene-size
+guarantee. A remote OVRTX endpoint moves the GPU and driver requirements from
+the developer workstation to the service host.
 
-# Claude Code CLI
-claude "Set up NVIDIA Content Agents in this repo and run the material-agent hello-world example. If anything fails, tell me the missing prerequisite or API key and the next command to fix it."
+| Area | Minimum | Recommended |
+|---|---|---|
+| **Host** | Native Linux (x86_64 or ARM64), or WSL2 (x86_64) within the [limits below](#platform-support). | Native Linux x86_64; it supports both execution modes and local OVRTX. |
+| **Toolchain** | Git, Python 3.12, and [`uv`](https://docs.astral.sh/uv/). | Use `scripts/setup_content_agent.sh` to create the managed environment. |
+| **Agentic harness** | Node.js 20+, `npm`, authentication for Codex or Claude Code, and the checked-in lockfile. The lockfile pins `@openai/codex-sdk` 0.147.0 and `@anthropic-ai/claude-agent-sdk` 0.3.215. Direct-only workflows can omit the child harness and Node.js. | Use the default Codex SDK harness and verify it with `content-workflow-cli auth status`. Use Claude when its provider or authentication path is an explicit requirement. |
+| **Coding-agent model and effort** | No lower model tier is qualified for this support profile. Codex: `gpt-5.6-sol` with `medium` effort. Claude Code: `claude-opus-5` with `high` effort. | Codex: `gpt-5.6-sol` with `high` effort. Claude Code: `claude-opus-5` with `high` effort. Reserve `xhigh` for the hardest quality-first work; `claude-fable-5` is an optional upgrade where available, not a requirement. |
+| **Linux child sandbox** | `libseccomp`, `bubblewrap` (`bwrap`), and unprivileged user namespaces. Claude also requires `socat`. | Keep the fail-closed default sandbox and run the authentication preflight before a long workflow. |
+| **Local OVRTX hardware** | Intel i7/i9 or AMD Ryzen, 16 GB system RAM, GeForce RTX 3070, and 250 GB storage are NVIDIA's published Kit baseline. The GPU must expose hardware Vulkan ray tracing. | 16+ CPU cores, 128 GB system RAM, RTX 6000 Ada 48 GB or better, and 1 TB NVMe. NVIDIA's current new-workstation recommendation is RTX PRO 6000 Blackwell. |
+| **Local OVRTX driver** | Use a version in NVIDIA's current [validated Omniverse driver table](https://docs.omniverse.nvidia.com/launcher/latest/common/technical-requirements.html#driver-versions). The oldest listed Linux x86_64 workstation version is 570.169. Linux ARM64 requires 580.173.02+ or 595.84+. | Use the R595 production branch: Linux x86_64 595.58.03 or Linux ARM64 595.84+. A successful `usd-cli render-probe --require-engine ovrtx` remains the final compatibility gate. |
+| **Disk** | Local OVRTX provisioning downloads about 2.5 GB in addition to the environment, workflow outputs, and optional build resources. | Keep the environment and active run directory on local NVMe storage. |
 
-# OpenClaw CLI
-openclaw agent --local --session-id content-agents-setup -m "Set up NVIDIA Content Agents in this repo and run the material-agent hello-world example. If anything fails, tell me the missing prerequisite or API key and the next command to fix it."
-```
+Docker is not required for the basic Agentic CLI quick start. It is required by
+workflows that explicitly use a container, REST service, or Compose deployment.
 
-Command names above follow the
-[Codex CLI](https://developers.openai.com/codex/cli),
-[Claude Code CLI](https://docs.claude.com/en/docs/claude-code/cli-usage), and
-[OpenClaw CLI](https://docs.openclaw.ai/cli) references.
+### Recommended Setup
 
-### Bundled Agent Skills
+For the least constrained path, use the recommended column as one profile:
+native Linux x86_64, the default Codex harness, `gpt-5.6-sol` with `high`
+effort, and local OVRTX on an RTX 6000 Ada 48 GB or better with the current
+R595 production driver. If the workstation has no compatible GPU, keep the
+same developer setup and use a remote OVRTX endpoint.
 
-This repo includes checked-in skill guides for Codex and Claude Code. Start
-repo-level workflows from the repo root. Start Agentic Workflow Research Preview agents
-from `agentic/` so they load its isolated skill tree. The canonical repo-level
-skill tree is `.agents/skills/`; `.codex/skills/` and `.claude/skills/` are
-compatibility mirrors.
+<a id="platform-support"></a>
 
-| Task | Codex path | Claude path | Use when |
-|---|---|---|---|
-| Agentic Workflow Research Preview | `agentic/.codex/skills/content-workflow-cli` | `agentic/.claude/skills/content-workflow-cli` | Start the agent from `agentic/` for prepared batch launches and direct interactive use of the isolated workflow skills. |
-| Material Agent CLI | `.codex/skills/material-agent-cli` | `.claude/skills/material-agent-cli` | Run the direct config-driven material pipeline. |
-| Material Agent service/client | `.codex/skills/material-agent-client` | `.claude/skills/material-agent-client` | Drive the REST service from Python or curl. |
-| Physics Agent CLI | `.codex/skills/physics-agent-cli` | `.claude/skills/physics-agent-cli` | Classify component materials and physics properties. |
-| Physics Agent service/client | `.codex/skills/physics-agent-client` | `.claude/skills/physics-agent-client` | Drive the physics REST service. |
-| Joint Agent CLI (Research Preview) | `.codex/skills/joint-agent-cli` | `.claude/skills/joint-agent-cli` | Run the opt-in articulation-classification and owned-core Joint Rigger pipeline. |
-| Joint Agent service/client (Research Preview) | `.codex/skills/joint-agent-client` | `.claude/skills/joint-agent-client` | Drive the opt-in Joint Agent REST service. |
-| Joint Agent Gate 3 validation | `.codex/skills/joint-agent-validation` | `.claude/skills/joint-agent-validation` | Validate a published Joint Agent USD/USDZ package with Gate 3A and Gate 3B. |
-| Texture Agent CLI | `.codex/skills/texture-agent-cli` | `.claude/skills/texture-agent-cli` | Generate and apply textures to USD materials. |
-| Texture Agent service/client | `.codex/skills/texture-agent-client` | `.claude/skills/texture-agent-client` | Drive the texture REST service. |
-| Validation Agent CLI | `.codex/skills/validation-agent-cli` | `.claude/skills/validation-agent-cli` | Validate generated USD, render, image, video, and physics-evidence artifacts. |
-| OVRTX rendering | `.codex/skills/deploy-ovrtx-docker` | `.claude/skills/deploy-ovrtx-docker` | Start or target an OVRTX render endpoint. |
-| USD utilities | `.codex/skills/flatten-usd`, `.codex/skills/print-usd`, `.codex/skills/render-usd` | `.claude/skills/flatten-usd`, `.claude/skills/print-usd`, `.claude/skills/render-usd` | Inspect, flatten, or render USD assets. |
+### Platform and Hardware Support
 
-### Agent Follow-Up Prompts
+✅ Supported · ⚠️ Supported with limits · ❌ Unsupported
 
-After setup, ask your coding agent to run one of these:
-
-```text
-Run the material-agent hello-world ladder example. If rendering fails, check
-whether RENDER_ENDPOINT is configured, then tell me the shortest path to a
-working render backend.
-```
-
-```text
-Bring my own USD asset into the material agent. Create a new config from
-apps/material_agent/configs/unified_example.yaml, point input.usd_path at
-/absolute/path/to/my_asset.usd, add my reference images from
-/absolute/path/to/reference_images/, and run the pipeline.
-```
-
-```text
-Create a physics-agent config for /absolute/path/to/my_asset.usd based on
-apps/physics_agent/configs/lightbulb.yaml, then run physics-agent and summarize
-the generated predictions and report path.
-```
-
-```text
-Run the texture-agent example config. If image generation is not configured,
-tell me which backend or API key is missing and where the generated texture
-artifacts would be written after a successful run.
-```
-
-```text
-Run the validation-agent hello-world behavior-evidence example:
-apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml.
-Then summarize the verdict and point me to validation_result.json.
-```
-
-## Quick Start
-
-### System Requirements
-
-The material and physics agents bundle a GPU-accelerated rendering sidecar
-(OVRTX). The default texture agent service is CPU-only and offloads image
-generation to the configured backend; optional local sidecars add GPU
-requirements. Operator-provided Texture Variation API services have their own
-runtime requirements.
-
-| Resource | Default deployment (material / physics) | + Local VLM NIM sidecar (material only) | Texture agent service |
-|---|---|---|---|
-| **GPU** | 1× RTX-capable NVIDIA GPU with **48 GB VRAM** (e.g., L40, L40S, RTX PRO 6000) | Add a 2nd 48 GB NVIDIA GPU for the local VLM | None with hosted backends; +1 NVIDIA GPU per enabled local sidecar; operator-provided Texture Variation API services have their own GPU/runtime requirements |
-| **CPU** | 10 vCPU | 16 vCPU | 4 vCPU |
-| **System RAM** | 20 GB | 56 GB | 8 GB |
-| **OS** | Linux x86_64 on a distro supported by the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html); Windows via WSL2 (Scene Optimizer Core ships Linux x86_64); macOS is not supported for the rendering / optimize pipeline | Same | Same |
-| **NVIDIA driver** | Recent production driver compatible with the NVIDIA Container Toolkit | Same | Not required for hosted backends; required when running local sidecars |
-
-The local VLM NIM sidecar (`--profile vlm`, Cosmos Reason 2 8B) ships
-only with the material agent service. The physics agent service uses
-the hosted VLM backend configured via `PA_VLM_BACKEND` and does not
-include a public `vlm-nim` profile.
-
-A100, H100, H200, and V100 class GPUs are useful model-serving targets, but
-they are not supported as the local OVRTX render GPU for the default
-material/physics Docker deployment.
-
-The texture agent service is CPU-only out of the box, but ships optional
-GPU-backed local paths. The two NIM sidecars require GPUs when enabled. Running
-them locally needs the `docker-compose.multi-gpu.yml` overlay — without it the
-sidecar containers start but the texture service keeps talking to the hosted
-backends, because the overlay is what rewrites `TA_IMAGE_GEN_BASE_URL` /
-`TA_LLM_BASE_URL` to point at the local NIMs. The public source release does
-not include a managed Step1X runtime package; connect `texture.backend:
-service` to a separately reviewed Texture Variation API deployment when you
-need that path.
-
-| Profile | GPU | Extra CPU | Extra RAM | Tokens needed |
+| Host | CPU architecture | Agentic Content Workflow | Fixed pipeline | Local rendering hardware |
 |---|---|---|---|---|
-| `--profile image-gen` (FLUX.2 Klein 4B) | 1× NVIDIA GPU, ≥24 GB VRAM | +4 vCPU | +16 GB | `NGC_API_KEY`, `HF_TOKEN` |
-| `--profile llm` (Llama 3.1 Nemotron Nano 8B) | 1× NVIDIA GPU, 48 GB VRAM | +4 vCPU | +16 GB | `NGC_API_KEY` |
+| **Native Linux** | x86_64 or ARM64 | ✅ | ✅ | `ovrtx`: NVIDIA RTX GPU with hardware Vulkan ray tracing. `warp`: CUDA-capable NVIDIA GPU. |
+| **Native Windows** | x86_64 | ❌ | ❌ | — |
+| **WSL2** | x86_64 | ⚠️ [Remote OVRTX for rendering](#wsl2-rendering) | ⚠️ [`warp` only](#wsl2-rendering) | CUDA-capable NVIDIA GPU for `warp`. Local `ovrtx` is unavailable. |
+
+The hardware column applies only to local rendering. Workflows that do not
+render, or that use a remote OVRTX endpoint, do not require a local GPU; the
+remote endpoint supplies the RTX/Vulkan hardware.
+
+<a id="wsl2-rendering"></a>
+
+#### WSL2 Rendering
+
+- **Remote OVRTX for Agentic workflows** means the workflow runs in WSL2 but
+  sends render requests to a reachable OVRTX service on a compatible native
+  Linux RTX/Vulkan host. The WSL2 environment does not render locally with
+  OVRTX.
+- **`warp` only for fixed-pipeline workflows** means local WSL2 rendering uses
+  the CUDA-based, headless Warp renderer. Warp is mesh-only and does not render
+  textures, so it suits Physics and Joint inspection; it does not replace
+  required OVRTX path-traced visual evidence.
+
+Local `ovrtx` works on compatible native Linux hosts, but cannot run inside
+WSL2 because WSL2 does not expose the required Vulkan driver.
+If unsure which WSL2 path to choose, use remote OVRTX.
+
+### Models and Reasoning Effort
+
+The project supports both coding-agent harnesses with an explicit baseline and
+quality-first recommendation:
+
+| Runner | Baseline | Recommended |
+|---|---|---|
+| **Codex** | `gpt-5.6-sol` with `medium` effort | `gpt-5.6-sol` with `high` effort |
+| **Claude Code** | `claude-opus-5` with `high` effort | `claude-opus-5` with `high` effort; use `xhigh` for the hardest work |
+
+Use `xhigh` only for the hardest agentic work when the quality gain is worth
+the additional time and tokens. `claude-fable-5` is a nice-to-have option for
+long-running agents when the selected provider and account expose it; the
+support profile does not require it. The
+[OpenAI model guidance](https://developers.openai.com/api/docs/guides/latest-model)
+describes `medium` as a balanced starting point and `high` or `xhigh` as
+quality-first choices. Anthropic describes
+[Claude Opus 5 as the model for complex agentic coding](https://platform.claude.com/docs/en/models/overview)
+and Fable 5 as an optional higher-capability model for long-running agents. It
+also documents `high` as the default Claude 5 effort, with `xhigh` for the
+[hardest coding and agentic tasks](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#calibrating-effort-and-thinking-depth).
+
+The CLI defaults to Codex. When `--model` or
+`--model-reasoning-effort` is omitted, it inherits that value from the selected
+runner's configuration; pin both flags for reproducible runs. On supported
+Linux and WSL2 hosts, Claude Code is available through `--runner claude`.
+Model availability depends on the selected provider and account, and the
+project does not claim cross-provider quality or effort equivalence.
+Fixed-pipeline VLM,
+image-generation, and hosted-service models remain application-specific.
+
+### Run the Quick Start
+
+Clone the repository and open its root in Codex or Claude Code:
 
 ```bash
-# Authenticate with NGC so Docker can pull the NIM images. Use
-# --password-stdin to keep the API key out of process argv / shell logs.
-printf '%s' "$NGC_API_KEY" | docker login nvcr.io \
-  --username '$oauthtoken' --password-stdin
-
-# Run both sidecars (the overlay rewrites both TA_*_BASE_URL values
-# unconditionally, so enabling only one profile would point the service
-# at a sidecar that isn't running). `--env-file .env` is required so
-# that the compose `${VAR}` overrides read your repo-root `.env`.
-docker compose --env-file .env \
-               -f apps/texture_agent_service/docker-compose.yml \
-               -f apps/texture_agent_service/docker-compose.multi-gpu.yml \
-               --profile image-gen --profile llm up --build
-```
-
-To run only one sidecar locally, write a per-profile compose override or
-edit `apps/texture_agent_service/docker-compose.multi-gpu.yml` directly —
-the bundled overlay assumes both sidecars are enabled.
-
-Cold-start GPU warm-up for the bundled `ovrtx-rendering-api` sidecar takes
-~5 minutes; the local VLM NIM (when enabled) takes ~15 minutes on first
-run for model compilation.
-
-### Software Prerequisites
-
-- For Option A: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) + Docker Compose **v2.24+** (earlier versions don't support the `env_file: required: false` long-form syntax used by the compose files).
-- For Option B: Python 3.12+ and [`uv`](https://docs.astral.sh/uv/getting-started/installation/) in a Linux/WSL shell. Install `uv` with:
-  ```bash
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  ```
-- An API key for at least one VLM provider (see [Supported VLM Backends](#supported-vlm-backends))
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/NVIDIA-Omniverse/usd-content-agents.git
+git clone -c core.longpaths=true https://github.com/NVIDIA-Omniverse/usd-content-agents.git
 cd usd-content-agents
 ```
 
-### Environment Setup
+Native Windows execution is unsupported in the 0.6 release. On a Windows host,
+run the supported workflow inside WSL2 and clone the repository inside the WSL2
+Linux filesystem so its checked-in workflow skill symlinks materialize
+correctly.
 
-Copy `.env_example` to `.env` at the repo root and add your VLM provider key:
+Both `--runner codex` and `--runner claude` reject native-Windows execution
+during preflight, before provider startup. Neither runner has a supported
+native-Windows sandbox configuration in 0.6, and there is no unconfined
+fallback.
+
+For native-Windows development or future qualification only, preserve the
+checked-in workflow skill symlinks when cloning; otherwise most workflow skills
+appear as plain text files and cannot be discovered. Run the clone from
+elevated PowerShell or enable Windows Developer Mode first so Git has
+permission to create symlinks:
+
+```powershell
+git clone -c core.symlinks=true -c core.longpaths=true https://github.com/NVIDIA-Omniverse/usd-content-agents.git
+Set-Location usd-content-agents
+```
+
+That development-only checkout requires one of those two symlink-permission
+options. If the clone ran in elevated PowerShell, close it and reopen a standard
+PowerShell session, return to the clone's parent directory, and run
+`Set-Location usd-content-agents` before setup.
+
+The repository keeps tracked paths within a Windows checkout budget, but pass
+`core.longpaths=true` during the initial clone to remain compatible with older
+commits and forks. If checkout was interrupted with `Filename too long`, run:
+
+```powershell
+git -C .\usd-content-agents config core.longpaths true
+git -C .\usd-content-agents restore --source=HEAD :/
+```
+
+The PowerShell installer supports absolute checkout, profile, temporary, and
+virtual-environment paths containing spaces.
+
+Then ask the coding agent to complete a material-assignment workflow on your
+asset:
+
+```text
+Take /absolute/path/to/my_asset.usd and assign materials based on this reference
+image: /absolute/path/to/reference.png.
+```
+
+Before running the manual smoke test, make OVRTX ready. On a compatible native
+Linux NVIDIA RTX/Vulkan host, opt into the one-time local runtime download
+(about 2.5 GB), stop any daemon started before the environment change, and run
+the readiness probe:
+
+```bash
+export WU_OVRTX_AUTO_PROVISION=1
+usd-cli server stop
+usd-cli render-probe --require-engine ovrtx
+```
+
+The first probe starts the background install and exits nonzero; rerun that
+exact probe while it reports `auto-install in progress`. Under WSL2 or on a host
+without supported local OVRTX, select a remote OVRTX protocol service using the
+connection details supplied by its operator:
+
+```bash
+export USD_CLI_RENDER_RENDERER=remote
+export USD_CLI_RENDER_REMOTE_URL=https://gpu-host.example.com
+usd-cli server stop
+usd-cli render-probe --require-engine ovrtx
+```
+
+See the [`content-workflow-cli` quickstart](agentic/packages/content_workflow_cli/README.md#quickstart)
+for the remote service contract and detailed readiness behavior. Operators
+deploying the in-tree adapter should follow its
+[deployment guide](apps/usd_cli/apps/ovrtx_rendering_api/README.md).
+
+After setup, any required coding-agent authentication, and a successful OVRTX
+probe, use the included ladder assets for a copy-pasteable first smoke test.
+Budget roughly 10–30 minutes; model, renderer, and network latency can change
+the runtime. The CLI defaults to the Codex runner. To reuse a `claude login`
+OAuth session, add
+`--runner claude --claude-execution-mode cli` immediately after
+`materials assign` in either command below. With `ANTHROPIC_API_KEY` or another
+Claude SDK provider credential, add `--runner claude` instead (`sdk` is the
+default Claude execution mode).
+
+On Linux or WSL2, run:
+
+```bash
+content-workflow-cli materials assign \
+  --usd apps/material_agent/data/examples/ladder/sources/usd/ladder.usd \
+  --reference-image apps/material_agent/data/examples/ladder/sources/images/ladder_reference_1.jpeg \
+  --reference-image apps/material_agent/data/examples/ladder/sources/images/ladder_reference_2.jpeg \
+  --materials-yaml apps/material_agent/data/materials/material_libs_default/materials.yaml \
+  --output-dir runs/ladder-agentic
+```
+
+The coding agent discovers the checked-in setup and workflow skills, installs
+what the selected workflow needs, and reports any missing runtime or credential
+with the command required to resolve it. You do not need to install personal
+skills for work inside the checkout.
+
+For coding-agent context, read [`llms.txt`](llms.txt) (compact index), then
+[`AGENTS.md`](AGENTS.md) (full repo-local contract), then the selected workflow
+under [`.agents/skills/`](.agents/skills/). [`llms-full.txt`](llms-full.txt)
+provides the expanded command and skill index.
+
+Use `/quickstart` for first-run setup or an unqualified content task.
+No skill installation is needed while the coding agent works inside this
+checkout. To use materialized copies of the repository skills outside the
+checkout, run:
+
+```bash
+python scripts/install_agent_skills.py
+```
+
+<a id="choose-an-execution-mode"></a>
+
+## 3. Choose an Execution Mode
+
+**Recommendation:** start with Agentic unless an existing
+integration requires a fixed-pipeline contract. Agentic is the right default
+when the workflow must inspect an unfamiliar asset, choose the next operation
+from evidence, or recover and iterate. Fixed is the right choice when the
+steps and interface are already known and repeatability is more important than
+adaptive decision-making.
+
+| Consideration | Agentic | Fixed pipeline |
+|---|---|---|
+| **Best fit** | New or unqualified content requests, visual iteration, and multi-step work whose next action depends on evidence. | Existing CLI, YAML, Python, REST, benchmark, or deployment integrations with a predetermined path. |
+| **Quality and recovery** | Can inspect intermediate evidence, revise the plan, and retry locally when results are incomplete. | Runs only the validators, retries, and recovery behavior encoded in the pipeline. |
+| **Cost and performance** | Model calls and iteration make token cost and latency variable. | Orchestration cost and latency are more predictable and usually lower when no adaptive decision is needed. |
+| **Control** | The agent owns operation selection within the workflow contract and sandbox. | The caller owns the exact operation sequence and parameters. |
+
+The project does not publish a controlled, apples-to-apples quality, cost, and
+latency benchmark between these modes. This recommendation is based on the
+required control model, not a claim that either mode is universally faster or
+higher quality. If an Agentic prerequisite is missing, remediate it or choose
+fixed explicitly; the workflow does not silently change modes.
+
+| Backend | Entry point | Use it when | Next step |
+|---|---|---|---|
+| **Agentic** | Interactive coding agent | You want to describe an outcome and let the agent inspect evidence, choose operations, and iterate. | [Use an interactive coding agent](#interactive-coding-agent) |
+| **Agentic** | Batch CLI | You want the same Agentic workflows through a repeatable command with explicit inputs and output directories. | [Use the batch CLI](#batch-cli) |
+| **Fixed pipeline** | App CLI or Python API | You explicitly need an established CLI, YAML contract, Python API, or benchmark. | [Choose an app](#app-cli-and-python-api) |
+| **Fixed pipeline** | REST service | You want the same fixed-pipeline capabilities through uploads, sessions, progress monitoring, or HTTP integration. | [Choose a service](#rest-services) |
+| **Fixed pipeline** | Collection deployment | You want the coordinated Material, Physics, Joint, and Texture service stack. | [Deploy the collection](#collection-deployment) |
+
+<a id="default-agentic-content-workflow"></a>
+
+## 4. Default Agentic Content Workflow
+
+The interactive coding agent and batch CLI use the same Agentic workflows and
+produce the same durable run artifacts. Choose only how you want to initiate
+and control the work.
+
+### Interactive Coding Agent
+
+Follow the [Quick Start](#2-quick-start), then continue describing tasks in
+natural language. Start the coding agent from the repository root so it can
+discover the checked-in workflow skills and project guidance. No personal
+skill installation is needed.
+
+On the first request, the coding agent can run the repository setup and ask for
+any required authentication or service configuration.
+
+### Batch CLI
+
+Prepare the Agentic environment manually:
 
 ```bash
 cp .env_example .env
+./scripts/setup_content_agent.sh
+source .venv/bin/activate
+
+content-workflow-cli auth login
+content-workflow-cli auth status
+content-workflow-cli --help
 ```
+
+On Linux/WSL2, use `--skip-build-resources` when local Scene Optimizer resources
+are not needed. Use `--without-child-runners` for workflows that do not launch
+Codex or Claude Code.
+
+### Available Agentic Workflows
+
+| Goal | Default route |
+|---|---|
+| Generate auditable geometry | `geometry-agent generate` with an explicitly configured Build123d, ForgeCAD, Onshape, or custom remote provider |
+| Convert a supported source asset to USD | `content-workflow-cli convert-to-usd` |
+| Segment a fused mesh into semantic parts | `content-workflow-cli mesh-segmentation run` |
+| Assign materials with iterative visual review | `content-workflow-cli materials assign` |
+| Generate and apply scoped textures | Interactive `content-workflow-texture`; focused `texture prepare` through `texture publish` operations |
+| Author physics and collect behavior evidence | `content-workflow-cli physics apply` |
+| Infer, review, and author articulation | `content-workflow-cli articulation run` |
+| Validate content against a prompt and evidence | `content-workflow-cli validate run` |
+| Validate against the SimReady profile | `content-workflow-cli simready validate-profile` |
+| Process a large composed scene | `content-workflow-cli scene run` |
+| Coordinate an asset through multiple stages | `content-workflow-cli asset run` |
+
+Run `content-workflow-cli --help` and the relevant subcommand `--help` before
+automating a workflow. The [Content Workflow reference](agentic/README.md)
+documents exact prerequisites, arguments, recovery behavior, and artifact
+contracts.
+
+### Agentic Configuration
+
+Copy `.env_example` to `.env` and configure the providers used by your selected
+workflow:
+
+| Provider | Environment variable |
+|---|---|
+| NVIDIA hosted models | `NVIDIA_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+| Google Gemini | `GOOGLE_API_KEY` |
+| NVCF-hosted functions | `NGC_API_KEY` plus the selected function IDs |
+| Remote rendering | `RENDER_ENDPOINT` |
+| Remote Scene Optimizer | `OPTIMIZER_ENDPOINT` |
+
+Agent and service packages expose additional backend, model, endpoint, and
+allowlist settings. Configure those only through the owning README and
+`.env_example`; do not copy internal credentials or deployment defaults.
+
+Never commit `.env` or paste credentials into prompts. The canonical skill tree
+is `.agents/skills/`; `.codex/skills/` and `.claude/skills/` are compatibility
+mirrors for their respective coding agents.
+
+<a id="explicit-fixed-pipeline-opt-in"></a>
+
+## 5. Explicit Fixed-Pipeline Backend (Opt In)
+
+The fixed pipeline preserves the deterministic application interfaces from
+earlier releases. The fixed pipeline is not an automatic fallback: a missing
+Agentic prerequisite produces an error and remediation instead of silently
+switching backends.
+
+### App CLI and Python API
+
+| Capability | Start here |
+|---|---|
+| Materials | [Material Agent](apps/material_agent/README.md) |
+| Physics | [Physics Agent](apps/physics_agent/README.md) |
+| Articulation | [Joint Agent](apps/joint_agent/README.md) |
+| Textures | [Texture Agent](apps/texture_agent/README.md) |
+| Validation | [Validation Agent](apps/validation_agent/README.md) |
+
+Follow the owning README for installation, CLI commands, YAML configuration,
+and Python API examples.
+
+The Agentic setup scripts install `material-agent` directly. Installing
+`content-workflow-cli` also installs the `physics-agent`,
+`joint-agent`, and `texture-agent` packages and CLIs; using those fixed-pipeline
+interfaces remains explicit opt-in. On Linux or WSL2, activate `.venv` and add
+the Warp dependency closure for supported local WSL2 fixed-pipeline rendering:
 
 ```bash
-# Pick one (or more) VLM providers:
-
-# NVIDIA NIM (https://build.nvidia.com/)
-NVIDIA_API_KEY=nvapi-...
-
-# OpenAI (https://platform.openai.com/api-keys)
-OPENAI_API_KEY=sk-...
-
-# Anthropic (https://console.anthropic.com/settings/keys)
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Google Gemini (https://aistudio.google.com/apikey)
-GOOGLE_API_KEY=AIza...
-# GEMINI_API_KEY is also accepted as an alias.
+uv pip install -e ".[warp]"
 ```
 
-The shipped material-agent example
-`apps/material_agent/configs/unified_example.yaml` defaults to
-`predict.vlm.backend: nim` and `predict.llm.backend: nim`, so the unedited
-command requires `NVIDIA_API_KEY`. To run that same config with another
-provider, set both the backend and model overrides in `.env` (or edit the YAML):
+The general setup does not install the standalone Validation CLI. Install it
+separately when that fixed-pipeline interface is required:
 
 ```bash
-MA_VLM_BACKEND=openai
-MA_VLM_MODEL=example-vlm-model
-MA_LLM_BACKEND=openai
-MA_LLM_MODEL=example-vlm-model
+uv pip install -e apps/validation_agent
 ```
 
-### Option A — Run via Docker Compose
+Native Windows fixed-pipeline execution remains unsupported; use WSL2 for
+these commands.
 
-Each REST-capable agent's service directory holds a `docker-compose.yml` you can bring up directly. First boot takes ~5 minutes for the bundled rendering sidecar to warm up on the GPU.
-Validation Agent does not ship a Docker Compose service in release 0.5; run it
-through the local CLI.
+### REST Services
 
-When using a coding agent, `/quickstart` wraps these same per-agent compose
-commands for a single-service POC. Use `deploy-collection` for a coordinated
-Material, Physics, Joint, and Texture deployment.
+| Capability | Start here |
+|---|---|
+| Materials | [Material Agent Service](apps/material_agent_service/README.md) |
+| Physics | [Physics Agent Service](apps/physics_agent_service/README.md) |
+| Articulation | [Joint Agent Service](apps/joint_agent_service/README.md) |
+| Textures | [Texture Agent Service](apps/texture_agent_service/README.md) |
 
-`--env-file .env` is required so that any `${VAR}` overrides in the
-compose files (e.g. `MA_VLM_BACKEND=openai`) read from the repo-root
-`.env` you created above. Without it, Compose's variable substitution
-looks for `.env` next to the compose file (e.g.
-`apps/material_agent_service/.env`) and silently falls back to the
-built-in defaults — your `.env` API keys still load via `env_file:`,
-but any backend / model overrides you set there do not take effect.
+Each service README documents its installation, environment, launch command,
+request contract, and client examples.
 
-```bash
-# Material agent
-docker compose --env-file .env \
-  -f apps/material_agent_service/docker-compose.yml up --build
-# Health check
-curl http://localhost:8000/health
+### Collection Deployment
 
-# Physics agent (different service, same pattern)
-docker compose --env-file .env \
-  -f apps/physics_agent_service/docker-compose.yml up --build
+Use the [collection deployment](deploy/collection/README.md) to run the
+coordinated Material, Physics, Joint, and Texture service stack.
 
-# Joint agent (remote rendering through RENDER_ENDPOINT by default)
-docker compose --env-file .env \
-  -f apps/joint_agent_service/docker-compose.yml up --build
+Invoke the root `$fixed-pipeline` skill when asking a coding agent to operate
+one of these interfaces. Its nested procedures are implementation references,
+not independently discoverable skills.
 
-# Texture agent
-docker compose --env-file .env \
-  -f apps/texture_agent_service/docker-compose.yml up --build
+## 6. Development
+
+### Project Layout
+
+```text
+.agents/skills/         Agentic workflow and routing skills
+agentic/                Workflow, CAD, and validation packages
+apps/                   Fixed-pipeline agents and REST services
+apps/usd_cli/           Agent-first USD inspection, editing, rendering, and simulation
+world_understanding/    Shared functions, typed tools, model backends, and CLI
+deploy/collection/      Public multi-service deployment
+assets/images/          Public README and documentation visuals
+runs/                   Default location for durable user workflow results
 ```
 
-Once a service is up, drive it via HTTP or the included Python client in `apps/<agent>_service/client/`. See each service's `README.md` and `docs/api.md` for endpoint details.
+### Development Setup
 
-Material-agent service also exposes the large-scene workflow through
-`POST /pipeline` by setting `large_scene=true`. The same mode is available
-through the included client. Large-scene input is one composed USD stage with a
-valid default root prim, not a collection of USD files. Upload one USD-family
-root stage; use USDZ when dependencies need to travel with the scene. A small
-synthetic quickstart is available in
-`apps/material_agent_service/examples/large_scene/README.md`:
-
-```bash
-python -m apps.material_agent_service.client.client \
-  --base-url http://localhost:8000 \
-  --email user@example.com \
-  --large-scene \
-  --scene-workers 2 \
-  --vlm-max-workers 8 \
-  --scene-fail-on-validation-error \
-  /absolute/path/to/large_scene.usda
-```
-
-### Option B — Run via CLI
-
-Three steps: (1) set up the virtual environment, (2) install everything,
-(3) run the agent. All commands run from the repo root.
-
-**1. Set up the virtual environment**
+Create a Python 3.12 environment and install the development dependencies:
 
 ```bash
 uv venv --python=3.12
 source .venv/bin/activate
-```
-
-**2. Install — both the pip packages and the Scene Optimizer Core binary**
-
-```bash
-# Core library + one or more agents
-uv pip install -e . -e apps/material_agent -e apps/physics_agent -e apps/joint_agent -e apps/texture_agent -e apps/validation_agent
-
-# Fetch the public Scene Optimizer Core package (~332 MB, one-time, cached
-# at .build-resources/scene_optimizer_core/). Required for the
-# material-agent `optimize_usd` step's default local backend.
-#
-# Windows users should run this from WSL2; native Windows shell execution is
-# not supported for the full CLI pipeline.
-./scripts/fetch_build_resources.sh
-```
-
-**3. Run an example**
-
-```bash
-# Requires NVIDIA_API_KEY unless you set MA_VLM_* and MA_LLM_* overrides.
-material-agent run apps/material_agent/configs/unified_example.yaml
-physics-agent run apps/physics_agent/configs/lightbulb.yaml
-texture-agent run apps/texture_agent/configs/texture_example.yaml
-# Validation Agent hello-world: checked-in behavior evidence, no renderer or
-# VLM key required.
-validation-agent run \
-  apps/validation_agent/examples/configs/steel_scaffold_behavior_refine_summary.yaml
-```
-
-Texture-agent also supports staged `discover`, `generate`, and `apply`
-commands for preflight material inspection and generate-then-apply workflows.
-Validation-agent examples include a hello-world checked-in behavior-evidence
-config plus public SimReady electrician's toolbox and steel rolling scaffold
-validation flows under `apps/validation_agent/examples/`; they consume
-downloaded public assets or checked-in evidence fixtures and do not require
-running the other agents first.
-
-Multi-view renders the agents send to the VLM are encoded inline as data
-URIs by default — no cloud storage is required. If you want to upload
-renders to S3 instead, set `WU_S3_BUCKET` (plus AWS credentials). See
-`.env_example` for all toggles.
-
-See each agent's `README.md` under `apps/<agent>/` for the full CLI reference, config conventions, and per-step options.
-
-## Bring Your Own Asset
-
-Once a hello-world example runs cleanly, point an agent at your own USD: copy a known-good config and edit the asset path. Use absolute paths for files outside the repo — `~` is not expanded by the config loader.
-
-```bash
-# Material agent: assign materials to a USD asset.
-cp apps/material_agent/configs/unified_example.yaml \
-   apps/material_agent/configs/my_asset_materials.yaml
-# Edit input.usd_path and input.reference_images in my_asset_materials.yaml.
-material-agent run apps/material_agent/configs/my_asset_materials.yaml
-
-# Physics agent: classify components and physical properties.
-cp apps/physics_agent/configs/lightbulb.yaml \
-   apps/physics_agent/configs/my_asset_physics.yaml
-# Edit input.usd_path in my_asset_physics.yaml.
-physics-agent run apps/physics_agent/configs/my_asset_physics.yaml
-
-# Joint Agent 0.5 Research Preview: infer candidates and publish owned_core USDZ.
-cp apps/joint_agent/configs/byoa_joint_rigger.yaml my_asset_joints.yaml
-# Edit input.usd_path, run once, review Stage 2 candidates, then enable
-# steps.apply_joint_rigger and resume.
-joint-agent run my_asset_joints.yaml --dry-run
-joint-agent run my_asset_joints.yaml
-joint-agent run my_asset_joints.yaml --resume
-
-# Texture agent: add generated textures to a materialized USD.
-cp apps/texture_agent/configs/texture_example.yaml \
-   apps/texture_agent/configs/my_asset_textures.yaml
-# Edit input.usd_path and texture settings in my_asset_textures.yaml.
-texture-agent run apps/texture_agent/configs/my_asset_textures.yaml
-
-# Validation agent: validate an existing generated USD or evidence bundle.
-validation-agent validate \
-  --task "Validate that this asset renders successfully." \
-  --template render_valid \
-  --render-backend remote \
-  --render-view corner \
-  --output-dir .validation-runs/my_asset \
-  /absolute/path/to/generated_asset.usd
-```
-
-Use a Validation Agent config when the release gate needs live `look_right`
-reference judging, because the VLM judge policy lives in the request config.
-
-For a Docker/service workflow, Material, Physics, Joint, and Texture users start the
-matching `apps/<agent>_service` Compose stack and reference the USD through the
-service client in `apps/<agent>_service/client/`. Validation Agent has no
-matching service or Compose stack in release 0.5; use the CLI path above.
-
-## Supported VLM Backends
-
-| Backend | Provider | Environment Variable |
-|---------|----------|---------------------|
-| `nim` | [NVIDIA NIM](https://build.nvidia.com/) | `NVIDIA_API_KEY` |
-| `openai` | [OpenAI](https://platform.openai.com/) | `OPENAI_API_KEY` |
-| `anthropic` | [Anthropic](https://console.anthropic.com/) | `ANTHROPIC_API_KEY` |
-| `gemini` | [Google Gemini](https://aistudio.google.com/) | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
-
-Configure Material, Physics, Joint, and Texture backends in the agent YAML config
-under the `predict` or generation section. Validation Agent uses
-`policy.look_right_vlm` / `policy.look_right_llm_judge` for visual judging and
-the shared render settings (`RENDER_ENDPOINT` or `NVCF_RENDER_FUNCTION_ID`) for
-runtime USD visual evidence.
-
-### Python Model Backend Registration
-
-The model factories under
-`world_understanding.functions.models.backends.registry` are the authoritative
-runtime registry. The compatibility accessors exported from
-`world_understanding.registry` are live facades over that same state: shipped
-backends are visible immediately, and registering a factory through a facade
-changes the backend selected by `create_chat_model()` or
-`create_image_generation_model()`.
-
-```python
-from world_understanding.functions.models.chat_models import (
-    create_chat_model,
-    create_echo_chat_model,
-)
-from world_understanding.registry import get_chat_model_registry
-
-registry = get_chat_model_registry()
-registry.register(
-    "custom_echo", create_echo_chat_model, requires_api_key=False
-)
-
-model = create_chat_model(backend="custom_echo", prefix="Custom: ")
-```
-
-Use `get_image_generation_model_registry()` for the equivalent image-generation
-surface. Installable provider packages should register a zero-argument callable
-in the `world_understanding.model_backends` entry-point group; that callable may
-register chat, VLM, or image-generation factories in the authoritative backend
-registry. New chat and image registrations require an API key by default; pass
-`requires_api_key=False` only for factories that intentionally work without
-credentials. The authoritative chat and image registration functions preserve
-an existing backend's credential requirement when the keyword is omitted,
-including registrations made through these facades. VLM registration semantics
-are unchanged.
-
-## Project Structure
-
-```
-usd-content-agents/
-├── world_understanding/        # Core library (tools, functions, agentic framework)
-├── apps/
-│   ├── material_agent/         # Material assignment agent (CLI)
-│   ├── material_agent_service/ # Material agent REST API service
-│   ├── physics_agent/          # Physics property classification agent (CLI)
-│   ├── physics_agent_service/  # Physics agent REST API service
-│   ├── joint_agent/            # Joint/articulation agent (Research Preview)
-│   ├── joint_agent_service/    # Joint agent REST API service
-│   ├── texture_agent/          # Texture generation agent (CLI)
-│   ├── texture_agent_service/  # Texture agent REST API service
-│   ├── validation_agent/       # Validation Agent (CLI)
-│   └── ovrtx_rendering_api/    # OVRTX-based rendering service
-└── tests/                      # Test suite
-```
-
-## Documentation
-
-- **Per-agent docs**: `apps/<agent>/README.md` covers the CLI (Option B). For
-  material and physics, `apps/<agent>/docs/api.md` is the programmatic Python
-  API reference. Joint Agent 0.5 documents its owned-core and Gate 3 handoff in
-  `apps/joint_agent/README.md`. Texture agent has no Python API module; use the
-  CLI or the REST service. Validation Agent V1 is CLI/Python-contract only and
-  documents examples in `apps/validation_agent/examples/`.
-- **Per-service docs**: `apps/<agent>_service/README.md` covers Docker Compose
-  deployment (Option A); `apps/<agent>_service/docs/api.md` is the REST API
-  reference. Validation Agent does not ship a REST service in release 0.5.
-- **[Joint Rigger v1 contract](world_understanding/functions/physics/joint_rigger/README.md)**:
-  shared structured articulation models, offline reference oracle, backend
-  facade, artifact policy, and current scope boundary.
-- **Material agent Docker deep-dive**: `apps/material_agent_service/docs/docker.md` covers multi-GPU, VLM-NIM sidecars, and production profiles.
-
-## Development
-
-```bash
-# Install dev dependencies
 uv pip install -e ".[dev]"
 
-# Run tests
-pytest
-
-# Format and lint
-./format.sh
-
-# Check only (CI mode)
 ./format.sh check
+# The root suite spans independently distributed app and agentic packages.
+# This command resolves a separate aggregate environment before collecting every
+# configured public root testpath, preserving the active development venv.
+# Public staging intentionally regenerates uv.lock after sanitization.
+UV_PROJECT_ENVIRONMENT=.venv-root-tests \
+  uv run --group root-tests --extra dev python scripts/run_root_tests.py
 ```
 
-## License
+Use `uv` to manage dependencies. The complete development and architecture
+guidance is in `AGENTS.md`.
 
-Licensed under the [Apache License, Version 2.0](LICENSE). Third-party
-component licenses are listed in [THIRD_PARTY_NOTICE.md](THIRD_PARTY_NOTICE.md).
+## 7. Documentation and Policies
 
-## Contributing
+### Documentation
 
-This project is currently not accepting contributions. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+- [Content Workflow reference](agentic/README.md)
+- [Migrating to USD Content Agents 0.6](MIGRATING_TO_0_6.md)
+- [Material Agent](apps/material_agent/README.md)
+- [Physics Agent](apps/physics_agent/README.md)
+- [Joint Agent](apps/joint_agent/README.md)
+- [Texture Agent](apps/texture_agent/README.md)
+- [Validation Agent](apps/validation_agent/README.md)
+- [Collection deployment](deploy/collection/README.md)
+- [Changelog](CHANGELOG.md)
 
-## Security
+### License, Security, and Contributions
 
-Please report security vulnerabilities per the policy in
-[SECURITY.md](SECURITY.md).
+USD Content Agents is licensed under the [Apache License 2.0](LICENSE).
+Third-party terms are documented in [`THIRD_PARTY_NOTICE.md`](THIRD_PARTY_NOTICE.md)
+and the platform-specific [`THIRD_PARTY_NOTICE_OVPHYSX.md`](THIRD_PARTY_NOTICE_OVPHYSX.md)
+and [`THIRD_PARTY_NOTICE_OVPHYSX_WINDOWS.md`](THIRD_PARTY_NOTICE_OVPHYSX_WINDOWS.md)
+supplements.
 
-## Code of Conduct
+Report potential vulnerabilities through the private process described in
+[`SECURITY.md`](SECURITY.md), not through a public issue.
 
-This project adheres to the Contributor Covenant Code of Conduct. See
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the current contribution policy
+and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for community expectations.

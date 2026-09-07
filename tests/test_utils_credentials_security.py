@@ -41,6 +41,7 @@ from world_understanding.utils.credentials import (
     path_is_file_with_safe_diagnostics,
     read_text_with_safe_diagnostics,
     redact_sensitive_config,
+    redact_sensitive_log_text,
     redact_sensitive_path,
     resolve_endpoint_api_key,
 )
@@ -309,6 +310,29 @@ def test_redact_sensitive_path_preserves_runtime_text_but_hides_credentials() ->
     assert redact_sensitive_path(benign_path) == str(benign_path)
     assert redact_sensitive_path(credential_path) == "<redacted>"
     assert secret not in redact_sensitive_path(credential_path)
+
+
+def test_redact_sensitive_log_text_redacts_and_escapes_line_breaks() -> None:
+    secret = "log-helper-secret-token-713"
+    value = (
+        f"first\r\nsecond\vthird\ffourth\x85fifth\u2028sixth\u2029"
+        f"https://user:{secret}@assets.example.test/model.usd"
+    )
+
+    result = redact_sensitive_log_text(value)
+
+    assert result == "<redacted>"
+    assert secret not in result
+    assert not result.splitlines()[1:]
+
+
+def test_redact_sensitive_log_text_preserves_content_on_one_physical_line() -> None:
+    result = redact_sensitive_log_text(
+        "first\r\nsecond\x1cthird\x1dfourth\x1efifth\u2028sixth"
+    )
+
+    assert result == (r"first\r\nsecond\x1cthird\x1dfourth\x1efifth\u2028sixth")
+    assert not result.splitlines()[1:]
 
 
 def test_safe_path_exists_preserves_oserror_semantics_without_path_leak(

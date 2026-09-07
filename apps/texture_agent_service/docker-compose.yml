@@ -5,7 +5,7 @@ services:
       dockerfile: apps/texture_agent_service/Dockerfile
     container_name: texture-agent-service
     ports:
-      - "8001:8001"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${TA_HOST_PORT:-8001}:8001"
     env_file:
       # Load keys and overrides from either the repo-root .env (common
       # across all agent services) or the service-specific .env. Local
@@ -28,7 +28,7 @@ services:
       - TA_IMAGE_GEN_MODEL=${TA_IMAGE_GEN_MODEL:-}
       - TA_IMAGE_GEN_BASE_URL=${TA_IMAGE_GEN_BASE_URL:-}
       - TA_LLM_BACKEND=${TA_LLM_BACKEND:-nim}
-      - TA_LLM_MODEL=${TA_LLM_MODEL:-google/gemma-4-31b-it}
+      - TA_LLM_MODEL=${TA_LLM_MODEL:-moonshotai/kimi-k3}
       - TA_LLM_BASE_URL=${TA_LLM_BASE_URL:-}
       - TA_TEXTURE_SIZE=${TA_TEXTURE_SIZE:-1024}
       - TA_TEXTURE_WORKERS=${TA_TEXTURE_WORKERS:-4}
@@ -83,7 +83,7 @@ services:
     profiles:
       - llm
     ports:
-      - "8006:8000"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${VLM_HOST_PORT:-8006}:8000"
     env_file:
       # NGC_API_KEY comes from repo-root .env via env_file (same pattern as
       # the main service above) so it is not silently empty when only set
@@ -127,7 +127,7 @@ services:
     profiles:
       - image-gen
     ports:
-      - "8005:8000"
+      - "${WU_COMPOSE_BIND_HOST:-127.0.0.1}:${IMAGE_GEN_HOST_PORT:-8005}:8000"
     env_file:
       # NGC_API_KEY and HF_TOKEN come from repo-root .env via env_file
       # (same pattern as the main service above) so they are not silently

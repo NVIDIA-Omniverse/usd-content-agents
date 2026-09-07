@@ -1,0 +1,9 @@
+name: missing long-job step timeout
+on: push
+jobs:
+  long:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Unbounded step
+        run: echo unbounded

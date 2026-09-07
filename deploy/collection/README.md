@@ -165,8 +165,9 @@ docker compose -f deploy/collection/docker-compose.llm.yml up -d
 
 The VLM compose file uses the NVIDIA runtime path used by the current A100
 Brev validation hosts. If the host exposes GPU access only through Docker
-device requests, use the dedicated `deploy-qwen-vlm-brev` skill or a
-provider-specific override. For hosts with a large mounted data disk, set
+device requests, invoke `$fixed-pipeline` and load its dedicated
+`deploy-qwen-vlm-brev` reference, or use a provider-specific override. For
+hosts with a large mounted data disk, set
 `COLLECTION_VLM_CACHE_VOLUME=/path/to/huggingface-cache` before startup.
 
 Then enable the endpoints:

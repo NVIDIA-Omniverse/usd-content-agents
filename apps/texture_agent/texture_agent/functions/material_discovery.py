@@ -24,6 +24,10 @@ from texture_agent.functions.detail_policy import (
 logger = logging.getLogger(__name__)
 
 
+TEXTURE_SEMANTIC_MATERIAL_ALIASES_RELATIONSHIP = "contentAgent:semanticMaterialAliases"
+"""Relationship carried by generated materials to retain semantic source paths."""
+
+
 @dataclass
 class MaterialInfo:
     """Information about a discovered material in a USD stage."""
@@ -42,6 +46,13 @@ class MaterialInfo:
 
     base_color_texture: str | None = None
     """Existing albedo/base color texture path, or None if empty."""
+
+    orm_texture: str | None = None
+    """Existing packed ORM texture path (R=occlusion, G=roughness, B=metallic).
+
+    Retained so authored occlusion/metallic can be preserved rather than
+    replaced by generated output; see issue #950.
+    """
 
     base_metalness: float | None = None
     """Constant base_metalness value."""
@@ -120,6 +131,31 @@ class _MaterialCandidate:
 
     material_prim: Usd.Prim
     alias_paths: set[str] = field(default_factory=set)
+    semantic_alias_paths: set[str] = field(default_factory=set)
+
+
+def _semantic_material_alias_paths(prim: Usd.Prim) -> set[str]:
+    """Read workflow-authored semantic aliases and reject malformed targets."""
+
+    relationship = prim.GetRelationship(TEXTURE_SEMANTIC_MATERIAL_ALIASES_RELATIONSHIP)
+    if not relationship or not relationship.IsValid():
+        return set()
+    aliases: set[str] = set()
+    stage = prim.GetStage()
+    for target in relationship.GetTargets():
+        if not target.IsAbsolutePath() or not target.IsPrimPath() or str(target) == "/":
+            raise ValueError(
+                "Texture semantic material alias must target an absolute prim path: "
+                f"{target}"
+            )
+        target_prim = stage.GetPrimAtPath(target)
+        if not target_prim or not target_prim.IsA(UsdShade.Material):
+            raise ValueError(
+                "Texture semantic material alias must target an existing material: "
+                f"{target}"
+            )
+        aliases.add(str(target))
+    return aliases
 
 
 _ALBEDO_TEXTURE_INPUTS = {
@@ -132,22 +168,34 @@ _ALBEDO_TEXTURE_INPUTS = {
     "base_color_texture_file",
 }
 
-_TEXTURE_INPUTS = _ALBEDO_TEXTURE_INPUTS | {
-    "normalmap_texture",
-    "normal_texture",
-    "normal_map_texture",
+# Packed ORM inputs only (MDL/OmniPBR ``inputs:ORM_texture``), which are
+# definitionally R=occlusion, G=roughness, B=metallic. Deliberately excludes
+# glTF-style ``metallic_roughness`` packings, where R carries no occlusion --
+# preserving those into the occlusion channel would write garbage.
+_ORM_TEXTURE_INPUTS = {
     "orm_texture",
-    "reflectionroughness_texture",
-    "roughness_texture",
-    "specular_roughness_texture",
-    "specular_roughness_texture_file",
-    "metallic_texture",
-    "metalness_texture",
-    "base_metalness_texture_file",
-    "geometry_normal_texture_file",
-    "coat_normal_texture_file",
-    "geometry_opacity_texture_file",
+    "ormtexture",
 }
+
+_TEXTURE_INPUTS = (
+    _ALBEDO_TEXTURE_INPUTS
+    | _ORM_TEXTURE_INPUTS
+    | {
+        "normalmap_texture",
+        "normal_texture",
+        "normal_map_texture",
+        "reflectionroughness_texture",
+        "roughness_texture",
+        "specular_roughness_texture",
+        "specular_roughness_texture_file",
+        "metallic_texture",
+        "metalness_texture",
+        "base_metalness_texture_file",
+        "geometry_normal_texture_file",
+        "coat_normal_texture_file",
+        "geometry_opacity_texture_file",
+    }
+)
 
 _TEXTURE_READER_FILE_INPUTS = {"file", "filename"}
 
@@ -162,6 +210,17 @@ _ALBEDO_NAME_TOKENS = (
     "diffuse_color",
 )
 
+# Shader/reader names that denote a packed ORM map. MaterialX and
+# UsdPreviewSurface networks carry the path on a `file`/`filename` input of a
+# texture-reader shader rather than on an input literally named `orm_texture`,
+# so the reader's own name is the only signal available -- the same asymmetry
+# _ALBEDO_NAME_TOKENS exists to solve.
+_ORM_NAME_TOKENS = (
+    "orm",
+    "occlusionroughnessmetallic",
+    "occlusion_roughness_metallic",
+)
+
 _BASE_COLOR_INPUTS = (
     "base_color",
     "diffuse_tint",
@@ -170,12 +229,19 @@ _BASE_COLOR_INPUTS = (
     "albedo",
 )
 
-_METALNESS_INPUTS = ("base_metalness", "metalness", "metallic")
+_METALNESS_INPUTS = (
+    "base_metalness",
+    "metalness",
+    "metallic",
+    "metallic_constant",
+)
 
 _ROUGHNESS_INPUTS = (
     "specular_roughness",
     "roughness",
     "reflectionroughness",
+    "reflection_roughness_constant",
+    "roughness_constant",
 )
 
 
@@ -235,11 +301,23 @@ def _read_asset_path(prim: Usd.Prim, attr_name: str) -> str | None:
     return path
 
 
-def _coerce_texture_path(value: object) -> str | None:
-    """Return a normalized path string for authored asset/string texture inputs."""
+def _coerce_texture_path(value: object, *, prefer_resolved: bool = False) -> str | None:
+    """Return a normalized path string for authored asset/string texture inputs.
+
+    ``Sdf.AssetPath.path`` is authored relative to the layer that defines it, which
+    is not necessarily the stage's root layer. A consumer resolving it against the
+    stage path therefore mis-resolves any material coming from a reference or
+    sublayer. ``prefer_resolved`` returns the resolver's absolute path when one is
+    available, which is layer-correct by construction; callers that want the
+    authored spelling (for round-tripping) leave it False.
+    """
     if value is None:
         return None
     if hasattr(value, "path"):
+        if prefer_resolved:
+            resolved = str(getattr(value, "resolvedPath", "") or "")
+            if resolved:
+                return resolved
         path = str(value.path)
     elif isinstance(value, str):
         path = value
@@ -290,6 +368,12 @@ def _is_albedo_texture_name(name: str) -> bool:
     return any(_compact_token(token) in name_key for token in _ALBEDO_NAME_TOKENS)
 
 
+def _is_orm_texture_name(name: str) -> bool:
+    """Return True if a shader or input name describes a packed ORM texture."""
+    name_key = _compact_token(name)
+    return any(_compact_token(token) in name_key for token in _ORM_NAME_TOKENS)
+
+
 def _read_shader_color(prim: Usd.Prim) -> tuple[float, float, float] | None:
     """Read common shader-network base color inputs."""
     for shader_prim in _iter_shader_prims(prim):
@@ -318,9 +402,14 @@ def _read_shader_float(prim: Usd.Prim, input_names: tuple[str, ...]) -> float | 
     return None
 
 
-def _find_existing_texture_paths(prim: Usd.Prim) -> tuple[str | None, bool]:
-    """Find authored texture inputs on OpenPBR, MaterialX, and MDL materials."""
+def _find_existing_texture_paths(prim: Usd.Prim) -> tuple[str | None, str | None, bool]:
+    """Find authored texture inputs on OpenPBR, MaterialX, and MDL materials.
+
+    Returns ``(base_color_texture, orm_texture, has_texture)``.
+    """
     base_color_texture: str | None = None
+    orm_texture: str | None = None
+    orm_resolved = False
     has_texture = False
 
     for attr in prim.GetAttributes():
@@ -334,6 +423,16 @@ def _find_existing_texture_paths(prim: Usd.Prim) -> tuple[str | None, bool]:
         has_texture = True
         if base_name in _ALBEDO_TEXTURE_INPUTS and base_color_texture is None:
             base_color_texture = path
+        elif base_name in _ORM_TEXTURE_INPUTS:
+            # Prefer the resolver's absolute path: this is later resolved against
+            # context["usd_path"], which is wrong for referenced/sublayered materials.
+            resolved = _coerce_texture_path(attr.Get(), prefer_resolved=True)
+            if orm_texture is None:
+                orm_texture = resolved or path
+                orm_resolved = resolved is not None and resolved != path
+            elif not orm_resolved and resolved is not None and resolved != path:
+                orm_texture = resolved
+                orm_resolved = True
 
     for shader_prim in _iter_shader_prims(prim):
         shader = UsdShade.Shader(shader_prim)
@@ -363,8 +462,23 @@ def _find_existing_texture_paths(prim: Usd.Prim) -> tuple[str | None, bool]:
                 or (is_texture_reader_file and _is_albedo_texture_name(shader_name))
             ) and base_color_texture is None:
                 base_color_texture = path
+            elif normalized in _ORM_TEXTURE_INPUTS or (
+                is_texture_reader_file and _is_orm_texture_name(shader_name)
+            ):
+                resolved = _coerce_texture_path(
+                    shader_input.Get(), prefer_resolved=True
+                )
+                # First candidate wins, but a later alias carrying a resolver
+                # path upgrades an authored-only fallback: the authored spelling
+                # is layer-relative and mis-resolves for referenced materials.
+                if orm_texture is None:
+                    orm_texture = resolved or path
+                    orm_resolved = resolved is not None and resolved != path
+                elif not orm_resolved and resolved is not None and resolved != path:
+                    orm_texture = resolved
+                    orm_resolved = True
 
-    return base_color_texture, has_texture
+    return base_color_texture, orm_texture, has_texture
 
 
 def _find_bound_prims(stage: Usd.Stage, material_path: str) -> list[str]:
@@ -521,6 +635,7 @@ def _build_effective_material_binding_index(
                 _MaterialCandidate(material_prim=canonical_prim),
             )
             candidate.alias_paths.add(str(prim.GetPath()))
+            candidate.semantic_alias_paths.update(_semantic_material_alias_paths(prim))
 
         if not prim.IsA(UsdGeom.Gprim):
             continue
@@ -586,7 +701,9 @@ def _material_info_from_prim(
     base_color = _read_color3f(prim, "inputs:base_color")
     if base_color is None:
         base_color = _read_shader_color(prim)
-    base_color_texture, has_existing_texture = _find_existing_texture_paths(prim)
+    base_color_texture, orm_texture, has_existing_texture = (
+        _find_existing_texture_paths(prim)
+    )
     base_metalness = _read_float(prim, "inputs:base_metalness")
     if base_metalness is None:
         base_metalness = _read_shader_float(prim, _METALNESS_INPUTS)
@@ -601,6 +718,7 @@ def _material_info_from_prim(
         bound_subset_paths=sorted(bound_subset_paths or []),
         base_color=base_color or (0.5, 0.5, 0.5),
         base_color_texture=base_color_texture,
+        orm_texture=orm_texture,
         base_metalness=base_metalness,
         specular_roughness=specular_roughness,
         has_existing_texture=has_existing_texture,
@@ -715,6 +833,7 @@ def _copy_material_with_members(
         bound_subset_paths=bound_subset_paths,
         base_color=material.base_color,
         base_color_texture=material.base_color_texture,
+        orm_texture=material.orm_texture,
         base_metalness=material.base_metalness,
         specular_roughness=material.specular_roughness,
         has_existing_texture=material.has_existing_texture,
@@ -769,6 +888,7 @@ def discover_effective_materials(
             _MaterialCandidate(material_prim=canonical_prim),
         )
         candidate.alias_paths.add(str(prim.GetPath()))
+        candidate.semantic_alias_paths.update(_semantic_material_alias_paths(prim))
 
     material_prims: dict[str, Usd.Prim] = {}
     material_aliases: dict[str, set[str]] = {}
@@ -780,7 +900,9 @@ def discover_effective_materials(
             aliases.update(binding_members.material_alias_paths)
         material_path = min(candidate.alias_paths, default=identity)
         material_prims[material_path] = candidate.material_prim
-        material_aliases[material_path] = aliases | {material_path}
+        material_aliases[material_path] = (
+            aliases | candidate.semantic_alias_paths | {material_path}
+        )
         if binding_members is not None:
             bindings[material_path] = binding_members
 

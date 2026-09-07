@@ -13,11 +13,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from physics_agent.tuning.backend import SUPPORTED_ENGINES
 from physics_agent.tuning.visual_evidence import (
     DEFAULT_JUDGE_GENERATED_FRAMES,
     DEFAULT_JUDGE_REFERENCE_FRAMES,
-    DEFAULT_REFERENCE_VIDEO_FRAMES,
+    DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
     validate_visual_frame_count,
 )
 from sse_starlette import EventSourceResponse
@@ -51,6 +52,7 @@ from .tune_router import (
     _find_input_physics,
     _nonempty_uploads,
     _parse_reference_descriptions,
+    _reject_unsupported_video_request,
     _scenario_param_names_from_mapping,
     _stream_copy,
     _validate_and_authorize_s3_usd_uri,
@@ -67,14 +69,6 @@ session_manager: SessionManager | None = None
 
 _VALID_USD_EXTENSIONS = {".usd", ".usda", ".usdc", ".usdz"}
 _VALID_REFERENCE_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
-_VALID_REFERENCE_VIDEO_EXTENSIONS = {
-    ".mp4",
-    ".mov",
-    ".m4v",
-    ".webm",
-    ".avi",
-    ".mkv",
-}
 _MAX_REFINE_TRIALS = 1000
 _MAX_REFINE_ITERATIONS = 12
 _MAX_SCENARIO_YAML_BYTES = 64 * 1024
@@ -94,14 +88,15 @@ def set_session_manager(manager: SessionManager) -> None:
 
 
 def _validate_optimizer_name_for_request(optimizer: str) -> None:
-    from physics_agent.tuning.optimizers import SUPPORTED_OPTIMIZERS
+    from physics_agent.tuning.optimizers import get_supported_optimizer_names
 
-    if optimizer not in SUPPORTED_OPTIMIZERS:
+    supported_optimizers = get_supported_optimizer_names()
+    if optimizer not in supported_optimizers:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Unknown optimizer {optimizer!r}. "
-                f"Supported: {sorted(SUPPORTED_OPTIMIZERS)}"
+                f"Supported: {list(supported_optimizers)}"
             ),
         )
 
@@ -211,6 +206,7 @@ def _metadata_elapsed_seconds(metadata: dict[str, object]) -> int:
     responses=S3_INPUT_ERROR_RESPONSES,
 )
 async def create_refine(
+    request: Request,
     physics_usd: UploadFile | None = File(
         None,
         description="Physics-authored USD (output of apply_physics) to refine",
@@ -224,25 +220,13 @@ async def create_refine(
         default=[],
         description="Optional reference images for the visual/VLM judge",
     ),
-    reference_videos: list[UploadFile] = File(
-        default=[],
-        description="Optional reference videos for the visual/VLM judge",
-    ),
     reference_descriptions: str = Form(
         default="",
         description="Optional JSON array of descriptions parallel to reference_images",
     ),
-    reference_video_descriptions: str = Form(
-        default="",
-        description="Optional JSON array of descriptions parallel to reference_videos",
-    ),
-    reference_video_frames: int = Form(
-        default=DEFAULT_REFERENCE_VIDEO_FRAMES,
-        description="Frames to extract from each reference video for visual judging",
-    ),
     judge_reference_frames: int = Form(
         default=DEFAULT_JUDGE_REFERENCE_FRAMES,
-        description="Max reference images/video frames to send to the VLM judge",
+        description="Max reference images to send to the VLM judge",
     ),
     judge_generated_frames: int = Form(
         default=DEFAULT_JUDGE_GENERATED_FRAMES,
@@ -259,7 +243,11 @@ async def create_refine(
     optimizer: str = Form(
         default="botorch", description="botorch, auto, random, cma-es"
     ),
-    engine: str = Form(default="ovphysx", description="ovphysx, newton, or fake"),
+    engine: str = Form(
+        default="ovphysx",
+        json_schema_extra={"enum": list(SUPPORTED_ENGINES)},
+        description="ovphysx, newton, or fake",
+    ),
     max_trials: int = Form(
         default=30, description="Optimizer trial budget per iteration"
     ),
@@ -276,7 +264,17 @@ async def create_refine(
     ),
     visual_evidence_enabled: bool = Form(
         default=True,
-        description="Send generated/reference media to the VLM judge",
+        description=(
+            "Send generated/reference media to the VLM judge. Requires the "
+            "winning trial to persist recording_usd."
+        ),
+    ),
+    visual_evidence_timeout_seconds: float = Form(
+        default=DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS,
+        description=(
+            "Wall-clock deadline for reference-media preparation and the "
+            "winning-trial judge render"
+        ),
     ),
     llm_timeout_seconds: float = Form(
         default=180.0,
@@ -284,6 +282,7 @@ async def create_refine(
     ),
 ) -> SessionCreated:
     """Create an iterative refine session and queue it for background execution."""
+    await _reject_unsupported_video_request(request)
 
     s3_uri_text = (s3_uri or "").strip()
     source_session_id_text = (source_session_id or "").strip()
@@ -296,6 +295,14 @@ async def create_refine(
             detail=(
                 "Exactly one of physics_usd, s3_uri, or source_session_id "
                 "must be provided"
+            ),
+        )
+    if engine == "fake" and visual_evidence_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "engine='fake' does not produce recording_usd required for "
+                "visual evidence; set visual_evidence_enabled=false"
             ),
         )
 
@@ -334,11 +341,15 @@ async def create_refine(
             status_code=400,
             detail=f"llm_timeout_seconds must be finite, got {llm_timeout_seconds}.",
         )
-    try:
-        reference_video_frames = validate_visual_frame_count(
-            "reference_video_frames",
-            reference_video_frames,
+    if not math.isfinite(visual_evidence_timeout_seconds):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "visual_evidence_timeout_seconds must be finite, "
+                f"got {visual_evidence_timeout_seconds}."
+            ),
         )
+    try:
         judge_reference_frames = validate_visual_frame_count(
             "judge_reference_frames",
             judge_reference_frames,
@@ -374,7 +385,6 @@ async def create_refine(
         {
             "user_prompt": user_prompt_text,
             "reference_descriptions": reference_descriptions,
-            "reference_video_descriptions": reference_video_descriptions,
             "s3_uri": s3_uri_text or None,
         },
         yaml_documents={"scenario_yaml": scenario_yaml_text},
@@ -385,23 +395,15 @@ async def create_refine(
     _validate_source_session_id(source_session_id_text)
 
     reference_image_uploads = _nonempty_uploads(reference_images)
-    reference_video_uploads = _nonempty_uploads(reference_videos)
-    if (
-        len(reference_image_uploads) + len(reference_video_uploads)
-        > _MAX_REFERENCE_UPLOADS
-    ):
+    if len(reference_image_uploads) > _MAX_REFERENCE_UPLOADS:
         raise HTTPException(
             status_code=400,
-            detail=f"Too many reference media files. Max total: {_MAX_REFERENCE_UPLOADS}",
+            detail=f"Too many reference images. Max total: {_MAX_REFERENCE_UPLOADS}",
         )
 
     parsed_reference_descriptions = _parse_reference_descriptions(
         reference_descriptions,
         "reference_descriptions",
-    )
-    parsed_reference_video_descriptions = _parse_reference_descriptions(
-        reference_video_descriptions,
-        "reference_video_descriptions",
     )
     if parsed_reference_descriptions is not None and len(
         parsed_reference_descriptions
@@ -411,16 +413,6 @@ async def create_refine(
             detail=(
                 "reference_descriptions must have one item per reference image "
                 f"({len(reference_image_uploads)} expected)"
-            ),
-        )
-    if parsed_reference_video_descriptions is not None and len(
-        parsed_reference_video_descriptions
-    ) != len(reference_video_uploads):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "reference_video_descriptions must have one item per reference video "
-                f"({len(reference_video_uploads)} expected)"
             ),
         )
 
@@ -482,23 +474,13 @@ async def create_refine(
 
     try:
         max_reference_batch_bytes = config.max_upload_size_mb * 1024 * 1024
-        reference_image_paths, reference_batch_bytes = await _copy_reference_uploads(
+        reference_image_paths, _ = await _copy_reference_uploads(
             uploads=reference_image_uploads,
             session_dir=session_dir,
             subdir="reference_images",
             file_prefix="reference_image",
             valid_extensions=_VALID_REFERENCE_IMAGE_EXTENSIONS,
             label="reference image",
-            max_batch_bytes=max_reference_batch_bytes,
-        )
-        reference_video_paths, _ = await _copy_reference_uploads(
-            uploads=reference_video_uploads,
-            session_dir=session_dir,
-            subdir="reference_videos",
-            file_prefix="reference_video",
-            valid_extensions=_VALID_REFERENCE_VIDEO_EXTENSIONS,
-            label="reference video",
-            current_batch_bytes=reference_batch_bytes,
             max_batch_bytes=max_reference_batch_bytes,
         )
     except HTTPException:
@@ -535,15 +517,13 @@ async def create_refine(
                 "user_prompt": user_prompt_text,
                 "user_prompt_path": str(user_prompt_path),
                 "reference_images": [str(p) for p in reference_image_paths],
-                "reference_videos": [str(p) for p in reference_video_paths],
                 "reference_descriptions": parsed_reference_descriptions,
-                "reference_video_descriptions": parsed_reference_video_descriptions,
-                "reference_video_frames": reference_video_frames,
                 "judge_reference_frames": judge_reference_frames,
                 "judge_generated_frames": judge_generated_frames,
                 "judge_max_tokens": judge_max_tokens,
                 "judge_temperature": judge_temperature,
                 "visual_evidence_enabled": visual_evidence_enabled,
+                "visual_evidence_timeout_seconds": (visual_evidence_timeout_seconds),
                 "llm_timeout_seconds": llm_timeout_seconds,
                 "source_session_id": source_session_id_text or None,
                 "s3_uri": s3_uri_text or None,
@@ -554,33 +534,38 @@ async def create_refine(
 
     from ..workers.refine_executor import execute_refine_async
 
-    await get_job_registry().register(
-        session_id,
-        execute_refine_async(
-            session_id=session_id,
-            session_manager=manager,
-            scenario_path=scenario_path,
-            user_prompt=user_prompt_text,
-            physics_usd=input_physics,
-            reference_images=reference_image_paths,
-            reference_videos=reference_video_paths,
-            reference_descriptions=parsed_reference_descriptions,
-            reference_video_descriptions=parsed_reference_video_descriptions,
-            reference_video_frames=reference_video_frames,
-            judge_reference_frames=judge_reference_frames,
-            judge_generated_frames=judge_generated_frames,
-            engine=engine,
-            optimizer=optimizer,
-            max_trials=max_trials,
-            seed=seed,
-            max_iterations=max_iterations,
-            score_threshold=score_threshold,
-            judge_max_tokens=judge_max_tokens,
-            judge_temperature=judge_temperature,
-            visual_evidence_enabled=visual_evidence_enabled,
-            llm_timeout_seconds=llm_timeout_seconds,
-        ),
+    worker = execute_refine_async(
+        session_id=session_id,
+        session_manager=manager,
+        scenario_path=scenario_path,
+        user_prompt=user_prompt_text,
+        physics_usd=input_physics,
+        reference_images=reference_image_paths,
+        reference_descriptions=parsed_reference_descriptions,
+        judge_reference_frames=judge_reference_frames,
+        judge_generated_frames=judge_generated_frames,
+        engine=engine,
+        optimizer=optimizer,
+        max_trials=max_trials,
+        seed=seed,
+        max_iterations=max_iterations,
+        score_threshold=score_threshold,
+        judge_max_tokens=judge_max_tokens,
+        judge_temperature=judge_temperature,
+        visual_evidence_enabled=visual_evidence_enabled,
+        visual_evidence_timeout_seconds=visual_evidence_timeout_seconds,
+        llm_timeout_seconds=llm_timeout_seconds,
     )
+    job_registry = get_job_registry()
+    maintain_lease = getattr(manager, "maintain_generation_lease", None)
+    if maintain_lease is None:
+        await job_registry.register(session_id, worker)
+    else:
+        await job_registry.register(
+            session_id,
+            worker,
+            wait_heartbeat=maintain_lease,
+        )
 
     logger.info("Refine queued for session %s", session_id)
     return SessionCreated(
@@ -618,7 +603,11 @@ async def get_refine_status(session_id: str) -> RefineStatus:
 
     config_meta = metadata.get("config") or {}
     results = metadata.get("results") or {}
-    snapshot = event_bus.get_snapshot(session_id) or {}
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    ) or {}
     current_step = snapshot.get("current_step") or {}
     progress = current_step.get("progress") or {}
     extra = current_step.get("extra") or {}
@@ -749,7 +738,11 @@ async def stream_refine_events(session_id: str):
     _validate_route_session_id(session_id)
     event_bus = get_event_bus()
     manager = get_session_manager()
-    snapshot = event_bus.get_snapshot(session_id)
+    snapshot = (
+        event_bus.get_snapshot(session_id)
+        if get_job_registry().is_running(session_id)
+        else None
+    )
     metadata = await manager.get_session_metadata(session_id)
     if snapshot is None and metadata is None:
         raise HTTPException(status_code=404, detail="Session not found")

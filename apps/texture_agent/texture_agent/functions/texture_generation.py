@@ -20,11 +20,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from apps.texture_gen_service_common import WeatheringControls
 from apps.texture_gen_service_common.artifacts import local_path_from_file_uri
 from apps.texture_gen_service_common.prompting import (
     NIM_MAX_PROMPT_CHARS,
     PromptBudgetError,
     append_bounded_instruction,
+)
+from apps.texture_gen_service_common.weathering_intent import (
+    prompt_requests_weathering,
 )
 from PIL import Image
 from world_understanding.utils.credentials import (
@@ -141,6 +145,9 @@ class TextureVariationConfig:
     texture_size: int | None = None
     """Requested square texture resolution. None = backend/source default."""
 
+    weathering: WeatheringControls | None = None
+    """Optional masks for prompt-requested weathering."""
+
     custom_parameters: dict[str, Any] = field(default_factory=dict)
     """Engine-specific overrides."""
 
@@ -155,6 +162,7 @@ class BackendCapabilities:
     orm: bool | None = None
     masks: bool | None = None
     coverage: bool | None = None
+    weathering: bool | None = None
     geometry_output: str | None = None
 
 
@@ -597,6 +605,19 @@ class TextureVariationClient:
 
         job_id = f"vj-{uuid.uuid4().hex[:12]}"
         variant_name = config.variant_name or f"variant_{job_id}"
+
+        if config.weathering is not None or prompt_requests_weathering(
+            conditioning.text_prompt
+        ):
+            return JobStatus(
+                job_id=job_id,
+                status="failed",
+                progress=0,
+                error_message=(
+                    "simple_image_gen cannot enforce prompt-requested weathering "
+                    "masks or material-specific PBR correlation"
+                ),
+            )
 
         # Determine output directory
         if self._output_dir:

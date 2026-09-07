@@ -1,0 +1,45 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "small_sledgehammer"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "small_sledgehammer"
+{
+    def Scope "Materials"
+    {
+        def Material "opaque__hammer__wood" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/opaque__hammer__wood>
+        )
+        {
+        }
+
+        def Material "opaque__metal__small_sledge_hammer_01" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/opaque__metal__small_sledge_hammer_01>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "handle_mesh_01" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </small_sledgehammer/Materials/opaque__hammer__wood>
+        }
+
+        over "head_mesh_01" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </small_sledgehammer/Materials/opaque__metal__small_sledge_hammer_01>
+        }
+    }
+}

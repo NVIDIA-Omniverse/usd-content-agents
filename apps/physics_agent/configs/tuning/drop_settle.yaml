@@ -48,25 +48,25 @@ target:
   # programmatic settle_distance objective — only attaches a verdict.
   # "off" | "end_of_tune" | "always".
   vlm_check: "off"
-  # Optional video rendering for visual inspection — independent of
+  # Optional frame rendering for visual inspection — independent of
   # vlm_check. When on, each trial's recording.usd is rendered to a
-  # PNG sequence + mp4 under <trial_dir>/render/ so you can eyeball
-  # what the optimizer is doing without paying for VLM tokens.
+  # PNG sequence under <trial_dir>/render/ so you can eyeball what the
+  # optimizer is doing without paying for VLM tokens.
   # "off" | "end_of_tune" | "always".
-  record_video: "off"
-  # Shared renderer name for inspection videos: remote, ovrtx (default),
+  record_frames: "off"
+  # Shared renderer name for inspection frames: remote, ovrtx (default),
   # warp, or mock. Mock is deterministic test evidence, not production
   # visual evidence.
-  # video_renderer: "ovrtx"
-  # Optional render-quality knobs for the inspection video. Defaults
+  # frame_renderer: "ovrtx"
+  # Optional render-quality knobs for the inspection frames. Defaults
   # are tuned for fast iteration: 512² with 32 progressive samples in
   # ``rt2`` (real-time-path-tracing) mode. Bump to ``pt`` × 1024² × 500
   # spp for publication-quality renders; drop them further for even
   # faster smoke tests.
-  # video_image_width: 512
-  # video_image_height: 512
-  # video_sensor_updates: 32
-  # video_render_mode: "rt2"
+  # frame_image_width: 512
+  # frame_image_height: 512
+  # frame_sensor_updates: 32
+  # frame_render_mode: "rt2"
 
 # Optional judge invoke settings. CLI/API fields override these when supplied.
 # These apply to the VLM judge, including text-only calls with empty media.
@@ -75,15 +75,12 @@ judge:
   max_tokens: 2048
 
 parameters:
+  # Omitted bounds are centered on values authored in the input physics USD
+  # with the shared 1.1 multiplier. Missing or zero-width authored values use
+  # backend capability fallbacks; mass_scale still requires an authored mass.
+  # Conflicting automatic friction ranges also use capability fallbacks, and
+  # automatic restitution stays within [0, 1]. Explicit bounds are preserved.
   - name: mass_scale
-    min: 0.5
-    max: 2.0
   - name: static_friction
-    min: 0.05
-    max: 1.5
   - name: dynamic_friction
-    min: 0.05
-    max: 1.5
   - name: restitution
-    min: 0.0
-    max: 1.0

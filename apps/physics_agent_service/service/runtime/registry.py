@@ -59,6 +59,13 @@ def _create_job_task(coro: Any) -> asyncio.Task[Any]:
     return asyncio.create_task(coro)
 
 
+async def _wait_for_queue_gate(
+    tasks: set[asyncio.Task[Any]],
+) -> tuple[set[asyncio.Task[Any]], set[asyncio.Task[Any]]]:
+    """Wait until either queue capacity or generation ownership changes."""
+    return await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+
 class JobReservation:
     """Atomic slot reservation returned by ``JobRegistry.reserve()``.
 
@@ -90,7 +97,7 @@ class JobReservation:
     def session_id(self) -> str:
         return self._session_id
 
-    async def start(self, coro: Any) -> None:
+    async def start(self, coro: Any, *, wait_heartbeat: Any | None = None) -> None:
         """Swap the reservation for a real running task.
 
         Must be called at most once per reservation. After ``start()``,
@@ -105,6 +112,8 @@ class JobReservation:
             # noisy "coroutine was never awaited" RuntimeWarning at GC.
             if hasattr(coro, "close"):
                 coro.close()
+            if hasattr(wait_heartbeat, "close"):
+                wait_heartbeat.close()
             raise RuntimeError(f"Reservation for {self._session_id} already consumed")
 
         task_owns_coro = False
@@ -120,7 +129,11 @@ class JobReservation:
                 raise RuntimeError(
                     f"Reservation for {self._session_id} was lost before start()"
                 )
-            wrapper = self._registry._run_with_cleanup(self._session_id, coro)
+            wrapper = self._registry._run_with_cleanup(
+                self._session_id,
+                coro,
+                wait_heartbeat=wait_heartbeat,
+            )
             try:
                 task = _create_job_task(wrapper)
             except BaseException:
@@ -132,10 +145,13 @@ class JobReservation:
             # ever runs (which would otherwise leak the coroutine and
             # surface a "coroutine was never awaited" RuntimeWarning).
             task._wu_inner_coro = coro  # type: ignore[attr-defined]
+            task._wu_wait_heartbeat = wait_heartbeat  # type: ignore[attr-defined]
             self._registry._tasks[self._session_id] = task
         except BaseException:
             if not task_owns_coro and hasattr(coro, "close"):
                 coro.close()
+            if not task_owns_coro and hasattr(wait_heartbeat, "close"):
+                wait_heartbeat.close()
             raise
         finally:
             if lock_acquired:
@@ -212,7 +228,13 @@ class JobRegistry:
             self._tasks[session_id] = _RESERVED
         return JobReservation(self, session_id)
 
-    async def register(self, session_id: str, coro: Any) -> None:
+    async def register(
+        self,
+        session_id: str,
+        coro: Any,
+        *,
+        wait_heartbeat: Any | None = None,
+    ) -> None:
         """Register and start a pipeline job.
 
         Convenience wrapper around :meth:`reserve` + :meth:`JobReservation.start`
@@ -245,14 +267,22 @@ class JobRegistry:
         except ValueError:
             if hasattr(coro, "close"):
                 coro.close()
+            if hasattr(wait_heartbeat, "close"):
+                wait_heartbeat.close()
             raise
         try:
-            await reservation.start(coro)
+            await reservation.start(coro, wait_heartbeat=wait_heartbeat)
         except BaseException:
             await reservation.release()
             raise
 
-    async def _run_with_cleanup(self, session_id: str, coro: Any) -> None:
+    async def _run_with_cleanup(
+        self,
+        session_id: str,
+        coro: Any,
+        *,
+        wait_heartbeat: Any | None = None,
+    ) -> None:
         """Wait for a semaphore slot, run the pipeline, then clean up.
 
         Args:
@@ -262,9 +292,87 @@ class JobRegistry:
         acquired = False
         active_incremented = False
         coro_started = False
+        heartbeat_task: asyncio.Task[Any] | None = None
+        semaphore_task: asyncio.Task[bool] | None = None
+        capacity_ready: asyncio.Event | None = None
+        heartbeat_proves_handoff = False
         try:
-            await self._semaphore.acquire()
-            acquired = True
+            if wait_heartbeat is not None:
+                if callable(wait_heartbeat):
+                    capacity_ready = asyncio.Event()
+                    heartbeat_proves_handoff = True
+                    heartbeat_awaitable = wait_heartbeat(
+                        session_id,
+                        capacity_ready=capacity_ready,
+                    )
+                else:
+                    heartbeat_awaitable = wait_heartbeat
+                heartbeat_task = asyncio.create_task(heartbeat_awaitable)
+                semaphore_task = asyncio.create_task(self._semaphore.acquire())
+                done, _pending = await _wait_for_queue_gate(
+                    {heartbeat_task, semaphore_task},
+                )
+                if semaphore_task in done:
+                    await semaphore_task
+                    acquired = True
+                    if capacity_ready is not None:
+                        capacity_ready.set()
+                if heartbeat_task in done:
+                    # Normal completion means ownership was lost. An exception
+                    # is an unexpected heartbeat implementation failure.
+                    # Neither permits queued work to start, even if capacity
+                    # became available in the same event-loop turn. Consume
+                    # either outcome here so the registry-owned task cannot
+                    # surface an unobserved exception after the client got 202.
+                    try:
+                        owns_at_handoff = await heartbeat_task
+                    except Exception:
+                        logger.exception(
+                            "Generation lease heartbeat failed while %s waited "
+                            "for capacity",
+                            session_id,
+                        )
+                        return
+                    if (
+                        not acquired
+                        or not heartbeat_proves_handoff
+                        or owns_at_handoff is not True
+                    ):
+                        logger.info(
+                            "Discarding queued work for %s after generation "
+                            "ownership changed",
+                            session_id,
+                        )
+                        return
+                elif heartbeat_proves_handoff:
+                    # Capacity won the first race. The bound heartbeat wakes
+                    # immediately, retries through store outages, and returns
+                    # True only after a fresh ownership read. Hold the acquired
+                    # slot until that proof succeeds or ownership is lost.
+                    try:
+                        owns_at_handoff = await heartbeat_task
+                    except Exception:
+                        logger.exception(
+                            "Generation lease heartbeat failed while %s waited "
+                            "for capacity",
+                            session_id,
+                        )
+                        return
+                    if owns_at_handoff is not True:
+                        logger.info(
+                            "Discarding queued work for %s after generation "
+                            "ownership changed at capacity handoff",
+                            session_id,
+                        )
+                        return
+            else:
+                await self._semaphore.acquire()
+                acquired = True
+
+            if heartbeat_task is not None:
+                heartbeat_task.cancel()
+                await asyncio.gather(heartbeat_task, return_exceptions=True)
+                heartbeat_task = None
 
             async with self._lock:
                 self._active_count += 1
@@ -280,6 +388,23 @@ class JobRegistry:
         finally:
             if not coro_started and hasattr(coro, "close"):
                 coro.close()
+            if semaphore_task is not None:
+                if not semaphore_task.done():
+                    semaphore_task.cancel()
+                await asyncio.gather(semaphore_task, return_exceptions=True)
+                if (
+                    not acquired
+                    and not semaphore_task.cancelled()
+                    and semaphore_task.exception() is None
+                ):
+                    # Cancellation can arrive after acquire() consumed a slot
+                    # but before the wrapper recorded it.
+                    acquired = True
+            if heartbeat_task is not None:
+                heartbeat_task.cancel()
+                await asyncio.gather(heartbeat_task, return_exceptions=True)
+            elif not acquired and hasattr(wait_heartbeat, "close"):
+                wait_heartbeat.close()
 
             if acquired:
                 self._semaphore.release()
@@ -340,6 +465,13 @@ class JobRegistry:
         inner_coro = getattr(task, "_wu_inner_coro", None)
         if task.done() and inner_coro is not None and hasattr(inner_coro, "close"):
             inner_coro.close()
+        wait_heartbeat = getattr(task, "_wu_wait_heartbeat", None)
+        if (
+            task.done()
+            and wait_heartbeat is not None
+            and hasattr(wait_heartbeat, "close")
+        ):
+            wait_heartbeat.close()
 
         # A task cancelled before ``_run_with_cleanup`` gets its first event
         # loop turn never executes that coroutine's ``finally`` block. Remove

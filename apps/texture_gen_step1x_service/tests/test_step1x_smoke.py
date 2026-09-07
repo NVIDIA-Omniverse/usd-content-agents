@@ -69,6 +69,31 @@ def test_smoke_require_orm_accepts_full_pbr_response(
     assert smoke.main() == 0
 
 
+def test_smoke_require_orm_rejects_inconsistent_normal_uris(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    request_path = tmp_path / "request.json"
+    request_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        sys, "argv", ["smoke.py", "--request", str(request_path), "--require-orm"]
+    )
+    monkeypatch.setattr(smoke, "_get_json", lambda _url: {"ready": True})
+    monkeypatch.setattr(smoke, "_artifact_visible", lambda _uri: True)
+
+    generated_only = _completed_status(include_orm=True)
+    generated_only["result"]["generated_textures"]["normal"] = "file:///tmp/normal.png"
+    monkeypatch.setattr(
+        smoke, "_request_json", lambda *_args, **_kwargs: generated_only
+    )
+    assert smoke.main() == 10
+
+    map_only = _completed_status(include_orm=True)
+    map_only["result"]["maps"]["normal"] = {"uri": "file:///tmp/normal.png"}
+    monkeypatch.setattr(smoke, "_request_json", lambda *_args, **_kwargs: map_only)
+    assert smoke.main() == 10
+
+
 def test_smoke_require_orm_rejects_degraded_orm_response(
     tmp_path: Path,
     monkeypatch,
@@ -241,6 +266,11 @@ def test_smoke_rejects_missing_degradation_diagnostics(
 
     status = _completed_status(include_orm=False)
     status["result"]["metadata"]["degraded_channels"].remove("normal")
+    monkeypatch.setattr(smoke, "_request_json", lambda *_args, **_kwargs: status)
+    assert smoke.main() == 18
+
+    status = _completed_status(include_orm=False)
+    status["result"]["generated_textures"]["normal"] = "file:///tmp/normal.png"
     monkeypatch.setattr(smoke, "_request_json", lambda *_args, **_kwargs: status)
     assert smoke.main() == 10
 

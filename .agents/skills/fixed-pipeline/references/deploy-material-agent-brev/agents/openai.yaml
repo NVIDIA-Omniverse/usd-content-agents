@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixed Pipeline: Deploy Material Agent Brev"
+  short_description: "Fixed pipeline: Run the hybrid Brev material-agent deployment."
+  default_prompt: "Use $fixed-pipeline to deploy or smoke-test Material Agent with Brev-hosted OVRTX rendering and a Qwen VLM endpoint."

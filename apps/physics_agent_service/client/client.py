@@ -19,9 +19,15 @@ import requests
 logger = logging.getLogger(__name__)
 
 RouteFamily = Literal["pipeline", "predict", "tune", "refine"]
-_VALID_ROUTE_FAMILIES = {"pipeline", "predict", "tune", "refine"}
+_VALID_ROUTE_FAMILIES = {
+    "pipeline",
+    "predict",
+    "tune",
+    "refine",
+}
 _MIN_VISUAL_FRAME_COUNT = 1
 _MAX_VISUAL_FRAME_COUNT = 64
+_DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS = 600.0
 
 
 def _bool_form(value: bool) -> str:
@@ -130,6 +136,8 @@ class PhysicsAgentClient:
         self._http.headers.update({"User-Agent": "physics-agent-client/2.0"})
         if self._token:
             self._http.headers.update({"Authorization": f"Bearer {self._token}"})
+        if version_id := os.getenv("NVCF_INVOKE_VERSION_ID"):
+            self._http.headers.update({"Function-Version-Id": version_id})
 
     def _session_url(self, family: str, session_id: str, suffix: str) -> str:
         family = _validate_family(family)
@@ -339,10 +347,7 @@ class PhysicsAgentClient:
         scenario_yaml_path: str | None = None,
         user_prompt: str | None = None,
         reference_images: Iterable[str] | None = None,
-        reference_videos: Iterable[str] | None = None,
         reference_descriptions: Iterable[str] | None = None,
-        reference_video_descriptions: Iterable[str] | None = None,
-        reference_video_frames: int = 8,
         judge_reference_frames: int = 8,
         judge_generated_frames: int = 16,
         optimizer: str = "auto",
@@ -381,10 +386,6 @@ class PhysicsAgentClient:
         if not scenario_payload and not prompt_payload:
             raise ValueError("Either scenario_yaml or user_prompt must be provided")
 
-        reference_video_frames = _validate_visual_frame_count(
-            "reference_video_frames",
-            reference_video_frames,
-        )
         judge_reference_frames = _validate_visual_frame_count(
             "judge_reference_frames",
             judge_reference_frames,
@@ -402,7 +403,6 @@ class PhysicsAgentClient:
             "seed": str(seed),
             "enable_judge": _bool_form(enable_judge),
             "judge_max_iterations": str(judge_max_iterations),
-            "reference_video_frames": str(reference_video_frames),
             "judge_reference_frames": str(judge_reference_frames),
             "judge_generated_frames": str(judge_generated_frames),
         }
@@ -421,9 +421,6 @@ class PhysicsAgentClient:
         descriptions = _json_array_arg(reference_descriptions)
         if descriptions is not None:
             data["reference_descriptions"] = descriptions
-        video_descriptions = _json_array_arg(reference_video_descriptions)
-        if video_descriptions is not None:
-            data["reference_video_descriptions"] = video_descriptions
 
         with ExitStack() as stack:
             files: list[tuple[str, tuple[str, object, str]]] = []
@@ -447,15 +444,6 @@ class PhysicsAgentClient:
                         (os.path.basename(path), f, "application/octet-stream"),
                     )
                 )
-            for path in reference_videos or ():
-                f = stack.enter_context(open(path, "rb"))
-                files.append(
-                    (
-                        "reference_videos",
-                        (os.path.basename(path), f, "application/octet-stream"),
-                    )
-                )
-
             response = self._http.post(
                 url,
                 data=data,
@@ -475,10 +463,7 @@ class PhysicsAgentClient:
         scenario_yaml_path: str | None = None,
         user_prompt: str,
         reference_images: Iterable[str] | None = None,
-        reference_videos: Iterable[str] | None = None,
         reference_descriptions: Iterable[str] | None = None,
-        reference_video_descriptions: Iterable[str] | None = None,
-        reference_video_frames: int = 8,
         judge_reference_frames: int = 8,
         judge_generated_frames: int = 16,
         optimizer: str = "botorch",
@@ -490,6 +475,9 @@ class PhysicsAgentClient:
         judge_max_tokens: int | None = None,
         judge_temperature: float | None = None,
         visual_evidence_enabled: bool = True,
+        visual_evidence_timeout_seconds: float = (
+            _DEFAULT_VISUAL_EVIDENCE_TIMEOUT_SECONDS
+        ),
         llm_timeout_seconds: float = 180.0,
     ) -> str:
         """
@@ -515,11 +503,12 @@ class PhysicsAgentClient:
             raise ValueError("scenario_yaml is required for refine")
         if not user_prompt.strip():
             raise ValueError("user_prompt is required for refine")
+        if engine == "fake" and visual_evidence_enabled:
+            raise ValueError(
+                "engine='fake' does not produce recording_usd required for visual "
+                "evidence; set visual_evidence_enabled=False"
+            )
 
-        reference_video_frames = _validate_visual_frame_count(
-            "reference_video_frames",
-            reference_video_frames,
-        )
         judge_reference_frames = _validate_visual_frame_count(
             "judge_reference_frames",
             judge_reference_frames,
@@ -540,8 +529,8 @@ class PhysicsAgentClient:
             "score_threshold": str(score_threshold),
             "seed": str(seed),
             "visual_evidence_enabled": _bool_form(visual_evidence_enabled),
+            "visual_evidence_timeout_seconds": str(visual_evidence_timeout_seconds),
             "llm_timeout_seconds": str(llm_timeout_seconds),
-            "reference_video_frames": str(reference_video_frames),
             "judge_reference_frames": str(judge_reference_frames),
             "judge_generated_frames": str(judge_generated_frames),
         }
@@ -556,9 +545,6 @@ class PhysicsAgentClient:
         descriptions = _json_array_arg(reference_descriptions)
         if descriptions is not None:
             data["reference_descriptions"] = descriptions
-        video_descriptions = _json_array_arg(reference_video_descriptions)
-        if video_descriptions is not None:
-            data["reference_video_descriptions"] = video_descriptions
 
         with ExitStack() as stack:
             files: list[tuple[str, tuple[str, object, str]]] = []
@@ -579,14 +565,6 @@ class PhysicsAgentClient:
                 files.append(
                     (
                         "reference_images",
-                        (os.path.basename(path), f, "application/octet-stream"),
-                    )
-                )
-            for path in reference_videos or ():
-                f = stack.enter_context(open(path, "rb"))
-                files.append(
-                    (
-                        "reference_videos",
                         (os.path.basename(path), f, "application/octet-stream"),
                     )
                 )

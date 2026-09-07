@@ -58,6 +58,7 @@ from world_understanding.agentic.cli import (
     normalize_cli_step_filters,
     sever_cli_exception_graph,
 )
+from world_understanding.agentic.cli.console import EncodingSafeTextIO
 from world_understanding.agentic.config import (
     API_KEY_ENV_VAR_MAP,
     is_local_base_url,
@@ -65,6 +66,9 @@ from world_understanding.agentic.config import (
     is_placeholder_api_key,
 )
 from world_understanding.agentic.events import get_listener
+from world_understanding.functions.models.token_limits import (
+    resolve_reasoning_effort_for_backend,
+)
 
 # Import telemetry initialization functions
 from world_understanding.telemetry import (
@@ -110,7 +114,24 @@ app = typer.Typer(
     # may render a traceback, but never its frame locals.
     pretty_exceptions_show_locals=False,
 )
-console = Console()
+console = Console(file=EncodingSafeTextIO(lambda: sys.stdout))
+_LOGGER = logging.getLogger(__name__)
+
+
+def _console_symbol(
+    symbol: str,
+    ascii_fallback: str,
+    *,
+    encoding: str | None = None,
+) -> str:
+    """Return ``symbol`` only when the active console can encode it."""
+
+    output_encoding = encoding or getattr(console, "encoding", None) or "utf-8"
+    try:
+        symbol.encode(output_encoding)
+    except (LookupError, UnicodeEncodeError):
+        return ascii_fallback
+    return symbol
 
 
 def _get_cli_user_email() -> str | None:
@@ -121,8 +142,10 @@ def _get_cli_user_email() -> str | None:
 
 _ENV_OVERRIDE_VLM_BACKEND = "MA_VLM_BACKEND"
 _ENV_OVERRIDE_VLM_MODEL = "MA_VLM_MODEL"
+_ENV_OVERRIDE_VLM_REASONING_EFFORT = "MA_VLM_REASONING_EFFORT"
 _ENV_OVERRIDE_LLM_BACKEND = "MA_LLM_BACKEND"
 _ENV_OVERRIDE_LLM_MODEL = "MA_LLM_MODEL"
+_ENV_OVERRIDE_LLM_REASONING_EFFORT = "MA_LLM_REASONING_EFFORT"
 
 _MODEL_BACKEND_ENV_VARS = API_KEY_ENV_VAR_MAP
 _LOCAL_NIM_CREDENTIAL_HINTS = ("MA_NIM_API_KEY", "api_key: not-used")
@@ -799,8 +822,10 @@ def _maybe_apply_backend_env_overrides(
     for env_var, field in (
         (_ENV_OVERRIDE_VLM_BACKEND, ("vlm", "backend")),
         (_ENV_OVERRIDE_VLM_MODEL, ("vlm", "model")),
+        (_ENV_OVERRIDE_VLM_REASONING_EFFORT, ("vlm", "reasoning_effort")),
         (_ENV_OVERRIDE_LLM_BACKEND, ("llm", "backend")),
         (_ENV_OVERRIDE_LLM_MODEL, ("llm", "model")),
+        (_ENV_OVERRIDE_LLM_REASONING_EFFORT, ("llm", "reasoning_effort")),
     ):
         value = os.environ.get(env_var, "").strip()
         if value:
@@ -826,7 +851,7 @@ def _maybe_apply_backend_env_overrides(
             raw["steps"] = steps
     elif not isinstance(steps, dict):
         raise ValueError("Pipeline configuration 'steps' must be a mapping")
-    for step_config in steps.values():
+    for step_name, step_config in steps.items():
         if not isinstance(step_config, dict):
             continue
         for section in ("vlm", "llm"):
@@ -834,12 +859,45 @@ def _maybe_apply_backend_env_overrides(
             if not isinstance(section_config, dict):
                 continue
             original_backend = section_config.get("backend")
-            for key in ("backend", "model"):
+            configured_reasoning_effort = section_config.get("reasoning_effort")
+            for key in ("backend", "model", "reasoning_effort"):
                 env_key = f"{section}.{key}"
                 if env_key in overrides:
                     section_config[key] = overrides[env_key]
             new_backend = section_config.get("backend")
-            if new_backend and new_backend != original_backend:
+            backend_changed = bool(new_backend and new_backend != original_backend)
+            endpoint_selected_by_env = any(
+                f"{section}.{key}" in overrides for key in ("backend", "model")
+            )
+            effort_selected_by_env = f"{section}.reasoning_effort" in overrides
+            if endpoint_selected_by_env or effort_selected_by_env:
+                explicit_effort = (
+                    overrides.get(f"{section}.reasoning_effort")
+                    if effort_selected_by_env
+                    else (None if backend_changed else configured_reasoning_effort)
+                )
+                reasoning_effort = resolve_reasoning_effort_for_backend(
+                    new_backend,
+                    section_config.get("model"),
+                    explicit=explicit_effort,
+                    interface="chat" if section == "llm" else "vlm",
+                )
+                if reasoning_effort is None:
+                    had_reasoning_effort = "reasoning_effort" in section_config
+                    section_config.pop("reasoning_effort", None)
+                    if had_reasoning_effort:
+                        _LOGGER.warning(
+                            "Removed configured %s reasoning_effort for step %s: "
+                            "the environment-selected backend/model %r/%r has "
+                            "no applicable reasoning effort.",
+                            section.upper(),
+                            step_name,
+                            new_backend,
+                            section_config.get("model"),
+                        )
+                else:
+                    section_config["reasoning_effort"] = reasoning_effort
+            if backend_changed:
                 # Backend changed via env override; previous endpoint-scoped
                 # fields belonged to the prior backend.
                 drop_stale_endpoint_credentials(section_config)
@@ -1204,11 +1262,12 @@ def benchmark(
             if metrics.score_distribution:
                 console.print("\n[cyan]Score Distribution:[/cyan]")
                 for score, count in sorted(metrics.score_distribution.items()):
-                    bar = "█" * count
+                    bar = _console_symbol("█", "#") * count
                     console.print(f"  Score {score}: {bar} ({count})")
 
             console.print(
-                "\n[bold green]✨ Benchmark completed successfully![/bold green]"
+                f"\n[bold green]{_console_symbol('✨', '*')} "
+                "Benchmark completed successfully![/bold green]"
             )
 
             # Get output paths from API result
@@ -1455,11 +1514,12 @@ def evaluate(
             if metrics.score_distribution:
                 console.print("\n[cyan]Score Distribution:[/cyan]")
                 for score, count in sorted(metrics.score_distribution.items()):
-                    bar = "█" * count
+                    bar = _console_symbol("█", "#") * count
                     console.print(f"  Score {score}: {bar} ({count})")
 
             console.print(
-                "\n[bold green]✨ Evaluation completed successfully![/bold green]"
+                f"\n[bold green]{_console_symbol('✨', '*')} "
+                "Evaluation completed successfully![/bold green]"
             )
 
             if result.evaluation_path:
@@ -1622,7 +1682,8 @@ def build_pdf_vectorstore(
 
             # Display results
             console.print(
-                "\n[bold green]✨ Vector store created successfully![/bold green]"
+                f"\n[bold green]{_console_symbol('✨', '*')} "
+                "Vector store created successfully![/bold green]"
             )
 
             # Show extraction results if available
@@ -1798,7 +1859,8 @@ def prepare_dataset(
             dataset_jsonl_path = result.dataset_jsonl_path
 
             console.print(
-                "\n[bold green]✨ Dataset preparation completed![/bold green]"
+                f"\n[bold green]{_console_symbol('✨', '*')} "
+                "Dataset preparation completed![/bold green]"
             )
             console.print(f"  • Dataset entries: {len(dataset_entries)}")
             console.print(f"  • Failed models: {len(failed_models)}")
@@ -2020,7 +2082,11 @@ def usd(
         table.add_column("Output Directory", style="dim")
 
         for usd_name, result in results.items():
-            status = "✓ Success" if result["status"] == "success" else "✗ Failed"
+            status = (
+                f"{_console_symbol('✓', 'OK')} Success"
+                if result["status"] == "success"
+                else f"{_console_symbol('✗', 'X')} Failed"
+            )
             status_style = "green" if result["status"] == "success" else "red"
 
             prims = str(redact_sensitive_config(result.get("num_prims", "N/A")))
@@ -2042,21 +2108,24 @@ def usd(
         if failed_builds == 0:
             console.print(
                 Panel.fit(
-                    "[bold green]✓[/bold green] All datasets built successfully!",
+                    f"[bold green]{_console_symbol('✓', 'OK')}[/bold green] "
+                    "All datasets built successfully!",
                     border_style="green",
                 )
             )
         elif successful_builds > 0:
             console.print(
                 Panel.fit(
-                    f"[bold yellow]⚠[/bold yellow] Completed with {failed_builds} failures",
+                    f"[bold yellow]{_console_symbol('⚠', '!')}[/bold yellow] "
+                    f"Completed with {failed_builds} failures",
                     border_style="yellow",
                 )
             )
         else:
             console.print(
                 Panel.fit(
-                    "[bold red]✗[/bold red] All builds failed",
+                    f"[bold red]{_console_symbol('✗', 'X')}[/bold red] "
+                    "All builds failed",
                     border_style="red",
                 )
             )
@@ -2113,7 +2182,8 @@ def usd(
 
             console.print(
                 Panel.fit(
-                    "[bold green]✓[/bold green] Dataset build completed successfully!",
+                    f"[bold green]{_console_symbol('✓', 'OK')}[/bold green] "
+                    "Dataset build completed successfully!",
                     border_style="green",
                 )
             )
@@ -2233,7 +2303,10 @@ def _legacy_apply(
     try:
         logger.info("Creating config-driven apply workflow...")
         workflow = create_apply_workflow_from_config()
-        console.print("[green]✓ Config-driven apply workflow created[/green]")
+        console.print(
+            f"[green]{_console_symbol('✓', 'OK')} "
+            "Config-driven apply workflow created[/green]"
+        )
     except Exception:
         _report_cli_operation_failure(logger, "Unable to create apply workflow")
         raise typer.Exit(1) from None
@@ -2271,7 +2344,8 @@ def _legacy_apply(
             rendering_skipped = result.get("rendering_skipped", True)
 
             output_message = (
-                f"\n[bold green]✨ Material application complete![/bold green]\n"
+                f"\n[bold green]{_console_symbol('✨', '*')} "
+                "Material application complete![/bold green]\n"
                 f"  • Unique materials found: {len(unique_materials)}\n"
                 f"  • Materials matched via USD Search: {len(matched_materials)}\n"
                 f"  • Materials applied to USD: {len(materials_applied)}\n"
@@ -2807,13 +2881,13 @@ def run(
                         continue
 
                 if skip_steps and step in skip_steps:
-                    status = "⊘ Skipped"
+                    status = f"{_console_symbol('⊘', '-')} Skipped"
                     style_name = "dim"
                 elif only_steps and step not in only_steps:
-                    status = "⊘ Excluded"
+                    status = f"{_console_symbol('⊘', '-')} Excluded"
                     style_name = "dim"
                 else:
-                    status = "→ Will Run"
+                    status = f"{_console_symbol('→', '>')} Will Run"
                     style_name = "green"
 
                 enabled = "Yes" if step_config.get("enabled", True) else "No"
@@ -2825,7 +2899,10 @@ def run(
                 )
 
             console.print(table)
-            console.print("\n[bold green]✓ Dry run complete[/bold green]")
+            console.print(
+                f"\n[bold green]{_console_symbol('✓', 'OK')} "
+                "Dry run complete[/bold green]"
+            )
             logger.info("Dry run completed successfully")
             return
 
@@ -2905,7 +2982,9 @@ def run(
                     console.print("  • <redacted>")
                 else:
                     for step_name, step_output in safe_step_results.items():
-                        console.print(f"[green]✓[/green] {step_name}")
+                        console.print(
+                            f"[green]{_console_symbol('✓', 'OK')}[/green] {step_name}"
+                        )
                         if isinstance(step_output, dict):
                             for key, value in step_output.items():
                                 if value is not None:
@@ -3004,7 +3083,8 @@ def pipeline(
     """
     # Print deprecation warning
     console.print(
-        "[yellow]⚠ Warning:[/yellow] The 'pipeline' command is deprecated and will be removed in a future version."
+        f"[yellow]{_console_symbol('⚠', '!')} Warning:[/yellow] The 'pipeline' "
+        "command is deprecated and will be removed in a future version."
     )
     console.print(
         "[yellow]           Please use 'material-agent run' instead.[/yellow]\n"
@@ -3130,7 +3210,10 @@ def configure(
 
         # Check if configuration was created successfully
         if result.success:
-            console.print("\n[bold green]✓ Configuration file created!")
+            console.print(
+                f"\n[bold green]{_console_symbol('✓', 'OK')} "
+                "Configuration file created!"
+            )
             safe_result_config_path = redact_sensitive_path(result.config_path)
             console.print(
                 f"\n[cyan]Configuration saved to:[/cyan] {safe_result_config_path}"
@@ -3200,6 +3283,120 @@ def configure(
         raise typer.Exit(1) from None
 
 
+@app.command("refine-material")
+@sever_cli_exception_graph
+def refine_material_command(
+    config: Annotated[
+        Path,
+        typer.Argument(help="Path to material refinement YAML configuration"),
+    ],
+    output_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--output-dir", "-o", help="Override the configured output directory"
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose output (DEBUG logging)"),
+    ] = False,
+    log_file: Annotated[
+        Path | None,
+        typer.Option("--log-file", help="Path to log file"),
+    ] = None,
+    log_level: Annotated[
+        str,
+        typer.Option(
+            "--log-level",
+            help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        ),
+    ] = "INFO",
+) -> None:
+    """Run the legacy rendered-refinement compatibility controller."""
+
+    logger = setup_logging(verbose=verbose, log_file=log_file, log_level=log_level)
+    from material_agent.api import MaterialRefinementInput, run_material_refinement_api
+
+    result = run_material_refinement_api(
+        MaterialRefinementInput(config=config, output_dir_override=output_dir)
+    )
+    if not result.success:
+        _report_cli_operation_failure(
+            logger, result.error or "Material refinement failed"
+        )
+        raise typer.Exit(1)
+    console.print(
+        "[green]Material refinement completed[/green] "
+        f"(approved={result.approved}, trials={result.trial_count})"
+    )
+    if result.best_material_dir is not None:
+        console.print(
+            "[cyan]Material package:[/cyan] "
+            f"{redact_sensitive_path(result.best_material_dir)}"
+        )
+    if result.summary_path is not None:
+        console.print(
+            f"[cyan]Evidence:[/cyan] {redact_sensitive_path(result.summary_path)}"
+        )
+
+
+@app.command("optimize-variations")
+@sever_cli_exception_graph
+def optimize_variations_command(
+    config: Annotated[
+        Path,
+        typer.Argument(help="Path to material variation YAML configuration"),
+    ],
+    output_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--output-dir", "-o", help="Override the configured output directory"
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose output (DEBUG logging)"),
+    ] = False,
+    log_file: Annotated[
+        Path | None,
+        typer.Option("--log-file", help="Path to log file"),
+    ] = None,
+    log_level: Annotated[
+        str,
+        typer.Option(
+            "--log-level",
+            help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        ),
+    ] = "INFO",
+) -> None:
+    """Run the legacy judged-variation compatibility controller."""
+
+    logger = setup_logging(verbose=verbose, log_file=log_file, log_level=log_level)
+    from material_agent.api import MaterialRefinementInput, run_material_variations_api
+
+    result = run_material_variations_api(
+        MaterialRefinementInput(config=config, output_dir_override=output_dir)
+    )
+    if not result.success:
+        _report_cli_operation_failure(
+            logger, result.error or "Material variation failed"
+        )
+        raise typer.Exit(1)
+    console.print(
+        "[green]Material variations completed[/green] "
+        f"(selected={result.selected_count})"
+    )
+    if result.material_library_path is not None:
+        console.print(
+            "[cyan]Material library:[/cyan] "
+            f"{redact_sensitive_path(result.material_library_path)}"
+        )
+    if result.manifest_path is not None:
+        console.print(
+            f"[cyan]Evidence:[/cyan] {redact_sensitive_path(result.manifest_path)}"
+        )
+
+
 @app.command("generate-manifest")
 @sever_cli_exception_graph
 def generate_manifest(
@@ -3254,7 +3451,7 @@ def generate_manifest(
     vlm_model: Annotated[
         str | None,
         typer.Option("--vlm-model", help="VLM model name"),
-    ] = "google/gemma-4-31b-it",
+    ] = "moonshotai/kimi-k3",
     vlm_workers: Annotated[
         int,
         typer.Option("--vlm-workers", help="Number of parallel VLM workers"),

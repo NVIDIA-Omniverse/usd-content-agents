@@ -68,7 +68,12 @@ class EventBus:
         """Get current in-memory state snapshot for a session."""
         return self._state.get(session_id)
 
-    async def seed_pending_session(self, session_id: str) -> None:
+    async def seed_pending_session(
+        self,
+        session_id: str,
+        *,
+        execution_id: str | None = None,
+    ) -> None:
         """Seed a lightweight local status snapshot for an accepted pipeline.
 
         This avoids backing-store access so same-instance status polling can
@@ -80,6 +85,7 @@ class EventBus:
             existing = self._state.get(session_id)
             self._state[session_id] = {
                 "session_id": session_id,
+                "execution_id": execution_id,
                 "status": "pending",
                 "created_at": existing.get("created_at", timestamp)
                 if existing

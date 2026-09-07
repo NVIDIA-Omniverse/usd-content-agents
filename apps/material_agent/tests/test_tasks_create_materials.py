@@ -24,6 +24,10 @@ from pxr import Sdf  # noqa: E402
 
 import material_agent.tasks.create_materials as create_materials_task  # noqa: E402
 import material_agent.tasks.unified_pipeline_executor as upe  # noqa: E402
+from material_agent.material_library_generation.authoring import (  # noqa: E402
+    MaterialAuthoringRequest,
+    author_material_package,
+)
 from material_agent.material_library_generation.conditioning import (  # noqa: E402
     OVRTX_CONDITIONING_SCHEMA_VERSION,
     REAL_SEED_MATERIAL_SCHEMA_VERSION,
@@ -38,8 +42,18 @@ from material_agent.material_library_generation.creation_contract import (  # no
 from material_agent.material_library_generation.fake_backend import (  # noqa: E402
     FakeMaterialCreationBackend as RealFakeMaterialCreationBackend,
 )
+from material_agent.material_library_generation.schema import (  # noqa: E402
+    MaterialRecipe,
+    PBRHints,
+)
+from material_agent.material_library_generation.source_graph import (  # noqa: E402
+    inspect_material_graph,
+)
 from material_agent.materials import FALLBACK_MATERIAL_NAME  # noqa: E402
 from material_agent.tasks.create_materials import CreateMaterialsTask  # noqa: E402
+from material_agent.tasks.material_creation_policy import (  # noqa: E402
+    plan_material_actions,
+)
 from material_agent.tasks.unified_pipeline_executor import (  # noqa: E402
     UnifiedPipelineExecutorTask,
 )
@@ -92,6 +106,290 @@ def test_create_materials_fake_backend_registers_and_assigns(
     )
     assert status_manifest["statuses"][0]["status"] == "created"
     assert status_manifest["statuses"][0]["cache_hit"] is False
+
+
+@pytest.mark.parametrize(
+    ("request_key", "explicit_operation"),
+    (
+        ("modification_requests", False),
+        ("authoring_requests", True),
+    ),
+)
+def test_author_materials_modifies_existing_package_and_reassigns_prediction(
+    tmp_path: Path,
+    request_key: str,
+    explicit_operation: bool,
+) -> None:
+    source_recipe = MaterialRecipe(
+        id="source_coating",
+        name="Source Coating",
+        description="The supplied scalar source coating.",
+        appearance_prompt="cool blue satin coating",
+        base_color_hint=(0.1, 0.2, 0.6),
+        pbr_hints=PBRHints(roughness=0.3, metallic=0.0),
+    )
+    source_package = author_material_package(
+        MaterialAuthoringRequest(
+            operation="create",
+            recipe=source_recipe,
+            material_profile="preview_surface",
+        ),
+        tmp_path / "source_material",
+    )
+    predictions_path = _write_predictions(tmp_path / "predictions.jsonl")
+    target_recipe = MaterialRecipe(
+        id="rough_source_coating",
+        name="Rough Source Coating",
+        description="A rougher version of the supplied coating.",
+        appearance_prompt="rough cool blue coating",
+        base_color_hint=(0.08, 0.18, 0.55),
+        pbr_hints=PBRHints(roughness=0.75, metallic=0.0),
+    )
+
+    request_spec = {
+        "source_material_usd": str(source_package.material_usd_path),
+        "source_material_prim_path": source_recipe.binding,
+        "target_prim_paths": ["/World/Asset/Housing"],
+        "recipe": target_recipe.to_dict(),
+    }
+    if explicit_operation:
+        request_spec["operation"] = "modify"
+    result = CreateMaterialsTask().run(
+        {
+            "predictions_path": str(predictions_path),
+            "output_dir": str(tmp_path / "authored"),
+            request_key: [request_spec],
+        }
+    )
+
+    assert result["created_material_count"] == 0
+    assert result["modified_material_count"] == 1
+    assert result["authored_material_count"] == 1
+    assert Path(result["created_material_library_path"]).is_file()
+    assert result["created_material_entries"][0]["source"] == "modified"
+    predictions = _read_jsonl(Path(result["predictions_path"]))
+    assert predictions[0]["materials"]["material"] == "Rough Source Coating"
+    assert predictions[0]["materials"]["creation_action"] == "modify_existing"
+    assert predictions[0]["material_creation"]["action"] == "modify_existing"
+
+
+def test_fixed_policy_modification_intent_executes_without_translation(
+    tmp_path: Path,
+) -> None:
+    source_recipe = MaterialRecipe(
+        id="policy_source",
+        name="Policy Source",
+        description="The exact source selected by fixed policy.",
+        appearance_prompt="smooth blue coating",
+        base_color_hint=(0.08, 0.18, 0.48),
+        pbr_hints=PBRHints(roughness=0.3, metallic=0.0),
+    )
+    source_package = author_material_package(
+        MaterialAuthoringRequest(
+            operation="create",
+            recipe=source_recipe,
+            material_profile="preview_surface",
+        ),
+        tmp_path / "source_material",
+    )
+    plan = plan_material_actions(
+        [
+            {
+                "id": "/World/Asset/Panel",
+                "materials": {
+                    "material": "Policy Refined Coating",
+                    "action": "modify_existing",
+                    "description": "A rougher version of the selected source.",
+                    "appearance_prompt": "rough blue coating",
+                    "base_color_hint": [0.06, 0.16, 0.44],
+                    "pbr_hints": {"roughness": 0.7, "metallic": 0.0},
+                },
+            }
+        ],
+        matched_materials={
+            "Policy Refined Coating": [{"source_path": source_recipe.binding}]
+        },
+        material_sources={
+            "Policy Refined Coating": {
+                "source_material_usd": str(source_package.material_usd_path),
+                "source_material_prim_path": source_recipe.binding,
+            }
+        },
+    )
+
+    assert plan.conflicts == ()
+    result = CreateMaterialsTask().run(
+        {
+            "output_dir": str(tmp_path / "authored"),
+            "modification_requests": [plan.modification_intents[0].to_dict()],
+        }
+    )
+
+    assert result["modified_material_count"] == 1
+    assert result["created_material_entries"][0]["source"] == "modified"
+
+
+def test_author_materials_creates_standalone_textured_package_without_asset_usd(
+    tmp_path: Path,
+) -> None:
+    texture_dir = tmp_path / "inputs"
+    texture_dir.mkdir()
+    albedo = texture_dir / "albedo.jpg"
+    normal = texture_dir / "normal.png"
+    orm = texture_dir / "orm.png"
+    Image.new("RGB", (8, 8), (44, 88, 150)).save(albedo)
+    Image.new("RGB", (8, 8), (128, 128, 255)).save(normal)
+    Image.new("RGB", (8, 8), (255, 140, 0)).save(orm)
+    recipe = MaterialRecipe(
+        id="standalone_blue_fabric",
+        name="Standalone Blue Fabric",
+        description="A portable textured material without an asset dependency.",
+        appearance_prompt="woven blue fabric",
+        base_color_hint=(0.17, 0.35, 0.59),
+        pbr_hints=PBRHints(roughness=0.55, metallic=0.0),
+    )
+
+    result = CreateMaterialsTask().run(
+        {
+            "output_dir": str(tmp_path / "authored"),
+            "material_profile": "preview_surface",
+            "backend": None,
+            "authoring_requests": [
+                {
+                    "operation": "create",
+                    "recipe": recipe.to_dict(),
+                    "textures": {
+                        "albedo": str(albedo),
+                        "normal": str(normal),
+                        "orm": str(orm),
+                    },
+                }
+            ],
+        }
+    )
+
+    assert result["created_material_count"] == 1
+    assert result["generated_material_count"] == 0
+    assert result["directly_authored_material_count"] == 1
+    assert result["modified_material_count"] == 0
+    assert result["assignment_count"] == 0
+    package_usd = Path(result["created_material_library_path"])
+    material = inspect_material_graph(package_usd, recipe.binding)
+    assert material.representation == "textured_pbr"
+    assert material.textures is not None
+    assert material.textures.albedo.suffix == ".png"
+    assert all(
+        path.is_relative_to(package_usd.parent)
+        for path in (
+            material.textures.albedo,
+            material.textures.normal,
+            material.textures.orm,
+        )
+    )
+
+
+def test_author_materials_normalizes_relative_inputs_and_assigns_prediction(
+    tmp_path: Path,
+) -> None:
+    texture_dir = tmp_path / "inputs"
+    texture_dir.mkdir()
+    for name, color in (
+        ("albedo.png", (44, 88, 150)),
+        ("normal.png", (128, 128, 255)),
+        ("orm.png", (255, 140, 0)),
+    ):
+        Image.new("RGB", (8, 8), color).save(texture_dir / name)
+    predictions_path = tmp_path / "predictions.jsonl"
+    predictions_path.write_text(
+        "\n".join(
+            (
+                json.dumps({"id": "/World/Asset/Other", "materials": {}}),
+                json.dumps(
+                    {
+                        "id": "/World/Asset/Housing",
+                        "materials": "legacy-placeholder",
+                    }
+                ),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    request = {
+        "operation": "create",
+        "target_prim_paths": "/World/Asset/Housing",
+        "recipe": _creation_request()["recipe"],
+        "textures": {
+            "albedo": "inputs/albedo.png",
+            "normal": "inputs/normal.png",
+            "orm": "inputs/orm.png",
+        },
+    }
+
+    result = CreateMaterialsTask().run(
+        {
+            "_config_dir": tmp_path,
+            "predictions_path": str(predictions_path),
+            "output_dir": str(tmp_path / "authored"),
+            "authoring_requests": [request, dict(request)],
+            "material_profile": "preview_surface",
+        }
+    )
+
+    assert result["directly_authored_material_count"] == 1
+    assert result["assignment_count"] == 1
+    assert len(result["statuses"]) == 1
+    predictions = _read_jsonl(Path(result["predictions_path"]))
+    assert predictions[0]["materials"] == {}
+    assert predictions[1]["materials"]["material"] == "Satin Blue Plastic"
+    assert predictions[1]["materials"]["creation_action"] == "create_new"
+
+
+def test_author_materials_records_existing_package_conflict_when_fail_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recipe = MaterialRecipe(
+        id="conflicting_package",
+        name="Conflicting Package",
+        description="A request whose destination already exists.",
+        appearance_prompt="rough blue coating",
+    )
+    expected_request_id = MaterialAuthoringRequest(
+        operation="create",
+        recipe=recipe,
+        material_profile="preview_surface",
+    ).request_id
+    monkeypatch.setattr(
+        create_materials_task,
+        "author_material_package",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            FileExistsError("package already exists")
+        ),
+    )
+
+    result = CreateMaterialsTask().run(
+        {
+            "output_dir": str(tmp_path / "authored"),
+            "material_profile": "preview_surface",
+            "backend": None,
+            "fail_on_error": False,
+            "authoring_requests": [{"operation": "create", "recipe": recipe.to_dict()}],
+        }
+    )
+
+    assert result["authored_material_count"] == 0
+    assert result["statuses"] == [
+        {
+            "status": "error",
+            "operation": "create",
+            "request_id": expected_request_id,
+            "recipe": "Conflicting Package",
+            "code": "material_authoring_failed",
+            "message": "package already exists",
+            "diagnostics": [],
+        }
+    ]
 
 
 def test_create_materials_step1x_dispatches_to_non_fake_backend(

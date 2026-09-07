@@ -1,0 +1,58 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "GTC26 OBJ to USD Converter"
+    }
+    defaultPrim = "vial"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "vial"
+{
+    def Scope "Materials"
+    {
+        def Material "tn__Surface__Matte001_hPY0" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/tn__Surface__Matte001_hPY0>
+        )
+        {
+        }
+
+        def Material "tn__Plastic__Matte_Green001_jUk0o2o0" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/tn__Plastic__Matte_Green001_jUk0o2o0>
+        )
+        {
+        }
+
+        def Material "tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1" (
+            prepend references = @./MaterialsLibrary.usda@</Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1>
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "tn__Vial_Surface__Matte001_uW0i0" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </vial/Materials/tn__Surface__Matte001_hPY0>
+        }
+
+        over "tn__Vial_Plastic__Matte_Green001_Xb0u0i3y0" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </vial/Materials/tn__Plastic__Matte_Green001_jUk0o2o0>
+        }
+
+        over "tn__Vial_Plastic__Translucent_Glossy_Gray001_zq0n1z4r1" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </vial/Materials/tn__Plastic__Translucent_Glossy_Gray001_gk0d1a4h1>
+        }
+    }
+}

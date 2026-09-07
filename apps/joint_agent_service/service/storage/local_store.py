@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import fcntl
 import json
 import logging
-import os
 from pathlib import Path
 from typing import IO
 
@@ -14,6 +12,7 @@ from world_understanding.utils.artifacts import (
     ArtifactPathError,
     append_bytes_to_confined,
     confined_artifact_exists,
+    confined_directory_identity,
     copy_open_file_to_confined,
     delete_confined_file,
     is_pipeline_temp_path,
@@ -35,13 +34,16 @@ from world_understanding.utils.durable_diagnostics import (
     FailurePhase,
     log_durable_failure,
 )
+from world_understanding.utils.file_locking import (
+    blocking_exclusive_descriptor_lock,
+)
 from world_understanding.utils.session_paths import (
     confined_session_path,
     confined_storage_child_path,
     is_safe_session_id,
 )
 
-from .base import SessionStore
+from .base import SessionStoragePathError, SessionStore
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +70,16 @@ class LocalSessionStore(SessionStore):
 
     async def init_session(self, session_id: str) -> None:
         self._session_dir(session_id)
-        with open_confined_directory(self.root, create=True) as root_descriptor:
-            with open_confined_directory_at(
-                root_descriptor,
-                session_id,
-                create=True,
-            ):
-                pass
+        try:
+            with open_confined_directory(self.root, create=True) as root_descriptor:
+                with open_confined_directory_at(
+                    root_descriptor,
+                    session_id,
+                    create=True,
+                ):
+                    pass
+        except ArtifactPathError as exc:
+            raise SessionStoragePathError("Session storage root is unsafe") from exc
 
     async def delete_session(self, session_id: str) -> None:
         for attempt in range(3):
@@ -173,8 +178,7 @@ class LocalSessionStore(SessionStore):
                 session_descriptor,
                 lock_key,
             ) as lock_descriptor:
-                fcntl.flock(lock_descriptor, fcntl.LOCK_EX)
-                try:
+                with blocking_exclusive_descriptor_lock(lock_descriptor):
                     try:
                         with open_confined_regular_file(
                             session_descriptor,
@@ -198,8 +202,6 @@ class LocalSessionStore(SessionStore):
                         file_mode=0o600,
                     )
                     return True
-                finally:
-                    fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
 
     async def put_file(
         self, session_id: str, key: str, file_path: str, content_type: str | None = None
@@ -362,12 +364,9 @@ class LocalSessionStore(SessionStore):
                     destination_dir,
                     create=True,
                 ) as destination_descriptor:
-                    source_identity = os.fstat(source_descriptor)
-                    destination_identity = os.fstat(destination_descriptor)
-                    if (
-                        source_identity.st_dev == destination_identity.st_dev
-                        and source_identity.st_ino == destination_identity.st_ino
-                    ):
+                    if confined_directory_identity(
+                        source_descriptor
+                    ) == confined_directory_identity(destination_descriptor):
                         return 0
                     count = 0
                     source_relative_keys: set[str] = set()

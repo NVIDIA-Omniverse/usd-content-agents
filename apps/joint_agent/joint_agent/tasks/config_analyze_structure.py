@@ -34,6 +34,7 @@ class AnalyzeStructureConfigTask(Task):
         - segment_names: Optional list of segment names
         - use_prompt_library: Whether known robot prompt-library data may be used
         - robot_id: Optional explicit prompt-library robot ID
+        - articulation_intended: Whether whole-asset articulation is required
         - vlm_config: LLM/VLM configuration dict (for ModelProvisioningTask)
     """
 
@@ -61,6 +62,9 @@ class AnalyzeStructureConfigTask(Task):
         use_prompt_library = config.get("use_prompt_library", False)
         if not isinstance(use_prompt_library, bool):
             raise ValueError("use_prompt_library must be a boolean")
+        articulation_intended = config.get("articulation_intended", False)
+        if not isinstance(articulation_intended, bool):
+            raise ValueError("articulation_intended must be a boolean")
         robot_id = config.get("robot_id")
         vlm_config = config.get("vlm", config.get("llm", {}))
 
@@ -86,6 +90,7 @@ class AnalyzeStructureConfigTask(Task):
                 "strategy": strategy,
                 "segment_names": segment_names,
                 "use_prompt_library": use_prompt_library,
+                "articulation_intended": articulation_intended,
                 "robot_id": robot_id,
                 "asset_type": config.get("asset_type"),
                 "asset_subtype": config.get("asset_subtype"),

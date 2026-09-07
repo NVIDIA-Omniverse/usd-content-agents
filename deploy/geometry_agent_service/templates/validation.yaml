@@ -1,0 +1,100 @@
+{{- if and .Values.existingApiKeySecretName .Values.apiKey -}}
+{{- fail "geometry-agent-service: set only one of existingApiKeySecretName or apiKey" -}}
+{{- end -}}
+{{- if not (or .Values.existingApiKeySecretName .Values.apiKey) -}}
+{{- fail "geometry-agent-service: existingApiKeySecretName or apiKey is required" -}}
+{{- end -}}
+{{- if not .Values.image.repository -}}
+{{- fail "geometry-agent-service: image.repository is required" -}}
+{{- end -}}
+{{- if and (gt (int .Values.replicaCount) 1) (ne .Values.workspace.kind "pvc") -}}
+{{- fail "geometry-agent-service: replicaCount greater than 1 requires a shared pvc workspace" -}}
+{{- end -}}
+{{- if and (gt (int .Values.replicaCount) 1) (not .Values.workspace.existingClaim) -}}
+{{- fail "geometry-agent-service: replicaCount greater than 1 requires an existing shared pvc claim" -}}
+{{- end -}}
+{{- if eq .Values.workspace.kind "pvc" -}}
+{{- if and .Values.workspace.existingClaim .Values.workspace.storageClassName -}}
+{{- fail "geometry-agent-service: existingClaim and storageClassName are mutually exclusive" -}}
+{{- end -}}
+{{- else if ne .Values.workspace.kind "emptyDir" -}}
+{{- fail "geometry-agent-service: workspace.kind must be emptyDir or pvc" -}}
+{{- end -}}
+{{- if not (or (eq .Values.render.backend "ovrtx") (eq .Values.render.backend "remote")) -}}
+{{- fail "geometry-agent-service: render.backend must be ovrtx or remote" -}}
+{{- end -}}
+{{- if not (or (eq .Values.runtime.defaultEngine "none") (eq .Values.runtime.defaultEngine "fake") (eq .Values.runtime.defaultEngine "ovphysx")) -}}
+{{- fail "geometry-agent-service: runtime.defaultEngine must be none, fake, or ovphysx" -}}
+{{- end -}}
+{{- if eq .Values.render.backend "remote" -}}
+{{- if not .Values.render.remoteBaseUrl -}}
+{{- fail "geometry-agent-service: render.remoteBaseUrl is required for remote rendering" -}}
+{{- end -}}
+{{- if not (or .Values.render.existingApiKeySecretName .Values.render.allowUnauthenticatedIdentity) -}}
+{{- fail "geometry-agent-service: render.existingApiKeySecretName is required for remote rendering unless render.allowUnauthenticatedIdentity is enabled" -}}
+{{- end -}}
+{{- else if or .Values.render.remoteBaseUrl .Values.render.existingApiKeySecretName .Values.render.allowUnauthenticatedIdentity -}}
+{{- fail "geometry-agent-service: remote render settings require render.backend=remote" -}}
+{{- end -}}
+{{- if .Values.delegatedAuthoring.enabled -}}
+{{- if not .Values.delegatedAuthoring.providerId -}}
+{{- fail "geometry-agent-service: delegatedAuthoring.providerId is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.delegatedAuthoring.endpointUrl -}}
+{{- fail "geometry-agent-service: delegatedAuthoring.endpointUrl is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.delegatedAuthoring.rightsAssertion -}}
+{{- fail "geometry-agent-service: delegatedAuthoring.rightsAssertion is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.delegatedAuthoring.existingTokenSecretName -}}
+{{- fail "geometry-agent-service: delegatedAuthoring.existingTokenSecretName is required when enabled" -}}
+{{- end -}}
+{{- end -}}
+{{- if .Values.build123d.enabled -}}
+{{- if not .Values.build123d.endpointUrl -}}
+{{- fail "geometry-agent-service: build123d.endpointUrl is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.build123d.rightsAssertion -}}
+{{- fail "geometry-agent-service: build123d.rightsAssertion is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.build123d.existingTokenSecretName -}}
+{{- fail "geometry-agent-service: build123d.existingTokenSecretName is required when enabled" -}}
+{{- end -}}
+{{- end -}}
+{{- if .Values.forgecadAuthoring.enabled -}}
+{{- if not .Values.forgecadAuthoring.endpointUrl -}}
+{{- fail "geometry-agent-service: forgecadAuthoring.endpointUrl is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.forgecadAuthoring.rightsAssertion -}}
+{{- fail "geometry-agent-service: forgecadAuthoring.rightsAssertion is required when enabled" -}}
+{{- end -}}
+{{- if not .Values.forgecadAuthoring.automatedUseAuthorized -}}
+{{- fail "geometry-agent-service: forgecadAuthoring requires explicit automated-use authorization" -}}
+{{- end -}}
+{{- if not .Values.forgecadAuthoring.existingTokenSecretName -}}
+{{- fail "geometry-agent-service: forgecadAuthoring.existingTokenSecretName is required when enabled" -}}
+{{- end -}}
+{{- if not (or .Values.forgecadAuthoring.supportsText .Values.forgecadAuthoring.supportsImage) -}}
+{{- fail "geometry-agent-service: ForgeCAD authoring must support text or image input" -}}
+{{- end -}}
+{{- if and .Values.forgecadAuthoring.supportsParameterDefinitions (not .Values.forgecadAuthoring.supportsSemanticParameters) -}}
+{{- fail "geometry-agent-service: ForgeCAD parameter definitions require semantic parameters" -}}
+{{- end -}}
+{{- if and (gt (int .Values.forgecadAuthoring.maxFamilyVariants) 0) (not (and .Values.forgecadAuthoring.supportsRevision .Values.forgecadAuthoring.supportsParameterDefinitions)) -}}
+{{- fail "geometry-agent-service: ForgeCAD families require revision and parameter definitions" -}}
+{{- end -}}
+{{- if gt (float64 .Values.forgecadAuthoring.connectTimeoutSeconds) (float64 .Values.forgecadAuthoring.readTimeoutSeconds) -}}
+{{- fail "geometry-agent-service: ForgeCAD connect timeout must not exceed read timeout" -}}
+{{- end -}}
+{{- if gt (float64 .Values.forgecadAuthoring.readTimeoutSeconds) 900.0 -}}
+{{- fail "geometry-agent-service: ForgeCAD read timeout must not exceed 900 seconds" -}}
+{{- end -}}
+{{- end -}}
+{{- if .Values.ingress.enabled -}}
+{{- if not .Values.ingress.host -}}
+{{- fail "geometry-agent-service: ingress.host is required when ingress is enabled" -}}
+{{- end -}}
+{{- if not .Values.ingress.tlsSecretName -}}
+{{- fail "geometry-agent-service: ingress.tlsSecretName is required for external HTTPS" -}}
+{{- end -}}
+{{- end -}}

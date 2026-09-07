@@ -55,6 +55,22 @@ _USD_BUILD_FAILURE_MESSAGE = "USD dataset building failed"
 _RIGGED_REFERENCE_FAILURE_MESSAGE = "Rigged-reference validation failed"
 
 
+def _console_symbol(
+    symbol: str,
+    ascii_fallback: str,
+    *,
+    encoding: str | None = None,
+) -> str:
+    """Return ``symbol`` only when the active console can encode it."""
+
+    output_encoding = encoding or getattr(console, "encoding", None) or "utf-8"
+    try:
+        symbol.encode(output_encoding)
+    except (LookupError, UnicodeEncodeError):
+        return ascii_fallback
+    return symbol
+
+
 class _PipelineConfigShapeError(ValueError):
     """Raised for fixed, credential-safe CLI configuration diagnostics."""
 
@@ -357,12 +373,16 @@ def prepare_dataset(
             dataset_jsonl_path = result.dataset_jsonl_path
 
             console.print(
-                "\n[bold green]✨ Dataset preparation completed![/bold green]"
+                "\n[bold green]"
+                f"{_console_symbol('✨', '*')} Dataset preparation completed!"
+                "[/bold green]"
             )
-            console.print(f"  • Dataset entries: {len(dataset_entries)}")
-            console.print(f"  • Failed entries: {len(failed_models)}")
+            bullet = _console_symbol("•", "-")
+            console.print(f"  {bullet} Dataset entries: {len(dataset_entries)}")
+            console.print(f"  {bullet} Failed entries: {len(failed_models)}")
             console.print(
-                f"  • Dataset saved to: {redact_sensitive_path(dataset_jsonl_path)}"
+                f"  {bullet} Dataset saved to: "
+                f"{redact_sensitive_path(dataset_jsonl_path)}"
             )
 
             if failed_models:
@@ -578,7 +598,11 @@ def usd(
         table.add_column("Output Directory", style="dim")
 
         for usd_name, result in results.items():
-            status = "✓ Success" if result["status"] == "success" else "✗ Failed"
+            status = (
+                f"{_console_symbol('✓', 'OK')} Success"
+                if result["status"] == "success"
+                else f"{_console_symbol('✗', 'X')} Failed"
+            )
             status_style = "green" if result["status"] == "success" else "red"
 
             prims = str(result.get("num_prims", "N/A"))
@@ -600,21 +624,26 @@ def usd(
         if failed_builds == 0:
             console.print(
                 Panel.fit(
-                    "[bold green]✓[/bold green] All datasets built successfully!",
+                    "[bold green]"
+                    f"{_console_symbol('✓', 'OK')}[/bold green] "
+                    "All datasets built successfully!",
                     border_style="green",
                 )
             )
         elif successful_builds > 0:
             console.print(
                 Panel.fit(
-                    f"[bold yellow]⚠[/bold yellow] Completed with {failed_builds} failures",
+                    "[bold yellow]"
+                    f"{_console_symbol('⚠', '!')}[/bold yellow] "
+                    f"Completed with {failed_builds} failures",
                     border_style="yellow",
                 )
             )
         else:
             console.print(
                 Panel.fit(
-                    "[bold red]✗[/bold red] All builds failed",
+                    "[bold red]"
+                    f"{_console_symbol('✗', 'X')}[/bold red] All builds failed",
                     border_style="red",
                 )
             )
@@ -660,7 +689,9 @@ def usd(
 
             console.print(
                 Panel.fit(
-                    "[bold green]✓[/bold green] Dataset build completed successfully!",
+                    "[bold green]"
+                    f"{_console_symbol('✓', 'OK')}[/bold green] "
+                    "Dataset build completed successfully!",
                     border_style="green",
                 )
             )
@@ -913,13 +944,13 @@ def run(
                             continue
 
                     if skip_steps and step in skip_steps:
-                        status = "⊘ Skipped"
+                        status = f"{_console_symbol('⊘', '-')} Skipped"
                         style_name = "dim"
                     elif only_steps and step not in only_steps:
-                        status = "⊘ Excluded"
+                        status = f"{_console_symbol('⊘', '-')} Excluded"
                         style_name = "dim"
                     else:
-                        status = "→ Will Run"
+                        status = f"{_console_symbol('→', '>')} Will Run"
                         style_name = "green"
 
                     enabled = "Yes" if step_config.get("enabled", True) else "No"
@@ -931,7 +962,10 @@ def run(
                     )
 
                 console.print(table)
-                console.print("\n[bold green]✓ Dry run complete[/bold green]")
+                console.print(
+                    "\n[bold green]"
+                    f"{_console_symbol('✓', 'OK')} Dry run complete[/bold green]"
+                )
                 logger.info("Dry run completed successfully")
                 return
 
@@ -989,11 +1023,13 @@ def run(
                         projected_results if isinstance(projected_results, dict) else {}
                     )
                     for step_name, step_output in safe_results.items():
-                        console.print(f"[green]✓[/green] {step_name}")
+                        success = _console_symbol("✓", "OK")
+                        console.print(f"[green]{success}[/green] {step_name}")
                         if isinstance(step_output, dict):
+                            bullet = _console_symbol("•", "-")
                             for key, value in step_output.items():
                                 if value is not None:
-                                    console.print(f"  • {key}: {value}")
+                                    console.print(f"  {bullet} {key}: {value}")
 
                 logger.info("Pipeline completed successfully")
             else:
@@ -1093,8 +1129,10 @@ def pipeline(
     This is an alias for the 'run' command and will be removed in a future version.
     """
     # Print deprecation warning
+    warning = _console_symbol("⚠", "!")
     console.print(
-        "[yellow]⚠ Warning:[/yellow] The 'pipeline' command is deprecated and will be removed in a future version."
+        f"[yellow]{warning} Warning:[/yellow] The 'pipeline' command is "
+        "deprecated and will be removed in a future version."
     )
     console.print("[yellow]           Please use 'joint-agent run' instead.[/yellow]\n")
 

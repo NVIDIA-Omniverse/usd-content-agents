@@ -14,6 +14,7 @@ import binascii
 import io
 import ipaddress
 import logging
+import math
 import os
 import re
 import socket
@@ -21,6 +22,7 @@ import tempfile
 import threading
 import time
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -38,6 +40,19 @@ from world_understanding.utils.archive import (
     copy_stream_limited,
 )
 from world_understanding.utils.image_blankness import analyze_image_blankness
+from world_understanding.utils.s3_utils import assert_s3_bucket_allowed
+from world_understanding.utils.usd.asset_paths import (
+    collect_layer_authored_asset_paths as _layer_authored_asset_paths,
+)
+from world_understanding.utils.usd.asset_paths import (
+    is_absolute_asset_path,
+    is_bare_mdl_asset_path,
+    is_relative_to,
+    is_uri_asset_path,
+    require_authored_dependency_file,
+    resolve_layer_udim_asset_paths,
+)
+from world_understanding.utils.usd.package import safe_usdz_member_parts
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +60,7 @@ logger = logging.getLogger(__name__)
 # bundling in world_understanding.functions.graphics.render_remote, which
 # packages a .usda root plus MDL/texture assets when the scene references
 # local files.
-_USD_EXTENSIONS = (".usd", ".usda", ".usdc")
+_USD_EXTENSIONS = (".usd", ".usda", ".usdc", ".usdz")
 
 # Denial-of-service guards for untrusted ZIP bundles. The default keeps
 # generic public-facing deployments conservative; internal large-scene
@@ -53,6 +68,9 @@ _USD_EXTENSIONS = (".usd", ".usda", ".usdc")
 _ZIP_MAX_FILES = 10_000
 _ZIP_DEFAULT_MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB
 _ZIP_MAX_UNCOMPRESSED_BYTES_ENV = "OVRTX_ZIP_MAX_UNCOMPRESSED_BYTES"
+_HTTP_DEFAULT_MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB
+_HTTP_MAX_DOWNLOAD_BYTES_ENV = "OVRTX_HTTP_MAX_DOWNLOAD_BYTES"
+_S3_ALLOWED_BUCKETS_ENV = "OVRTX_S3_ALLOWED_BUCKETS"
 
 # Regex for S3 HTTPS URLs:
 #   https://bucket.s3.region.amazonaws.com/key
@@ -89,6 +107,7 @@ _RECOVERABLE_RENDER_ERROR_SNIPPETS = (
     "OvRTX daemon unexpected response",
 )
 _RECOVERY_FAILURE_COOLDOWN_SECONDS = 5.0
+_INCOMPLETE_RENDER_ERROR_CODE = "incomplete_render_output"
 _AWS_METADATA_IPV4 = str(ipaddress.ip_address(0xA9FEA9FE))
 _BLOCKED_URL_HOSTS = frozenset(
     {
@@ -104,6 +123,28 @@ _LEGACY_IPV4_PART_MAX_VALUES = {
     3: (0xFF, 0xFF, 0xFFFF),
     4: _IPV4_PART_MAX_VALUES,
 }
+
+
+class IncompleteRenderOutputError(RuntimeError):
+    """Raised when OVRTX omits a requested camera/frame color output."""
+
+    def __init__(
+        self,
+        *,
+        requested_output_count: int,
+        output_count: int,
+        missing_camera_count: int,
+    ) -> None:
+        self.requested_output_count = requested_output_count
+        self.output_count = output_count
+        self.missing_output_count = requested_output_count - output_count
+        self.missing_camera_count = missing_camera_count
+        super().__init__(
+            "OVRTX returned incomplete color output coverage: "
+            f"{output_count}/{requested_output_count} requested outputs present "
+            f"(missing={self.missing_output_count}, "
+            f"affected_cameras={missing_camera_count})"
+        )
 
 
 def _parse_zip_max_uncompressed_bytes(raw_value: str | None) -> int:
@@ -122,8 +163,27 @@ def _parse_zip_max_uncompressed_bytes(raw_value: str | None) -> int:
     return value
 
 
+def _parse_http_max_download_bytes(raw_value: str | None) -> int:
+    if raw_value is None or raw_value == "":
+        return _HTTP_DEFAULT_MAX_DOWNLOAD_BYTES
+
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(
+            f"{_HTTP_MAX_DOWNLOAD_BYTES_ENV} must be an integer number of bytes"
+        ) from exc
+
+    if value <= 0:
+        raise ValueError(f"{_HTTP_MAX_DOWNLOAD_BYTES_ENV} must be greater than zero")
+    return value
+
+
 _ZIP_MAX_UNCOMPRESSED_BYTES = _parse_zip_max_uncompressed_bytes(
     os.environ.get(_ZIP_MAX_UNCOMPRESSED_BYTES_ENV)
+)
+_HTTP_MAX_DOWNLOAD_BYTES = _parse_http_max_download_bytes(
+    os.environ.get(_HTTP_MAX_DOWNLOAD_BYTES_ENV)
 )
 
 
@@ -226,8 +286,15 @@ class Renderer:
             except Exception:
                 logger.exception("OVRTX warm-up render failed; GPU not initialized")
                 return False
-            if not result.get("results"):
-                logger.error("OVRTX warm-up render returned no results: %s", result)
+            try:
+                _validate_backend_response_coverage(
+                    result,
+                    camera_paths=["/World/Camera"],
+                    frame_start=0,
+                    frame_end=0,
+                )
+            except IncompleteRenderOutputError as exc:
+                logger.error("OVRTX warm-up render returned no color output: %s", exc)
                 return False
             self._initialized = True
             logger.info("OVRTX renderer warmed up — GPU is ready")
@@ -323,9 +390,11 @@ class Renderer:
         num_sensor_updates: int | None,
         render_mode: str | None,
         material_target: str | None,
+        frame_start: int,
+        frame_end: int,
     ) -> dict[str, Any]:
-        try:
-            return self._render_backend_once(
+        def render_once() -> dict[str, Any]:
+            result = self._render_backend_once(
                 stage=stage,
                 base_dir=base_dir,
                 camera_paths=camera_paths,
@@ -337,6 +406,20 @@ class Renderer:
                 render_mode=render_mode,
                 material_target=material_target,
             )
+            _validate_backend_response_coverage(
+                result,
+                camera_paths=camera_paths,
+                frame_start=frame_start,
+                frame_end=frame_end,
+            )
+            return result
+
+        return self._call_with_recovery(render_once)
+
+    def _call_with_recovery(self, render_once: Callable[[], Any]) -> Any:
+        """Run one render and retry once after a recoverable daemon failure."""
+        try:
+            return render_once()
         except Exception as exc:
             if not _is_recoverable_render_error(exc):
                 raise
@@ -346,20 +429,12 @@ class Renderer:
                 exc_info=True,
             )
             if not self.recover(force=True):
+                if isinstance(exc, IncompleteRenderOutputError):
+                    raise
                 raise RuntimeError("OVRTX daemon recovery failed") from exc
 
-        return self._render_backend_once(
-            stage=stage,
-            base_dir=base_dir,
-            camera_paths=camera_paths,
-            width=width,
-            height=height,
-            frames=frames,
-            ovrtx_sensors=ovrtx_sensors,
-            num_sensor_updates=num_sensor_updates,
-            render_mode=render_mode,
-            material_target=material_target,
-        )
+        # Reached only when the forced recovery above completed successfully.
+        return render_once()
 
     def render(
         self,
@@ -437,6 +512,10 @@ class Renderer:
                     prefer_first_usd=_is_usdz_payload(url, usd_path),
                 )
 
+            _validate_usd_asset_paths_confined(
+                usd_path,
+                intake_root=Path(tmp_dir),
+            )
             stage = Usd.Stage.Open(usd_path)
             if not stage:
                 return _error_response(f"Failed to open USD stage from: {url}")
@@ -475,6 +554,8 @@ class Renderer:
                     ovrtx_sensors=ovrtx_sensors,
                     render_mode=render_mode,
                     material_target=material_target,
+                    frame_start=frame_start,
+                    frame_end=frame_end,
                 )
                 render_elapsed = time.time() - render_start
                 logger.info(
@@ -491,11 +572,91 @@ class Renderer:
             # Convert to V1 response format
             return _to_v1_response(result, sensors or [], ovrtx_sensors, frame_start)
 
+        except IncompleteRenderOutputError as exc:
+            logger.error("Render failed after incomplete-output recovery: %s", exc)
+            return _retryable_incomplete_render_response(exc)
         except Exception as e:
             logger.exception("Render failed")
             return _error_response(str(e))
         finally:
             # Clean up temp files
+            import shutil
+
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def render_protocol_v3_upload(
+        self,
+        *,
+        usdz_bytes: bytes,
+        camera_paths: list[str],
+        width: int,
+        height: int,
+        mode: str,
+        frames: list[float] | None = None,
+        camera_defs: list[Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Render a protocol-v3 multipart USDZ without changing the legacy API.
+
+        The legacy ``POST /render`` path remains URL based and returns its V1
+        envelope. This method is the isolated adapter for package-owned usd-cli:
+        it opens the uploaded package under the existing intake confinement,
+        restores tool-authored cameras from their exact typed definitions, and
+        returns the protocol-v3 result list.
+        """
+        from pxr import Usd
+
+        tmp_dir = tempfile.mkdtemp(prefix="render_api_v3_")
+        package_path = Path(tmp_dir) / "scene_bundle.usdz"
+        package_path.write_bytes(usdz_bytes)
+        try:
+            if not zipfile.is_zipfile(package_path):
+                raise ValueError("protocol-v3 upload is not a valid USDZ package")
+            usd_path = _extract_zip_bundle(
+                str(package_path),
+                tmp_dir,
+                prefer_first_usd=True,
+            )
+            _validate_usd_asset_paths_confined(
+                usd_path,
+                intake_root=Path(tmp_dir),
+            )
+            stage = Usd.Stage.Open(usd_path)
+            if not stage:
+                raise ValueError("could not open the uploaded USDZ package")
+            _apply_protocol_v3_camera_defs(stage, camera_defs or [])
+
+            requested_frames = [
+                float(frame) for frame in (frames if frames is not None else [0.0])
+            ]
+            frame_spec = ",".join(str(frame) for frame in requested_frames)
+            configured_mode = getattr(self._backend, "render_mode", None)
+            requested_mode = None
+            if not configured_mode:
+                requested_mode = "rt1" if mode == "fast" else "rt2"
+
+            def render_once() -> list[dict[str, Any]]:
+                result = self._render_backend_once(
+                    stage=stage,
+                    base_dir=Path(usd_path).parent,
+                    camera_paths=camera_paths,
+                    width=width,
+                    height=height,
+                    frames=frame_spec,
+                    ovrtx_sensors=[],
+                    num_sensor_updates=None,
+                    render_mode=requested_mode,
+                    material_target=None,
+                )
+                return _to_protocol_v3_results(
+                    result,
+                    camera_paths=camera_paths,
+                    requested_frames=requested_frames,
+                    include_frame=frames is not None,
+                )
+
+            with self._render_lock:
+                return self._call_with_recovery(render_once)
+        finally:
             import shutil
 
             shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -536,12 +697,181 @@ def _build_smoke_stage() -> Any:
     return stage
 
 
+def _apply_protocol_v3_camera_defs(stage: Any, camera_defs: list[Any]) -> None:
+    """Restore exact tool-authored cameras stripped from a protocol-v3 bundle."""
+    if not camera_defs:
+        return
+    import math
+
+    from pxr import Gf, Sdf, UsdGeom
+
+    for raw in camera_defs:
+        spec = raw.model_dump() if hasattr(raw, "model_dump") else dict(raw)
+        path = str(spec.get("path", ""))
+        if not Sdf.Path.IsValidPathString(path):
+            raise ValueError(f"camera_defs: invalid camera prim path {path!r}")
+        sdf_path = Sdf.Path(path)
+        if not sdf_path.IsAbsolutePath() or not sdf_path.IsPrimPath():
+            raise ValueError(f"camera_defs: invalid camera prim path {path!r}")
+        existing_prim = stage.GetPrimAtPath(sdf_path)
+        if existing_prim and existing_prim.IsInstanceProxy():
+            raise ValueError(
+                "camera_defs: camera prim path resolves inside an immutable "
+                f"instance proxy: {path!r}"
+            )
+        if existing_prim and existing_prim.IsInstanceable():
+            existing_prim.SetInstanceable(False)
+        camera = UsdGeom.Camera.Define(stage, sdf_path)
+        if spec.get("focal_length") is not None:
+            camera.CreateFocalLengthAttr(float(spec["focal_length"]))
+        if spec.get("horizontal_aperture") is not None:
+            camera.CreateHorizontalApertureAttr(float(spec["horizontal_aperture"]))
+        if spec.get("vertical_aperture") is not None:
+            camera.CreateVerticalApertureAttr(float(spec["vertical_aperture"]))
+        clipping_range = spec.get("clipping_range")
+        if clipping_range is not None:
+            camera.CreateClippingRangeAttr(
+                Gf.Vec2f(float(clipping_range[0]), float(clipping_range[1]))
+            )
+        if spec.get("projection"):
+            camera.CreateProjectionAttr(str(spec["projection"]))
+        raw_matrix = spec.get("matrix")
+        if not isinstance(raw_matrix, list | tuple) or len(raw_matrix) != 16:
+            raise ValueError(f"camera_defs: matrix for {path!r} must hold 16 values")
+        try:
+            matrix = [float(value) for value in raw_matrix]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"camera_defs: non-numeric matrix for {path!r}") from exc
+        if not all(math.isfinite(value) for value in matrix):
+            raise ValueError(f"camera_defs: non-finite matrix for {path!r}")
+        xform = UsdGeom.Xformable(camera.GetPrim())
+        xform.ClearXformOpOrder()
+        xform.AddTransformOp().Set(Gf.Matrix4d(*matrix))
+        xform.SetResetXformStack(True)
+
+
+def _to_protocol_v3_results(
+    result: dict[str, Any],
+    *,
+    camera_paths: list[str],
+    requested_frames: list[float],
+    include_frame: bool,
+) -> list[dict[str, Any]]:
+    """Convert native OVRTX camera images to the exact usd-cli result envelope."""
+    camera_results = result.get("results", []) if isinstance(result, dict) else []
+    if not isinstance(camera_results, list):
+        raise IncompleteRenderOutputError(
+            requested_output_count=len(camera_paths) * len(requested_frames),
+            output_count=0,
+            missing_camera_count=len(camera_paths),
+        )
+
+    by_camera: dict[str, dict[str, Any]] = {}
+    for camera_result in camera_results:
+        if not isinstance(camera_result, dict):
+            continue
+        camera = camera_result.get("camera")
+        if isinstance(camera, str) and camera not in by_camera:
+            by_camera[camera] = camera_result
+
+    selected: list[tuple[str, dict[str, Any], list[Any]]] = []
+    missing_cameras = 0
+    for camera in camera_paths:
+        camera_result = by_camera.get(camera)
+        images = camera_result.get("images", []) if camera_result else []
+        if not isinstance(images, list) or len(images) != len(requested_frames):
+            missing_cameras += 1
+            continue
+        selected.append((camera, camera_result, images))
+
+    settings = _executed_ovrtx_settings(
+        {"results": [camera_result for _, camera_result, _ in selected]}
+    )
+    if selected and settings is None:
+        raise RuntimeError(
+            "OVRTX result is missing exact mode, sensor-update, or AOV metadata, "
+            "or cameras disagree on those settings"
+        )
+
+    items: list[dict[str, Any]] = []
+    if settings is not None:
+        for camera, _camera_result, images in selected:
+            for index, image in enumerate(images):
+                if not isinstance(image, Image.Image):
+                    continue
+                buffer = io.BytesIO()
+                image.save(buffer, format="PNG")
+                item: dict[str, Any] = {
+                    "camera": camera,
+                    "image_base64": base64.b64encode(buffer.getvalue()).decode("ascii"),
+                    **settings,
+                }
+                if include_frame:
+                    item["frame"] = float(requested_frames[index])
+                items.append(item)
+
+    expected = len(camera_paths) * len(requested_frames)
+    if len(items) != expected:
+        raise IncompleteRenderOutputError(
+            requested_output_count=expected,
+            output_count=len(items),
+            missing_camera_count=max(missing_cameras, 1),
+        )
+    return items
+
+
 def _is_recoverable_render_error(exc: Exception) -> bool:
     """Return True for daemon/process failures worth one restart + retry."""
-    if isinstance(exc, TimeoutError):
+    if isinstance(exc, TimeoutError | IncompleteRenderOutputError):
         return True
     message = str(exc)
     return any(snippet in message for snippet in _RECOVERABLE_RENDER_ERROR_SNIPPETS)
+
+
+def _validate_backend_response_coverage(
+    result: dict[str, Any],
+    *,
+    camera_paths: list[str],
+    frame_start: int,
+    frame_end: int,
+) -> None:
+    """Require one non-empty color image for every requested camera and frame."""
+    requested_frames = set(range(frame_start, frame_end + 1))
+    requested_outputs = {
+        (camera_path, frame)
+        for camera_path in camera_paths
+        for frame in requested_frames
+    }
+    observed_outputs: set[tuple[str, int]] = set()
+
+    raw_results = result.get("results", []) if isinstance(result, dict) else []
+    if isinstance(raw_results, list):
+        for camera_result in raw_results:
+            if not isinstance(camera_result, dict):
+                continue
+            camera = camera_result.get("camera")
+            images = camera_result.get("images", [])
+            if not isinstance(camera, str) or not isinstance(images, list):
+                continue
+            image_frames = _image_frames_for_response(
+                camera_result,
+                len(images),
+                frame_start,
+            )
+            for image, frame in zip(images, image_frames, strict=True):
+                if isinstance(image, Image.Image):
+                    observed_outputs.add((camera, frame))
+
+    covered_outputs = requested_outputs & observed_outputs
+    if len(covered_outputs) == len(requested_outputs):
+        return
+
+    missing_outputs = requested_outputs - covered_outputs
+    raise IncompleteRenderOutputError(
+        requested_output_count=len(requested_outputs),
+        output_count=len(covered_outputs),
+        missing_camera_count=len({camera for camera, _frame in missing_outputs}),
+    )
 
 
 def _parse_legacy_ipv4_part(part: str) -> int | None:
@@ -753,12 +1083,32 @@ def _safe_requests_get(url: str, *, timeout: float, allow_redirects: bool):
     # preflight plus connected-peer validation before response bytes flow.
     # Mount both schemes because user-supplied HTTP URLs are allowed only after
     # SSRF preflight and connected-peer blocking.
-    with requests.Session() as session:
+    session = requests.Session()
+    try:
         session.trust_env = False
         adapter = _PrivateAddressBlockingAdapter()
         session.mount(_url_for_hint("http", ""), adapter)
         session.mount(_url_for_hint("https", ""), adapter)
-        return session.get(url, timeout=timeout, allow_redirects=allow_redirects)
+        response = session.get(
+            url,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            stream=True,
+        )
+    except Exception:
+        session.close()
+        raise
+    response._wu_session = session
+    return response
+
+
+def _close_http_response(response: Any) -> None:
+    try:
+        response.close()
+    finally:
+        session = getattr(response, "_wu_session", None)
+        if session is not None:
+            session.close()
 
 
 def _safe_http_get(url: str, *, timeout: float):
@@ -775,7 +1125,7 @@ def _safe_http_get(url: str, *, timeout: float):
             return resp
 
         location = resp.headers.get("Location")
-        resp.close()
+        _close_http_response(resp)
         if not location:
             raise ValueError(f"HTTP redirect missing Location header: {current_url}")
         next_url = urljoin(current_url, location)
@@ -784,6 +1134,39 @@ def _safe_http_get(url: str, *, timeout: float):
         current_url = next_url
 
     raise ValueError(f"Too many redirects while fetching USD: {url[:80]}")
+
+
+def _write_http_response_limited(response: Any, dest_path: str) -> None:
+    max_bytes = _HTTP_MAX_DOWNLOAD_BYTES
+    content_length = response.headers.get("Content-Length")
+    if content_length:
+        try:
+            declared_bytes = int(content_length)
+        except ValueError:
+            declared_bytes = -1
+        if declared_bytes > max_bytes:
+            raise ValueError(
+                "HTTP USD download is too large: "
+                f"{declared_bytes} bytes (limit {max_bytes})"
+            )
+
+    total_bytes = 0
+    destination = Path(dest_path)
+    try:
+        with destination.open("wb") as output:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                total_bytes += len(chunk)
+                if total_bytes > max_bytes:
+                    raise ValueError(
+                        "HTTP USD download exceeded the byte limit while streaming: "
+                        f"limit {max_bytes} bytes"
+                    )
+                output.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
 
 
 def _is_usdz_payload(url: str, zip_path: str) -> bool:
@@ -919,6 +1302,147 @@ def _extract_zip_bundle(
     return str(usd_files[0])
 
 
+def _split_usd_package_identifier(identifier: str) -> tuple[str, str | None]:
+    if "[" not in identifier and "]" not in identifier:
+        return identifier, None
+    if identifier.count("[") != 1 or not identifier.endswith("]"):
+        raise ValueError(f"invalid USD package asset path: {identifier}")
+    package_path, member = identifier[:-1].split("[", 1)
+    parts = safe_usdz_member_parts(member)
+    if not package_path or parts is None:
+        raise ValueError(f"unsafe USD package member path: {identifier}")
+    return package_path, "/".join(parts)
+
+
+def _confined_intake_identifier(identifier: str, *, intake_root: Path) -> str:
+    package_path, member = _split_usd_package_identifier(identifier)
+    if is_uri_asset_path(package_path):
+        raise ValueError(
+            f"resolver URI asset paths are not allowed in render intake: {identifier}"
+        )
+    resolved_package = Path(package_path).resolve(strict=False)
+    if not is_relative_to(resolved_package, intake_root):
+        raise ValueError(f"USD asset path escapes the render intake root: {identifier}")
+    if member is not None and resolved_package.suffix.lower() != ".usdz":
+        raise ValueError(f"USD package member does not belong to a USDZ: {identifier}")
+    return (
+        f"{resolved_package}[{member}]" if member is not None else str(resolved_package)
+    )
+
+
+def _confined_intake_asset_identifier(
+    authored_path: str,
+    *,
+    layer: Any,
+    intake_root: Path,
+) -> str:
+    from pxr import Sdf
+
+    normalized = authored_path.strip().replace("\\", "/")
+    if not normalized:
+        raise ValueError("USD asset path must not be empty")
+    if "[" in normalized or "]" in normalized:
+        raise ValueError(
+            f"nested package asset paths are not allowed in render intake: {authored_path}"
+        )
+    if is_uri_asset_path(normalized):
+        raise ValueError(
+            f"resolver URI asset paths are not allowed in render intake: {authored_path}"
+        )
+    if is_absolute_asset_path(normalized):
+        raise ValueError(
+            f"absolute asset paths are not allowed in render intake: {authored_path}"
+        )
+    try:
+        resolved = str(Sdf.ComputeAssetPathRelativeToLayer(layer, normalized))
+    except (RuntimeError, ValueError) as exc:
+        raise ValueError(
+            f"USD asset path could not be anchored to its layer: {authored_path}"
+        ) from exc
+    if not resolved:
+        raise ValueError(
+            f"USD asset path could not be anchored to its layer: {authored_path}"
+        )
+    return _confined_intake_identifier(resolved, intake_root=intake_root)
+
+
+def _usd_identifier_suffix(identifier: str) -> str:
+    package_path, member = _split_usd_package_identifier(identifier)
+    return Path(member or package_path).suffix.lower()
+
+
+def _validate_usd_asset_paths_confined(
+    usd_path: str | Path,
+    *,
+    intake_root: Path,
+) -> None:
+    from pxr import Sdf, UsdShade
+
+    resolved_root = intake_root.resolve()
+    pending = [str(Path(usd_path).resolve())]
+    inspected: set[str] = set()
+    package_members_cache: dict[Path, frozenset[str]] = {}
+    while pending:
+        identifier = _confined_intake_identifier(
+            pending.pop(), intake_root=resolved_root
+        )
+        if identifier in inspected:
+            continue
+        layer = Sdf.Layer.FindOrOpen(identifier)
+        if layer is None:
+            raise ValueError(f"Failed to inspect USD layer safely: {identifier}")
+        inspected.add(identifier)
+        all_paths, composition_paths = _layer_authored_asset_paths(layer, sdf=Sdf)
+        resolved_paths: dict[str, str] = {}
+        for authored in all_paths:
+            if is_bare_mdl_asset_path(authored):
+                resolved_paths[authored] = authored
+                continue
+            try:
+                if "<UDIM>" in authored:
+                    anchored_pattern, concrete_paths = resolve_layer_udim_asset_paths(
+                        layer,
+                        authored,
+                        usd_shade=UsdShade,
+                    )
+                    dependency = _confined_intake_identifier(
+                        anchored_pattern,
+                        intake_root=resolved_root,
+                    )
+                    concrete_dependencies = tuple(
+                        _confined_intake_identifier(
+                            concrete,
+                            intake_root=resolved_root,
+                        )
+                        for concrete in concrete_paths
+                    )
+                else:
+                    dependency = _confined_intake_asset_identifier(
+                        authored,
+                        layer=layer,
+                        intake_root=resolved_root,
+                    )
+                    concrete_dependencies = (dependency,)
+            except ValueError as exc:
+                raise ValueError(
+                    "Invalid authored USD dependency: "
+                    f"layer={layer.identifier!r}, path={authored!r}: {exc}"
+                ) from exc
+            for concrete_dependency in concrete_dependencies:
+                require_authored_dependency_file(
+                    concrete_dependency,
+                    split_identifier=_split_usd_package_identifier,
+                    layer_identifier=str(layer.identifier),
+                    authored_path=authored,
+                    package_members_cache=package_members_cache,
+                )
+            resolved_paths[authored] = dependency
+        for authored in composition_paths:
+            dependency = resolved_paths[authored]
+            if _usd_identifier_suffix(dependency) in _USD_EXTENSIONS:
+                pending.append(dependency)
+
+
 def _fetch_usd(url: str, dest_path: str) -> None:
     """Fetch USD file from URL, data URI, or S3 to a local path."""
     if url.startswith("data:"):
@@ -951,9 +1475,11 @@ def _fetch_usd(url: str, dest_path: str) -> None:
             _download_s3(s3_url, dest_path)
             return
         resp = _safe_http_get(url, timeout=300)
-        resp.raise_for_status()
-        with open(dest_path, "wb") as f:
-            f.write(resp.content)
+        try:
+            resp.raise_for_status()
+            _write_http_response_limited(resp, dest_path)
+        finally:
+            _close_http_response(resp)
         return
 
     raise ValueError(f"Unsupported URL scheme: {url[:50]}")
@@ -971,6 +1497,12 @@ def _download_s3(s3_url: str, dest_path: str) -> None:
     """Download from s3://bucket/key to a local path."""
     import boto3
     from botocore.exceptions import ClientError, ProfileNotFound
+
+    # The URL is client controlled while the AWS credentials belong to the
+    # service. Authorize the exact bucket before constructing a session or
+    # making any service-owned S3 request. Empty/unset deliberately rejects all
+    # S3 intake; data URIs and ordinary HTTP(S) URLs remain available.
+    assert_s3_bucket_allowed(s3_url, os.environ.get(_S3_ALLOWED_BUCKETS_ENV))
 
     parts = s3_url[5:].split("/", 1)
     bucket = parts[0]
@@ -1120,25 +1652,68 @@ def _to_v1_response(
         "error": None,
         "images": v1_images,
     }
+    executed_settings = _executed_ovrtx_settings(result)
+    if executed_settings is not None:
+        response.update(executed_settings)
     if warnings:
         response["warnings"] = warnings
         response["blank_render_frames"] = blank_frames
     return response
 
 
+def _executed_ovrtx_settings(result: dict[str, Any]) -> dict[str, Any] | None:
+    """Return one renderer-reported settings tuple only when every view agrees."""
+
+    camera_results = result.get("results")
+    if not isinstance(camera_results, list) or not camera_results:
+        return None
+    observed: set[tuple[str, int, str]] = set()
+    for camera_result in camera_results:
+        if not isinstance(camera_result, dict):
+            return None
+        mode = camera_result.get("ovrtx_render_mode")
+        sensor_updates = camera_result.get("ovrtx_num_sensor_updates")
+        active_aov = camera_result.get("active_aov")
+        if (
+            mode not in {"rt1", "rt2", "pt"}
+            or not isinstance(sensor_updates, int)
+            or isinstance(sensor_updates, bool)
+            or sensor_updates < 1
+            or not isinstance(active_aov, str)
+            or not active_aov.strip()
+        ):
+            return None
+        observed.add((mode, sensor_updates, active_aov.strip()))
+    if len(observed) != 1:
+        return None
+    mode, sensor_updates, active_aov = observed.pop()
+    return {
+        "ovrtx_render_mode": mode,
+        "ovrtx_num_sensor_updates": sensor_updates,
+        "active_aov": active_aov,
+    }
+
+
 def _image_frames_for_response(
     cam_result: dict[str, Any],
     image_count: int,
     frame_start: int,
-) -> list[int]:
+) -> list[int | float]:
     raw_frames = cam_result.get("image_frames", [])
     if not isinstance(raw_frames, list) or len(raw_frames) < image_count:
         return [frame_start + index for index in range(image_count)]
 
-    frame_numbers: list[int] = []
+    frame_numbers: list[int | float] = []
     for index, raw_frame in enumerate(raw_frames[:image_count]):
-        if isinstance(raw_frame, int) and raw_frame >= 0:
-            frame_numbers.append(raw_frame)
+        if (
+            isinstance(raw_frame, int | float)
+            and not isinstance(raw_frame, bool)
+            and math.isfinite(float(raw_frame))
+        ):
+            numeric_frame = float(raw_frame)
+            frame_numbers.append(
+                int(numeric_frame) if numeric_frame.is_integer() else numeric_frame
+            )
         else:
             frame_numbers.append(frame_start + index)
     return frame_numbers
@@ -1148,19 +1723,19 @@ def _blank_frames_by_frame(
     raw_frames: Any,
     *,
     default_camera: str,
-    valid_frames: set[int] | None = None,
-) -> dict[int, dict[str, Any]]:
+    valid_frames: set[int | float] | None = None,
+) -> dict[int | float, dict[str, Any]]:
     if not isinstance(raw_frames, list):
         return {}
 
-    frames: dict[int, dict[str, Any]] = {}
+    frames: dict[int | float, dict[str, Any]] = {}
     for raw_frame in raw_frames:
         blank_frame = _normalize_blank_frame(raw_frame, default_camera=default_camera)
         if blank_frame is None:
             continue
         if str(blank_frame["camera"]) != str(default_camera):
             continue
-        frame = int(blank_frame["frame"])
+        frame = blank_frame["frame"]
         if valid_frames is not None and frame not in valid_frames:
             continue
         frames[frame] = blank_frame
@@ -1176,8 +1751,16 @@ def _normalize_blank_frame(
         return None
 
     frame = raw_frame.get("frame")
-    if not isinstance(frame, int) or frame < 0:
+    if (
+        not isinstance(frame, int | float)
+        or isinstance(frame, bool)
+        or not math.isfinite(float(frame))
+    ):
         return None
+    numeric_frame = float(frame)
+    if numeric_frame < 0:
+        return None
+    frame = int(numeric_frame) if numeric_frame.is_integer() else numeric_frame
 
     camera = raw_frame.get("camera", default_camera)
     if not isinstance(camera, str):
@@ -1223,5 +1806,22 @@ def _error_response(message: str) -> dict[str, Any]:
     return {
         "status": "exception",
         "error": message,
+        "images": {},
+    }
+
+
+def _retryable_incomplete_render_response(
+    exc: IncompleteRenderOutputError,
+) -> dict[str, Any]:
+    """Build the typed error envelope used for retryable coverage failures."""
+    return {
+        "status": "exception",
+        "error": str(exc),
+        "error_code": _INCOMPLETE_RENDER_ERROR_CODE,
+        "retryable": True,
+        "requested_output_count": exc.requested_output_count,
+        "output_count": exc.output_count,
+        "missing_output_count": exc.missing_output_count,
+        "missing_camera_count": exc.missing_camera_count,
         "images": {},
     }

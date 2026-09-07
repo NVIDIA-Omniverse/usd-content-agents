@@ -1,0 +1,106 @@
+{
+  "schema": "world-understanding.sdf-native-release-lock.v1",
+  "trust_model": "Reviewed promotion records bind exact source-built intermediates and repaired wheel bytes independently of build-generated provenance.",
+  "platforms": {
+    "x86_64": {
+      "build_artifacts": {
+        "bitshuffle": [
+          {
+            "compiled_into": "lib/libblosc.a"
+          }
+        ],
+        "c-blosc": [
+          {
+            "linkage": "static",
+            "path": "lib/libblosc.a",
+            "sha256": "ec16d105560bf5cae0fea77a0ebb8a9fb8b14d7003c2cf8b06657c1195f3b9f9"
+          }
+        ],
+        "fastlz": [
+          {
+            "compiled_into": "lib/libblosc.a"
+          }
+        ],
+        "libdivsufsort-lite": [
+          {
+            "compiled_into": "lib/libblosc.a"
+          }
+        ],
+        "lz4": [
+          {
+            "compiled_into": "lib/libblosc.a"
+          }
+        ],
+        "nanobind": [
+          {
+            "linkage": "compiled_in",
+            "path": "nanobind-2.13.0-py3-none-any.whl",
+            "sha256": "262e6afb389206722fd32fab2e5e50db8c4375f7f48d53d3d6e1cd3e82fcc3b1"
+          }
+        ],
+        "onetbb": [
+          {
+            "gnu_build_id": "eb6cb687c50b4bd07024dd51bffd60eb0ef02629",
+            "linkage": "shared",
+            "path": "lib/libtbb.so.12.16",
+            "sha256": "f67c880b09533b1d87348c51f0c1abe89d97f292a87a88f6fcc96f2b279ae461",
+            "soname": "libtbb.so.12"
+          }
+        ],
+        "openexr-half": [
+          {
+            "compiled_into": "lib/libopenvdb.so.13.0.0"
+          }
+        ],
+        "zlib": [
+          {
+            "linkage": "static",
+            "path": "lib/libz.a",
+            "sha256": "5aeb66e3ef611ca4d7735e95d1940e2cffb6941b19e04034fd16a67dab6e6ee0"
+          }
+        ],
+        "zlib-ng": [
+          {
+            "compiled_into": "lib/libblosc.a"
+          }
+        ],
+        "zstandard": [
+          {
+            "compiled_into": "lib/libblosc.a"
+          }
+        ]
+      },
+      "build_recipe_sha256": "0ba207c5ce8e12c82ba854d1298b44e6d5a9bf3f0a6b0b30a486a90d987bb927",
+      "ldd_closure_sha256": "432c6b945e2c7e25ca100346f69280727ed90e69d1e42eb75cd3dfdf91d234a8",
+      "license_policy_sha256": "44ec824749679d262c94a6ab3c6c515e340d405ef802c2efea28e5558c1df42e",
+      "license_verifier_sha256": "813df352c8dfce7ef5076c782313446e5e22668b4cf0cdaf9cafa74d261a4e18",
+      "native_dependency_provenance_sha256": "0f2caf0302cbe697da9b4054d1c859e1a5a2c74cea8903fe5c1fca3ff8b1c835",
+      "prepromotion_report_sha256": "c219ddf3f592caf6846ecf1965573d7bf428bf12cc71fdc8f7cd2990f69c2ece",
+      "source_lock_sha256": "de73f6d8c34b7dc838e2754e08276021b67a101ce47bdd24d2f60a133ea312b6",
+      "status": "promoted",
+      "wheel": {
+        "filename": "openvdb-13.0.0+wu.3-cp312-cp312-manylinux_2_34_x86_64.manylinux_2_36_x86_64.whl",
+        "sha256": "840b2874dbd2f7c6628ba5a50092857ae71ad6402a3ef69c69709167e9c538b6"
+      },
+      "wheel_native_members": {
+        "openvdb.libs/libtbb-f67c880b.so.12.16": "4fdc157a31148673789f8659b31e54a901800bfd6e9343716276dd64bbf02dcf",
+        "openvdb/lib/libopenvdb.so": "18bc1adf7c09cb385cbfd64431eb7dd6863742c6256cc0fe7e2231760c7d4c78",
+        "openvdb/lib/libopenvdb.so.13.0": "18bc1adf7c09cb385cbfd64431eb7dd6863742c6256cc0fe7e2231760c7d4c78",
+        "openvdb/lib/libopenvdb.so.13.0.0": "18bc1adf7c09cb385cbfd64431eb7dd6863742c6256cc0fe7e2231760c7d4c78",
+        "openvdb/lib/openvdb.cpython-312-x86_64-linux-gnu.so": "6077fb6c0d1373c22d4679a2fe9888ec86465e6d78385bd3cce18d47e466c6b1"
+      },
+      "wheel_runtime_members": {
+        "openvdb-13.0.0+wu.3.dist-info/METADATA": "6772f30bbba6bc3d3c3e3f79f283346dc52a36efa6cd772c202c93c70a107e24",
+        "openvdb-13.0.0+wu.3.dist-info/WHEEL": "2c218947abaacce75f8400447fb778728d57da22c65af84eb53c7c185d046880",
+        "openvdb-13.0.0+wu.3.dist-info/licenses/NATIVE_DEPENDENCY_PROVENANCE.json": "0f2caf0302cbe697da9b4054d1c859e1a5a2c74cea8903fe5c1fca3ff8b1c835",
+        "openvdb.libs/libtbb-f67c880b.so.12.16": "4fdc157a31148673789f8659b31e54a901800bfd6e9343716276dd64bbf02dcf",
+        "openvdb/__init__.py": "2b6f2454f1dbf4df8f908f5c2938c0f1a054c6ba2bea7526b82e6581c199d76f",
+        "openvdb/_source_lock.json": "de73f6d8c34b7dc838e2754e08276021b67a101ce47bdd24d2f60a133ea312b6",
+        "openvdb/lib/libopenvdb.so": "18bc1adf7c09cb385cbfd64431eb7dd6863742c6256cc0fe7e2231760c7d4c78",
+        "openvdb/lib/libopenvdb.so.13.0": "18bc1adf7c09cb385cbfd64431eb7dd6863742c6256cc0fe7e2231760c7d4c78",
+        "openvdb/lib/libopenvdb.so.13.0.0": "18bc1adf7c09cb385cbfd64431eb7dd6863742c6256cc0fe7e2231760c7d4c78",
+        "openvdb/lib/openvdb.cpython-312-x86_64-linux-gnu.so": "6077fb6c0d1373c22d4679a2fe9888ec86465e6d78385bd3cce18d47e466c6b1"
+      }
+    }
+  }
+}

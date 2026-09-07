@@ -23,6 +23,22 @@ def test_public_response_sanitizer_is_outermost() -> None:
     assert middleware.kwargs["session_roots"] == (main.config.session_storage_path,)
 
 
+def test_openapi_reports_serving_nvcf_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_schema = main.app.openapi_schema
+    monkeypatch.setenv("NVCF_FUNCTION_VERSION_ID", "texture-version-under-test")
+    main.app.openapi_schema = None
+
+    try:
+        schema = main.app.openapi()
+        assert schema["info"]["x-nvcf-function-version-id"] == (
+            "texture-version-under-test"
+        )
+    finally:
+        main.app.openapi_schema = original_schema
+
+
 class _Store:
     kind = "s3"
 
@@ -185,3 +201,59 @@ async def test_lifespan_initializes_shared_state(
         assert main.pipeline_router._test_mgr is managers[0]
 
     assert tasks[0].cancelled is True
+
+
+@pytest.mark.asyncio
+async def test_health_reports_build_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deployment must be identifiable from outside the container.
+
+    ``version`` alone cannot separate two builds of the same version string,
+    which is how a stale deployment kept reporting healthy.
+    """
+    from ...service import config as config_module
+
+    monkeypatch.setattr(
+        config_module.config,
+        "build_commit_sha",
+        "8d2f41c7cf0a1b2c3d4e5f60718293a4b5c6d7e8",
+        False,
+    )
+    monkeypatch.setattr(
+        config_module.config, "build_image_tag", "0.5.1-gh-8d2f41c7", False
+    )
+    monkeypatch.setattr(
+        config_module.config, "build_timestamp", "2026-07-30T06:00:00Z", False
+    )
+
+    health = await main.health_check()
+
+    assert health["build"] == {
+        "commit_sha": "8d2f41c7cf0a1b2c3d4e5f60718293a4b5c6d7e8",
+        "image_tag": "0.5.1-gh-8d2f41c7",
+        "timestamp": "2026-07-30T06:00:00Z",
+    }
+
+
+@pytest.mark.asyncio
+async def test_health_build_provenance_is_null_when_unbaked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source checkout reports null rather than a placeholder.
+
+    The Dockerfile defaults the args to empty, so an unbaked build must not
+    surface an empty string that reads like a real value.
+    """
+    from ...service import config as config_module
+
+    for field in ("build_commit_sha", "build_image_tag", "build_timestamp"):
+        monkeypatch.setattr(config_module.config, field, "", False)
+
+    health = await main.health_check()
+
+    assert health["build"] == {
+        "commit_sha": None,
+        "image_tag": None,
+        "timestamp": None,
+    }

@@ -21,7 +21,7 @@ build-backend = "hatchling.build"
 enable = true
 vcs = "git"
 pattern = "default-unprefixed"
-fallback-version = "0.5.2"
+fallback-version = "0.6.0"
 from-file = { source = "../../VERSION.md" }
 
 [tool.hatch.version]
@@ -39,6 +39,7 @@ ignore-vcs = true
 "prompting.py" = "apps/texture_gen_service_common/prompting.py"
 "service.py" = "apps/texture_gen_service_common/service.py"
 "usd_package.py" = "apps/texture_gen_service_common/usd_package.py"
+"weathering_intent.py" = "apps/texture_gen_service_common/weathering_intent.py"
 
 [tool.ruff]
 line-length = 88

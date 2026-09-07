@@ -28,6 +28,51 @@ from world_understanding.functions.graphics.uv_generation import (
 
 uv = importlib.import_module("world_understanding.functions.graphics.uv_generation")
 
+
+def _symlink_output_case(
+    tmp_path: Path,
+    symlink_kind: str,
+) -> tuple[Path, Path]:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if symlink_kind == "leaf":
+        requested = tmp_path / "requested"
+        requested.mkdir()
+        outside_output = outside / "sentinel.usdc"
+        outside_output.write_bytes(b"outside-must-survive")
+        output = requested / "output.usdc"
+        output.symlink_to(outside_output)
+    else:
+        outside_output = outside / "output.usdc"
+        outside_output.write_bytes(b"outside-must-survive")
+        requested = tmp_path / "requested"
+        requested.symlink_to(outside, target_is_directory=True)
+        output = requested / "output.usdc"
+    return output, outside_output
+
+
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        ("", False),
+        ("RuntimeError: Failed to open /tmp/ImportError.usd", False),
+        ("Traceback...\nModuleNotFoundError: No module named 'omni'", True),
+        (
+            "/opt/so/python: error while loading shared libraries: libpython.so",
+            True,
+        ),
+        ("dyld[123]: Library not loaded: libusd.dylib", True),
+    ],
+)
+def test_uv_worker_process_startup_failure_classifier(
+    stderr: str,
+    expected: bool,
+) -> None:
+    assert (
+        uv._is_uv_worker_process_startup_failure(stderr, "/opt/so/python") is expected
+    )
+
+
 # ---------------------------------------------------------------------------
 # ProjectionType enum tests
 # ---------------------------------------------------------------------------
@@ -105,6 +150,7 @@ class TestGenerateProjectionUvsMocked:
         assert result["status"] == "success"
         assert result["meshes_with_uvs"] == 5
         assert captured["operation"] == "generateProjectionUVs"
+        assert captured["approved_dependency_roots"] == [str(tmp_path.resolve())]
         assert captured["op_params"]["projectionType"] == 4  # CUBE
         assert captured["op_params"]["useWorldSpaceScales"] is True
         assert captured["op_params"]["scaleFactor"] == 0.01
@@ -150,6 +196,87 @@ class TestGenerateProjectionUvsMocked:
         assert captured["op_params"]["projectionType"] == 0
         assert captured["op_params"]["scaleFactor"] == 0.05
         assert captured["op_params"]["overwriteExisting"] is False
+
+    def test_additional_dependency_roots_are_canonicalized_and_forwarded(
+        self, env_setup, tmp_path
+    ):
+        """Public projection API supports a sibling dependency root."""
+        captured = {}
+
+        def mock_run(cmd, **kwargs):
+            params = json.loads(cmd[-1])
+            captured.update(params)
+            Path(params["manifest_path"]).write_text(
+                json.dumps({"status": "success"}), encoding="utf-8"
+            )
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        scene_dir = tmp_path / "scene"
+        scene_dir.mkdir()
+        shared_dir = tmp_path / "shared"
+        shared_dir.mkdir()
+        input_path = scene_dir / "asset.usda"
+        input_path.touch()
+
+        with patch("subprocess.run", side_effect=mock_run):
+            generate_projection_uvs(
+                input_path,
+                tmp_path / "out.usda",
+                approved_dependency_roots=[
+                    scene_dir,
+                    scene_dir / ".." / "shared",
+                    shared_dir,
+                ],
+            )
+
+        assert captured["approved_dependency_roots"] == [
+            str(scene_dir.resolve()),
+            str(shared_dir.resolve()),
+        ]
+
+    def test_rejects_filesystem_root_dependency_approval_before_launch(
+        self, env_setup, tmp_path
+    ):
+        """A broad host-root approval must never reach the UV worker."""
+        input_path = tmp_path / "input.usda"
+        input_path.touch()
+
+        with patch("subprocess.run") as run:
+            with pytest.raises(ValueError, match="must not contain filesystem roots"):
+                generate_projection_uvs(
+                    input_path,
+                    tmp_path / "out.usda",
+                    approved_dependency_roots=[Path(tmp_path.anchor)],
+                )
+
+        run.assert_not_called()
+
+    def test_rejects_invalid_roots_before_backend_lookup_or_remote_fallback(
+        self, tmp_path, monkeypatch
+    ):
+        """Invalid trust roots fail before local availability can trigger NVCF."""
+        input_path = tmp_path / "input.usda"
+        input_path.touch()
+        output_path = tmp_path / "missing" / "out.usda"
+        monkeypatch.setattr(
+            uv,
+            "_resolve_so_paths",
+            MagicMock(side_effect=RuntimeError("WU_SO_PACKAGE_DIR is not set")),
+        )
+        remote = MagicMock(return_value={"status": "success"})
+        monkeypatch.setattr(uv, "_run_uv_nvcf", remote)
+
+        with pytest.raises(ValueError, match="must not contain filesystem roots"):
+            generate_projection_uvs(
+                input_path,
+                output_path,
+                approved_dependency_roots=[Path(tmp_path.anchor)],
+                allow_remote_fallback=True,
+            )
+
+        uv._resolve_so_paths.assert_not_called()
+        remote.assert_not_called()
+        assert not output_path.parent.exists()
 
     def test_preprojection_xform(self, env_setup, tmp_path):
         """preprojectionXform is passed when provided."""
@@ -247,6 +374,99 @@ class TestGenerateProjectionUvsMocked:
             with pytest.raises(RuntimeError, match="UV generation subprocess failed"):
                 generate_projection_uvs(input_path, tmp_path / "out.usd")
 
+    def test_nested_symlink_output_parent_is_not_created_before_worker(
+        self,
+        env_setup,
+        tmp_path,
+    ):
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        alias = tmp_path / "alias"
+        alias.symlink_to(outside, target_is_directory=True)
+        output_path = alias / "nested" / "output.usd"
+
+        def reject_worker(cmd, **kwargs):
+            assert not (outside / "nested").exists()
+            return subprocess.CompletedProcess(cmd, 1, "", "operation failed")
+
+        with (
+            patch("subprocess.run", side_effect=reject_worker),
+            pytest.raises(RuntimeError, match="UV generation subprocess failed"),
+        ):
+            generate_projection_uvs(
+                input_path,
+                output_path,
+                allow_remote_fallback=False,
+            )
+
+        assert not (outside / "nested").exists()
+
+    def test_runtime_import_manifest_uses_remote_fallback(self, env_setup, tmp_path):
+        """Only the worker's structured import phase may enable fallback."""
+
+        def mock_run(cmd, **kwargs):
+            params = json.loads(cmd[-1])
+            Path(params["manifest_path"]).write_text(
+                json.dumps(
+                    {
+                        "status": "error",
+                        "failure_phase": "runtime_import",
+                        "error_type": "ModuleNotFoundError",
+                        "error": "ModuleNotFoundError: No module named 'omni'",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+        remote_result = {"status": "success"}
+        with (
+            patch("subprocess.run", side_effect=mock_run),
+            patch.object(uv, "_run_uv_nvcf", return_value=remote_result) as nvcf,
+        ):
+            result = generate_projection_uvs(input_path, tmp_path / "out.usd")
+
+        assert result == remote_result
+        nvcf.assert_called_once()
+
+    def test_operation_manifest_filename_cannot_spoof_fallback(
+        self, env_setup, tmp_path
+    ):
+        """User-controlled traceback text cannot change the failure phase."""
+
+        def mock_run(cmd, **kwargs):
+            params = json.loads(cmd[-1])
+            Path(params["manifest_path"]).write_text(
+                json.dumps(
+                    {
+                        "status": "error",
+                        "failure_phase": "operation",
+                        "error_type": "RuntimeError",
+                        "error": (
+                            "RuntimeError: Failed to open USD stage: "
+                            "/tmp/ImportError.usd"
+                        ),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        input_path = tmp_path / "ImportError.usd"
+        input_path.touch()
+        with (
+            patch("subprocess.run", side_effect=mock_run),
+            patch.object(uv, "_run_uv_nvcf") as nvcf,
+        ):
+            with pytest.raises(RuntimeError, match="ImportError.usd"):
+                generate_projection_uvs(input_path, tmp_path / "out.usd")
+
+        nvcf.assert_not_called()
+
     def test_subprocess_timeout(self, env_setup, tmp_path):
         """TimeoutExpired is normalized to RuntimeError."""
         input_path = tmp_path / "input.usd"
@@ -317,6 +537,7 @@ class TestGenerateProjectionUvsMocked:
 
         def mock_run(cmd, **kwargs):
             captured.append(list(cmd))
+            assert Path(cmd[2]).with_name("so_export.py").is_file()
             params = json.loads(cmd[-1])
             with open(params["manifest_path"], "w") as f:
                 json.dump(
@@ -543,6 +764,35 @@ class TestGenerateAtlasUvsMocked:
         assert op["scaleFactor"] == 0.02
         assert op["scaleUnits"] == 1.0
         assert op["overwriteExisting"] is False
+
+    def test_additional_dependency_roots_are_forwarded(self, env_setup, tmp_path):
+        """Public atlas API exposes the same portable-export root contract."""
+        captured = {}
+
+        def mock_run(cmd, **kwargs):
+            params = json.loads(cmd[-1])
+            captured.update(params)
+            Path(params["manifest_path"]).write_text(
+                json.dumps({"status": "success"}), encoding="utf-8"
+            )
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        input_path = tmp_path / "input.usda"
+        input_path.touch()
+        dependency_root = tmp_path / "dependencies"
+        dependency_root.mkdir()
+
+        with patch("subprocess.run", side_effect=mock_run):
+            generate_atlas_uvs(
+                input_path,
+                tmp_path / "out.usda",
+                approved_dependency_roots=[input_path.parent, dependency_root],
+            )
+
+        assert captured["approved_dependency_roots"] == [
+            str(input_path.parent.resolve()),
+            str(dependency_root.resolve()),
+        ]
 
     def test_paths_filter(self, env_setup, tmp_path):
         """Specific prim paths are passed through for atlas UVs."""
@@ -788,6 +1038,142 @@ def Mesh "Mesh"
         assert result["status"] == "success"
         assert result["mesh_count"] == 1
         assert result["meshes_with_uvs"] == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("symlink_kind", ["leaf", "parent"])
+    async def test_remote_writer_rejects_output_symlink_escape(
+        self,
+        tmp_path,
+        symlink_kind,
+    ):
+        fake_b64 = base64.b64encode(b"#usda 1.0\n").decode()
+
+        async def mock_execute(*args, **kwargs):
+            return {
+                "success": True,
+                "operations_executed": ["generateProjectionUVs"],
+                "generated_stage_base64": fake_b64,
+            }
+
+        output, outside_output = _symlink_output_case(tmp_path, symlink_kind)
+        message = (
+            "symlink USD output"
+            if symlink_kind == "leaf"
+            else "symlink or non-directory ancestor"
+        )
+        with (
+            patch(
+                "world_understanding.utils.nvcf_utils.get_nvcf_api_key",
+                return_value="test-key",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_base_url",
+                return_value="https://api.nvcf.nvidia.com/v2/func/123",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.execute_nvcf_request_async",
+                side_effect=mock_execute,
+            ),
+            pytest.raises(RuntimeError, match=message),
+        ):
+            await uv._generate_uvs_from_url(
+                "https://example.test/input.usd",
+                output,
+                "generateProjectionUVs",
+                {"projectionType": 4},
+            )
+
+        assert outside_output.read_bytes() == b"outside-must-survive"
+
+    @pytest.mark.asyncio
+    async def test_remote_writer_removes_owned_stale_sidecar(self, tmp_path):
+        from world_understanding.functions.graphics import so_export
+
+        generated_usd = b"#usda 1.0\n"
+
+        async def mock_execute(*args, **kwargs):
+            return {
+                "success": True,
+                "operations_executed": ["generateProjectionUVs"],
+                "generated_stage_base64": base64.b64encode(generated_usd).decode(),
+            }
+
+        output = tmp_path / "output.usda"
+        output.write_bytes(b"old-root")
+        sidecar = tmp_path / so_export.portable_sidecar_name(output)
+        sidecar.mkdir()
+        (sidecar / so_export.PORTABLE_SIDECAR_MARKER_NAME).write_bytes(
+            so_export.PORTABLE_SIDECAR_MARKER_BYTES
+        )
+        (sidecar / "stale.png").write_bytes(b"stale")
+
+        with (
+            patch(
+                "world_understanding.utils.nvcf_utils.get_nvcf_api_key",
+                return_value="test-key",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_base_url",
+                return_value="https://api.nvcf.nvidia.com/v2/func/123",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.execute_nvcf_request_async",
+                side_effect=mock_execute,
+            ),
+        ):
+            result = await uv._generate_uvs_from_url(
+                "https://example.test/input.usd",
+                output,
+                "generateProjectionUVs",
+                {"projectionType": 4},
+            )
+
+        assert result["status"] == "success"
+        assert output.read_bytes() == generated_usd
+        assert not sidecar.exists()
+
+    @pytest.mark.asyncio
+    async def test_remote_writer_refuses_foreign_sidecar(self, tmp_path):
+        from world_understanding.functions.graphics import so_export
+
+        generated_usd = b"#usda 1.0\n"
+
+        async def mock_execute(*args, **kwargs):
+            return {
+                "success": True,
+                "operations_executed": ["generateProjectionUVs"],
+                "generated_stage_base64": base64.b64encode(generated_usd).decode(),
+            }
+
+        output = tmp_path / "output.usda"
+        output.write_bytes(b"old-root")
+        sidecar = tmp_path / so_export.portable_sidecar_name(output)
+        sidecar.write_bytes(b"foreign-sidecar")
+
+        with (
+            patch(
+                "world_understanding.utils.nvcf_utils.get_nvcf_api_key",
+                return_value="test-key",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_base_url",
+                return_value="https://api.nvcf.nvidia.com/v2/func/123",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.execute_nvcf_request_async",
+                side_effect=mock_execute,
+            ),
+            pytest.raises(RuntimeError, match="non-exporter-owned USD sidecar"),
+        ):
+            await uv._generate_uvs_from_url(
+                "https://example.test/input.usd",
+                output,
+                "generateProjectionUVs",
+                {"projectionType": 4},
+            )
+
+        assert output.read_bytes() == b"old-root"
+        assert sidecar.read_bytes() == b"foreign-sidecar"
 
     @pytest.mark.asyncio
     async def test_generate_uvs_from_path_uploads_to_s3_and_cleans_up(self, tmp_path):
@@ -1067,6 +1453,57 @@ class TestLocalAutoFallback:
         assert result["status"] == "success"
         assert output_path.read_bytes() == fake_usd
 
+    @pytest.mark.parametrize("symlink_kind", ["leaf", "parent"])
+    def test_fallback_writer_rejects_output_symlink_escape(
+        self,
+        tmp_path,
+        symlink_kind,
+    ):
+        fake_b64 = base64.b64encode(b"#usda 1.0\n").decode()
+
+        async def mock_execute(*args, **kwargs):
+            return {
+                "success": True,
+                "operations_executed": ["generateProjectionUVs"],
+                "generated_stage_base64": fake_b64,
+            }
+
+        input_path = tmp_path / "input.usd"
+        input_path.write_bytes(b"input")
+        output, outside_output = _symlink_output_case(tmp_path, symlink_kind)
+        with (
+            patch(
+                "world_understanding.functions.graphics.uv_generation._run_uv_worker",
+                side_effect=uv._LocalSOUnavailableError("local unavailable"),
+            ),
+            patch(
+                "world_understanding.functions.graphics.uv_generation"
+                ".should_use_data_uri",
+                return_value=True,
+            ),
+            patch(
+                "world_understanding.functions.graphics.uv_generation"
+                ".create_data_uri_from_file",
+                return_value="data:application/octet-stream;base64,AAAA",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_nvcf_api_key",
+                return_value="test-key",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.get_base_url",
+                return_value="https://api.nvcf.nvidia.com/v2/func/123",
+            ),
+            patch(
+                "world_understanding.utils.nvcf_utils.execute_nvcf_request_async",
+                side_effect=mock_execute,
+            ),
+            pytest.raises(RuntimeError, match="fallback also failed"),
+        ):
+            generate_projection_uvs(input_path, output)
+
+        assert outside_output.read_bytes() == b"outside-must-survive"
+
     def test_disable_remote_fallback(self, tmp_path):
         """Local backend can be kept local-only for task-level fallback."""
         input_path = tmp_path / "input.usd"
@@ -1076,7 +1513,9 @@ class TestLocalAutoFallback:
         with (
             patch(
                 "world_understanding.functions.graphics.uv_generation._run_uv_worker",
-                side_effect=RuntimeError("SO package missing directory: python"),
+                side_effect=uv._LocalSOUnavailableError(
+                    "SO package missing directory: python"
+                ),
             ),
             patch(
                 "world_understanding.functions.graphics.uv_generation._run_uv_nvcf"
@@ -1090,6 +1529,66 @@ class TestLocalAutoFallback:
                 )
 
         nvcf.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "worker_error",
+        [
+            "dependency outside approved roots",
+            "approved_dependency_roots must not contain filesystem roots",
+            "generateProjectionUVs failed: invalid mesh topology",
+            "Failed to open USD stage: /tmp/ImportError.usd",
+        ],
+    )
+    def test_worker_operation_failure_does_not_use_remote_fallback(
+        self, tmp_path, worker_error
+    ):
+        """Worker policy and operation errors must remain local failures."""
+        input_path = tmp_path / "input.usd"
+        input_path.write_bytes(b"input")
+        output_path = tmp_path / "output.usdc"
+        local_error = RuntimeError(
+            "UV generation subprocess failed (exit code 1)\n"
+            f"--- stderr ---\nRuntimeError: {worker_error}"
+        )
+
+        with (
+            patch(
+                "world_understanding.functions.graphics.uv_generation._run_uv_worker",
+                side_effect=local_error,
+            ),
+            patch(
+                "world_understanding.functions.graphics.uv_generation._run_uv_nvcf"
+            ) as nvcf,
+        ):
+            with pytest.raises(RuntimeError, match=worker_error):
+                generate_projection_uvs(input_path, output_path)
+
+        nvcf.assert_not_called()
+
+    def test_worker_import_failure_still_uses_remote_fallback(self, tmp_path):
+        """A worker import failure remains eligible for remote fallback."""
+        input_path = tmp_path / "input.usd"
+        input_path.write_bytes(b"input")
+        output_path = tmp_path / "output.usdc"
+        remote_result = {"status": "success"}
+
+        with (
+            patch(
+                "world_understanding.functions.graphics.uv_generation._run_uv_worker",
+                side_effect=uv._LocalSOUnavailableError(
+                    "UV generation subprocess failed (exit code 1)\n"
+                    "--- stderr ---\nModuleNotFoundError: No module named 'omni'"
+                ),
+            ),
+            patch(
+                "world_understanding.functions.graphics.uv_generation._run_uv_nvcf",
+                return_value=remote_result,
+            ) as nvcf,
+        ):
+            result = generate_projection_uvs(input_path, output_path)
+
+        assert result == remote_result
+        nvcf.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

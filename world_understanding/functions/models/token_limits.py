@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 _OPENAI_OUTPUT_TOKEN_CAPS: tuple[tuple[str, int], ...] = (
     ("gpt-4o-mini", 16_384),
@@ -17,6 +17,27 @@ _OPENAI_OUTPUT_TOKEN_CAPS: tuple[tuple[str, int], ...] = (
 )
 _MODEL_SNAPSHOT_SUFFIX = re.compile(r"(?:\d{8}|\d{4}-\d{2}-\d{2})\Z")
 _GPT5_DEPLOYMENT_ALIAS = re.compile(r"(?:^|[^a-z0-9])gpt-5(?:$|[^a-z0-9])")
+_MODEL_REASONING_EFFORT_DEFAULTS = {
+    "gpt-5.6-sol": "xhigh",
+    "kimi-k3": "max",
+}
+_MODEL_REASONING_EFFORT_CAPABILITIES = frozenset(
+    {
+        ("nim", "chat", "kimi-k3"),
+        ("nim", "vlm", "kimi-k3"),
+    }
+)
+_MODEL_OUTPUT_TOKEN_FLOORS = {
+    # Responses API reasoning tokens and visible output share this budget.
+    # Existing agents commonly request 256-2048 visible tokens, which can leave
+    # no room for text at xhigh reasoning effort.
+    "gpt-5.6-sol": 16_384,
+    # Kimi-K3 always reasons, and its reasoning plus visible response share the
+    # NIM max_tokens budget. Preserve room for structured output when compact
+    # agent calls retain historical 512-4096 token limits.
+    "kimi-k3": 16_384,
+}
+_OPENAI_RESPONSES_API_MODELS = frozenset({"gpt-5.6-sol"})
 _MAX_TOKENS_KEY = "max_tokens"
 _MAX_COMPLETION_TOKENS_KEY = "max_completion_tokens"
 
@@ -38,6 +59,98 @@ def _matches_model_family(model_name: str, family: str) -> bool:
     )
 
 
+def model_reasoning_effort_default(
+    model_name: str | None,
+    *,
+    fallback: str | None = None,
+) -> str | None:
+    """Return a model-specific reasoning default or the caller's fallback."""
+    return _MODEL_REASONING_EFFORT_DEFAULTS.get(
+        _canonical_model_name(model_name),
+        fallback,
+    )
+
+
+def backend_supports_reasoning_effort(
+    backend_name: str | None,
+    *,
+    model_name: str | None = None,
+    interface: Literal["chat", "vlm"] = "vlm",
+) -> bool:
+    """Return whether a backend or exact backend/model pair accepts reasoning."""
+    if not backend_name:
+        return False
+
+    import world_understanding.functions.models.backends  # noqa: F401
+    from world_understanding.functions.models.backends.registry import (
+        chat_backend_supports,
+        vlm_backend_supports,
+    )
+
+    if interface == "chat":
+        backend_supports = chat_backend_supports
+    elif interface == "vlm":
+        backend_supports = vlm_backend_supports
+    else:
+        raise ValueError(f"Unknown model backend interface: {interface}")
+
+    normalized_name = backend_name.strip().lower()
+    try:
+        if backend_supports(normalized_name, "reasoning_effort"):
+            return True
+    except ValueError:
+        pass
+
+    return (
+        normalized_name,
+        interface,
+        _canonical_model_name(model_name),
+    ) in _MODEL_REASONING_EFFORT_CAPABILITIES
+
+
+def resolve_reasoning_effort_for_backend(
+    backend_name: str | None,
+    model_name: str | None,
+    *,
+    explicit: str | None = None,
+    fallback: str | None = None,
+    interface: Literal["chat", "vlm"] = "vlm",
+) -> str | None:
+    """Resolve reasoning effort only when the selected backend supports it."""
+    if not backend_supports_reasoning_effort(
+        backend_name,
+        model_name=model_name,
+        interface=interface,
+    ):
+        return None
+    return explicit or model_reasoning_effort_default(model_name, fallback=fallback)
+
+
+def resolve_reasoning_effort_for_model_config(
+    model_config: dict[str, Any],
+    user_config: Mapping[str, Any] | None = None,
+    *,
+    interface: Literal["chat", "vlm"] = "vlm",
+) -> None:
+    """Resolve inherited reasoning against a model config's effective identity."""
+    explicit = user_config.get("reasoning_effort") if user_config else None
+    reasoning_effort = resolve_reasoning_effort_for_backend(
+        model_config.get("backend") or model_config.get("provider"),
+        model_config.get("model"),
+        explicit=explicit,
+        interface=interface,
+    )
+    if reasoning_effort is not None:
+        model_config["reasoning_effort"] = reasoning_effort
+    else:
+        model_config.pop("reasoning_effort", None)
+
+
+def model_uses_openai_responses_api(model_name: str | None) -> bool:
+    """Return whether a model requires the OpenAI Responses API."""
+    return _canonical_model_name(model_name) in _OPENAI_RESPONSES_API_MODELS
+
+
 def model_output_token_cap(model_name: str | None) -> int | None:
     """Return a known OpenAI-family output cap for a canonical model ID.
 
@@ -53,12 +166,27 @@ def model_output_token_cap(model_name: str | None) -> int | None:
     return None
 
 
+def model_output_token_floor(model_name: str | None) -> int | None:
+    """Return a model-specific minimum output budget, when one is required."""
+    return _MODEL_OUTPUT_TOKEN_FLOORS.get(_canonical_model_name(model_name))
+
+
 def clamp_model_output_tokens(model_name: str | None, requested: Any) -> Any:
     """Lower an integer request to its known model cap, never raise it."""
     cap = model_output_token_cap(model_name)
     if cap is None or not isinstance(requested, int) or isinstance(requested, bool):
         return requested
     return min(requested, cap)
+
+
+def ensure_model_output_token_budget(model_name: str | None, requested: Any) -> Any:
+    """Apply known output floors and caps to an integer request."""
+    if not isinstance(requested, int) or isinstance(requested, bool):
+        return requested
+    floor = model_output_token_floor(model_name)
+    if floor is not None:
+        requested = max(requested, floor)
+    return clamp_model_output_tokens(model_name, requested)
 
 
 def openai_token_parameter(model_name: str | None) -> str:
@@ -100,6 +228,6 @@ def normalize_openai_token_kwargs(
     elif selected is missing:
         selected = alternate if alternate is not missing else max_tokens
     if selected is not None:
-        options[token_key] = clamp_model_output_tokens(model_name, selected)
+        options[token_key] = ensure_model_output_token_budget(model_name, selected)
 
     return {key: value for key, value in options.items() if value is not None}

@@ -9,6 +9,7 @@ import logging
 import os
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 import pytest
@@ -176,6 +177,57 @@ def test_authentication_failure_is_stable_and_detached() -> None:
     assert "bearer-secret" not in str(exc_info.value)
     assert exc_info.value.__cause__ is None
     assert exc_info.value.__context__ is None
+
+
+def test_sanitized_authentication_failure_preserves_identity() -> None:
+    sanitized = ModelAuthenticationFailure()
+
+    assert is_model_authentication_error(sanitized) is True
+    with pytest.raises(ModelAuthenticationFailure) as exc_info:
+        raise_for_model_authentication(sanitized)
+
+    assert exc_info.value is sanitized
+
+
+def test_existing_authentication_failure_is_detached_before_identity_rethrow() -> None:
+    provider_error = _raised_authentication_error(
+        "401 provider body contained bearer-secret and request internals"
+    )
+    captured: list[ModelAuthenticationFailure] = []
+    try:
+        raise provider_error
+    except AuthenticationError:
+        try:
+            raise ModelAuthenticationFailure()
+        except ModelAuthenticationFailure as contaminated:
+            captured.append(contaminated)
+
+    contaminated = captured[0]
+
+    assert contaminated.__context__ is provider_error
+    assert contaminated.__traceback__ is not None
+
+    with pytest.raises(ModelAuthenticationFailure) as exc_info:
+        raise_for_model_authentication(contaminated)
+
+    assert exc_info.value is contaminated
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert exc_info.value.__suppress_context__ is True
+
+
+def test_existing_authentication_failure_clears_mutable_printable_state() -> None:
+    sanitized = ModelAuthenticationFailure()
+    sanitized.args = ("401 Authorization: Bearer hidden-token",)
+    sanitized.add_note("api_key=hidden-token")
+
+    with pytest.raises(ModelAuthenticationFailure) as exc_info:
+        raise_for_model_authentication(sanitized)
+
+    assert exc_info.value is sanitized
+    assert exc_info.value.args == (MODEL_AUTHENTICATION_FAILURE_MESSAGE,)
+    assert getattr(exc_info.value, "__notes__", ()) == ()
+    assert "hidden-token" not in "".join(traceback.format_exception(exc_info.value))
 
 
 def test_authentication_log_filter_removes_body_and_traceback() -> None:

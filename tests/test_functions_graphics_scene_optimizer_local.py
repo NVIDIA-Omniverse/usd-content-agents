@@ -7,9 +7,11 @@ are mocked.
 """
 
 import json
+import os
 import subprocess
 import sys
 import sysconfig
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,6 +20,7 @@ from world_understanding.functions.graphics.scene_optimizer_local import (
     _build_operations_list,
     _python_libdir,
     _resolve_so_python,
+    _subprocess_env,
     optimize_usd_local,
 )
 from world_understanding.functions.graphics.so_worker import (
@@ -207,6 +210,9 @@ class TestOptimizeUsdLocalSubprocess:
             # Parse params from the command to find manifest_path
             params = json.loads(cmd[-1])
             manifest_path = params["manifest_path"]
+            assert params["approved_dependency_roots"] == [
+                str((tmp_path / "input.usd").resolve().parent)
+            ]
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
 
@@ -246,6 +252,36 @@ class TestOptimizeUsdLocalSubprocess:
         assert result["stage_size_bytes"] == 1024
         assert len(result["operations_executed"]) == 1
 
+    def test_windows_subprocess_env_replaces_foreign_openusd_dll_path(
+        self, env_setup, monkeypatch
+    ):
+        """The isolated worker must load the SO bundle's OpenUSD DLLs on Windows."""
+        so_dir = env_setup["so_dir"]
+        inherited_path = str(so_dir / "host-bin")
+        monkeypatch.setenv("PATH", inherited_path)
+        monkeypatch.setenv(
+            "PXR_USD_WINDOWS_DLL_PATH",
+            str(so_dir / "foreign-openusd-provider"),
+        )
+
+        with (
+            patch(
+                "world_understanding.functions.graphics.scene_optimizer_local."
+                "sys.platform",
+                "win32",
+            ),
+            patch(
+                "world_understanding.functions.graphics.scene_optimizer_local."
+                "_python_libdir",
+                return_value=None,
+            ),
+        ):
+            env = _subprocess_env(so_dir, sys.executable)
+
+        bundle_paths = [str(so_dir / "lib"), str(so_dir / "extraLibs")]
+        assert env["PXR_USD_WINDOWS_DLL_PATH"].split(os.pathsep) == bundle_paths
+        assert env["PATH"].split(os.pathsep) == [*bundle_paths, inherited_path]
+
     def test_subprocess_params_json(self, env_setup, tmp_path):
         """Verify the params JSON passed to the subprocess."""
         captured_params = {}
@@ -268,10 +304,13 @@ class TestOptimizeUsdLocalSubprocess:
             input_path = tmp_path / "input.usd"
             input_path.touch()
             output_path = tmp_path / "output.usd"
+            external_root = tmp_path / "approved-assets"
+            external_root.mkdir()
 
             optimize_usd_local(
                 input_path=input_path,
                 output_path=output_path,
+                approved_dependency_roots=[input_path.parent, external_root],
                 optimization_config={
                     "scene_optimizer_settings": {
                         "enable_split_meshes": True,
@@ -283,9 +322,68 @@ class TestOptimizeUsdLocalSubprocess:
 
         assert captured_params["input_usd_path"] == str(input_path)
         assert captured_params["output_usd_path"] == str(output_path)
+        assert captured_params["approved_dependency_roots"] == [
+            str(input_path.parent.resolve()),
+            str(external_root.resolve()),
+        ]
         # splitMeshes enabled, dedup disabled, no merge
         assert len(captured_params["operations"]) == 1
         assert captured_params["operations"][0][0] == "splitMeshes"
+
+    def test_rejects_empty_explicit_dependency_roots(self, env_setup, tmp_path):
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+
+        with pytest.raises(ValueError, match="must not be empty"):
+            optimize_usd_local(
+                input_path=input_path,
+                output_path=tmp_path / "output.usd",
+                approved_dependency_roots=[],
+            )
+
+    def test_rejects_filesystem_root_before_worker_launch(
+        self,
+        env_setup,
+        tmp_path,
+    ):
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+        output_path = tmp_path / "output" / "output.usd"
+
+        with (
+            patch("subprocess.run") as run_worker,
+            pytest.raises(ValueError, match="must not contain filesystem roots"),
+        ):
+            optimize_usd_local(
+                input_path=input_path,
+                output_path=output_path,
+                approved_dependency_roots=[Path(tmp_path.anchor)],
+            )
+
+        run_worker.assert_not_called()
+        assert not output_path.parent.exists()
+
+    def test_rejects_nonexistent_root_before_worker_launch(
+        self,
+        env_setup,
+        tmp_path,
+    ):
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+        output_path = tmp_path / "output" / "output.usd"
+
+        with (
+            patch("subprocess.run") as run_worker,
+            pytest.raises(ValueError, match="must contain existing directories"),
+        ):
+            optimize_usd_local(
+                input_path=input_path,
+                output_path=output_path,
+                approved_dependency_roots=[tmp_path / "missing-root"],
+            )
+
+        run_worker.assert_not_called()
+        assert not output_path.parent.exists()
 
     def test_subprocess_failure(self, env_setup, tmp_path):
         """Verify RuntimeError is raised on subprocess failure."""
@@ -307,6 +405,31 @@ class TestOptimizeUsdLocalSubprocess:
                     input_path=input_path,
                     output_path=output_path,
                 )
+
+    def test_nested_symlink_output_parent_is_not_created_before_worker(
+        self,
+        env_setup,
+        tmp_path,
+    ):
+        input_path = tmp_path / "input.usd"
+        input_path.touch()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        alias = tmp_path / "alias"
+        alias.symlink_to(outside, target_is_directory=True)
+        output_path = alias / "nested" / "output.usd"
+
+        def reject_worker(cmd, **kwargs):
+            assert not (outside / "nested").exists()
+            return subprocess.CompletedProcess(cmd, 1, "", "worker rejected output")
+
+        with (
+            patch("subprocess.run", side_effect=reject_worker),
+            pytest.raises(RuntimeError, match="Scene Optimizer subprocess failed"),
+        ):
+            optimize_usd_local(input_path, output_path)
+
+        assert not (outside / "nested").exists()
 
     def test_pythonpath_stripped(self, env_setup, monkeypatch, tmp_path):
         """Verify parent PYTHONPATH is replaced, not appended to."""
@@ -452,6 +575,7 @@ class TestOptimizeUsdLocalSubprocess:
 
         def mock_run(cmd, **kwargs):
             captured.append(list(cmd))
+            assert Path(cmd[2]).with_name("so_export.py").is_file()
             params = json.loads(cmd[-1])
             with open(params["manifest_path"], "w") as f:
                 json.dump({"status": "success", "optimization_time": 0.1}, f)

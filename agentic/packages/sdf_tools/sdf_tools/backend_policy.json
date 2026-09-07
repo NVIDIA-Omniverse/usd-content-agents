@@ -1,0 +1,32 @@
+{
+  "schema": "world-understanding.sdf-backend-policy.v1",
+  "entry_point_group": "sdf_tools.backends",
+  "backends": {
+    "openvdb": {
+      "authenticated_data_files": {
+        "openvdb_runtime/_build_manifest.json": "4bb75e47c1dfd5504191a6a5afa549f8b44774c66e85d01cf79a94d2c9cd07ba"
+      },
+      "authenticated_files": {
+        "openvdb_runtime/__init__.py": "e43e05f7a297e54e33c1c5719da3af78bbf4663c7d90a65a1513b0f1fc698ef7",
+        "openvdb_runtime/errors.py": "ac1f6e4aa58b1389e3cd6a26681a8b93390c997309807e4a3c8635858701c605",
+        "openvdb_runtime/io.py": "cea9aae1375ae7c52824041b9e752151a096aac36685633e08e759a3819fbf17",
+        "openvdb_runtime/level_set.py": "b1a781df0935eddc265260176a6cb5d7b0b933f31d1a4959227007d0c93b5e2d",
+        "openvdb_runtime/mesh.py": "e0fc2f8b56871802b63dca00e01594866941239573add65ce619a9853e2a98e5",
+        "openvdb_runtime/runtime.py": "57af6344bc29b0b6da2d7465ce663d8262049a779722077155ca589644de7f0e",
+        "openvdb_runtime/sampling.py": "269d161c20805ece17bc1bdfd6530ccb63c66383d1dadfe73b3533aa45a703b9",
+        "openvdb_runtime/sdf_backend.py": "888ecd21ac9abdff43cf02baa718daf2bbf9acdf8f2c29c3178e7958fa2f6db8",
+        "openvdb_runtime/topology.py": "ba99181ebbaf8f22b4df6e410936fbac5725187488555f84ddb18406e30df69f",
+        "openvdb_runtime/types.py": "a31c7394ec36b8a97977c732a810c809afe645f66b5c84ecaff42cc3361fbaeb"
+      },
+      "distribution": "openvdb-runtime",
+      "distribution_version": "0.6.0",
+      "entry_point": "openvdb_runtime.sdf_backend:sdf_backend_extension",
+      "entry_point_module_path": "openvdb_runtime/sdf_backend.py",
+      "entry_point_module_sha256": "888ecd21ac9abdff43cf02baa718daf2bbf9acdf8f2c29c3178e7958fa2f6db8",
+      "implementation_version": "openvdb-runtime-13.0.0+wu.3",
+      "license_manifest_sha256": "1b3402e56da598b491f249c6a06179a1d7747da5362ce3a482ed4c146b93a4d2",
+      "native_closure_attestation": "sha256:8e0cb662ca1a9865a195d8fc6a7c64224fd8edeebfed9c266417a3afc7d3a59f",
+      "production_qualified": true
+    }
+  }
+}

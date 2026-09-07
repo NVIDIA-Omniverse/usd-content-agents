@@ -22,7 +22,7 @@ Classify a single object using VLM.
 from world_understanding.functions.classification import classify_object
 from world_understanding.functions.models import create_vlm, create_chat_model
 
-vlm = create_vlm(backend="nim", model="google/gemma-4-31b-it")
+vlm = create_vlm(backend="nim", model="moonshotai/kimi-k3")
 llm = create_chat_model(service="nim")
 
 result = classify_object(

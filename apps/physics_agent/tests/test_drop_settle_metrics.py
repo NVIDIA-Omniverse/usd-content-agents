@@ -371,23 +371,24 @@ def test_rotate_vector_by_pose_quat_ignores_degenerate_quaternion() -> None:
 
 
 def test_max_bounce_height_uses_rotated_bbox_bottom() -> None:
-    """Metric-level coverage for rotated bbox corner selection."""
-    rest = (0.0, 0.2, 0.0)
+    """Rotated native-instance bounds honor their pose-local metric scale."""
+    rest = (0.0, 1.0, 0.0)
     trajectory = [
-        (0.0, _pose_x90(y=1.2), _vel(y=-3.0)),
-        (0.1, _pose_x90(y=0.2), _vel(y=0.0)),  # rotated bbox bottom at ground
-        (0.2, _pose_x90(y=0.9), _vel(y=1.0)),
-        (0.3, _pose_x90(y=0.9), _vel(y=0.0)),
+        (0.0, _pose(y=2.0), _vel(y=-3.0)),
+        (0.1, _pose(y=1.0), _vel(y=0.0)),  # upright bbox bottom at ground
+        (0.2, _pose_x90(y=0.7), _vel(y=1.0)),
+        (0.3, _pose_x90(y=0.7), _vel(y=0.0)),  # tilted bbox bottom at 0.5 m
     ]
     ctx = MetricContext(
         trajectory=trajectory,
         rest_position=rest,
         up_idx=1,
         scenario=_scenario("max_bounce_height"),
-        bbox_min_local=(-0.1, -1.0, -0.2),
-        bbox_max_local=(0.1, 1.0, 0.2),
+        bbox_min_local=(-10.0, -100.0, -20.0),
+        bbox_max_local=(10.0, 100.0, 20.0),
+        bbox_local_scale=(0.01, 0.01, 0.01),
     )
-    assert _metric_max_bounce_height(ctx) == pytest.approx(-0.7, abs=1e-6)
+    assert _metric_max_bounce_height(ctx) == pytest.approx(-0.5, abs=1e-6)
 
 
 def test_max_bounce_height_requires_velocity_defined_apex() -> None:
@@ -652,6 +653,15 @@ def test_evaluate_threads_bbox_into_bounce_metric_and_outputs(
         (0.2, _pose(y=1.0), _vel(y=1.0)),
         (0.3, _pose(y=1.0), _vel(y=0.0)),
     ]
+    captured_context: dict[str, MetricContext] = {}
+    metric_fn = _METRICS["max_bounce_height"]
+
+    def _capture_context(ctx: MetricContext) -> float:
+        captured_context["value"] = ctx
+        return metric_fn(ctx)
+
+    monkeypatch.setitem(_METRICS, "max_bounce_height", _capture_context)
+    bbox_local_stage_scale: list[object] = [0.01, 0.01, 0.01]
 
     def _fake_build(_src: object, dst: object, **_kwargs: object) -> dict[str, object]:
         pathlib.Path(dst).write_bytes(b"")
@@ -662,8 +672,9 @@ def test_evaluate_threads_bbox_into_bounce_metric_and_outputs(
             "world_up": [0.0, 1.0, 0.0],
             "drop_height_m_resolved": 0.5,
             "bbox_size_m": [1.0, 1.0, 1.0],
-            "bbox_min_local_stage": [-0.5, -0.5, -0.5],
-            "bbox_max_local_stage": [0.5, 0.5, 0.5],
+            "bbox_min_local_stage": [-50.0, -50.0, -50.0],
+            "bbox_max_local_stage": [50.0, 50.0, 50.0],
+            "bbox_local_stage_scale": bbox_local_stage_scale,
             "camera_paths": [],
         }
 
@@ -709,11 +720,25 @@ def test_evaluate_threads_bbox_into_bounce_metric_and_outputs(
     )
 
     assert result["score"] == pytest.approx(-0.5, abs=1e-6)
+    assert result["objective_value"] == pytest.approx(0.5, abs=1e-6)
     assert result["max_bounce_height"] == pytest.approx(0.5, abs=1e-6)
     assert result["first_bounce_height"] == pytest.approx(0.5, abs=1e-6)
-    assert result["bbox_min_local_stage"] == [-0.5, -0.5, -0.5]
-    assert result["bbox_max_local_stage"] == [0.5, 0.5, 0.5]
+    assert captured_context["value"].bbox_local_scale == (0.01, 0.01, 0.01)
+    assert result["bbox_min_local_stage"] == [-50.0, -50.0, -50.0]
+    assert result["bbox_max_local_stage"] == [50.0, 50.0, 50.0]
+    assert result["bbox_local_stage_scale"] == [0.01, 0.01, 0.01]
     assert result["world_up"] == [0.0, 1.0, 0.0]
+
+    bbox_local_stage_scale[:] = ["invalid"]
+    evaluate(
+        params={},
+        scenario=_scenario(metric="max_bounce_height"),
+        physics_usd=physics_usd,
+        seed=1,
+        simulator=_FakeDaemon(),  # type: ignore[arg-type]
+        work_dir=tmp_path / "fallback-work",
+    )
+    assert captured_context["value"].bbox_local_scale == (1.0, 1.0, 1.0)
 
 
 def test_evaluate_rejects_unsupported_metric(

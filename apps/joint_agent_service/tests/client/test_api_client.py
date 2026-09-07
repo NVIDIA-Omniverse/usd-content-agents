@@ -12,6 +12,18 @@ from ...client.client_v2 import build_arg_parser as build_v2_arg_parser
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 
+@pytest.mark.parametrize("client_type", [JointAgentClient, JointAgentClientV2])
+def test_clients_use_nvcf_version_header(
+    monkeypatch: pytest.MonkeyPatch,
+    client_type,
+) -> None:
+    monkeypatch.setenv("NVCF_INVOKE_VERSION_ID", "version-under-test")
+
+    client = client_type(base_url=BASE_URL)
+
+    assert client._http.headers["Function-Version-Id"] == "version-under-test"
+
+
 def test_python_client_exposes_owned_core_adapter() -> None:
     calls: list[dict] = []
 

@@ -98,6 +98,10 @@ class ServiceConfig(BaseSettings):
     llm_model: str = Field(
         default=DEFAULT_LLM_MODEL, description="LLM model used by analyze_structure"
     )
+    llm_reasoning_effort: str | None = Field(
+        default=None,
+        description="Optional reasoning effort used by analyze_structure",
+    )
 
     class Config:
         env_prefix = "JA_"

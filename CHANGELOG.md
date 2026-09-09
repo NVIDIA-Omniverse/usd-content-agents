@@ -1,4 +1,4 @@
-# Content Agents 0.6.0 (19 Aug 2026)
+# Content Agents 0.6.0 (07 Sep 2026)
 
 Content Agents 0.6 makes the adaptive, evidence-driven Content Workflow the
 default public entry point for supported asset tasks. It integrates governed

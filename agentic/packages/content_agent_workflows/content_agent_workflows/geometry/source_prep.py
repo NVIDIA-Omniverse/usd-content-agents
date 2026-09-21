@@ -51,6 +51,7 @@ SourceAuthoringMode = Literal[
     "parametric_recovery",
     "direct_preserve",
     "shared_conversion",
+    "lossless_gltf",
 ]
 SourceFidelityTier = Literal[
     "opaque_cad_import",
@@ -58,6 +59,7 @@ SourceFidelityTier = Literal[
     "direct_usd_preserved",
     "mesh_3mf_import",
     "shared_conversion_noneditable",
+    "source_gltf_preserved",
     "unsupported_requires_converter",
 ]
 
@@ -676,6 +678,19 @@ def prepare_geometry_source(
 
     if existing_usd:
         return _prepare_direct_usd(source)
+    if source_authoring_mode == "lossless_gltf":
+        from .lossless_gltf import import_static_gltf
+
+        destination = prep_dir / "source_preserved.usdc"
+        receipt = import_static_gltf(source, destination)
+        return PreparedGeometrySource(
+            fidelity_tier="source_gltf_preserved",
+            source_authoring_mode="lossless_gltf",
+            source_path=str(source),
+            original_input_path=str(source),
+            prepared_usd_path=str(destination),
+            metadata={"source_format": source.suffix.lower().lstrip("."), "lossless_gltf": receipt},
+        )
     if suffix in THREEMF_SUFFIXES and source_authoring_mode in {
         "auto",
         "opaque_import",
@@ -930,6 +945,7 @@ def _source_authoring_mode_error(
         return None
     suffix = source.suffix.lower()
     compatible = {
+        "lossless_gltf": suffix in {".gltf", ".glb"},
         "direct_preserve": existing_usd,
         "parametric_recovery": suffix in RECOVERABLE_MESH_SUFFIXES,
         "opaque_import": suffix in OPAQUE_IMPORT_SUFFIXES | THREEMF_SUFFIXES,

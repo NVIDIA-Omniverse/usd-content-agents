@@ -32,6 +32,7 @@ SourceAuthoringMode = Literal[
     "opaque_import",
     "parametric_recovery",
     "direct_preserve",
+    "lossless_gltf",
 ]
 OptimizationPolicy = Literal["skip", "preserve_correspondence", "runtime_efficiency"]
 RepairMode = Literal["off", "diagnose", "auto"]
@@ -65,6 +66,7 @@ class GeometryRunConfig:
     reference_image: Path | None = None
     output_usd: Path | None = None
     source_authoring_mode: SourceAuthoringMode = "auto"
+    render_topology_policy: Literal["strict", "preserve_source"] = "strict"
     allow_lossy_recovery: bool = False
     target_profile: str = "geometry-agent.static-visual-asset.v1"
     target_runtime: str = "isaac-lab"
@@ -165,8 +167,13 @@ def _add_geometry_run_args(parser: argparse.ArgumentParser) -> None:
             "opaque_import",
             "parametric_recovery",
             "direct_preserve",
+            "lossless_gltf",
         ],
         default="auto",
+    )
+    parser.add_argument(
+        "--render-topology-policy", choices=["strict", "preserve_source"], default="strict",
+        help="Explicit source-preserving visual handoff only; requires lossless_gltf and skipped optimization. Does not accept collision or runtime behavior.",
     )
     parser.add_argument(
         "--allow-lossy-recovery",
@@ -304,6 +311,7 @@ def _handle_geometry_run(args: argparse.Namespace) -> int:
         output_dir=args.output_dir,
         output_usd=args.output_usd,
         source_authoring_mode=cast(SourceAuthoringMode, args.source_authoring_mode),
+        render_topology_policy=args.render_topology_policy,
         allow_lossy_recovery=args.allow_lossy_recovery,
         target_profile=args.target_profile,
         target_runtime=args.target_runtime,
@@ -437,6 +445,7 @@ def _resolve_run(config: GeometryRunConfig) -> ResolvedGeometryRun:
         output_dir=output_dir,
         output_usd_path=output_usd,
         source_authoring_mode=config.source_authoring_mode,
+        render_topology_policy=config.render_topology_policy,
         allow_lossy_recovery=config.allow_lossy_recovery,
         target_profile=config.target_profile.strip(),
         target_runtime=config.target_runtime.strip(),

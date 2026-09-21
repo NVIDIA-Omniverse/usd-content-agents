@@ -396,6 +396,8 @@ def verify_preserved_render(reference: Path, candidate: Path) -> dict:
         if stage is None:
             raise ValueError("Unreadable preserved render stage")
         for p in stage.Traverse():
+            if any(attribute.GetNumTimeSamples() for attribute in p.GetAttributes()):
+                raise ValueError("Static source-preserving handoff cannot admit time samples")
             if p.HasAPI(UsdPhysics.CollisionAPI) or p.HasAPI(UsdPhysics.RigidBodyAPI):
                 raise ValueError(
                     "Render-only handoff cannot admit collision or rigid-body authoring"

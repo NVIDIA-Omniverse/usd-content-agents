@@ -129,6 +129,9 @@ def test_strict_default_still_blocks_open_and_degenerate_render(tmp_path):
         "purpose",
         "primitive",
         "subdivision",
+        "animated_points",
+        "animated_transform",
+        "animated_visibility",
     ],
 )
 def test_visual_handoff_cannot_hide_source_changes_or_physics(tmp_path, mutation):
@@ -165,6 +168,12 @@ def test_visual_handoff_cannot_hide_source_changes_or_physics(tmp_path, mutation
         UsdGeom.Cube.Define(stage, "/Asset/Substitute")
     if mutation == "subdivision":
         mesh.GetSubdivisionSchemeAttr().Set("catmullClark")
+    if mutation == "animated_points":
+        mesh.GetPointsAttr().Set([Gf.Vec3f(2, 3, 4)] * 4, Usd.TimeCode(1))
+    if mutation == "animated_transform":
+        p.GetParent().GetAttribute("xformOp:transform").Set(Gf.Matrix4d(1), Usd.TimeCode(1))
+    if mutation == "animated_visibility":
+        mesh.GetVisibilityAttr().Set("invisible", Usd.TimeCode(1))
     stage.GetRootLayer().Save()
     with pytest.raises(ValueError):
         verify_preserved_render(ref, candidate)

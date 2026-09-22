@@ -148,3 +148,54 @@ identity now binds that locator through the complete archive bytes. Archive
 changes invalidate the identity. Missing or unresolved members, remote locators,
 path traversal, malformed syntax, non-USDZ containers and nested package
 locators fail closed. This change does not alter the asset or extract textures.
+
+An unchanged-patch replay also requires the exact inspected source identity.
+The native source digest includes resolved layer identifiers; moving identical
+bytes to a new path can therefore require a fresh inspection and decision.
+If the purpose is only to revalidate the exact previously authored asset after
+a harness correction, use the exported `validate_physics_runtime` API with that
+asset and its bounded, original dependency root. Retain its actual native
+`ValidationEvidence` and runtime report. This does not manufacture a successful
+top-level authoring workflow or a model behavior assessment.
+
+## Explicit collision cooking controls
+
+The configured collision approximation is the initial fallback. An explicit
+component decision may choose a representation appropriate to its geometry and
+mobility: for example, actual triangle surfaces (`none`) for a static cabinet
+and convex decomposition for its moving concave drawer. Later refinement pins
+the actual per-component choices; coarsening a collider or changing filtering
+to evade a contact failure is not permitted.
+
+For a mesh decision using `convexDecomposition`, the optional record below
+exposes bounded native cooking controls. It is a configuration example, not
+evidence that this setting succeeds for an arbitrary asset:
+
+```json
+{
+  "collision_approximation": "convexDecomposition",
+  "convex_decomposition": {
+    "shrink_wrap": true,
+    "error_percentage": 1.0,
+    "hull_vertex_limit": 128,
+    "max_convex_hulls": 64,
+    "voxel_resolution": 1000000
+  }
+}
+```
+
+The record is allowed alongside the scalar physical properties and optional
+mass-property vectors in the native target-ID decision. Omitting it leaves
+existing cooking attributes unchanged. Providing it authors all five values,
+using native0.4.13 defaults for omitted fields. Workflow resource bounds are
+error0–100%, vertices4–255, hulls1–256 and voxels10,000–4,000,000; these are not
+claims about the full native schema's limits. Invalid types, unknown fields,
+incompatible approximations, non-mesh targets and conflicting existing attribute
+types fail before batch mutation. Rebased decisions with different cooking
+options cannot silently merge.
+
+The source render mesh stays unchanged. The saved PhysX API and values must
+still be exercised by the solver: inspect cooked floor height, cavity clearance,
+initial contacts, constraint behavior and the actual free-payload task. A
+synthetic cooking witness or successful schema readback is insufficient to
+accept the original drawer.

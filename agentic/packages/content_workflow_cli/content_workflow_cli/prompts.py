@@ -297,13 +297,20 @@ prim or material name, trust the image and say so in the rationale.
 
     constraints: dict[str, Any] = {
         "source_usd_edits_allowed": False,
-        # Named `..._default` historically, but visual-validation refinement
-        # treated that as licence to coarsen the collider (convexHull ->
-        # convexDecomposition -> boundingSphere on a RoboCasa apple) to make
-        # the penetration check pass. Keep the old key for compatibility and
-        # state the requirement explicitly below.
+        # The workflow resolves each component's explicit approximation before
+        # this fallback. Refinement separately pins the actually authored
+        # approximations; an initial mixed static/dynamic decision is legal.
         "collision_approximation_default": collision_approximation,
-        "collision_approximation_required": collision_approximation,
+        "collision_approximation_policy": (
+            "At initial authoring, use the configured default unless a component's "
+            "geometry and mobility justify an explicit per-component approximation. "
+            "Record that choice and its evidence in the native decision. For example, "
+            "a static concave triangle mesh may use none while a dynamic concave "
+            "mesh requires a supported dynamic representation. Later refinement "
+            "must preserve each component's actually authored approximation; never "
+            "coarsen colliders or change collision filtering to evade a failed "
+            "penetration, clearance, containment or behavior check."
+        ),
         "visual_validation_max_iterations": visual_validation_max_iterations,
     }
     # Emit the penetration limit only when the run overrides it. A literal
@@ -498,6 +505,18 @@ scalar `physical_properties` map. Omit `mass_properties` for `unowned_static`
 components. Their authoritative inspected role preserves static status while
 still allowing their collision and material operations; do not author or change
 `component_role` in the target-ID patch.
+
+For mesh targets using `convexDecomposition`, an optional `convex_decomposition`
+record exposes native cooking controls: `shrink_wrap` (boolean, default false),
+`error_percentage` (number 0–100, default 10), `hull_vertex_limit` (integer 4–255,
+default 64), `max_convex_hulls` (integer 1–256, default 32), and
+`voxel_resolution` (integer 10000–4000000, default 500000). These are bounded
+workflow controls, not a guarantee of hollow-shape preservation. The defaults
+match the OvPhysX 0.4.13 USD schema. Omitting the record leaves existing cooking
+attributes unchanged; providing it authors all five values, filling omitted
+fields with those defaults. Unknown fields, coerced types and incompatible
+approximations are rejected. Ground changes in cooking/contact evidence and
+keep the source mesh unchanged.
 
 Do not write `physics_assignments.json`, `validation_evidence.json`,
 `physics_behavior_assessment.json`, final summaries, or runtime validation
@@ -1667,7 +1686,6 @@ def build_physics_tuning_session_prompt(
     # accepted, while the wrapper measured 0.0588 m from its configured 0.9 m drop
     # and refused to promote.
     gate_terms = [
-        f"`placement_mode={revalidation_placement_mode}`",
         f"`max_ground_penetration_m={revalidation_max_penetration_m}`"
         if revalidation_max_penetration_m is not None
         else "",
@@ -1683,6 +1701,8 @@ def build_physics_tuning_session_prompt(
         f"`dt={revalidation_dt}`" if revalidation_dt is not None else "",
     ]
     gate_terms = [term for term in gate_terms if term]
+    if gate_terms or revalidation_placement_mode != "drop":
+        gate_terms.insert(0, f"`placement_mode={revalidation_placement_mode}`")
     # `duration_s`/`sample_fps`/`dt` always carry a runner default, so gate_terms
     # is never empty on a real run. The "not the default" claims below are only
     # true when the run actually overrides them, so state each one conditionally:

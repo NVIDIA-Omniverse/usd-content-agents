@@ -243,6 +243,23 @@ class PhysicsMassProperties(BaseModel):
         return self
 
 
+class PhysicsConvexDecompositionOptions(BaseModel):
+    """Explicit PhysX cooking options; bounds limit workflow cooking resources.
+
+    Defaults match the OvPhysX 0.4.13 USD schema. Omitting the entire record
+    preserves existing authoring behavior; providing it authors all five values.
+    These are cooking controls, not a geometry-fidelity guarantee.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    shrink_wrap: bool = False
+    error_percentage: float = Field(default=10.0, ge=0.0, le=100.0, allow_inf_nan=False)
+    hull_vertex_limit: int = Field(default=64, ge=4, le=255)
+    max_convex_hulls: int = Field(default=32, ge=1, le=256)
+    voxel_resolution: int = Field(default=500_000, ge=10_000, le=4_000_000)
+
+
 class PhysicsComponentDecision(BaseModel):
     """One accepted V2 component-level physics authoring decision."""
 
@@ -261,10 +278,17 @@ class PhysicsComponentDecision(BaseModel):
     collision_approximation: str = Field(min_length=1)
     physical_properties: dict[str, float]
     mass_properties: PhysicsMassProperties | None = None
+    convex_decomposition: PhysicsConvexDecompositionOptions | None = None
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = Field(min_length=1)
     rigid_body_grouping: str | None = None
     quality_warnings: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _cooking_approximation(self) -> "PhysicsComponentDecision":
+        if self.convex_decomposition is not None and self.collision_approximation != "convexDecomposition":
+            raise ValueError("convex_decomposition requires convexDecomposition approximation")
+        return self
 
     @field_validator("quality_warnings")
     @classmethod
@@ -312,10 +336,17 @@ class PhysicsComponentTargetDecision(BaseModel):
     collision_approximation: str = Field(min_length=1)
     physical_properties: dict[str, float]
     mass_properties: PhysicsMassProperties | None = None
+    convex_decomposition: PhysicsConvexDecompositionOptions | None = None
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = Field(min_length=1)
     rigid_body_grouping: str | None = None
     quality_warnings: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _cooking_approximation(self) -> "PhysicsComponentTargetDecision":
+        if self.convex_decomposition is not None and self.collision_approximation != "convexDecomposition":
+            raise ValueError("convex_decomposition requires convexDecomposition approximation")
+        return self
 
     @field_validator("quality_warnings")
     @classmethod
@@ -1166,6 +1197,8 @@ def _write_predictions_jsonl(
                 )
                 if decision.rigid_body_grouping:
                     classification["rigid_body_grouping"] = decision.rigid_body_grouping
+                if decision.convex_decomposition is not None:
+                    classification["convex_decomposition"] = decision.convex_decomposition.model_dump(mode="json")
                 if decision.quality_warnings:
                     classification["quality_warnings"] = deepcopy(
                         decision.quality_warnings
@@ -1796,6 +1829,9 @@ def _merge_rebased_component_decisions(
             ),
             "collision_approximation": _single_decision_value(
                 ordered, "collision_approximation"
+            ),
+            "convex_decomposition": _single_decision_value(
+                ordered, "convex_decomposition"
             ),
             "physical_properties": _merge_physical_properties(ordered),
             "rigid_body_grouping": _merge_rigid_body_grouping(ordered),

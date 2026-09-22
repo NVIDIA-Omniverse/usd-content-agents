@@ -61,14 +61,19 @@ def test_apply_prompt_states_the_configured_penetration_limit(tmp_path: Path) ->
     assert "0.05" in prompt
 
 
-def test_apply_prompt_marks_the_collision_approximation_required(
+def test_apply_prompt_allows_evidenced_initial_component_choices_without_coarsening(
     tmp_path: Path,
 ) -> None:
-    """`collision_approximation_default` read as licence to coarsen the collider."""
+    """Initial mixed mobility is supported; refinement cannot evade contact gates."""
 
     prompt = _apply_prompt(tmp_path, collision_approximation="convexHull")
 
-    assert "collision_approximation_required" in prompt
+    assert '"collision_approximation_default": "convexHull"' in prompt
+    assert "collision_approximation_required" not in prompt
+    assert "explicit per-component approximation" in prompt
+    assert "static concave triangle mesh may use none" in prompt
+    assert "preserve each component's actually authored approximation" in prompt
+    assert "never coarsen colliders" in prompt
 
 
 def test_apply_prompt_selects_stable_target_ids_instead_of_paths(

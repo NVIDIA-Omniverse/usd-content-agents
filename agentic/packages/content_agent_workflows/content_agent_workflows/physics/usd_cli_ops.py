@@ -455,6 +455,8 @@ def physics_patch_from_workflow_decisions(
             {
                 "path": path,
                 "approximation": decision.get("collision_approximation"),
+                **({"convex_decomposition": decision["convex_decomposition"]}
+                   if decision.get("convex_decomposition") is not None else {}),
             }
             for path in collider_paths
         )

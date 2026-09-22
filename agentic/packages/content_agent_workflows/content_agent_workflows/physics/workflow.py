@@ -248,14 +248,16 @@ class PhysicsConvexDecompositionOptions(BaseModel):
 
     Defaults match the OvPhysX 0.4.13 USD schema. Omitting the entire record
     preserves existing authoring behavior; providing it authors all five values.
-    These are cooking controls, not a geometry-fidelity guarantee.
+    The decomposition backend accepts 8–64 hull vertices, narrower than the
+    USD integer type. Other bounds limit resources. These controls do not
+    guarantee geometry fidelity.
     """
 
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
     shrink_wrap: bool = False
     error_percentage: float = Field(default=10.0, ge=0.0, le=100.0, allow_inf_nan=False)
-    hull_vertex_limit: int = Field(default=64, ge=4, le=255)
+    hull_vertex_limit: int = Field(default=64, ge=8, le=64)
     max_convex_hulls: int = Field(default=32, ge=1, le=256)
     voxel_resolution: int = Field(default=500_000, ge=10_000, le=4_000_000)
 

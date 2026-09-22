@@ -177,7 +177,7 @@ evidence that this setting succeeds for an arbitrary asset:
   "convex_decomposition": {
     "shrink_wrap": true,
     "error_percentage": 1.0,
-    "hull_vertex_limit": 128,
+    "hull_vertex_limit": 64,
     "max_convex_hulls": 64,
     "voxel_resolution": 1000000
   }
@@ -187,9 +187,14 @@ evidence that this setting succeeds for an arbitrary asset:
 The record is allowed alongside the scalar physical properties and optional
 mass-property vectors in the native target-ID decision. Omitting it leaves
 existing cooking attributes unchanged. Providing it authors all five values,
-using native0.4.13 defaults for omitted fields. Workflow resource bounds are
-error0–100%, vertices4–255, hulls1–256 and voxels10,000–4,000,000; these are not
-claims about the full native schema's limits. Invalid types, unknown fields,
+using native 0.4.13 defaults for omitted fields. Workflow resource bounds are
+error 0–100%, hulls 1–256 and voxels 10,000–4,000,000. Hull vertices are restricted
+to 8–64 because the OvPhysX 0.4.13 decomposition backend rejects 128 even though
+the USD schema accepts an integer property. The earlier 4–255 authoring bound
+was too broad; schema readback did not establish backend support. Existing
+failed assets and their receipts remain unchanged. Other resource bounds are
+not claims about every backend setting being independently qualified.
+Invalid types, unknown fields,
 incompatible approximations, non-mesh targets and conflicting existing attribute
 types fail before batch mutation. Rebased decisions with different cooking
 options cannot silently merge.

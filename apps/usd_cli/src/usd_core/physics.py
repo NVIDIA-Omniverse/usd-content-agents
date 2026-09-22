@@ -88,7 +88,7 @@ def apply_rigid_body(stage, path: str, *, density=None, mass=None, mass_properti
 _CONVEX_DECOMPOSITION_FIELDS = {
     "shrink_wrap": ("shrinkWrap", "Bool", False, None, None),
     "error_percentage": ("errorPercentage", "Float", 10.0, 0.0, 100.0),
-    "hull_vertex_limit": ("hullVertexLimit", "Int", 64, 4, 255),
+    "hull_vertex_limit": ("hullVertexLimit", "Int", 64, 8, 64),
     "max_convex_hulls": ("maxConvexHulls", "Int", 32, 1, 256),
     "voxel_resolution": ("voxelResolution", "Int", 500_000, 10_000, 4_000_000),
 }
@@ -98,8 +98,9 @@ _CONVEX_DECOMPOSITION_PREFIX = "physxConvexDecompositionCollision:"
 def _validate_convex_decomposition(prim, approximation, value):
     """Validate bounded cooking controls and applicability before any mutation.
 
-    Names/types/defaults match the OvPhysX 0.4.13 USD schema. Numeric ranges
-    bound this command surface's resource use; they are not native schema limits.
+    Names/types/defaults match the OvPhysX 0.4.13 USD schema. Its decomposition
+    backend accepts 8–64 hull vertices; the other ranges bound resource use.
+    A valid USD property type alone does not prove a backend accepts its value.
     """
     import math
     from pxr import Sdf, UsdGeom

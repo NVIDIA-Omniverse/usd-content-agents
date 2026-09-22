@@ -508,7 +508,7 @@ still allowing their collision and material operations; do not author or change
 
 For mesh targets using `convexDecomposition`, an optional `convex_decomposition`
 record exposes native cooking controls: `shrink_wrap` (boolean, default false),
-`error_percentage` (number 0–100, default 10), `hull_vertex_limit` (integer 4–255,
+`error_percentage` (number 0–100, default 10), `hull_vertex_limit` (integer 8–64,
 default 64), `max_convex_hulls` (integer 1–256, default 32), and
 `voxel_resolution` (integer 10000–4000000, default 500000). These are bounded
 workflow controls, not a guarantee of hollow-shape preservation. The defaults

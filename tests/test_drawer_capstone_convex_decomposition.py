@@ -12,7 +12,7 @@ from content_agent_workflows.physics.workflow import (
 from content_agent_workflows.physics.usd_cli_ops import physics_patch_from_workflow_decisions
 from usd_core.physics import apply_collision, apply_operations
 
-OPTIONS = dict(shrink_wrap=True, error_percentage=0.5, hull_vertex_limit=128,
+OPTIONS = dict(shrink_wrap=True, error_percentage=0.5, hull_vertex_limit=64,
                max_convex_hulls=64, voxel_resolution=1_000_000)
 NATIVE = dict(shrink_wrap=('shrinkWrap', Sdf.ValueTypeNames.Bool, False),
               error_percentage=('errorPercentage', Sdf.ValueTypeNames.Float, 10.0),
@@ -66,6 +66,29 @@ def test_target_resolution_native_authoring_and_saved_readback(tmp_path):
         assert attr.GetTypeName()==kind and attr.Get()==OPTIONS[key] and not attr.IsCustom()
 
 
+@pytest.mark.parametrize('vertices', [8, 64])
+def test_backend_hull_vertex_boundaries_survive_target_resolution_and_authoring(vertices):
+    _, decisions = decision_patch({**OPTIONS, 'hull_vertex_limit': vertices})
+    assert decisions[0].convex_decomposition.hull_vertex_limit == vertices
+    operations = physics_patch_from_workflow_decisions(
+        [d.model_dump(mode='json') for d in decisions], author_rigid_body=True,
+        physics_scene_path='/World/PhysicsScene')
+    stage = stage_with_mesh()
+    apply_operations(stage, operations)
+    prim = stage.GetPrimAtPath('/World/Body/Mesh')
+    assert prim.GetAttribute(PREFIX + 'hullVertexLimit').Get() == vertices
+
+
+def test_omitted_options_do_not_rewrite_legacy_unsupported_authored_value():
+    stage = stage_with_mesh()
+    apply_collision(stage, '/World/Body/Mesh', approximation='convexDecomposition')
+    prim = stage.GetPrimAtPath('/World/Body/Mesh')
+    prim.CreateAttribute(PREFIX + 'hullVertexLimit', Sdf.ValueTypeNames.Int, custom=False).Set(128)
+    before = stage.GetRootLayer().ExportToString()
+    apply_collision(stage, '/World/Body/Mesh', approximation='convexDecomposition')
+    assert stage.GetRootLayer().ExportToString() == before
+
+
 def test_omitted_record_preserves_legacy_usd_and_operations():
     _, decisions = decision_patch(None)
     operations = physics_patch_from_workflow_decisions(
@@ -103,7 +126,9 @@ def test_omitted_record_preserves_existing_custom_cooking_values_byte_for_byte()
     ('shrink_wrap',1),('shrink_wrap','true'),('shrink_wrap',None),
     ('error_percentage',True),('error_percentage','1'),('error_percentage',float('nan')),
     ('error_percentage',float('inf')),('error_percentage',-0.1),('error_percentage',100.1),
-    ('hull_vertex_limit',3),('hull_vertex_limit',256),('hull_vertex_limit',64.0),
+    ('hull_vertex_limit',3),('hull_vertex_limit',4),('hull_vertex_limit',7),
+    ('hull_vertex_limit',65),('hull_vertex_limit',128),('hull_vertex_limit',255),
+    ('hull_vertex_limit',256),('hull_vertex_limit',64.0),
     ('max_convex_hulls',0),('max_convex_hulls',257),('max_convex_hulls',True),
     ('voxel_resolution',9999),('voxel_resolution',4000001),('voxel_resolution','500000'),
     ('unexpected',1),

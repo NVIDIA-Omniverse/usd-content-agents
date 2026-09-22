@@ -1,0 +1,19 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "edbd0a387f62e9c167a78065a095c59179f51bb96630bccbe2d7bb2199ec68c7"
+  },
+  "failures": [],
+  "schema_version": "content-agent-workflows.geometry-usd-validation.v1",
+  "status": "pass",
+  "warnings": [
+    "primvars:st contains repeated values that can be indexed.",
+    "77 vertices are non-manifold.",
+    "82 vertices are non-manifold.",
+    "78 vertices are non-manifold.",
+    "51 vertices are non-manifold.",
+    "59 vertices are non-manifold.",
+    "The mesh contains zero area faces."
+  ]
+}

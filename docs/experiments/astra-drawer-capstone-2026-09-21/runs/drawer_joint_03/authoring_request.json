@@ -1,0 +1,19 @@
+{
+  "accepted_authoring_plan_path": null,
+  "accepted_authoring_plan_sha256": null,
+  "accepted_candidate_ids": [
+    "upper_drawer_prismatic"
+  ],
+  "apply_collision": false,
+  "apply_masses": false,
+  "candidate_document_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json",
+  "candidate_document_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+  "idempotency_key": "a0953fe13858347a0e0c07019928d4c6dfe10bdfd8ba8513b539f389b6d0d094",
+  "output_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03",
+  "predictions_path": null,
+  "predictions_sha256": null,
+  "schema_version": "content-agent-workflows.articulation-authoring-request.v1",
+  "source_asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+  "source_dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3",
+  "source_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35"
+}

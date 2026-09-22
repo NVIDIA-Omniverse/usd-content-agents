@@ -1,0 +1,66 @@
+{
+  "artifacts": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/renders/view-000.png",
+      "sha256": "469b02e0bdde568fb365c80a356cc4b305c14a00e21b601be27f3172bbf34696",
+      "size_bytes": 341017
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/renders/view-000_response.json",
+      "sha256": "91495f87f206043b2f49451250160df99ea2a0d502d983c06a9a2ab47fcdef52",
+      "size_bytes": 2220
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/renders/view-000_camera.json",
+      "sha256": "c5db1342d8ea49c1d868550c95c6c3605e1ba848e757615e19902d02aed64d8e",
+      "size_bytes": 358
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/raw/usd_cli_command_receipts.jsonl",
+      "sha256": "d0301620889e43571f0f8bf7bcd42affe1eae4578ef8eb60ecafedfdb0bf962f",
+      "size_bytes": 9817
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/raw/usd_cli_command_receipts.checkpoint.json",
+      "sha256": "6ff47afb67d8fa9c91bb0ba7ecb49e2ba4b286d2a51dbb5aaacccf4735507dfa",
+      "size_bytes": 359
+    }
+  ],
+  "authority": "outer_review_input",
+  "backend_identity_sha256": "4cab69804b519f69a328dd2671a207662bc33686d25ec1a4949cf175cfd78971",
+  "claim_scope": "exact post-mutation USD OVRTX render evidence",
+  "dependencies": [],
+  "evidence_type": "visual.canonical-ovrtx",
+  "gate_id": "visual.canonical-evidence",
+  "native_payload": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/canonical_visual_payload.json",
+    "sha256": "a480b818275145d298a1e745f4e36206ab1936fd42f5c5cd9e5ced457cd7bcf6",
+    "size_bytes": 2839
+  },
+  "native_payload_type": "visual.canonical-usd-cli-ovrtx-payload",
+  "native_report": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/canonical_visual_render_report.json",
+    "sha256": "2506e6705de0373ae96026fa4a7f9440060182f9e6a1749ea398f2c6de7e485e",
+    "size_bytes": 2100
+  },
+  "native_report_type": "usd-cli.ovrtx-render-report",
+  "native_status": "pass",
+  "operation_id": "visual.canonical-ovrtx",
+  "output": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+    "sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+    "size_bytes": 1036981
+  },
+  "producer_identity_sha256": "97d5843a38167c0332ea238a215b010311079a0790671bd8d1d80c67ae26bf9c",
+  "profile_identity_sha256": "60370f871db0a5ed33f83063a98db59741729eeeaf6e317dce4e072cad5ec75c",
+  "projector_identity_sha256": "8e3a552ad8eda8459731aae8a516aa5acc5c8e8b3f5732583d450b07f1712ddd",
+  "required": true,
+  "schema_version": "content-agent-workflows.verified-validation-operation-projection.v1",
+  "source": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  },
+  "tool_identity_sha256": "8f8e1a4815387901beb505fdb5a9810b174ada4fad5d69d53ea767091f9ec61d",
+  "verifier_identity_sha256": "02941631ef1d0c62a52a662fe18977c8e1e9aea572cf0931ed183ea89e919bff"
+}

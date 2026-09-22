@@ -1,0 +1,18 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "d82517649b310412270fa59ed28c17c5f67548b566a0cfb8247de0dcf39025f7"
+  },
+  "created_at": "2026-09-22T03:02:32.659494+00:00",
+  "failure": {
+    "code": "physics_apply_failed",
+    "returncode": 1
+  },
+  "schema_version": "content-agent-workflows.run-manifest.v1",
+  "source_path": "runs/drawer_packaging_03/source.usdz",
+  "source_sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+  "status": "fail",
+  "updated_at": "2026-09-22T03:16:56.599089+00:00",
+  "workflow": "physics.apply"
+}

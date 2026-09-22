@@ -1,0 +1,142 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "82e54878801418a78546deaf9f7266969ff8e22b2b9881510db0adbd4f8627e5"
+  },
+  "asset": "runs/drawer_physics_03/inputs/source/source.usdz",
+  "decisions": [
+    {
+      "collider_target_ids": [
+        "component_001:visual:eb9a0bca78f0f6fe1fc4cc9c72d49a1f3bfb965f891f0c6da4ce63e3584d2dc0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_001",
+      "confidence": 0.78,
+      "decision_id": "physics_component_001_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_properties": {
+        "center_of_mass": [
+          0.00879941130464277,
+          1.0132691201324464,
+          0.09412690969490285
+        ],
+        "diagonal_inertia": [
+          0.14943559995160616,
+          0.8673600643339555,
+          0.7393149806868428
+        ],
+        "principal_axes": [
+          0.9994685675941963,
+          -0.03225944224667463,
+          0.004638708455407128,
+          0.0006270255216043317
+        ]
+      },
+      "physical_properties": {
+        "density": 600,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 6.163479754140765,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "mass_scale_suspicious",
+          "message": "The source base has a 58.62835 mm envelope; the 6.16348 kg estimate assumes two 4 mm wood skins and an unverified hollow core. A uniform solid-wood interpretation at 600 kg/m3 would be about 18.04 kg, above the requested 10 kg ceiling. This is an authored thin-wall construction estimate, not measured mass.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve the sole inspected dynamic nonkinematic upper-drawer body and its standalone prismatic joint; no articulation root."
+    },
+    {
+      "collider_target_ids": [
+        "component_002:visual:21058cce64253698d977c4a8f87fb85c3b0ce9244717ad12cc9bc0eeb1dec11c"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_002",
+      "confidence": 0.8,
+      "decision_id": "physics_component_002_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass."
+    },
+    {
+      "collider_target_ids": [
+        "component_003:visual:d72713bdb42892f9b16b901639f455cc7eefbe076c255dac17d07805ab861a6c"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_003",
+      "confidence": 0.92,
+      "decision_id": "physics_component_003_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass."
+    },
+    {
+      "collider_target_ids": [
+        "component_004:visual:c603645a8263043254feffe0703e55ce825e8662ebace39a1b5efec049769fe3"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_004",
+      "confidence": 0.92,
+      "decision_id": "physics_component_004_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass."
+    },
+    {
+      "collider_target_ids": [
+        "component_005:visual:ba22040b5b6103310efd250578a33c22af0e7d1ef9c38350c4bf488f8b2cfd2f"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_005",
+      "confidence": 0.92,
+      "decision_id": "physics_component_005_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass."
+    }
+  ],
+  "schema_version": "content-agent-workflows.physics-decision-patch.v2",
+  "source_digest": "sha256:32b6acf5c9a96d0487061c2e1f1f59625f8d73d0324deead1d78fcb86bb6dd45",
+  "unresolved_components": []
+}

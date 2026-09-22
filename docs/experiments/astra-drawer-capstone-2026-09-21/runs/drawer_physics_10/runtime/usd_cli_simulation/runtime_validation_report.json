@@ -1,0 +1,49 @@
+{
+  "engine": "ovphysx",
+  "executor": "local",
+  "n_bodies": 1,
+  "scene_usd": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/drop_settle_scene.usda",
+  "recording_usda": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/recording.usda",
+  "trajectory_jsonl": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/trajectory.jsonl",
+  "metrics": {
+    "n_samples": 91,
+    "duration_s": 3.0,
+    "final_position": [
+      9.313225746154785e-10,
+      0.0,
+      -2.2351741790771484e-08
+    ],
+    "max_linear_speed": 2.7878985000953586e-06,
+    "final_linear_speed": 0.0,
+    "min_linear_speed": 0.0,
+    "max_angular_speed": 1.6216144073046769e-13,
+    "settle_distance": 0.0,
+    "drop_height": 0.0,
+    "first_rebound_height": 0.0,
+    "rebound_fraction": 0.0,
+    "max_abs_position": 2.2351741790771484e-08
+  },
+  "simulation_facts": {
+    "trajectory_sample_count": 91,
+    "trajectory_finite": true,
+    "reported_body_count": 1,
+    "reported_step_count": 720,
+    "modeled_body_path": "/Asset/drawer_cabinet_drawer_01_1",
+    "solver_body_pattern": "/Asset/drawer_cabinet_drawer_01_1"
+  },
+  "scenario": {
+    "scene_usd": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/drop_settle_scene.usda",
+    "body_path": "/Asset/drawer_cabinet_drawer_01_1",
+    "body_pattern": "/Asset/drawer_cabinet_drawer_01_1",
+    "rest_position": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "world_up": [
+      0.0,
+      1.0,
+      0.0
+    ]
+  }
+}

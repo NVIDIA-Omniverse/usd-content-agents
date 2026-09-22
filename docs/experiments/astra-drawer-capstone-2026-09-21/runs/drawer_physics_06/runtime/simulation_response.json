@@ -1,0 +1,13 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "4043750c14bfeb51b7fcfe0a7cd293d6cf2e0210a08a237644db2633e464e29f"
+  },
+  "engine": "ovphysx",
+  "n_bodies": 1,
+  "n_steps": 720,
+  "status": "ok",
+  "trajectory_sample_count": 91,
+  "usd_cli_report_path": "runs/drawer_physics_06/runtime/usd_cli_simulation/runtime_validation_report.json"
+}

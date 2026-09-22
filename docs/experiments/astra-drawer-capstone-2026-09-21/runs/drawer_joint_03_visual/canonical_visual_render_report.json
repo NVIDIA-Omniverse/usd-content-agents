@@ -1,0 +1,60 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "2506e6705de0373ae96026fa4a7f9440060182f9e6a1749ea398f2c6de7e485e"
+  },
+  "backend": "ovrtx",
+  "camera_records": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000_camera.json",
+      "sha256": "c5db1342d8ea49c1d868550c95c6c3605e1ba848e757615e19902d02aed64d8e",
+      "size_bytes": 358
+    }
+  ],
+  "image_paths": [
+    "runs/drawer_joint_03_visual/usd_cli/renders/view-000.png"
+  ],
+  "images": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000.png",
+      "sha256": "469b02e0bdde568fb365c80a356cc4b305c14a00e21b601be27f3172bbf34696",
+      "size_bytes": 341017
+    }
+  ],
+  "metadata": {
+    "backend": "ovrtx",
+    "image_height": 1024,
+    "image_width": 1024,
+    "renderer": "ovrtx",
+    "renderer_identities": [
+      null
+    ],
+    "scene_tool": "usd-cli",
+    "scene_tool_source_revision": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06",
+    "views": [
+      "+x+y+z"
+    ],
+    "workflow": "validation-canonical-visual-evidence"
+  },
+  "probe_schema_version": "usd-cli.render-probe.v1",
+  "render_responses": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000_response.json",
+      "sha256": "91495f87f206043b2f49451250160df99ea2a0d502d983c06a9a2ab47fcdef52",
+      "size_bytes": 2220
+    }
+  ],
+  "schema_version": "content-agent-workflows.canonical-visual-usd-cli-render-report.v1",
+  "status": "completed",
+  "usd_cli_command_receipt": {
+    "path": "runs/drawer_joint_03_visual/usd_cli/raw/usd_cli_command_receipts.jsonl",
+    "sha256": "d0301620889e43571f0f8bf7bcd42affe1eae4578ef8eb60ecafedfdb0bf962f",
+    "size_bytes": 9817
+  },
+  "usd_cli_receipt_checkpoint": {
+    "path": "runs/drawer_joint_03_visual/usd_cli/raw/usd_cli_command_receipts.checkpoint.json",
+    "sha256": "6ff47afb67d8fa9c91bb0ba7ecb49e2ba4b286d2a51dbb5aaacccf4735507dfa",
+    "size_bytes": 359
+  }
+}

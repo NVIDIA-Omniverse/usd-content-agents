@@ -1,0 +1,103 @@
+{
+  "source": "source.usdz",
+  "saved_stage": "source.usdz",
+  "up_axis": "Y",
+  "meters_per_unit": 1,
+  "moving_drawer": "/Asset/drawer_cabinet_drawer_01_1",
+  "static_cabinet_owner": "/Asset/drawer_cabinet_0/Primitive_0",
+  "cabinet_parent_owner": "/Asset",
+  "identical_identity_endpoint_world_frames": true,
+  "parts": [
+    {
+      "path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "owner": "/Asset/drawer_cabinet_0/Primitive_0",
+      "world_bounds_m": [
+        [
+          -0.5705390572547913,
+          0.0,
+          -0.24765323102474213
+        ],
+        [
+          0.5705388188362122,
+          1.881253957748413,
+          0.238848015666008
+        ]
+      ],
+      "vertices": 14130,
+      "faces": 18198
+    },
+    {
+      "path": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "owner": "/Asset/drawer_cabinet_drawer_01_1",
+      "world_bounds_m": [
+        [
+          -0.5193020105361938,
+          0.954371452331543,
+          -0.18753623962402344
+        ],
+        [
+          0.5145469903945923,
+          1.1032557487487793,
+          0.24043147265911102
+        ]
+      ],
+      "vertices": 1486,
+      "faces": 2052
+    },
+    {
+      "path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "owner": "/Asset/drawer_cabinet_drawer_02_2",
+      "world_bounds_m": [
+        [
+          -0.5193020105361938,
+          0.7794284820556641,
+          -0.18753623962402344
+        ],
+        [
+          0.5145469903945923,
+          0.9283127188682556,
+          0.24043147265911102
+        ]
+      ],
+      "vertices": 1499,
+      "faces": 2052
+    },
+    {
+      "path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "owner": "/Asset/drawer_cabinet_drawer_03_3",
+      "world_bounds_m": [
+        [
+          -0.5193020105361938,
+          0.6044896841049194,
+          -0.18753623962402344
+        ],
+        [
+          0.5145469903945923,
+          0.7533739805221558,
+          0.24043147265911102
+        ]
+      ],
+      "vertices": 1463,
+      "faces": 2052
+    },
+    {
+      "path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "owner": "/Asset/drawer_cabinet_drawer_04_4",
+      "world_bounds_m": [
+        [
+          -0.5193020105361938,
+          0.42955005168914795,
+          -0.18753623962402344
+        ],
+        [
+          0.5145469903945923,
+          0.5784343481063843,
+          0.24043147265911102
+        ]
+      ],
+      "vertices": 1435,
+      "faces": 2052
+    }
+  ],
+  "scope": "Explicit source-bound static membership only; no joint or physical success claim."
+}

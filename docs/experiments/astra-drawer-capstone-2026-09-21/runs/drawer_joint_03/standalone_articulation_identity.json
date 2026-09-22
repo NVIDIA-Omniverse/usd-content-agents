@@ -1,0 +1,28 @@
+{
+  "capability_sha256": "7b5424a560a42751d9bacfaf3bbba492789d25a534011da9a7b1f0c73a96ccb4",
+  "configuration_sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+  "default_provider_backend": null,
+  "execution_context": {
+    "domain": "articulation",
+    "embedded_stage": null,
+    "mode": "standalone",
+    "reasoning_loop_owner": "domain_child_agent",
+    "schema_version": "content-agent-workflows.domain-execution-context.v1"
+  },
+  "implementation_sha256": "d4a1c57284a1c35f6941a8386d7379dd6037100f33d0f7e0f155cfcd5e9fe374",
+  "preparation": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/standalone_articulation_preparation.json",
+    "sha256": "350bc882d75c0a6f6f10506bf495479666c5d8925bd697923e2add6f663cf45d"
+  },
+  "request": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/request.json",
+    "sha256": "fadea481b89f79d3f32156fc79abdcb552c6fa5d76cc9eea393e189ea9ec11c3"
+  },
+  "schema_version": "content-agent-workflows.standalone-articulation-identity.v1",
+  "source": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  },
+  "source_dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3"
+}

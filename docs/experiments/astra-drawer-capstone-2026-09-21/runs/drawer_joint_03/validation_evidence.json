@@ -1,0 +1,39 @@
+{
+  "evidence_paths": [
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/diagnostics.json",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/result.json"
+  ],
+  "exact_graph_match": true,
+  "expected_candidate_ids": [
+    "upper_drawer_prismatic"
+  ],
+  "expected_output_asset_sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+  "failures": [],
+  "metadata": {
+    "backend": "joint-agent-owned-core",
+    "expected_dependency_bundle_sha256": "69ad994e95cd679731614f7b4308170aeb45d7aa1a38e19baaab1cf22d6f85c2",
+    "joint_diagnostic_ids": [
+      "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24"
+    ],
+    "joint_diagnostic_paths": [
+      "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24"
+    ],
+    "joint_rigger_input_sha256": "79dd7c69bd1c10170f4e46685041e9c5273a1d0a3b833f5d477597c82e38a660",
+    "joint_rigger_plan_sha256": "36aa328339aa55bfedf8914124e1e8e371a29ae5528aec53f0dd706c8a92f03d",
+    "live_backend_invoked": true,
+    "observed_dependency_bundle_sha256": "69ad994e95cd679731614f7b4308170aeb45d7aa1a38e19baaab1cf22d6f85c2",
+    "request_identity_source_bound": true,
+    "saved_managed_joint_paths": [
+      "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24"
+    ]
+  },
+  "observed_output_asset_sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+  "output_asset_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+  "schema_version": "content-agent-workflows.articulation-validation-evidence.v1",
+  "self_contained": true,
+  "status": "pass",
+  "validated_candidate_ids": [
+    "upper_drawer_prismatic"
+  ]
+}

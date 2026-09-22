@@ -1,0 +1,9 @@
+{
+  "stage": "run",
+  "returncode": 0,
+  "inputs_unchanged": true,
+  "preparation_sha256": "2a99e710addc76464ad195e189594d8ab063048d62568d4931822b54d6579f24",
+  "output_log_sha256": "f4136d0fb8b66edadb26973c982dd2b53f65eb2a82a9a8b3f7fe9df5d1cdadae",
+  "terminal_acceptance_inferred_from_exit_code": false,
+  "scope": "Native operation result only. Inspect actual assessment/execution/terminal receipt and separate five-seed task conjunction."
+}

@@ -1,0 +1,116 @@
+{
+  "schema_version": "content-agent-workflows.validation-coordinator-assessment.v1",
+  "assessment_id": "drawer-native10-root-assessment-01",
+  "created_at": "2026-09-22T04:25:06.430789+00:00",
+  "gates": [
+    {
+      "gate": "static_validation",
+      "required": true,
+      "evidence_ids": [
+        "validation-template-physics_sane",
+        "validation-template-render_valid"
+      ],
+      "disposition": "pass",
+      "rationale": "Actual required native checks pass without issue codes. USD inspection finds the original five meshes, five colliders, one dynamic upper drawer, one MassAPI and one PhysicsScene. Fresh canonical OVRTX rendering completed with a readable nonblank image. These are schema and render checks, not proof of loaded joint motion."
+    },
+    {
+      "gate": "runtime_validation",
+      "required": true,
+      "evidence_ids": [
+        "validation-template-physical_behavior"
+      ],
+      "disposition": "pass",
+      "rationale": "The strict native consumer validates Physics10 bundle SHA 1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5 on asset SHA 0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156, including source/dependencies, full measured mounted-rest trajectory and actual typed eight-frame visual review. The native result explicitly passes. Its scope is single-body mounted CPU runtime and rendered behavior; loaded task acceptance remains a separate required capstone conjunction."
+    },
+    {
+      "gate": "visual_quality",
+      "required": true,
+      "evidence_ids": [
+        "validation-outer-visual-evidence"
+      ],
+      "disposition": "pass",
+      "rationale": "I directly inspected the exact current canonical PNG SHA 15282abd7c2138455d4f34799dfcb80eb869a07901b39cbc58829dc7c7e420a2. The full cabinet is visible with coherent wood panels, black frame, shelves and aligned closed drawers. There is no blank render or visible exploded/missing major part. The single elevated oblique view does not prove hidden geometry, interior clearance, all-view material fidelity or dynamic task behavior."
+    },
+    {
+      "gate": "package_integrity",
+      "required": true,
+      "evidence_ids": [
+        "validation-package-integrity"
+      ],
+      "disposition": "pass",
+      "rationale": "Native readback reports source unchanged, and run/collect rechecked preparation and all bound input bytes. I independently matched the 12 unique local evidence artifacts and operation-index SHA/size to the collected index. The accepted plan selected exactly the three required provider-free capabilities, with all_required_evidence and no downgraded requirement. Both source asset and packaged dependency have equal before/after hashes."
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "bounded-physical-task",
+      "source_evidence_ids": [
+        "validation-template-physical_behavior"
+      ],
+      "source_issue_codes": [],
+      "severity": "info",
+      "summary": "Five independent loaded drawer trials pass on the exact native asset; this is separate task evidence, not a metric supplied by the native smoke gate.",
+      "affected_artifacts": [
+        "evaluations/native10_source_clear_v1/report.json",
+        "task_evidence_audit_v1/native10/audit.json"
+      ],
+      "affected_prims": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "remediation_requirements": [],
+      "disposition": "accepted",
+      "rationale": "Root read report SHA 35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c and independent audit SHA fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3. All five frozen seeds have 2460 samples and corroborated metrics. This uses the predeclared source-clear fixture, free 0.5 kg payload, bounded external force and ideal connected-actor exclusion. Initial native quaternion and per-contact actor IDs are absent from the frozen trace and remain audit limits. No real rail/actuator/hardware claim follows."
+    },
+    {
+      "finding_id": "historical-geometry-scope",
+      "source_evidence_ids": [
+        "validation-template-physics_sane",
+        "validation-package-integrity"
+      ],
+      "source_issue_codes": [],
+      "severity": "info",
+      "summary": "Original Geometry04 remains a conditional source/visual handoff with SimReady not_evaluated.",
+      "affected_artifacts": [
+        "runs/drawer_geometry_04/geometry_validation_evidence.json"
+      ],
+      "affected_prims": [],
+      "remediation_requirements": [],
+      "disposition": "accepted",
+      "rationale": "The corrected launcher reads the actual typed Geometry v3 schema and preserves its original warnings, nonmanifold/zero-area source topology, optimization skip and handoff status. Later source-array, collision/runtime and task checks supply this bounded task evidence; this assessment does not rewrite historical Geometry into a formal SimReady pass or waive its original conditions."
+    },
+    {
+      "finding_id": "standalone-cross-stage-scope",
+      "source_evidence_ids": [
+        "validation-cross-stage-integrity"
+      ],
+      "source_issue_codes": [],
+      "severity": "info",
+      "summary": "Standalone native Validation does not provide an automatic cross-stage integrity gate.",
+      "affected_artifacts": [
+        "native_run/standalone_validation_evidence.json"
+      ],
+      "affected_prims": [],
+      "remediation_requirements": [],
+      "disposition": "accepted",
+      "rationale": "The native record is optional and unsupported, and is deliberately not represented as a passed or waived gate. The separate experiment preparation, source-array checks, native10 independent review and same-SHA task audit document the chain; their scope is distinct from native standalone acceptance."
+    },
+    {
+      "finding_id": "runtime-and-development-limits",
+      "source_evidence_ids": [
+        "validation-template-physical_behavior"
+      ],
+      "source_issue_codes": [],
+      "severity": "info",
+      "summary": "Acceptance is confined to the disclosed CPU rigid-body fixture and repaired unscored workflow.",
+      "affected_artifacts": [
+        "evidence/native10_independent_review/review.json"
+      ],
+      "affected_prims": [],
+      "remediation_requirements": [],
+      "disposition": "accepted",
+      "rationale": "The separate initialized cooking preflight retains the exact documented nonfatal registry error and all other startup/CPU-fallback messages; it is not a generic error whitelist or proof of GPU/particle/deformable collision. Mass, COM and inertia are estimates. Extensive code/authoring repairs and prior failures remain retained outside the frozen pilot budget. Native Validation01 itself reports no unresolved required issues."
+    }
+  ],
+  "terminal_disposition": "pass",
+  "summary": "Root Astra Ultra accepts all four required native standalone Validation gates without waivers or deferrals for the exact Physics10 asset. This is a bounded native schema/render/mounted-runtime result. Final capstone success additionally requires accepted independent native review and the separately corroborated five-seed loaded drawer task on the same SHA. Geometry remains conditional and standalone cross-stage integrity remains unsupported; no universal SimReady, causal workflow-value or hardware-realism claim is made."
+}

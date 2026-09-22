@@ -1,0 +1,37 @@
+{
+  "accepted_candidate_ids": [
+    "upper_drawer_prismatic"
+  ],
+  "candidate_ids": [
+    "upper_drawer_prismatic"
+  ],
+  "canonical_graph": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/canonical_articulation_graph.json",
+    "sha256": "7925d1358b58aa585a24aa058621f716a62289256bedbf2317837791b919d560"
+  },
+  "canonical_graph_digest": "b33b5756f8ad2770e0381251219a8ed90c780a398ea62c8cdad2c5c90af628ac",
+  "decision_patch": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/articulation_decision_patch.json",
+    "sha256": "47d076e2362c48fd0a224a6e956497ee91a1f7439cd55b97931b8964c4329c39"
+  },
+  "disposition": "accept",
+  "evidence_requirements": [
+    "source-hierarchy-inspection",
+    "joint-source-member-inspection",
+    "joint-authoritative-owner-inspection",
+    "joint-authoring-capabilities",
+    "joint-render-inspection",
+    "joint-scene-inspection"
+  ],
+  "identity_digest": "4c13243854f0b073d47b9543c3a640c99f6ddafdca1ac42369d81b2af46040ed",
+  "preparation": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/standalone_articulation_preparation.json",
+    "sha256": "350bc882d75c0a6f6f10506bf495479666c5d8925bd697923e2add6f663cf45d"
+  },
+  "refinement_attempt": 0,
+  "rejected_candidate_ids": [],
+  "schema_version": "content-agent-workflows.articulation-decision-ledger.v2",
+  "unresolved_candidate_ids": [],
+  "validated_at": "2026-09-22T03:36:26.676289Z",
+  "validation_status": "accepted"
+}

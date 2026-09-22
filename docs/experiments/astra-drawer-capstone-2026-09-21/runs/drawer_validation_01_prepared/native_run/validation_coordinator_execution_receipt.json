@@ -1,0 +1,82 @@
+{
+  "accepted_plan": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_coordinator_accepted_plan.json",
+    "sha256": "1022b2d062a65f8cb8fc0e203951dba1ec14494c241c02fc4a550994631dcefe",
+    "size_bytes": 4690
+  },
+  "accepted_plan_digest": "e85fd422e3857ce06d8b24ba9477803e0c2f4f64c01aedde7ed8747d9b1115c0",
+  "completed_at": "2026-09-22T04:22:04.111870Z",
+  "coordinator_planning_agent_launched": true,
+  "execution_disposition": "completed",
+  "final_summary": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/final_summary.json",
+    "sha256": "e7a9bd4f08f610a93d6e108f688acd093ac8af6250c88317b4786fa230972386",
+    "size_bytes": 1166
+  },
+  "independent_assessment_required": true,
+  "operation_index": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_operation_index.json",
+    "sha256": "3766e8b0ee07597e9f2274bc8889c8219d5f6373c9f3aa9192d6dbb7469bf509",
+    "size_bytes": 1736
+  },
+  "operation_results": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/physics_sane/operation_result.json",
+      "sha256": "d1b98225d861d2645c541aef7a4e55a48be2c6e1fd19a2e103c3fb19a20c50cb",
+      "size_bytes": 5750
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/operation_result.json",
+      "sha256": "2327c42aabec05fd8617bb4165e6bd2b518c89be4c8f0980a2b428e8b8d15034",
+      "size_bytes": 11171
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/physical_behavior/operation_result.json",
+      "sha256": "88af000f75005af80455847e14fff8330e14f92450901dde1f3b76c73fdb3ee0",
+      "size_bytes": 8075
+    }
+  ],
+  "publication_kind": "validation_assessment",
+  "receipt_digest": "0b6412febd6db576a455349ca7e34a572b9b10977aa50ff617e851267b257a9f",
+  "required_checks_successful": true,
+  "schema_version": "content-agent-workflows.validation-coordinator-execution-receipt.v1",
+  "source_after": [
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "role": "source",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+    },
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+      "role": "source",
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+    }
+  ],
+  "source_before": [
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "role": "source",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+    },
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+      "role": "source",
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+    }
+  ],
+  "source_mutated": false,
+  "validation_evidence": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_evidence.json",
+    "sha256": "11b8ac236364703db5638da8f8a7d3696ffc3997da2154a56547965554ef7721",
+    "size_bytes": 3559
+  },
+  "validation_result": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_result.json",
+    "sha256": "fdc979fbb4ce21297591cb80b7149ff821a764b3a8a93f534d78a5f4e64e20e9",
+    "size_bytes": 42040
+  }
+}

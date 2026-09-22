@@ -1,0 +1,53 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "dd9c6d8489740db4edc59befc0952d2c668592782e7472a0d3f3be79ce14d5e4"
+  },
+  "engine": "ovphysx",
+  "metrics": {
+    "drop_height": 0.0,
+    "duration_s": 3.0,
+    "final_linear_speed": 0.0,
+    "final_position": [
+      -0.04852598160505295,
+      -0.0024886131286621094,
+      0.2821240723133087
+    ],
+    "first_rebound_height": 2.6412,
+    "max_abs_position": 2.832702159881592,
+    "max_angular_speed": 11.224370526728372,
+    "max_linear_speed": 293.85043910371166,
+    "min_linear_speed": 0.0,
+    "n_samples": 91,
+    "rebound_fraction": 0.0,
+    "settle_distance": 0.994
+  },
+  "n_bodies": 1,
+  "recording_usda": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda",
+  "scenario": {
+    "body_path": "/Asset/drawer_cabinet_drawer_01_1",
+    "body_pattern": "/Asset/drawer_cabinet_drawer_01_1",
+    "rest_position": [
+      0.0,
+      -0.954371452331543,
+      0.0
+    ],
+    "scene_usd": "runs/drawer_physics_03/runtime/drop_settle_scene.usda",
+    "world_up": [
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  "scene_usd": "runs/drawer_physics_03/runtime/drop_settle_scene.usda",
+  "simulation_facts": {
+    "modeled_body_path": "/Asset/drawer_cabinet_drawer_01_1",
+    "reported_body_count": 1,
+    "reported_step_count": 720,
+    "solver_body_pattern": "/Asset/drawer_cabinet_drawer_01_1",
+    "trajectory_finite": true,
+    "trajectory_sample_count": 91
+  },
+  "trajectory_jsonl": "runs/drawer_physics_03/runtime/usd_cli_simulation/trajectory.jsonl"
+}

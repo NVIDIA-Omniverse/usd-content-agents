@@ -1,0 +1,168 @@
+{
+  "completed_at": "2026-09-22T04:21:55.019215Z",
+  "evidence_artifacts": [
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "role": "evidence",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+    }
+  ],
+  "execution_mode": "execute",
+  "mandatory": true,
+  "nested_agent_launched": false,
+  "preparation_digest": "e1d5acef848a979b3934a146bbc30df936225aef273508ad780a6e2da0ec4538",
+  "role": "deterministic_check",
+  "schema_version": "content-agent-workflows.validation-operation-result.v1",
+  "source_after": [
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "role": "source",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+    },
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+      "role": "source",
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+    }
+  ],
+  "source_before": [
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "role": "source",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+    },
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+      "role": "source",
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+    }
+  ],
+  "template_name": "physics_sane",
+  "template_result": {
+    "evidence": {
+      "usd_paths": [
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+      ]
+    },
+    "evidence_items": [],
+    "issues": [],
+    "metadata": {
+      "adapter": "physics_sane",
+      "adapter_results": [
+        {
+          "evidence": {
+            "usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+          },
+          "issues": [],
+          "metrics": {
+            "collider_count": 5,
+            "collider_paths": [
+              "/Asset/drawer_cabinet_0/Primitive_0",
+              "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+              "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+              "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+              "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+            ],
+            "mass_api_count": 1,
+            "material_api_count": 5,
+            "mesh_count": 5,
+            "opened": true,
+            "physics_expected": true,
+            "physics_scene_count": 1,
+            "physics_scene_paths": [
+              "/Asset/PhysicsScene"
+            ],
+            "physics_schema_count": 13,
+            "rigid_body_count": 1,
+            "rigid_body_paths": [
+              "/Asset/drawer_cabinet_drawer_01_1"
+            ]
+          },
+          "passed": true,
+          "status": "completed",
+          "template": "physics_sane",
+          "verdict": "pass"
+        }
+      ],
+      "template_kind": "adapter",
+      "validation_coordinator_check": {
+        "capability_id": "validation.physics_sane",
+        "check_id": "validation.physics_sane",
+        "completion_policy": "all_required_evidence",
+        "evidence_requirements": [
+          "source_identity",
+          "usd_schema_result"
+        ],
+        "focus_prim_paths": [],
+        "parameters": {},
+        "required": true,
+        "rule_id": "physics.usd_schema_sanity",
+        "targets": [
+          "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+        ]
+      }
+    },
+    "metrics": {
+      "adapter_metrics": {
+        "collider_count": 5,
+        "collider_paths": [
+          "/Asset/drawer_cabinet_0/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ],
+        "mass_api_count": 1,
+        "material_api_count": 5,
+        "mesh_count": 5,
+        "opened": true,
+        "physics_expected": true,
+        "physics_scene_count": 1,
+        "physics_scene_paths": [
+          "/Asset/PhysicsScene"
+        ],
+        "physics_schema_count": 13,
+        "rigid_body_count": 1,
+        "rigid_body_paths": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ]
+      },
+      "collider_count": 5,
+      "collider_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "failed_count": 0,
+      "issue_count": 0,
+      "mass_api_count": 1,
+      "material_api_count": 5,
+      "mesh_count": 5,
+      "opened": true,
+      "passed_count": 1,
+      "physics_expected": true,
+      "physics_scene_count": 1,
+      "physics_scene_paths": [
+        "/Asset/PhysicsScene"
+      ],
+      "physics_schema_count": 13,
+      "rigid_body_count": 1,
+      "rigid_body_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "usd_path_count": 1,
+      "warn_count": 0
+    },
+    "status": "passed",
+    "template_name": "physics_sane"
+  },
+  "template_result_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/physics_sane/template_result.json",
+  "template_result_sha256": "2b843523ebc65db9ebe4583044fdd8264f640164be70293cf608c1e5376a6b8c"
+}

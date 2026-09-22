@@ -1,0 +1,330 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "13014e1f21063533ebe17be0ca0c67fcf03a38283ba6f1d2e29ba1c0b3c34f14"
+  },
+  "asset": "runs/drawer_physics_07/physics.usda",
+  "checks": [
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "physics_properties",
+      "status": "pass",
+      "summary": "Physics schemas and authored physical properties are present.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "runtime_loadability",
+      "status": "fail",
+      "summary": "Authored asset loads in the requested physics runtime.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "no_explosions",
+      "status": "fail",
+      "summary": "Runtime trajectory remains finite and bounded.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Agent-authored visual review of rendered simulation frames.",
+          "kind": "physics_behavior_assessment",
+          "path": "runs/drawer_physics_07/physics_behavior_assessment.json"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0000.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0001.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0002.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0003.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0004.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0005.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0006.png"
+        },
+        {
+          "description": "Rendered frame used for physics behavior review.",
+          "kind": "simulation_frame",
+          "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0007.png"
+        },
+        {
+          "description": "Runtime metrics reviewed alongside rendered frames.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+        },
+        {
+          "description": "Digest-bound mapping from rendered frames to their source USD, camera data, and OVRTX settings.",
+          "kind": "simulation_frame_receipt",
+          "path": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {
+        "assessment_status": "unresolved_issues",
+        "issues_fixed_count": 0,
+        "issues_found_count": 2
+      },
+      "name": "simulation_visual_review",
+      "status": "warning",
+      "summary": "Rendered simulation behavior was reviewed by the agent.",
+      "warnings": [
+        "{'code': 'initial_pose_discontinuity', 'message': 'Startup displacement remains a hard failure. Available evidence does not establish a supported material correction; retained source, grouping, joint, mass, and collision-shape constraints prevent an unsubstantiated workaround. Targeted native cooked-clearance and mounted-constraint evidence is needed to identify the cause.'}",
+        "{'code': 'render_time_alignment_uncertain', 'message': 'Exact correspondence between early rendered frames and recorded sample times remains unverified. Ground contact, hidden internal intersections, and the later force/payload task are outside the available visual evidence.'}"
+      ]
+    }
+  ],
+  "evidence_artifacts": [
+    {
+      "description": "Drop-settle validation scene.",
+      "kind": "simulation_scene",
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+    },
+    {
+      "description": "Per-frame simulated pose and velocity.",
+      "kind": "trajectory_jsonl",
+      "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/trajectory.jsonl"
+    },
+    {
+      "description": "Time-sampled USD recording of the validation run.",
+      "kind": "recording_usda",
+      "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "description": "Runtime validation metrics and artifact index.",
+      "kind": "runtime_report",
+      "path": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+    },
+    {
+      "description": "Agent-authored visual review of rendered simulation frames.",
+      "kind": "physics_behavior_assessment",
+      "path": "runs/drawer_physics_07/physics_behavior_assessment.json"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0000.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0001.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0002.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0003.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0004.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0005.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0006.png"
+    },
+    {
+      "description": "Rendered frame used for physics behavior review.",
+      "kind": "simulation_frame",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0007.png"
+    },
+    {
+      "description": "Runtime metrics reviewed alongside rendered frames.",
+      "kind": "runtime_report",
+      "path": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+    },
+    {
+      "description": "Digest-bound mapping from rendered frames to their source USD, camera data, and OVRTX settings.",
+      "kind": "simulation_frame_receipt",
+      "path": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json"
+    }
+  ],
+  "failures": [
+    "Simulation initial pose was discontinuous: first-step displacement was 0.053093 m."
+  ],
+  "metadata": {
+    "asset_sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+    "duration_s": 3.0,
+    "engine": "ovphysx",
+    "ground_clearance_support_decision": {
+      "authored_collision_approximations": [
+        "convexDecomposition"
+      ],
+      "body_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "cache_key": "cd740534f3b573a40ae1d0b25da6389e3d63b033e31d0c117911369d4a4fa073",
+      "cache_status": "primary",
+      "decision_id": "8bfb304d87619b20e3ba89291105a5764a6527b7b6e2ab4c553b0a4c6a40141c",
+      "exact": true,
+      "fallback_accepted": false,
+      "hull_input_point_count_estimate": 1486,
+      "measurement_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "observed_unique_point_count": 1028,
+      "point_count_estimate_complete": true,
+      "policy_version": "raw-hull-input-bound.v1",
+      "primary_selection_duration_seconds": 0.010264918208122253,
+      "processing_bound": 400000,
+      "raw_point_count_estimate": 1486,
+      "reason": "Selected 1028 exact collider support points.",
+      "reason_code": "exact_support_points",
+      "reuse_count": 0,
+      "schema_version": "physics-agent.ground-clearance-support-decision.v1",
+      "selected_point_count": 1028,
+      "selected_support_type": "mesh_vertices",
+      "selection_duration_seconds": 0.010512053966522217,
+      "serialization_cap": 50000,
+      "validation_outcome": "fail"
+    },
+    "phase_timings_seconds": {
+      "acceptance": 0.18916350603103638,
+      "scene_build": 0.12006179243326187,
+      "simulation": 12.235148899257183,
+      "support_selection": 0.010512053966522217
+    },
+    "sample_fps": 30,
+    "settle_distance": 0.05911603333636899,
+    "trajectory_summary": {
+      "duration_s": 3.0,
+      "expected_ballistic_displacement_m": 0.00545,
+      "fell_over": false,
+      "final_position": [
+        0.025714881718158722,
+        -0.0012108087539672852,
+        -0.05321639031171799
+      ],
+      "first_step_displacement_m": 0.0530929324437674,
+      "gravity_magnitude_m_per_s2": 9.81,
+      "gravity_response_observed": true,
+      "ground_clearance_geometry": "collider_mesh_vertices",
+      "initial_pose_discontinuity": true,
+      "loaded_body_count": 1,
+      "max_angular_speed": 15.446680981896064,
+      "max_linear_speed": 2.272129304528375,
+      "maximum_ground_penetration_m": 0.0,
+      "n_samples": 91,
+      "resting_ground_penetration_m": 0.0,
+      "settle_time_s": 0.43333333333333335
+    }
+  },
+  "schema_version": "content-agent-workflows.validation-evidence.v1",
+  "sim_ready_status": "fail",
+  "target_runtime": "ovphysx",
+  "unresolved_issues": [
+    "{'code': 'initial_pose_discontinuity', 'message': 'Startup displacement remains a hard failure. Available evidence does not establish a supported material correction; retained source, grouping, joint, mass, and collision-shape constraints prevent an unsubstantiated workaround. Targeted native cooked-clearance and mounted-constraint evidence is needed to identify the cause.'}",
+    "{'code': 'render_time_alignment_uncertain', 'message': 'Exact correspondence between early rendered frames and recorded sample times remains unverified. Ground contact, hidden internal intersections, and the later force/payload task are outside the available visual evidence.'}"
+  ],
+  "validation_tier": "T2_simulation_match",
+  "warnings": [
+    "{'code': 'initial_pose_discontinuity', 'message': 'Startup displacement remains a hard failure. Available evidence does not establish a supported material correction; retained source, grouping, joint, mass, and collision-shape constraints prevent an unsubstantiated workaround. Targeted native cooked-clearance and mounted-constraint evidence is needed to identify the cause.'}",
+    "{'code': 'render_time_alignment_uncertain', 'message': 'Exact correspondence between early rendered frames and recorded sample times remains unverified. Ground contact, hidden internal intersections, and the later force/payload task are outside the available visual evidence.'}"
+  ],
+  "workflow": "physics_authoring"
+}

@@ -1,0 +1,65 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def PhysicsScene "PhysicsScene"
+    {
+        float physics:gravityMagnitude = 0
+    }
+
+    def Xform "Static"
+    {
+        def Mesh "Mesh" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+            int[] faceVertexIndices = [0, 3, 2, 0, 2, 1, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7]
+            uniform token physics:approximation = "none"
+            point3f[] points = [(-0.1, -0.1, -0.1), (0.1, -0.1, -0.1), (0.1, 0.1, -0.1), (-0.1, 0.1, -0.1), (-0.1, -0.1, 0.1), (0.1, -0.1, 0.1), (0.1, 0.1, 0.1), (-0.1, 0.1, 0.1)]
+            uniform token subdivisionScheme = "none"
+        }
+    }
+
+    def Xform "Moving" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysxContactReportAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.006666667, 0.006666667, 0.006666667)
+        bool physics:kinematicEnabled = 0
+        float physics:mass = 1
+        custom float physxContactReport:threshold = 0
+        double3 xformOp:translate = (0, 0, 0.15)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "Mesh" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+            int[] faceVertexIndices = [0, 3, 2, 0, 2, 1, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7]
+            uniform token physics:approximation = "convexHull"
+            point3f[] points = [(-0.1, -0.1, -0.1), (0.1, -0.1, -0.1), (0.1, 0.1, -0.1), (-0.1, 0.1, -0.1), (-0.1, -0.1, 0.1), (0.1, -0.1, 0.1), (0.1, 0.1, 0.1), (-0.1, 0.1, 0.1)]
+            uniform token subdivisionScheme = "none"
+        }
+    }
+
+    def PhysicsPrismaticJoint "Joint"
+    {
+        uniform token physics:axis = "Z"
+        rel physics:body0 = </World/Static>
+        rel physics:body1 = </World/Moving>
+        bool physics:collisionEnabled = 0
+        point3f physics:localPos0 = (0, 0, 0.15)
+        point3f physics:localPos1 = (0, 0, 0)
+        float physics:lowerLimit = -0.25
+        float physics:upperLimit = 0.25
+    }
+}
+

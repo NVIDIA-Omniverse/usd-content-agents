@@ -1,0 +1,43 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "8b259df28e5750842766c1184ee442b6f36fab46d333ce78bffce452598b0b21"
+  },
+  "checked_views": [],
+  "issues_fixed": [],
+  "issues_found": [
+    {
+      "code": "initial_pose_discontinuity",
+      "description": "Authoritative OvPhysX failure: first-step displacement is 3.8796591114139645 m versus reported expected ballistic displacement 0.00545 m; peak linear speed is 293.85043910371166 m/s. Later settling cannot override this hard failure.",
+      "severity": "error"
+    },
+    {
+      "code": "mounted_validation_pose_mismatch",
+      "description": "The zero-drop validation scene adds drawer translation (0,-0.954371452331543,0), while the authored drawer and cabinet have identity transforms and the preserved Z-prismatic joint has zero local anchors on both endpoints. This introduces a transverse initial constraint mismatch. It is a likely contributor to the discontinuity, not a proven sole cause.",
+      "severity": "error"
+    },
+    {
+      "code": "simulation_frames_missing",
+      "description": "The task and issue packet provide rendered_frames:[] and no render-frame receipt. No simulation images are available for direct inspection; visual plausibility cannot be assessed.",
+      "severity": "error"
+    }
+  ],
+  "rendered_frames": [],
+  "runtime_report": "runs/drawer_physics_03/runtime/runtime_validation_report.json",
+  "schema_version": "content-agent-workflows.physics-behavior-assessment.v1",
+  "status": "unresolved_issues",
+  "unresolved_issues": [
+    {
+      "code": "initial_pose_discontinuity",
+      "required_followup": "Wrapper must investigate and correct validation-scene placement while preserving the mounted assembly and source joint, then rerun authoritative OvPhysX validation. No evidence-supported decision-patch material or mass fix was identified."
+    },
+    {
+      "code": "simulation_frames_missing",
+      "required_followup": "Provide task-bound OVRTX simulation frames after rerunning the corrected validation scene, then inspect separation, constrained motion, bounce/sliding, interpenetration/tunneling, render freshness/framing, and agreement with runtime metrics."
+    },
+    "OVRTX review render provenance is missing or unsafe.",
+    "OVRTX review requires at least one decoded rendered frame.",
+    "Physics assessment did not review any OVRTX frame."
+  ]
+}

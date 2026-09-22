@@ -1,0 +1,9 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "7aebccfaa38a707e47b3e4d7940bc0a44d9b8121e3732a04f8361fe14d3c4ba1"
+  },
+  "identity_digest": "90e1ddf2b057d12cae1240a4ac2c3eef533b7ef855acad1e44cf42b83cded6f2",
+  "schema_version": "content-agent-workflows.standalone-articulation-post-review.v1"
+}

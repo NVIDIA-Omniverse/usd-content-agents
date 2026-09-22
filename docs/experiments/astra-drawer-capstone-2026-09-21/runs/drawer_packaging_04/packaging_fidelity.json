@@ -1,0 +1,11 @@
+{
+  "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_geometry_04/source_preserved.geometry.usdc",
+  "source_sha256": "67d797d9f3be756a8908641c4d172dbc30e5b18eb911a537f9d3e87e004758c6",
+  "package_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+  "source_render_fidelity": {
+    "passed": true,
+    "source_mesh_count": 5,
+    "claim_scope": "Exact prepared/source-derived render points, face arrays, part paths, visibility, purpose, surface orientation, units and default transforms only; collision and runtime validation remain required downstream."
+  },
+  "operation": "native usd-cli save USDZ --flatten; no geometry edits"
+}

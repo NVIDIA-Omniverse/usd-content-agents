@@ -1,0 +1,23 @@
+{
+  "assessment_id": "drawer-native10-root-assessment-01",
+  "assessment_identity_sha256": "1f07e1a4c9110d273b500961eead14bd7b7474903af402cf032535f5f3a6cd08",
+  "assessment_sha256": "0a8b15dad419a1f52cb42bf0b224fc4a3c385bdfd19c41d8c7d518e1017bbe0b",
+  "authorized": true,
+  "canonical_assessment": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json",
+    "sha256": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+    "size_bytes": 7317
+  },
+  "evidence_index": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/standalone_validation_evidence.json",
+    "sha256": "dcd959fee52bb8f2f3c929ff7cda917edd79c8451f5c1884fc5e4a173a86c019",
+    "size_bytes": 33997
+  },
+  "nested_agent_launched": false,
+  "schema_version": "content-agent-workflows.standalone-validation-execution-index.v1",
+  "terminal_receipt": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_terminal_receipt.json",
+    "sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+    "size_bytes": 2927
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "e0f022f4b6d6ee7903c79157040fe2b5f31556f622728d81d6bd9b584c65d587"
+  },
+  "acceptance": {
+    "ballistic_displacement_multiplier": 3.0,
+    "detect_initial_pose_discontinuity": true,
+    "expected_body_count": 1,
+    "initial_pose_tolerance_m": 0.002,
+    "max_ground_penetration_m": 0.02821974766455775,
+    "max_initial_pose_displacement_m": null,
+    "require_gravity_response": false,
+    "require_settle": true
+  },
+  "diagnostics": [],
+  "engine": "ovphysx",
+  "failures": [
+    "Simulation initial pose was discontinuous: first-step displacement was 0.020759 m."
+  ],
+  "max_abs_position": 0.05687423795461655,
+  "phase_timings_seconds": {
+    "acceptance": 0.18689214438199997,
+    "scene_build": 0.20054689049720764,
+    "simulation": 21.162642922252417,
+    "support_selection": 0.010393284261226654
+  },
+  "physics_usd": "runs/drawer_physics_03/physics.usda",
+  "recording_usda": "runs/drawer_physics_06/runtime/usd_cli_simulation/recording.usda",
+  "response_path": "runs/drawer_physics_06/runtime/simulation_response.json",
+  "scene_info": {
+    "bbox_max_local_stage": [
+      0.5145469903945923,
+      1.1032557487487793,
+      0.24043147265911102
+    ],
+    "bbox_min_local_stage": [
+      -0.5193020105361938,
+      0.954371452331543,
+      -0.18753623962402344
+    ],
+    "bbox_size_m": [
+      1.0338490009307861,
+      0.14888429641723633,
+      0.42796771228313446
+    ],
+    "body_pattern": "/Asset/drawer_cabinet_drawer_01_1",
+    "body_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+    "camera_paths": [
+      "/Cameras/plus_xplus_yplus_z"
+    ],
+    "drop_height_m_resolved": 0.0,
+    "gravity_magnitude_m_per_s2": 9.81,
+    "ground_clearance_geometry": "collider_mesh_vertices",
+    "ground_clearance_support_decision": {
+      "authored_collision_approximations": [
+        "convexDecomposition"
+      ],
+      "body_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "cache_key": null,
+      "cache_status": "primary",
+      "decision_id": "83dea013a527c603c92b199121c9b71b114fa45ea190005126c0ce5a0c636775",
+      "exact": true,
+      "fallback_accepted": false,
+      "hull_input_point_count_estimate": 1486,
+      "measurement_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "observed_unique_point_count": 1028,
+      "point_count_estimate_complete": true,
+      "policy_version": "raw-hull-input-bound.v1",
+      "primary_selection_duration_seconds": 0.01032596081495285,
+      "processing_bound": 400000,
+      "raw_point_count_estimate": 1486,
+      "reason": "Selected 1028 exact collider support points.",
+      "reason_code": "exact_support_points",
+      "reuse_count": 0,
+      "schema_version": "physics-agent.ground-clearance-support-decision.v1",
+      "selected_point_count": 1028,
+      "selected_support_type": "mesh_vertices",
+      "selection_duration_seconds": 0.010393284261226654,
+      "serialization_cap": 50000,
+      "validation_outcome": "fail"
+    },
+    "meters_per_unit": 1.0,
+    "placement_mode": "mounted",
+    "placement_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+    "rest_position": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "world_up": [
+      0.0,
+      1.0,
+      0.0
+    ]
+  },
+  "scene_usd": "runs/drawer_physics_06/runtime/drop_settle_scene.usda",
+  "settle_distance": 0.06248602588705302,
+  "summary": {
+    "duration_s": 3.0,
+    "expected_ballistic_displacement_m": 0.00545,
+    "fell_over": false,
+    "final_position": [
+      -0.056864213198423386,
+      0.0006181001663208008,
+      0.025895610451698303
+    ],
+    "first_step_displacement_m": 0.02075874471206133,
+    "gravity_magnitude_m_per_s2": 9.81,
+    "gravity_response_observed": true,
+    "ground_clearance_geometry": "collider_mesh_vertices",
+    "initial_pose_discontinuity": true,
+    "loaded_body_count": 1,
+    "max_angular_speed": 4.02929461914847,
+    "max_linear_speed": 1.054266056970108,
+    "maximum_ground_penetration_m": 0.0,
+    "n_samples": 91,
+    "resting_ground_penetration_m": 0.0,
+    "settle_time_s": 0.43333333333333335
+  },
+  "trajectory_jsonl": "runs/drawer_physics_06/runtime/usd_cli_simulation/trajectory.jsonl",
+  "warnings": []
+}

@@ -1,0 +1,81 @@
+{
+  "complete": true,
+  "configuration": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+    "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+    "size_bytes": 3543
+  },
+  "create_only": true,
+  "dependencies": [],
+  "evidence_provider": {
+    "implementation": "prepare_static_mesh_articulation_readback.py.v1",
+    "implementation_digest": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+    "producer_id": "capstone-static-mesh-source-usdcli-readback",
+    "role": "evidence_provider"
+  },
+  "inspector_implementation": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+    "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+    "size_bytes": 10805
+  },
+  "preparation": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/articulation_preparation_03/embedded_articulation_preparation.json",
+    "sha256": "350bc882d75c0a6f6f10506bf495479666c5d8925bd697923e2add6f663cf45d",
+    "size_bytes": 18886
+  },
+  "preparation_digest": "a561e43705563bf4f0f91edf98383e94362bc96ee683dfedb72620ae1d1df173",
+  "publisher_implementation": "content_agent_workflows.articulation.publish_embedded_articulation_preparation",
+  "publisher_implementation_sha256": "814265b441947099e6acd88ff28bf932682784efbe9b6a10c4ae05052e588e0f",
+  "readback": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+    "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+    "size_bytes": 8316
+  },
+  "renders": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/packaged_preview.png",
+      "sha256": "e8d17568f32eb69c86302327253aecd540aec14ae491e5c5ebafe223ec410e9d",
+      "size_bytes": 261187
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/packaged_render.json",
+      "sha256": "9e47137e27a97754afc8bb9a9f12dd6cd9b8be3a1debdfa05b73774168006db2",
+      "size_bytes": 1306
+    }
+  ],
+  "retained_closure_digest": "9679aca32f8988fd08e78a04b03c2c354e4b08613a093bdca99e8b7d9194f558",
+  "retained_root": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04",
+  "saved_stage": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  },
+  "scene_artifacts": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspection_snapshot.json",
+      "sha256": "419071461a13a533a47d91a536b48a059abd38d9cfb95f93c4f182bbbccb903b",
+      "size_bytes": 14513
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/save_package.json",
+      "sha256": "cab8305db497323c4e1b2d6b51b3c9769fac3e3c8f521452e25f6202ada4935f",
+      "size_bytes": 569
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/packaging_fidelity.json",
+      "sha256": "077d8a23ce3895d1bbd2c3d6999a7dfdc8fb97658ff229ff6f9844971f84966b",
+      "size_bytes": 675
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/saved_geometry_observation.json",
+      "sha256": "a078ceb2cebb08eb989414878f2e0ab243469e2d4e5f4348f7a4a62700936aa9",
+      "size_bytes": 2552
+    }
+  ],
+  "schema_version": "content-agent-workflows.articulation-preparation-publication.v1",
+  "source": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  }
+}

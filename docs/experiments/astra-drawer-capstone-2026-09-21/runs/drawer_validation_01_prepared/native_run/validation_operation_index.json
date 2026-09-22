@@ -1,0 +1,42 @@
+{
+  "execution_mode": "execute",
+  "nested_agent_launched": false,
+  "operations": [
+    {
+      "mandatory": true,
+      "result_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/physics_sane/operation_result.json",
+      "result_sha256": "d1b98225d861d2645c541aef7a4e55a48be2c6e1fd19a2e103c3fb19a20c50cb",
+      "role": "deterministic_check",
+      "state": "evaluated",
+      "template_name": "physics_sane"
+    },
+    {
+      "mandatory": true,
+      "result_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/operation_result.json",
+      "result_sha256": "2327c42aabec05fd8617bb4165e6bd2b518c89be4c8f0980a2b428e8b8d15034",
+      "role": "render_evidence_leaf",
+      "state": "evaluated",
+      "template_name": "render_valid"
+    },
+    {
+      "mandatory": true,
+      "result_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/physical_behavior/operation_result.json",
+      "result_sha256": "88af000f75005af80455847e14fff8330e14f92450901dde1f3b76c73fdb3ee0",
+      "role": "runtime_evidence_consumer",
+      "state": "evaluated",
+      "template_name": "physical_behavior"
+    },
+    {
+      "mandatory": false,
+      "result_path": null,
+      "result_sha256": null,
+      "role": "optional_advisory_critique",
+      "state": "not_requested",
+      "template_name": "look_right"
+    }
+  ],
+  "optional_critique_evaluated": false,
+  "preparation_digest": "e1d5acef848a979b3934a146bbc30df936225aef273508ad780a6e2da0ec4538",
+  "required_operations_complete": true,
+  "schema_version": "content-agent-workflows.validation-operation-index.v1"
+}

@@ -1,0 +1,162 @@
+{
+  "evidence": {
+    "available_evidence": [
+      {
+        "description": null,
+        "details": {
+          "inferred": false
+        },
+        "exists": true,
+        "kind": "simulation_json",
+        "original": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+        "required": true,
+        "role": "native_physics_bundle"
+      },
+      {
+        "description": null,
+        "details": {
+          "inferred": false
+        },
+        "exists": true,
+        "kind": "time_sampled_usd",
+        "original": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "required": true,
+        "role": "input_usd"
+      }
+    ],
+    "behavior_summary": {
+      "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+      "kind": "native_physics_behavior",
+      "native_assessment_status": "pass",
+      "scope": "single_body_native_runtime_and_rendered_behavior_review",
+      "status": "passed"
+    },
+    "evidence": [
+      {
+        "description": null,
+        "details": {
+          "inferred": false
+        },
+        "exists": true,
+        "kind": "simulation_json",
+        "original": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+        "required": true,
+        "role": "native_physics_bundle"
+      },
+      {
+        "description": null,
+        "details": {
+          "inferred": false
+        },
+        "exists": true,
+        "kind": "time_sampled_usd",
+        "original": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "required": true,
+        "role": "input_usd"
+      }
+    ],
+    "native_physics_behavior": {
+      "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+      "kind": "native_physics_behavior",
+      "native_assessment_status": "pass",
+      "scope": "single_body_native_runtime_and_rendered_behavior_review",
+      "status": "passed"
+    },
+    "refine_summaries": [],
+    "resolution": {
+      "behavior_evidence_required": true,
+      "evidence": [
+        {
+          "description": null,
+          "details": {
+            "inferred": false
+          },
+          "exists": true,
+          "kind": "simulation_json",
+          "original": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "required": true,
+          "role": "native_physics_bundle"
+        },
+        {
+          "description": null,
+          "details": {
+            "inferred": false
+          },
+          "exists": true,
+          "kind": "time_sampled_usd",
+          "original": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+          "required": true,
+          "role": "input_usd"
+        }
+      ],
+      "issues": [],
+      "passed": true,
+      "supported_kinds": [
+        "time_sampled_usd",
+        "animation_usd",
+        "video",
+        "sampled_frame",
+        "simulation_json",
+        "trajectory_metrics"
+      ]
+    }
+  },
+  "evidence_items": [],
+  "issues": [],
+  "metadata": {
+    "helper": "resolve_physical_behavior_evidence",
+    "status_semantics": "native_physics_behavior_v1",
+    "template_kind": "evidence_contract",
+    "validation_coordinator_check": {
+      "capability_id": "validation.physical_behavior",
+      "check_id": "validation.physical_behavior",
+      "completion_policy": "all_required_evidence",
+      "evidence_requirements": [
+        "source_identity",
+        "runtime_evidence",
+        "behavior_result"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {
+        "evidence_paths": [
+          "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json"
+        ]
+      },
+      "required": true,
+      "rule_id": "physics.behavior_evidence",
+      "targets": [
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+      ]
+    }
+  },
+  "metrics": {
+    "available_evidence_count": 2,
+    "behavior_evidence_required": true,
+    "behavior_summary_kind": null,
+    "evidence_count": 2,
+    "evidence_kinds": [
+      "simulation_json",
+      "time_sampled_usd"
+    ],
+    "input_usd_path_count": 1,
+    "input_video_path_count": 0,
+    "issue_count": 0,
+    "refine_summary_count": 0,
+    "sampled_frame_path_count": 0,
+    "simulation_json_count": 1,
+    "status": "passed",
+    "trajectory_metrics_count": 0,
+    "usd_path_count": 1,
+    "video_path_count": 0
+  },
+  "status": "passed",
+  "template_name": "physical_behavior"
+}

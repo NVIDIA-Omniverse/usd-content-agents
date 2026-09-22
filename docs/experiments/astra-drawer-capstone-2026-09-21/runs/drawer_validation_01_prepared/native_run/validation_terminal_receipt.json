@@ -1,0 +1,60 @@
+{
+  "accepted_coordinator_plan": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_coordinator_accepted_plan.json",
+    "sha256": "1022b2d062a65f8cb8fc0e203951dba1ec14494c241c02fc4a550994631dcefe",
+    "size_bytes": 4690
+  },
+  "assessment_identity_sha256": "1f07e1a4c9110d273b500961eead14bd7b7474903af402cf032535f5f3a6cd08",
+  "canonical_assessment": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/canonical_validation_assessment.json",
+    "sha256": "ce2dac89c4b3c24b8962ce94b453418ac7e0de6b328a858da0d66f79f13589c0",
+    "size_bytes": 7317
+  },
+  "cleanup_disposition": "not_required",
+  "coordinator_execution": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_coordinator_execution_receipt.json",
+    "sha256": "c9e99df49c55c560616aa29f3520dcafbd880a0ec86225cb903dff630ae6c845",
+    "size_bytes": 3780
+  },
+  "coordinator_plan_patch": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_coordinator_plan_patch.json",
+    "sha256": "a8215ea3a60a366c26ccfdef02c8969f533fc0a798ee96d135272a01dea5e114",
+    "size_bytes": 6085
+  },
+  "coordinator_planning_agent_launched": true,
+  "coordinator_preparation": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_coordinator_preparation.json",
+    "sha256": "555e6b0e03c53b07a01b1da621daae8094a0e843bb608b9868e10cc0e79fd860",
+    "size_bytes": 8495
+  },
+  "coordinator_review": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/independent_review.json",
+    "sha256": "bed21b80ae430dcad671a17f28b52d90b239766eb472c6c79037b3ac3c609c8c",
+    "size_bytes": 4446
+  },
+  "evidence_index": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/standalone_validation_evidence.json",
+    "sha256": "dcd959fee52bb8f2f3c929ff7cda917edd79c8451f5c1884fc5e4a173a86c019",
+    "size_bytes": 33997
+  },
+  "gate_dispositions": {
+    "cross_stage_integrity": "not_evaluated",
+    "package_integrity": "pass",
+    "runtime_validation": "pass",
+    "static_validation": "pass",
+    "visual_quality": "pass"
+  },
+  "mode": "standalone",
+  "nested_agent_launched": false,
+  "operation_index": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_operation_index.json",
+    "sha256": "3766e8b0ee07597e9f2274bc8889c8219d5f6373c9f3aa9192d6dbb7469bf509",
+    "size_bytes": 1736
+  },
+  "publication_kind": "validation_assessment",
+  "receipt_status": "completed",
+  "review_disposition": "accept",
+  "schema_version": "content-agent-workflows.validation-terminal-receipt.v1",
+  "source_mutated": false,
+  "terminal_disposition": "pass"
+}

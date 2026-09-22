@@ -1,0 +1,40 @@
+{
+  "apply_report_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_apply_report.json",
+  "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+  "assignments_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics_assignments.json",
+  "behavior_assessment_path": null,
+  "candidate_prims_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_components.json",
+  "components_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_components.json",
+  "decision_patch_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_decision_patch.json",
+  "error": null,
+  "output_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10",
+  "phase_timings_seconds": {
+    "acceptance": 0.18656304851174355,
+    "scene_build": 0.1555771492421627,
+    "simulation": 23.50661363080144,
+    "support_selection": 0.010827794671058655
+  },
+  "physics_usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+  "predictions_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_predictions.jsonl",
+  "render_frame_receipt_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_render_frame_receipt_1.json",
+  "rendered_frames": [
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0000.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0001.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0002.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0003.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0004.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0005.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0006.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "rendering_duration_seconds": 12.169746838510036,
+  "scene_operation_record_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/usd_cli_physics_commands.json",
+  "simulation_report_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json",
+  "success": true,
+  "topology_report_path": null,
+  "validation_evidence_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/validation_evidence.json",
+  "validation_status": "pass",
+  "vomp_provenance_path": null,
+  "vomp_result_path": null,
+  "workflow_run_manifest_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/raw/physics_workflow/iteration-0001/workflow_run_manifest.json"
+}

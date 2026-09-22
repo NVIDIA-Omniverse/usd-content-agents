@@ -1,0 +1,149 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "99b9473a07e810b1c7187e38a59b48c42eea522b8463899e3dc35032dc3c8619"
+  },
+  "asset": "runs/drawer_physics_09/inputs/source/source.usdz",
+  "decisions": [
+    {
+      "collider_target_ids": [
+        "component_001:visual:eb9a0bca78f0f6fe1fc4cc9c72d49a1f3bfb965f891f0c6da4ce63e3584d2dc0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_001",
+      "confidence": 0.7,
+      "convex_decomposition": {
+        "error_percentage": 0.1,
+        "hull_vertex_limit": 64,
+        "max_convex_hulls": 128,
+        "shrink_wrap": true,
+        "voxel_resolution": 4000000
+      },
+      "decision_id": "repair09_component_001",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_properties": {
+        "center_of_mass": [
+          0.00879941130464277,
+          1.0132691201324464,
+          0.09412690969490285
+        ],
+        "diagonal_inertia": [
+          0.14943559995160616,
+          0.8673600643339555,
+          0.7393149806868428
+        ],
+        "principal_axes": [
+          0.9994685675941963,
+          -0.03225944224667463,
+          0.004638708455407128,
+          0.0006270255216043317
+        ]
+      },
+      "physical_properties": {
+        "density": 600,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 6.163479754140765,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "cooked_collision_fidelity_unresolved",
+          "message": "Prior 128-vertex cooking was refused; the supported replacement configuration is untested. Prior source-near blocking contact, floor elevation up to 4.18 mm and failed opening/penetration/settling remain unresolved until new actual cooking, runtime and visual evidence is reviewed. Configuration authoring is not physics acceptance.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve the single inspected upper-drawer body, nonkinematic; retain the existing standalone prismatic joint and no articulation root."
+    },
+    {
+      "collider_target_ids": [
+        "component_002:visual:21058cce64253698d977c4a8f87fb85c3b0ce9244717ad12cc9bc0eeb1dec11c"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_002",
+      "confidence": 0.9,
+      "decision_id": "repair09_component_002",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component; no rigid body or mass properties."
+    },
+    {
+      "collider_target_ids": [
+        "component_003:visual:d72713bdb42892f9b16b901639f455cc7eefbe076c255dac17d07805ab861a6c"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_003",
+      "confidence": 0.94,
+      "decision_id": "repair09_component_003",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component; no rigid body or mass properties."
+    },
+    {
+      "collider_target_ids": [
+        "component_004:visual:c603645a8263043254feffe0703e55ce825e8662ebace39a1b5efec049769fe3"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_004",
+      "confidence": 0.94,
+      "decision_id": "repair09_component_004",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component; no rigid body or mass properties."
+    },
+    {
+      "collider_target_ids": [
+        "component_005:visual:ba22040b5b6103310efd250578a33c22af0e7d1ef9c38350c4bf488f8b2cfd2f"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_005",
+      "confidence": 0.94,
+      "decision_id": "repair09_component_005",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "physical_properties": {
+        "density": 0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0,
+        "restitution": 0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component; no rigid body or mass properties."
+    }
+  ],
+  "schema_version": "content-agent-workflows.physics-decision-patch.v2",
+  "source_digest": "sha256:63a47e536fc83f2cc844479e8c06b1be31ee055f513b8a82740680a5f1c76220",
+  "unresolved_components": []
+}

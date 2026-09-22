@@ -1,0 +1,32 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "0a53470df04bb8fc08e0d472e1bbde1caf882f38075fcbe52e01244d9a70d766"
+  },
+  "authoring_contract": {
+    "artifact_format": "gltf",
+    "artifact_path": "source/drawer_cabinet_1k.gltf",
+    "declared_authoring_quality_checks": [],
+    "fidelity": null,
+    "param_overrides": {},
+    "parameter_count": 0,
+    "prompt_supplied": false,
+    "semantic_part_count": 0,
+    "source_bundle_id": null,
+    "source_manifest_path": null,
+    "source_provider_id": null,
+    "source_representation_id": null,
+    "source_revision": null,
+    "variant_id": null,
+    "variant_parameters": [],
+    "verification_assertion_count": 0
+  },
+  "metadata": {
+    "blocking_signal_count": 0,
+    "signal_count": 0
+  },
+  "passed": true,
+  "schema_version": "content-agent-workflows.geometry-audit.v1",
+  "signals": []
+}

@@ -1,0 +1,39 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "a96cf0a46766c4bc645a09880a01560b23304cd780e94df0a406409f07b3dabf"
+  },
+  "error": null,
+  "error_type": null,
+  "geometry_usd_path": "runs/drawer_geometry_04/source_preserved.geometry.usdc",
+  "handoff_ready": "conditional",
+  "prepared_source_path": "source/drawer_cabinet_1k.gltf",
+  "repair_outcome": null,
+  "representation_artifacts": {
+    "collision": [],
+    "design": [],
+    "render": [],
+    "semantic": []
+  },
+  "route": {
+    "input_modality": "provided_mesh",
+    "optional_bridge": null,
+    "program_digest": null,
+    "program_schema_version": null,
+    "representation_role": null,
+    "requires_generation": false,
+    "requires_scene_optimization": false,
+    "route": "provided_mesh_repair",
+    "source_category": "convertible_external",
+    "source_manifest_path": null,
+    "source_path": "source/drawer_cabinet_1k.gltf"
+  },
+  "source_bundle_id": null,
+  "source_bundle_manifest_path": null,
+  "source_fidelity_tier": "source_gltf_preserved",
+  "source_revision": null,
+  "source_usd_path": "runs/drawer_geometry_04/source_prep/source_preserved.usdc",
+  "success": true,
+  "validation_status": "conditional"
+}

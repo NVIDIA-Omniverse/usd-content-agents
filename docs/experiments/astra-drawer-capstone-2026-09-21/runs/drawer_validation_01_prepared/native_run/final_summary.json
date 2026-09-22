@@ -1,0 +1,21 @@
+{
+  "artifacts": {
+    "final_summary": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/final_summary.json",
+    "validation_checkpoint": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_checkpoint.json",
+    "validation_evidence": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_evidence.json",
+    "validation_plan": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_plan.json",
+    "validation_request": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_request.json",
+    "validation_result": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/validation_result.json"
+  },
+  "completed_templates": [
+    "physics_sane",
+    "render_valid",
+    "physical_behavior"
+  ],
+  "recommendation": null,
+  "remaining_templates": [],
+  "schema_version": "content-agent-workflows.validation-summary.v1",
+  "source_asset_unchanged": true,
+  "status": "completed",
+  "verdict": "pass"
+}

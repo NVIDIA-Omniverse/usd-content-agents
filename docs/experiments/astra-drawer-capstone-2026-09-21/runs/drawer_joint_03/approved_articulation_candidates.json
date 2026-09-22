@@ -1,0 +1,95 @@
+{
+  "candidates": [
+    {
+      "axis_evidence": [
+        {
+          "connectivity_role": null,
+          "description": "Exact outer-accepted canonical graph; human acceptance is also bound when frozen policy requires it.",
+          "prim_paths": [
+            "/Asset/drawer_cabinet_0/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ],
+          "source": "accepted_manifest",
+          "value": "z"
+        }
+      ],
+      "axis_hint": "z",
+      "candidate_id": "upper_drawer_prismatic",
+      "child_hint": "moving_upper_drawer",
+      "component_name": "moving_upper_drawer",
+      "component_type": "articulated_owner",
+      "confidence": "high",
+      "connectivity_evidence": [
+        {
+          "connectivity_role": "body0_body1_edge",
+          "description": "Canonical authoritative-owner topology edge.",
+          "prim_paths": [
+            "/Asset/drawer_cabinet_0/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ],
+          "source": "accepted_manifest",
+          "value": "/Asset/drawer_cabinet_0/Primitive_0"
+        },
+        {
+          "connectivity_role": "body1_ownership",
+          "description": "Canonical moving authoritative owner.",
+          "prim_paths": [
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ],
+          "source": "accepted_manifest",
+          "value": "/Asset/drawer_cabinet_drawer_01_1"
+        }
+      ],
+      "evidence": "Exact outer-accepted canonical graph with policy-bound review.",
+      "field_sources": {
+        "axis_hint": "accepted_manifest",
+        "fixed_parent_prim": "accepted_manifest",
+        "motion_axis_world": "accepted_manifest",
+        "motion_type": "accepted_manifest"
+      },
+      "fixed_parent_prim": "/Asset/drawer_cabinet_0/Primitive_0",
+      "joint_type_hint": "prismatic",
+      "limit_evidence": [
+        {
+          "connectivity_role": null,
+          "description": "Exact outer-accepted canonical graph; human acceptance is also bound when frozen policy requires it.",
+          "prim_paths": [
+            "/Asset/drawer_cabinet_0/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ],
+          "source": "accepted_manifest",
+          "value": "z"
+        }
+      ],
+      "limit_readiness": "source_backed",
+      "limit_source": "accepted_manifest",
+      "limit_unit": "meters",
+      "lower_limit": 0.0,
+      "motion_axis_world": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "motion_type": "prismatic",
+      "moving_part_prims": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "parent_hint": "static_cabinet_mesh",
+      "parent_resolution_source": "accepted_manifest",
+      "review_status": "ready_for_rigger_input",
+      "role": "moving_upper_drawer",
+      "schema_version": "joint-agent-stage2-v0",
+      "source_annotation_conflicts": {},
+      "source_prediction_ids": [],
+      "unresolved_questions": [],
+      "unresolved_reason_codes": [],
+      "upper_limit": 0.3
+    }
+  ],
+  "schema_version": "joint-agent-stage2-v0",
+  "summary": {
+    "candidate_count": 1,
+    "ready_candidate_count": 1,
+    "review_required_candidate_count": 0
+  }
+}

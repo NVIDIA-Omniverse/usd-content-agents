@@ -1,0 +1,30 @@
+{
+  "schema_version": "usd-cli.physics-topology.v1",
+  "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+  "source_digest": "sha256:d5dbcfdd62ccb99604b86e963c5401b4a53589a282fd997b5970e1f8416f75ff",
+  "path_space": "source",
+  "root_prim_path": null,
+  "rigid_body_paths": [],
+  "enabled_rigid_body_count": 0,
+  "colliders": [],
+  "enabled_collider_count": 0,
+  "joints": [
+    {
+      "prim_path": "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24",
+      "joint_type": "PhysicsPrismaticJoint",
+      "is_fixed_joint": false,
+      "enabled": true,
+      "body0_targets": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "body1_targets": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "body0_rigid_body_paths": [],
+      "body1_rigid_body_paths": []
+    }
+  ],
+  "articulation_root_paths": [],
+  "fixed_to_world_joints": [],
+  "findings": []
+}

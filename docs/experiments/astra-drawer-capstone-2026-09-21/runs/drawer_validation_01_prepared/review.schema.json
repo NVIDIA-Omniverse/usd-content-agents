@@ -1,0 +1,44 @@
+{
+  "additionalProperties": false,
+  "description": "Outer-authored review of the exact non-mutating assessment output.",
+  "properties": {
+    "schema_version": {
+      "const": "content-agent-workflows.validation-coordinator-review-draft.v1",
+      "default": "content-agent-workflows.validation-coordinator-review-draft.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "disposition": {
+      "enum": [
+        "accept",
+        "reject",
+        "revise",
+        "retry",
+        "stop",
+        "cancelled"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Findings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "created_at",
+    "disposition",
+    "findings"
+  ],
+  "title": "ValidationCoordinatorReviewDraft",
+  "type": "object"
+}

@@ -39,6 +39,13 @@ from world_understanding.functions.graphics.render_valid_adapter import (
 )
 from world_understanding.functions.models.chat_models import create_chat_model
 from world_understanding.functions.models.vision_language_models import create_vlm
+from world_understanding.functions.physics.native_behavior_validation import (
+    ASSESSMENT_SCHEMA,
+    BUNDLE_SCHEMA,
+    EVIDENCE_SCHEMA,
+    NATIVE_ROLES,
+    native_behavior_result,
+)
 from world_understanding.functions.physics.physical_behavior_evidence import (
     BEHAVIOR_EVIDENCE_MISSING,
     BEHAVIOR_JUDGE_UNAVAILABLE,
@@ -508,6 +515,31 @@ class _PhysicalBehaviorTemplate:
                 behavior_evidence_required=behavior_evidence_required,
             )
         )
+        native_result = native_behavior_result(
+            resolution.evidence,
+            usd_paths=context.input_inventory.usd_paths,
+        )
+        if native_result is not None:
+            # Native evidence is never translated into a legacy approve result.
+            # It also cannot be hidden by an approved legacy refine summary.
+            if native_result["status"] != "passed":
+                behavior_status = "failed"
+                behavior_issues = (
+                    DraftValidationIssue(
+                        code="physics.native_behavior_evidence_rejected",
+                        severity="fail",
+                        message=str(
+                            native_result.get(
+                                "reason", "Native physics evidence failed."
+                            )
+                        ),
+                        details=native_result,
+                    ),
+                )
+                behavior_summary = native_result
+            elif not refine_summary_results:
+                behavior_status, behavior_issues = "passed", ()
+                behavior_summary = native_result
         issues = resolution_issues + behavior_issues
         status = _physical_behavior_status(behavior_status, issues)
         metrics = _physical_behavior_metrics(
@@ -528,6 +560,8 @@ class _PhysicalBehaviorTemplate:
             ],
             "behavior_summary": behavior_summary,
         }
+        if native_result is not None:
+            evidence["native_physics_behavior"] = native_result
         return DraftTemplateResult(
             template_name=self.name,
             status=status,
@@ -537,7 +571,11 @@ class _PhysicalBehaviorTemplate:
             metadata={
                 "template_kind": "evidence_contract",
                 "helper": "resolve_physical_behavior_evidence",
-                "status_semantics": "pr10_physical_behavior",
+                "status_semantics": (
+                    "native_physics_behavior_v1"
+                    if native_result is not None
+                    else "pr10_physical_behavior"
+                ),
             },
         )
 
@@ -1812,6 +1850,12 @@ def _physical_behavior_refine_summary_results(
             continue
         payload = _load_json_mapping(path)
         if payload is None:
+            continue
+        if item.role in NATIVE_ROLES or payload.get("schema_version") in {
+            ASSESSMENT_SCHEMA,
+            BUNDLE_SCHEMA,
+            EVIDENCE_SCHEMA,
+        }:
             continue
         if _is_refine_summary(payload):
             summaries.append(

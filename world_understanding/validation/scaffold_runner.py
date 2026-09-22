@@ -43,7 +43,7 @@ SCAFFOLD_VALIDATION_TEMPLATE_VERSIONS: Final[Mapping[str, str]] = MappingProxyTy
         "render_valid": "validation-scaffold.render-valid.v1",
         "look_right": "validation-scaffold.look-right.v1",
         "physics_sane": "validation-scaffold.physics-sane.v1",
-        "physical_behavior": "validation-scaffold.physical-behavior.v1",
+        "physical_behavior": "validation-scaffold.physical-behavior.v2",
     }
 )
 

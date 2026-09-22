@@ -1,0 +1,56 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "ce7ccd327110e7c9641d3565d9bfaec88affc2221a54373cc8c8afbc6c7b2126"
+  },
+  "diff_check": "passed",
+  "files": [
+    {
+      "bytes": 117737,
+      "path": "world_understanding/agentic/validation_scaffold.py",
+      "sha256": "22079a066bb27a4cf50a70a6f4d1e915b157fb9bd3cc63dc70f413e9d42f5fd8"
+    },
+    {
+      "bytes": 8243,
+      "path": "world_understanding/validation/scaffold_runner.py",
+      "sha256": "1cb56bedb5e0f61fd0eb3decea4bd73c68d95a2e6e17ae816b804b1c3e3ec36e"
+    },
+    {
+      "bytes": 17933,
+      "path": "world_understanding/functions/physics/native_behavior_validation.py",
+      "sha256": "bb897c9260b64513bfc63d0c7cc28d4814dadc4e03a96bf547361821faaecf3c"
+    },
+    {
+      "bytes": 12816,
+      "path": "tests/test_native_physics_behavior_validation.py",
+      "sha256": "f3beb9e6c223bb4d6e7374fccfb644239bc9a129f1d8496d5c0ed013ce1ae6ae"
+    },
+    {
+      "bytes": 4134,
+      "path": "docs/validation/native-physics-behavior.md",
+      "sha256": "1c8545470026369151eb22a7a3ddb0ca8d671449f08377da82d15aee87343c7b"
+    }
+  ],
+  "isolated_test_baseline_commit": "f8270b0f50127929d22715a38af5368616e09908",
+  "legacy_comparison": {
+    "03": "warn",
+    "07": "warn",
+    "new_03_06_07": "failed"
+  },
+  "lint": "ruff check: all checks passed",
+  "local_physics_commit_separate": "155aaf16dfc2afb70a44ffb15f137075199a884c",
+  "no_model_solver_or_renderer_execution": true,
+  "observed_utc": "2026-09-22T02:24:35.672357+00:00",
+  "schema_version": "native-physics-validation-adapter-qualification.v1",
+  "scope": "one asset/one native rigid body runtime stability plus recorded OVRTX visual review; no arbitrary articulation/task/fidelity claim",
+  "status": "QUALIFIED_FOR_REVIEW_NOT_INTEGRATED",
+  "tests": {
+    "command": "python -m pytest -o addopts= tests/test_native_physics_behavior_validation.py tests/test_agentic_validation_scaffold.py -q --disable-warnings",
+    "elapsed_seconds": 3.05,
+    "ionice_class": 3,
+    "nice": 15,
+    "passed": 99,
+    "test_log": "tests_lint_final.log"
+  }
+}

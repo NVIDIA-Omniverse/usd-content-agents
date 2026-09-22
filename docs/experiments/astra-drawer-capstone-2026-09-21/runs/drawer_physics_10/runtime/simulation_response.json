@@ -1,0 +1,8 @@
+{
+  "engine": "ovphysx",
+  "n_bodies": 1,
+  "n_steps": 720,
+  "status": "ok",
+  "trajectory_sample_count": 91,
+  "usd_cli_report_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/usd_cli_simulation/runtime_validation_report.json"
+}

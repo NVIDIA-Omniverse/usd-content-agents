@@ -1,0 +1,865 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "c65025e2fceda8d3a3385764991a8fa75bac3a92ad5df3601747ae036ae4f381"
+  },
+  "asset": "runs/drawer_physics_10/physics.usda",
+  "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "checks": [
+    {
+      "detail": {
+        "authored": "6.163479804992676",
+        "original": "6.163479804992676"
+      },
+      "name": "unchanged_physics:mass",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "600.0",
+        "original": "600.0"
+      },
+      "name": "unchanged_physics:density",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(0.008799411, 1.0132691, 0.09412691)",
+        "original": "(0.008799411, 1.0132691, 0.09412691)"
+      },
+      "name": "unchanged_physics:centerOfMass",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(0.1494356, 0.86736006, 0.739315)",
+        "original": "(0.1494356, 0.86736006, 0.739315)"
+      },
+      "name": "unchanged_physics:diagonalInertia",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(0.99946856, -0.032259442, 0.0046387087, 0.0006270255)",
+        "original": "(0.99946856, -0.032259442, 0.0046387087, 0.0006270255)"
+      },
+      "name": "unchanged_physics:principalAxes",
+      "pass": true
+    },
+    {
+      "detail": "Usd.Prim(</Asset/Joints/upper_drawer_prismatic_5ff23e837c24>)",
+      "name": "joint_exists",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "physics:axis",
+          "physics:breakForce",
+          "physics:breakTorque",
+          "physics:collisionEnabled",
+          "physics:excludeFromArticulation",
+          "physics:jointEnabled",
+          "physics:localPos0",
+          "physics:localPos1",
+          "physics:localRot0",
+          "physics:localRot1",
+          "physics:lowerLimit",
+          "physics:upperLimit"
+        ],
+        "original": [
+          "physics:axis",
+          "physics:breakForce",
+          "physics:breakTorque",
+          "physics:collisionEnabled",
+          "physics:excludeFromArticulation",
+          "physics:jointEnabled",
+          "physics:localPos0",
+          "physics:localPos1",
+          "physics:localRot0",
+          "physics:localRot1",
+          "physics:lowerLimit",
+          "physics:upperLimit"
+        ]
+      },
+      "name": "exact_joint_physical_attribute_inventory",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [],
+        "original": []
+      },
+      "name": "exact_joint_api_inventory",
+      "pass": true
+    },
+    {
+      "detail": [],
+      "name": "no_joint_drive_api",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "Z",
+        "original": "Z"
+      },
+      "name": "joint_physics:axis",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "inf",
+        "original": "inf"
+      },
+      "name": "joint_physics:breakForce",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "inf",
+        "original": "inf"
+      },
+      "name": "joint_physics:breakTorque",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "False",
+        "original": "False"
+      },
+      "name": "joint_physics:collisionEnabled",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "False",
+        "original": "False"
+      },
+      "name": "joint_physics:excludeFromArticulation",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "True",
+        "original": "True"
+      },
+      "name": "joint_physics:jointEnabled",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(0, 0, 0)",
+        "original": "(0, 0, 0)"
+      },
+      "name": "joint_physics:localPos0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(0, 0, 0)",
+        "original": "(0, 0, 0)"
+      },
+      "name": "joint_physics:localPos1",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(1, 0, 0, 0)",
+        "original": "(1, 0, 0, 0)"
+      },
+      "name": "joint_physics:localRot0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "(1, 0, 0, 0)",
+        "original": "(1, 0, 0, 0)"
+      },
+      "name": "joint_physics:localRot1",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "0.0",
+        "original": "0.0"
+      },
+      "name": "joint_physics:lowerLimit",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "0.30000001192092896",
+        "original": "0.30000001192092896"
+      },
+      "name": "joint_physics:upperLimit",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ],
+        "expected": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ],
+        "original": [
+          "/Asset/drawer_cabinet_0"
+        ]
+      },
+      "name": "joint_physics:body0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "expected": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "original": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ]
+      },
+      "name": "joint_physics:body1",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [],
+        "expected": [],
+        "original": []
+      },
+      "name": "joint_proxyPrim",
+      "pass": true
+    },
+    {
+      "detail": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "name": "only_upper_drawer_dynamic",
+      "pass": true
+    },
+    {
+      "detail": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "name": "no_other_rigid_body_api",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "/Asset/drawer_cabinet_0/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ],
+        "expected": [
+          "/Asset/drawer_cabinet_0/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ]
+      },
+      "name": "exact_original_mesh_collider_inventory",
+      "pass": true
+    },
+    {
+      "detail": [],
+      "name": "no_additional_collision_groups",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:angularVelocity": "(0, 0, 0)",
+          "physics:centerOfMass": "(0.008799411, 1.0132691, 0.09412691)",
+          "physics:density": "600.0",
+          "physics:diagonalInertia": "(0.1494356, 0.86736006, 0.739315)",
+          "physics:kinematicEnabled": "False",
+          "physics:mass": "6.163479804992676",
+          "physics:principalAxes": "(0.99946856, -0.032259442, 0.0046387087, 0.0006270255)",
+          "physics:rigidBodyEnabled": "True",
+          "physics:startsAsleep": "False",
+          "physics:velocity": "(0, 0, 0)"
+        },
+        "prior09": {
+          "physics:angularVelocity": "(0, 0, 0)",
+          "physics:centerOfMass": "(0.008799411, 1.0132691, 0.09412691)",
+          "physics:density": "600.0",
+          "physics:diagonalInertia": "(0.1494356, 0.86736006, 0.739315)",
+          "physics:kinematicEnabled": "False",
+          "physics:mass": "6.163479804992676",
+          "physics:principalAxes": "(0.99946856, -0.032259442, 0.0046387087, 0.0006270255)",
+          "physics:rigidBodyEnabled": "True",
+          "physics:startsAsleep": "False",
+          "physics:velocity": "(0, 0, 0)"
+        }
+      },
+      "name": "exact09_physical_values_/Asset/drawer_cabinet_drawer_01_1",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "MaterialBindingAPI",
+          "PhysicsMassAPI",
+          "PhysicsRigidBodyAPI"
+        ],
+        "prior09": [
+          "MaterialBindingAPI",
+          "PhysicsMassAPI",
+          "PhysicsRigidBodyAPI"
+        ]
+      },
+      "name": "exact09_api_tokens_/Asset/drawer_cabinet_drawer_01_1",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        },
+        "prior09": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        }
+      },
+      "name": "exact09_physical_values_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ],
+        "prior09": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ]
+      },
+      "name": "exact09_api_tokens_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:approximation": "convexDecomposition",
+          "physics:collisionEnabled": "True",
+          "physxConvexDecompositionCollision:errorPercentage": "0.10000000149011612",
+          "physxConvexDecompositionCollision:hullVertexLimit": "64",
+          "physxConvexDecompositionCollision:maxConvexHulls": "128",
+          "physxConvexDecompositionCollision:shrinkWrap": "True",
+          "physxConvexDecompositionCollision:voxelResolution": "4000000"
+        },
+        "prior09": {
+          "physics:approximation": "convexDecomposition",
+          "physics:collisionEnabled": "True",
+          "physxConvexDecompositionCollision:errorPercentage": "0.10000000149011612",
+          "physxConvexDecompositionCollision:hullVertexLimit": "64",
+          "physxConvexDecompositionCollision:maxConvexHulls": "128",
+          "physxConvexDecompositionCollision:shrinkWrap": "True",
+          "physxConvexDecompositionCollision:voxelResolution": "4000000"
+        }
+      },
+      "name": "exact09_physical_values_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI",
+          "PhysxConvexDecompositionCollisionAPI"
+        ],
+        "prior09": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI",
+          "PhysxConvexDecompositionCollisionAPI"
+        ]
+      },
+      "name": "exact09_api_tokens_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        },
+        "prior09": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        }
+      },
+      "name": "exact09_physical_values_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ],
+        "prior09": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ]
+      },
+      "name": "exact09_api_tokens_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        },
+        "prior09": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        }
+      },
+      "name": "exact09_physical_values_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ],
+        "prior09": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ]
+      },
+      "name": "exact09_api_tokens_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        },
+        "prior09": {
+          "physics:approximation": "none",
+          "physics:collisionEnabled": "True"
+        }
+      },
+      "name": "exact09_physical_values_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ],
+        "prior09": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI"
+        ]
+      },
+      "name": "exact09_api_tokens_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": [
+          {
+            "physics:gravityDirection": "(0, 0, 0)",
+            "physics:gravityMagnitude": "-inf"
+          }
+        ],
+        "prior09": [
+          {
+            "physics:gravityDirection": "(0, 0, 0)",
+            "physics:gravityMagnitude": "-inf"
+          }
+        ]
+      },
+      "name": "exact09_physics_scene_values",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "nonkinematic",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "no_additional_pair_filters",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "no_articulation_root",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "none",
+        "expected": "none"
+      },
+      "name": "collision_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "binding": "/Asset/drawer_cabinet_0/Primitive_0.material:binding:physics",
+        "material": "/Asset/Looks/Physics_component_002"
+      },
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        },
+        "prior09": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        }
+      },
+      "name": "exact09_resolved_physics_material_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.0,
+        "expected": 0.0
+      },
+      "name": "physics:restitution_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "convexDecomposition",
+        "expected": "convexDecomposition"
+      },
+      "name": "collision_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "binding": "/Asset/drawer_cabinet_drawer_01_1.material:binding:physics",
+        "material": "/Asset/Looks/Physics_component_001"
+      },
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        },
+        "prior09": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        }
+      },
+      "name": "exact09_resolved_physics_material_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.0,
+        "expected": 0.0
+      },
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored_api_tokens": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI",
+          "PhysxConvexDecompositionCollisionAPI"
+        ],
+        "boundary": "Authored values only; separate actual cooking log, source fidelity and task acceptance required.",
+        "options": {
+          "errorPercentage": 0.10000000149011612,
+          "hullVertexLimit": 64,
+          "maxConvexHulls": 128,
+          "shrinkWrap": true,
+          "voxelResolution": 4000000
+        }
+      },
+      "name": "explicit_supported_tighter_cooking",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "none",
+        "expected": "none"
+      },
+      "name": "collision_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "binding": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0.material:binding:physics",
+        "material": "/Asset/Looks/Physics_component_003"
+      },
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        },
+        "prior09": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        }
+      },
+      "name": "exact09_resolved_physics_material_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.0,
+        "expected": 0.0
+      },
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "none",
+        "expected": "none"
+      },
+      "name": "collision_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "binding": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0.material:binding:physics",
+        "material": "/Asset/Looks/Physics_component_004"
+      },
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        },
+        "prior09": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        }
+      },
+      "name": "exact09_resolved_physics_material_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.0,
+        "expected": 0.0
+      },
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": "none",
+        "expected": "none"
+      },
+      "name": "collision_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "binding": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0.material:binding:physics",
+        "material": "/Asset/Looks/Physics_component_005"
+      },
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        },
+        "prior09": {
+          "physics:density": "0.0",
+          "physics:dynamicFriction": "0.6000000238418579",
+          "physics:restitution": "0.0",
+          "physics:staticFriction": "0.6000000238418579"
+        }
+      },
+      "name": "exact09_resolved_physics_material_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.6000000238418579,
+        "expected": 0.6
+      },
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "authored": 0.0,
+        "expected": 0.0
+      },
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true
+    },
+    {
+      "detail": {
+        "receipt": "evidence/original_source_drawer_physics_10.json",
+        "sha256": "05bf4e1bfe92a8993a743230a2cd08ac43a678c25e588b786ef443532d78e7c9"
+      },
+      "name": "original_source_geometry",
+      "pass": true
+    }
+  ],
+  "original_mass_reference_sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+  "pass": true,
+  "recorded_utc": "2026-09-22T04:01:17.109046+00:00",
+  "scope": "Read-only post-author audit of declared static-Mesh endpoint repair; all original physical values and09 cooking settings retained. No physical acceptance or USD mutation."
+}

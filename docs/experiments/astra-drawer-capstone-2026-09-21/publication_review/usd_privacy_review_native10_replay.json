@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-22T04:17:54.384398+00:00",
+  "scanner_sha256": "f866572f87173d1e07ecffc7a15de3dbbc983ccea6bd55e8a9ded1f356d54e25",
+  "candidates": [
+    {
+      "path": "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+      "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+      "size": 2535302,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+          "decoded_text_sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+          "decoded_bytes": 2535302,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 4,
+              "property_or_syntax": "doc",
+              "matched_value_sha256": "ec6d1313cd6fb93f52a8b3f16602f357f7771e9c460bf0fe40bde2bb157f33ac"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 7,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "ed013b4e23565a2c5ce12f20e2abf14e5742ac24c3d08bbc53cdeaffb111421e"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 10,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "64a7c83ac7581e51ca0be8e33d89d523947a3186efc15a08bf0042a856928b69"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 13,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "cd46a8c8de7cfa1bbce8dcb09fc024043e2f0f26be51a508aa81292230104576"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 16,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "cefb406f43db74048f01a026b637693195466ac9a78d683bba616c204aac11d9"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 54,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "3c09d64cad0f738597c12a10e5b4997af03357e2c71e710155cad9be7e426451"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 66,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "f50c0139c63ca6e2f18d352ee1486d4a3208bda62495e009b76c0f8878fbaae4"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 80,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "3400841bab30112ecaa56326b5da00895af08491e3824462fd8392e5c560876e"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "3400841bab30112ecaa56326b5da00895af08491e3824462fd8392e5c560876e",
+              "needs_redaction_or_relocation": true
+            },
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "3c09d64cad0f738597c12a10e5b4997af03357e2c71e710155cad9be7e426451",
+              "needs_redaction_or_relocation": true
+            },
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "f50c0139c63ca6e2f18d352ee1486d4a3208bda62495e009b76c0f8878fbaae4",
+              "needs_redaction_or_relocation": true
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+          "size": 2535302,
+          "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "size": 1036772,
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 8,
+      "exact_bytes_recommended_for_publication": false,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda",
+      "sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+      "size": 740242,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda",
+          "decoded_text_sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+          "decoded_bytes": 740242,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 6,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "3c45a2f8bd87ee6d4abd81f8714b32e550e1dcea9e0954d62434d9ab1a82a026"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "3c45a2f8bd87ee6d4abd81f8714b32e550e1dcea9e0954d62434d9ab1a82a026",
+              "needs_redaction_or_relocation": true
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        },
+        {
+          "layer": "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+          "decoded_text_sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+          "decoded_bytes": 2535302,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 4,
+              "property_or_syntax": "doc",
+              "matched_value_sha256": "ec6d1313cd6fb93f52a8b3f16602f357f7771e9c460bf0fe40bde2bb157f33ac"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 7,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "ed013b4e23565a2c5ce12f20e2abf14e5742ac24c3d08bbc53cdeaffb111421e"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 10,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "64a7c83ac7581e51ca0be8e33d89d523947a3186efc15a08bf0042a856928b69"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 13,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "cd46a8c8de7cfa1bbce8dcb09fc024043e2f0f26be51a508aa81292230104576"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 16,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "cefb406f43db74048f01a026b637693195466ac9a78d683bba616c204aac11d9"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 54,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "3c09d64cad0f738597c12a10e5b4997af03357e2c71e710155cad9be7e426451"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 66,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "f50c0139c63ca6e2f18d352ee1486d4a3208bda62495e009b76c0f8878fbaae4"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 80,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "3400841bab30112ecaa56326b5da00895af08491e3824462fd8392e5c560876e"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "3400841bab30112ecaa56326b5da00895af08491e3824462fd8392e5c560876e",
+              "needs_redaction_or_relocation": true
+            },
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "3c09d64cad0f738597c12a10e5b4997af03357e2c71e710155cad9be7e426451",
+              "needs_redaction_or_relocation": true
+            },
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "f50c0139c63ca6e2f18d352ee1486d4a3208bda62495e009b76c0f8878fbaae4",
+              "needs_redaction_or_relocation": true
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda",
+          "size": 740242,
+          "sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5"
+        },
+        {
+          "path": "capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+          "size": 2535302,
+          "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "size": 1036772,
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 9,
+      "exact_bytes_recommended_for_publication": false,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    }
+  ],
+  "all_inputs_unchanged": true,
+  "scope": "Read-only decoded USD layers, authored asset paths, package member names and resolved dependency closure. No asset mutation, simulation, rendering or model call. No acceptance judgment.",
+  "limitation": "Known private identity/path/credential/raw-reasoning patterns; not a general PII detector. Numerical geometry and task acceptance are separate."
+}

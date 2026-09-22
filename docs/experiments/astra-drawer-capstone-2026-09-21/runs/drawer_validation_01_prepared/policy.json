@@ -1,0 +1,14 @@
+{
+  "behavior_evidence_required": true,
+  "expect_physics": true,
+  "canonical_visual_evidence": true,
+  "runtime_render_usd": true,
+  "physical_behavior_evidence": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+      "kind": "simulation_json",
+      "role": "native_physics_bundle",
+      "required": true
+    }
+  ]
+}

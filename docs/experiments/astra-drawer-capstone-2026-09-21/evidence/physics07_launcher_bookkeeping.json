@@ -1,0 +1,24 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "ed1acc7c711a8026b3d79f74129eaf334627279c0362c8f5a90118d8596e7b81"
+  },
+  "completion_recovery_pending": false,
+  "corrected07_launcher_sha256": "0200d148c945e5c02a6e0e47e7089624c812407fcc3540b94e4c2b17dafe3208",
+  "issue": "The launched Physics07 script cloned from03 changed run directory and guidance correctly, but its summary/log filenames still named03. Native run directories, asset/patch bytes and per-run receipts were not overwritten.",
+  "limitation": "Original03 root console log was overwritten. Per-run native03 runtime, decision, typed review and final receipts were already archived and remain available.",
+  "physics03_archive_sha256": "b6188ec141648decf3f8fd10c03cac2d4bd5a46e41efa80ba723b27989fff018",
+  "recorded_utc": "2026-09-22T01:59:02.858120+00:00",
+  "recovery": [
+    "Renamed active07 launch record and open console log to07 names; open log descriptor continues to that renamed file.",
+    "Restored exact03 launch record from already retained local03 public evidence.",
+    "Copied still-original03 execution summary to physics_native_execution_03_before07.json before07 completion; after07 completion, move newly written execution03 to07 and restore03.",
+    "Corrected future-use launcher source; retain actual launched script separately as run_physics_native_07_launched.py."
+  ],
+  "recovery_completed_utc": "2026-09-22T02:09:27.643077+00:00",
+  "recovery_hashes_verified": true,
+  "retained_original03_execution_sha256": "93eaab13e6d650b8a478ee31ab8003e639a4c15610cbd2ef21228cf56ae71c57",
+  "retained_original03_launch_sha256": "cc318df220c1cd0e707fa0c30f4dd62ad3e1331f99b2d93b96928826148c629a",
+  "scope": "Unscored capstone launcher bookkeeping only; scored pilot unchanged"
+}

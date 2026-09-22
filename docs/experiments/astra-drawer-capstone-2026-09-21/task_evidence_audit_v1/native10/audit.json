@@ -1,0 +1,1252 @@
+{
+  "schema_version": "capstone-independent-task-evidence-audit.v1",
+  "started_utc": "2026-09-22T04:10:41.881709+00:00",
+  "script_sha256": "c2d229541e89d454f69287ae2a1f89bc562993a8e7f65d2eb44335e57abce206",
+  "status": "CONSISTENT_WITH_DECLARED_LIMITS",
+  "audit_consistent": true,
+  "task_acceptance_attested": false,
+  "trials": [
+    {
+      "seed": 11,
+      "samples": 2460,
+      "scene_checks": {
+        "source_prim_count": 26,
+        "source_authored_properties_compared": 137,
+        "only_declared_scene_interventions": true,
+        "payload_position_m": [
+          -0.03714297972308004,
+          1.0529997730255127,
+          -5.054962919195244e-05
+        ],
+        "payload_yaw_deg": 2.029967152467149,
+        "gravity_m_s2": [
+          0,
+          -9.81,
+          0
+        ]
+      },
+      "recomputed": {
+        "metrics": {
+          "max_q_m": 0.24311169236898422,
+          "max_penetration_m": 1.7762184143066406e-05,
+          "max_off_axis_m": 6.1988836862907715e-06,
+          "max_rotation_deg": 0.0,
+          "max_linear_speed_m_s": 0.36787503957748413,
+          "max_angular_speed_rad_s": 5.000308036804199,
+          "payload_contact_samples": 2280,
+          "payload_retained": true,
+          "max_force_n": 0.850730721724252,
+          "initial_drift_m": 2.074986696243286e-05,
+          "min_open_hold_q_m": 0.239900641143322,
+          "max_closed_hold_error_m": 0.00015838444232940674,
+          "max_closed_hold_speed_m_s": 0.0009337039082311094
+        },
+        "reported_metric_comparison": {
+          "max_q_m": {
+            "recomputed": 0.24311169236898422,
+            "reported": 0.24311169236898422,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_penetration_m": {
+            "recomputed": 1.7762184143066406e-05,
+            "reported": 1.7762184143066406e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_off_axis_m": {
+            "recomputed": 6.1988836862907715e-06,
+            "reported": 6.198884176018618e-06,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_rotation_deg": {
+            "recomputed": 0.0,
+            "reported": 0.0,
+            "consistent": true,
+            "scope": "authored-frame crosscheck; initial native quaternion missing"
+          },
+          "max_linear_speed_m_s": {
+            "recomputed": 0.36787503957748413,
+            "reported": 0.36787503957748413,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_angular_speed_rad_s": {
+            "recomputed": 5.000308036804199,
+            "reported": 5.000308036804199,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_contact_samples": {
+            "recomputed": 2280,
+            "reported": 2280,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_retained": {
+            "recomputed": true,
+            "reported": true,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_force_n": {
+            "recomputed": 0.850730721724252,
+            "reported": 0.850730721724252,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "initial_drift_m": {
+            "recomputed": 2.074986696243286e-05,
+            "reported": 2.074986696243286e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "min_open_hold_q_m": {
+            "recomputed": 0.239900641143322,
+            "reported": 0.239900641143322,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_error_m": {
+            "recomputed": 0.00015838444232940674,
+            "reported": 0.00015838444232940674,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_speed_m_s": {
+            "recomputed": 0.0009337039082311094,
+            "reported": 0.0009337039082311094,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          }
+        },
+        "trace_checks": {
+          "opening": true,
+          "closing": true,
+          "closed_settled": true,
+          "payload_retained": true,
+          "payload_contact": true,
+          "penetration": true,
+          "off_axis": true,
+          "rotation": true,
+          "initial_drift": true,
+          "force_bounded": true,
+          "finite_and_stable": true
+        },
+        "reported_trace_checks_match": true,
+        "all_reported_metrics_consistent": true,
+        "independently_corroborated_failures": [],
+        "inferred_initial_native_z_m": -2.2351741790771484e-08,
+        "reported_import_translation_error_m": 2.2371135930464256e-08,
+        "max_observed_trace_force_n": 0.8507307171821594,
+        "opening_source_frame_min_interval_m": [
+          0.23990059642044426,
+          0.23990064116271614
+        ],
+        "closing_source_frame_max_interval_m": [
+          0.0001583397194516855,
+          0.00015838446172354643
+        ],
+        "opening_gate_unambiguous_under_import_error": true,
+        "closing_gate_unambiguous_under_import_error": true,
+        "max_source_frame_q_m": 0.24311167001724243,
+        "max_normalized_authored_frame_rotation_deg": 6.830189170012753e-06,
+        "max_quaternion_norm_error": 1.7763568394002505e-15,
+        "off_axis_native_initial_interval_m": [
+          6.1765125503603076e-06,
+          6.2212548222212355e-06
+        ],
+        "off_axis_gate_unambiguous_under_import_error": true,
+        "payload_retention_min_margin_m": 0.056576108932495206,
+        "payload_retention_unambiguous_under_import_error": true,
+        "max_force_trace_float32_comparison_error_n": 0.0,
+        "max_target_error_m": 0.0,
+        "contact_detector": {
+          "legacy_field": "payload_drawer_contact_force_n",
+          "actual_units": "N*s",
+          "threshold_raw_impulse_ns": 0.01,
+          "threshold_equivalent_force_n": 2.4,
+          "max_observed_impulse_ns": 0.12000750005245209
+        },
+        "initial_native_xy_and_quaternion_recorded": false
+      },
+      "prior_interior_query_result_crosschecked_only": true,
+      "reported_status": "PASS",
+      "trace_status": "NO_RECOMPUTED_FAILURE"
+    },
+    {
+      "seed": 23,
+      "samples": 2460,
+      "scene_checks": {
+        "source_prim_count": 26,
+        "source_authored_properties_compared": 137,
+        "only_declared_scene_interventions": true,
+        "payload_position_m": [
+          0.019393308065736428,
+          1.0529997730255127,
+          0.009902075461476138
+        ],
+        "payload_yaw_deg": -7.4271155136472755,
+        "gravity_m_s2": [
+          0,
+          -9.81,
+          0
+        ]
+      },
+      "recomputed": {
+        "metrics": {
+          "max_q_m": 0.24308302253484726,
+          "max_penetration_m": 1.2993812561035156e-05,
+          "max_off_axis_m": 3.2186509526110468e-06,
+          "max_rotation_deg": 0.0,
+          "max_linear_speed_m_s": 0.36787503957748413,
+          "max_angular_speed_rad_s": 5.208332061767578,
+          "payload_contact_samples": 2280,
+          "payload_retained": true,
+          "max_force_n": 0.8034450537140398,
+          "initial_drift_m": 2.8952956199645996e-05,
+          "min_open_hold_q_m": 0.23987963050603867,
+          "max_closed_hold_error_m": 6.6414475440979e-05,
+          "max_closed_hold_speed_m_s": 0.0007321533048525453
+        },
+        "reported_metric_comparison": {
+          "max_q_m": {
+            "recomputed": 0.24308302253484726,
+            "reported": 0.24308302253484726,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_penetration_m": {
+            "recomputed": 1.2993812561035156e-05,
+            "reported": 1.2993812561035156e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_off_axis_m": {
+            "recomputed": 3.2186509526110468e-06,
+            "reported": 3.218651356830872e-06,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_rotation_deg": {
+            "recomputed": 0.0,
+            "reported": 0.0,
+            "consistent": true,
+            "scope": "authored-frame crosscheck; initial native quaternion missing"
+          },
+          "max_linear_speed_m_s": {
+            "recomputed": 0.36787503957748413,
+            "reported": 0.36787503957748413,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_angular_speed_rad_s": {
+            "recomputed": 5.208332061767578,
+            "reported": 5.208332061767578,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_contact_samples": {
+            "recomputed": 2280,
+            "reported": 2280,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_retained": {
+            "recomputed": true,
+            "reported": true,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_force_n": {
+            "recomputed": 0.8034450537140398,
+            "reported": 0.8034450537140398,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "initial_drift_m": {
+            "recomputed": 2.8952956199645996e-05,
+            "reported": 2.8952956199645996e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "min_open_hold_q_m": {
+            "recomputed": 0.23987963050603867,
+            "reported": 0.23987963050603867,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_error_m": {
+            "recomputed": 6.6414475440979e-05,
+            "reported": 6.6414475440979e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_speed_m_s": {
+            "recomputed": 0.0007321533048525453,
+            "reported": 0.0007321533048525453,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          }
+        },
+        "trace_checks": {
+          "opening": true,
+          "closing": true,
+          "closed_settled": true,
+          "payload_retained": true,
+          "payload_contact": true,
+          "penetration": true,
+          "off_axis": true,
+          "rotation": true,
+          "initial_drift": true,
+          "force_bounded": true,
+          "finite_and_stable": true
+        },
+        "reported_trace_checks_match": true,
+        "all_reported_metrics_consistent": true,
+        "independently_corroborated_failures": [],
+        "inferred_initial_native_z_m": -2.2351741790771484e-08,
+        "reported_import_translation_error_m": 2.2371135930464256e-08,
+        "max_observed_trace_force_n": 0.803445041179657,
+        "opening_source_frame_min_interval_m": [
+          0.23987958578316093,
+          0.23987963052543282
+        ],
+        "closing_source_frame_max_interval_m": [
+          6.636975256325777e-05,
+          6.64144948351187e-05
+        ],
+        "opening_gate_unambiguous_under_import_error": true,
+        "closing_gate_unambiguous_under_import_error": true,
+        "max_source_frame_q_m": 0.24308300018310547,
+        "max_normalized_authored_frame_rotation_deg": 6.830189170012753e-06,
+        "max_quaternion_norm_error": 1.7763568394002505e-15,
+        "off_axis_native_initial_interval_m": [
+          3.1962798166805823e-06,
+          3.241022088541511e-06
+        ],
+        "off_axis_gate_unambiguous_under_import_error": true,
+        "payload_retention_min_margin_m": 0.05636582374572763,
+        "payload_retention_unambiguous_under_import_error": true,
+        "max_force_trace_float32_comparison_error_n": 0.0,
+        "max_target_error_m": 0.0,
+        "contact_detector": {
+          "legacy_field": "payload_drawer_contact_force_n",
+          "actual_units": "N*s",
+          "threshold_raw_impulse_ns": 0.01,
+          "threshold_equivalent_force_n": 2.4,
+          "max_observed_impulse_ns": 0.11178304255008698
+        },
+        "initial_native_xy_and_quaternion_recorded": false
+      },
+      "prior_interior_query_result_crosschecked_only": true,
+      "reported_status": "PASS",
+      "trace_status": "NO_RECOMPUTED_FAILURE"
+    },
+    {
+      "seed": 47,
+      "samples": 2460,
+      "scene_checks": {
+        "source_prim_count": 26,
+        "source_authored_properties_compared": 137,
+        "only_declared_scene_interventions": true,
+        "payload_position_m": [
+          0.024180199464256064,
+          1.0529997730255127,
+          0.017756817198372556
+        ],
+        "payload_yaw_deg": -0.6963892354103312,
+        "gravity_m_s2": [
+          0,
+          -9.81,
+          0
+        ]
+      },
+      "recomputed": {
+        "metrics": {
+          "max_q_m": 0.24322553724050522,
+          "max_penetration_m": 4.0531158447265625e-06,
+          "max_off_axis_m": 6.4373019052220935e-06,
+          "max_rotation_deg": 0.0,
+          "max_linear_speed_m_s": 0.36787503957748413,
+          "max_angular_speed_rad_s": 4.950887680053711,
+          "payload_contact_samples": 2280,
+          "payload_retained": true,
+          "max_force_n": 0.8518256898766154,
+          "initial_drift_m": 3.567337989807129e-05,
+          "min_open_hold_q_m": 0.24007054418325424,
+          "max_closed_hold_error_m": 0.000134393572807312,
+          "max_closed_hold_speed_m_s": 0.0008778201881796122
+        },
+        "reported_metric_comparison": {
+          "max_q_m": {
+            "recomputed": 0.24322553724050522,
+            "reported": 0.24322553724050522,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_penetration_m": {
+            "recomputed": 4.0531158447265625e-06,
+            "reported": 4.0531158447265625e-06,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_off_axis_m": {
+            "recomputed": 6.4373019052220935e-06,
+            "reported": 6.43730224207196e-06,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_rotation_deg": {
+            "recomputed": 0.0,
+            "reported": 0.0,
+            "consistent": true,
+            "scope": "authored-frame crosscheck; initial native quaternion missing"
+          },
+          "max_linear_speed_m_s": {
+            "recomputed": 0.36787503957748413,
+            "reported": 0.36787503957748413,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_angular_speed_rad_s": {
+            "recomputed": 4.950887680053711,
+            "reported": 4.950887680053711,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_contact_samples": {
+            "recomputed": 2280,
+            "reported": 2280,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_retained": {
+            "recomputed": true,
+            "reported": true,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_force_n": {
+            "recomputed": 0.8518256898766154,
+            "reported": 0.8518256898766154,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "initial_drift_m": {
+            "recomputed": 3.567337989807129e-05,
+            "reported": 3.567337989807129e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "min_open_hold_q_m": {
+            "recomputed": 0.24007054418325424,
+            "reported": 0.24007054418325424,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_error_m": {
+            "recomputed": 0.000134393572807312,
+            "reported": 0.000134393572807312,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_speed_m_s": {
+            "recomputed": 0.0008778201881796122,
+            "reported": 0.0008778201881796122,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          }
+        },
+        "trace_checks": {
+          "opening": true,
+          "closing": true,
+          "closed_settled": true,
+          "payload_retained": true,
+          "payload_contact": true,
+          "penetration": true,
+          "off_axis": true,
+          "rotation": true,
+          "initial_drift": true,
+          "force_bounded": true,
+          "finite_and_stable": true
+        },
+        "reported_trace_checks_match": true,
+        "all_reported_metrics_consistent": true,
+        "independently_corroborated_failures": [],
+        "inferred_initial_native_z_m": -2.2351741790771484e-08,
+        "reported_import_translation_error_m": 2.2371135930464256e-08,
+        "max_observed_trace_force_n": 0.8518257141113281,
+        "opening_source_frame_min_interval_m": [
+          0.2400704994603765,
+          0.2400705442026484
+        ],
+        "closing_source_frame_max_interval_m": [
+          0.00013434884992959077,
+          0.0001343935922014517
+        ],
+        "opening_gate_unambiguous_under_import_error": true,
+        "closing_gate_unambiguous_under_import_error": true,
+        "max_source_frame_q_m": 0.24322551488876343,
+        "max_normalized_authored_frame_rotation_deg": 6.830189170012753e-06,
+        "max_quaternion_norm_error": 1.7763568394002505e-15,
+        "off_axis_native_initial_interval_m": [
+          6.4149307692916295e-06,
+          6.4596730411525575e-06
+        ],
+        "off_axis_gate_unambiguous_under_import_error": true,
+        "payload_retention_min_margin_m": 0.05631015300750741,
+        "payload_retention_unambiguous_under_import_error": true,
+        "max_force_trace_float32_comparison_error_n": 0.0,
+        "max_target_error_m": 0.0,
+        "contact_detector": {
+          "legacy_field": "payload_drawer_contact_force_n",
+          "actual_units": "N*s",
+          "threshold_raw_impulse_ns": 0.01,
+          "threshold_equivalent_force_n": 2.4,
+          "max_observed_impulse_ns": 0.12230591475963593
+        },
+        "initial_native_xy_and_quaternion_recorded": false
+      },
+      "prior_interior_query_result_crosschecked_only": true,
+      "reported_status": "PASS",
+      "trace_status": "NO_RECOMPUTED_FAILURE"
+    },
+    {
+      "seed": 83,
+      "samples": 2460,
+      "scene_checks": {
+        "source_prim_count": 26,
+        "source_authored_properties_compared": 137,
+        "only_declared_scene_interventions": true,
+        "payload_position_m": [
+          -0.018358568014899837,
+          1.0529997730255127,
+          -0.03187765982266284
+        ],
+        "payload_yaw_deg": 2.5818645968235394,
+        "gravity_m_s2": [
+          0,
+          -9.81,
+          0
+        ]
+      },
+      "recomputed": {
+        "metrics": {
+          "max_q_m": 0.2431892678141594,
+          "max_penetration_m": 1.0728836059570312e-06,
+          "max_off_axis_m": 5.4836285847197246e-06,
+          "max_rotation_deg": 0.0,
+          "max_linear_speed_m_s": 0.408750057220459,
+          "max_angular_speed_rad_s": 0.047895174473524094,
+          "payload_contact_samples": 2280,
+          "payload_retained": true,
+          "max_force_n": 0.8239215724640807,
+          "initial_drift_m": 7.192790508270264e-05,
+          "min_open_hold_q_m": 0.24004369229078293,
+          "max_closed_hold_error_m": 2.1867454051971436e-05,
+          "max_closed_hold_speed_m_s": 0.0006661778897978365
+        },
+        "reported_metric_comparison": {
+          "max_q_m": {
+            "recomputed": 0.2431892678141594,
+            "reported": 0.2431892678141594,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_penetration_m": {
+            "recomputed": 1.0728836059570312e-06,
+            "reported": 1.0728836059570312e-06,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_off_axis_m": {
+            "recomputed": 5.4836285847197246e-06,
+            "reported": 5.4836292964979765e-06,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_rotation_deg": {
+            "recomputed": 0.0,
+            "reported": 0.0,
+            "consistent": true,
+            "scope": "authored-frame crosscheck; initial native quaternion missing"
+          },
+          "max_linear_speed_m_s": {
+            "recomputed": 0.408750057220459,
+            "reported": 0.408750057220459,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_angular_speed_rad_s": {
+            "recomputed": 0.047895174473524094,
+            "reported": 0.047895174473524094,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_contact_samples": {
+            "recomputed": 2280,
+            "reported": 2280,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_retained": {
+            "recomputed": true,
+            "reported": true,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_force_n": {
+            "recomputed": 0.8239215724640807,
+            "reported": 0.8239215724640807,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "initial_drift_m": {
+            "recomputed": 7.192790508270264e-05,
+            "reported": 7.192790508270264e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "min_open_hold_q_m": {
+            "recomputed": 0.24004369229078293,
+            "reported": 0.24004369229078293,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_error_m": {
+            "recomputed": 2.1867454051971436e-05,
+            "reported": 2.1867454051971436e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_speed_m_s": {
+            "recomputed": 0.0006661778897978365,
+            "reported": 0.0006661778897978365,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          }
+        },
+        "trace_checks": {
+          "opening": true,
+          "closing": true,
+          "closed_settled": true,
+          "payload_retained": true,
+          "payload_contact": true,
+          "penetration": true,
+          "off_axis": true,
+          "rotation": true,
+          "initial_drift": true,
+          "force_bounded": true,
+          "finite_and_stable": true
+        },
+        "reported_trace_checks_match": true,
+        "all_reported_metrics_consistent": true,
+        "independently_corroborated_failures": [],
+        "inferred_initial_native_z_m": -2.2351741790771484e-08,
+        "reported_import_translation_error_m": 2.2371135930464256e-08,
+        "max_observed_trace_force_n": 0.8239215612411499,
+        "opening_source_frame_min_interval_m": [
+          0.2400436475679052,
+          0.24004369231017708
+        ],
+        "closing_source_frame_max_interval_m": [
+          2.18227311742502e-05,
+          2.1867473446111128e-05
+        ],
+        "opening_gate_unambiguous_under_import_error": true,
+        "closing_gate_unambiguous_under_import_error": true,
+        "max_source_frame_q_m": 0.2431892454624176,
+        "max_normalized_authored_frame_rotation_deg": 6.830189170012753e-06,
+        "max_quaternion_norm_error": 1.7763568394002505e-15,
+        "off_axis_native_initial_interval_m": [
+          5.4612574487892606e-06,
+          5.5059997206501886e-06
+        ],
+        "off_axis_gate_unambiguous_under_import_error": true,
+        "payload_retention_min_margin_m": 0.05699989795684823,
+        "payload_retention_unambiguous_under_import_error": true,
+        "max_force_trace_float32_comparison_error_n": 0.0,
+        "max_target_error_m": 0.0,
+        "contact_detector": {
+          "legacy_field": "payload_drawer_contact_force_n",
+          "actual_units": "N*s",
+          "threshold_raw_impulse_ns": 0.01,
+          "threshold_equivalent_force_n": 2.4,
+          "max_observed_impulse_ns": 0.22440387308597565
+        },
+        "initial_native_xy_and_quaternion_recorded": false
+      },
+      "prior_interior_query_result_crosschecked_only": true,
+      "reported_status": "PASS",
+      "trace_status": "NO_RECOMPUTED_FAILURE"
+    },
+    {
+      "seed": 131,
+      "samples": 2460,
+      "scene_checks": {
+        "source_prim_count": 26,
+        "source_authored_properties_compared": 137,
+        "only_declared_scene_interventions": true,
+        "payload_position_m": [
+          0.014646353024653364,
+          1.0529997730255127,
+          0.007080424120988124
+        ],
+        "payload_yaw_deg": 0.6466817420278836,
+        "gravity_m_s2": [
+          0,
+          -9.81,
+          0
+        ]
+      },
+      "recomputed": {
+        "metrics": {
+          "max_q_m": 0.2431061789393425,
+          "max_penetration_m": 1.8596649169921875e-05,
+          "max_off_axis_m": 3.337860107421875e-06,
+          "max_rotation_deg": 0.0,
+          "max_linear_speed_m_s": 0.36787503957748413,
+          "max_angular_speed_rad_s": 5.017893314361572,
+          "payload_contact_samples": 2280,
+          "payload_retained": true,
+          "max_force_n": 0.8175650869160884,
+          "initial_drift_m": 2.5831162929534912e-05,
+          "min_open_hold_q_m": 0.23987530916929245,
+          "max_closed_hold_error_m": 6.073713302612305e-05,
+          "max_closed_hold_speed_m_s": 0.0006357582751661539
+        },
+        "reported_metric_comparison": {
+          "max_q_m": {
+            "recomputed": 0.2431061789393425,
+            "reported": 0.2431061789393425,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_penetration_m": {
+            "recomputed": 1.8596649169921875e-05,
+            "reported": 1.8596649169921875e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_off_axis_m": {
+            "recomputed": 3.337860107421875e-06,
+            "reported": 3.337860237349687e-06,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_rotation_deg": {
+            "recomputed": 0.0,
+            "reported": 0.0,
+            "consistent": true,
+            "scope": "authored-frame crosscheck; initial native quaternion missing"
+          },
+          "max_linear_speed_m_s": {
+            "recomputed": 0.36787503957748413,
+            "reported": 0.36787503957748413,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_angular_speed_rad_s": {
+            "recomputed": 5.017893314361572,
+            "reported": 5.017893314361572,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_contact_samples": {
+            "recomputed": 2280,
+            "reported": 2280,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "payload_retained": {
+            "recomputed": true,
+            "reported": true,
+            "consistent": true,
+            "scope": "authored-frame with import-error bound"
+          },
+          "max_force_n": {
+            "recomputed": 0.8175650869160884,
+            "reported": 0.8175650869160884,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "initial_drift_m": {
+            "recomputed": 2.5831162929534912e-05,
+            "reported": 2.5831162929534912e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "min_open_hold_q_m": {
+            "recomputed": 0.23987530916929245,
+            "reported": 0.23987530916929245,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_error_m": {
+            "recomputed": 6.073713302612305e-05,
+            "reported": 6.073713302612305e-05,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          },
+          "max_closed_hold_speed_m_s": {
+            "recomputed": 0.0006357582751661539,
+            "reported": 0.0006357582751661539,
+            "consistent": true,
+            "scope": "raw-trace recomputation"
+          }
+        },
+        "trace_checks": {
+          "opening": true,
+          "closing": true,
+          "closed_settled": true,
+          "payload_retained": true,
+          "payload_contact": true,
+          "penetration": true,
+          "off_axis": true,
+          "rotation": true,
+          "initial_drift": true,
+          "force_bounded": true,
+          "finite_and_stable": true
+        },
+        "reported_trace_checks_match": true,
+        "all_reported_metrics_consistent": true,
+        "independently_corroborated_failures": [],
+        "inferred_initial_native_z_m": -2.2351741790771484e-08,
+        "reported_import_translation_error_m": 2.2371135930464256e-08,
+        "max_observed_trace_force_n": 0.8175650835037231,
+        "opening_source_frame_min_interval_m": [
+          0.23987526444641472,
+          0.2398753091886866
+        ],
+        "closing_source_frame_max_interval_m": [
+          6.069241014840181e-05,
+          6.073715242026274e-05
+        ],
+        "opening_gate_unambiguous_under_import_error": true,
+        "closing_gate_unambiguous_under_import_error": true,
+        "max_source_frame_q_m": 0.2431061565876007,
+        "max_normalized_authored_frame_rotation_deg": 6.830189170012753e-06,
+        "max_quaternion_norm_error": 1.7763568394002505e-15,
+        "off_axis_native_initial_interval_m": [
+          3.3154889714914106e-06,
+          3.3602312433523394e-06
+        ],
+        "off_axis_gate_unambiguous_under_import_error": true,
+        "payload_retention_min_margin_m": 0.056479907035827726,
+        "payload_retention_unambiguous_under_import_error": true,
+        "max_force_trace_float32_comparison_error_n": 0.0,
+        "max_target_error_m": 0.0,
+        "contact_detector": {
+          "legacy_field": "payload_drawer_contact_force_n",
+          "actual_units": "N*s",
+          "threshold_raw_impulse_ns": 0.01,
+          "threshold_equivalent_force_n": 2.4,
+          "max_observed_impulse_ns": 0.12030773609876633
+        },
+        "initial_native_xy_and_quaternion_recorded": false
+      },
+      "prior_interior_query_result_crosschecked_only": true,
+      "reported_status": "PASS",
+      "trace_status": "NO_RECOMPUTED_FAILURE"
+    }
+  ],
+  "errors": [],
+  "reported_task_status": "PASS",
+  "reported_task_pass": true,
+  "trace_failures_corroborated": [
+    {
+      "seed": 11,
+      "checks": []
+    },
+    {
+      "seed": 23,
+      "checks": []
+    },
+    {
+      "seed": 47,
+      "checks": []
+    },
+    {
+      "seed": 83,
+      "checks": []
+    },
+    {
+      "seed": 131,
+      "checks": []
+    }
+  ],
+  "dependency_manifests": {
+    "asset": {
+      "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+      "asset_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "files": [
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "role": "dependency",
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+          "size": 1036772
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+          "role": "root",
+          "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+          "size": 2533656
+        }
+      ],
+      "sha256": "0c1d29994c9d8b3b785f35bc08e6e152291c5f3c228ca6db955bd78b93e8744c"
+    },
+    "11": {
+      "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+      "asset_path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda",
+      "files": [
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda",
+          "role": "root",
+          "sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+          "size": 740242
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+          "role": "dependency",
+          "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+          "size": 2535302
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "role": "dependency",
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+          "size": 1036772
+        }
+      ],
+      "sha256": "f286cd680f24e9b30b20a8cefd9724bd4d8643d16aeec3854dc945357266cd73"
+    },
+    "23": {
+      "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+      "asset_path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/replay.usda",
+      "files": [
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/replay.usda",
+          "role": "root",
+          "sha256": "e8f07e462508b5e3837f167086ebd765e2a925df7e66b5b809fe0a4a269e9903",
+          "size": 692293
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/scene.usda",
+          "role": "dependency",
+          "sha256": "5e30eae054d205f934d572350b4f9439f54b92996e343156315cf81c502fb270",
+          "size": 2535301
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "role": "dependency",
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+          "size": 1036772
+        }
+      ],
+      "sha256": "afc07a344ed5eadf20599642b61a63a3abbf90ebef5b6ad9d377cfaf23d816ce"
+    },
+    "47": {
+      "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+      "asset_path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/replay.usda",
+      "files": [
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/replay.usda",
+          "role": "root",
+          "sha256": "a4dcab0f12e86591289caf6b3f3aeee9bbd01446384a8bb3289ae8b4058b0c24",
+          "size": 697495
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/scene.usda",
+          "role": "dependency",
+          "sha256": "4490379220232e71054db99b85f215d42e45cf434ce4083733a3d7e0f475e0ae",
+          "size": 2535302
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "role": "dependency",
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+          "size": 1036772
+        }
+      ],
+      "sha256": "d63d63ce4bfe6dab8452bc1e19b5cb950a8c3076590c10e4e732c81e28670a21"
+    },
+    "83": {
+      "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+      "asset_path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/replay.usda",
+      "files": [
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/replay.usda",
+          "role": "root",
+          "sha256": "8c9c5ff6e32fd52a7de6e39120c99eddba1f575f08cf0a775415dcf97e205ca1",
+          "size": 688467
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/scene.usda",
+          "role": "dependency",
+          "sha256": "1aac9cbe70ebc5ebbc2cebded8ca0b655f72b46d37fd0e54c5c4ec5dde048d2c",
+          "size": 2535301
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "role": "dependency",
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+          "size": 1036772
+        }
+      ],
+      "sha256": "d0f760cf10f54d21b3e680c59a3b744cca78a8ccddcf1790517aff9c9e82fcad"
+    },
+    "131": {
+      "schema": "content-agent-workflows.usd-dependency-manifest.v1",
+      "asset_path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/replay.usda",
+      "files": [
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/replay.usda",
+          "role": "root",
+          "sha256": "21a450bf41987f3ce855d0367d09bb9c13f0dd9c7b3681f53cc6a6845c4e0f91",
+          "size": 697359
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/scene.usda",
+          "role": "dependency",
+          "sha256": "6d9ebb8b1bc452b75c4e7d03ed88aa7b8bb08a7394a349570d8a68da42f57a00",
+          "size": 2535300
+        },
+        {
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+          "role": "dependency",
+          "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+          "size": 1036772
+        }
+      ],
+      "sha256": "3c9ed5517bff09b71cda96f554a2b2c148d0b70bc9ab673763b97f998d0d1fc6"
+    }
+  },
+  "input_bindings": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_acceptance.json",
+      "sha256": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+      "size_bytes": 3477
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_evaluate.py",
+      "sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+      "size_bytes": 18931
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_solver.py",
+      "sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+      "size_bytes": 9769
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "size_bytes": 2533656
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evidence/native10_task_bindings.json",
+      "sha256": "c9d69c67233890a8a9a812e27d43e42c410642d45359e19194f9b390f160cbd2",
+      "size_bytes": 793
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/report.json",
+      "sha256": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+      "size_bytes": 13793
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/structural_report.json",
+      "sha256": "d555661e69429cd8603b9f9ec9642f42b9ae6943e1f8d9e4596ce1fe1381adce",
+      "size_bytes": 5888
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/repo/agentic/packages/content_agent_workflows/content_agent_workflows/simready/asset_identity.py",
+      "sha256": "0257c974e74fd55b1feab127091a15ca868772981e0d0d44c2632cb3e5e33853",
+      "size_bytes": 11991
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+      "size_bytes": 1036772
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/request.json",
+      "sha256": "92aa51db388d514a3158412f508d21faf4ce418427168337e028363a3ac87a07",
+      "size_bytes": 4311
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+      "sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+      "size_bytes": 2535302
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/trial_report.json",
+      "sha256": "777488b5ec199e09e88397ae89c05fa6fd1436f351f06f8b3e0a2e7fb0f6404b",
+      "size_bytes": 2199
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/trace.jsonl",
+      "sha256": "54cb5ee3f009b16bd24a1dee454394940f31ef0ab6b3efc5550ce80877554378",
+      "size_bytes": 6649111
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/replay.usda",
+      "sha256": "8764410be057b350732bc95c9c7ee8d635ecae0b8fbdba16e1d59f547a8394a5",
+      "size_bytes": 740242
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/solver.log",
+      "sha256": "122375657d583db5e32d67febf70978a5e195485768995914a168ae7a43df1f9",
+      "size_bytes": 405011
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/request.json",
+      "sha256": "0ecb458a07052c701f2f848b322ec91516e25de767fcd4954c4f1b31f64a2924",
+      "size_bytes": 4311
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/scene.usda",
+      "sha256": "5e30eae054d205f934d572350b4f9439f54b92996e343156315cf81c502fb270",
+      "size_bytes": 2535301
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/trial_report.json",
+      "sha256": "8d99a080aa163cdf024f93c7544c4ed507c509643cfd7130b1d6d555f8366a7c",
+      "size_bytes": 2200
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/trace.jsonl",
+      "sha256": "2efce65b8f44d50f094520906545475112006ca7b3883d7c355779b18964ece3",
+      "size_bytes": 6602320
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/replay.usda",
+      "sha256": "e8f07e462508b5e3837f167086ebd765e2a925df7e66b5b809fe0a4a269e9903",
+      "size_bytes": 692293
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_23/solver.log",
+      "sha256": "3d5dc0cf16e9a496301958065822dfa53ecbe0c474197b65ee01938302e8ad84",
+      "size_bytes": 405011
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/request.json",
+      "sha256": "b3871c94bfd4d469b8fa6765a9e745e0fff0b273b59cc4ab59901c8bd8f9ad3d",
+      "size_bytes": 4311
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/scene.usda",
+      "sha256": "4490379220232e71054db99b85f215d42e45cf434ce4083733a3d7e0f475e0ae",
+      "size_bytes": 2535302
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/trial_report.json",
+      "sha256": "55b03dba07cd6caa127161cca2610d91c3a5cb6ffd344881304b8866c76679cd",
+      "size_bytes": 2199
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/trace.jsonl",
+      "sha256": "ddf9ac532319b73b7629198e931fc947736f1a3c223452a345a9c73f7ee652cd",
+      "size_bytes": 6601747
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/replay.usda",
+      "sha256": "a4dcab0f12e86591289caf6b3f3aeee9bbd01446384a8bb3289ae8b4058b0c24",
+      "size_bytes": 697495
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_47/solver.log",
+      "sha256": "13db6c188bdfc802981868d6839e68298efbc041fff691788b1aca976c6b6882",
+      "size_bytes": 405011
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/request.json",
+      "sha256": "650d78fef33abaaececf03dfab95585aa1da34236b93918738017fba949bdd47",
+      "size_bytes": 4311
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/scene.usda",
+      "sha256": "1aac9cbe70ebc5ebbc2cebded8ca0b655f72b46d37fd0e54c5c4ec5dde048d2c",
+      "size_bytes": 2535301
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/trial_report.json",
+      "sha256": "eb0b6541f962f3d3bddae256f53c42b93d216122b3caad0f3f43d485381713da",
+      "size_bytes": 2203
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/trace.jsonl",
+      "sha256": "6a5a2e2db04331a91597ca9a34d815601f150bfdf1de75b4dcad88c99fc998cd",
+      "size_bytes": 6505569
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/replay.usda",
+      "sha256": "8c9c5ff6e32fd52a7de6e39120c99eddba1f575f08cf0a775415dcf97e205ca1",
+      "size_bytes": 688467
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_83/solver.log",
+      "sha256": "b6b7a54d447030fe320e69639e0911e322f77c5071943834aa94db401c415eea",
+      "size_bytes": 404992
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/request.json",
+      "sha256": "786c1b8122b690a54455159ac3251cac16bd13f802fe96cf053bc8e3e1603776",
+      "size_bytes": 4314
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/scene.usda",
+      "sha256": "6d9ebb8b1bc452b75c4e7d03ed88aa7b8bb08a7394a349570d8a68da42f57a00",
+      "size_bytes": 2535300
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/trial_report.json",
+      "sha256": "301fe600473b62beb0394830aec8bca80a32a531b17a9c756ade0f0db46cb713",
+      "size_bytes": 2202
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/trace.jsonl",
+      "sha256": "962f6e9d1381933fd6e6e9c763ec8557ba89e14971c84701769715d57ca0511f",
+      "size_bytes": 6596573
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/replay.usda",
+      "sha256": "21a450bf41987f3ce855d0367d09bb9c13f0dd9c7b3681f53cc6a6845c4e0f91",
+      "size_bytes": 697359
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_131/solver.log",
+      "sha256": "0ee4fa9d99ec6c02c407f9a719722c3748ec0ad579eba7ab0473fa18c018b11e",
+      "size_bytes": 405012
+    }
+  ],
+  "all_bound_input_bytes_unchanged": true,
+  "completed_utc": "2026-09-22T04:10:56.261573+00:00",
+  "comparison_tolerances": {
+    "metric_serialization_atol": 2e-06,
+    "force_float32_reconciliation_n": 2e-05,
+    "source_frame_rotation_comparison_deg": 1e-05,
+    "task_thresholds_modified": false
+  },
+  "formulas": {
+    "physical_sample_time": "(step+1)*dt; controller/window time=step*dt",
+    "native_q": "drawer_pose.z - constant inferred from every (pose.z - stored q); inferred origin bounded against authored pose by retained import error",
+    "source_off_axis": "norm(drawer_pose.xy - authored_initial.xy); native metric lies within +/- reported import translation error",
+    "source_rotation": "degrees(2*acos(clamp(abs(dot(recorded xyzw,authored_initial xyzw)),0,1))); normalized variant also reported, initial native quaternion unrecorded",
+    "opening": "minimum q over [hold_open_end-0.5,hold_open_end) >=0.20m",
+    "closing": "maximum abs(q) over [total-0.5,total) <=0.02m",
+    "settled": "maximum float32 norm(drawer linear velocity) in same closing window <=0.05m/s",
+    "payload_retention": "world-axis center box tested after subtracting drawer translation from authored origin, not rotation-aware geometric containment",
+    "payload_contact": "count float32 norm(pair impulse matrix)>0.01Ns after settle; force presentation=impulse/dt",
+    "penetration": "max(0,-separation) over all scene contact points and all steps",
+    "controller": "seeded uniform jitter plus prescribed half-cosine PD target/velocity, clipped to +/-40N; pre-step state from preceding post-step row, float32 trace force compared separately"
+  },
+  "limits": [
+    "Audit consistency is not a new simulation or task/native acceptance. No solver, renderer or model is imported or run.",
+    "The initial native XY/quaternion is missing from frozen traces. Native Z is redundantly inferred, source-frame XY is bounded using the retained translation error, and source-frame quaternion crosschecks cannot independently establish the unrecorded native quaternion.",
+    "The force-named contact field stores raw impulse Ns. Global contact points omit actor IDs, so penetration cannot be attributed independently to cabinet/drawer/payload pairs. Recorded contact binding paths provide only retained producer provenance.",
+    "Interior overlap rows precede first native pose read; this audit does not claim their runtime initialization or recook them. A separately retained initialized positive-controlled preflight is required for clearance claims.",
+    "Prior structural/source results are hash-bound and source-to-scene authored properties are compared, but original-source geometric distance checks and real-world material/actuator fidelity are not independently repeated.",
+    "Current USD dependency closure and before/after hashes establish retained bytes, not a cryptographic proof that a trusted solver generated the trace. Qualified native execution provenance remains separate."
+  ]
+}

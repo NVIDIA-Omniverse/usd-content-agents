@@ -1,0 +1,21 @@
+{
+  "azimuth": 45.0,
+  "camera_position": [
+    2.604,
+    3.544,
+    2.6
+  ],
+  "camera_view_direction": [
+    -0.577,
+    -0.577,
+    -0.577
+  ],
+  "direction": "+x+y+z",
+  "elevation": 35.26438968275466,
+  "image_height": 1024,
+  "image_width": 1024,
+  "renderer": "ovrtx",
+  "renderer_identity": null,
+  "scene_tool": "usd-cli",
+  "transport": "local"
+}

@@ -1,0 +1,26 @@
+{
+  "recorded_utc": "2026-09-22T04:15:45.858611+00:00",
+  "reason": "Native preparation refused actual Geometry04 receipt because old launcher incorrectly expected top-level sim_ready_status=conditional. Preserved before schema-correct precheck repair; no source receipt changes.",
+  "files": [
+    {
+      "path": "prepare_validation.py",
+      "sha256": "ed9287aa6103d8bddb90853dfa465c3971770c162f8f44a6cc694d815d22de16"
+    },
+    {
+      "path": "test_precheck.py",
+      "sha256": "ce42d6ed0de896024903da84f841532917907c45728c8adc855e06099782fbbb"
+    },
+    {
+      "path": "qualification.json",
+      "sha256": "0da8c55d8b57e6eb6a01eecd9350312db9fab8e3b71094da867ce07efb07a151"
+    },
+    {
+      "path": "independent_review.json",
+      "sha256": "75cbd9e07a7c64511703d61f2766f11289fb7cafa50d5e599fdf653a55b26786"
+    },
+    {
+      "path": "tests.log",
+      "sha256": "705ca5a86bbbf0b46f89b028278ba3b80bc554c3dab5d5ab8f384ab6985232cb"
+    }
+  ]
+}

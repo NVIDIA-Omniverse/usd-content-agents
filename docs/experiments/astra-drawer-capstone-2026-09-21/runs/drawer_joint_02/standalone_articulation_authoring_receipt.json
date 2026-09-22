@@ -1,0 +1,35 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "290ca8dd544ba24a7b99398ef82899cffff01ade3d2b91be3e85a593f4ad55be"
+  },
+  "canonical_graph": {
+    "path": "runs/drawer_joint_02/canonical_articulation_graph.json",
+    "sha256": "f261c9d030e24d8071e025e0db76c6f41477191054bfdfbcf023e2b392fc82c8"
+  },
+  "decision_ledger": {
+    "path": "runs/drawer_joint_02/articulation_decision_ledger.json",
+    "sha256": "d9111ca789955a33907e4b2027b5270840f3dd2921556225402436f482f98263"
+  },
+  "decision_patch": {
+    "path": "runs/drawer_joint_02/articulation_decision_patch.json",
+    "sha256": "87c1010169c5be295231ca56f618b01120092a5e1aebbeacec94baeda9c92cec"
+  },
+  "identity_digest": "90e1ddf2b057d12cae1240a4ac2c3eef533b7ef855acad1e44cf42b83cded6f2",
+  "output_asset": {
+    "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+    "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+    "size_bytes": 1037001
+  },
+  "readback": {
+    "path": "runs/drawer_joint_02/standalone_articulation_readback.json",
+    "sha256": "5eb78a125e8bddba9ab5ec80d8d8cae58ac5aabd30074723c7bef02de272467e"
+  },
+  "schema_version": "content-agent-workflows.standalone-articulation-authoring-receipt.v1",
+  "status": "verified",
+  "validation": {
+    "path": "runs/drawer_joint_02/validation_evidence.json",
+    "sha256": "296cedaa856a1599f0f0bd2ccf8b5c56aeca184779d86d4f6c368195f79e9180"
+  }
+}

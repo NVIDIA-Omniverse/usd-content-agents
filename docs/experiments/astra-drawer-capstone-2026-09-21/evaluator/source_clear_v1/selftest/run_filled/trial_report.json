@@ -1,0 +1,41 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "d8ee6b446e20ac2a5d11f257be2f8b4a7a04750d7e62260a58da498b7e0591d5"
+  },
+  "checks": {
+    "closed_settled": true,
+    "closing": true,
+    "finite_and_stable": true,
+    "force_bounded": true,
+    "initial_drift": true,
+    "interior_clear": false,
+    "off_axis": true,
+    "opening": true,
+    "payload_contact": true,
+    "payload_retained": false,
+    "penetration": false,
+    "rotation": true
+  },
+  "errors": [
+    "Collider fills a declared drawer/cabinet interior point"
+  ],
+  "metrics": {
+    "initial_drift_m": 0.0009655412286520004,
+    "max_angular_speed_rad_s": 0.5941174030303955,
+    "max_closed_hold_error_m": 0.00016816834977362305,
+    "max_closed_hold_speed_m_s": 0.0015901614679023623,
+    "max_force_n": 0.5622026876696578,
+    "max_linear_speed_m_s": 0.0968078151345253,
+    "max_off_axis_m": 2.873891702392939e-08,
+    "max_penetration_m": 0.057000190019607544,
+    "max_q_m": 0.241079181432724,
+    "max_rotation_deg": 0.0,
+    "min_open_hold_q_m": 0.23998478055000305,
+    "payload_contact_samples": 2280,
+    "payload_retained": false
+  },
+  "seed": 11,
+  "status": "FAIL"
+}

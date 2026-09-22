@@ -1,0 +1,70 @@
+{
+  "schema_version": "capstone-validation-launch-independent-review.v1",
+  "reviewed_utc": "2026-09-22T03:38:09.202004+00:00",
+  "qualification_sha256": "0da8c55d8b57e6eb6a01eecd9350312db9fab8e3b71094da867ce07efb07a151",
+  "reviewed_files": {
+    "prepare_validation.py": "ed9287aa6103d8bddb90853dfa465c3971770c162f8f44a6cc694d815d22de16",
+    "run_stage.py": "358f2ec7eb8a1188ea08964886b60eeecf5677802c0648282eef206cad4f80b6",
+    "test_precheck.py": "ce42d6ed0de896024903da84f841532917907c45728c8adc855e06099782fbbb",
+    "README.md": "dc55cf74705b3ae47221e86d31836092bb8c4f8b871ddc9b7584f7cde99ee10f",
+    "PUBLICATION_EXTENSION.md": "2b271842260876722b4081692e6e6fb1341122d065e66c1d3ab6aad9440e033c",
+    "tests.log": "705ca5a86bbbf0b46f89b028278ba3b80bc554c3dab5d5ab8f384ab6985232cb",
+    "retained_rejections.json": "06e3f841733910421fb0644a7793a4b22c796c76db896a5701694833737196ce"
+  },
+  "native_code_hashes": {
+    "world_understanding/functions/physics/native_behavior_validation.py": "bb897c9260b64513bfc63d0c7cc28d4814dadc4e03a96bf547361821faaecf3c",
+    "agentic/packages/content_agent_workflows/content_agent_workflows/validation/embedded_assessment.py": "95129d6360e66efe51fa015e5d1319d1a0589d3dee0b3ff507a412d4f3139cb7",
+    "agentic/packages/content_agent_workflows/content_agent_workflows/validation/standalone_assessment.py": "fa9c0b176dd81b6c4a65568174f9ed4d69f2a35117a29ec15e120e7fb13ae873"
+  },
+  "status": "NO_BLOCKING_FINDINGS_WITHIN_DECLARED_SCOPE",
+  "checks": {
+    "qualified_exact_file_hashes_match": true,
+    "actual_subprocess_passes_reviewed_cwd_and_pythonpath": true,
+    "invocation_level_regression_present_and_qualified": true,
+    "default_prepare_or_preview_does_not_launch": true,
+    "fresh_output_and_single_attempt_artifacts_required": true,
+    "native_workflow_pass_plus_actual_strict_consumer_required": true,
+    "actual_retained08_and09_rejected_without_mutation_or_output": true,
+    "final_asset_spec_bindings_and_five_report_identities_checked": true,
+    "task_failure_retained_and_final_acceptance_false": true,
+    "native_required_evidence_coverage_and_gate_attribution_enforced": true,
+    "native_required_gate_cannot_be_downgraded_to_optional": true,
+    "native_failed_or_unavailable_evidence_cannot_be_promoted": true,
+    "launcher_waived_deferred_gates_and_findings_rejected": true,
+    "terminal_requires_passing_canonical_assessment_accepted_review_and_required_checks": true,
+    "zero_returncode_does_not_infer_acceptance": true,
+    "bound_inputs_code_commit_and_commands_reverified_before_and_after": true,
+    "model_astra_and_effort_ultra_required": true
+  },
+  "qualified_tests": {
+    "passed": 13,
+    "failed": 0,
+    "warnings": 5,
+    "elapsed_s": 3.09,
+    "fixture": "Actual native adapter synthetic fixture and installed native CLI parser; no fake approve or mocked acceptance.",
+    "initial_attempt": "3failed8passed because copied synthetic assessment identity was not updated in its synthetic ValidationEvidence; failed logs retained; production checks were not changed.",
+    "execution_context_regression": "Actual run_stage.main subprocess invocation is captured with a synthetic stub and asserts reviewed cwd/PYTHONPATH; no native operation launched.",
+    "review_correction": "Independent review caught an unwired environment helper despite passing helper-only test; actual subprocess wiring corrected and invocation-level test added. Earlier receipt/log retained separately as pre-fix."
+  },
+  "resolved_review_finding": {
+    "problem": "Intermediate run_stage defined launch_environment but did not pass it or cwd to the actual subprocess call; helper-only test did not detect that omission.",
+    "resolution": "Final call explicitly supplies both cwd and env; invocation-level test captures the actual main() call kwargs. Prior incomplete qualification is preserved.",
+    "current_subprocess_keyword_expressions": {
+      "stdout": "f",
+      "stderr": "subprocess.STDOUT",
+      "check": "False",
+      "cwd": "receipt['repository']",
+      "env": "launch_environment(receipt['repository'])"
+    }
+  },
+  "blocking_findings": [],
+  "native_validation_launched_by_review": false,
+  "native_terminal_acceptance_attested": false,
+  "final_capstone_acceptance_attested": false,
+  "scope_limits": [
+    "The task precheck binds aggregate and five per-seed reports, final asset, bindings and exact spec; it does not independently verify per-seed requests/scenes/traces or evaluator implementation bytes. Root independent task audit and public trace manifest retain that responsibility, now explicit in README.",
+    "No real native Validation has been executed or accepted by this review. Future run, collect, actual outer AstraUltra typed assessment and independent AstraUltra review require genuine exact-asset evidence.",
+    "Code commit and selected code files are checked; this review does not claim a hostile-host trust boundary or prove provenance of arbitrarily fabricated producer records. Actual trusted native production remains required.",
+    "Native single-body runtime/visual success is narrower than loaded articulated task success. Final conjunction must independently require all five exact-asset task seeds and native terminal success while retaining Geometry conditional and prior failures."
+  ]
+}

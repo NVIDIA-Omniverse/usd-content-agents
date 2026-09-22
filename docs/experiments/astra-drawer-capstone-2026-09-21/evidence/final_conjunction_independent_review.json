@@ -1,0 +1,129 @@
+{
+  "schema_version": "capstone-final-conjunction-independent-review.v1",
+  "reviewed_utc": "2026-09-22T04:31:33.504408+00:00",
+  "scope": "Read-only independent spot-check of the already-produced native terminal and bounded final conjunction; no new native verdict, model, solver or renderer. Local-only receipt; existing evidence unchanged.",
+  "review_conclusion": "CONSISTENT_WITH_DISCLOSED_LIMITS",
+  "conjunction_sha256": "44fc44580c58ca68a489cdf9f818508b5704fe6052223399cdb42b821c92fa0c",
+  "terminal_export_manifest_sha256": "218e56b28460f1654ff7b5bc045cf68d72770867e00b41aa78a6b4557427fb59",
+  "native_terminal_sha256": "c027c329f87e0eeb3f381e45a6c20ed44189a79d66245ce07c799d740a0457eb",
+  "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "task_report_sha256": "35954e143077af36b7ee34981eb370a897858f07ae2edc6b6864791b3e0f147c",
+  "independent_task_audit_sha256": "fe57652db03858ff741effca47cfd4695a8fb93613b807b83ded523b7747fea3",
+  "independent_native_review_sha256": "bed21b80ae430dcad671a17f28b52d90b239766eb472c6c79037b3ac3c609c8c",
+  "checks": [
+    {
+      "name": "expected_final_conjunction_digest",
+      "pass": true
+    },
+    {
+      "name": "final_asset_exact_bytes",
+      "pass": true
+    },
+    {
+      "name": "native_terminal_exact_bytes",
+      "pass": true
+    },
+    {
+      "name": "task_report_exact_bytes",
+      "pass": true
+    },
+    {
+      "name": "independent_task_audit_exact_bytes",
+      "pass": true
+    },
+    {
+      "name": "geometry_evidence_exact_bytes",
+      "pass": true
+    },
+    {
+      "name": "export42_members_exact_bytes",
+      "pass": true
+    },
+    {
+      "name": "conjunction_native_terminal_bindings_exact",
+      "pass": true
+    },
+    {
+      "name": "exact_native_terminal_expected_digest",
+      "pass": true
+    },
+    {
+      "name": "actual_completed_accepted_native_pass",
+      "pass": true
+    },
+    {
+      "name": "exact_four_pass_gates_and_cross_stage_not_evaluated",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_accepted_coordinator_plan",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_canonical_assessment",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_coordinator_execution",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_coordinator_plan_patch",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_coordinator_preparation",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_coordinator_review",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_evidence_index",
+      "pass": true
+    },
+    {
+      "name": "terminal_actual_binding_operation_index",
+      "pass": true
+    },
+    {
+      "name": "canonical_four_required_gates_without_waiver",
+      "pass": true
+    },
+    {
+      "name": "cross_stage_original_optional_unsupported",
+      "pass": true
+    },
+    {
+      "name": "same_asset_five_prescribed_task_passes",
+      "pass": true
+    },
+    {
+      "name": "qualified_independent_trace_audit_consistent",
+      "pass": true
+    },
+    {
+      "name": "geometry_conditions_preserved",
+      "pass": true
+    },
+    {
+      "name": "existing_conjunction_flags_match_readback",
+      "pass": true
+    },
+    {
+      "name": "all_read_bound_files_unchanged",
+      "pass": true
+    }
+  ],
+  "verified_export_file_count": 42,
+  "verified_unique_bound_files": 46,
+  "findings": [
+    "The real native terminal accepts the exact canonical assessment and independent review, with four required gates passed and no waiver. All42 retained export members and8 terminal artifact bindings match their declared hashes and sizes.",
+    "The same exact Physics10 asset has five prescribed task passes and the previously qualified5\u00d72460-sample read-only audit; the final conjunction does not infer acceptance from an execution return code.",
+    "Geometry remains a conditional handoff with formal SimReady not evaluated, source topology warnings remain, and native standalone cross-stage integrity is optional unsupported/not_evaluated. CPU rigid-body, ideal-joint, trace attribution and extensive unscored repair limitations remain explicit; no universal SimReady, hardware-realism or causal pilot claim follows."
+  ],
+  "existing_evidence_modified": false,
+  "new_native_acceptance_authored": false,
+  "models_solvers_renderers_launched": false
+}

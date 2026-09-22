@@ -1,0 +1,74 @@
+[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin.
+[Error] [omni.physx.cooking.plugin] registry is false.
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/capstone/evidence/static_joint_endpoint_v1/static_xform_disabled.usda' for read
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdRender/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usd/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdUI/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdShade/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdGeom/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdHydra/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdRi/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdProc/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdMedia/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdPhysics/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdMtlx/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/PhysxSchemaAddition/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdSemantics/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdSkel/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdVol/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/usdLux/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/OmniUsdPhysicsDeformableSchema/resources/generatedSchema.usda' for read
+Status (secondary thread): in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/ovphysx-venv/lib/python3.12/site-packages/ovphysx/plugins/usd/PhysxSchema/resources/generatedSchema.usda' for read
+[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service
+[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin.
+[Error] [omni.physx.cooking.plugin] registry is false.
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/capstone/evidence/static_joint_endpoint_v1/static_xform_collide.usda' for read
+[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service
+[Error] [usdrt.population.plugin] DerivedDataLookup not initialized for setStageId.
+Warning: in SdfPath at line 129 of ./conan/src/0.25.11.kit.3/pxr/usd/sdf/path.cpp -- Ill-formed SdfPath <>: :1:1: parse error matching ovInternal_v0_25_11__pxrReserved__::Sdf_PathParser::Path
+[Warning] [usdrt.population.plugin] Last global time was not created. Did you call setEnableUsdNoticeHandling?
+[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin.
+[Error] [omni.physx.cooking.plugin] registry is false.
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/capstone/evidence/static_joint_endpoint_v1/static_mesh_disabled.usda' for read
+[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service
+[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin.
+[Error] [omni.physx.cooking.plugin] registry is false.
+Status: in _OpenAsset at line 360 of /builds/omniverse/usd-resolver/source/library/OmniUsdResolver_Ar2.cpp -- OmniUsdResolver: Opening filesystem asset '/opt/astra-content-value-20260921/capstone/evidence/static_joint_endpoint_v1/static_mesh_collide.usda' for read
+{"schema_version": 1, "completed_utc": "2026-09-22T03:04:24.466755+00:00", "script_sha256": "5012cc1e47fd235993c7b6325ba293d288e69fdcabdc2087665e658698a00d8f", "prepared_sha256": "a41ab9e51c7a57ff2924c4070fd7da88536089c4257e2ec8997aad2a57d9a161", "backend": "ovphysx0.4.13 CPU", "native_steps": 32, "native_processes": 1, "source_asset_or_current_run_modified": false, "positive_collision_controls_pass": true, "static_mesh_endpoint_pair_suppression_supported_for_fixture": true, "static_xform_disabled_still_reports_contacts": true, "scope": "Synthetic endpoint semantics only. Actor presence + actual joint/contacts/locked-axis response are observed; native joint actor pointer pair is not directly introspected. No source repair or task-success claim."}
+[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service
+[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.
+[Warning] [omni.physx.tensors.plugin] Deprecated function IArticulationView::applyForces, please use IArticulationView::applyForcesAndTorquesAtPosition instead.

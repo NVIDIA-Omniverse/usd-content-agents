@@ -297,13 +297,20 @@ prim or material name, trust the image and say so in the rationale.
 
     constraints: dict[str, Any] = {
         "source_usd_edits_allowed": False,
-        # Named `..._default` historically, but visual-validation refinement
-        # treated that as licence to coarsen the collider (convexHull ->
-        # convexDecomposition -> boundingSphere on a RoboCasa apple) to make
-        # the penetration check pass. Keep the old key for compatibility and
-        # state the requirement explicitly below.
+        # The workflow resolves each component's explicit approximation before
+        # this fallback. Refinement separately pins the actually authored
+        # approximations; an initial mixed static/dynamic decision is legal.
         "collision_approximation_default": collision_approximation,
-        "collision_approximation_required": collision_approximation,
+        "collision_approximation_policy": (
+            "At initial authoring, use the configured default unless a component's "
+            "geometry and mobility justify an explicit per-component approximation. "
+            "Record that choice and its evidence in the native decision. For example, "
+            "a static concave triangle mesh may use none while a dynamic concave "
+            "mesh requires a supported dynamic representation. Later refinement "
+            "must preserve each component's actually authored approximation; never "
+            "coarsen colliders or change collision filtering to evade a failed "
+            "penetration, clearance, containment or behavior check."
+        ),
         "visual_validation_max_iterations": visual_validation_max_iterations,
     }
     # Emit the penetration limit only when the run overrides it. A literal
@@ -466,6 +473,7 @@ Patch schema:
         "dynamic_friction": 0.0,
         "restitution": 0.0
       }},
+      "mass_properties": null,
       "rigid_body_grouping": "optional grouping description or null",
       "quality_warnings": [],
       "confidence": 0.7,
@@ -485,6 +493,30 @@ placeholder. Do not copy them: author each component's values from its
 own inferred material family -- density in kg/m^3 from that family, estimated
 mass as density x bounding volume x fill fraction (see the Decision task),
 friction and restitution from the reference band above.
+
+For a task requiring explicit inertia, an inspected body component may include
+`mass_properties` with `center_of_mass` (three body-local stage-distance values),
+`diagonal_inertia` (three positive principal moments about that center, in stage
+mass times squared stage distance), and `principal_axes` (normalized w,x,y,z
+quaternion, identity if omitted). Ground these estimates in the actual local
+geometry and selected mass, and state the approximation in the rationale;
+they are authored estimates, not measured values. Do not put vectors into the
+scalar `physical_properties` map. Omit `mass_properties` for `unowned_static`
+components. Their authoritative inspected role preserves static status while
+still allowing their collision and material operations; do not author or change
+`component_role` in the target-ID patch.
+
+For mesh targets using `convexDecomposition`, an optional `convex_decomposition`
+record exposes native cooking controls: `shrink_wrap` (boolean, default false),
+`error_percentage` (number 0–100, default 10), `hull_vertex_limit` (integer 8–64,
+default 64), `max_convex_hulls` (integer 1–256, default 32), and
+`voxel_resolution` (integer 10000–4000000, default 500000). These are bounded
+workflow controls, not a guarantee of hollow-shape preservation. The defaults
+match the OvPhysX 0.4.13 USD schema. Omitting the record leaves existing cooking
+attributes unchanged; providing it authors all five values, filling omitted
+fields with those defaults. Unknown fields, coerced types and incompatible
+approximations are rejected. Ground changes in cooking/contact evidence and
+keep the source mesh unchanged.
 
 Do not write `physics_assignments.json`, `validation_evidence.json`,
 `physics_behavior_assessment.json`, final summaries, or runtime validation
@@ -1532,6 +1564,7 @@ def build_physics_tuning_session_prompt(
     revalidation_dt: float | None = None,
     revalidation_sample_fps: float | None = None,
     revalidation_drop_height_m: float | None = None,
+    revalidation_placement_mode: str = "drop",
     collision_approximation: str | None = None,
     protected_parameters: list[str] | None = None,
     allow_revise_patch: bool = True,
@@ -1554,6 +1587,7 @@ def build_physics_tuning_session_prompt(
         "dt": revalidation_dt,
         "sample_fps": revalidation_sample_fps,
         "drop_height_m": revalidation_drop_height_m,
+        "placement_mode": revalidation_placement_mode,
     }
     # Emit the penetration limit only when the run overrides it. The prompt
     # says to mirror the promotion_gate block exactly, and an explicit
@@ -1667,6 +1701,8 @@ def build_physics_tuning_session_prompt(
         f"`dt={revalidation_dt}`" if revalidation_dt is not None else "",
     ]
     gate_terms = [term for term in gate_terms if term]
+    if gate_terms or revalidation_placement_mode != "drop":
+        gate_terms.insert(0, f"`placement_mode={revalidation_placement_mode}`")
     # `duration_s`/`sample_fps`/`dt` always carry a runner default, so gate_terms
     # is never empty on a real run. The "not the default" claims below are only
     # true when the run actually overrides them, so state each one conditionally:

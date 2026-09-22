@@ -1,0 +1,119 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "f439806f0cede9daa1012fe90b37b3b4e4d141e48b0449c09f2a52c2f625322a"
+  },
+  "artifacts": [
+    {
+      "bytes": 0,
+      "path": "build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 14441,
+      "path": "native.log",
+      "sha256": "f319cc139d9cbc355b4f6777ec06801cb1209380a737cc1d12ef8683dd861a6a"
+    },
+    {
+      "bytes": 53898,
+      "path": "partial.json",
+      "sha256": "447aca11893bad3e98467239ea5ffac7549bf2f1832da359109f0e5feaff7bd6"
+    },
+    {
+      "bytes": 2686,
+      "path": "prepared.json",
+      "sha256": "a41ab9e51c7a57ff2924c4070fd7da88536089c4257e2ec8997aad2a57d9a161"
+    },
+    {
+      "bytes": 7974,
+      "path": "qualify.py",
+      "sha256": "5012cc1e47fd235993c7b6325ba293d288e69fdcabdc2087665e658698a00d8f"
+    },
+    {
+      "bytes": 59517,
+      "path": "result.json",
+      "sha256": "b11da657be3f9c393eba397a88da400a48d0a05b1a1901f5a55b0d4a8f21f598"
+    },
+    {
+      "bytes": 2449,
+      "path": "static_mesh_collide.usda",
+      "sha256": "afd78ec2fdd51f92bf74e3f6f75c309470f9006a98265fbd54d7927e661dd8a2"
+    },
+    {
+      "bytes": 2449,
+      "path": "static_mesh_disabled.usda",
+      "sha256": "9819620aca2e44e2a9a2b79b33092385e326530b1babd387e5b184ffacb72112"
+    },
+    {
+      "bytes": 2444,
+      "path": "static_xform_collide.usda",
+      "sha256": "1638e3b65f86d866b218e5f34039262566219c45575fbd8c0cd0593eae7118c1"
+    },
+    {
+      "bytes": 2444,
+      "path": "static_xform_disabled.usda",
+      "sha256": "468e9b83882b0fbc794a8cab2aacd5b55fdff7481b8605288bc7ab37f092aecd"
+    }
+  ],
+  "checks": {
+    "both_collision_positive_controls_pass": true,
+    "four_input_hashes_and_finite_native_joints": true,
+    "native_static_mesh_actor_present_xform_actor_absent": true,
+    "only_two_declared_fields_differ": true
+  },
+  "comparison": [
+    {
+      "case": "static_xform_disabled",
+      "contact_point_samples": 24,
+      "max_off_axis_m": 2.6177888373907417e-05,
+      "max_pair_impulse_ns": 0.5052006244659424,
+      "max_z_displacement_m": 0.0690714031457901
+    },
+    {
+      "case": "static_xform_collide",
+      "contact_point_samples": 24,
+      "max_off_axis_m": 2.6177888373907417e-05,
+      "max_pair_impulse_ns": 0.5052006244659424,
+      "max_z_displacement_m": 0.0690714031457901
+    },
+    {
+      "case": "static_mesh_disabled",
+      "contact_point_samples": 0,
+      "max_off_axis_m": 1.9402506944848907e-12,
+      "max_pair_impulse_ns": 0.0,
+      "max_z_displacement_m": 5.960464483090178e-09
+    },
+    {
+      "case": "static_mesh_collide",
+      "contact_point_samples": 24,
+      "max_off_axis_m": 2.6177888373907417e-05,
+      "max_pair_impulse_ns": 0.5052006244659424,
+      "max_z_displacement_m": 0.0690714031457901
+    }
+  ],
+  "controlled_fixture_equality": "All four USD text files are byte-identical after replacing only body0 relationship target and joint collisionEnabled boolean. Source arrays, mass, shapes, transforms, constraints and world joint frames remain identical.",
+  "interpretation": "The child mesh is the native static actor. Its joint endpoint suppresses the intended pair when collisionEnabled=false; the unowned parent Xform does not suppress that pair. Both endpoint choices retain native joints and off-axis constraints. This is behavioral evidence; native joint actor-pointer pairs were not directly introspected.",
+  "limits": [
+    "Two box meshes with identity static transforms; not arbitrary collider hierarchies.",
+    "Any later rebind must preserve world joint frames if endpoint transforms differ.",
+    "No source penetration acceptance or permission to suppress additional cabinet/lower-drawer pairs follows.",
+    "Startup, CPU fallback, deprecation and population warnings retained in native log.",
+    "No source asset, current native09 run, production code, frozen/scored file was changed."
+  ],
+  "native_log_sha256": "f319cc139d9cbc355b4f6777ec06801cb1209380a737cc1d12ef8683dd861a6a",
+  "prepared_sha256": "a41ab9e51c7a57ff2924c4070fd7da88536089c4257e2ec8997aad2a57d9a161",
+  "result_sha256": "b11da657be3f9c393eba397a88da400a48d0a05b1a1901f5a55b0d4a8f21f598",
+  "reviewed_utc": "2026-09-22T03:07:07.544001+00:00",
+  "runtime": {
+    "cpu_processes": 1,
+    "dt_s": 0.004166666666666667,
+    "off_axis_force_n": 10,
+    "process_completed_and_released": true,
+    "steps_per_case": 8,
+    "total_steps": 32
+  },
+  "schema_version": 1,
+  "script_sha256": "5012cc1e47fd235993c7b6325ba293d288e69fdcabdc2087665e658698a00d8f",
+  "status": "supported_for_declared_synthetic_configuration"
+}

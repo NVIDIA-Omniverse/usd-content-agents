@@ -1,0 +1,164 @@
+{
+  "changes": [
+    {
+      "non_asset_opinion_digest": "d899161bf2cbf5f4f6dd752952bb431742fdd40eb0b40f1f4d00a76a02b7a25f",
+      "only_asset_locators_changed": true,
+      "original_sha256": "6a084329954c73dd24b7783ec9befdbda73d603f862cd13b5a923a5a9578b730",
+      "path": "runs/drawer_geometry_04/source_prep/source_preserved.usdc",
+      "portable_sha256": "6a084329954c73dd24b7783ec9befdbda73d603f862cd13b5a923a5a9578b730",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "e76781c64bd261d197b19b040eadcd73e05c7f27ebbccf9f7330d38122edc4ee",
+      "only_asset_locators_changed": true,
+      "original_sha256": "67d797d9f3be756a8908641c4d172dbc30e5b18eb911a537f9d3e87e004758c6",
+      "path": "runs/drawer_geometry_04/source_preserved.geometry.usdc",
+      "portable_sha256": "bc0504fd1b73cf082eebb0c813b15075dbaf5505941a5f4713c05cba460c1101",
+      "rewrites": [
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_geometry_04/source_prep/textures/image_0000.jpg",
+          "portable_locator": "source_prep/textures/image_0000.jpg"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_geometry_04/source_prep/textures/image_0002.jpg",
+          "portable_locator": "source_prep/textures/image_0002.jpg"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_geometry_04/source_prep/textures/image_0001.jpg",
+          "portable_locator": "source_prep/textures/image_0001.jpg"
+        }
+      ]
+    },
+    {
+      "non_asset_opinion_digest": "f906bbef0c23671ceec3b436d92f897ef488de7b39cb4e8c77cf6780d90f1cb9",
+      "only_asset_locators_changed": true,
+      "original_sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+      "path": "runs/drawer_physics_03/physics.usda",
+      "portable_sha256": "4089edcc6908c3ea22b1f001482dc392af134092ea1063cc11eb028a226fac9e",
+      "rewrites": [
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_03/inputs/source/source.usdz[0/image_0000.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0000.jpg]"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_03/inputs/source/source.usdz[0/image_0002.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0002.jpg]"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_03/inputs/source/source.usdz[0/image_0001.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0001.jpg]"
+        }
+      ]
+    },
+    {
+      "non_asset_opinion_digest": "fdc470509279984bca17db56c42bbbdccdd673a3b6cecb7565faaa06cd19d797",
+      "only_asset_locators_changed": true,
+      "original_sha256": "21ac14241daebb8cbd42ee123c0d0db7879c3f7a4fde03f342770ca12851b033",
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda",
+      "portable_sha256": "21ac14241daebb8cbd42ee123c0d0db7879c3f7a4fde03f342770ca12851b033",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "38f31a0a42bd7ae13b547534eb021ec0683afe642df0ccf1c9358357b6a318bd",
+      "only_asset_locators_changed": true,
+      "original_sha256": "c03087ffc742d5e8cca59032ea6c3e201a2b6f600c296d8d58475ec8562fe154",
+      "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda",
+      "portable_sha256": "c03087ffc742d5e8cca59032ea6c3e201a2b6f600c296d8d58475ec8562fe154",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "4a49ae0f20acc91a6cb340df76c57bac8643d80fabbabbdf4d7799dbe2a2fb9c",
+      "only_asset_locators_changed": true,
+      "original_sha256": "2dfe08841e8109bb2905c9c5cf51b8c2ecd337924c97e0d387bc77d4c6642302",
+      "path": "runs/drawer_physics_06/runtime/drop_settle_scene.usda",
+      "portable_sha256": "2dfe08841e8109bb2905c9c5cf51b8c2ecd337924c97e0d387bc77d4c6642302",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "f399e6b3e534ac321e3ee6ad781a61719d156316f74b749a465685e66a107a22",
+      "only_asset_locators_changed": true,
+      "original_sha256": "b9433a2aba655edd4c83677f21fa852940ec97529160e1df6fdf94acc480e4e1",
+      "path": "runs/drawer_physics_06/runtime/usd_cli_simulation/recording.usda",
+      "portable_sha256": "b9433a2aba655edd4c83677f21fa852940ec97529160e1df6fdf94acc480e4e1",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "9cd9064aa622a955dea27c024be381987c045e3866cc6f9fa042d556f012dcc4",
+      "only_asset_locators_changed": true,
+      "original_sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "path": "runs/drawer_physics_07/physics.usda",
+      "portable_sha256": "6143498ebec2408b4e72760d5da9abe1d31a930c9747f056afea33879a20c01a",
+      "rewrites": [
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_07/inputs/source/source.usdz[0/image_0000.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0000.jpg]"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_07/inputs/source/source.usdz[0/image_0002.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0002.jpg]"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_07/inputs/source/source.usdz[0/image_0001.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0001.jpg]"
+        }
+      ]
+    },
+    {
+      "non_asset_opinion_digest": "91dcdd71847aa6b6a41590b45d17805260ad676eafc82948e390cdd257f4c751",
+      "only_asset_locators_changed": true,
+      "original_sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda",
+      "portable_sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "3c52ee30d306a1443a3b3ff1063457683ce08002d3f09ca626a68c09a7ad4ba9",
+      "only_asset_locators_changed": true,
+      "original_sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda",
+      "portable_sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "789344c53adc74da21e518d3f8620beb2f371c804dc4235cc776e1235b83bf96",
+      "only_asset_locators_changed": true,
+      "original_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "path": "runs/drawer_physics_08/physics.usda",
+      "portable_sha256": "451d1ad5cba42d260eebe8201bb78fdd057e9091bb54ba708be99115990bcdbc",
+      "rewrites": [
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_08/inputs/source/source.usdz[0/image_0000.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0000.jpg]"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_08/inputs/source/source.usdz[0/image_0002.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0002.jpg]"
+        },
+        {
+          "original_locator": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_08/inputs/source/source.usdz[0/image_0001.jpg]",
+          "portable_locator": "inputs/source/source.usdz[0/image_0001.jpg]"
+        }
+      ]
+    },
+    {
+      "non_asset_opinion_digest": "509c15d5f2ecf0963bf3f4ddec23ead72999707248ceda11434591485266b137",
+      "only_asset_locators_changed": true,
+      "original_sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "path": "runs/drawer_physics_08/runtime/drop_settle_scene.usda",
+      "portable_sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "rewrites": []
+    },
+    {
+      "non_asset_opinion_digest": "ec2c74bca18184a304f4c3f8363076cc7fb32970420f87effdc7b6a75ccb3b55",
+      "only_asset_locators_changed": true,
+      "original_sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "path": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda",
+      "portable_sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "rewrites": []
+    }
+  ],
+  "original_publication_manifest_sha256": "4bcedf901d8a7f9793606a11a50a13a8eeaa6f14aeff07a06e633671e10df619",
+  "originals_unchanged": true,
+  "schema_version": "capstone-portable-usd-relocation.v1",
+  "scope": "Presentation/inspection relocation only, not new simulation or native acceptance."
+}

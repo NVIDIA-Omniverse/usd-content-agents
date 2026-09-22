@@ -1,0 +1,29 @@
+{
+  "assessment_notes": "Iteration 1 of 2: pass for the supplied three-second mounted-rest behavior. Read raw/physics_agentic_contract.json before judgment: validate mode, tuning and VoMP disabled, no separate behavior prompt or scenario. Read request.json for the pinned ideal horizontal Z-prismatic joint and physical choices. Directly inspected all eight supplied OVRTX images, spanning recorded frames 0,13,26,39,51,64,77,90 at 30 fps. The upper drawer front remains aligned with the cabinet throughout; visible shelves, frame and lower drawers remain coherent. No visible separation, sag, rotation, bounce, sliding, interpenetration or tunneling is apparent in the exposed surfaces. Images are nonblank and consistently show the complete upper drawer front; matching render receipts and distinct image hashes provide no affirmative stale-render signal. The nearly unchanged appearance agrees with the actual trajectory.\n\nOvPhysX reports no failures, warnings or diagnostics; validation_evidence.json passes physics properties, runtime loadability and finite bounded motion. One loaded dynamic body matches the expected one. Over 91 samples, reported settle displacement is 2.2371135930464256e-8 m, maximum linear speed is 2.7878985000953586e-6 m/s, and maximum angular speed is 1.6216144073046769e-13. There is no initial pose discontinuity; final sampled velocity is zero. No visible gravity motion is expected: placement is mounted with zero drop height, gravity is -Y at 9.81 m/s^2, and the preserved horizontal prismatic constraint supports the drawer. Runtime explicitly does not require gravity response. No mismatch between visible rest and measured motion was found.\n\nMaximum and resting ground penetration are both zero. The report applies a numeric scale-relative gate of 0.02821974766455775 m using 1028 exact collider support vertices. The support decision is measurement metadata, with exact=true and fallback_accepted=false; it does not authorize collider changes. No runtime rerun or threshold override was performed. No patch change is justified; preserve every collider_target_id, convexDecomposition/none approximation, cooking control, body role, mass/inertia, friction and restitution.\n\nLimitations: this close oblique view crops the cabinet base and lowest drawer and cannot independently verify ground contact, rear surfaces or the closed drawer interior. The complete moving drawer front is sufficiently framed for this mounted-rest assessment. The scenario does not exercise opening/closing, joint limits, payload retention, rail friction or cavity/contact fidelity. The declared connected-actor exclusion intentionally omits cabinet-to-upper-drawer contact. This visual pass establishes only the observed constrained rest behavior; native Validation and all five independent source_clear_v1 force/payload trials on the same asset SHA remain separate requirements for final task acceptance.",
+  "checked_views": [
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0000.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0001.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0002.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0003.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0004.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0005.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0006.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "issues_fixed": [],
+  "issues_found": [],
+  "rendered_frames": [
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0000.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0001.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0002.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0003.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0004.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0005.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0006.png",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "runtime_report": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/runtime/runtime_validation_report.json",
+  "schema_version": "content-agent-workflows.physics-behavior-assessment.v1",
+  "status": "pass",
+  "unresolved_issues": []
+}

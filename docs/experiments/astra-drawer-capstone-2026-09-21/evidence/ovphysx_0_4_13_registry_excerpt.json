@@ -1,0 +1,27 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "61a085cd3d4160c1e380b8b233aab3e00f892c34c6c7fd2b8fc33dd30b3c90e4"
+  },
+  "excerpt": [
+    {
+      "line": 137,
+      "text": "- `[Error] [omni.physx.cooking.plugin] registry is false` \u2014 a non-fatal initialization"
+    },
+    {
+      "line": 138,
+      "text": "  message from the cooking subsystem."
+    }
+  ],
+  "limitations": [
+    "Does not excuse other runtime errors or invalid cooking options.",
+    "Does not establish native workflow/task acceptance; initial strict false result and actual warnings remain preserved."
+  ],
+  "original_document": "ovphysx/docs/ovphysx_overview.md",
+  "original_document_sha256": "64f0c0c360c0a921508c64e8d0af139f25f26c18759366da250e1d8c753f6a0d",
+  "package": "ovphysx",
+  "retained_package_version": "0.4.13",
+  "schema_version": "installed-runtime-documentation-excerpt.v1",
+  "scope": "Brief installed-documentation excerpt supporting only the exact registry-is-false initialization-message disposition; complete SDK document retained locally, not redistributed."
+}

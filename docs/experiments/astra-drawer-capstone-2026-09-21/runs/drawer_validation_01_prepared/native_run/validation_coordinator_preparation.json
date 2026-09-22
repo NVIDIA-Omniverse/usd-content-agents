@@ -1,0 +1,212 @@
+{
+  "adapter_identity": {
+    "backend_digest": "103e9714193dd20a6c4c439797300f2a2f07ad58245bbd8cc06af8caffb0507f",
+    "identity_digest": "807435261db584715bfb88d0d8e4611e9792563a05fcc26d1a92f739dbd48848",
+    "policy_digest": "7bd44f133ab3a77a141fde8d221ca00433155ea0d0056ed66ea644c96517cb9c",
+    "reference_artifacts": [],
+    "request_digest": "4df6e2f5612e276db2c71b73dc961b9aaed99694c40de6e4b5c8588525147cd5",
+    "schema_version": "content-agent-workflows.validation-identity.v1",
+    "source_artifacts": [
+      {
+        "kind": "file",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "role": "source",
+        "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+      },
+      {
+        "kind": "file",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+        "role": "source",
+        "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+      }
+    ],
+    "template_versions": {
+      "look_right": "validation-scaffold.look-right.v1",
+      "physical_behavior": "validation-scaffold.physical-behavior.v2",
+      "physics_sane": "validation-scaffold.physics-sane.v1",
+      "render_valid": "validation-scaffold.render-valid.v1"
+    }
+  },
+  "approved_capabilities": [
+    {
+      "allowed_parameters": [],
+      "capability_id": "validation.look_right",
+      "evidence_requirements": [
+        "render_result",
+        "reference_inventory",
+        "critique_result"
+      ],
+      "preflight_requirements": [
+        "A passed render_valid dependency and an explicitly configured provider."
+      ],
+      "provider_requirement": "explicit_provider",
+      "rule_id": "visual.optional_advisory_critique",
+      "template_name": "look_right"
+    },
+    {
+      "allowed_parameters": [],
+      "capability_id": "validation.render_valid",
+      "evidence_requirements": [
+        "source_identity",
+        "render_result",
+        "qualified_render_evidence"
+      ],
+      "preflight_requirements": [
+        "Existing render evidence or an explicitly configured OVRTX renderer."
+      ],
+      "provider_requirement": "none",
+      "rule_id": "render.runtime_evidence",
+      "template_name": "render_valid"
+    },
+    {
+      "allowed_parameters": [],
+      "capability_id": "validation.physics_sane",
+      "evidence_requirements": [
+        "source_identity",
+        "usd_schema_result"
+      ],
+      "preflight_requirements": [
+        "A local USD schema runtime; no model provider."
+      ],
+      "provider_requirement": "none",
+      "rule_id": "physics.usd_schema_sanity",
+      "template_name": "physics_sane"
+    },
+    {
+      "allowed_parameters": [
+        "evidence_paths"
+      ],
+      "capability_id": "validation.physical_behavior",
+      "evidence_requirements": [
+        "source_identity",
+        "runtime_evidence",
+        "behavior_result"
+      ],
+      "preflight_requirements": [
+        "Existing simulator, runtime, or recording evidence; no simulator launch."
+      ],
+      "provider_requirement": "none",
+      "rule_id": "physics.behavior_evidence",
+      "template_name": "physical_behavior"
+    }
+  ],
+  "config_base_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10",
+  "config_identity_sha256": "8a34c58b46c384e195369602879412a9a5def5d32557d5fc023f728b37ba1a23",
+  "evidence_inventory": [
+    {
+      "artifact": {
+        "kind": "file",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+        "role": "evidence",
+        "sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5"
+      },
+      "availability": "available",
+      "evidence_id": "runtime:0",
+      "evidence_kind": "runtime"
+    }
+  ],
+  "mandatory_constraints": {
+    "allowed_capability_ids": [
+      "validation.look_right",
+      "validation.render_valid",
+      "validation.physics_sane",
+      "validation.physical_behavior"
+    ],
+    "classic_plan_is_decision_authority": false,
+    "explicit_dependency_required": true,
+    "maximum_selected_checks": 4,
+    "minimum_provider_free_checks": 2,
+    "minimum_required_checks": 1,
+    "one_instance_per_capability": true,
+    "provider_free_capability_ids": [
+      "validation.physical_behavior",
+      "validation.physics_sane",
+      "validation.render_valid"
+    ],
+    "required_capability_ids": [
+      "validation.render_valid",
+      "validation.physics_sane",
+      "validation.physical_behavior"
+    ],
+    "revision_allowed": false,
+    "source_mutation_allowed": false
+  },
+  "nested_agent_launched": false,
+  "operation_invoked": false,
+  "output_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run",
+  "preparation_digest": "4e0678768400956bd834591a5cd8cd4071b6f67032ce9e9b81f249404eaa6382",
+  "provider_invoked": false,
+  "request": {
+    "focus": {
+      "metadata": {},
+      "prim_paths": []
+    },
+    "inputs": [
+      "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+    ],
+    "metadata": {
+      "validation_required_capability_ids": [
+        "validation.render_valid",
+        "validation.physics_sane",
+        "validation.physical_behavior"
+      ]
+    },
+    "planner": {
+      "backend": "rules",
+      "metadata": {},
+      "model": null
+    },
+    "policy": {
+      "behavior_evidence_required": true,
+      "canonical_visual_evidence": true,
+      "expect_physics": true,
+      "physical_behavior_evidence": [
+        {
+          "kind": "simulation_json",
+          "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "required": true,
+          "role": "native_physics_bundle"
+        }
+      ],
+      "render_backend": "ovrtx",
+      "render_image_height": 768,
+      "render_image_width": 1024,
+      "runtime_render_usd": true,
+      "visual_evidence_mode": "canonical_usd"
+    },
+    "project": {
+      "name": null,
+      "session_id": null,
+      "working_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run"
+    },
+    "render": {
+      "animation_frames": null,
+      "backend": "ovrtx",
+      "image_height": 768,
+      "image_width": 1024,
+      "metadata": {},
+      "views": null
+    },
+    "requested_templates": [],
+    "schema_version": "1.0",
+    "task_description": "Validate the exact authored drawer USD. Select exactly the three provider-free capabilities validation.render_valid, validation.physics_sane, and validation.physical_behavior, all required with all_required_evidence and explicit dependencies. Use native OVRTX canonical rendering; no external VLM or other model leaf is configured. physical_behavior must consume the supplied strict native_physics_bundle; no legacy approve record, waiver, skipped required check or status promotion is permitted. This required behavior gate covers only actual native mounted runtime stability and its recorded visual review. It does not establish articulated opening, loaded-payload retention or the independent five-seed task. Preserve the original Geometry conditional handoff and all prior failed Physics attempts. The separately hash-bound five-seed task is part of the final capstone conjunction, not evidence automatically evaluated by this native adapter. Planning/check exit0 is not terminal native Validation acceptance: actual collected evidence, outer AstraUltra typed assessment, independent AstraUltra review and native terminal receipt are still required. No universal SimReady claim."
+  },
+  "request_identity_sha256": "e32e1209f57f85738232c2e0a4c292998e504a2ba08a035d9d43cb79bf075343",
+  "schema_version": "content-agent-workflows.validation-coordinator-preparation.v1",
+  "selected_checks": [],
+  "source_dependency_closure": [
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+      "role": "source",
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+    },
+    {
+      "kind": "file",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+      "role": "source",
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+    }
+  ],
+  "task_identity_sha256": "df1c17b6c759adc9ff359f671007b28a582b52cb342b09239f6040d0d3735baf"
+}

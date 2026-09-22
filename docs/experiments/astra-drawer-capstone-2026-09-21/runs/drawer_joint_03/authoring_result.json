@@ -1,0 +1,142 @@
+{
+  "authored_candidate_ids": [
+    "upper_drawer_prismatic"
+  ],
+  "authored_joint_count": 1,
+  "backend_call_id": "a0953fe13858347a0e0c07019928d4c6dfe10bdfd8ba8513b539f389b6d0d094",
+  "candidate_document_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json",
+  "candidate_document_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+  "diagnostics_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/diagnostics.json",
+  "diagnostics_sha256": "9929e7c0549027999b20d6e76d3304048d52c4101e1180c2e211f921bdb54c02",
+  "idempotency_key": "a0953fe13858347a0e0c07019928d4c6dfe10bdfd8ba8513b539f389b6d0d094",
+  "joint_rigger_result_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/result.json",
+  "joint_rigger_result_sha256": "64b4775a65bb097b5ec7d4a0db097815ffce969dc1bb5262212d959e78ce8a24",
+  "membership_operation_receipt_path": null,
+  "membership_operation_receipt_sha256": null,
+  "metadata": {
+    "accepted_authoring_plan_sha256": null,
+    "apply_collision": false,
+    "apply_masses": false,
+    "backend": "joint-agent-owned-core",
+    "joint_rigger_input": {
+      "conflict_policy": "error",
+      "plan": {
+        "joints": [
+          {
+            "limit": {
+              "lower": 0.0,
+              "provenance": {
+                "artifact": {
+                  "root_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+                  "uri": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json"
+                },
+                "evidence": "Stage 2 candidate 'upper_drawer_prismatic' accepted source-backed accepted_manifest limits from the bound candidate manifest.",
+                "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+                "properties": [
+                  "limit_unit",
+                  "lower_limit",
+                  "upper_limit"
+                ],
+                "source": "accepted_manifest"
+              },
+              "unit": "meters",
+              "upper": 0.3
+            },
+            "topology": {
+              "axis_stage": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "body0": "/Asset/drawer_cabinet_0/Primitive_0",
+              "body1": "/Asset/drawer_cabinet_drawer_01_1",
+              "field_provenance": {
+                "axis_stage": {
+                  "artifact": {
+                    "root_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+                    "uri": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json"
+                  },
+                  "derivation": "preflighted_stage2_candidate_edge",
+                  "evidence": "Stage 2 candidate 'upper_drawer_prismatic' accepted motion_axis_world from accepted_manifest.",
+                  "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+                  "properties": [
+                    "motion_axis_world"
+                  ],
+                  "source": "accepted_manifest"
+                },
+                "body0": {
+                  "artifact": {
+                    "root_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+                    "uri": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json"
+                  },
+                  "derivation": "preflighted_stage2_candidate_edge",
+                  "evidence": "Stage 2 candidate 'upper_drawer_prismatic' accepted fixed_parent_prim from accepted_manifest.",
+                  "prim_path": "/Asset/drawer_cabinet_0/Primitive_0",
+                  "properties": [
+                    "fixed_parent_prim"
+                  ],
+                  "source": "accepted_manifest"
+                },
+                "body1": {
+                  "artifact": {
+                    "root_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+                    "uri": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json"
+                  },
+                  "derivation": "preflighted_stage2_candidate_edge",
+                  "evidence": "Stage 2 candidate 'upper_drawer_prismatic' accepted moving_part_prims[0] from accepted_manifest.",
+                  "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+                  "properties": [
+                    "moving_part_prims[0]"
+                  ],
+                  "source": "accepted_manifest"
+                },
+                "joint_type": {
+                  "artifact": {
+                    "root_sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584",
+                    "uri": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json"
+                  },
+                  "derivation": "preflighted_stage2_candidate_edge",
+                  "evidence": "Stage 2 candidate 'upper_drawer_prismatic' accepted motion_type from accepted_manifest.",
+                  "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+                  "properties": [
+                    "motion_type"
+                  ],
+                  "source": "accepted_manifest"
+                }
+              },
+              "joint_id": "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24",
+              "joint_type": "prismatic"
+            }
+          }
+        ],
+        "rigid_bodies": [],
+        "schema_version": "world-understanding-joint-rigger-plan-v1"
+      },
+      "schema_version": "world-understanding-joint-rigger-input-v1",
+      "source_asset": {
+        "dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3",
+        "root_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+        "uri": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz"
+      }
+    },
+    "joint_rigger_input_sha256": "79dd7c69bd1c10170f4e46685041e9c5273a1d0a3b833f5d477597c82e38a660",
+    "joint_rigger_plan_sha256": "36aa328339aa55bfedf8914124e1e8e371a29ae5528aec53f0dd706c8a92f03d",
+    "joint_rigger_status": "authored",
+    "live_backend_invoked": true,
+    "physics_api_inventory": {
+      "articulation_root_api_paths": [],
+      "collision_api_paths": [],
+      "mass_api_paths": [],
+      "physics_property_state": {},
+      "rigid_body_api_paths": []
+    },
+    "physics_api_inventory_sha256": "82213b22b642ee92d24d88efe977483d0e75401e11563a0aca2b4fabf52c1675",
+    "recovered_from_published_artifacts": false
+  },
+  "output_asset_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+  "output_asset_sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+  "schema_version": "content-agent-workflows.articulation-authoring-result.v1",
+  "source_dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3",
+  "source_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+  "status": "succeeded"
+}

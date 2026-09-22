@@ -1,0 +1,10 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "43a7cd236df0b13f809a00efdcb9ba2f4c799b1ee033c7ff3f86441738f2a8d4"
+  },
+  "schema_version": 1,
+  "source": "source/drawer_cabinet_1k.gltf",
+  "source_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617"
+}

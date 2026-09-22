@@ -1,0 +1,1046 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "fdc979fbb4ce21297591cb80b7149ff821a764b3a8a93f534d78a5f4e64e20e9"
+  },
+  "artifact_paths": {
+    "final_summary": "runs/drawer_validation_01_prepared/native_run/final_summary.json",
+    "validation_checkpoint": "runs/drawer_validation_01_prepared/native_run/validation_checkpoint.json",
+    "validation_evidence": "runs/drawer_validation_01_prepared/native_run/validation_evidence.json",
+    "validation_plan": "runs/drawer_validation_01_prepared/native_run/validation_plan.json",
+    "validation_request": "runs/drawer_validation_01_prepared/native_run/validation_request.json",
+    "validation_result": "runs/drawer_validation_01_prepared/native_run/validation_result.json"
+  },
+  "evidence": {
+    "physical_behavior": {
+      "available_evidence": [
+        {
+          "description": null,
+          "details": {
+            "inferred": false
+          },
+          "exists": true,
+          "kind": "simulation_json",
+          "original": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "required": true,
+          "role": "native_physics_bundle"
+        },
+        {
+          "description": null,
+          "details": {
+            "inferred": false
+          },
+          "exists": true,
+          "kind": "time_sampled_usd",
+          "original": "runs/drawer_physics_10/physics.usda",
+          "path": "runs/drawer_physics_10/physics.usda",
+          "required": true,
+          "role": "input_usd"
+        }
+      ],
+      "behavior_summary": {
+        "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+        "kind": "native_physics_behavior",
+        "native_assessment_status": "pass",
+        "scope": "single_body_native_runtime_and_rendered_behavior_review",
+        "status": "passed"
+      },
+      "evidence": [
+        {
+          "description": null,
+          "details": {
+            "inferred": false
+          },
+          "exists": true,
+          "kind": "simulation_json",
+          "original": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "required": true,
+          "role": "native_physics_bundle"
+        },
+        {
+          "description": null,
+          "details": {
+            "inferred": false
+          },
+          "exists": true,
+          "kind": "time_sampled_usd",
+          "original": "runs/drawer_physics_10/physics.usda",
+          "path": "runs/drawer_physics_10/physics.usda",
+          "required": true,
+          "role": "input_usd"
+        }
+      ],
+      "native_physics_behavior": {
+        "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+        "kind": "native_physics_behavior",
+        "native_assessment_status": "pass",
+        "scope": "single_body_native_runtime_and_rendered_behavior_review",
+        "status": "passed"
+      },
+      "refine_summaries": [],
+      "resolution": {
+        "behavior_evidence_required": true,
+        "evidence": [
+          {
+            "description": null,
+            "details": {
+              "inferred": false
+            },
+            "exists": true,
+            "kind": "simulation_json",
+            "original": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+            "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+            "required": true,
+            "role": "native_physics_bundle"
+          },
+          {
+            "description": null,
+            "details": {
+              "inferred": false
+            },
+            "exists": true,
+            "kind": "time_sampled_usd",
+            "original": "runs/drawer_physics_10/physics.usda",
+            "path": "runs/drawer_physics_10/physics.usda",
+            "required": true,
+            "role": "input_usd"
+          }
+        ],
+        "issues": [],
+        "passed": true,
+        "supported_kinds": [
+          "time_sampled_usd",
+          "animation_usd",
+          "video",
+          "sampled_frame",
+          "simulation_json",
+          "trajectory_metrics"
+        ]
+      }
+    },
+    "physics_sane": {
+      "usd_paths": [
+        "runs/drawer_physics_10/physics.usda"
+      ]
+    },
+    "render_valid": {
+      "animation_frame_paths": [],
+      "image_paths": [
+        "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+      ],
+      "render_response_images": [
+        "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+      ]
+    }
+  },
+  "issues": [],
+  "metadata": {
+    "execution_mode": "outer_selected_operations",
+    "nested_agent_launched": false,
+    "operation_index": "runs/drawer_validation_01_prepared/native_run/validation_operation_index.json",
+    "runner": "content-agent-workflows.validation"
+  },
+  "metrics": {
+    "physical_behavior": {
+      "available_evidence_count": 2,
+      "behavior_evidence_required": true,
+      "behavior_summary_kind": null,
+      "evidence_count": 2,
+      "evidence_kinds": [
+        "simulation_json",
+        "time_sampled_usd"
+      ],
+      "input_usd_path_count": 1,
+      "input_video_path_count": 0,
+      "issue_count": 0,
+      "refine_summary_count": 0,
+      "sampled_frame_path_count": 0,
+      "simulation_json_count": 1,
+      "status": "passed",
+      "trajectory_metrics_count": 0,
+      "usd_path_count": 1,
+      "video_path_count": 0
+    },
+    "physics_sane": {
+      "adapter_metrics": {
+        "collider_count": 5,
+        "collider_paths": [
+          "/Asset/drawer_cabinet_0/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ],
+        "mass_api_count": 1,
+        "material_api_count": 5,
+        "mesh_count": 5,
+        "opened": true,
+        "physics_expected": true,
+        "physics_scene_count": 1,
+        "physics_scene_paths": [
+          "/Asset/PhysicsScene"
+        ],
+        "physics_schema_count": 13,
+        "rigid_body_count": 1,
+        "rigid_body_paths": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ]
+      },
+      "collider_count": 5,
+      "collider_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "failed_count": 0,
+      "issue_count": 0,
+      "mass_api_count": 1,
+      "material_api_count": 5,
+      "mesh_count": 5,
+      "opened": true,
+      "passed_count": 1,
+      "physics_expected": true,
+      "physics_scene_count": 1,
+      "physics_scene_paths": [
+        "/Asset/PhysicsScene"
+      ],
+      "physics_schema_count": 13,
+      "rigid_body_count": 1,
+      "rigid_body_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "usd_path_count": 1,
+      "warn_count": 0
+    },
+    "render_valid": {
+      "animation_frame_count": 0,
+      "image_count": 1,
+      "issue_count": 0,
+      "render_response_image_count": 1,
+      "render_response_present": true
+    }
+  },
+  "plan": {
+    "artifact_paths": {
+      "final_summary": "runs/drawer_validation_01_prepared/native_run/final_summary.json",
+      "validation_checkpoint": "runs/drawer_validation_01_prepared/native_run/validation_checkpoint.json",
+      "validation_evidence": "runs/drawer_validation_01_prepared/native_run/validation_evidence.json",
+      "validation_plan": "runs/drawer_validation_01_prepared/native_run/validation_plan.json",
+      "validation_request": "runs/drawer_validation_01_prepared/native_run/validation_request.json",
+      "validation_result": "runs/drawer_validation_01_prepared/native_run/validation_result.json"
+    },
+    "focus_prim_paths": [],
+    "input_groups": {
+      "image_paths": [],
+      "items": [
+        {
+          "extension": ".usda",
+          "image_paths": [],
+          "kind": "usd",
+          "metadata": {},
+          "original": "runs/drawer_physics_10/physics.usda",
+          "path": "runs/drawer_physics_10/physics.usda"
+        }
+      ],
+      "reference_image_paths": [],
+      "render_bundle_dirs": [],
+      "render_bundle_image_paths": [],
+      "usd_paths": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "video_paths": []
+    },
+    "metadata": {
+      "agentic_workflow": {
+        "identity": {
+          "backend_digest": "103e9714193dd20a6c4c439797300f2a2f07ad58245bbd8cc06af8caffb0507f",
+          "identity_digest": "9e20bb9c3901d590ac245779145120675d37f276b5a1c655fec2f4987722e3cf",
+          "policy_digest": "7bd44f133ab3a77a141fde8d221ca00433155ea0d0056ed66ea644c96517cb9c",
+          "reference_artifacts": [],
+          "request_digest": "7f6ccb2ac0beff5f4468076773b32472020a4d7e8d6487f0fffb48beea9f0654",
+          "schema_version": "content-agent-workflows.validation-identity.v1",
+          "source_artifacts": [
+            {
+              "kind": "file",
+              "path": "runs/drawer_physics_10/physics.usda",
+              "role": "source",
+              "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+            },
+            {
+              "kind": "file",
+              "path": "runs/drawer_physics_10/inputs/source/source.usdz",
+              "role": "source",
+              "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+            }
+          ],
+          "template_versions": {
+            "physical_behavior": "validation-scaffold.physical-behavior.v2",
+            "physics_sane": "validation-scaffold.physics-sane.v1",
+            "render_valid": "validation-scaffold.render-valid.v1"
+          }
+        },
+        "schema_version": "content-agent-workflows.validation-plan.v1"
+      }
+    },
+    "schema_version": "1.0",
+    "steps": [
+      {
+        "inputs_needed": [
+          "usd"
+        ],
+        "metadata": {
+          "agentic_work_item": {
+            "backend_digest": "103e9714193dd20a6c4c439797300f2a2f07ad58245bbd8cc06af8caffb0507f",
+            "depends_on": [],
+            "identity_digest": "ab91f59e3101346ecf7fe25bf9e3b5455699222c7a8e87496d9f1663245e2223",
+            "policy_digest": "7bd44f133ab3a77a141fde8d221ca00433155ea0d0056ed66ea644c96517cb9c",
+            "reference_artifacts": [],
+            "request_digest": "7f6ccb2ac0beff5f4468076773b32472020a4d7e8d6487f0fffb48beea9f0654",
+            "schema_version": "content-agent-workflows.validation-work-item.v1",
+            "source_artifacts": [
+              {
+                "kind": "file",
+                "path": "runs/drawer_physics_10/physics.usda",
+                "role": "source",
+                "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+              },
+              {
+                "kind": "file",
+                "path": "runs/drawer_physics_10/inputs/source/source.usdz",
+                "role": "source",
+                "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+              }
+            ],
+            "template_version": "validation-scaffold.physics-sane.v1",
+            "work_item_id": "validation:physics_sane"
+          },
+          "validation_coordinator_check": {
+            "capability_id": "validation.physics_sane",
+            "check_id": "validation.physics_sane",
+            "completion_policy": "all_required_evidence",
+            "evidence_requirements": [
+              "source_identity",
+              "usd_schema_result"
+            ],
+            "focus_prim_paths": [],
+            "parameters": {},
+            "required": true,
+            "rule_id": "physics.usd_schema_sanity",
+            "targets": [
+              "runs/drawer_physics_10/physics.usda"
+            ]
+          }
+        },
+        "reason": "physics expectations are present for USD input; requested by caller",
+        "required_capabilities": [
+          "usd_schema_runtime"
+        ],
+        "template_name": "physics_sane"
+      },
+      {
+        "inputs_needed": [
+          "images_or_render_bundle_or_usd"
+        ],
+        "metadata": {
+          "agentic_work_item": {
+            "backend_digest": "103e9714193dd20a6c4c439797300f2a2f07ad58245bbd8cc06af8caffb0507f",
+            "depends_on": [
+              "validation:physics_sane"
+            ],
+            "identity_digest": "13e807e8cfac850be1ee328ad8ef3b13662bfede1478593de4aa7b2d65922fdc",
+            "policy_digest": "7bd44f133ab3a77a141fde8d221ca00433155ea0d0056ed66ea644c96517cb9c",
+            "reference_artifacts": [],
+            "request_digest": "7f6ccb2ac0beff5f4468076773b32472020a4d7e8d6487f0fffb48beea9f0654",
+            "schema_version": "content-agent-workflows.validation-work-item.v1",
+            "source_artifacts": [
+              {
+                "kind": "file",
+                "path": "runs/drawer_physics_10/physics.usda",
+                "role": "source",
+                "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+              },
+              {
+                "kind": "file",
+                "path": "runs/drawer_physics_10/inputs/source/source.usdz",
+                "role": "source",
+                "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+              }
+            ],
+            "template_version": "validation-scaffold.render-valid.v1",
+            "work_item_id": "validation:render_valid"
+          },
+          "validation_coordinator_check": {
+            "capability_id": "validation.render_valid",
+            "check_id": "validation.render_valid",
+            "completion_policy": "all_required_evidence",
+            "evidence_requirements": [
+              "source_identity",
+              "render_result",
+              "qualified_render_evidence"
+            ],
+            "focus_prim_paths": [],
+            "parameters": {},
+            "required": true,
+            "rule_id": "render.runtime_evidence",
+            "targets": [
+              "runs/drawer_physics_10/physics.usda"
+            ]
+          }
+        },
+        "reason": "render or USD evidence is available; requested by caller",
+        "required_capabilities": [
+          "renderer_or_existing_render_evidence"
+        ],
+        "template_name": "render_valid"
+      },
+      {
+        "inputs_needed": [
+          "video_or_policy"
+        ],
+        "metadata": {
+          "agentic_work_item": {
+            "backend_digest": "103e9714193dd20a6c4c439797300f2a2f07ad58245bbd8cc06af8caffb0507f",
+            "depends_on": [
+              "validation:physics_sane",
+              "validation:render_valid"
+            ],
+            "identity_digest": "453f158888b2671f6293ae416544f78bfdfd96664329ceeca534d6c2e1a80c8c",
+            "policy_digest": "7bd44f133ab3a77a141fde8d221ca00433155ea0d0056ed66ea644c96517cb9c",
+            "reference_artifacts": [],
+            "request_digest": "7f6ccb2ac0beff5f4468076773b32472020a4d7e8d6487f0fffb48beea9f0654",
+            "schema_version": "content-agent-workflows.validation-work-item.v1",
+            "source_artifacts": [
+              {
+                "kind": "file",
+                "path": "runs/drawer_physics_10/physics.usda",
+                "role": "source",
+                "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+              },
+              {
+                "kind": "file",
+                "path": "runs/drawer_physics_10/inputs/source/source.usdz",
+                "role": "source",
+                "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e"
+              }
+            ],
+            "template_version": "validation-scaffold.physical-behavior.v2",
+            "work_item_id": "validation:physical_behavior"
+          },
+          "validation_coordinator_check": {
+            "capability_id": "validation.physical_behavior",
+            "check_id": "validation.physical_behavior",
+            "completion_policy": "all_required_evidence",
+            "evidence_requirements": [
+              "source_identity",
+              "runtime_evidence",
+              "behavior_result"
+            ],
+            "focus_prim_paths": [],
+            "parameters": {
+              "evidence_paths": [
+                "runs/drawer_validation_01_prepared/native_physics_bundle.json"
+              ]
+            },
+            "required": true,
+            "rule_id": "physics.behavior_evidence",
+            "targets": [
+              "runs/drawer_physics_10/physics.usda"
+            ]
+          }
+        },
+        "reason": "behavior evidence was provided or required; requested by caller",
+        "required_capabilities": [
+          "existing_simulator_or_runtime_evidence"
+        ],
+        "template_name": "physical_behavior"
+      }
+    ]
+  },
+  "recommended_action": null,
+  "request": {
+    "focus": {
+      "metadata": {},
+      "prim_paths": []
+    },
+    "inputs": [
+      "runs/drawer_physics_10/physics.usda"
+    ],
+    "metadata": {
+      "validation_required_capability_ids": [
+        "validation.render_valid",
+        "validation.physics_sane",
+        "validation.physical_behavior"
+      ]
+    },
+    "planner": {
+      "backend": "rules",
+      "metadata": {},
+      "model": null
+    },
+    "policy": {
+      "behavior_evidence_required": true,
+      "canonical_visual_evidence": true,
+      "expect_physics": true,
+      "physical_behavior_evidence": [
+        {
+          "kind": "simulation_json",
+          "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+          "required": true,
+          "role": "native_physics_bundle"
+        }
+      ],
+      "render_backend": "ovrtx",
+      "render_image_height": 768,
+      "render_image_width": 1024,
+      "runtime_render_usd": true,
+      "visual_evidence_mode": "canonical_usd"
+    },
+    "project": {
+      "name": null,
+      "working_dir": "runs/drawer_validation_01_prepared/native_run"
+    },
+    "render": {
+      "animation_frames": null,
+      "backend": "ovrtx",
+      "image_height": 768,
+      "image_width": 1024,
+      "metadata": {},
+      "views": null
+    },
+    "requested_templates": [
+      "physics_sane",
+      "render_valid",
+      "physical_behavior"
+    ],
+    "schema_version": "1.0",
+    "task_description": "Validate the exact authored drawer USD. Select exactly the three provider-free capabilities validation.render_valid, validation.physics_sane, and validation.physical_behavior, all required with all_required_evidence and explicit dependencies. Use native OVRTX canonical rendering; no external VLM or other model leaf is configured. physical_behavior must consume the supplied strict native_physics_bundle; no legacy approve record, waiver, skipped required check or status promotion is permitted. This required behavior gate covers only actual native mounted runtime stability and its recorded visual review. It does not establish articulated opening, loaded-payload retention or the independent five-seed task. Preserve the original Geometry conditional handoff and all prior failed Physics attempts. The separately hash-bound five-seed task is part of the final capstone conjunction, not evidence automatically evaluated by this native adapter. Planning/check exit0 is not terminal native Validation acceptance: actual collected evidence, outer AstraUltra typed assessment, independent AstraUltra review and native terminal receipt are still required. No universal SimReady claim."
+  },
+  "schema_version": "1.0",
+  "template_results": [
+    {
+      "evidence": {
+        "usd_paths": [
+          "runs/drawer_physics_10/physics.usda"
+        ]
+      },
+      "evidence_items": [],
+      "issues": [],
+      "metadata": {
+        "adapter": "physics_sane",
+        "adapter_results": [
+          {
+            "evidence": {
+              "usd_path": "runs/drawer_physics_10/physics.usda"
+            },
+            "issues": [],
+            "metrics": {
+              "collider_count": 5,
+              "collider_paths": [
+                "/Asset/drawer_cabinet_0/Primitive_0",
+                "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+                "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+                "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+                "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+              ],
+              "mass_api_count": 1,
+              "material_api_count": 5,
+              "mesh_count": 5,
+              "opened": true,
+              "physics_expected": true,
+              "physics_scene_count": 1,
+              "physics_scene_paths": [
+                "/Asset/PhysicsScene"
+              ],
+              "physics_schema_count": 13,
+              "rigid_body_count": 1,
+              "rigid_body_paths": [
+                "/Asset/drawer_cabinet_drawer_01_1"
+              ]
+            },
+            "passed": true,
+            "status": "completed",
+            "template": "physics_sane",
+            "verdict": "pass"
+          }
+        ],
+        "template_kind": "adapter",
+        "validation_coordinator_check": {
+          "capability_id": "validation.physics_sane",
+          "check_id": "validation.physics_sane",
+          "completion_policy": "all_required_evidence",
+          "evidence_requirements": [
+            "source_identity",
+            "usd_schema_result"
+          ],
+          "focus_prim_paths": [],
+          "parameters": {},
+          "required": true,
+          "rule_id": "physics.usd_schema_sanity",
+          "targets": [
+            "runs/drawer_physics_10/physics.usda"
+          ]
+        }
+      },
+      "metrics": {
+        "adapter_metrics": {
+          "collider_count": 5,
+          "collider_paths": [
+            "/Asset/drawer_cabinet_0/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+          ],
+          "mass_api_count": 1,
+          "material_api_count": 5,
+          "mesh_count": 5,
+          "opened": true,
+          "physics_expected": true,
+          "physics_scene_count": 1,
+          "physics_scene_paths": [
+            "/Asset/PhysicsScene"
+          ],
+          "physics_schema_count": 13,
+          "rigid_body_count": 1,
+          "rigid_body_paths": [
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ]
+        },
+        "collider_count": 5,
+        "collider_paths": [
+          "/Asset/drawer_cabinet_0/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ],
+        "failed_count": 0,
+        "issue_count": 0,
+        "mass_api_count": 1,
+        "material_api_count": 5,
+        "mesh_count": 5,
+        "opened": true,
+        "passed_count": 1,
+        "physics_expected": true,
+        "physics_scene_count": 1,
+        "physics_scene_paths": [
+          "/Asset/PhysicsScene"
+        ],
+        "physics_schema_count": 13,
+        "rigid_body_count": 1,
+        "rigid_body_paths": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "usd_path_count": 1,
+        "warn_count": 0
+      },
+      "status": "passed",
+      "template_name": "physics_sane"
+    },
+    {
+      "evidence": {
+        "animation_frame_paths": [],
+        "image_paths": [
+          "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+        ],
+        "render_response_images": [
+          "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+        ]
+      },
+      "evidence_items": [],
+      "issues": [],
+      "metadata": {
+        "adapter": "render_valid",
+        "adapter_result": {
+          "evidence": {
+            "animation_frame_paths": [],
+            "image_paths": [
+              "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+            ],
+            "render_response_images": [
+              "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+            ]
+          },
+          "issues": [],
+          "metadata": {
+            "backend": "ovrtx",
+            "render_response": {
+              "backend": "ovrtx",
+              "cameras": [
+                "+x+y+z"
+              ],
+              "failures": [],
+              "frames": [],
+              "malformed": false,
+              "output_paths": [
+                "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+              ],
+              "sensors": []
+            }
+          },
+          "metrics": {
+            "animation_frame_count": 0,
+            "image_count": 1,
+            "issue_count": 0,
+            "render_response_image_count": 1,
+            "render_response_present": true
+          },
+          "results": {
+            "animation_frames": [],
+            "duplicate_frames": null,
+            "images": [
+              {
+                "height": 768,
+                "issues": [],
+                "metrics": {
+                  "black_pixel_ratio": 0.8445536295572916,
+                  "height": 768,
+                  "luma_dynamic_range": 161.6251983642578,
+                  "luma_max": 161.6251983642578,
+                  "luma_mean": 11.853808403015137,
+                  "luma_min": 0.0,
+                  "luma_p05": 0.0,
+                  "luma_p95": 98.44059753417969,
+                  "luma_p95_minus_p05": 98.44059753417969,
+                  "luma_std": 32.30696487426758,
+                  "nonblack_pixel_ratio": 0.14699300130208334,
+                  "red_dominant_nonblack_ratio": 0.0,
+                  "red_dominant_pixel_ratio": 0.0,
+                  "rgb_max": 196.0,
+                  "rgb_min": 0.0,
+                  "sampled_pixels": 786432,
+                  "unique_colors": 17832,
+                  "white_pixel_ratio": 0.0,
+                  "width": 1024
+                },
+                "mode": "RGB",
+                "passed": true,
+                "readable": true,
+                "source": "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png",
+                "width": 1024
+              }
+            ],
+            "render_response": {
+              "issues": [],
+              "metadata": {
+                "backend": "ovrtx",
+                "cameras": [
+                  "+x+y+z"
+                ],
+                "failures": [],
+                "frames": [],
+                "malformed": false,
+                "output_paths": [
+                  "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+                ],
+                "sensors": []
+              },
+              "passed": true
+            },
+            "render_response_images": [
+              {
+                "height": 768,
+                "issues": [],
+                "metrics": {
+                  "black_pixel_ratio": 0.8445536295572916,
+                  "height": 768,
+                  "luma_dynamic_range": 161.6251983642578,
+                  "luma_max": 161.6251983642578,
+                  "luma_mean": 11.853808403015137,
+                  "luma_min": 0.0,
+                  "luma_p05": 0.0,
+                  "luma_p95": 98.44059753417969,
+                  "luma_p95_minus_p05": 98.44059753417969,
+                  "luma_std": 32.30696487426758,
+                  "nonblack_pixel_ratio": 0.14699300130208334,
+                  "red_dominant_nonblack_ratio": 0.0,
+                  "red_dominant_pixel_ratio": 0.0,
+                  "rgb_max": 196.0,
+                  "rgb_min": 0.0,
+                  "sampled_pixels": 786432,
+                  "unique_colors": 17832,
+                  "white_pixel_ratio": 0.0,
+                  "width": 1024
+                },
+                "mode": "RGB",
+                "passed": true,
+                "readable": true,
+                "source": "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png",
+                "width": 1024
+              }
+            ]
+          },
+          "status": "pass",
+          "template": "render_valid"
+        },
+        "expected_cameras": [
+          "+x+y+z"
+        ],
+        "qualified_render_evidence": [],
+        "render_evidence_accepted": true,
+        "render_evidence_origin": "runtime_render",
+        "runtime_render": {
+          "backend": "ovrtx",
+          "image_paths": [
+            "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+          ],
+          "issues": [],
+          "metadata": {
+            "backend": "ovrtx",
+            "base_url_configured": false,
+            "frames": "0",
+            "image_count": 1,
+            "image_height": 768,
+            "image_width": 1024,
+            "render_invocation_count": 1,
+            "response_cameras": [
+              "+x+y+z"
+            ],
+            "stage_preparation": [
+              {
+                "asset_base_dir": "runs/drawer_physics_10",
+                "backend": "ovrtx",
+                "flattened": true,
+                "material_normalized": true,
+                "meters_per_unit": 1.0,
+                "up_axis": "Y",
+                "usd_path": "runs/drawer_physics_10/physics.usda",
+                "usd_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+              }
+            ],
+            "usd_path_count": 1,
+            "view_count": 1,
+            "views": [
+              "+x+y+z"
+            ]
+          },
+          "render_output_dir": "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders",
+          "render_response": {
+            "backend": "ovrtx",
+            "cameras": [
+              "+x+y+z"
+            ],
+            "issues": [],
+            "results": [
+              {
+                "active_aov": "LdrColor",
+                "camera": "+x+y+z",
+                "camera_label": "+x+y+z",
+                "camera_path": "/ValidationAgentCameras/plus_xplus_yplus_z",
+                "error": null,
+                "frame_count": 1,
+                "images": [
+                  "runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+                ],
+                "ovrtx_num_sensor_updates": 32,
+                "ovrtx_render_mode": "rt2",
+                "render_time": 4.048454999923706,
+                "status": null,
+                "usd_path": "runs/drawer_physics_10/physics.usda"
+              }
+            ],
+            "status": "completed"
+          },
+          "status": "completed"
+        },
+        "template_kind": "adapter",
+        "validation_coordinator_check": {
+          "capability_id": "validation.render_valid",
+          "check_id": "validation.render_valid",
+          "completion_policy": "all_required_evidence",
+          "evidence_requirements": [
+            "source_identity",
+            "render_result",
+            "qualified_render_evidence"
+          ],
+          "focus_prim_paths": [],
+          "parameters": {},
+          "required": true,
+          "rule_id": "render.runtime_evidence",
+          "targets": [
+            "runs/drawer_physics_10/physics.usda"
+          ]
+        }
+      },
+      "metrics": {
+        "animation_frame_count": 0,
+        "image_count": 1,
+        "issue_count": 0,
+        "render_response_image_count": 1,
+        "render_response_present": true
+      },
+      "status": "passed",
+      "template_name": "render_valid"
+    },
+    {
+      "evidence": {
+        "available_evidence": [
+          {
+            "description": null,
+            "details": {
+              "inferred": false
+            },
+            "exists": true,
+            "kind": "simulation_json",
+            "original": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+            "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+            "required": true,
+            "role": "native_physics_bundle"
+          },
+          {
+            "description": null,
+            "details": {
+              "inferred": false
+            },
+            "exists": true,
+            "kind": "time_sampled_usd",
+            "original": "runs/drawer_physics_10/physics.usda",
+            "path": "runs/drawer_physics_10/physics.usda",
+            "required": true,
+            "role": "input_usd"
+          }
+        ],
+        "behavior_summary": {
+          "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+          "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+          "kind": "native_physics_behavior",
+          "native_assessment_status": "pass",
+          "scope": "single_body_native_runtime_and_rendered_behavior_review",
+          "status": "passed"
+        },
+        "evidence": [
+          {
+            "description": null,
+            "details": {
+              "inferred": false
+            },
+            "exists": true,
+            "kind": "simulation_json",
+            "original": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+            "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+            "required": true,
+            "role": "native_physics_bundle"
+          },
+          {
+            "description": null,
+            "details": {
+              "inferred": false
+            },
+            "exists": true,
+            "kind": "time_sampled_usd",
+            "original": "runs/drawer_physics_10/physics.usda",
+            "path": "runs/drawer_physics_10/physics.usda",
+            "required": true,
+            "role": "input_usd"
+          }
+        ],
+        "native_physics_behavior": {
+          "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+          "bundle_sha256": "1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5",
+          "kind": "native_physics_behavior",
+          "native_assessment_status": "pass",
+          "scope": "single_body_native_runtime_and_rendered_behavior_review",
+          "status": "passed"
+        },
+        "refine_summaries": [],
+        "resolution": {
+          "behavior_evidence_required": true,
+          "evidence": [
+            {
+              "description": null,
+              "details": {
+                "inferred": false
+              },
+              "exists": true,
+              "kind": "simulation_json",
+              "original": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+              "path": "runs/drawer_validation_01_prepared/native_physics_bundle.json",
+              "required": true,
+              "role": "native_physics_bundle"
+            },
+            {
+              "description": null,
+              "details": {
+                "inferred": false
+              },
+              "exists": true,
+              "kind": "time_sampled_usd",
+              "original": "runs/drawer_physics_10/physics.usda",
+              "path": "runs/drawer_physics_10/physics.usda",
+              "required": true,
+              "role": "input_usd"
+            }
+          ],
+          "issues": [],
+          "passed": true,
+          "supported_kinds": [
+            "time_sampled_usd",
+            "animation_usd",
+            "video",
+            "sampled_frame",
+            "simulation_json",
+            "trajectory_metrics"
+          ]
+        }
+      },
+      "evidence_items": [],
+      "issues": [],
+      "metadata": {
+        "helper": "resolve_physical_behavior_evidence",
+        "status_semantics": "native_physics_behavior_v1",
+        "template_kind": "evidence_contract",
+        "validation_coordinator_check": {
+          "capability_id": "validation.physical_behavior",
+          "check_id": "validation.physical_behavior",
+          "completion_policy": "all_required_evidence",
+          "evidence_requirements": [
+            "source_identity",
+            "runtime_evidence",
+            "behavior_result"
+          ],
+          "focus_prim_paths": [],
+          "parameters": {
+            "evidence_paths": [
+              "runs/drawer_validation_01_prepared/native_physics_bundle.json"
+            ]
+          },
+          "required": true,
+          "rule_id": "physics.behavior_evidence",
+          "targets": [
+            "runs/drawer_physics_10/physics.usda"
+          ]
+        }
+      },
+      "metrics": {
+        "available_evidence_count": 2,
+        "behavior_evidence_required": true,
+        "behavior_summary_kind": null,
+        "evidence_count": 2,
+        "evidence_kinds": [
+          "simulation_json",
+          "time_sampled_usd"
+        ],
+        "input_usd_path_count": 1,
+        "input_video_path_count": 0,
+        "issue_count": 0,
+        "refine_summary_count": 0,
+        "sampled_frame_path_count": 0,
+        "simulation_json_count": 1,
+        "status": "passed",
+        "trajectory_metrics_count": 0,
+        "usd_path_count": 1,
+        "video_path_count": 0
+      },
+      "status": "passed",
+      "template_name": "physical_behavior"
+    }
+  ],
+  "verdict": "pass"
+}

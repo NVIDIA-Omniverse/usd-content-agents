@@ -1,0 +1,59 @@
+{
+  "focus": {
+    "metadata": {},
+    "prim_paths": []
+  },
+  "inputs": [
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+  ],
+  "metadata": {
+    "validation_required_capability_ids": [
+      "validation.render_valid",
+      "validation.physics_sane",
+      "validation.physical_behavior"
+    ]
+  },
+  "planner": {
+    "backend": "rules",
+    "metadata": {},
+    "model": null
+  },
+  "policy": {
+    "behavior_evidence_required": true,
+    "canonical_visual_evidence": true,
+    "expect_physics": true,
+    "physical_behavior_evidence": [
+      {
+        "kind": "simulation_json",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_physics_bundle.json",
+        "required": true,
+        "role": "native_physics_bundle"
+      }
+    ],
+    "render_backend": "ovrtx",
+    "render_image_height": 768,
+    "render_image_width": 1024,
+    "runtime_render_usd": true,
+    "visual_evidence_mode": "canonical_usd"
+  },
+  "project": {
+    "name": null,
+    "session_id": null,
+    "working_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run"
+  },
+  "render": {
+    "animation_frames": null,
+    "backend": "ovrtx",
+    "image_height": 768,
+    "image_width": 1024,
+    "metadata": {},
+    "views": null
+  },
+  "requested_templates": [
+    "physics_sane",
+    "render_valid",
+    "physical_behavior"
+  ],
+  "schema_version": "1.0",
+  "task_description": "Validate the exact authored drawer USD. Select exactly the three provider-free capabilities validation.render_valid, validation.physics_sane, and validation.physical_behavior, all required with all_required_evidence and explicit dependencies. Use native OVRTX canonical rendering; no external VLM or other model leaf is configured. physical_behavior must consume the supplied strict native_physics_bundle; no legacy approve record, waiver, skipped required check or status promotion is permitted. This required behavior gate covers only actual native mounted runtime stability and its recorded visual review. It does not establish articulated opening, loaded-payload retention or the independent five-seed task. Preserve the original Geometry conditional handoff and all prior failed Physics attempts. The separately hash-bound five-seed task is part of the final capstone conjunction, not evidence automatically evaluated by this native adapter. Planning/check exit0 is not terminal native Validation acceptance: actual collected evidence, outer AstraUltra typed assessment, independent AstraUltra review and native terminal receipt are still required. No universal SimReady claim."
+}

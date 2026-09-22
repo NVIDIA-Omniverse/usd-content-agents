@@ -1,0 +1,151 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "21285e5626d46d384f8d10207c6806502796b0eea69d573358f2bc00332b1505"
+  },
+  "all_retained_failed_evidence_rejected": true,
+  "observed_utc": "2026-09-22T02:23:42.224208+00:00",
+  "retained_cases": [
+    {
+      "adapter_preparation": {
+        "error_type": "ValueError",
+        "reason": "Native visual assessment is unresolved or failed.",
+        "rejected": true
+      },
+      "adapter_raw_evidence": {
+        "kind": "native_physics_behavior",
+        "reason": "Native evidence requires exactly one digest-bound native_physics_bundle; raw assessment status is insufficient.",
+        "status": "failed"
+      },
+      "assessment_status": "unresolved_issues",
+      "case": "03",
+      "input_bindings": [
+        {
+          "path": "runs/drawer_physics_03/physics_behavior_assessment.json",
+          "sha256": "8b259df28e5750842766c1184ee442b6f36fab46d333ce78bffce452598b0b21"
+        },
+        {
+          "path": "runs/drawer_physics_03/validation_evidence.json",
+          "sha256": "b73e80e9e3c87558ef29f3781becd663ab19a108678f2a58752e6fac5cb098f4"
+        },
+        {
+          "path": "runs/drawer_physics_03/physics.usda",
+          "sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d"
+        }
+      ],
+      "legacy_behavior_summary": {
+        "cancelled": false,
+        "error": null,
+        "execution_status": "unresolved_issues",
+        "final_iteration": null,
+        "iteration": null,
+        "iteration_count": null,
+        "judge_decision": null,
+        "judge_llm_unavailable_count": 0,
+        "judge_reasoning": null,
+        "judge_score": null,
+        "kind": "judge_result",
+        "path": "runs/drawer_physics_03/physics_behavior_assessment.json",
+        "refine_llm_unavailable_count": 0,
+        "role": null,
+        "status": "warn"
+      },
+      "legacy_physical_status": "warn",
+      "legacy_verdict": "warn",
+      "native_sim_ready_status": "fail",
+      "original_inputs_unchanged": true
+    },
+    {
+      "adapter_preparation": {
+        "error_type": "ValueError",
+        "reason": "Native visual assessment is unresolved or failed.",
+        "rejected": true
+      },
+      "adapter_raw_evidence": {
+        "kind": "native_physics_behavior",
+        "reason": "Native evidence requires exactly one digest-bound native_physics_bundle; raw assessment status is insufficient.",
+        "status": "failed"
+      },
+      "assessment_status": "unresolved_issues",
+      "case": "07",
+      "input_bindings": [
+        {
+          "path": "runs/drawer_physics_07/physics_behavior_assessment.json",
+          "sha256": "d2403dab45524f550cde1b3f75c18d92b31ac965f62a25a57c58dc4d5adce446"
+        },
+        {
+          "path": "runs/drawer_physics_07/validation_evidence.json",
+          "sha256": "13014e1f21063533ebe17be0ca0c67fcf03a38283ba6f1d2e29ba1c0b3c34f14"
+        },
+        {
+          "path": "runs/drawer_physics_07/physics.usda",
+          "sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486"
+        }
+      ],
+      "legacy_behavior_summary": {
+        "cancelled": false,
+        "error": null,
+        "execution_status": "unresolved_issues",
+        "final_iteration": null,
+        "iteration": null,
+        "iteration_count": null,
+        "judge_decision": null,
+        "judge_llm_unavailable_count": 0,
+        "judge_reasoning": null,
+        "judge_score": null,
+        "kind": "judge_result",
+        "path": "runs/drawer_physics_07/physics_behavior_assessment.json",
+        "refine_llm_unavailable_count": 0,
+        "role": null,
+        "status": "warn"
+      },
+      "legacy_physical_status": "warn",
+      "legacy_verdict": "warn",
+      "native_sim_ready_status": "fail",
+      "original_inputs_unchanged": true
+    },
+    {
+      "adapter_raw_evidence": {
+        "kind": "native_physics_behavior",
+        "reason": "Native evidence requires exactly one digest-bound native_physics_bundle; raw assessment status is insufficient.",
+        "status": "failed"
+      },
+      "case": "06",
+      "input_bindings": [
+        {
+          "path": "runs/drawer_physics_06/validation_evidence.json",
+          "sha256": "3a209ed5374811d693296395f5ed487f2dcc8a1a20a586f941ad5dae4dfe4080"
+        },
+        {
+          "path": "runs/drawer_physics_06/runtime/runtime_validation_report.json",
+          "sha256": "e0f022f4b6d6ee7903c79157040fe2b5f31556f622728d81d6bd9b584c65d587"
+        }
+      ],
+      "limitation": "Standalone06 has no successful typed visual assessment or complete native bundle; no pass is inferred.",
+      "native_failures": [
+        "Simulation initial pose was discontinuous: first-step displacement was 0.020759 m."
+      ],
+      "native_sim_ready_status": "fail"
+    }
+  ],
+  "schema_version": "native-physics-validation-compatibility-review.v1",
+  "source_bindings": [
+    {
+      "path": "qualification/validation_behavior/repo/world_understanding/agentic/validation_scaffold.py",
+      "sha256": "22079a066bb27a4cf50a70a6f4d1e915b157fb9bd3cc63dc70f413e9d42f5fd8"
+    },
+    {
+      "path": "qualification/validation_behavior/repo/world_understanding/functions/physics/native_behavior_validation.py",
+      "sha256": "bb897c9260b64513bfc63d0c7cc28d4814dadc4e03a96bf547361821faaecf3c"
+    },
+    {
+      "path": "qualification/validation_behavior/repo/agentic/packages/content_workflow_cli/content_workflow_cli/runner.py",
+      "sha256": "293e2b37f0d98227346f3f9bc5bf2cb8778068dc643094f5cfca1ec8e3327240"
+    },
+    {
+      "path": "qualification/validation_behavior/repo/agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py",
+      "sha256": "8b5e4d98084ac9b01f184f724a96f34909f98393cba60b4f49a68e7f3fc91495"
+    }
+  ]
+}

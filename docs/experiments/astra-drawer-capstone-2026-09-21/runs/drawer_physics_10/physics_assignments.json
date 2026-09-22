@@ -1,0 +1,471 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "510db9b5b0ed564d974360de25f9a8e922462806c350d9719d518f20fae6403c"
+  },
+  "apply_decision_patch": "runs/drawer_physics_10/raw/physics_decision_patch_apply.json",
+  "apply_report": {
+    "apply_response": {
+      "command": "physics.apply",
+      "data": {
+        "authored": {
+          "authored_apis": {
+            "/Asset/Looks/Physics_component_001": [
+              "PhysicsMaterialAPI"
+            ],
+            "/Asset/Looks/Physics_component_002": [
+              "PhysicsMaterialAPI"
+            ],
+            "/Asset/Looks/Physics_component_003": [
+              "PhysicsMaterialAPI"
+            ],
+            "/Asset/Looks/Physics_component_004": [
+              "PhysicsMaterialAPI"
+            ],
+            "/Asset/Looks/Physics_component_005": [
+              "PhysicsMaterialAPI"
+            ],
+            "/Asset/drawer_cabinet_0/Primitive_0": [
+              "PhysicsCollisionAPI",
+              "PhysicsMeshCollisionAPI",
+              "MaterialBindingAPI"
+            ],
+            "/Asset/drawer_cabinet_drawer_01_1": [
+              "PhysicsRigidBodyAPI",
+              "PhysicsMassAPI",
+              "MaterialBindingAPI"
+            ],
+            "/Asset/drawer_cabinet_drawer_01_1/Primitive_0": [
+              "PhysicsCollisionAPI",
+              "PhysicsMeshCollisionAPI",
+              "PhysxConvexDecompositionCollisionAPI"
+            ],
+            "/Asset/drawer_cabinet_drawer_02_2/Primitive_0": [
+              "PhysicsCollisionAPI",
+              "PhysicsMeshCollisionAPI",
+              "MaterialBindingAPI"
+            ],
+            "/Asset/drawer_cabinet_drawer_03_3/Primitive_0": [
+              "PhysicsCollisionAPI",
+              "PhysicsMeshCollisionAPI",
+              "MaterialBindingAPI"
+            ],
+            "/Asset/drawer_cabinet_drawer_04_4/Primitive_0": [
+              "PhysicsCollisionAPI",
+              "PhysicsMeshCollisionAPI",
+              "MaterialBindingAPI"
+            ]
+          },
+          "binding": [
+            {
+              "material_path": "/Asset/Looks/Physics_component_001",
+              "target_path": "/Asset/drawer_cabinet_drawer_01_1"
+            },
+            {
+              "material_path": "/Asset/Looks/Physics_component_002",
+              "target_path": "/Asset/drawer_cabinet_0/Primitive_0"
+            },
+            {
+              "material_path": "/Asset/Looks/Physics_component_003",
+              "target_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+            },
+            {
+              "material_path": "/Asset/Looks/Physics_component_004",
+              "target_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+            },
+            {
+              "material_path": "/Asset/Looks/Physics_component_005",
+              "target_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+            }
+          ],
+          "collision": [
+            "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+            "/Asset/drawer_cabinet_0/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+            "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+          ],
+          "material": [
+            "/Asset/Looks/Physics_component_001",
+            "/Asset/Looks/Physics_component_002",
+            "/Asset/Looks/Physics_component_003",
+            "/Asset/Looks/Physics_component_004",
+            "/Asset/Looks/Physics_component_005"
+          ],
+          "rigid_body": [
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ],
+          "scene": [
+            "/Asset/PhysicsScene"
+          ]
+        },
+        "text": "authored: /Asset/drawer_cabinet_drawer_01_1 (PhysicsRigidBodyAPI+PhysicsMassAPI+MaterialBindingAPI), 5 colliders updated, 5 physics material(s) updated"
+      },
+      "ok": true,
+      "schema_version": "1",
+      "summary": {
+        "operations": 17
+      }
+    },
+    "author_rigid_body": true,
+    "collision_approximation": "convexDecomposition",
+    "collision_count": 5,
+    "command_record_path": "runs/drawer_physics_10/raw/usd_cli_physics_commands.json",
+    "decision_patch_path": "runs/drawer_physics_10/raw/physics_decision_patch_apply.json",
+    "deinstanced_roots": [],
+    "enabled_rigid_body_count": 1,
+    "inspection_backend": "usd-cli",
+    "inspection_command": "physics.validate",
+    "low_level_patch_path": "runs/drawer_physics_10/raw/workflow_physics_patch.json",
+    "operation": "physics.apply_schema",
+    "ovrtx_probe": {
+      "capabilities": [
+        "appearance.clear.v1"
+      ],
+      "engine": "ovrtx",
+      "ready": true,
+      "render": {
+        "backend": "ovrtx",
+        "duration_s": 0.282522,
+        "height": 64,
+        "path": "runs/drawer_physics_10/ovrtx_probe/ovrtx_readiness_probe.png",
+        "size_bytes": 91,
+        "width": 64
+      },
+      "required_engine": "ovrtx",
+      "resolved_renderer": "ovrtx",
+      "schema_version": "usd-cli.render-probe.v1",
+      "transport": "local"
+    },
+    "physics_scene_count": 1,
+    "physics_scene_path": "/Asset/PhysicsScene",
+    "physics_usd": "runs/drawer_physics_10/physics.usda",
+    "predictions_jsonl": "runs/drawer_physics_10/raw/physics_predictions.jsonl",
+    "project_dir": "runs/drawer_physics_10",
+    "rigid_body_count": 1,
+    "save_response": {
+      "artifacts": [
+        {
+          "kind": "export",
+          "label": "save",
+          "path": "runs/drawer_physics_10/physics.usda"
+        }
+      ],
+      "command": "save",
+      "issues": [
+        {
+          "detail": "",
+          "message": "composition-flattened: sublayers/references/payloads were localized into this one layer; external texture/asset files remain referenced on disk, not embedded (save to .usdz to package them)",
+          "severity": "info"
+        }
+      ],
+      "ok": true,
+      "schema_version": "1",
+      "summary": {
+        "flattened": true,
+        "path": "runs/drawer_physics_10/physics.usda",
+        "verified_prims": 26
+      }
+    },
+    "scene_backend": "usd-cli",
+    "scene_operation_backend": "usd-cli",
+    "scene_tool_transport": "usd-cli-tel",
+    "source_sha256_after": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+    "source_sha256_before": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+    "structural_validation": {
+      "command": "physics.validate",
+      "data": {
+        "checks": {
+          "colliders": 5,
+          "enabled_rigid_bodies": 1,
+          "rigid_bodies": 1,
+          "scenes": 1
+        },
+        "issues": [],
+        "ok": true,
+        "runtime_note": "deterministic schema check only; runtime simulation (ovphysx) is an external dependency not run here"
+      },
+      "ok": true,
+      "schema_version": "1",
+      "summary": {
+        "colliders": 5,
+        "enabled_rigid_bodies": 1,
+        "ok": true,
+        "rigid_bodies": 1,
+        "scenes": 1
+      }
+    }
+  },
+  "asset": "runs/drawer_physics_10/inputs/source/source.usdz",
+  "candidate_count": 5,
+  "component_count": 5,
+  "decision_count": 5,
+  "decision_patch": "runs/drawer_physics_10/raw/physics_decision_patch.json",
+  "decisions": [
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_001",
+      "component_role": "body",
+      "confidence": 0.9,
+      "convex_decomposition": {
+        "error_percentage": 0.1,
+        "hull_vertex_limit": 64,
+        "max_convex_hulls": 128,
+        "shrink_wrap": true,
+        "voxel_resolution": 4000000
+      },
+      "decision_id": "physics10_upper_drawer",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "mass_properties": {
+        "center_of_mass": [
+          0.00879941130464277,
+          1.0132691201324464,
+          0.09412690969490285
+        ],
+        "diagonal_inertia": [
+          0.14943559995160616,
+          0.8673600643339555,
+          0.7393149806868428
+        ],
+        "principal_axes": [
+          0.9994685675941963,
+          -0.03225944224667463,
+          0.004638708455407128,
+          0.0006270255216043317
+        ]
+      },
+      "path_space": "source",
+      "physical_properties": {
+        "density": 600.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 6.163479754140765,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve the inspected upper-drawer body root as the sole enabled nonkinematic rigid body, its original child mesh as collider, and its existing standalone prismatic joint. No articulation root or other body promotion.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_01_1": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_002",
+      "component_role": "unowned_static",
+      "confidence": 0.85,
+      "convex_decomposition": null,
+      "decision_id": "physics10_static_cabinet",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve inspected unowned_static status; author collision on the original visual mesh without promoting it or its parent to a rigid body.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_0/Primitive_0": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_003",
+      "component_role": "unowned_static",
+      "confidence": 0.9,
+      "convex_decomposition": null,
+      "decision_id": "physics10_static_drawer_02",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve inspected unowned_static status; author collision on the original visual mesh without promoting it or its parent to a rigid body.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_004",
+      "component_role": "unowned_static",
+      "confidence": 0.9,
+      "convex_decomposition": null,
+      "decision_id": "physics10_static_drawer_03",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve inspected unowned_static status; author collision on the original visual mesh without promoting it or its parent to a rigid body.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_005",
+      "component_role": "unowned_static",
+      "confidence": 0.9,
+      "convex_decomposition": null,
+      "decision_id": "physics10_static_drawer_04",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve inspected unowned_static status; author collision on the original visual mesh without promoting it or its parent to a rigid body.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ]
+    }
+  ],
+  "mobility_intent": "preserve",
+  "path_space": "source",
+  "physics_behavior_assessment": "runs/drawer_physics_10/physics_behavior_assessment.json",
+  "physics_usd": "runs/drawer_physics_10/physics.usda",
+  "prepared_asset": "runs/drawer_physics_10/inputs/source/source.usdz",
+  "prepared_asset_sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+  "scene_backend": "usd-cli",
+  "scene_operation_record": "runs/drawer_physics_10/raw/usd_cli_physics_commands.json",
+  "schema_version": "content-agent-workflows.physics-assignments.v1",
+  "simulation_report": "runs/drawer_physics_10/runtime/runtime_validation_report.json",
+  "source_asset_sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+  "source_path_expansions": {},
+  "unresolved_components": [],
+  "validation_evidence": "runs/drawer_physics_10/validation_evidence.json",
+  "validation_status": "pass",
+  "visual_validation_frames": [
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0000.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0001.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0002.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0003.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0004.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0005.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0006.png",
+    "runs/drawer_physics_10/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "vomp_mass": null
+}

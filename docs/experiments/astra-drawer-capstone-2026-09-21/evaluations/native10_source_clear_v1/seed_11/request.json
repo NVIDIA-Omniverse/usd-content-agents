@@ -1,0 +1,146 @@
+{
+  "scene_usd": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11/scene.usda",
+  "scene_sha256": "0a219db4e2b929680438c4b2f033a4b1dc767ac2931c45f1985fd0b2b41b780b",
+  "drawer_body": "/Asset/drawer_cabinet_drawer_01_1",
+  "cabinet_body": "/Asset/drawer_cabinet_0/Primitive_0",
+  "payload_body": "/__EvaluatorPayload",
+  "initial_drawer_pose": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "seed": 11,
+  "output": "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/seed_11",
+  "spec": {
+    "protocol_id": "astra-drawer-unscored-source-clear-v1",
+    "asset_id": "01_drawer",
+    "source_gltf_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "source_bin_sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+    "seeds": [
+      11,
+      23,
+      47,
+      83,
+      131
+    ],
+    "backend": "ovphysx 0.4.13 direct USD import; CPU PhysX on the assigned Horde node",
+    "dt_s": 0.004166666666666667,
+    "gravity_m_s2": [
+      0.0,
+      -9.81,
+      0.0
+    ],
+    "outward_axis_world": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "phase_durations_s": {
+      "settle": 0.75,
+      "open": 4.0,
+      "hold_open": 0.75,
+      "close": 4.0,
+      "hold_closed": 0.75
+    },
+    "opening_command_m": 0.24,
+    "opening_required_m": 0.2,
+    "closure_tolerance_m": 0.02,
+    "joint_lower_range_m": [
+      -0.002,
+      0.002
+    ],
+    "joint_upper_range_m": [
+      0.22,
+      0.45
+    ],
+    "axis_alignment_cos_min": 0.999,
+    "controller": {
+      "kind": "bounded external world-force PD with smooth half-cosine target ramps",
+      "kp_n_m": 150.0,
+      "kd_ns_m": 45.0,
+      "force_limit_n": 40.0,
+      "force_jitter_n": 0.25,
+      "authored_drives_disabled": true
+    },
+    "payload": {
+      "mass_kg": 0.5,
+      "size_m": [
+        0.08,
+        0.06,
+        0.08
+      ],
+      "initial_center_m": [
+        0.0,
+        1.0529997730255127,
+        0.0
+      ],
+      "initial_x_jitter_m": 0.05,
+      "initial_z_jitter_m": 0.035,
+      "initial_yaw_jitter_deg": 10.0,
+      "retained_center_min_relative_to_drawer_translation_m": [
+        -0.45,
+        0.96,
+        -0.135
+      ],
+      "retained_center_max_relative_to_drawer_translation_m": [
+        0.45,
+        1.1,
+        0.155
+      ],
+      "surface_friction": 0.6,
+      "restitution": 0.0
+    },
+    "limits": {
+      "max_contact_penetration_m": 0.005,
+      "max_drawer_off_axis_m": 0.01,
+      "max_drawer_rotation_deg": 2.0,
+      "max_linear_speed_m_s": 2.0,
+      "max_angular_speed_rad_s": 10.0,
+      "max_drawer_position_m": 0.47,
+      "min_drawer_position_m": -0.01,
+      "max_initial_drawer_drift_m": 0.01,
+      "min_payload_contact_samples": 24,
+      "max_final_speed_m_s": 0.05
+    },
+    "source_fidelity": {
+      "same_triangle_count_per_component": true,
+      "vertex_hausdorff_tolerance_m": 0.0001,
+      "triangle_centroid_hausdorff_tolerance_m": 0.0001,
+      "bounds_tolerance_m": 0.0001,
+      "relative_area_tolerance": 0.0005,
+      "topology_weld_tolerance_m": 1e-06
+    },
+    "drawer_mass_range_kg": [
+      0.5,
+      10.0
+    ],
+    "interior_queries": {
+      "sphere_radius_m": 0.008,
+      "x_m": [
+        -0.32,
+        0.32
+      ],
+      "y_m": 1.03,
+      "z_m": [
+        -0.08,
+        0.04,
+        0.12
+      ]
+    },
+    "pass_rule": "All structural/source checks and all five independently simulated seeds pass; no averaging across failed seeds.",
+    "evaluator_interventions": [
+      "flatten submitted USD into an immutable evaluation copy",
+      "reject time-sampled physics/geometry rather than play animation",
+      "remove authored joint drives and reject extra dynamic controllers",
+      "set gravity and solver iteration counts consistently",
+      "enable contact reporting without changing submitted collider geometry or collision filtering",
+      "add independently authored 0.5kg payload; never attach it to drawer",
+      "apply only bounded external drawer force; never write body poses or velocities during stepping"
+    ],
+    "uncertainty": "Mass, inertia, friction and force actuation are documented simulation abstractions. Passing does not validate physical furniture or robot manipulation."
+  }
+}

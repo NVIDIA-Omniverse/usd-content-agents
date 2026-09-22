@@ -1,0 +1,418 @@
+{
+  "after": {
+    "articulation_root_paths": [],
+    "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/prepared.usda",
+    "colliders": [],
+    "enabled_collider_count": 0,
+    "enabled_rigid_body_count": 1,
+    "findings": [
+      {
+        "code": "rigid_body_without_collider",
+        "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+        "related_paths": []
+      }
+    ],
+    "fixed_to_world_joints": [],
+    "joints": [
+      {
+        "body0_rigid_body_paths": [],
+        "body0_targets": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ],
+        "body1_rigid_body_paths": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "body1_targets": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "enabled": true,
+        "is_fixed_joint": false,
+        "joint_type": "PhysicsPrismaticJoint",
+        "prim_path": "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24"
+      }
+    ],
+    "path_space": "source",
+    "rigid_body_paths": [
+      "/Asset/drawer_cabinet_drawer_01_1"
+    ],
+    "root_prim_path": null,
+    "schema_version": "usd-cli.physics-topology.v1",
+    "source_digest": "sha256:661c362f17ff7892977c6927877fc9ffdfbdb60519652e39033ca9796501eb3f"
+  },
+  "after_components": {
+    "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/prepared.usda",
+    "component_count": 5,
+    "components": [
+      {
+        "body_root_path": "/Asset/drawer_cabinet_drawer_01_1",
+        "bounds_m": {
+          "max_m": [
+            0.514547,
+            1.103256,
+            0.240431
+          ],
+          "min_m": [
+            -0.519302,
+            0.954371,
+            -0.187536
+          ],
+          "size_m": [
+            1.033849,
+            0.148884,
+            0.427968
+          ],
+          "volume_m3": 0.065874451262
+        },
+        "collider_paths": [],
+        "component_id": "component_001",
+        "component_role": "body",
+        "helper_paths": [],
+        "joint_paths": [
+          "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24"
+        ],
+        "material_evidence": [
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+          }
+        ],
+        "path_space": "source",
+        "rigid_body_paths": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "topology_findings": [
+          "rigid_body_without_collider"
+        ],
+        "visual_evidence_paths": [
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        ]
+      },
+      {
+        "body_root_path": "/Asset/drawer_cabinet_0/Primitive_0",
+        "bounds_m": {
+          "max_m": [
+            0.570539,
+            1.881254,
+            0.238848
+          ],
+          "min_m": [
+            -0.570539,
+            0.0,
+            -0.247653
+          ],
+          "size_m": [
+            1.141078,
+            1.881254,
+            0.486501
+          ],
+          "volume_m3": 1.044351438314
+        },
+        "collider_paths": [],
+        "component_id": "component_002",
+        "component_role": "unowned_static",
+        "helper_paths": [],
+        "joint_paths": [],
+        "material_evidence": [
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_0/Primitive_0"
+          }
+        ],
+        "path_space": "source",
+        "rigid_body_paths": [],
+        "topology_findings": [],
+        "visual_evidence_paths": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ]
+      },
+      {
+        "body_root_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+        "bounds_m": {
+          "max_m": [
+            0.514547,
+            0.928313,
+            0.240431
+          ],
+          "min_m": [
+            -0.519302,
+            0.779428,
+            -0.187536
+          ],
+          "size_m": [
+            1.033849,
+            0.148884,
+            0.427968
+          ],
+          "volume_m3": 0.06587442489
+        },
+        "collider_paths": [],
+        "component_id": "component_003",
+        "component_role": "unowned_static",
+        "helper_paths": [],
+        "joint_paths": [],
+        "material_evidence": [
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+          }
+        ],
+        "path_space": "source",
+        "rigid_body_paths": [],
+        "topology_findings": [],
+        "visual_evidence_paths": [
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+        ]
+      },
+      {
+        "body_root_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+        "bounds_m": {
+          "max_m": [
+            0.514547,
+            0.753374,
+            0.240431
+          ],
+          "min_m": [
+            -0.519302,
+            0.60449,
+            -0.187536
+          ],
+          "size_m": [
+            1.033849,
+            0.148884,
+            0.427968
+          ],
+          "volume_m3": 0.065874451262
+        },
+        "collider_paths": [],
+        "component_id": "component_004",
+        "component_role": "unowned_static",
+        "helper_paths": [],
+        "joint_paths": [],
+        "material_evidence": [
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+          }
+        ],
+        "path_space": "source",
+        "rigid_body_paths": [],
+        "topology_findings": [],
+        "visual_evidence_paths": [
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+        ]
+      },
+      {
+        "body_root_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+        "bounds_m": {
+          "max_m": [
+            0.514547,
+            0.578434,
+            0.240431
+          ],
+          "min_m": [
+            -0.519302,
+            0.42955,
+            -0.187536
+          ],
+          "size_m": [
+            1.033849,
+            0.148884,
+            0.427968
+          ],
+          "volume_m3": 0.065874451262
+        },
+        "collider_paths": [],
+        "component_id": "component_005",
+        "component_role": "unowned_static",
+        "helper_paths": [],
+        "joint_paths": [],
+        "material_evidence": [
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+          }
+        ],
+        "path_space": "source",
+        "rigid_body_paths": [],
+        "topology_findings": [],
+        "visual_evidence_paths": [
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ]
+      }
+    ],
+    "path_space": "source",
+    "schema_version": "usd-cli.physics-components.v2",
+    "source_digest": "sha256:661c362f17ff7892977c6927877fc9ffdfbdb60519652e39033ca9796501eb3f",
+    "topology_summary": {
+      "articulation_root_count": 0,
+      "enabled_collider_count": 0,
+      "enabled_rigid_body_count": 1,
+      "findings": [
+        {
+          "code": "rigid_body_without_collider",
+          "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+          "related_paths": []
+        }
+      ],
+      "joint_count": 1
+    }
+  },
+  "applied_joint_endpoint_owner_promotions": [
+    {
+      "after_rigid_body_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ],
+      "before_rigid_body_paths": [],
+      "joint_prim_path": "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24",
+      "relationship": "body1",
+      "relationship_target_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "requested_rigid_body_ancestor_path": "/Asset/drawer_cabinet_drawer_01_1"
+    }
+  ],
+  "applied_operations": [
+    {
+      "op": "ensure_rigid_body_api",
+      "prim_path": "/Asset/drawer_cabinet_drawer_01_1"
+    }
+  ],
+  "before": {
+    "articulation_root_paths": [],
+    "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/source.usdz.dscsave392456-f86b5496.usdz.stage.usdc",
+    "colliders": [],
+    "enabled_collider_count": 0,
+    "enabled_rigid_body_count": 0,
+    "findings": [],
+    "fixed_to_world_joints": [],
+    "joints": [
+      {
+        "body0_rigid_body_paths": [],
+        "body0_targets": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ],
+        "body1_rigid_body_paths": [],
+        "body1_targets": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "enabled": true,
+        "is_fixed_joint": false,
+        "joint_type": "PhysicsPrismaticJoint",
+        "prim_path": "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24"
+      }
+    ],
+    "path_space": "source",
+    "rigid_body_paths": [],
+    "root_prim_path": null,
+    "schema_version": "usd-cli.physics-topology.v1",
+    "source_digest": "sha256:0bfaae5cfca026eccbfada10a1d733a898798638c9b37be8a6e941f22e949621"
+  },
+  "before_components": {
+    "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/source.usdz.dscsave392456-f86b5496.usdz.stage.usdc",
+    "component_count": 1,
+    "components": [
+      {
+        "body_root_path": "/Asset",
+        "bounds_m": {
+          "max_m": [
+            0.570539,
+            1.881254,
+            0.240431
+          ],
+          "min_m": [
+            -0.570539,
+            0.0,
+            -0.247653
+          ],
+          "size_m": [
+            1.141078,
+            1.881254,
+            0.488085
+          ],
+          "volume_m3": 1.047750577781
+        },
+        "collider_paths": [],
+        "component_id": "component_001",
+        "component_role": "body",
+        "helper_paths": [],
+        "joint_paths": [],
+        "material_evidence": [
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_0/Primitive_0"
+          },
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+          },
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+          },
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+          },
+          {
+            "material_name": "Material_0000",
+            "material_path": "/Asset/Looks/Material_0000",
+            "prim_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+          }
+        ],
+        "path_space": "source",
+        "rigid_body_paths": [],
+        "topology_findings": [],
+        "visual_evidence_paths": [
+          "/Asset/drawer_cabinet_0/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ]
+      }
+    ],
+    "path_space": "source",
+    "schema_version": "usd-cli.physics-components.v2",
+    "source_digest": "sha256:0bfaae5cfca026eccbfada10a1d733a898798638c9b37be8a6e941f22e949621",
+    "topology_summary": {
+      "articulation_root_count": 0,
+      "enabled_collider_count": 0,
+      "enabled_rigid_body_count": 0,
+      "findings": [],
+      "joint_count": 1
+    }
+  },
+  "input_usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+  "invariant_results": {
+    "articulation_changes_rejected": true,
+    "enabled_collider_count_preserved": true
+  },
+  "invariants": {
+    "enabled_collider_count": 0,
+    "reject_articulation_changes": true
+  },
+  "mobility_intent": "movable",
+  "operation": "physics.apply_topology_plan",
+  "output_digest": "sha256:661c362f17ff7892977c6927877fc9ffdfbdb60519652e39033ca9796501eb3f",
+  "output_usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/prepared.usda",
+  "package_extraction": {
+    "extracted_root_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/source.usdz.dscsave392456-f86b5496.usdz.stage.usdc",
+    "extracted_source_digest": "sha256:0bfaae5cfca026eccbfada10a1d733a898798638c9b37be8a6e941f22e949621",
+    "input_usdz_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+    "source_digest": "sha256:d5dbcfdd62ccb99604b86e963c5401b4a53589a282fd997b5970e1f8416f75ff"
+  },
+  "prepared_input_usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/source.usdz.dscsave392456-f86b5496.usdz.stage.usdc",
+  "prepared_source_digest": "sha256:0bfaae5cfca026eccbfada10a1d733a898798638c9b37be8a6e941f22e949621",
+  "rejected_operations": [],
+  "schema_version": "content-workflows.physics-topology-plan.v1",
+  "source_digest": "sha256:d5dbcfdd62ccb99604b86e963c5401b4a53589a282fd997b5970e1f8416f75ff",
+  "topology_report": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/prepared_topology_report.json",
+  "warnings": []
+}

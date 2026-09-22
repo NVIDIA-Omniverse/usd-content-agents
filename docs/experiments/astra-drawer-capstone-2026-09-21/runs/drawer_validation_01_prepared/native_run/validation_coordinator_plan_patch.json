@@ -1,0 +1,137 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "a8215ea3a60a366c26ccfdef02c8969f533fc0a798ee96d135272a01dea5e114"
+  },
+  "claims": [
+    {
+      "acceptance_criteria": [
+        "Source identity matches the immutable preparation, including physics.usda and its source.usdz dependency.",
+        "The local USD schema runtime returns passing usd_schema_result evidence for the exact authored drawer USD.",
+        "All required source_identity and usd_schema_result evidence is present; schema sanity alone does not establish physical behavior."
+      ],
+      "check_ids": [
+        "validation.physics_sane"
+      ],
+      "claim_id": "drawer_usd_schema_sanity",
+      "statement": "Assess whether the exact authored drawer USD satisfies USD schema physics sanity."
+    },
+    {
+      "acceptance_criteria": [
+        "Render evidence is produced through the preparation-configured native OVRTX canonical USD rendering policy at 1024 by 768.",
+        "source_identity, render_result, and qualified_render_evidence are present, passing, and bound to the exact prepared source.",
+        "No external VLM or other model leaf is invoked."
+      ],
+      "check_ids": [
+        "validation.render_valid"
+      ],
+      "claim_id": "drawer_canonical_render_validity",
+      "statement": "Assess whether the exact authored drawer USD has qualified native OVRTX canonical rendering evidence."
+    },
+    {
+      "acceptance_criteria": [
+        "Consume the strict native_physics_bundle at runs/drawer_validation_01_prepared/native_physics_bundle.json, bound to preparation SHA-256 1c631dd86bdccde00ba99b373554df3a296c9edb222fec91d1e7be64d7cd6ca5.",
+        "source_identity, runtime_evidence, and behavior_result are present and passing, with evidence of actual native mounted runtime stability and its recorded visual review.",
+        "Use existing supplied evidence without launching a simulator; a legacy approve record, waiver, skipped required check, or status promotion cannot satisfy this gate.",
+        "The behavior finding covers only native mounted runtime stability and its recorded visual review; it does not establish articulated opening, loaded-payload retention, or the independent five-seed task."
+      ],
+      "check_ids": [
+        "validation.physical_behavior"
+      ],
+      "claim_id": "drawer_mounted_runtime_behavior",
+      "statement": "Assess whether the supplied strict native bundle supports the narrowly scoped mounted runtime behavior gate."
+    },
+    {
+      "acceptance_criteria": [
+        "All three selected checks are required under the schema's required=true default and must satisfy all_required_evidence.",
+        "Planning success or check exit0 alone cannot establish terminal native Validation acceptance; actual collected evidence, outer AstraUltra typed assessment, independent AstraUltra review, and a native terminal receipt remain required.",
+        "Preserve the original Geometry conditional handoff and all prior failed Physics attempts without modification or status promotion.",
+        "The separately hash-bound five-seed task remains part of the final capstone conjunction and is not automatically evaluated by these native adapters.",
+        "Do not infer a universal SimReady claim from the selected checks."
+      ],
+      "check_ids": [
+        "validation.physics_sane",
+        "validation.render_valid",
+        "validation.physical_behavior"
+      ],
+      "claim_id": "drawer_validation_acceptance_scope",
+      "statement": "The three native evidence gates support only the stated validation scope, with terminal acceptance reserved for the required outer assessment, independent review, and receipt."
+    }
+  ],
+  "decision_only": true,
+  "execution_performed": false,
+  "plan_id": "drawer_native_validation",
+  "preparation_digest": "4e0678768400956bd834591a5cd8cd4071b6f67032ce9e9b81f249404eaa6382",
+  "producer": "codex",
+  "publication_performed": false,
+  "schema_version": "content-agent-workflows.validation-coordinator-plan-patch.v1",
+  "selected_checks": [
+    {
+      "capability_id": "validation.physics_sane",
+      "check_id": "validation.physics_sane",
+      "completion_policy": "all_required_evidence",
+      "depends_on": [],
+      "evidence_requirements": [
+        "source_identity",
+        "usd_schema_result"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {},
+      "required": true,
+      "rule_id": "physics.usd_schema_sanity",
+      "targets": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "template_name": "physics_sane"
+    },
+    {
+      "capability_id": "validation.render_valid",
+      "check_id": "validation.render_valid",
+      "completion_policy": "all_required_evidence",
+      "depends_on": [
+        "validation.physics_sane"
+      ],
+      "evidence_requirements": [
+        "source_identity",
+        "render_result",
+        "qualified_render_evidence"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {},
+      "required": true,
+      "rule_id": "render.runtime_evidence",
+      "targets": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "template_name": "render_valid"
+    },
+    {
+      "capability_id": "validation.physical_behavior",
+      "check_id": "validation.physical_behavior",
+      "completion_policy": "all_required_evidence",
+      "depends_on": [
+        "validation.physics_sane",
+        "validation.render_valid"
+      ],
+      "evidence_requirements": [
+        "source_identity",
+        "runtime_evidence",
+        "behavior_result"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {
+        "evidence_paths": [
+          "runs/drawer_validation_01_prepared/native_physics_bundle.json"
+        ]
+      },
+      "required": true,
+      "rule_id": "physics.behavior_evidence",
+      "targets": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "template_name": "physical_behavior"
+    }
+  ],
+  "source_mutated": false
+}

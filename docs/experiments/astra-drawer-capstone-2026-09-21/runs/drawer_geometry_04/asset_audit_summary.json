@@ -1,0 +1,12 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "d8ecccc15595010922a0cf4410f391db0c444a47bcf80a4856ac66a2ea0a8078"
+  },
+  "blocking_signal_count": 0,
+  "codes": [],
+  "passed": true,
+  "schema_version": "content-agent-workflows.geometry-audit.v1",
+  "signal_count": 0
+}

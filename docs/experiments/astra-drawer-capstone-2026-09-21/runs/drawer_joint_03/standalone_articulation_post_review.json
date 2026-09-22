@@ -1,0 +1,24 @@
+{
+  "authoring_receipt_sha256": "2dd8849a9192ea520516559ab4561e2f461489f6c5c7e0e218b176279dbd770c",
+  "canonical_graph_sha256": "7925d1358b58aa585a24aa058621f716a62289256bedbf2317837791b919d560",
+  "disposition": "accept",
+  "findings": [
+    "Directly inspected the single bound 1024x1024 canonical OVRTX view: the original cabinet frame, four closed drawers, shelves and wood textures remain intact, with no displaced or substituted visible part.",
+    "Exact source-derived mesh points, indices, face counts, default world transforms, visibility, purpose, units and axes match the packaged source for all five original meshes.",
+    "Exact saved-stage readback and independent USD inspection show one standalone Z prismatic joint from original static cabinet Mesh actor to original uppermost drawer, lower limit0 and upper limit0.30m; membership and co-rigid dispositions match, and no articulation root exists.",
+    "This acceptance is topology and visual handoff only. Mass, collision, solver dynamics and free-payload opening/closing acceptance remain for native Physics and independent task validation."
+  ],
+  "identity_digest": "4c13243854f0b073d47b9543c3a640c99f6ddafdca1ac42369d81b2af46040ed",
+  "inspected_render_image_sha256s": [
+    "469b02e0bdde568fb365c80a356cc4b305c14a00e21b601be27f3172bbf34696"
+  ],
+  "output_evidence_sha256": "7c6e80cb1332978a3b90e777b7251a361c90fa2a3f3a1e25dd6202906ad68d3b",
+  "readback_sha256": "482f49911d7a5e90404b56262b02040bbfacef55df35d6fbef93c982f8d668b8",
+  "reviewer": {
+    "implementation": "gpt-6-astra/ultra direct canonical image and saved-stage review via review_joint03.py",
+    "implementation_digest": "0def6d02a2462443b1507f1347d2e27905aeaf17cb1691e533eeb20c3cf1b302",
+    "producer_id": "capstone-astra-ultra-outer",
+    "role": "outer_coordinator"
+  },
+  "schema_version": "content-agent-workflows.standalone-articulation-post-review.v1"
+}

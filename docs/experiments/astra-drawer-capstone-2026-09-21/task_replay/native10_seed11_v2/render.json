@@ -1,0 +1,55 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "a3762119fb54c569ea0739f3c70d6ffc778d7576f9710e3ac12f933afeb33185"
+  },
+  "artifacts": [
+    {
+      "kind": "render",
+      "label": "frame:179",
+      "path": "task_replay/native10_seed11_v2/frames/usd_cam__1024x1024__f0179.png"
+    },
+    {
+      "kind": "render",
+      "label": "frame:1230",
+      "path": "task_replay/native10_seed11_v2/frames/usd_cam__1024x1024__f1230.png"
+    },
+    {
+      "kind": "render",
+      "label": "frame:2459",
+      "path": "task_replay/native10_seed11_v2/frames/usd_cam__1024x1024__f2459.png"
+    },
+    {
+      "kind": "render",
+      "label": "animation",
+      "path": "task_replay/native10_seed11_v2/frames/usd_cam__anim.gif"
+    }
+  ],
+  "command": "render-frames",
+  "data": {
+    "animation": "task_replay/native10_seed11_v2/frames/usd_cam__anim.gif",
+    "frame_paths": [
+      "task_replay/native10_seed11_v2/frames/usd_cam__1024x1024__f0179.png",
+      "task_replay/native10_seed11_v2/frames/usd_cam__1024x1024__f1230.png",
+      "task_replay/native10_seed11_v2/frames/usd_cam__1024x1024__f2459.png"
+    ],
+    "notes": [],
+    "renderer_identities": [
+      null,
+      null,
+      null
+    ],
+    "text": "rendered 3 frames \u2192 task_replay/native10_seed11_v2/frames/usd_cam__anim.gif"
+  },
+  "ok": true,
+  "schema_version": "1",
+  "summary": {
+    "backend": "ovrtx",
+    "camera": "/usd_cam",
+    "fps": 240.0,
+    "frames": 3,
+    "res": "1024x1024",
+    "scene": "evaluations/native10_source_clear_v1/seed_11/replay.usda"
+  }
+}

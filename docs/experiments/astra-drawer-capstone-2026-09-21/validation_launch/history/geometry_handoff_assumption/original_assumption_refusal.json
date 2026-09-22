@@ -1,0 +1,38 @@
+{
+  "recorded_utc": "2026-09-22T04:18:10.058589+00:00",
+  "command": [
+    "/opt/astra-content-value-20260921/capstone/repo/.venv/bin/python",
+    "/opt/astra-content-value-20260921/capstone/qualification/validation_launch_geometry_v5/prepare_validation_before_geometry_fix.py",
+    "--asset",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+    "--physics-run",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10",
+    "--task-report",
+    "/opt/astra-content-value-20260921/capstone/evaluations/native10_source_clear_v1/report.json",
+    "--bindings",
+    "/opt/astra-content-value-20260921/capstone/evidence/native10_task_bindings.json",
+    "--spec",
+    "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_acceptance.json",
+    "--geometry-evidence",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_geometry_04/geometry_validation_evidence.json",
+    "--repo",
+    "/opt/astra-content-value-20260921/capstone/repo",
+    "--output",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared",
+    "--expected-asset-sha256",
+    "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+    "--expected-commit",
+    "e640b8d6aa667745830db5e9bf87fd1b4cd763cb"
+  ],
+  "returncode": 1,
+  "old_script_sha256": "ed9287aa6103d8bddb90853dfa465c3971770c162f8f44a6cc694d815d22de16",
+  "log_sha256": "6ee706d70db34a028be6424380400e4e7ef9ac428fdb5e3de4b27ce43d42a716",
+  "exact_refusal_reproduced": true,
+  "input_bindings": {
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_geometry_04/geometry_validation_evidence.json": "596bc8078131d3b807187114f233f059783a159656c3b6c440be997ff888575d",
+    "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+  },
+  "inputs_unchanged": true,
+  "output_created": false,
+  "no_model_renderer_solver_launched": true
+}

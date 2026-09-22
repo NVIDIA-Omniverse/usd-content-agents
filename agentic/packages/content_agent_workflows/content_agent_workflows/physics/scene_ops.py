@@ -1302,6 +1302,7 @@ def validate_runtime(
     dt: float = 1.0 / 240.0,
     sample_fps: int = 30,
     drop_height_m: float | None = None,
+    placement_mode: str = "drop",
     acceptance: dict[str, Any] | None = None,
     body_prim_path_hint: str | None = None,
     body_pattern_hint: str | None = None,
@@ -1327,6 +1328,13 @@ def validate_runtime(
             f"engine must be one of {sorted(VALID_SIMULATION_ENGINES)}, got {engine!r}"
         )
 
+    if placement_mode not in {"drop", "mounted"}:
+        raise ValueError("placement_mode must be drop or mounted")
+    if placement_mode == "mounted":
+        acceptance = dict(acceptance or {})
+        # Gravity remains authored and active. A mounted joint may correctly
+        # resist it without producing the free-fall motion required of a drop.
+        acceptance.setdefault("require_gravity_response", False)
     acceptance_config = None
     normalized_acceptance: dict[str, Any] = {}
     if acceptance is not None:
@@ -1412,6 +1420,7 @@ def validate_runtime(
         physics_usd_path,
         scene_path,
         drop_height_m=drop_height_m,
+        placement_mode=placement_mode,
         gravity=-9.81,
         ground_friction=0.6,
         cameras=["+x+y+z"],

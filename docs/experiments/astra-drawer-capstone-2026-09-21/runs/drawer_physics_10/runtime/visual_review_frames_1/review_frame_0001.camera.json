@@ -1,0 +1,44 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "44cef7afe162d9c9373bdff031da8bec93461a7ad01916ae775fc2fba9a1fbca"
+  },
+  "camera_path": "/usd_cam",
+  "image_height": 480,
+  "image_width": 640,
+  "ovrtx_probe": {
+    "capabilities": [
+      "appearance.clear.v1"
+    ],
+    "engine": "ovrtx",
+    "ready": true,
+    "render": {
+      "backend": "ovrtx",
+      "duration_s": 0.266707,
+      "height": 64,
+      "path": "runs/drawer_physics_10/ovrtx_probe/ovrtx_readiness_probe.png",
+      "size_bytes": 91,
+      "width": 64
+    },
+    "required_engine": "ovrtx",
+    "resolved_renderer": "ovrtx",
+    "schema_version": "usd-cli.render-probe.v1",
+    "transport": "local"
+  },
+  "render_mode": "fast",
+  "renderer": "ovrtx",
+  "resolved_renderer": "ovrtx",
+  "response_index": 1,
+  "scene_backend": "usd-cli",
+  "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+  "transport": "local",
+  "usd_cli_render_summary": {
+    "backend": "ovrtx",
+    "camera": "/usd_cam",
+    "fps": 30.0,
+    "frames": 8,
+    "res": "640x480",
+    "scene": "runs/drawer_physics_10/runtime/usd_cli_simulation/recording.usda"
+  }
+}

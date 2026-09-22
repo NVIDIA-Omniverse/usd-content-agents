@@ -1,0 +1,293 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "358bc2251f52df00119ab86e2081fd9616062fa5db51af4d08d314eb2f068808"
+  },
+  "asset": "runs/drawer_physics_07/inputs/source/source.usdz",
+  "candidate_count": 5,
+  "component_count": 5,
+  "decision_count": 5,
+  "decisions": [
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_001",
+      "component_role": "body",
+      "confidence": 0.72,
+      "decision_id": "component_001_native07_collider_repair",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "mass_properties": {
+        "center_of_mass": [
+          0.00879941130464277,
+          1.0132691201324464,
+          0.09412690969490285
+        ],
+        "diagonal_inertia": [
+          0.14943559995160616,
+          0.8673600643339555,
+          0.7393149806868428
+        ],
+        "principal_axes": [
+          0.9994685675941963,
+          -0.03225944224667463,
+          0.004638708455407128,
+          0.0006270255216043317
+        ]
+      },
+      "path_space": "source",
+      "physical_properties": {
+        "density": 600.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 6.163479754140765,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "dynamic_collider_clearance_unresolved",
+          "message": "The user-reported prior cooking probe placed the convex-decomposed upper floor 0.019693227 m above its original triangle surface. Keeping the supported dynamic approximation does not establish clearance. The supplied target-ID contract exposes no explicit compound subshapes or decomposition/cooking-resolution controls; runtime and cooked-clearance review remain required.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve the sole existing nonkinematic upper-drawer body, its existing standalone prismatic joint, and its one visual mesh target. No ArticulationRoot, new body, compound children, reparenting, or joint edits.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_01_1": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_002",
+      "component_role": "unowned_static",
+      "confidence": 0.82,
+      "decision_id": "component_002_native07_collider_repair",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.45,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "static_approximation_policy_conflict",
+          "message": "The specific user-requested static triangle-surface repair selects none, conflicting with the generic convexDecomposition-required field. This proposal leaves the frozen request untouched and requires native wrapper validation; any rejection, coercion, or unsuitable cooking remains unresolved and must not be bypassed.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component without a rigid body or explicit mass vector; keep its source mesh and grouping unchanged.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_0/Primitive_0": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_003",
+      "component_role": "unowned_static",
+      "confidence": 0.88,
+      "decision_id": "component_003_native07_collider_repair",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.45,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "static_approximation_policy_conflict",
+          "message": "The specific user-requested static triangle-surface repair selects none, conflicting with the generic convexDecomposition-required field. This proposal leaves the frozen request untouched and requires native wrapper validation; any rejection, coercion, or unsuitable cooking remains unresolved and must not be bypassed.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component without a rigid body or explicit mass vector; keep its source mesh and grouping unchanged.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_004",
+      "component_role": "unowned_static",
+      "confidence": 0.88,
+      "decision_id": "component_004_native07_collider_repair",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.45,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "static_approximation_policy_conflict",
+          "message": "The specific user-requested static triangle-surface repair selects none, conflicting with the generic convexDecomposition-required field. This proposal leaves the frozen request untouched and requires native wrapper validation; any rejection, coercion, or unsuitable cooking remains unresolved and must not be bypassed.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component without a rigid body or explicit mass vector; keep its source mesh and grouping unchanged.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "collision_approximation": "none",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_005",
+      "component_role": "unowned_static",
+      "confidence": 0.88,
+      "decision_id": "component_005_native07_collider_repair",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.45,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "static_approximation_policy_conflict",
+          "message": "The specific user-requested static triangle-surface repair selects none, conflicting with the generic convexDecomposition-required field. This proposal leaves the frozen request untouched and requires native wrapper validation; any rejection, coercion, or unsuitable cooking remains unresolved and must not be bypassed.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve this inspected unowned_static component without a rigid body or explicit mass vector; keep its source mesh and grouping unchanged.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ]
+    }
+  ],
+  "mobility_intent": "preserve",
+  "path_space": "source",
+  "physics_behavior_assessment": "runs/drawer_physics_07/physics_behavior_assessment.json",
+  "physics_usd": "runs/drawer_physics_07/physics.usda",
+  "prepared_asset": "runs/drawer_physics_07/inputs/source/source.usdz",
+  "prepared_asset_sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+  "schema_version": "content-agent-workflows.physics-assignments.v1",
+  "simulation_report": "runs/drawer_physics_07/runtime/runtime_validation_report.json",
+  "source_asset_sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+  "unresolved_components": [],
+  "validation_evidence": "runs/drawer_physics_07/validation_evidence.json",
+  "validation_status": "fail",
+  "visual_validation_frames": [
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0000.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0001.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0002.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0003.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0004.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0005.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0006.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "vomp_mass": null
+}

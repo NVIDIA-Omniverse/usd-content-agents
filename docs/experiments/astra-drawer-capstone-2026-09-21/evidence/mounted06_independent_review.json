@@ -1,0 +1,11 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "d0934d768ad57e867cc8ef66262eede760e5ea2281369d55c6b58c5131861c2e"
+  },
+  "schema_version": 1,
+  "scope": "Unscored isolated drawer capstone only. Read-only review of completed native06; no new simulation.",
+  "source_mesh_count": 5,
+  "status": "MOUNTED_PLACEMENT_PRESERVED_NATIVE_SMOKE_STILL_FAILS"
+}

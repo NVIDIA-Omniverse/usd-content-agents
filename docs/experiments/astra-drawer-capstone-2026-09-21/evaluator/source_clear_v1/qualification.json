@@ -1,0 +1,60 @@
+{
+  "observed_utc": "2026-09-22T02:27:01.307009+00:00",
+  "scope": "Synthetic qualification of source-clear initialization; not an authored drawer acceptance result",
+  "manifest_sha256": "f346acd1fd0b6e2d2bf5c5e79b4e19cd14ee94486856d9dc4943b696ea07c5f3",
+  "commands": [
+    {
+      "script": "drawer_test_fixtures.py",
+      "returncode": 0,
+      "elapsed_seconds": 109.63409304246306
+    },
+    {
+      "script": "drawer_static_binding_test.py",
+      "returncode": 0,
+      "elapsed_seconds": 0.8000826314091682
+    }
+  ],
+  "synthetic_pass": true,
+  "synthetic_count": 9,
+  "static_pass": true,
+  "static_count": 7,
+  "all_frozen_inputs_unchanged": true,
+  "test_statuses": [
+    {
+      "test": "kinematic",
+      "pass": true
+    },
+    {
+      "test": "no_colliders",
+      "pass": true
+    },
+    {
+      "test": "wrong_joint",
+      "pass": true
+    },
+    {
+      "test": "synthetic_structural_positive",
+      "pass": true
+    },
+    {
+      "test": "source_fidelity_positive",
+      "pass": true
+    },
+    {
+      "test": "source_fidelity_shape_change_negative",
+      "pass": true
+    },
+    {
+      "test": "native_good",
+      "pass": true
+    },
+    {
+      "test": "native_no_motion",
+      "pass": true
+    },
+    {
+      "test": "native_filled",
+      "pass": true
+    }
+  ]
+}

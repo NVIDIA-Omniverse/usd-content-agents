@@ -1,0 +1,74 @@
+{
+  "scope": "Original source and new native capstone Geometry output only; no baseline/author artifacts used. No physical or visual-render acceptance inferred.",
+  "candidate": "runs/drawer_physics_08/physics.usda",
+  "candidate_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+  "source_gltf_sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+  "source_bin_sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+  "source_mesh_count": 5,
+  "output_mesh_count": 5,
+  "meters_per_unit": 1.0,
+  "up_axis": "Y",
+  "parts": [
+    {
+      "source_node": "drawer_cabinet",
+      "usd_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "points": 14130,
+      "triangles": 18198,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_01",
+      "usd_path": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "points": 1486,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_02",
+      "usd_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "points": 1499,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_03",
+      "usd_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "points": 1463,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    },
+    {
+      "source_node": "drawer_cabinet_drawer_04",
+      "usd_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "points": 1435,
+      "triangles": 2052,
+      "checks": {
+        "exact_points": true,
+        "exact_original_indices": true,
+        "all_triangles": true,
+        "original_world_transform": true
+      }
+    }
+  ],
+  "passed": true
+}

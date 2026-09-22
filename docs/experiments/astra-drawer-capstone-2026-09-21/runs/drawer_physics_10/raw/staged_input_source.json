@@ -1,0 +1,26 @@
+{
+  "common_source_root": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_05",
+  "dependency_digest_set_sha256": "4e71c4082e2db0c45b8472c278f72386ef3822cc8f48f52c72e7ff0c591d9f20",
+  "file_count": 1,
+  "files": [
+    {
+      "sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+      "size_bytes": 1036772,
+      "source_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_05/source.usdz",
+      "staged_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz"
+    }
+  ],
+  "label": "source",
+  "schema_version": "content-agents.usd-cli-staged-input.v1",
+  "self_containment": {
+    "escaped_paths": [],
+    "resolved_file_count": 1,
+    "status": "verified"
+  },
+  "source_sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+  "source_usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_05/source.usdz",
+  "staged_root": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source",
+  "staged_usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/inputs/source/source.usdz",
+  "total_size_bytes": 1036772,
+  "unresolved_dependencies": []
+}

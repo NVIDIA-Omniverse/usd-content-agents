@@ -1,0 +1,9 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "6f3acfff9af8ee682a9f12848e7bf59bc22dd36c90d343bb94014cffff9bf1fc"
+  },
+  "schema_version": "native-validation-adapter-independent-review.v1",
+  "status": "PASS_WITH_DECLARED_SCOPE"
+}

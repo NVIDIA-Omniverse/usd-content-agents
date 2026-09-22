@@ -1,0 +1,302 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "890260ab5fb63a695576129d7f7bf933ce68e876c5dfa12532ab470492e9ebee"
+  },
+  "all_bound_inputs_unchanged": true,
+  "blocking_findings": [],
+  "bounded_cpu_preflight_supported": true,
+  "checks": [
+    {
+      "detail": null,
+      "name": "exact_native09_asset",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "all_receipts_bind_same_asset",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "strict_false_preserved",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "review_binds_exact_query_and_log",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "installed_documentation_exact_exception",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "narrow_exception_regressions",
+      "pass": true
+    },
+    {
+      "detail": [],
+      "name": "no_remaining_explicit_error_or_invalid_configuration",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "original_warning_inventory_retained",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "original_source_hashes",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_source_arrays_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "identity_source_transform_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_0",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_source_arrays_1",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "identity_source_transform_1",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_1",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_source_arrays_2",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "identity_source_transform_2",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_2",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_source_arrays_3",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "identity_source_transform_3",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_3",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_source_arrays_4",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "identity_source_transform_4",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "enabled_collider_4",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_five_source_node_bijection",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "preserved_physics:mass",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "preserved_physics:density",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "preserved_physics:centerOfMass",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "preserved_physics:diagonalInertia",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "preserved_physics:principalAxes",
+      "pass": true
+    },
+    {
+      "detail": {
+        "errorPercentage": 0.10000000149011612,
+        "hullVertexLimit": 64,
+        "maxConvexHulls": 128,
+        "shrinkWrap": true,
+        "voxelResolution": 4000000
+      },
+      "name": "actual_saved_tighter_options",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "saved_cooking_api_token",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "authored_numeric_audit_pass",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "query_binds_frozen_spec",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "query_initialized_no_steps",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "known_overlap_positive_control",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "all25_floor_rays_populated",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "exact_payload_yaw_jitter_envelope",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "envelope_clear",
+      "pass": true
+    },
+    {
+      "detail": null,
+      "name": "frozen_six_spheres_clear",
+      "pass": true
+    }
+  ],
+  "documentation_lines": [
+    137,
+    138
+  ],
+  "input_hashes": {
+    "audit_cooking_log.py": "e51ef615857b97bce6f5435a6ff2e94b0fbdbddaf1485796ce8c5ea2280713e1",
+    "evaluator/source_clear_v1/drawer_acceptance.json": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+    "evidence/authored_contract_drawer_physics_09.json": "25ef1dea1f8e0314147fbfaafd48c42abace6d533a03726307b2cadfa4592054",
+    "evidence/native09_cooked_clearance_v1.json": "11bf5bb46fad4b631cf2642c33821fb08f4af8e5f4b95cbe111738cfa4b8f5ab",
+    "evidence/native09_cooked_clearance_v1.log": "440b5955095c4cd4ddda5b04035f949a8290511af6e1d793e66f9c9d5572a771",
+    "evidence/native09_cooking_log_review.json": "25a1a1ded08e1d8d1fd174e9e403188a804403da326d3d418d5bf2f3e8e468af",
+    "evidence/native09_critical_cooking_log_audit.json": "fd8e112d10a9712cc394b6fad8dfc9bc3cbd1c0904e07312c2bd47464389a757",
+    "evidence/original_source_drawer_physics_09.json": "dd4cdb43f87b1337d4965f764150ddf602e0371ac067b131ca3952795d94d8b4",
+    "review_native09_cooking_log.py": "63ea5a41af9bde57b3a4702f8cfacff58e979004999989eea56d9fe4f3b7b185",
+    "runs/drawer_physics_03/physics.usda": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+    "runs/drawer_physics_09/physics.usda": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d"
+  },
+  "installed_runtime_overview_sha256": "64f0c0c360c0a921508c64e8d0af139f25f26c18759366da250e1d8c753f6a0d",
+  "limits": [
+    "The exact documented initialization error exemption does not extend to any other error string or invalid-configuration warning.",
+    "Positive controls establish populated initial cooked query geometry, not independent proof that each cooking parameter was honored or that drawer/body clearance is globally valid.",
+    "This permits interpreting the measured CPU preflight; it does not establish task success, successful native visual review or workflow acceptance.",
+    "Fresh task trials and any later native work remain separate; no terminal assertion is made."
+  ],
+  "measured_floor_y_range_m": [
+    1.0129997730255127,
+    1.0151139497756958
+  ],
+  "remaining_warning_disposition": "Missing-plugin descriptor, UJITSO-service and emergency-thread messages remain disclosed and not generically whitelisted as harmless. They did not prevent the observed finite CPU query results with both known-intersection and25 positive floor rays. GPU fallback explicitly disclaims GPU/particle/deformable collision.",
+  "review_script_sha256": "3f9f7f5203c889eb89e5f5b2a3c04e595a40e6d31d4a3cb3d7bfe0d2de5302e4",
+  "reviewed_utc": "2026-09-22T03:27:51.570401+00:00",
+  "saved_options": {
+    "errorPercentage": 0.10000000149011612,
+    "hullVertexLimit": 64,
+    "maxConvexHulls": 128,
+    "shrinkWrap": true,
+    "voxelResolution": 4000000
+  },
+  "schema_version": 1,
+  "scope": "Read-only independent review of retained startup log and actual USD/source/numeric readback. No solver, renderer, model, asset edit, verdict override or final-retention terminal attestation.",
+  "scoped_exact_documented_exception": "[Error] [omni.physx.cooking.plugin] registry is false.",
+  "strict_original_verdict": "critical_error_absent=false preserved without modification",
+  "warning_lines": [
+    {
+      "line": 1,
+      "message": "[Warning] [carb] getPluginDesc: Failed to find a plugin with a name: omni.physx.plugin."
+    },
+    {
+      "line": 24,
+      "message": "[Warning] [omni.physx.cooking.plugin] Failed to create a valid UJITSO Cooking Compute Service"
+    },
+    {
+      "line": 25,
+      "message": "[Warning] [omni.physx.plugin] GPU broadphase requires a CUDA context manager; falling back to ePABP."
+    },
+    {
+      "line": 26,
+      "message": "[Warning] [carb.tasking.plugin] carb.tasking is likely stuck. All threads are busy with same tasks for more than 1 seconds with waiting tasks. Starting an emergency helper thread."
+    },
+    {
+      "line": 27,
+      "message": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+    },
+    {
+      "line": 28,
+      "message": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    },
+    {
+      "line": 29,
+      "message": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+    },
+    {
+      "line": 30,
+      "message": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    },
+    {
+      "line": 31,
+      "message": "[Warning] [omni.physx.cooking.plugin] PhysX warning: Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!, FILE /builds/omniverse/physics/physx/source/geomutils/src/cooking/GuCookingConvexMesh.cpp, LINE 124"
+    },
+    {
+      "line": 32,
+      "message": "[Warning] [omni.physx.cooking.plugin] ConvexDecompositionTask: failed to cook GPU-compatible mesh, collision detection will fall back to CPU. Collisions with particles and deformables will not work with this mesh. Prim /Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+    }
+  ]
+}

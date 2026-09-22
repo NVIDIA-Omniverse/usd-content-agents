@@ -1,0 +1,66 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "95043a4e176449f91505c4922d6b753116254c525c891662d903519a36be6489"
+  },
+  "authoring_receipt": {
+    "path": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+    "sha256": "290ca8dd544ba24a7b99398ef82899cffff01ade3d2b91be3e85a593f4ad55be"
+  },
+  "canonical_graph": {
+    "path": "runs/drawer_joint_02/canonical_articulation_graph.json",
+    "sha256": "f261c9d030e24d8071e025e0db76c6f41477191054bfdfbcf023e2b392fc82c8"
+  },
+  "canonical_graph_digest": "5304bd6e55379e483e068ebd88a794295c9dadeb2bd19fe2569d7e5ce6fc060b",
+  "cleanup": {
+    "path": "runs/drawer_joint_02/standalone_articulation_cleanup_receipt.json",
+    "sha256": "f233f5b56d5ef9435d8bb320d6fad0ffb20af41911d065c2f8c112dfb509da2c"
+  },
+  "decision_ledger": {
+    "path": "runs/drawer_joint_02/articulation_decision_ledger.json",
+    "sha256": "d9111ca789955a33907e4b2027b5270840f3dd2921556225402436f482f98263"
+  },
+  "decision_patch": {
+    "path": "runs/drawer_joint_02/articulation_decision_patch.json",
+    "sha256": "87c1010169c5be295231ca56f618b01120092a5e1aebbeacec94baeda9c92cec"
+  },
+  "error": null,
+  "identity": {
+    "path": "runs/drawer_joint_02/standalone_articulation_identity.json",
+    "sha256": "444580b05d462bb732ed661f74c064a995f179dcfacc2498e87c851ea0cea842"
+  },
+  "identity_digest": "90e1ddf2b057d12cae1240a4ac2c3eef533b7ef855acad1e44cf42b83cded6f2",
+  "issue_codes": [],
+  "output_asset": {
+    "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+    "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+    "size_bytes": 1037001
+  },
+  "output_evidence": {
+    "path": "runs/drawer_joint_02/standalone_articulation_output_evidence.json",
+    "sha256": "0529e95b650299730438759ccac65ec92dbfbb2f939516959618746cd8df4a79"
+  },
+  "post_review": {
+    "path": "runs/drawer_joint_02/standalone_articulation_post_review.json",
+    "sha256": "7aebccfaa38a707e47b3e4d7940bc0a44d9b8121e3732a04f8361fe14d3c4ba1"
+  },
+  "preparation": {
+    "path": "runs/drawer_joint_02/standalone_articulation_preparation.json",
+    "sha256": "4100aae31b236f2f44f94c1b52d5ebe1649ac81c4fed40677b3c0136e31a3454"
+  },
+  "readback": {
+    "path": "runs/drawer_joint_02/standalone_articulation_readback.json",
+    "sha256": "5eb78a125e8bddba9ab5ec80d8d8cae58ac5aabd30074723c7bef02de272467e"
+  },
+  "schema_version": "content-agent-workflows.standalone-articulation-terminal-receipt.v1",
+  "source": {
+    "path": "runs/drawer_packaging_02/source.usdz",
+    "sha256": "7d7260af413717009ee923a97683e94cf3b4e7ab9dc19fa8f4a97f5ce0ed6172",
+    "size_bytes": 1035177
+  },
+  "source_dependency_bundle_sha256": "3a709194e0d52b43a005322bfb3a7046bb5109a149cc4c949a29f98866799d2d",
+  "source_mutated": false,
+  "status": "completed",
+  "terminal_disposition": "accept"
+}

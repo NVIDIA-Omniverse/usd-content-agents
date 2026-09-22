@@ -1,0 +1,107 @@
+{
+  "artifacts": [
+    {
+      "kind": "render",
+      "label": "rgb:/Asset/usd_cam",
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/renders/view-000.png"
+    }
+  ],
+  "command": "render",
+  "data": {
+    "results": [
+      {
+        "active_aov": "LdrColor",
+        "camera": "/Asset/usd_cam",
+        "camera_dir": [
+          -0.577,
+          -0.577,
+          -0.577
+        ],
+        "camera_pos": [
+          2.604,
+          3.544,
+          2.6
+        ],
+        "camera_world_transform": [
+          [
+            0.7071067811865476,
+            0.0,
+            -0.7071067811865475,
+            0.0
+          ],
+          [
+            -0.40824829046386313,
+            0.816496580927726,
+            -0.4082482904638632,
+            0.0
+          ],
+          [
+            0.5773502691896256,
+            0.5773502691896258,
+            0.5773502691896257,
+            0.0
+          ],
+          [
+            2.6037871425751256,
+            3.5444142406586225,
+            2.6001763826016,
+            1.0
+          ]
+        ],
+        "ovrtx_num_sensor_updates": 64,
+        "ovrtx_render_mode": "rt2",
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03_visual/usd_cli/renders/view-000.png",
+        "render_time_s": 0.831
+      }
+    ]
+  },
+  "ok": true,
+  "schema_version": "1",
+  "summary": {
+    "active_aov": "LdrColor",
+    "backend": "ovrtx",
+    "camera": "/Asset/usd_cam",
+    "camera_dir": [
+      -0.577,
+      -0.577,
+      -0.577
+    ],
+    "camera_pos": [
+      2.604,
+      3.544,
+      2.6
+    ],
+    "camera_world_transform": [
+      [
+        0.7071067811865476,
+        0.0,
+        -0.7071067811865475,
+        0.0
+      ],
+      [
+        -0.40824829046386313,
+        0.816496580927726,
+        -0.4082482904638632,
+        0.0
+      ],
+      [
+        0.5773502691896256,
+        0.5773502691896258,
+        0.5773502691896257,
+        0.0
+      ],
+      [
+        2.6037871425751256,
+        3.5444142406586225,
+        2.6001763826016,
+        1.0
+      ]
+    ],
+    "modalities": [
+      "rgb"
+    ],
+    "ovrtx_num_sensor_updates": 64,
+    "ovrtx_render_mode": "rt2",
+    "res": "1024x1024"
+  }
+}

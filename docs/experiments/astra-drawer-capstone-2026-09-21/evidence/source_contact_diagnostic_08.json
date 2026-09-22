@@ -1,0 +1,448 @@
+{
+  "observed_utc": "2026-09-22T02:54:01.772069+00:00",
+  "scope": "Read-only original surface distance at the deepest measured contact. Contact actor IDs are absent; no collision-pair or volume-intersection proof is inferred.",
+  "input_sha256": {
+    "/opt/astra-content-value-20260921/capstone/evaluations/native08_source_clear_v1/seed_11/trace.jsonl": "ebede98706bd780deb0819eefd4c2f350287ae54d82a376fe00246714ed3c2de",
+    "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_evaluate.py": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+    "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/reference/drawer_cabinet_1k.gltf": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+    "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/reference/drawer_cabinet.bin": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9"
+  },
+  "inputs_unchanged": true,
+  "selection": "Minimum recorded contact separation across the complete trial trace",
+  "step": 2,
+  "time_s": 0.0125,
+  "phase": "settle",
+  "contact": {
+    "p": [
+      0.5097213983535767,
+      0.9529405236244202,
+      0.20157556235790253
+    ],
+    "normal": [
+      0.32641154527664185,
+      -1.975956251953903e-07,
+      -0.9452276825904846
+    ],
+    "impulse": [
+      5.900087356567383,
+      -3.5716614092962118e-06,
+      -17.0855655670166
+    ],
+    "separation": -0.010449104011058807
+  },
+  "measured_drawer_pose_xyz_xyzw": [
+    0.00795917958021164,
+    -0.0009675025939941406,
+    -0.004443816840648651,
+    0.0018011212814599276,
+    0.0005899968091398478,
+    0.0002622229512780905,
+    0.999998152256012
+  ],
+  "original_drawer_body_frame": "Identity initial world frame from verified native source/Joint and saved USD. Apply measured origin pose to the original upper drawer; cabinet/lower drawer surfaces stay static.",
+  "point_construction_limit": "The two normal-offset points are diagnostic hypotheses because the trace does not identify contact actor order or a second contact point.",
+  "closest_original_surface_distances": {
+    "drawer_cabinet": {
+      "reported_contact_position": {
+        "distance_m": 3.046840243410922e-09,
+        "closest_original_surface_point_m": [
+          0.5097213973590575,
+          0.9529405236244202,
+          0.2015755652378621
+        ],
+        "triangle_index": 106,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.5096921324729919,
+            0.9300856590270996,
+            0.2015654593706131
+          ],
+          [
+            0.5096921324729919,
+            0.9526836276054382,
+            0.2015654593706131
+          ],
+          [
+            0.5289979577064514,
+            1.123260259628296,
+            0.20823222398757935
+          ]
+        ]
+      },
+      "position_plus_signed_separation_times_normal": {
+        "distance_m": 0.0002568980836791246,
+        "closest_original_surface_point_m": [
+          0.5063106901665707,
+          0.9526836276054382,
+          0.21145234472742264
+        ],
+        "triangle_index": 146,
+        "original_triangle_at_measured_pose_m": [
+          [
+            -0.5116317868232727,
+            0.9526836276054382,
+            0.2115657925605774
+          ],
+          [
+            0.5096921324729919,
+            0.9526836276054382,
+            0.21156546473503113
+          ],
+          [
+            0.5096921324729919,
+            0.9526836276054382,
+            0.2015654593706131
+          ]
+        ]
+      },
+      "position_minus_signed_separation_times_normal": {
+        "distance_m": 0.010449106372555505,
+        "closest_original_surface_point_m": [
+          0.5097214136932747,
+          0.952940521559723,
+          0.20157557087845918
+        ],
+        "triangle_index": 106,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.5096921324729919,
+            0.9300856590270996,
+            0.2015654593706131
+          ],
+          [
+            0.5096921324729919,
+            0.9526836276054382,
+            0.2015654593706131
+          ],
+          [
+            0.5289979577064514,
+            1.123260259628296,
+            0.20823222398757935
+          ]
+        ]
+      }
+    },
+    "drawer_cabinet_drawer_01": {
+      "reported_contact_position": {
+        "distance_m": 1.0309054935755481e-05,
+        "closest_original_surface_point_m": [
+          0.5097214037382003,
+          0.9529302146377825,
+          0.20157552522061004
+        ],
+        "triangle_index": 0,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.52175550928405,
+            0.9529109224330555,
+            0.2086757253936496
+          ],
+          [
+            0.5066086107503918,
+            0.9529029465737384,
+            0.20869356941104383
+          ],
+          [
+            0.5061394547227935,
+            0.9543340232217762,
+            -0.1886287792057239
+          ]
+        ]
+      },
+      "position_plus_signed_separation_times_normal": {
+        "distance_m": 4.767308963853387e-05,
+        "closest_original_surface_point_m": [
+          0.5063107150671616,
+          0.9528928529153415,
+          0.2114521729829503
+        ],
+        "triangle_index": 1870,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.506143653242672,
+            0.9527959133860654,
+            0.23833639376170318
+          ],
+          [
+            0.5061097687407103,
+            0.9528990813423939,
+            0.20969415380431122
+          ],
+          [
+            0.5066097916888546,
+            0.9528993446398288,
+            0.20969356425331873
+          ]
+        ]
+      },
+      "position_minus_signed_separation_times_normal": {
+        "distance_m": 2.7054565985934686e-05,
+        "closest_original_surface_point_m": [
+          0.5131320924094468,
+          0.9529675759464709,
+          0.1916988774496276
+        ],
+        "triangle_index": 0,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.52175550928405,
+            0.9529109224330555,
+            0.2086757253936496
+          ],
+          [
+            0.5066086107503918,
+            0.9529029465737384,
+            0.20869356941104383
+          ],
+          [
+            0.5061394547227935,
+            0.9543340232217762,
+            -0.1886287792057239
+          ]
+        ]
+      }
+    },
+    "drawer_cabinet_drawer_02": {
+      "reported_contact_position": {
+        "distance_m": 0.02647407965577789,
+        "closest_original_surface_point_m": [
+          0.5097214079092803,
+          0.9283127188682556,
+          0.21128885873516912
+        ],
+        "triangle_index": 29,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.9283127188682556,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.9283127188682556,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.9283127188682556,
+            0.21128886938095093
+          ]
+        ]
+      },
+      "position_plus_signed_separation_times_normal": {
+        "distance_m": 0.024627806820861742,
+        "closest_original_surface_point_m": [
+          0.5063106901665706,
+          0.9283127188682556,
+          0.21145234472742258
+        ],
+        "triangle_index": 29,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.9283127188682556,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.9283127188682556,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.9283127188682556,
+            0.21128886938095093
+          ]
+        ]
+      },
+      "position_minus_signed_separation_times_normal": {
+        "distance_m": 0.03136566080517675,
+        "closest_original_surface_point_m": [
+          0.5131321254650115,
+          0.9281663298606873,
+          0.21093531042930327
+        ],
+        "triangle_index": 1857,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.5140469670295715,
+            0.9278127551078796,
+            0.21078886091709137
+          ],
+          [
+            0.49890005588531494,
+            0.9281663298606873,
+            0.2109353244304657
+          ],
+          [
+            0.5140469670295715,
+            0.9281663298606873,
+            0.2109353095293045
+          ]
+        ]
+      }
+    },
+    "drawer_cabinet_drawer_03": {
+      "reported_contact_position": {
+        "distance_m": 0.19980278589724584,
+        "closest_original_surface_point_m": [
+          0.5097214079092803,
+          0.7533739805221558,
+          0.21128885873516912
+        ],
+        "triangle_index": 29,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.7533739805221558,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.7533739805221558,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.7533739805221558,
+            0.21128886938095093
+          ]
+        ]
+      },
+      "position_plus_signed_separation_times_normal": {
+        "distance_m": 0.1995665451669616,
+        "closest_original_surface_point_m": [
+          0.5063106901665706,
+          0.7533739805221558,
+          0.21145234472742258
+        ],
+        "triangle_index": 29,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.7533739805221558,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.7533739805221558,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.7533739805221558,
+            0.21128886938095093
+          ]
+        ]
+      },
+      "position_minus_signed_separation_times_normal": {
+        "distance_m": 0.20052574736312626,
+        "closest_original_surface_point_m": [
+          0.5131321258128204,
+          0.7533739805221558,
+          0.21128885537978817
+        ],
+        "triangle_index": 29,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.7533739805221558,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.7533739805221558,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.7533739805221558,
+            0.21128886938095093
+          ]
+        ]
+      }
+    },
+    "drawer_cabinet_drawer_04": {
+      "reported_contact_position": {
+        "distance_m": 0.37463211772038263,
+        "closest_original_surface_point_m": [
+          0.5097214079092803,
+          0.5784343481063843,
+          0.21128885873516912
+        ],
+        "triangle_index": 27,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.5784343481063843,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.5784343481063843,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.5784343481063843,
+            0.21128886938095093
+          ]
+        ]
+      },
+      "position_plus_signed_separation_times_normal": {
+        "distance_m": 0.3745061775827331,
+        "closest_original_surface_point_m": [
+          0.5063106901665706,
+          0.5784343481063843,
+          0.21145234472742258
+        ],
+        "triangle_index": 27,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.5784343481063843,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.5784343481063843,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.5784343481063843,
+            0.21128886938095093
+          ]
+        ]
+      },
+      "position_minus_signed_separation_times_normal": {
+        "distance_m": 0.3750181929033624,
+        "closest_original_surface_point_m": [
+          0.5131321258128204,
+          0.5784343481063843,
+          0.21128885537978817
+        ],
+        "triangle_index": 27,
+        "original_triangle_at_measured_pose_m": [
+          [
+            0.49890005588531494,
+            0.5784343481063843,
+            0.2399313747882843
+          ],
+          [
+            0.5140469670295715,
+            0.5784343481063843,
+            0.21128885447978973
+          ],
+          [
+            0.49890005588531494,
+            0.5784343481063843,
+            0.21128886938095093
+          ]
+        ]
+      }
+    }
+  },
+  "new_physics_steps": 0,
+  "asset_mutations": 0
+}

@@ -1,0 +1,358 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "5eb78a125e8bddba9ab5ec80d8d8cae58ac5aabd30074723c7bef02de272467e"
+  },
+  "canonical_graph_digest": "5304bd6e55379e483e068ebd88a794295c9dadeb2bd19fe2569d7e5ce6fc060b",
+  "exact_co_rigid_disposition_match": true,
+  "exact_membership_match": true,
+  "exact_topology_match": true,
+  "groups": [
+    {
+      "authoritative_owner_prim": "/Asset",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-authoritative-owner-inspection",
+        "joint-scene-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prims": [
+        "/Asset",
+        "/Asset/Looks",
+        "/Asset/Looks/Material_0000",
+        "/Asset/Looks/Material_0000/Color",
+        "/Asset/Looks/Material_0000/MetalRough",
+        "/Asset/Looks/Material_0000/Normal",
+        "/Asset/Looks/Material_0000/Surface",
+        "/Asset/Looks/Material_0000/UV"
+      ],
+      "role": "static_asset_and_appearance",
+      "role_state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_0",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-authoritative-owner-inspection",
+        "joint-scene-inspection"
+      ],
+      "group_id": "owner_group_02",
+      "member_prims": [
+        "/Asset/drawer_cabinet_0",
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "role": "static_cabinet",
+      "role_state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_01_1",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-authoritative-owner-inspection",
+        "joint-scene-inspection"
+      ],
+      "group_id": "owner_group_03",
+      "member_prims": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "role": "uppermost_drawer_moving",
+      "role_state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_02_2",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-authoritative-owner-inspection",
+        "joint-scene-inspection"
+      ],
+      "group_id": "owner_group_04",
+      "member_prims": [
+        "/Asset/drawer_cabinet_drawer_02_2",
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "role": "preserved_static_drawer",
+      "role_state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_03_3",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-authoritative-owner-inspection",
+        "joint-scene-inspection"
+      ],
+      "group_id": "owner_group_05",
+      "member_prims": [
+        "/Asset/drawer_cabinet_drawer_03_3",
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "role": "preserved_static_drawer",
+      "role_state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_04_4",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-authoritative-owner-inspection",
+        "joint-scene-inspection"
+      ],
+      "group_id": "owner_group_06",
+      "member_prims": [
+        "/Asset/drawer_cabinet_drawer_04_4",
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "role": "preserved_static_drawer",
+      "role_state": "source_backed"
+    }
+  ],
+  "identity_digest": "90e1ddf2b057d12cae1240a4ac2c3eef533b7ef855acad1e44cf42b83cded6f2",
+  "joint_ids": [
+    "candidate_0001"
+  ],
+  "ledger_sha256": "d9111ca789955a33907e4b2027b5270840f3dd2921556225402436f482f98263",
+  "memberships": [
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks/Material_0000",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks/Material_0000/Color",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks/Material_0000/MetalRough",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks/Material_0000/Normal",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks/Material_0000/Surface",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_01",
+      "member_prim": "/Asset/Looks/Material_0000/UV",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_0",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_02",
+      "member_prim": "/Asset/drawer_cabinet_0",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_0",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_02",
+      "member_prim": "/Asset/drawer_cabinet_0/Primitive_0",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_01_1",
+      "disposition": "independent_motion",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_03",
+      "member_prim": "/Asset/drawer_cabinet_drawer_01_1",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_01_1",
+      "disposition": "co_rigid",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_03",
+      "member_prim": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_02_2",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_04",
+      "member_prim": "/Asset/drawer_cabinet_drawer_02_2",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_02_2",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_04",
+      "member_prim": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_03_3",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_05",
+      "member_prim": "/Asset/drawer_cabinet_drawer_03_3",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_03_3",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_05",
+      "member_prim": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_04_4",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_06",
+      "member_prim": "/Asset/drawer_cabinet_drawer_04_4",
+      "state": "source_backed"
+    },
+    {
+      "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_04_4",
+      "disposition": "explicit_fixed",
+      "evidence_ids": [
+        "source-hierarchy-inspection",
+        "joint-source-member-inspection",
+        "joint-authoritative-owner-inspection"
+      ],
+      "group_id": "owner_group_06",
+      "member_prim": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "state": "source_backed"
+    }
+  ],
+  "output_asset": {
+    "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+    "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+    "size_bytes": 1037001
+  },
+  "rigid_link_operations": [],
+  "schema_version": "content-agent-workflows.standalone-articulation-readback.v1",
+  "topology": [
+    {
+      "axis": "z",
+      "body0_owner_prim": "/Asset/drawer_cabinet_0",
+      "body0_role": "static_cabinet",
+      "body1_owner_prim": "/Asset/drawer_cabinet_drawer_01_1",
+      "body1_role": "uppermost_drawer_moving",
+      "frame_policy": "body1_world_origin",
+      "joint_id": "candidate_0001",
+      "joint_type": "prismatic",
+      "limit_unit": "meters",
+      "lower_limit": 0.0,
+      "upper_limit": 0.3
+    }
+  ],
+  "validation": {
+    "path": "runs/drawer_joint_02/validation_evidence.json",
+    "sha256": "296cedaa856a1599f0f0bd2ccf8b5c56aeca184779d86d4f6c368195f79e9180"
+  }
+}

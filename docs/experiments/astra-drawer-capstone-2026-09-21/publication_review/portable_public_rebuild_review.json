@@ -1,0 +1,26 @@
+{
+  "file_checks": {
+    "DRAWER_CONTRACT.md": true,
+    "DRAWER_EVALUATOR.md": true,
+    "drawer_acceptance.json": true,
+    "drawer_evaluate.py": true,
+    "drawer_force_units_probe.py": true,
+    "drawer_mesh_collision_probe.py": true,
+    "drawer_solver.py": true,
+    "drawer_static_binding_test.py": true,
+    "drawer_test_fixtures.py": true,
+    "prepare_source_clear_fixture.py": true,
+    "reference/drawer_cabinet.bin": true,
+    "reference/drawer_cabinet_1k.gltf": true,
+    "source_direction_probe.py": true
+  },
+  "historical_receipt_exact_bytes_provided": false,
+  "original_recorded_freeze_sha256": "f346acd1fd0b6e2d2bf5c5e79b4e19cd14ee94486856d9dc4943b696ea07c5f3",
+  "original_spec_sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+  "overall_freeze_equality_claimed": false,
+  "rebuilt_freeze_sha256": "2335dbf318ced571e77a2aa67e953206da886c8fefea88340dfe6c29d754a318",
+  "rebuilt_spec_sha256": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+  "schema_version": "public-source-clear-rebuild.v1",
+  "scope": "Source-only regeneration; timestamps/historical receipt projection alter freeze bytes. No native simulation or acceptance.",
+  "source_and_spec_and_evaluator_bytes_match": true
+}

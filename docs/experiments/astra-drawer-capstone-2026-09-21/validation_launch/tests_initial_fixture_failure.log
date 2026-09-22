@@ -1,0 +1,114 @@
+F......FF..                                                              [100%]
+=================================== FAILURES ===================================
+_______________ test_real_native_synthetic_preparation_no_launch _______________
+
+inputs = Namespace(asset=PosixPath('/tmp/pytest-of-horde/pytest-7/test_real_native_synthetic_pre0/physics.usda'), expected_asse...-horde/pytest-7/test_real_native_synthetic_pre0/prepared'), expected_commit='e640b8d6aa667745830db5e9bf87fd1b4cd763cb')
+
+    def test_real_native_synthetic_preparation_no_launch(inputs):
+>       result = prepare(inputs)
+                 ^^^^^^^^^^^^^^^
+
+test_precheck.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+prepare_validation.py:218: in prepare
+    bundle = prepare_native_physics_bundle(
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:347: in prepare_native_physics_bundle
+    review, validation, report, closure = _native_closure(
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:172: in _native_closure
+    _check(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+condition = False
+message = 'Native validation does not reference physics_behavior_assessment'
+
+    def _check(condition: bool, message: str) -> None:
+        if not condition:
+>           raise ValueError(message)
+E           ValueError: Native validation does not reference physics_behavior_assessment
+
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:68: ValueError
+__________________ test_failed_task_is_retained_not_promoted ___________________
+
+inputs = Namespace(asset=PosixPath('/tmp/pytest-of-horde/pytest-7/test_failed_task_is_retained_n0/physics.usda'), expected_asse...-horde/pytest-7/test_failed_task_is_retained_n0/prepared'), expected_commit='e640b8d6aa667745830db5e9bf87fd1b4cd763cb')
+
+    def test_failed_task_is_retained_not_promoted(inputs):
+        d = json.loads(inputs.task_report.read_text())
+        d.update(status="FAIL", pass_=False)
+        d.pop("pass_")
+        d["pass"] = False
+        d["trials"][0].update(status="FAIL")
+        d["trials"][0]["pass"] = False
+        write(inputs.task_report.parent / "seed_11/trial_report.json", d["trials"][0])
+        write(inputs.task_report, d)
+>       result = prepare(inputs)
+                 ^^^^^^^^^^^^^^^
+
+test_precheck.py:149: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+prepare_validation.py:218: in prepare
+    bundle = prepare_native_physics_bundle(
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:347: in prepare_native_physics_bundle
+    review, validation, report, closure = _native_closure(
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:172: in _native_closure
+    _check(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+condition = False
+message = 'Native validation does not reference physics_behavior_assessment'
+
+    def _check(condition: bool, message: str) -> None:
+        if not condition:
+>           raise ValueError(message)
+E           ValueError: Native validation does not reference physics_behavior_assessment
+
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:68: ValueError
+_____________________ test_stale_prepared_bundle_rejected ______________________
+
+inputs = Namespace(asset=PosixPath('/tmp/pytest-of-horde/pytest-7/test_stale_prepared_bundle_rej0/physics.usda'), expected_asse...-horde/pytest-7/test_stale_prepared_bundle_rej0/prepared'), expected_commit='e640b8d6aa667745830db5e9bf87fd1b4cd763cb')
+
+    def test_stale_prepared_bundle_rejected(inputs):
+>       prepare(inputs)
+
+test_precheck.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+prepare_validation.py:218: in prepare
+    bundle = prepare_native_physics_bundle(
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:347: in prepare_native_physics_bundle
+    review, validation, report, closure = _native_closure(
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:172: in _native_closure
+    _check(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+condition = False
+message = 'Native validation does not reference physics_behavior_assessment'
+
+    def _check(condition: bool, message: str) -> None:
+        if not condition:
+>           raise ValueError(message)
+E           ValueError: Native validation does not reference physics_behavior_assessment
+
+../../repo/world_understanding/functions/physics/native_behavior_validation.py:68: ValueError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../repo/.venv/lib/python3.12/site-packages/typer/__init__.py:24
+  /opt/astra-content-value-20260921/repo/.venv/lib/python3.12/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+../../../repo/.venv/lib/python3.12/site-packages/typer/__init__.py:25
+  /opt/astra-content-value-20260921/repo/.venv/lib/python3.12/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED test_precheck.py::test_real_native_synthetic_preparation_no_launch - V...
+FAILED test_precheck.py::test_failed_task_is_retained_not_promoted - ValueErr...
+FAILED test_precheck.py::test_stale_prepared_bundle_rejected - ValueError: Na...
+3 failed, 8 passed, 5 warnings in 2.59s

@@ -2902,6 +2902,15 @@ def _add_physics_apply_args(parser: argparse.ArgumentParser) -> None:
         help="Validation trajectory sample rate.",
     )
     parser.add_argument(
+        "--runtime-placement-mode",
+        choices=("drop", "mounted"),
+        default="drop",
+        help=(
+            "Mounted validation preserves authored metric poses and joint "
+            "anchors; drop places the asset on the ground."
+        ),
+    )
+    parser.add_argument(
         "--drop-height-m",
         type=float,
         default=None,
@@ -4936,6 +4945,7 @@ def _handle_physics_apply(args: argparse.Namespace) -> int:
                 simulation_dt=args.dt,
                 simulation_sample_fps=args.sample_fps,
                 drop_height_m=args.drop_height_m,
+                runtime_placement_mode=args.runtime_placement_mode,
                 vomp_mass=vomp_mass,
                 fail_on_validation_error=args.fail_on_validation_error,
                 runner=args.runner,
@@ -5096,6 +5106,7 @@ def _handle_physics_apply(args: argparse.Namespace) -> int:
         simulation_dt=args.dt,
         simulation_sample_fps=args.sample_fps,
         drop_height_m=args.drop_height_m,
+        runtime_placement_mode=args.runtime_placement_mode,
         vomp_mass=vomp_mass,
         # The agentic path honours this override at the apply-phase
         # runtime gate; silently dropping it here would leave the

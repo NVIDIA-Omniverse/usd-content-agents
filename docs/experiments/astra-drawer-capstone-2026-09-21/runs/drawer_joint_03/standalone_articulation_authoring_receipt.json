@@ -1,0 +1,52 @@
+{
+  "accepted_authoring_plan": null,
+  "accepted_candidate_ids": [
+    "upper_drawer_prismatic"
+  ],
+  "approved_candidates": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/approved_articulation_candidates.json",
+    "sha256": "ef706643afcd6a2ab07bf3ff1c6bae928f9d93032f4119bc143d86a6c6531584"
+  },
+  "authoring_request": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/authoring_request.json",
+    "sha256": "084ef39c99f62c055be01dae3db72c3f3f9e2dc4d8845987bd5ade3b6c2e5ec5"
+  },
+  "authoring_result": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/authoring_result.json",
+    "sha256": "06d8a58db93f51a53ebeff9bb76d4ff654a52fc804c48353d5cee7f847917e82"
+  },
+  "canonical_graph": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/canonical_articulation_graph.json",
+    "sha256": "7925d1358b58aa585a24aa058621f716a62289256bedbf2317837791b919d560"
+  },
+  "colliders_authored": false,
+  "decision_ledger": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/articulation_decision_ledger.json",
+    "sha256": "931c6a13fb4f03700c5dcc5cc68d155c165ff20907efe008853e0057f3253ed6"
+  },
+  "decision_patch": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/articulation_decision_patch.json",
+    "sha256": "47d076e2362c48fd0a224a6e956497ee91a1f7439cd55b97931b8964c4329c39"
+  },
+  "drives_authored": false,
+  "identity_digest": "4c13243854f0b073d47b9543c3a640c99f6ddafdca1ac42369d81b2af46040ed",
+  "masses_authored": false,
+  "membership_operation_receipt": null,
+  "output_asset": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+    "sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+    "size_bytes": 1036981
+  },
+  "readback": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/standalone_articulation_readback.json",
+    "sha256": "482f49911d7a5e90404b56262b02040bbfacef55df35d6fbef93c982f8d668b8"
+  },
+  "rigid_link_operation_ids": [],
+  "schema_version": "content-agent-workflows.standalone-articulation-authoring-receipt.v1",
+  "status": "verified",
+  "unrelated_topology_authored": false,
+  "validation": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/validation_evidence.json",
+    "sha256": "2e7399a1f9576c17e64cc3551e34800eec8769bdbe6a273aebde13f63962cced"
+  }
+}

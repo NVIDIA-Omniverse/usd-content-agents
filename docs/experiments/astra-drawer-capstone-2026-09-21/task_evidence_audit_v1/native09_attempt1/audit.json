@@ -1,0 +1,118 @@
+{
+  "schema_version": "capstone-independent-task-evidence-audit.v1",
+  "started_utc": "2026-09-22T03:46:37.776508+00:00",
+  "script_sha256": "f0a7a3b7d1028d261dfc2e48b095e0cfd4ea9c03e7228a58f1c90fc8f41168d3",
+  "status": "INCONSISTENT_OR_INCOMPLETE",
+  "audit_consistent": false,
+  "task_acceptance_attested": false,
+  "trials": [],
+  "errors": [
+    "ValueError: Payload seed-dependent yaw differs"
+  ],
+  "input_bindings": [
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_acceptance.json",
+      "sha256": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+      "size_bytes": 3477
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_evaluate.py",
+      "sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+      "size_bytes": 18931
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_solver.py",
+      "sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+      "size_bytes": 9769
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_09/physics.usda",
+      "sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+      "size_bytes": 2533578
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evidence/native09_task_bindings.json",
+      "sha256": "f75a7d3865ea0bfc0f76fa5b385a568e3db5e5609960ea6791ba4297a719709a",
+      "size_bytes": 773
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/report.json",
+      "sha256": "45149739ee51187e5092f8034ed0ac0f3dcaef4974a5fbddeaad3357cb04feab",
+      "size_bytes": 13874
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/structural_report.json",
+      "sha256": "d555661e69429cd8603b9f9ec9642f42b9ae6943e1f8d9e4596ce1fe1381adce",
+      "size_bytes": 5888
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/repo/agentic/packages/content_agent_workflows/content_agent_workflows/simready/asset_identity.py",
+      "sha256": "0257c974e74fd55b1feab127091a15ca868772981e0d0d44c2632cb3e5e33853",
+      "size_bytes": 11991
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_09/inputs/source/source.usdz",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "size_bytes": 1036785
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/seed_11/request.json",
+      "sha256": "7a222b4601500ee6f264e7287215b3f8c0c047aea0b1ece00a7a935f0524ae82",
+      "size_bytes": 4299
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/seed_11/scene.usda",
+      "sha256": "3e89e83144ffb12060d5cc6704b044d3f054da9f43ada8f37684b2d604bce528",
+      "size_bytes": 2535258
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/seed_11/trial_report.json",
+      "sha256": "ae95f52158c2040beffd2654c5571286d95a2efa4143abd4a5eeccea794947e8",
+      "size_bytes": 2215
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/seed_11/trace.jsonl",
+      "sha256": "f12d292780462b6449218f87eb1f3cfc8f75549744f6693eae404eb8779fb2b6",
+      "size_bytes": 153093591
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/seed_11/replay.usda",
+      "sha256": "c45653f9be85ce5e1d73fcc4ad8d080119ec6613ba6b3af0a07221759c563533",
+      "size_bytes": 766299
+    },
+    {
+      "path": "/opt/astra-content-value-20260921/capstone/evaluations/native09_source_clear_v1/seed_11/solver.log",
+      "sha256": "1fa39974816df2d98866f38a58e696cbc39df484bb9a96e5b0b2a5e0f7637282",
+      "size_bytes": 404992
+    }
+  ],
+  "all_bound_input_bytes_unchanged": true,
+  "completed_utc": "2026-09-22T03:46:42.472111+00:00",
+  "comparison_tolerances": {
+    "metric_serialization_atol": 2e-06,
+    "force_float32_reconciliation_n": 2e-05,
+    "source_frame_rotation_comparison_deg": 1e-05,
+    "task_thresholds_modified": false
+  },
+  "formulas": {
+    "physical_sample_time": "(step+1)*dt; controller/window time=step*dt",
+    "native_q": "drawer_pose.z - constant inferred from every (pose.z - stored q); inferred origin bounded against authored pose by retained import error",
+    "source_off_axis": "norm(drawer_pose.xy - authored_initial.xy); native metric lies within +/- reported import translation error",
+    "source_rotation": "degrees(2*acos(clamp(abs(dot(recorded xyzw,authored_initial xyzw)),0,1))); normalized variant also reported, initial native quaternion unrecorded",
+    "opening": "minimum q over [hold_open_end-0.5,hold_open_end) >=0.20m",
+    "closing": "maximum abs(q) over [total-0.5,total) <=0.02m",
+    "settled": "maximum float32 norm(drawer linear velocity) in same closing window <=0.05m/s",
+    "payload_retention": "world-axis center box tested after subtracting drawer translation from authored origin, not rotation-aware geometric containment",
+    "payload_contact": "count float32 norm(pair impulse matrix)>0.01Ns after settle; force presentation=impulse/dt",
+    "penetration": "max(0,-separation) over all scene contact points and all steps",
+    "controller": "seeded uniform jitter plus prescribed half-cosine PD target/velocity, clipped to +/-40N; pre-step state from preceding post-step row, float32 trace force compared separately"
+  },
+  "limits": [
+    "Audit consistency is not a new simulation or task/native acceptance. No solver, renderer or model is imported or run.",
+    "The initial native XY/quaternion is missing from frozen traces. Native Z is redundantly inferred, source-frame XY is bounded using the retained translation error, and source-frame quaternion crosschecks cannot independently establish the unrecorded native quaternion.",
+    "The force-named contact field stores raw impulse Ns. Global contact points omit actor IDs, so penetration cannot be attributed independently to cabinet/drawer/payload pairs. Recorded contact binding paths provide only retained producer provenance.",
+    "Interior overlap rows precede first native pose read; this audit does not claim their runtime initialization or recook them. A separately retained initialized positive-controlled preflight is required for clearance claims.",
+    "Prior structural/source results are hash-bound and source-to-scene authored properties are compared, but original-source geometric distance checks and real-world material/actuator fidelity are not independently repeated.",
+    "Current USD dependency closure and before/after hashes establish retained bytes, not a cryptographic proof that a trusted solver generated the trace. Qualified native execution provenance remains separate."
+  ]
+}

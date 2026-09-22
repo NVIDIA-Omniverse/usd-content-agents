@@ -1,0 +1,260 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "15ed593d8a263c01e1794363b7bf9edd39fa4910b535c48a86adefb18b8aea2d"
+  },
+  "asset": "runs/drawer_physics_03/inputs/source/source.usdz",
+  "candidate_count": 5,
+  "component_count": 5,
+  "decision_count": 5,
+  "decisions": [
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_001",
+      "component_role": "body",
+      "confidence": 0.78,
+      "decision_id": "physics_component_001_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "mass_properties": {
+        "center_of_mass": [
+          0.00879941130464277,
+          1.0132691201324464,
+          0.09412690969490285
+        ],
+        "diagonal_inertia": [
+          0.14943559995160616,
+          0.8673600643339555,
+          0.7393149806868428
+        ],
+        "principal_axes": [
+          0.9994685675941963,
+          -0.03225944224667463,
+          0.004638708455407128,
+          0.0006270255216043317
+        ]
+      },
+      "path_space": "source",
+      "physical_properties": {
+        "density": 600.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 6.163479754140765,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [
+        {
+          "code": "mass_scale_suspicious",
+          "message": "The source base has a 58.62835 mm envelope; the 6.16348 kg estimate assumes two 4 mm wood skins and an unverified hollow core. A uniform solid-wood interpretation at 600 kg/m3 would be about 18.04 kg, above the requested 10 kg ceiling. This is an authored thin-wall construction estimate, not measured mass.",
+          "severity": "warning"
+        }
+      ],
+      "rigid_body_grouping": "Preserve the sole inspected dynamic nonkinematic upper-drawer body and its standalone prismatic joint; no articulation root.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_01_1": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_002",
+      "component_role": "unowned_static",
+      "confidence": 0.8,
+      "decision_id": "physics_component_002_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_0/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_0/Primitive_0": [
+          "/Asset/drawer_cabinet_0/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_0/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_003",
+      "component_role": "unowned_static",
+      "confidence": 0.92,
+      "decision_id": "physics_component_003_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_004",
+      "component_role": "unowned_static",
+      "confidence": 0.92,
+      "decision_id": "physics_component_004_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+      ]
+    },
+    {
+      "body_root_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "collider_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "collision_approximation": "convexDecomposition",
+      "collision_mode": "author_on_targets",
+      "component_id": "component_005",
+      "component_role": "unowned_static",
+      "confidence": 0.92,
+      "decision_id": "physics_component_005_source_preserved",
+      "inferred_material_family": "wood",
+      "inferred_material_name": "Material_0000",
+      "mass_authoring_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "mass_properties": null,
+      "path_space": "source",
+      "physical_properties": {
+        "density": 0.0,
+        "dynamic_friction": 0.6,
+        "estimated_mass_kg": 0.0,
+        "restitution": 0.0,
+        "static_friction": 0.6
+      },
+      "quality_warnings": [],
+      "rigid_body_grouping": "Preserve this authoritative unowned_static component without creating a rigid body or mass.",
+      "runtime_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "source_path_expansions": {
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0": [
+          "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        ]
+      },
+      "source_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ],
+      "unmapped_runtime_prim_paths": [],
+      "visual_evidence_paths": [
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ]
+    }
+  ],
+  "mobility_intent": "preserve",
+  "path_space": "source",
+  "physics_behavior_assessment": "runs/drawer_physics_03/physics_behavior_assessment.json",
+  "physics_usd": "runs/drawer_physics_03/physics.usda",
+  "prepared_asset": "runs/drawer_physics_03/inputs/source/source.usdz",
+  "prepared_asset_sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+  "schema_version": "content-agent-workflows.physics-assignments.v1",
+  "simulation_report": "runs/drawer_physics_03/runtime/runtime_validation_report.json",
+  "source_asset_sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+  "unresolved_components": [],
+  "validation_evidence": "runs/drawer_physics_03/validation_evidence.json",
+  "validation_status": "fail",
+  "visual_validation_frames": [],
+  "vomp_mass": null
+}

@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/opt/astra-content-value-20260921/capstone/qualification/validation_launch_geometry_v5/prepare_validation_before_geometry_fix.py", line 359, in <module>
+    main()
+  File "/opt/astra-content-value-20260921/capstone/qualification/validation_launch_geometry_v5/prepare_validation_before_geometry_fix.py", line 336, in main
+    result = prepare(args)
+             ^^^^^^^^^^^^^
+  File "/opt/astra-content-value-20260921/capstone/qualification/validation_launch_geometry_v5/prepare_validation_before_geometry_fix.py", line 240, in prepare
+    require(
+  File "/opt/astra-content-value-20260921/capstone/qualification/validation_launch_geometry_v5/prepare_validation_before_geometry_fix.py", line 41, in require
+    raise ValueError(message)
+ValueError: Expected historical Geometry conditional evidence is missing or changed in meaning.

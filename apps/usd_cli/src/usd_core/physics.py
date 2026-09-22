@@ -24,30 +24,118 @@ def define_physics_scene(stage, path: str) -> str:
     return UsdPhysics.Scene.Define(stage, path).GetPath().pathString
 
 
-def apply_rigid_body(stage, path: str, *, density=None, mass=None) -> list[str]:
+def _validate_mass_properties(value):
+    """Validate explicit MassAPI vectors before any stage mutation."""
+    import math
+    import struct
+
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - {
+        "center_of_mass", "diagonal_inertia", "principal_axes"
+    }:
+        raise ValueError("mass_properties must contain only explicit MassAPI vectors")
+    result = {}
+    for name, count in (("center_of_mass", 3), ("diagonal_inertia", 3), ("principal_axes", 4)):
+        vector = value.get(name, (1.0, 0.0, 0.0, 0.0) if name == "principal_axes" else None)
+        if not isinstance(vector, (list, tuple)) or len(vector) != count:
+            raise ValueError(f"mass_properties.{name} must have {count} values")
+        if any(isinstance(item, bool) or not isinstance(item, (int, float)) for item in vector):
+            raise ValueError(f"mass_properties.{name} must contain numbers")
+        try:
+            stored = [struct.unpack("f", struct.pack("f", item))[0] for item in vector]
+        except (OverflowError, struct.error) as exc:
+            raise ValueError("mass properties must be representable as finite USD floats") from exc
+        if not all(math.isfinite(item) for item in stored):
+            raise ValueError("mass properties must be finite")
+        result[name] = stored
+    inertia = result["diagonal_inertia"]
+    if min(inertia) <= 0:
+        raise ValueError("diagonal inertia must be positive")
+    if 2 * max(inertia) > sum(inertia) + 1e-6 * max(inertia):
+        raise ValueError("diagonal inertia violates the principal-moment triangle inequality")
+    if abs(sum(item * item for item in result["principal_axes"]) - 1.0) > 1e-5:
+        raise ValueError("principal_axes must be a normalized (w,x,y,z) quaternion")
+    return result
+
+
+def apply_rigid_body(stage, path: str, *, density=None, mass=None, mass_properties=None) -> list[str]:
     """Apply RigidBodyAPI (+ MassAPI when mass/density given); returns the API names
     authored so callers can report them instead of applying schema silently."""
-    from pxr import UsdPhysics
+    from pxr import Gf, UsdPhysics
 
+    vectors = _validate_mass_properties(mass_properties)
     prim = stage.GetPrimAtPath(path)
     if not prim.IsValid():
         raise ValueError(f"cannot apply rigid body: no prim at {path}")
     UsdPhysics.RigidBodyAPI.Apply(prim)
     authored = ["PhysicsRigidBodyAPI"]
-    if density is not None or mass is not None:
+    if density is not None or mass is not None or vectors is not None:
         mass_api = UsdPhysics.MassAPI.Apply(prim)
         authored.append("PhysicsMassAPI")
         if mass is not None:
             mass_api.CreateMassAttr().Set(float(mass))
         if density is not None:
             mass_api.CreateDensityAttr().Set(float(density))
+        if vectors is not None:
+            mass_api.CreateCenterOfMassAttr().Set(Gf.Vec3f(*vectors["center_of_mass"]))
+            mass_api.CreateDiagonalInertiaAttr().Set(Gf.Vec3f(*vectors["diagonal_inertia"]))
+            q = vectors["principal_axes"]
+            mass_api.CreatePrincipalAxesAttr().Set(Gf.Quatf(q[0], Gf.Vec3f(*q[1:])))
     return authored
 
 
-def apply_collision(stage, path: str, *, approximation: str | None = None) -> list[str]:
+_CONVEX_DECOMPOSITION_FIELDS = {
+    "shrink_wrap": ("shrinkWrap", "Bool", False, None, None),
+    "error_percentage": ("errorPercentage", "Float", 10.0, 0.0, 100.0),
+    "hull_vertex_limit": ("hullVertexLimit", "Int", 64, 8, 64),
+    "max_convex_hulls": ("maxConvexHulls", "Int", 32, 1, 256),
+    "voxel_resolution": ("voxelResolution", "Int", 500_000, 10_000, 4_000_000),
+}
+_CONVEX_DECOMPOSITION_PREFIX = "physxConvexDecompositionCollision:"
+
+
+def _validate_convex_decomposition(prim, approximation, value):
+    """Validate bounded cooking controls and applicability before any mutation.
+
+    Names/types/defaults match the OvPhysX 0.4.13 USD schema. Its decomposition
+    backend accepts 8–64 hull vertices; the other ranges bound resource use.
+    A valid USD property type alone does not prove a backend accepts its value.
+    """
+    import math
+    from pxr import Sdf, UsdGeom
+
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - set(_CONVEX_DECOMPOSITION_FIELDS):
+        raise ValueError("convex_decomposition contains unknown fields or is not an object")
+    if approximation != "convexDecomposition" or not prim.IsA(UsdGeom.Mesh):
+        raise ValueError("convex_decomposition requires a Mesh with convexDecomposition approximation")
+    result = {}
+    for key, (suffix, kind, default, lower, upper) in _CONVEX_DECOMPOSITION_FIELDS.items():
+        item = value.get(key, default)
+        if kind == "Bool":
+            valid = type(item) is bool
+        elif kind == "Int":
+            valid = type(item) is int and lower <= item <= upper
+        else:
+            valid = (type(item) in (int, float) and math.isfinite(item)
+                     and lower <= item <= upper)
+        if not valid:
+            raise ValueError(f"invalid convex_decomposition.{key}: expected {kind}"
+                             + (f" in [{lower}, {upper}]" if lower is not None else ""))
+        attr = prim.GetAttribute(_CONVEX_DECOMPOSITION_PREFIX + suffix)
+        if attr and attr.GetTypeName() != getattr(Sdf.ValueTypeNames, kind):
+            raise ValueError(f"incompatible existing convex decomposition attribute type: {attr.GetPath()}")
+        result[key] = float(item) if kind == "Float" else item
+    return result
+
+
+def apply_collision(stage, path: str, *, approximation: str | None = None,
+                    convex_decomposition=None) -> list[str]:
     """Apply CollisionAPI (+ MeshCollisionAPI approximation on meshes); returns the API
     names authored so callers can report them instead of applying schema silently."""
-    from pxr import UsdGeom, UsdPhysics
+    from pxr import Sdf, UsdGeom, UsdPhysics
 
     prim = stage.GetPrimAtPath(path)
     if not prim.IsValid():
@@ -57,12 +145,22 @@ def apply_collision(stage, path: str, *, approximation: str | None = None) -> li
     if approximation is not None and approximation not in _COLLISION_APPROX:
         raise ValueError(f"unknown collision approximation '{approximation}' "
                          f"(expected one of {sorted(_COLLISION_APPROX)})")
+    cooking = _validate_convex_decomposition(prim, approximation, convex_decomposition)
     UsdPhysics.CollisionAPI.Apply(prim)
     authored = ["PhysicsCollisionAPI"]
     if approximation and prim.IsA(UsdGeom.Mesh):
         mesh_api = UsdPhysics.MeshCollisionAPI.Apply(prim)
         mesh_api.CreateApproximationAttr().Set(approximation)
         authored.append("PhysicsMeshCollisionAPI")
+    if cooking is not None:
+        # Author the registered schema token and typed native properties without
+        # requiring PhysxSchema Python bindings in the portable authoring runtime.
+        prim.AddAppliedSchema("PhysxConvexDecompositionCollisionAPI")
+        for key, item in cooking.items():
+            suffix, kind, *_ = _CONVEX_DECOMPOSITION_FIELDS[key]
+            prim.CreateAttribute(_CONVEX_DECOMPOSITION_PREFIX + suffix,
+                                 getattr(Sdf.ValueTypeNames, kind), custom=False).Set(item)
+        authored.append("PhysxConvexDecompositionCollisionAPI")
     return authored
 
 
@@ -124,6 +222,9 @@ def apply_operations(stage, operations: dict) -> dict:
     rigid_bodies, colliders, materials, bindings = (
         rows("rigid_bodies"), rows("colliders"), rows("materials"), rows("bindings")
     )
+    # Validate every vector record before earlier rows or scenes can mutate.
+    for row in rigid_bodies:
+        _validate_mass_properties(row.get("mass_properties"))
     target_paths = [
         str(row.get("path") or "") for row in [*rigid_bodies, *colliders]
     ] + [str(row.get("target_path") or "") for row in bindings]
@@ -143,6 +244,8 @@ def apply_operations(stage, operations: dict) -> dict:
                 f"unknown collision approximation '{approximation}' "
                 f"(expected one of {sorted(_COLLISION_APPROX)})"
             )
+        _validate_convex_decomposition(stage.GetPrimAtPath(row["path"]), approximation,
+                                      row.get("convex_decomposition"))
     for path in material_paths:
         if not path.startswith("/") or path == "/":
             raise ValueError("physics material path must be an absolute prim path")
@@ -172,11 +275,13 @@ def apply_operations(stage, operations: dict) -> dict:
         authored["scene"].append(define_physics_scene(stage, path))
     for row in rigid_bodies:
         path = str(row["path"])
-        note(path, apply_rigid_body(stage, path, density=row.get("density"), mass=row.get("mass")))
+        note(path, apply_rigid_body(stage, path, density=row.get("density"), mass=row.get("mass"),
+                                    mass_properties=row.get("mass_properties")))
         authored["rigid_body"].append(path)
     for row in colliders:
         path = str(row["path"])
-        note(path, apply_collision(stage, path, approximation=row.get("approximation")))
+        note(path, apply_collision(stage, path, approximation=row.get("approximation"),
+                                   convex_decomposition=row.get("convex_decomposition")))
         authored["collision"].append(path)
     for row in materials:
         path = apply_physics_material(

@@ -1,0 +1,427 @@
+{
+  "scope": "Read-only post-author contract audit, not physical acceptance. No decisions or USD bytes changed.",
+  "recorded_utc": "2026-09-22T02:40:57.797918+00:00",
+  "asset": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_08/physics.usda",
+  "asset_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+  "original_mass_reference_sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+  "checks": [
+    {
+      "name": "unchanged_physics:mass",
+      "pass": true,
+      "detail": {
+        "original": "6.163479804992676",
+        "authored": "6.163479804992676"
+      }
+    },
+    {
+      "name": "unchanged_physics:density",
+      "pass": true,
+      "detail": {
+        "original": "600.0",
+        "authored": "600.0"
+      }
+    },
+    {
+      "name": "unchanged_physics:centerOfMass",
+      "pass": true,
+      "detail": {
+        "original": "(0.008799411, 1.0132691, 0.09412691)",
+        "authored": "(0.008799411, 1.0132691, 0.09412691)"
+      }
+    },
+    {
+      "name": "unchanged_physics:diagonalInertia",
+      "pass": true,
+      "detail": {
+        "original": "(0.1494356, 0.86736006, 0.739315)",
+        "authored": "(0.1494356, 0.86736006, 0.739315)"
+      }
+    },
+    {
+      "name": "unchanged_physics:principalAxes",
+      "pass": true,
+      "detail": {
+        "original": "(0.99946856, -0.032259442, 0.0046387087, 0.0006270255)",
+        "authored": "(0.99946856, -0.032259442, 0.0046387087, 0.0006270255)"
+      }
+    },
+    {
+      "name": "joint_exists",
+      "pass": true,
+      "detail": "Usd.Prim(</Asset/Joints/candidate_0001_ed11071c24ea>)"
+    },
+    {
+      "name": "joint_physics:axis",
+      "pass": true,
+      "detail": {
+        "original": "Z",
+        "authored": "Z"
+      }
+    },
+    {
+      "name": "joint_physics:breakForce",
+      "pass": true,
+      "detail": {
+        "original": "inf",
+        "authored": "inf"
+      }
+    },
+    {
+      "name": "joint_physics:breakTorque",
+      "pass": true,
+      "detail": {
+        "original": "inf",
+        "authored": "inf"
+      }
+    },
+    {
+      "name": "joint_physics:collisionEnabled",
+      "pass": true,
+      "detail": {
+        "original": "False",
+        "authored": "False"
+      }
+    },
+    {
+      "name": "joint_physics:excludeFromArticulation",
+      "pass": true,
+      "detail": {
+        "original": "False",
+        "authored": "False"
+      }
+    },
+    {
+      "name": "joint_physics:jointEnabled",
+      "pass": true,
+      "detail": {
+        "original": "True",
+        "authored": "True"
+      }
+    },
+    {
+      "name": "joint_physics:localPos0",
+      "pass": true,
+      "detail": {
+        "original": "(0, 0, 0)",
+        "authored": "(0, 0, 0)"
+      }
+    },
+    {
+      "name": "joint_physics:localPos1",
+      "pass": true,
+      "detail": {
+        "original": "(0, 0, 0)",
+        "authored": "(0, 0, 0)"
+      }
+    },
+    {
+      "name": "joint_physics:localRot0",
+      "pass": true,
+      "detail": {
+        "original": "(1, 0, 0, 0)",
+        "authored": "(1, 0, 0, 0)"
+      }
+    },
+    {
+      "name": "joint_physics:localRot1",
+      "pass": true,
+      "detail": {
+        "original": "(1, 0, 0, 0)",
+        "authored": "(1, 0, 0, 0)"
+      }
+    },
+    {
+      "name": "joint_physics:lowerLimit",
+      "pass": true,
+      "detail": {
+        "original": "0.0",
+        "authored": "0.0"
+      }
+    },
+    {
+      "name": "joint_physics:upperLimit",
+      "pass": true,
+      "detail": {
+        "original": "0.30000001192092896",
+        "authored": "0.30000001192092896"
+      }
+    },
+    {
+      "name": "joint_physics:body0",
+      "pass": true,
+      "detail": {
+        "original": [
+          "/Asset/drawer_cabinet_0"
+        ],
+        "authored": [
+          "/Asset/drawer_cabinet_0"
+        ]
+      }
+    },
+    {
+      "name": "joint_physics:body1",
+      "pass": true,
+      "detail": {
+        "original": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ],
+        "authored": [
+          "/Asset/drawer_cabinet_drawer_01_1"
+        ]
+      }
+    },
+    {
+      "name": "joint_proxyPrim",
+      "pass": true,
+      "detail": {
+        "original": [],
+        "authored": []
+      }
+    },
+    {
+      "name": "only_upper_drawer_dynamic",
+      "pass": true,
+      "detail": [
+        "/Asset/drawer_cabinet_drawer_01_1"
+      ]
+    },
+    {
+      "name": "nonkinematic",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "no_articulation_root",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "collision_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": "none",
+        "authored": "none"
+      }
+    },
+    {
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": {
+        "material": "/Asset/Looks/Physics_component_002",
+        "binding": "/Asset/drawer_cabinet_0/Primitive_0.material:binding:physics"
+      }
+    },
+    {
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:restitution_/Asset/drawer_cabinet_0/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.0,
+        "authored": 0.0
+      }
+    },
+    {
+      "name": "collision_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": "convexDecomposition",
+        "authored": "convexDecomposition"
+      }
+    },
+    {
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": {
+        "material": "/Asset/Looks/Physics_component_001",
+        "binding": "/Asset/drawer_cabinet_drawer_01_1.material:binding:physics"
+      }
+    },
+    {
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.0,
+        "authored": 0.0
+      }
+    },
+    {
+      "name": "explicit_source_surface_cooking",
+      "pass": true,
+      "detail": {
+        "options": {
+          "shrinkWrap": true,
+          "errorPercentage": 1.0,
+          "hullVertexLimit": 128,
+          "maxConvexHulls": 64,
+          "voxelResolution": 1000000
+        },
+        "authored_api_tokens": [
+          "MaterialBindingAPI",
+          "PhysicsCollisionAPI",
+          "PhysicsMeshCollisionAPI",
+          "PhysxConvexDecompositionCollisionAPI"
+        ]
+      }
+    },
+    {
+      "name": "collision_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": "none",
+        "authored": "none"
+      }
+    },
+    {
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": {
+        "material": "/Asset/Looks/Physics_component_003",
+        "binding": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0.material:binding:physics"
+      }
+    },
+    {
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.0,
+        "authored": 0.0
+      }
+    },
+    {
+      "name": "collision_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": "none",
+        "authored": "none"
+      }
+    },
+    {
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": {
+        "material": "/Asset/Looks/Physics_component_004",
+        "binding": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0.material:binding:physics"
+      }
+    },
+    {
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.0,
+        "authored": 0.0
+      }
+    },
+    {
+      "name": "collision_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": "none",
+        "authored": "none"
+      }
+    },
+    {
+      "name": "resolved_physics_material_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": {
+        "material": "/Asset/Looks/Physics_component_005",
+        "binding": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0.material:binding:physics"
+      }
+    },
+    {
+      "name": "physics:staticFriction_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:dynamicFriction_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.6,
+        "authored": 0.6000000238418579
+      }
+    },
+    {
+      "name": "physics:restitution_/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+      "pass": true,
+      "detail": {
+        "expected": 0.0,
+        "authored": 0.0
+      }
+    },
+    {
+      "name": "original_source_geometry",
+      "pass": true,
+      "detail": {
+        "receipt": "/opt/astra-content-value-20260921/capstone/evidence/original_source_drawer_physics_08.json",
+        "sha256": "a55a6c81ae56e45e249958072b13dbe7f3c2d432639b8976a27ad6978b3c8b3e"
+      }
+    }
+  ],
+  "pass": true
+}

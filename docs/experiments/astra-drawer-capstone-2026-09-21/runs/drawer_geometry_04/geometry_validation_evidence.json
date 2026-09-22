@@ -1,0 +1,360 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "596bc8078131d3b807187114f233f059783a159656c3b6c440be997ff888575d"
+  },
+  "asset": "runs/drawer_geometry_04/source_preserved.geometry.usdc",
+  "checks": [
+    {
+      "evidence_artifacts": [
+        {
+          "description": "CAD-specific mesh and optional legacy physics preflight evidence.",
+          "kind": "cad_preflight_report",
+          "path": "runs/drawer_geometry_04/cad_preflight_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {
+        "claim_scope": "source_preserving_render_only",
+        "final_domain_claim": false,
+        "profile_intent": "geometry-agent.static-visual-asset.v1",
+        "raw_status": "fail",
+        "required_by_profile": true
+      },
+      "name": "cad_preflight.mesh_topology",
+      "status": "pass",
+      "summary": "Source render geometry is preserved, finite and well indexed; original visual topology is retained as diagnostics. Collision cooking/contact/runtime validation remains delegated and required before physical acceptance.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Digest-bound mesh-segmentation handoff artifact.",
+          "kind": "mesh_segmentation_routing",
+          "path": "runs/drawer_geometry_04/segmentation_routing.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {
+        "required": false
+      },
+      "name": "part_segregation",
+      "status": "not_evaluated",
+      "summary": "Part Segregation was not requested.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Shared NVIDIA USD validation report.",
+          "kind": "usd_validation_report",
+          "path": "runs/drawer_geometry_04/usd_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "shared_usd_validation",
+      "status": "pass",
+      "summary": "Shared USD structural and geometry validation completed.",
+      "warnings": [
+        "primvars:st contains repeated values that can be indexed.",
+        "77 vertices are non-manifold.",
+        "82 vertices are non-manifold.",
+        "78 vertices are non-manifold.",
+        "51 vertices are non-manifold.",
+        "59 vertices are non-manifold.",
+        "The mesh contains zero area faces."
+      ]
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Shared OptimizeUSDTask metadata and Geometry policy.",
+          "kind": "optimization_metadata",
+          "path": "runs/drawer_geometry_04/source_preserved.geometry.usdc.optimization.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "usd_cli_scene_optimizer",
+      "status": "pass",
+      "summary": "Scene optimization was explicitly skipped by policy.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Geometry-owned imported-mesh normal authoring report.",
+          "kind": "mesh_normalization_report",
+          "path": "runs/drawer_geometry_04/mesh_normalization.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "imported_mesh_normalization",
+      "status": "pass",
+      "summary": "Missing imported-mesh normals were authored without changing topology.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Shared usd-cli geometry inspection report.",
+          "kind": "geometry_inspection_report",
+          "path": "runs/drawer_geometry_04/geometry_inspection.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "usd_cli_geometry_inspection",
+      "status": "pass",
+      "summary": "Shared usd-cli mesh inspection completed.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Shared runtime-validation workflow report.",
+          "kind": "runtime_validation_report",
+          "path": "runs/drawer_geometry_04/runtime/runtime_validation_workflow.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {
+        "claim_scope": "none",
+        "engine": "none"
+      },
+      "name": "runtime_loadability",
+      "status": "not_evaluated",
+      "summary": "Runtime validation was explicitly skipped.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Accepted OVRTX render and image-validation report.",
+          "kind": "shared_render_evidence_report",
+          "path": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json"
+        },
+        {
+          "description": "Individually validated shared OVRTX render view.",
+          "kind": "ovrtx_render_view",
+          "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_x_0000.png"
+        },
+        {
+          "description": "Individually validated shared OVRTX render view.",
+          "kind": "ovrtx_render_view",
+          "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_x_0000.png"
+        },
+        {
+          "description": "Individually validated shared OVRTX render view.",
+          "kind": "ovrtx_render_view",
+          "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_y_0000.png"
+        },
+        {
+          "description": "Individually validated shared OVRTX render view.",
+          "kind": "ovrtx_render_view",
+          "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_y_0000.png"
+        },
+        {
+          "description": "Individually validated shared OVRTX render view.",
+          "kind": "ovrtx_render_view",
+          "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_z_0000.png"
+        },
+        {
+          "description": "Individually validated shared OVRTX render view.",
+          "kind": "ovrtx_render_view",
+          "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_xplus_yplus_z_0000.png"
+        },
+        {
+          "description": "Derived presentation grid; accepted individual OVRTX views are the underlying evidence.",
+          "kind": "render_presentation_grid",
+          "path": "runs/drawer_geometry_04/render_evidence/geometry_six_view.png"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "simulation_visual_review",
+      "status": "pass",
+      "summary": "Shared render evidence and generic image validation completed.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Geometry asset audit artifact: authoring_contract_path.",
+          "kind": "authoring_contract_path",
+          "path": "runs/drawer_geometry_04/authoring_contract.json"
+        },
+        {
+          "description": "Geometry asset audit artifact: render_audit_path.",
+          "kind": "render_audit_path",
+          "path": "runs/drawer_geometry_04/render_audit_report.json"
+        },
+        {
+          "description": "Geometry asset audit artifact: geometry_audit_path.",
+          "kind": "geometry_audit_path",
+          "path": "runs/drawer_geometry_04/geometry_audit_report.json"
+        },
+        {
+          "description": "Geometry asset audit artifact: asset_audit_summary_path.",
+          "kind": "asset_audit_summary_path",
+          "path": "runs/drawer_geometry_04/asset_audit_summary.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "geometry_asset_audit",
+      "status": "pass",
+      "summary": "Deterministic CAD source/render audit completed.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [],
+      "failures": [],
+      "metadata": {},
+      "name": "formal_simready_profile",
+      "status": "not_evaluated",
+      "summary": "Formal SimReady Foundation validation was not requested.",
+      "warnings": []
+    }
+  ],
+  "evidence_artifacts": [
+    {
+      "description": "CAD-specific mesh and optional legacy physics preflight evidence.",
+      "kind": "cad_preflight_report",
+      "path": "runs/drawer_geometry_04/cad_preflight_report.json"
+    },
+    {
+      "description": "Static glTF source vertex/index identity and dependency receipts.",
+      "kind": "source_fidelity_report",
+      "path": "runs/drawer_geometry_04/source_prep/lossless_gltf_receipt.json"
+    },
+    {
+      "description": "Geometry source provenance artifact.",
+      "kind": "source_of_record",
+      "path": "source/drawer_cabinet_1k.gltf"
+    },
+    {
+      "description": "Digest-bound mesh-segmentation handoff artifact.",
+      "kind": "mesh_segmentation_routing",
+      "path": "runs/drawer_geometry_04/segmentation_routing.json"
+    },
+    {
+      "description": "Geometry workflow handoff USD.",
+      "kind": "geometry_usd",
+      "path": "runs/drawer_geometry_04/source_preserved.geometry.usdc"
+    },
+    {
+      "description": "Shared NVIDIA USD validation report.",
+      "kind": "usd_validation_report",
+      "path": "runs/drawer_geometry_04/usd_validation_report.json"
+    },
+    {
+      "description": "Shared OptimizeUSDTask metadata and Geometry policy.",
+      "kind": "optimization_metadata",
+      "path": "runs/drawer_geometry_04/source_preserved.geometry.usdc.optimization.json"
+    },
+    {
+      "description": "Geometry-owned imported-mesh normal authoring report.",
+      "kind": "mesh_normalization_report",
+      "path": "runs/drawer_geometry_04/mesh_normalization.json"
+    },
+    {
+      "description": "Shared usd-cli geometry inspection report.",
+      "kind": "geometry_inspection_report",
+      "path": "runs/drawer_geometry_04/geometry_inspection.json"
+    },
+    {
+      "description": "Shared runtime-validation workflow report.",
+      "kind": "runtime_validation_report",
+      "path": "runs/drawer_geometry_04/runtime/runtime_validation_workflow.json"
+    },
+    {
+      "description": "Accepted OVRTX render and image-validation report.",
+      "kind": "shared_render_evidence_report",
+      "path": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json"
+    },
+    {
+      "description": "Individually validated shared OVRTX render view.",
+      "kind": "ovrtx_render_view",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_x_0000.png"
+    },
+    {
+      "description": "Individually validated shared OVRTX render view.",
+      "kind": "ovrtx_render_view",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_x_0000.png"
+    },
+    {
+      "description": "Individually validated shared OVRTX render view.",
+      "kind": "ovrtx_render_view",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_y_0000.png"
+    },
+    {
+      "description": "Individually validated shared OVRTX render view.",
+      "kind": "ovrtx_render_view",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_y_0000.png"
+    },
+    {
+      "description": "Individually validated shared OVRTX render view.",
+      "kind": "ovrtx_render_view",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_z_0000.png"
+    },
+    {
+      "description": "Individually validated shared OVRTX render view.",
+      "kind": "ovrtx_render_view",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_xplus_yplus_z_0000.png"
+    },
+    {
+      "description": "Derived presentation grid; accepted individual OVRTX views are the underlying evidence.",
+      "kind": "render_presentation_grid",
+      "path": "runs/drawer_geometry_04/render_evidence/geometry_six_view.png"
+    },
+    {
+      "description": "Geometry asset audit artifact: authoring_contract_path.",
+      "kind": "authoring_contract_path",
+      "path": "runs/drawer_geometry_04/authoring_contract.json"
+    },
+    {
+      "description": "Geometry asset audit artifact: render_audit_path.",
+      "kind": "render_audit_path",
+      "path": "runs/drawer_geometry_04/render_audit_report.json"
+    },
+    {
+      "description": "Geometry asset audit artifact: geometry_audit_path.",
+      "kind": "geometry_audit_path",
+      "path": "runs/drawer_geometry_04/geometry_audit_report.json"
+    },
+    {
+      "description": "Geometry asset audit artifact: asset_audit_summary_path.",
+      "kind": "asset_audit_summary_path",
+      "path": "runs/drawer_geometry_04/asset_audit_summary.json"
+    }
+  ],
+  "failures": [],
+  "metadata": {},
+  "schema_version": "content-agent-workflows.validation-evidence.v1",
+  "sim_ready_status": "not_evaluated",
+  "target_runtime": "isaac-lab",
+  "unresolved_issues": [
+    "primvars:st contains repeated values that can be indexed.",
+    "77 vertices are non-manifold.",
+    "82 vertices are non-manifold.",
+    "78 vertices are non-manifold.",
+    "51 vertices are non-manifold.",
+    "59 vertices are non-manifold.",
+    "The mesh contains zero area faces."
+  ],
+  "validation_tier": "T1_basic_stability",
+  "warnings": [
+    "primvars:st contains repeated values that can be indexed.",
+    "77 vertices are non-manifold.",
+    "82 vertices are non-manifold.",
+    "78 vertices are non-manifold.",
+    "51 vertices are non-manifold.",
+    "59 vertices are non-manifold.",
+    "The mesh contains zero area faces."
+  ],
+  "workflow": "geometry"
+}

@@ -1,0 +1,75 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "a480b818275145d298a1e745f4e36206ab1936fd42f5c5cd9e5ced457cd7bcf6"
+  },
+  "backend_alias": "ovrtx",
+  "camera_records": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000_camera.json",
+      "sha256": "c5db1342d8ea49c1d868550c95c6c3605e1ba848e757615e19902d02aed64d8e",
+      "size_bytes": 358
+    }
+  ],
+  "dependencies": [],
+  "dependency_closure_complete": true,
+  "images": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000.png",
+      "sha256": "469b02e0bdde568fb365c80a356cc4b305c14a00e21b601be27f3172bbf34696",
+      "size_bytes": 341017
+    }
+  ],
+  "post_mutation_output": {
+    "path": "runs/drawer_joint_03/joint_rigger/rigged.usdz",
+    "sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+    "size_bytes": 1036981
+  },
+  "render_metadata": {
+    "backend": "ovrtx",
+    "image_height": 1024,
+    "image_width": 1024,
+    "renderer": "ovrtx",
+    "renderer_identities": [
+      null
+    ],
+    "scene_tool": "usd-cli",
+    "scene_tool_source_revision": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06",
+    "views": [
+      "+x+y+z"
+    ],
+    "workflow": "validation-canonical-visual-evidence"
+  },
+  "render_process_status": "completed",
+  "render_report": {
+    "path": "runs/drawer_joint_03_visual/canonical_visual_render_report.json",
+    "sha256": "2506e6705de0373ae96026fa4a7f9440060182f9e6a1749ea398f2c6de7e485e",
+    "size_bytes": 2100
+  },
+  "render_responses": [
+    {
+      "path": "runs/drawer_joint_03_visual/usd_cli/renders/view-000_response.json",
+      "sha256": "91495f87f206043b2f49451250160df99ea2a0d502d983c06a9a2ab47fcdef52",
+      "size_bytes": 2220
+    }
+  ],
+  "schema_version": "content-agent-workflows.canonical-visual-evidence-payload.v2",
+  "semantic_authority": "outer_coordinator",
+  "source": {
+    "path": "runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  },
+  "usd_cli_command_receipt": {
+    "path": "runs/drawer_joint_03_visual/usd_cli/raw/usd_cli_command_receipts.jsonl",
+    "sha256": "d0301620889e43571f0f8bf7bcd42affe1eae4578ef8eb60ecafedfdb0bf962f",
+    "size_bytes": 9817
+  },
+  "usd_cli_receipt_checkpoint": {
+    "path": "runs/drawer_joint_03_visual/usd_cli/raw/usd_cli_command_receipts.checkpoint.json",
+    "sha256": "6ff47afb67d8fa9c91bb0ba7ecb49e2ba4b286d2a51dbb5aaacccf4735507dfa",
+    "size_bytes": 359
+  },
+  "usd_cli_source_revision": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06"
+}

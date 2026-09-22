@@ -11,7 +11,7 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
 from .artifacts import file_sha256
-from .mesh_io import load_meshes, positional_topology_mesh
+from .mesh_io import load_meshes, positional_topology_mesh_with_source_indices
 from .models import ProtectedFeature, ProtectedFeatureProbe, ProtectedFeatureProbeResult
 from .surface import closest_surface, points_inside_union
 
@@ -435,7 +435,7 @@ def detect_protected_feature_candidates(
         key=lambda item: item.path,
     ):
         try:
-            vertices, triangles = positional_topology_mesh(
+            vertices, triangles, source_vertex_ids = positional_topology_mesh_with_source_indices(
                 mesh.world_vertices_m,
                 mesh.triangles,
             )
@@ -447,14 +447,6 @@ def detect_protected_feature_candidates(
         diagonal = float(np.linalg.norm(np.ptp(vertices, axis=0)))
         tolerance = max(diagonal * 1e-5, 1e-7)
         object_center = vertices.mean(axis=0)
-        source_vertex_by_position: dict[tuple[float, float, float], int] = {}
-        for source_vertex_id, point in enumerate(
-            np.asarray(mesh.world_vertices_m, dtype=np.float64)
-        ):
-            source_vertex_by_position.setdefault(
-                tuple(float(value) for value in point),
-                source_vertex_id,
-            )
         loops = _ordered_boundary_loops(triangles)
         for loop_index, loop in enumerate(loops):
             geometry = _loop_geometry(vertices, loop)
@@ -472,9 +464,7 @@ def detect_protected_feature_candidates(
             loop_evidence = {
                 "measurement": "position_welded_boundary_loop",
                 "loop_vertex_ids": [
-                    source_vertex_by_position[
-                        tuple(float(value) for value in vertices[int(vertex_id)])
-                    ]
+                    int(source_vertex_ids[int(vertex_id)])
                     for vertex_id in loop
                 ],
                 "loop_vertex_count": len(loop),

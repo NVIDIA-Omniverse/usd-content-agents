@@ -1,0 +1,61 @@
+{
+  "asset_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+  "steps": [
+    {
+      "command": [
+        "/opt/astra-content-value-20260921/capstone/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/capstone/verify_original_drawer_geometry.py",
+        "--run",
+        "drawer_physics_10",
+        "--candidate",
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+      ],
+      "started_utc": "2026-09-22T04:01:16.445931+00:00",
+      "returncode": 0,
+      "completed_utc": "2026-09-22T04:01:16.771078+00:00"
+    },
+    {
+      "command": [
+        "/opt/astra-content-value-20260921/capstone/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/capstone/audit_native_drawer_contract_v5.py",
+        "--run",
+        "drawer_physics_10"
+      ],
+      "started_utc": "2026-09-22T04:01:16.771154+00:00",
+      "returncode": 0,
+      "completed_utc": "2026-09-22T04:01:17.169841+00:00"
+    },
+    {
+      "command": [
+        "/opt/astra-content-value-20260921/ovphysx-venv/bin/python",
+        "/opt/astra-content-value-20260921/capstone/probe_cooked_drawer_clearance.py",
+        "--asset",
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "--asset-sha256",
+        "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "--spec",
+        "/opt/astra-content-value-20260921/capstone/evaluator/source_clear_v1/drawer_acceptance.json",
+        "--output",
+        "/opt/astra-content-value-20260921/capstone/evidence/native10_cooked_clearance_v1.json"
+      ],
+      "started_utc": "2026-09-22T04:01:17.169899+00:00",
+      "returncode": 0,
+      "completed_utc": "2026-09-22T04:01:27.983157+00:00"
+    },
+    {
+      "command": [
+        "/opt/astra-content-value-20260921/capstone/repo/.venv/bin/python",
+        "/opt/astra-content-value-20260921/capstone/audit_cooking_log.py",
+        "--asset",
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+        "--log",
+        "/opt/astra-content-value-20260921/capstone/evidence/native10_cooked_clearance_v1.log",
+        "--output",
+        "/opt/astra-content-value-20260921/capstone/evidence/native10_critical_cooking_log_audit.json"
+      ],
+      "started_utc": "2026-09-22T04:01:27.983220+00:00",
+      "returncode": 1,
+      "completed_utc": "2026-09-22T04:01:28.019761+00:00"
+    }
+  ]
+}

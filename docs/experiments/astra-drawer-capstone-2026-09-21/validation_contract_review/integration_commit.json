@@ -1,0 +1,20 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "2080313380f61aee09bcd7231986ca03c1b740a51809d84685cce57d762cc1df"
+  },
+  "active_remote_checkout_updated": false,
+  "commit": "78004ff724605b721100beb1331f48d71cb7984d",
+  "independent_review": {
+    "path": "independent_review.json",
+    "sha256": "6f3acfff9af8ee682a9f12848e7bf59bc22dd36c90d343bb94014cffff9bf1fc"
+  },
+  "observed_utc": "2026-09-22T02:30:44.861224+00:00",
+  "parent_commit": "155aaf16dfc2afb70a44ffb15f137075199a884c",
+  "qualification": {
+    "path": "qualification.json",
+    "sha256": "ce7ccd327110e7c9641d3565d9bfaec88affc2221a54373cc8c8afbc6c7b2126"
+  },
+  "schema_version": "native-validation-adapter-local-commit.v1"
+}

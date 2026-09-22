@@ -1,0 +1,235 @@
+{
+  "evidence": {
+    "animation_frame_paths": [],
+    "image_paths": [
+      "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+    ],
+    "render_response_images": [
+      "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+    ]
+  },
+  "evidence_items": [],
+  "issues": [],
+  "metadata": {
+    "adapter": "render_valid",
+    "adapter_result": {
+      "evidence": {
+        "animation_frame_paths": [],
+        "image_paths": [
+          "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+        ],
+        "render_response_images": [
+          "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+        ]
+      },
+      "issues": [],
+      "metadata": {
+        "backend": "ovrtx",
+        "render_response": {
+          "backend": "ovrtx",
+          "cameras": [
+            "+x+y+z"
+          ],
+          "failures": [],
+          "frames": [],
+          "malformed": false,
+          "output_paths": [
+            "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+          ],
+          "sensors": []
+        }
+      },
+      "metrics": {
+        "animation_frame_count": 0,
+        "image_count": 1,
+        "issue_count": 0,
+        "render_response_image_count": 1,
+        "render_response_present": true
+      },
+      "results": {
+        "animation_frames": [],
+        "duplicate_frames": null,
+        "images": [
+          {
+            "height": 768,
+            "issues": [],
+            "metrics": {
+              "black_pixel_ratio": 0.8445536295572916,
+              "height": 768,
+              "luma_dynamic_range": 161.6251983642578,
+              "luma_max": 161.6251983642578,
+              "luma_mean": 11.853808403015137,
+              "luma_min": 0.0,
+              "luma_p05": 0.0,
+              "luma_p95": 98.44059753417969,
+              "luma_p95_minus_p05": 98.44059753417969,
+              "luma_std": 32.30696487426758,
+              "nonblack_pixel_ratio": 0.14699300130208334,
+              "red_dominant_nonblack_ratio": 0.0,
+              "red_dominant_pixel_ratio": 0.0,
+              "rgb_max": 196.0,
+              "rgb_min": 0.0,
+              "sampled_pixels": 786432,
+              "unique_colors": 17832,
+              "white_pixel_ratio": 0.0,
+              "width": 1024
+            },
+            "mode": "RGB",
+            "passed": true,
+            "readable": true,
+            "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png",
+            "width": 1024
+          }
+        ],
+        "render_response": {
+          "issues": [],
+          "metadata": {
+            "backend": "ovrtx",
+            "cameras": [
+              "+x+y+z"
+            ],
+            "failures": [],
+            "frames": [],
+            "malformed": false,
+            "output_paths": [
+              "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+            ],
+            "sensors": []
+          },
+          "passed": true
+        },
+        "render_response_images": [
+          {
+            "height": 768,
+            "issues": [],
+            "metrics": {
+              "black_pixel_ratio": 0.8445536295572916,
+              "height": 768,
+              "luma_dynamic_range": 161.6251983642578,
+              "luma_max": 161.6251983642578,
+              "luma_mean": 11.853808403015137,
+              "luma_min": 0.0,
+              "luma_p05": 0.0,
+              "luma_p95": 98.44059753417969,
+              "luma_p95_minus_p05": 98.44059753417969,
+              "luma_std": 32.30696487426758,
+              "nonblack_pixel_ratio": 0.14699300130208334,
+              "red_dominant_nonblack_ratio": 0.0,
+              "red_dominant_pixel_ratio": 0.0,
+              "rgb_max": 196.0,
+              "rgb_min": 0.0,
+              "sampled_pixels": 786432,
+              "unique_colors": 17832,
+              "white_pixel_ratio": 0.0,
+              "width": 1024
+            },
+            "mode": "RGB",
+            "passed": true,
+            "readable": true,
+            "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png",
+            "width": 1024
+          }
+        ]
+      },
+      "status": "pass",
+      "template": "render_valid"
+    },
+    "expected_cameras": [
+      "+x+y+z"
+    ],
+    "qualified_render_evidence": [],
+    "render_evidence_accepted": true,
+    "render_evidence_origin": "runtime_render",
+    "runtime_render": {
+      "backend": "ovrtx",
+      "image_paths": [
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+      ],
+      "issues": [],
+      "metadata": {
+        "backend": "ovrtx",
+        "base_url_configured": false,
+        "frames": "0",
+        "image_count": 1,
+        "image_height": 768,
+        "image_width": 1024,
+        "render_invocation_count": 1,
+        "response_cameras": [
+          "+x+y+z"
+        ],
+        "stage_preparation": [
+          {
+            "asset_base_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10",
+            "backend": "ovrtx",
+            "flattened": true,
+            "material_normalized": true,
+            "meters_per_unit": 1.0,
+            "up_axis": "Y",
+            "usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda",
+            "usd_sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156"
+          }
+        ],
+        "usd_path_count": 1,
+        "view_count": 1,
+        "views": [
+          "+x+y+z"
+        ]
+      },
+      "render_output_dir": "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders",
+      "render_response": {
+        "backend": "ovrtx",
+        "cameras": [
+          "+x+y+z"
+        ],
+        "issues": [],
+        "results": [
+          {
+            "active_aov": "LdrColor",
+            "camera": "+x+y+z",
+            "camera_label": "+x+y+z",
+            "camera_path": "/ValidationAgentCameras/plus_xplus_yplus_z",
+            "error": null,
+            "frame_count": 1,
+            "images": [
+              "/opt/astra-content-value-20260921/capstone/runs/drawer_validation_01_prepared/native_run/operations/render_valid/renders/000_physics_c491b4e7/000_physics_c491b4e7_plus_xplus_yplus_z_0000.png"
+            ],
+            "ovrtx_num_sensor_updates": 32,
+            "ovrtx_render_mode": "rt2",
+            "render_time": 4.048454999923706,
+            "status": null,
+            "usd_path": "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+          }
+        ],
+        "status": "completed"
+      },
+      "status": "completed"
+    },
+    "template_kind": "adapter",
+    "validation_coordinator_check": {
+      "capability_id": "validation.render_valid",
+      "check_id": "validation.render_valid",
+      "completion_policy": "all_required_evidence",
+      "evidence_requirements": [
+        "source_identity",
+        "render_result",
+        "qualified_render_evidence"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {},
+      "required": true,
+      "rule_id": "render.runtime_evidence",
+      "targets": [
+        "/opt/astra-content-value-20260921/capstone/runs/drawer_physics_10/physics.usda"
+      ]
+    }
+  },
+  "metrics": {
+    "animation_frame_count": 0,
+    "image_count": 1,
+    "issue_count": 0,
+    "render_response_image_count": 1,
+    "render_response_present": true
+  },
+  "status": "passed",
+  "template_name": "render_valid"
+}

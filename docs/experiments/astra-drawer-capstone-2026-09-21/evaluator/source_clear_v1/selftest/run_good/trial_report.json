@@ -1,0 +1,39 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "a04991a82c19d5c57f7667337e9c484ad46b17bcdc8b1fdc920e99357da94eab"
+  },
+  "checks": {
+    "closed_settled": true,
+    "closing": true,
+    "finite_and_stable": true,
+    "force_bounded": true,
+    "initial_drift": true,
+    "interior_clear": true,
+    "off_axis": true,
+    "opening": true,
+    "payload_contact": true,
+    "payload_retained": true,
+    "penetration": true,
+    "rotation": true
+  },
+  "errors": [],
+  "metrics": {
+    "initial_drift_m": 1.8338789686822565e-06,
+    "max_angular_speed_rad_s": 0.03548521175980568,
+    "max_closed_hold_error_m": 0.00016164738917723298,
+    "max_closed_hold_speed_m_s": 0.001595160225406289,
+    "max_force_n": 0.5622026874730885,
+    "max_linear_speed_m_s": 1.021875262260437,
+    "max_off_axis_m": 2.873817273041368e-08,
+    "max_penetration_m": 1.0784715414047241e-06,
+    "max_q_m": 0.24107331037521362,
+    "max_rotation_deg": 0.0,
+    "min_open_hold_q_m": 0.23997774720191956,
+    "payload_contact_samples": 2280,
+    "payload_retained": true
+  },
+  "seed": 11,
+  "status": "PASS"
+}

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import traceback
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -134,6 +135,7 @@ class GeometryWorkflowInput(BaseModel):
     output_dir: Path
     output_usd_path: Path | None = None
     source_authoring_mode: SourceAuthoringMode = "auto"
+    render_topology_policy: Literal["strict", "preserve_source"] = "strict"
     allow_lossy_recovery: bool = False
     target_profile: str = STATIC_VISUAL_PROFILE_ID
     target_runtime: str = "isaac-lab"
@@ -200,6 +202,18 @@ class GeometryWorkflowInput(BaseModel):
         gt=0.0,
         allow_inf_nan=False,
     )
+
+    @model_validator(mode="after")
+    def validate_preserved_render_policy(self):
+        if self.render_topology_policy == "preserve_source" and (
+            self.source_authoring_mode != "lossless_gltf"
+            or self.optimization_policy != "skip"
+            or self.repair_mode != "off"
+            or self.canonicalize_stage_metrics
+            or self.run_legacy_cad_physics_preflight
+        ):
+            raise ValueError("preserve_source render topology requires explicit lossless_gltf intake, skipped optimization, no render repair/metric rewrite, and delegated downstream physics")
+        return self
 
     @field_validator("repair_enabled_workers", mode="after")
     @classmethod
@@ -323,6 +337,8 @@ class GeometryWorkflowResult(BaseModel):
     validation_status: str = "not_evaluated"
     handoff_ready: GeometryHandoffReady = "no"
     error: str | None = None
+    error_type: str | None = None
+    error_traceback_path: str | None = None
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> Path:
@@ -503,6 +519,7 @@ def _cad_preflight_checks(
     profile_id: str,
     *,
     include_legacy_physics: bool = False,
+    preserved_render_reference: Path | None = None,
 ) -> tuple[
     list[ValidationCheck],
     list[str],
@@ -569,6 +586,25 @@ def _cad_preflight_checks(
             reports[level] = {
                 "status": "unavailable",
                 "issues": [f"CAD verifier {level} preflight unavailable: {exc}"],
+            }
+
+    if preserved_render_reference is not None:
+        from .lossless_gltf import verify_preserved_render
+
+        fidelity = verify_preserved_render(preserved_render_reference, usd_path)
+        raw_report = reports["mesh_topology"]
+        # This is an explicitly scoped render handoff. Preserve the complete
+        # strict report; it remains unsuitable evidence for collision cooking.
+        if raw_report.get("status") in {"pass", "fail"}:
+            reports["mesh_topology"] = {
+                "status": "pass",
+                "message": "Source render geometry is preserved, finite and well indexed; original visual topology is retained as diagnostics. Collision cooking/contact/runtime validation remains delegated and required before physical acceptance.",
+                "issues": [],
+                "metrics": raw_report.get("metrics", {}),
+                "strict_topology_report": raw_report,
+                "source_fidelity": fidelity,
+                "claim_scope": "source_preserving_render_only",
+                "physical_acceptance": False,
             }
 
     delegated_levels = physics_levels if not include_legacy_physics else []
@@ -670,8 +706,10 @@ def _cad_preflight_checks(
                 evidence_artifacts=artifacts,
                 metadata={
                     "profile_intent": profile_id,
-                    "raw_status": status_value,
-                    "claim_scope": "legacy_cad_preflight_only"
+                    "raw_status": report.get("strict_topology_report", {}).get("status", status_value),
+                    "claim_scope": "source_preserving_render_only"
+                    if preserved_render_reference is not None and level == "mesh_topology"
+                    else "legacy_cad_preflight_only"
                     if level != "mesh_topology"
                     else "cad_preflight_only",
                     "required_by_profile": level in required_levels,
@@ -1726,6 +1764,14 @@ def _source_prep_artifacts(
     prepared: PreparedGeometrySource,
 ) -> list[EvidenceArtifact]:
     artifacts: list[EvidenceArtifact] = []
+    preserved = prepared.metadata.get("lossless_gltf")
+    if isinstance(preserved, dict) and Path(str(preserved.get("receipt", ""))).is_file():
+        artifacts.append(EvidenceArtifact(
+            kind="source_fidelity_report",
+            path=str(preserved["receipt"]),
+            description="Static glTF source vertex/index identity and dependency receipts.",
+            metadata={"producer": "content_agent_workflows.geometry.lossless_gltf", "claim_scope": "source_render_geometry", "status": "pass"},
+        ))
     conversion = prepared.metadata.get("conversion")
     if not isinstance(conversion, dict):
         return artifacts
@@ -2415,6 +2461,13 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
             prompt=params.prompt,
             image_path=params.image_path,
         )
+        if params.source_authoring_mode == "lossless_gltf":
+            route = route.model_copy(update={
+                "route": "provided_mesh_repair",
+                "input_modality": "provided_mesh",
+                "requires_scene_optimization": False,
+                "rationale": "Explicit static glTF source-array preservation; no shared CAD conversion or render topology repair.",
+            })
         output_dir.mkdir(parents=True, exist_ok=True)
         source_path_for_preparation = params.source_path
         source_sha256_for_preparation = params.expected_source_sha256
@@ -2724,6 +2777,12 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
                 output_dir,
                 params.target_profile,
                 include_legacy_physics=params.run_legacy_cad_physics_preflight,
+                preserved_render_reference=(
+                    Path(prepared.prepared_usd_path)
+                    if params.render_topology_policy == "preserve_source"
+                    and prepared.fidelity_tier == "source_gltf_preserved"
+                    else None
+                ),
             )
         )
         source_prep_artifacts = _source_prep_artifacts(prepared)
@@ -3232,6 +3291,15 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
     except Exception as exc:
         if params.fail_on_validation_error:
             raise
+        traceback_path = None
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            traceback_path = _write_json(output_dir / "geometry_failure.json", {
+                "error_type": type(exc).__name__, "error": str(exc),
+                "traceback": traceback.format_exc(), "claim_scope": "workflow_failure_diagnostic",
+            })
+        except OSError:
+            pass
         if route is None:
             route = GeometryRouteDecision(
                 route="text_to_cad_generate",
@@ -3268,4 +3336,6 @@ def run_geometry_workflow(params: GeometryWorkflowInput) -> GeometryWorkflowResu
             validation_status="fail",
             handoff_ready="no",
             error=str(exc),
+            error_type=type(exc).__name__,
+            error_traceback_path=str(traceback_path) if traceback_path else None,
         )

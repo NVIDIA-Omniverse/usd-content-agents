@@ -1,0 +1,249 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "b73e80e9e3c87558ef29f3781becd663ab19a108678f2a58752e6fac5cb098f4"
+  },
+  "asset": "runs/drawer_physics_03/physics.usda",
+  "checks": [
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_03/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "physics_properties",
+      "status": "pass",
+      "summary": "Physics schemas and authored physical properties are present.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_03/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "runtime_loadability",
+      "status": "fail",
+      "summary": "Authored asset loads in the requested physics runtime.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Drop-settle validation scene.",
+          "kind": "simulation_scene",
+          "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda"
+        },
+        {
+          "description": "Per-frame simulated pose and velocity.",
+          "kind": "trajectory_jsonl",
+          "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/trajectory.jsonl"
+        },
+        {
+          "description": "Time-sampled USD recording of the validation run.",
+          "kind": "recording_usda",
+          "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda"
+        },
+        {
+          "description": "Runtime validation metrics and artifact index.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_03/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {},
+      "name": "no_explosions",
+      "status": "fail",
+      "summary": "Runtime trajectory remains finite and bounded.",
+      "warnings": []
+    },
+    {
+      "evidence_artifacts": [
+        {
+          "description": "Agent-authored visual review of rendered simulation frames.",
+          "kind": "physics_behavior_assessment",
+          "path": "runs/drawer_physics_03/physics_behavior_assessment.json"
+        },
+        {
+          "description": "Runtime metrics reviewed alongside rendered frames.",
+          "kind": "runtime_report",
+          "path": "runs/drawer_physics_03/runtime/runtime_validation_report.json"
+        }
+      ],
+      "failures": [],
+      "metadata": {
+        "assessment_status": "unresolved_issues",
+        "issues_fixed_count": 0,
+        "issues_found_count": 3
+      },
+      "name": "simulation_visual_review",
+      "status": "warning",
+      "summary": "Rendered simulation behavior was reviewed by the agent.",
+      "warnings": [
+        "{'code': 'initial_pose_discontinuity', 'required_followup': 'Wrapper must investigate and correct validation-scene placement while preserving the mounted assembly and source joint, then rerun authoritative OvPhysX validation. No evidence-supported decision-patch material or mass fix was identified.'}",
+        "{'code': 'simulation_frames_missing', 'required_followup': 'Provide task-bound OVRTX simulation frames after rerunning the corrected validation scene, then inspect separation, constrained motion, bounce/sliding, interpenetration/tunneling, render freshness/framing, and agreement with runtime metrics.'}",
+        "OVRTX review render provenance is missing or unsafe.",
+        "OVRTX review requires at least one decoded rendered frame.",
+        "Physics assessment did not review any OVRTX frame."
+      ]
+    }
+  ],
+  "evidence_artifacts": [
+    {
+      "description": "Drop-settle validation scene.",
+      "kind": "simulation_scene",
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda"
+    },
+    {
+      "description": "Per-frame simulated pose and velocity.",
+      "kind": "trajectory_jsonl",
+      "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/trajectory.jsonl"
+    },
+    {
+      "description": "Time-sampled USD recording of the validation run.",
+      "kind": "recording_usda",
+      "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "description": "Runtime validation metrics and artifact index.",
+      "kind": "runtime_report",
+      "path": "runs/drawer_physics_03/runtime/runtime_validation_report.json"
+    },
+    {
+      "description": "Agent-authored visual review of rendered simulation frames.",
+      "kind": "physics_behavior_assessment",
+      "path": "runs/drawer_physics_03/physics_behavior_assessment.json"
+    },
+    {
+      "description": "Runtime metrics reviewed alongside rendered frames.",
+      "kind": "runtime_report",
+      "path": "runs/drawer_physics_03/runtime/runtime_validation_report.json"
+    }
+  ],
+  "failures": [
+    "Simulation initial pose was discontinuous: first-step displacement was 3.879659 m."
+  ],
+  "metadata": {
+    "asset_sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+    "duration_s": 3.0,
+    "engine": "ovphysx",
+    "ground_clearance_support_decision": {
+      "authored_collision_approximations": [
+        "convexDecomposition"
+      ],
+      "body_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "cache_key": "845cc64962810013b713cf2772e4d9e28e50f6f365e5b7f1797071bdfa21bfee",
+      "cache_status": "primary",
+      "decision_id": "4f7054b8db95820b39f06e6665b7d97752c28368094d85f244633bf8233a8bb2",
+      "exact": true,
+      "fallback_accepted": false,
+      "hull_input_point_count_estimate": 1486,
+      "measurement_prim_paths": [
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+      ],
+      "observed_unique_point_count": 1028,
+      "point_count_estimate_complete": true,
+      "policy_version": "raw-hull-input-bound.v1",
+      "primary_selection_duration_seconds": 0.010184720158576965,
+      "processing_bound": 400000,
+      "raw_point_count_estimate": 1486,
+      "reason": "Selected 1028 exact collider support points.",
+      "reason_code": "exact_support_points",
+      "reuse_count": 0,
+      "schema_version": "physics-agent.ground-clearance-support-decision.v1",
+      "selected_point_count": 1028,
+      "selected_support_type": "mesh_vertices",
+      "selection_duration_seconds": 0.010422218590974808,
+      "serialization_cap": 50000,
+      "validation_outcome": "fail"
+    },
+    "phase_timings_seconds": {
+      "acceptance": 0.1842891164124012,
+      "scene_build": 0.12278354167938232,
+      "simulation": 16.878819812089205,
+      "support_selection": 0.010422218590974808
+    },
+    "sample_fps": 30,
+    "settle_distance": 0.9939968323079891,
+    "trajectory_summary": {
+      "duration_s": 3.0,
+      "expected_ballistic_displacement_m": 0.00545,
+      "fell_over": false,
+      "final_position": [
+        -0.04852598160505295,
+        -0.0024886131286621094,
+        0.2821240723133087
+      ],
+      "first_step_displacement_m": 3.8796591114139645,
+      "gravity_magnitude_m_per_s2": 9.81,
+      "gravity_response_observed": true,
+      "ground_clearance_geometry": "collider_mesh_vertices",
+      "initial_pose_discontinuity": true,
+      "loaded_body_count": 1,
+      "max_angular_speed": 11.224370526728372,
+      "max_linear_speed": 293.85043910371166,
+      "maximum_ground_penetration_m": 0.0,
+      "n_samples": 91,
+      "resting_ground_penetration_m": 0.0,
+      "settle_time_s": 0.43333333333333335
+    }
+  },
+  "schema_version": "content-agent-workflows.validation-evidence.v1",
+  "sim_ready_status": "fail",
+  "target_runtime": "ovphysx",
+  "unresolved_issues": [
+    "{'code': 'initial_pose_discontinuity', 'required_followup': 'Wrapper must investigate and correct validation-scene placement while preserving the mounted assembly and source joint, then rerun authoritative OvPhysX validation. No evidence-supported decision-patch material or mass fix was identified.'}",
+    "{'code': 'simulation_frames_missing', 'required_followup': 'Provide task-bound OVRTX simulation frames after rerunning the corrected validation scene, then inspect separation, constrained motion, bounce/sliding, interpenetration/tunneling, render freshness/framing, and agreement with runtime metrics.'}",
+    "OVRTX review render provenance is missing or unsafe.",
+    "OVRTX review requires at least one decoded rendered frame.",
+    "Physics assessment did not review any OVRTX frame."
+  ],
+  "validation_tier": "T2_simulation_match",
+  "warnings": [
+    "{'code': 'initial_pose_discontinuity', 'required_followup': 'Wrapper must investigate and correct validation-scene placement while preserving the mounted assembly and source joint, then rerun authoritative OvPhysX validation. No evidence-supported decision-patch material or mass fix was identified.'}",
+    "{'code': 'simulation_frames_missing', 'required_followup': 'Provide task-bound OVRTX simulation frames after rerunning the corrected validation scene, then inspect separation, constrained motion, bounce/sliding, interpenetration/tunneling, render freshness/framing, and agreement with runtime metrics.'}",
+    "OVRTX review render provenance is missing or unsafe.",
+    "OVRTX review requires at least one decoded rendered frame.",
+    "Physics assessment did not review any OVRTX frame."
+  ],
+  "workflow": "physics_authoring"
+}

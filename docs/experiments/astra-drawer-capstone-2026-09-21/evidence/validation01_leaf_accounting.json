@@ -1,0 +1,49 @@
+{
+  "schema": "capstone.validation01-leaf-accounting.v1",
+  "generated_utc": "2026-09-22T04:28:49.693169+00:00",
+  "unscored": true,
+  "scope": "Native Validation01 planner leaf only, joined once to the explicitly partial completed Joint/Physics native leaf totals. Does not account for outer/root/reviewer engineering context or claim total experiment cost.",
+  "validation01": {
+    "model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "reported_aggregate_usage": {
+      "input_tokens": 16589,
+      "cached_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2981,
+      "reasoning_output_tokens": 1552
+    },
+    "native_leaf_started_utc": "2026-09-22T04:20:20.235Z",
+    "native_leaf_completed_utc": "2026-09-22T04:21:53.917Z",
+    "native_coordinator_completed_utc": "2026-09-22T04:22:04.111870Z",
+    "timestamp_basis": "First running and final successful status timestamps from native observable event metadata; coordinator completion from its native execution receipt. No prompt, reasoning text, item/session identifiers, or filesystem times are used."
+  },
+  "partial_capstone_native_leaf_totals": {
+    "input_tokens": 17822845,
+    "cached_input_tokens": 16734976,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 127391,
+    "reasoning_output_tokens": 30312
+  },
+  "partial_metered_leaf_record_count": 10,
+  "prior_accounting": {
+    "path": "evidence/completed_native_leaf_accounting.json",
+    "sha256": "3a585bff120df42da3064ba6265cd60181ae163a0e5929aa48bfc9d568a35bfb"
+  },
+  "source_metadata_sha256": {
+    "runs/drawer_validation_01_prepared/native_run/raw/validation_planner_launch_descriptor.json": "b1921477e937010a8748196ce64c7f4b4a9390fb0dc472660f8f50f31d62459f",
+    "runs/drawer_validation_01_prepared/native_run/raw/validation_planner_result.json": "a4aa1454f5b2a91f6042872a40e3a578c2da6c68d7d7b9b1b7fee2980c39fe10",
+    "runs/drawer_validation_01_prepared/native_run/raw/validation_planner_observable_events.jsonl": "fc82a41a9979ca5e781232b24bb34f19abe3fd12955f3f0a372a281e3b35d294",
+    "runs/drawer_validation_01_prepared/native_run/validation_coordinator_execution_receipt.json": "c9e99df49c55c560616aa29f3520dcafbd880a0ec86225cb903dff630ae6c845"
+  },
+  "source_bytes_unchanged": true,
+  "monetary_cost": null,
+  "outer_root_agent_engineering_cost": null,
+  "complete_experiment_cost": null,
+  "limitations": [
+    "SDK-reported aggregate response usage, not a per-response independent token ledger.",
+    "Cached input and reasoning output are subsets of input/output; do not add them again.",
+    "Native collect/assess/review and outer coordinator/reviewer model context are not inferred from the planner response. Root accounting remains separate.",
+    "Missing costs remain null; no token-price assumptions or completion/acceptance claims are made."
+  ]
+}

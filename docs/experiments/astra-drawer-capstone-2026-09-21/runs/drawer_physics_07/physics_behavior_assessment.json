@@ -1,0 +1,55 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "d2403dab45524f550cde1b3f75c18d92b31ac965f62a25a57c58dc4d5adce446"
+  },
+  "checked_views": [
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0000.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0001.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0002.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0003.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0004.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0005.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0006.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "issues_fixed": [],
+  "issues_found": [
+    {
+      "body_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+      "code": "initial_pose_discontinuity",
+      "first_step_displacement_m": 0.0530929324437674,
+      "message": "OvPhysX reports a 53.093 mm first-step jump of the mounted upper drawer. The visible drawer alignment changes and later settles; the resulting stability does not override this authoritative failure.",
+      "severity": "error"
+    },
+    {
+      "code": "render_time_alignment_uncertain",
+      "message": "Local frame 0001 remains visually close to the initial pose despite nominal sampling at the reported settle time; the shifted drawer is clear from frame 0002 onward. The sparse sequence cannot establish exact onset timing or resolve the first-step transient.",
+      "severity": "warning"
+    }
+  ],
+  "rendered_frames": [
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0000.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0001.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0002.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0003.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0004.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0005.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0006.png",
+    "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0007.png"
+  ],
+  "runtime_report": "runs/drawer_physics_07/runtime/runtime_validation_report.json",
+  "schema_version": "content-agent-workflows.physics-behavior-assessment.v1",
+  "status": "unresolved_issues",
+  "unresolved_issues": [
+    {
+      "code": "initial_pose_discontinuity",
+      "message": "Startup displacement remains a hard failure. Available evidence does not establish a supported material correction; retained source, grouping, joint, mass, and collision-shape constraints prevent an unsubstantiated workaround. Targeted native cooked-clearance and mounted-constraint evidence is needed to identify the cause."
+    },
+    {
+      "code": "render_time_alignment_uncertain",
+      "message": "Exact correspondence between early rendered frames and recorded sample times remains unverified. Ground contact, hidden internal intersections, and the later force/payload task are outside the available visual evidence."
+    }
+  ]
+}

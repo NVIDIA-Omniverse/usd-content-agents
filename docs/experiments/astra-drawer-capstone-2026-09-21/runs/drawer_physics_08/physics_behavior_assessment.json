@@ -1,0 +1,39 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "d7085c80c579ae99565de9e40562b37d37bf9025591793de651cc920b050ca92"
+  },
+  "checked_views": [
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0000.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0001.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0002.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0003.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0004.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0005.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0006.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0007.png"
+  ],
+  "issues_fixed": [],
+  "issues_found": [
+    "Residual mounted-drawer pose shift persists: the upper drawer front changes slightly relative to the cabinet between review_frame_0000.png and review_frame_0001.png, then remains displaced through review_frame_0007.png. The trajectory confirms a first-sample translation of approximately [7.7473,-0.6342,-6.1819] mm and 0.305 degrees rotation from the initial near-zero identity pose. The sideways shift and rotation raise a semantic concern for the preserved Z prismatic constraint despite the passing generic runtime gates.",
+    "Required actual cooked floor fidelity and interior clearance remain unverified. Closed exterior views and mesh-vertex ground measurements do not establish a cooked floor near source Y=1.012999773 m or a clear interior point near Y=1.03 m away from walls."
+  ],
+  "rendered_frames": [
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0000.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0001.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0002.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0003.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0004.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0005.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0006.png",
+    "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0007.png"
+  ],
+  "runtime_report": "runs/drawer_physics_08/runtime/runtime_validation_report.json",
+  "schema_version": "content-agent-workflows.physics-behavior-assessment.v1",
+  "status": "unresolved_issues",
+  "unresolved_issues": [
+    "Persistent transverse displacement and slight rotation of the mounted upper drawer remain unexplained. Final translation is approximately [7.7474,-0.6367,-6.1697] mm with approximately 0.30 degrees rotation. Joint-frame residuals and actual cooked contacts need qualification; contact intrusion is a possible cause, not an established diagnosis.",
+    "Actual cooked interior-floor clearance is not demonstrated by the available evidence. No evidence-supported patch change is available within the preserved collision-shape and pinned material/mass constraints; the earlier interior-clearance concern remains unresolved at the final review iteration."
+  ]
+}

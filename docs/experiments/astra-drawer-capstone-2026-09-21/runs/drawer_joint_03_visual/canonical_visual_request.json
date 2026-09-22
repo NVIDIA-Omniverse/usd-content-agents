@@ -1,0 +1,21 @@
+{
+  "backend": "ovrtx",
+  "dependencies": [],
+  "dependency_closure_complete": true,
+  "image_height": 1024,
+  "image_width": 1024,
+  "post_mutation_output": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_joint_03/joint_rigger/rigged.usdz",
+    "sha256": "a6e705db41ca4b2e1d676d98a8cf1a013770dc02b4372d3a5a070919ba7d162b",
+    "size_bytes": 1036981
+  },
+  "schema_version": "content-agent-workflows.canonical-visual-evidence-request.v2",
+  "source": {
+    "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+    "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+    "size_bytes": 1035177
+  },
+  "views": [
+    "+x+y+z"
+  ]
+}

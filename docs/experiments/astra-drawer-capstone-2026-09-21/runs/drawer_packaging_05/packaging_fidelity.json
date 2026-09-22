@@ -1,0 +1,57 @@
+{
+  "source": "/opt/astra-content-value-20260921/capstone/runs/drawer_topology_03/prepared_source/prepared.usda",
+  "source_sha256": "ad85cfd2534fd73b0beb23af84c18051f379a36a3467a35a6eb140fb875aff81",
+  "package_sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+  "source_render_fidelity": {
+    "passed": true,
+    "mesh_count": 5,
+    "exact_physics_state": {
+      "/Asset/drawer_cabinet_drawer_01_1": {
+        "type": "Xform",
+        "apis": [
+          "PhysicsRigidBodyAPI"
+        ],
+        "attributes": {
+          "physics:angularVelocity": "(0, 0, 0)",
+          "physics:kinematicEnabled": "False",
+          "physics:rigidBodyEnabled": "True",
+          "physics:startsAsleep": "False",
+          "physics:velocity": "(0, 0, 0)"
+        },
+        "relationships": {
+          "physics:simulationOwner": [],
+          "proxyPrim": []
+        }
+      },
+      "/Asset/Joints/upper_drawer_prismatic_5ff23e837c24": {
+        "type": "PhysicsPrismaticJoint",
+        "apis": [],
+        "attributes": {
+          "physics:axis": "Z",
+          "physics:breakForce": "inf",
+          "physics:breakTorque": "inf",
+          "physics:collisionEnabled": "False",
+          "physics:excludeFromArticulation": "False",
+          "physics:jointEnabled": "True",
+          "physics:localPos0": "(0, 0, 0)",
+          "physics:localPos1": "(0, 0, 0)",
+          "physics:localRot0": "(1, 0, 0, 0)",
+          "physics:localRot1": "(1, 0, 0, 0)",
+          "physics:lowerLimit": "0.0",
+          "physics:upperLimit": "0.30000001192092896"
+        },
+        "relationships": {
+          "physics:body0": [
+            "/Asset/drawer_cabinet_0/Primitive_0"
+          ],
+          "physics:body1": [
+            "/Asset/drawer_cabinet_drawer_01_1"
+          ],
+          "proxyPrim": []
+        }
+      }
+    },
+    "scope": "Native packaging preserves mesh arrays, world transforms, physics attributes and relationships; no dynamics claim."
+  },
+  "operation": "native usd-cli save USDZ --flatten; no geometry edits"
+}

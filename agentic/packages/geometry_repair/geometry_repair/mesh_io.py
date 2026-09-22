@@ -1102,27 +1102,41 @@ def positional_topology_mesh(
     vertices: np.ndarray,
     triangles: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
+    welded_vertices, welded_triangles, _source_indices = positional_topology_mesh_with_source_indices(
+        vertices, triangles
+    )
+    return welded_vertices, welded_triangles
+
+
+def positional_topology_mesh_with_source_indices(
+    vertices: np.ndarray,
+    triangles: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return a seam-welded derived mesh for analysis or collision generation.
 
     This never mutates source or render geometry. It only joins vertices that are
     coincident within the same scale-relative tolerance used by diagnosis, then
-    removes collapsed and exact duplicate triangles.
+    removes collapsed and exact duplicate triangles. The third array maps each
+    analysis vertex to its first contributing source vertex, without recovering
+    identity from averaged floating-point coordinates.
     """
 
     source_vertices = np.asarray(vertices, dtype=np.float64).reshape((-1, 3))
     source_triangles = np.asarray(triangles, dtype=np.int64).reshape((-1, 3))
     if not len(source_vertices) or not len(source_triangles):
-        return source_vertices.copy(), source_triangles.copy()
+        return source_vertices.copy(), source_triangles.copy(), np.arange(len(source_vertices))
     if not np.isfinite(source_vertices).all():
         raise ValueError("positional topology input contains non-finite vertices")
     valid = np.all((source_triangles >= 0) & (source_triangles < len(source_vertices)), axis=1)
     source_triangles = source_triangles[valid]
     if not len(source_triangles):
-        return source_vertices.copy(), source_triangles
+        return source_vertices.copy(), source_triangles, np.arange(len(source_vertices))
 
     diagonal = float(np.linalg.norm(source_vertices.max(axis=0) - source_vertices.min(axis=0)))
     topology_ids = _topology_vertex_ids(source_vertices, diagonal)
     vertex_count = int(topology_ids.max()) + 1
+    source_indices = np.full(vertex_count, len(source_vertices), dtype=np.int64)
+    np.minimum.at(source_indices, topology_ids, np.arange(len(source_vertices)))
     welded_vertices = np.zeros((vertex_count, 3), dtype=np.float64)
     np.add.at(welded_vertices, topology_ids, source_vertices)
     counts = np.bincount(topology_ids, minlength=vertex_count)
@@ -1136,10 +1150,10 @@ def positional_topology_mesh(
     )
     welded_triangles = welded_triangles[nondegenerate]
     if not len(welded_triangles):
-        return welded_vertices, welded_triangles
+        return welded_vertices, welded_triangles, source_indices
     face_keys = np.sort(welded_triangles, axis=1)
     _, first_indices = np.unique(face_keys, axis=0, return_index=True)
-    return welded_vertices, welded_triangles[np.sort(first_indices)]
+    return welded_vertices, welded_triangles[np.sort(first_indices)], source_indices
 
 
 def _triangles_intersect(left: np.ndarray, right: np.ndarray, tolerance: float) -> bool:

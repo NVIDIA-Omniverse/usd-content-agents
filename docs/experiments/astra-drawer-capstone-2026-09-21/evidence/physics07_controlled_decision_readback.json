@@ -1,0 +1,9 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "0e74d0a0b3c4d28251ed23fac7033db61a3f1d3d99b348c9f6327ae3bbf9d97b"
+  },
+  "conclusion": "Native07 is not a controlled collider-only comparison: static restitution changed0 to0.45. Dynamic material/mass/inertia/targets were unchanged. The native outcome remains failure.",
+  "scope": "Exact native03/07 component decision readback; no behavior acceptance."
+}

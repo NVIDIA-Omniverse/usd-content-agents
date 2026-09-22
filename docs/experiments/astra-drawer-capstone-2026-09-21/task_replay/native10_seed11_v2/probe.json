@@ -1,0 +1,24 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "adb398d0ce0a1f1fe0dc7e2213e632c4c1a3c92fe07cc444d88ed2105ca36c41"
+  },
+  "capabilities": [
+    "appearance.clear.v1"
+  ],
+  "engine": "ovrtx",
+  "ready": true,
+  "render": {
+    "backend": "ovrtx",
+    "duration_s": 3.895908,
+    "height": 64,
+    "path": null,
+    "size_bytes": 91,
+    "width": 64
+  },
+  "required_engine": "ovrtx",
+  "resolved_renderer": "ovrtx",
+  "schema_version": "usd-cli.render-probe.v1",
+  "transport": "local"
+}

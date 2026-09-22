@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "presentation_receipt_sha256": "4610a338afdf4c5716dc878237ad73e9445c0af9f40a8c0d7b1bb269898fbb28",
+  "all_copied_output_hashes_match": true,
+  "input_bytes_unchanged": true,
+  "dependency_bytes_unchanged": true,
+  "reviewer": "root Astra Ultra",
+  "observations": [
+    "All three PNGs inspected directly. Full cabinet remains coherent and in frame.",
+    "First and last images show closed upper drawer; middle image shows upper drawer extended with visible free payload.",
+    "Images correspond to independently checked measured poses, not a new simulation or acceptance decision.",
+    "Probe reports OVRTX ready; render-frames reports backend ovrtx but its per-frame renderer_identities are null.",
+    "Three-frame auto-GIF is not a continuous measured animation and is excluded from public presentation."
+  ],
+  "images": [
+    "frames/usd_cam__1024x1024__f0179.png",
+    "frames/usd_cam__1024x1024__f1230.png",
+    "frames/usd_cam__1024x1024__f2459.png"
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "1022b2d062a65f8cb8fc0e203951dba1ec14494c241c02fc4a550994631dcefe"
+  },
+  "accepted_at": "2026-09-22T04:21:54.565408Z",
+  "accepted_plan_digest": "e85fd422e3857ce06d8b24ba9477803e0c2f4f64c01aedde7ed8747d9b1115c0",
+  "child_launch_descriptor": {
+    "path": "runs/drawer_validation_01_prepared/native_run/raw/validation_planner_launch_descriptor.json",
+    "sha256": "b1921477e937010a8748196ce64c7f4b4a9390fb0dc472660f8f50f31d62459f",
+    "size_bytes": 2178
+  },
+  "child_output": {
+    "path": "runs/drawer_validation_01_prepared/native_run/raw/validation_planner_final.json",
+    "sha256": "ac7238e0dba821203a8a14a561411714eced4fdaf2046f901a7c833a62b3b1a1",
+    "size_bytes": 6590
+  },
+  "compatibility_plan": {
+    "path": "runs/drawer_validation_01_prepared/native_run/validation_plan.json",
+    "sha256": "9b1823126955fc37d043e99e89160610deb42c899fbf88aa6e0eda492041a66b",
+    "size_bytes": 10299
+  },
+  "compatibility_request": {
+    "path": "runs/drawer_validation_01_prepared/native_run/validation_request.json",
+    "sha256": "a5c5963eba4d0b991a0b07b691c7b39c20c9d1d037d6e9bebdf1535af598bfac",
+    "size_bytes": 2667
+  },
+  "execution_started": false,
+  "operation_preparation": {
+    "path": "runs/drawer_validation_01_prepared/native_run/validation_operation_preparation.json",
+    "sha256": "c96bf37253f80c9e71dbad8f32e9fd829d36d73a75171a6af28c981c2c35b4ae",
+    "size_bytes": 17153
+  },
+  "ordered_check_ids": [
+    "validation.physics_sane",
+    "validation.render_valid",
+    "validation.physical_behavior"
+  ],
+  "plan_id": "drawer_native_validation",
+  "plan_patch": {
+    "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_plan_patch.json",
+    "sha256": "a8215ea3a60a366c26ccfdef02c8969f533fc0a798ee96d135272a01dea5e114",
+    "size_bytes": 6085
+  },
+  "preparation": {
+    "path": "runs/drawer_validation_01_prepared/native_run/validation_coordinator_preparation.json",
+    "sha256": "555e6b0e03c53b07a01b1da621daae8094a0e843bb608b9868e10cc0e79fd860",
+    "size_bytes": 8495
+  },
+  "preparation_digest": "4e0678768400956bd834591a5cd8cd4071b6f67032ce9e9b81f249404eaa6382",
+  "producer": "codex",
+  "receipt_digest": "fa041709b8f2b77048f3d325ebc047064a5ee13f6031b172e7235cc0108b2c7e",
+  "schema_version": "content-agent-workflows.validation-coordinator-accepted-plan.v1",
+  "selected_checks": [
+    {
+      "capability_id": "validation.physics_sane",
+      "check_id": "validation.physics_sane",
+      "completion_policy": "all_required_evidence",
+      "depends_on": [],
+      "evidence_requirements": [
+        "source_identity",
+        "usd_schema_result"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {},
+      "required": true,
+      "rule_id": "physics.usd_schema_sanity",
+      "targets": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "template_name": "physics_sane"
+    },
+    {
+      "capability_id": "validation.render_valid",
+      "check_id": "validation.render_valid",
+      "completion_policy": "all_required_evidence",
+      "depends_on": [
+        "validation.physics_sane"
+      ],
+      "evidence_requirements": [
+        "source_identity",
+        "render_result",
+        "qualified_render_evidence"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {},
+      "required": true,
+      "rule_id": "render.runtime_evidence",
+      "targets": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "template_name": "render_valid"
+    },
+    {
+      "capability_id": "validation.physical_behavior",
+      "check_id": "validation.physical_behavior",
+      "completion_policy": "all_required_evidence",
+      "depends_on": [
+        "validation.physics_sane",
+        "validation.render_valid"
+      ],
+      "evidence_requirements": [
+        "source_identity",
+        "runtime_evidence",
+        "behavior_result"
+      ],
+      "focus_prim_paths": [],
+      "parameters": {
+        "evidence_paths": [
+          "runs/drawer_validation_01_prepared/native_physics_bundle.json"
+        ]
+      },
+      "required": true,
+      "rule_id": "physics.behavior_evidence",
+      "targets": [
+        "runs/drawer_physics_10/physics.usda"
+      ],
+      "template_name": "physical_behavior"
+    }
+  ],
+  "source_mutated": false
+}

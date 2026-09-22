@@ -1,0 +1,209 @@
+{
+  "$defs": {
+    "ValidationAssessmentFinding": {
+      "additionalProperties": false,
+      "description": "One outer-accepted factual finding and its explicit disposition.",
+      "properties": {
+        "finding_id": {
+          "minLength": 1,
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "source_evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Evidence Ids",
+          "type": "array"
+        },
+        "source_issue_codes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Issue Codes",
+          "type": "array"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "affected_artifacts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Affected Artifacts",
+          "type": "array"
+        },
+        "affected_prims": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Affected Prims",
+          "type": "array"
+        },
+        "remediation_requirements": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Remediation Requirements",
+          "type": "array"
+        },
+        "disposition": {
+          "enum": [
+            "accepted",
+            "remediate",
+            "waived",
+            "deferred"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "source_evidence_ids",
+        "severity",
+        "summary",
+        "disposition",
+        "rationale"
+      ],
+      "title": "ValidationAssessmentFinding",
+      "type": "object"
+    },
+    "ValidationGateAssessment": {
+      "additionalProperties": false,
+      "description": "Outer disposition of one independent Validation evidence class.",
+      "properties": {
+        "gate": {
+          "enum": [
+            "static_validation",
+            "runtime_validation",
+            "visual_quality",
+            "package_integrity",
+            "cross_stage_integrity"
+          ],
+          "title": "Gate",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "disposition": {
+          "enum": [
+            "pass",
+            "fail",
+            "waive",
+            "defer"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "gate",
+        "evidence_ids",
+        "disposition",
+        "rationale"
+      ],
+      "title": "ValidationGateAssessment",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical semantic Validation assessment authored by the outer loop.",
+  "properties": {
+    "schema_version": {
+      "const": "content-agent-workflows.validation-coordinator-assessment.v1",
+      "default": "content-agent-workflows.validation-coordinator-assessment.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "assessment_id": {
+      "minLength": 1,
+      "title": "Assessment Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "gates": {
+      "items": {
+        "$ref": "#/$defs/ValidationGateAssessment"
+      },
+      "minItems": 1,
+      "title": "Gates",
+      "type": "array"
+    },
+    "findings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ValidationAssessmentFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "terminal_disposition": {
+      "enum": [
+        "pass",
+        "fail",
+        "needs_remediation",
+        "deferred",
+        "blocked"
+      ],
+      "title": "Terminal Disposition",
+      "type": "string"
+    },
+    "summary": {
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "assessment_id",
+    "created_at",
+    "gates",
+    "terminal_disposition",
+    "summary"
+  ],
+  "title": "ValidationCoordinatorAssessment",
+  "type": "object"
+}

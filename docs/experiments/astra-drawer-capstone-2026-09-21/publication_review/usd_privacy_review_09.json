@@ -1,0 +1,478 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-22T03:34:59.003731+00:00",
+  "scanner_sha256": "5fa273eaf4f7abcaee06cce244e3ddb8cf1d066fdeff7a677b91868046d2f1be",
+  "candidates": [
+    {
+      "path": "capstone/runs/drawer_physics_09/physics.usda",
+      "sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+      "size": 2533578,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/runs/drawer_physics_09/physics.usda",
+          "decoded_text_sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+          "decoded_bytes": 2533578,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 4,
+              "property_or_syntax": "doc",
+              "matched_value_sha256": "ec6d1313cd6fb93f52a8b3f16602f357f7771e9c460bf0fe40bde2bb157f33ac"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 7,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "f5565a8e9448e75f27b4c49e8106efc2e6814edfdec8499c2b09411c5b050be0"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 10,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "94116840cdb024ee1561801bf1183ef2c463c8d1fafe060376777af880f43d3e"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 13,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "31306338c69b5fd0e98940cdd836c2b4d20c1a6872244eda67713547851bfde2"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 51,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "db98cd18d1db32474afb40b65c2e16689d1b54df3b1c2db60379bda243a9a765"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 63,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "2df8bedf7dabb89b702f06e836d4bf1f2340f374e8410f4a9775d85c3c5e749f"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 77,
+              "property_or_syntax": "asset inputs:file",
+              "matched_value_sha256": "0506be34aac9c579756da26a6b0b0b4ca4af29d3c023d1d55f2ed4de12c03bfc"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "0506be34aac9c579756da26a6b0b0b4ca4af29d3c023d1d55f2ed4de12c03bfc",
+              "needs_redaction_or_relocation": true
+            },
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "db98cd18d1db32474afb40b65c2e16689d1b54df3b1c2db60379bda243a9a765",
+              "needs_redaction_or_relocation": true
+            },
+            {
+              "authored_asset_path": "<redacted>",
+              "authored_asset_path_sha256": "2df8bedf7dabb89b702f06e836d4bf1f2340f374e8410f4a9775d85c3c5e749f",
+              "needs_redaction_or_relocation": true
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/runs/drawer_physics_09/inputs/source/source.usdz",
+          "size": 1036785,
+          "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/physics.usda",
+          "size": 2533578,
+          "sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 7,
+      "exact_bytes_recommended_for_publication": false,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/runs/drawer_physics_09/inputs/source/source.usdz",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "size": 1036785,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/runs/drawer_physics_09/inputs/source/source.usdz",
+          "decoded_text_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+          "decoded_bytes": 2530096,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 4,
+              "property_or_syntax": "doc",
+              "matched_value_sha256": "ec6d1313cd6fb93f52a8b3f16602f357f7771e9c460bf0fe40bde2bb157f33ac"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 7,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "f5565a8e9448e75f27b4c49e8106efc2e6814edfdec8499c2b09411c5b050be0"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 10,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "94116840cdb024ee1561801bf1183ef2c463c8d1fafe060376777af880f43d3e"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "0/image_0000.jpg",
+              "authored_asset_path_sha256": "13868abff6cf90ef547bdc4544aced42fbfe267f575392f78291c6120d9be7ba",
+              "needs_redaction_or_relocation": false
+            },
+            {
+              "authored_asset_path": "0/image_0001.jpg",
+              "authored_asset_path_sha256": "1c87c1ae08a965eed043dab93e70df3efb9517f8ad666651184cfaae4da09ab6",
+              "needs_redaction_or_relocation": false
+            },
+            {
+              "authored_asset_path": "0/image_0002.jpg",
+              "authored_asset_path_sha256": "37989d4af6951dcbaa65872f9a5c28647c17cd89da94920ecbe37ad15f831373",
+              "needs_redaction_or_relocation": false
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/runs/drawer_physics_09/inputs/source/source.usdz",
+          "size": 1036785,
+          "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [
+        {
+          "member": "source.usdz.dscsave166780-84fe3ab4.usdz.stage.usdc",
+          "bytes": 699449,
+          "sha256": "065d954899b09ab5a0bf4edafaac82b0cafa9f983814b3376cf8cfdc17431da1",
+          "member_name_findings": []
+        },
+        {
+          "member": "0/image_0000.jpg",
+          "bytes": 61593,
+          "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+          "member_name_findings": []
+        },
+        {
+          "member": "0/image_0002.jpg",
+          "bytes": 124942,
+          "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+          "member_name_findings": []
+        },
+        {
+          "member": "0/image_0001.jpg",
+          "bytes": 150011,
+          "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+          "member_name_findings": []
+        }
+      ],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 3,
+      "exact_bytes_recommended_for_publication": false,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda",
+      "sha256": "7d012121ff4894dd8052d92cc35fcca631b12aacbac7fffcaeb0adcc6b8bc9d1",
+      "size": 2535529,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda",
+          "decoded_text_sha256": "7d012121ff4894dd8052d92cc35fcca631b12aacbac7fffcaeb0adcc6b8bc9d1",
+          "decoded_bytes": 2535529,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 4,
+              "property_or_syntax": "doc",
+              "matched_value_sha256": "ec6d1313cd6fb93f52a8b3f16602f357f7771e9c460bf0fe40bde2bb157f33ac"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 7,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "f5565a8e9448e75f27b4c49e8106efc2e6814edfdec8499c2b09411c5b050be0"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 10,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "94116840cdb024ee1561801bf1183ef2c463c8d1fafe060376777af880f43d3e"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 13,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "31306338c69b5fd0e98940cdd836c2b4d20c1a6872244eda67713547851bfde2"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "drop_settle_scene.usda_assets/0506be34aac9c579/image_0000.jpg",
+              "authored_asset_path_sha256": "429930404099d32d7e2734284a9a33617e55d0f64f5412fb4dac56aade53042c",
+              "needs_redaction_or_relocation": false
+            },
+            {
+              "authored_asset_path": "drop_settle_scene.usda_assets/2df8bedf7dabb89b/image_0002.jpg",
+              "authored_asset_path_sha256": "b0b7bc5a54effc605a907a136153f7ff7a44ae133564bcde3ec1eb03d1e2d098",
+              "needs_redaction_or_relocation": false
+            },
+            {
+              "authored_asset_path": "drop_settle_scene.usda_assets/db98cd18d1db3247/image_0001.jpg",
+              "authored_asset_path_sha256": "0fe8056955ae0eda8028b344e07f439333db61977cfbfcdb15eaee59dcd1c2d8",
+              "needs_redaction_or_relocation": false
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda",
+          "size": 2535529,
+          "sha256": "7d012121ff4894dd8052d92cc35fcca631b12aacbac7fffcaeb0adcc6b8bc9d1"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/0506be34aac9c579/image_0000.jpg",
+          "size": 61593,
+          "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/2df8bedf7dabb89b/image_0002.jpg",
+          "size": 124942,
+          "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/db98cd18d1db3247/image_0001.jpg",
+          "size": 150011,
+          "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 4,
+      "exact_bytes_recommended_for_publication": false,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda",
+      "sha256": "01adfe485a813e7693e20f13c3276142238a5fe197bc03ecd575d686d7b437be",
+      "size": 2550325,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda",
+          "decoded_text_sha256": "01adfe485a813e7693e20f13c3276142238a5fe197bc03ecd575d686d7b437be",
+          "decoded_bytes": 2550325,
+          "privacy_findings": [
+            {
+              "category": "absolute_local_locator",
+              "line": 4,
+              "property_or_syntax": "doc",
+              "matched_value_sha256": "ec6d1313cd6fb93f52a8b3f16602f357f7771e9c460bf0fe40bde2bb157f33ac"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 7,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "f5565a8e9448e75f27b4c49e8106efc2e6814edfdec8499c2b09411c5b050be0"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 10,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "94116840cdb024ee1561801bf1183ef2c463c8d1fafe060376777af880f43d3e"
+            },
+            {
+              "category": "absolute_local_locator",
+              "line": 13,
+              "property_or_syntax": "<redacted>",
+              "matched_value_sha256": "31306338c69b5fd0e98940cdd836c2b4d20c1a6872244eda67713547851bfde2"
+            }
+          ],
+          "authored_asset_paths": [
+            {
+              "authored_asset_path": "../drop_settle_scene.usda_assets/0506be34aac9c579/image_0000.jpg",
+              "authored_asset_path_sha256": "fb744f9a99416f966d0ab4368476ccc043e639f9731b4072a0baafb34e6388ca",
+              "needs_redaction_or_relocation": false
+            },
+            {
+              "authored_asset_path": "../drop_settle_scene.usda_assets/2df8bedf7dabb89b/image_0002.jpg",
+              "authored_asset_path_sha256": "75a10175c89b9cfb5b7427b7479a7c30b4c1a564df859b824bf1bf76161c6e60",
+              "needs_redaction_or_relocation": false
+            },
+            {
+              "authored_asset_path": "../drop_settle_scene.usda_assets/db98cd18d1db3247/image_0001.jpg",
+              "authored_asset_path_sha256": "56339fe476ca49b3dd554e154f7f4582fca4dfc40c80ed9052b512594f0b67dd",
+              "needs_redaction_or_relocation": false
+            }
+          ],
+          "private_identifiers_or_absolute_locators_detected": true
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/0506be34aac9c579/image_0000.jpg",
+          "size": 61593,
+          "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/2df8bedf7dabb89b/image_0002.jpg",
+          "size": 124942,
+          "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/db98cd18d1db3247/image_0001.jpg",
+          "size": 150011,
+          "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb"
+        },
+        {
+          "path": "capstone/runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda",
+          "size": 2550325,
+          "sha256": "01adfe485a813e7693e20f13c3276142238a5fe197bc03ecd575d686d7b437be"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 4,
+      "exact_bytes_recommended_for_publication": false,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/evidence/static_joint_endpoint_v1/static_xform_collide.usda",
+      "sha256": "1638e3b65f86d866b218e5f34039262566219c45575fbd8c0cd0593eae7118c1",
+      "size": 2444,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/evidence/static_joint_endpoint_v1/static_xform_collide.usda",
+          "decoded_text_sha256": "1638e3b65f86d866b218e5f34039262566219c45575fbd8c0cd0593eae7118c1",
+          "decoded_bytes": 2444,
+          "privacy_findings": [],
+          "authored_asset_paths": [],
+          "private_identifiers_or_absolute_locators_detected": false
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/evidence/static_joint_endpoint_v1/static_xform_collide.usda",
+          "size": 2444,
+          "sha256": "1638e3b65f86d866b218e5f34039262566219c45575fbd8c0cd0593eae7118c1"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 0,
+      "exact_bytes_recommended_for_publication": true,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/evidence/static_joint_endpoint_v1/static_xform_disabled.usda",
+      "sha256": "468e9b83882b0fbc794a8cab2aacd5b55fdff7481b8605288bc7ab37f092aecd",
+      "size": 2444,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/evidence/static_joint_endpoint_v1/static_xform_disabled.usda",
+          "decoded_text_sha256": "468e9b83882b0fbc794a8cab2aacd5b55fdff7481b8605288bc7ab37f092aecd",
+          "decoded_bytes": 2444,
+          "privacy_findings": [],
+          "authored_asset_paths": [],
+          "private_identifiers_or_absolute_locators_detected": false
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/evidence/static_joint_endpoint_v1/static_xform_disabled.usda",
+          "size": 2444,
+          "sha256": "468e9b83882b0fbc794a8cab2aacd5b55fdff7481b8605288bc7ab37f092aecd"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 0,
+      "exact_bytes_recommended_for_publication": true,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/evidence/static_joint_endpoint_v1/static_mesh_collide.usda",
+      "sha256": "afd78ec2fdd51f92bf74e3f6f75c309470f9006a98265fbd54d7927e661dd8a2",
+      "size": 2449,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/evidence/static_joint_endpoint_v1/static_mesh_collide.usda",
+          "decoded_text_sha256": "afd78ec2fdd51f92bf74e3f6f75c309470f9006a98265fbd54d7927e661dd8a2",
+          "decoded_bytes": 2449,
+          "privacy_findings": [],
+          "authored_asset_paths": [],
+          "private_identifiers_or_absolute_locators_detected": false
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/evidence/static_joint_endpoint_v1/static_mesh_collide.usda",
+          "size": 2449,
+          "sha256": "afd78ec2fdd51f92bf74e3f6f75c309470f9006a98265fbd54d7927e661dd8a2"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 0,
+      "exact_bytes_recommended_for_publication": true,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    },
+    {
+      "path": "capstone/evidence/static_joint_endpoint_v1/static_mesh_disabled.usda",
+      "sha256": "9819620aca2e44e2a9a2b79b33092385e326530b1babd387e5b184ffacb72112",
+      "size": 2449,
+      "status": "scanned",
+      "decoded_layers": [
+        {
+          "layer": "capstone/evidence/static_joint_endpoint_v1/static_mesh_disabled.usda",
+          "decoded_text_sha256": "9819620aca2e44e2a9a2b79b33092385e326530b1babd387e5b184ffacb72112",
+          "decoded_bytes": 2449,
+          "privacy_findings": [],
+          "authored_asset_paths": [],
+          "private_identifiers_or_absolute_locators_detected": false
+        }
+      ],
+      "dependency_closure": [
+        {
+          "path": "capstone/evidence/static_joint_endpoint_v1/static_mesh_disabled.usda",
+          "size": 2449,
+          "sha256": "9819620aca2e44e2a9a2b79b33092385e326530b1babd387e5b184ffacb72112"
+        }
+      ],
+      "unresolved_dependencies": [],
+      "usdz_members": [],
+      "inputs_unchanged": true,
+      "privacy_finding_count": 0,
+      "exact_bytes_recommended_for_publication": true,
+      "scope": "Exact-byte privacy/path review only; portable packaging still requires preserving relative dependency layout."
+    }
+  ],
+  "all_inputs_unchanged": true,
+  "scope": "Read-only decoded USD layers, authored asset paths, package member names and resolved dependency closure. No asset mutation, simulation, rendering or model call. No acceptance judgment.",
+  "limitation": "Known private identity/path/credential/raw-reasoning patterns; not a general PII detector. Numerical geometry and task acceptance are separate."
+}

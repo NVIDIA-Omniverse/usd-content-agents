@@ -1,0 +1,285 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "f13f28b94762b0922e18fdf80d2dc08dfb06a585d49951ca2a4f49531d873cc2"
+  },
+  "artifacts": [
+    {
+      "kind": "request",
+      "logical_name": "request",
+      "path": "request.json",
+      "required": true,
+      "sha256": "10422746f919be965c5e893885d6538d5a9feaea49558b2f167354943e519d02",
+      "size_bytes": 12064
+    },
+    {
+      "kind": "prompt",
+      "logical_name": "prompt",
+      "path": "agent_prompt.md",
+      "required": false,
+      "sha256": "ee1a3034640ee68ccac77abe10b97bb72177ed3d256491867f8e49201a68d296",
+      "size_bytes": 21509
+    },
+    {
+      "kind": "runner_log",
+      "logical_name": "child_output",
+      "path": "child-output.log",
+      "required": false,
+      "sha256": "f4f46eab7dd504d2dca7f502d75b328b18b99f23c90642f4dfbf2355290c8251",
+      "size_bytes": 3094
+    },
+    {
+      "kind": "agent_response",
+      "logical_name": "child_final",
+      "path": "child-final.md",
+      "required": false,
+      "sha256": "01ef4572a7ff52c423a2a906a341095530c966f3d99e0b3b4dc5fafacd11ca85",
+      "size_bytes": 392
+    },
+    {
+      "kind": "decision",
+      "logical_name": "decision_patch",
+      "path": "raw/physics_decision_patch.json",
+      "required": true,
+      "sha256": "a4fde80605393eb28b4fd6d9f0c280d128265fbd1beee279bd8ae96db31af740",
+      "size_bytes": 11836
+    },
+    {
+      "kind": "assignments",
+      "logical_name": "assignments",
+      "path": "physics_assignments.json",
+      "required": true,
+      "sha256": "510db9b5b0ed564d974360de25f9a8e922462806c350d9719d518f20fae6403c",
+      "size_bytes": 26771
+    },
+    {
+      "kind": "validation",
+      "logical_name": "validation_evidence",
+      "path": "validation_evidence.json",
+      "required": true,
+      "sha256": "cc48754a31c53bc6cb33eed8da2658db7101db1e2ba40d519e7a65bf6da91fc4",
+      "size_bytes": 15256
+    },
+    {
+      "kind": "validation",
+      "logical_name": "behavior_assessment",
+      "path": "physics_behavior_assessment.json",
+      "required": true,
+      "sha256": "bcbe27e62da57e9c62de9d05faa16a19ab3b99ab06e68d530b0b4b787b19275d",
+      "size_bytes": 5294
+    },
+    {
+      "kind": "validation_history",
+      "logical_name": "visual_history",
+      "path": "raw/physics_visual_validation_history.json",
+      "required": true,
+      "sha256": "27127a1e1db5ea827530ab681104243f96b395e0f3c1e7c8553135c9dace2252",
+      "size_bytes": 845
+    },
+    {
+      "kind": "report",
+      "logical_name": "final_summary",
+      "path": "final_summary.md",
+      "required": true,
+      "sha256": "2a7bcc122923035260fc23adcaaa270782fc7efeb1038618007f5bde3da2cc6f",
+      "size_bytes": 1446
+    },
+    {
+      "kind": "usd",
+      "logical_name": "physics_usd",
+      "path": "physics.usda",
+      "required": true,
+      "sha256": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+      "size_bytes": 2533656
+    },
+    {
+      "kind": "workflow_input",
+      "logical_name": "run_packet",
+      "path": "raw/physics_run_packet.json",
+      "required": false,
+      "sha256": "d89badeaf765f7188f8b4519fd9d2770978485d79c7c1dd57189068aa02cd2a3",
+      "size_bytes": 3804
+    },
+    {
+      "kind": "scene_operation_report",
+      "logical_name": "apply_report",
+      "path": "raw/physics_apply_report.json",
+      "required": false,
+      "sha256": "6d13357d14701463db83b2661d75a1c999f4cf929d19958ab30fc4bcd6be01ae",
+      "size_bytes": 8311
+    },
+    {
+      "kind": "simulation_report",
+      "logical_name": "runtime_report",
+      "path": "runtime/runtime_validation_report.json",
+      "required": false,
+      "sha256": "377637b643bafe0d935153b658e126ba6b6384ec76057f06dc4a3d717d280869",
+      "size_bytes": 95244
+    },
+    {
+      "kind": "backend_probe",
+      "logical_name": "renderer_probe",
+      "path": "raw/ovrtx_probe.json",
+      "required": true,
+      "sha256": "08d46f39fa8f6801cda75ad33f4d09c1b9c929b57c6a5faa277b7b47556f0369",
+      "size_bytes": 845
+    },
+    {
+      "kind": "metrics",
+      "logical_name": "run_cost_metrics",
+      "path": "run_cost_metrics.json",
+      "required": false,
+      "sha256": "7e9d3ec816bc42c625a39e0654051b0cd1c04105c843e9fa1a1a722c7a6d4066",
+      "size_bytes": 1966
+    },
+    {
+      "kind": "trace",
+      "logical_name": "operation_trace",
+      "path": "trace/operation_trace.json",
+      "required": true,
+      "sha256": "435115e8f930c2b6e62cded0a8401ff7acd429027b0bc82bf6bcb93d73c909db",
+      "size_bytes": 116848
+    },
+    {
+      "kind": "trace",
+      "logical_name": "replay_manifest",
+      "path": "trace/replay_manifest.json",
+      "required": false,
+      "sha256": "638864f9f2b74929c61c501e1d5e9f2ffba7e5579c54901772eb5c0d53b672b0",
+      "size_bytes": 1478
+    },
+    {
+      "kind": "finalize",
+      "logical_name": "finalize_record",
+      "path": "raw/physics_finalize_result_1.json",
+      "required": false,
+      "sha256": "a1cdb772654411c9570f6a2ed283e51e2ca6c6351f5ab810e1ea4c99f80603d2",
+      "size_bytes": 3201
+    },
+    {
+      "kind": "nested_workflow_manifest",
+      "logical_name": "physics_iteration_manifest_1",
+      "path": "raw/physics_workflow/iteration-0001/workflow_run_manifest.json",
+      "required": false,
+      "sha256": "0c4e9eac2fc223525060c04d6bc66105dff4fad1eb51824c3bc11e9becdd9a95",
+      "size_bytes": 6247
+    }
+  ],
+  "backend": {
+    "renderer": "ovrtx",
+    "renderer_probe_required": true,
+    "runner": "codex",
+    "scene_backend": "usd-cli",
+    "scene_tool": "usd-cli",
+    "simulation_engine": "ovphysx",
+    "usd_cli_source_revision": "c3f7c8cb0fd44bfbc79441a35f2f1acd62a46a06"
+  },
+  "checkpoints": [
+    {
+      "artifact_paths": {
+        "apply_report": ".workflow_checkpoints/000001/0013-39937ec9b984be04.artifact",
+        "assignments": ".workflow_checkpoints/000001/0006-ef8dcf7162a95536.artifact",
+        "behavior_assessment": ".workflow_checkpoints/000001/0008-9f57570dd985dcf9.artifact",
+        "child_final": ".workflow_checkpoints/000001/0004-096ce6c826b67383.artifact",
+        "child_output": ".workflow_checkpoints/000001/0003-04cd4375009af08a.artifact",
+        "decision_patch": ".workflow_checkpoints/000001/0005-644531ef13f05e27.artifact",
+        "final_summary": ".workflow_checkpoints/000001/0010-00d71d762fe88996.artifact",
+        "finalize_record": ".workflow_checkpoints/000001/0019-aaaf3055b293f0f6.artifact",
+        "operation_trace": ".workflow_checkpoints/000001/0017-cb68986bf0a4277a.artifact",
+        "physics_iteration_manifest_1": ".workflow_checkpoints/000001/0020-fea29d175dca91e7.artifact",
+        "physics_usd": ".workflow_checkpoints/000001/0011-46cd997cb20aea25.artifact",
+        "renderer_probe": ".workflow_checkpoints/000001/0015-bb1159b3e47e2928.artifact",
+        "replay_manifest": ".workflow_checkpoints/000001/0018-e144d007c0914675.artifact",
+        "request": ".workflow_checkpoints/000001/0001-1f58b9145b24d108.artifact",
+        "run_cost_metrics": ".workflow_checkpoints/000001/0016-814f100b9a9ba4b0.artifact",
+        "run_packet": ".workflow_checkpoints/000001/0012-49d006c1546d8d96.artifact",
+        "runtime_report": ".workflow_checkpoints/000001/0014-4337f8cc958732f0.artifact",
+        "validation_evidence": ".workflow_checkpoints/000001/0007-8805bc92708821a9.artifact",
+        "visual_history": ".workflow_checkpoints/000001/0009-d25b0dd5f64a7f30.artifact"
+      },
+      "artifact_sha256": {
+        "apply_report": "6d13357d14701463db83b2661d75a1c999f4cf929d19958ab30fc4bcd6be01ae",
+        "assignments": "510db9b5b0ed564d974360de25f9a8e922462806c350d9719d518f20fae6403c",
+        "behavior_assessment": "bcbe27e62da57e9c62de9d05faa16a19ab3b99ab06e68d530b0b4b787b19275d",
+        "child_final": "01ef4572a7ff52c423a2a906a341095530c966f3d99e0b3b4dc5fafacd11ca85",
+        "child_output": "f4f46eab7dd504d2dca7f502d75b328b18b99f23c90642f4dfbf2355290c8251",
+        "decision_patch": "a4fde80605393eb28b4fd6d9f0c280d128265fbd1beee279bd8ae96db31af740",
+        "final_summary": "2a7bcc122923035260fc23adcaaa270782fc7efeb1038618007f5bde3da2cc6f",
+        "finalize_record": "a1cdb772654411c9570f6a2ed283e51e2ca6c6351f5ab810e1ea4c99f80603d2",
+        "operation_trace": "435115e8f930c2b6e62cded0a8401ff7acd429027b0bc82bf6bcb93d73c909db",
+        "physics_iteration_manifest_1": "0c4e9eac2fc223525060c04d6bc66105dff4fad1eb51824c3bc11e9becdd9a95",
+        "physics_usd": "0ef7038845d569a2f502f38af9fb5b1e4e99cf06c5f4e04035e4c259b1b07156",
+        "renderer_probe": "08d46f39fa8f6801cda75ad33f4d09c1b9c929b57c6a5faa277b7b47556f0369",
+        "replay_manifest": "638864f9f2b74929c61c501e1d5e9f2ffba7e5579c54901772eb5c0d53b672b0",
+        "request": "10422746f919be965c5e893885d6538d5a9feaea49558b2f167354943e519d02",
+        "run_cost_metrics": "7e9d3ec816bc42c625a39e0654051b0cd1c04105c843e9fa1a1a722c7a6d4066",
+        "run_packet": "d89badeaf765f7188f8b4519fd9d2770978485d79c7c1dd57189068aa02cd2a3",
+        "runtime_report": "377637b643bafe0d935153b658e126ba6b6384ec76057f06dc4a3d717d280869",
+        "validation_evidence": "cc48754a31c53bc6cb33eed8da2658db7101db1e2ba40d519e7a65bf6da91fc4",
+        "visual_history": "27127a1e1db5ea827530ab681104243f96b395e0f3c1e7c8553135c9dace2252"
+      },
+      "artifacts": [
+        "request",
+        "prompt",
+        "child_output",
+        "child_final",
+        "decision_patch",
+        "assignments",
+        "validation_evidence",
+        "behavior_assessment",
+        "visual_history",
+        "final_summary",
+        "physics_usd",
+        "run_packet",
+        "apply_report",
+        "runtime_report",
+        "renderer_probe",
+        "run_cost_metrics",
+        "operation_trace",
+        "replay_manifest",
+        "finalize_record",
+        "physics_iteration_manifest_1"
+      ],
+      "created_at": "2026-09-22T03:54:36.423923+00:00",
+      "phase": "validated",
+      "sealed": true
+    }
+  ],
+  "created_at": "2026-09-22T03:44:24.183007+00:00",
+  "failure": null,
+  "policy": {
+    "collision_approximation": "convexDecomposition",
+    "drop_height_m": 0.0,
+    "fail_on_validation_error": false,
+    "input_sha256": {},
+    "optimize": false,
+    "run_simulation": true,
+    "runtime_placement_mode": "mounted",
+    "simulation_dt": 0.004166666666666667,
+    "simulation_duration_s": 3.0,
+    "simulation_engine": "ovphysx",
+    "simulation_sample_fps": 30,
+    "visual_validation_max_iterations": 2
+  },
+  "request_path": "request.json",
+  "request_sha256": "10422746f919be965c5e893885d6538d5a9feaea49558b2f167354943e519d02",
+  "required_artifacts": [
+    "request",
+    "decision_patch",
+    "assignments",
+    "validation_evidence",
+    "behavior_assessment",
+    "visual_history",
+    "final_summary",
+    "operation_trace",
+    "physics_usd",
+    "renderer_probe"
+  ],
+  "schema_version": "content-agent-workflows.run-manifest.v1",
+  "source_path": "runs/drawer_packaging_05/source.usdz",
+  "source_sha256": "d99b2feb6c2e5817eec53b06449642b590b5099af043c422cbba78d1e2a1a69e",
+  "status": "pass",
+  "updated_at": "2026-09-22T03:54:36.429557+00:00",
+  "workflow": "physics.apply"
+}

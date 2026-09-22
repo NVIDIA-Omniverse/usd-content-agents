@@ -1,0 +1,1842 @@
+{
+  "byte_count": 60821732,
+  "decoded_usd": [
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "d406357afa2fdf2357e1299da885b322f39b4edaa2076d45a0f9ce2f24be6a79",
+      "external_asset_paths": [],
+      "layer": "source_preserved.usdc",
+      "path": "runs/drawer_geometry_04/source_prep/source_preserved.usdc",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "b4b40b726a4af4d31f2973cfd46afdb24194336fc0f751d238d6d96eae9a14f8",
+      "external_asset_paths": [],
+      "layer": "source_preserved.geometry.usdc",
+      "path": "runs/drawer_geometry_04/source_preserved.geometry.usdc",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "116cee4749ce1a0a47f56afcbbeb300fa24251ed0eba81779f4fabd349080310",
+      "external_asset_paths": [],
+      "layer": "rigged.usdz",
+      "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "116cee4749ce1a0a47f56afcbbeb300fa24251ed0eba81779f4fabd349080310",
+      "external_asset_paths": [],
+      "layer": "rigged.usdz[source.usdz.dscsave108622-20eb1971.usdz.stage.usdc]",
+      "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+      "external_asset_paths": [],
+      "layer": "source.usdz",
+      "path": "runs/drawer_physics_03/inputs/source/source.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+      "external_asset_paths": [],
+      "layer": "source.usdz[source.usdz.dscsave166780-84fe3ab4.usdz.stage.usdc]",
+      "path": "runs/drawer_physics_03/inputs/source/source.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+      "external_asset_paths": [],
+      "layer": "physics.usda",
+      "path": "runs/drawer_physics_03/physics.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "21ac14241daebb8cbd42ee123c0d0db7879c3f7a4fde03f342770ca12851b033",
+      "external_asset_paths": [],
+      "layer": "drop_settle_scene.usda",
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "c03087ffc742d5e8cca59032ea6c3e201a2b6f600c296d8d58475ec8562fe154",
+      "external_asset_paths": [],
+      "layer": "recording.usda",
+      "path": "runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "2dfe08841e8109bb2905c9c5cf51b8c2ecd337924c97e0d387bc77d4c6642302",
+      "external_asset_paths": [],
+      "layer": "drop_settle_scene.usda",
+      "path": "runs/drawer_physics_06/runtime/drop_settle_scene.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "b9433a2aba655edd4c83677f21fa852940ec97529160e1df6fdf94acc480e4e1",
+      "external_asset_paths": [],
+      "layer": "recording.usda",
+      "path": "runs/drawer_physics_06/runtime/usd_cli_simulation/recording.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+      "external_asset_paths": [],
+      "layer": "source.usdz",
+      "path": "runs/drawer_physics_07/inputs/source/source.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+      "external_asset_paths": [],
+      "layer": "source.usdz[source.usdz.dscsave166780-84fe3ab4.usdz.stage.usdc]",
+      "path": "runs/drawer_physics_07/inputs/source/source.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "external_asset_paths": [],
+      "layer": "physics.usda",
+      "path": "runs/drawer_physics_07/physics.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "external_asset_paths": [],
+      "layer": "drop_settle_scene.usda",
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "external_asset_paths": [],
+      "layer": "recording.usda",
+      "path": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+      "external_asset_paths": [],
+      "layer": "source.usdz",
+      "path": "runs/drawer_physics_08/inputs/source/source.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "4beda46415cd2dd1879c1eabc0d49ab52bb69b52cdd68af71b73b0a754e87bb4",
+      "external_asset_paths": [],
+      "layer": "source.usdz[source.usdz.dscsave166780-84fe3ab4.usdz.stage.usdc]",
+      "path": "runs/drawer_physics_08/inputs/source/source.usdz",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "external_asset_paths": [],
+      "layer": "physics.usda",
+      "path": "runs/drawer_physics_08/physics.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "external_asset_paths": [],
+      "layer": "drop_settle_scene.usda",
+      "path": "runs/drawer_physics_08/runtime/drop_settle_scene.usda",
+      "privacy_scan": "PASS"
+    },
+    {
+      "absolute_locators_require_relocation": false,
+      "decoded_sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "external_asset_paths": [],
+      "layer": "recording.usda",
+      "path": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda",
+      "privacy_scan": "PASS"
+    }
+  ],
+  "decoded_usd_review_completed": true,
+  "errors": [],
+  "file_count": 177,
+  "images": [
+    {
+      "metadata_scan": "PASS",
+      "path": "evidence/joint02_canonical.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/geometry_six_view.png",
+      "size": [
+        3072,
+        2048
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_x_0000.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_y_0000.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_x_0000.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_xplus_yplus_z_0000.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_y_0000.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_z_0000.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/source_prep/textures/image_0000.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/source_prep/textures/image_0001.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_geometry_04/source_prep/textures/image_0002.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/3c0188c1629a89b3/image_0000.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/63455413025ebc38/image_0002.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/7d4eab973ea2a1a5/image_0001.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/3c0188c1629a89b3/image_0000.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/63455413025ebc38/image_0002.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/7d4eab973ea2a1a5/image_0001.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/328f7aa0f6b30969/image_0002.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/3e24b2bdb272a8af/image_0001.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/ff1d9181827f966c/image_0000.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0000.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0001.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0002.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0003.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0004.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0005.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0006.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_07/runtime/visual_review_frames_1/review_frame_0007.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/4c2482550116d7df/image_0000.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/6fef9cc4647a22e1/image_0002.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/e2f20ad1327a6b1d/image_0001.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0000.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0001.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0002.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0003.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0004.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0005.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0006.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_1/review_frame_0007.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0000.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0001.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0002.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0003.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0004.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0005.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0006.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "runs/drawer_physics_08/runtime/visual_review_frames_2/review_frame_0007.png",
+      "size": [
+        640,
+        480
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "source/textures/drawer_cabinet_arm_1k.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "source/textures/drawer_cabinet_diff_1k.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "metadata_scan": "PASS",
+      "path": "source/textures/drawer_cabinet_nor_gl_1k.jpg",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "limitations": [
+    "Source references marked retained-only are not independently revalidated from absent files.",
+    "Projected native receipts cannot be substituted for original native digest-bound inputs.",
+    "Decoded USD privacy/dependency review is not simulation or geometry-fidelity acceptance."
+  ],
+  "manifest_sha256": "4bcedf901d8a7f9793606a11a50a13a8eeaa6f14aeff07a06e633671e10df619",
+  "passed": true,
+  "reference_bindings": [
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/textures/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/textures/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/textures/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "67d797d9f3be756a8908641c4d172dbc30e5b18eb911a537f9d3e87e004758c6",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_preserved.geometry.usdc"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "67d797d9f3be756a8908641c4d172dbc30e5b18eb911a537f9d3e87e004758c6",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_preserved.geometry.usdc"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6a084329954c73dd24b7783ec9befdbda73d603f862cd13b5a923a5a9578b730",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/source_preserved.usdc"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/textures/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/textures/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/textures/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6a084329954c73dd24b7783ec9befdbda73d603f862cd13b5a923a5a9578b730",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_geometry_04/source_prep/source_preserved.usdc"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_joint_02/joint_rigger/rigged.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_joint_02/joint_rigger/rigged.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "21ac14241daebb8cbd42ee123c0d0db7879c3f7a4fde03f342770ca12851b033",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/3c0188c1629a89b3/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/63455413025ebc38/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/7d4eab973ea2a1a5/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "21ac14241daebb8cbd42ee123c0d0db7879c3f7a4fde03f342770ca12851b033",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/3c0188c1629a89b3/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/63455413025ebc38/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/drop_settle_scene.usda_assets/7d4eab973ea2a1a5/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "c03087ffc742d5e8cca59032ea6c3e201a2b6f600c296d8d58475ec8562fe154",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "c03087ffc742d5e8cca59032ea6c3e201a2b6f600c296d8d58475ec8562fe154",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_03/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "2dfe08841e8109bb2905c9c5cf51b8c2ecd337924c97e0d387bc77d4c6642302",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/3c0188c1629a89b3/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/63455413025ebc38/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/7d4eab973ea2a1a5/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "2dfe08841e8109bb2905c9c5cf51b8c2ecd337924c97e0d387bc77d4c6642302",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/3c0188c1629a89b3/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/63455413025ebc38/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/drop_settle_scene.usda_assets/7d4eab973ea2a1a5/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b9433a2aba655edd4c83677f21fa852940ec97529160e1df6fdf94acc480e4e1",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b9433a2aba655edd4c83677f21fa852940ec97529160e1df6fdf94acc480e4e1",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_06/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/328f7aa0f6b30969/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/3e24b2bdb272a8af/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/ff1d9181827f966c/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/328f7aa0f6b30969/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/3e24b2bdb272a8af/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/ff1d9181827f966c/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "f1b57921a64071e238fbb13407580c4961839140038aa6f20001719bb755260e",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/dynamic_filled.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "f1b57921a64071e238fbb13407580c4961839140038aa6f20001719bb755260e",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/dynamic_filled.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "601ee8c2cf6f0773afcd3cab17419062a5e81622ca4b773bdeb335adb6541a87",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/dynamic_good.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "601ee8c2cf6f0773afcd3cab17419062a5e81622ca4b773bdeb335adb6541a87",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/dynamic_good.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "788640e0a8b6c5ff3d7696d87d70bb724615526353ac7d3524ef0eb2b19681d0",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/dynamic_no_motion.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "788640e0a8b6c5ff3d7696d87d70bb724615526353ac7d3524ef0eb2b19681d0",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/dynamic_no_motion.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "4264ea5dc12dd8b854878eba2ed53af6b34961bc6d973176e9269d223cb5371d",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/kinematic.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "4264ea5dc12dd8b854878eba2ed53af6b34961bc6d973176e9269d223cb5371d",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/kinematic.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "aa7a0fd94759295cd899d23436ead359e8d5722cca9266731378061620d56b91",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/no_colliders.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "aa7a0fd94759295cd899d23436ead359e8d5722cca9266731378061620d56b91",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/no_colliders.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "0a59cebbab67f79a805d76d0d4c454cf786bf63271fbb548aa65cd9fa1b969e9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_filled/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "0a59cebbab67f79a805d76d0d4c454cf786bf63271fbb548aa65cd9fa1b969e9",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_filled/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "081ea6ad1f2131921a24976bc6b20c742f60178835cef15b23abd4e1aaad92b3",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_good/replay.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "8c8c10dadfcdb52b790a907594bc99bc4d76f2aa24b8499f3e2f8756dec104fc",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_good/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "081ea6ad1f2131921a24976bc6b20c742f60178835cef15b23abd4e1aaad92b3",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_good/replay.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "8c8c10dadfcdb52b790a907594bc99bc4d76f2aa24b8499f3e2f8756dec104fc",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_good/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "8c8c10dadfcdb52b790a907594bc99bc4d76f2aa24b8499f3e2f8756dec104fc",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_good/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "41d6adfb95574e59b7bdade694fee859209d8a29a6f19a546e1f174872ce4626",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_no_motion/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "41d6adfb95574e59b7bdade694fee859209d8a29a6f19a546e1f174872ce4626",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/run_no_motion/scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "601ee8c2cf6f0773afcd3cab17419062a5e81622ca4b773bdeb335adb6541a87",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/static_binding_positive.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "601ee8c2cf6f0773afcd3cab17419062a5e81622ca4b773bdeb335adb6541a87",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/static_binding_positive.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "601ee8c2cf6f0773afcd3cab17419062a5e81622ca4b773bdeb335adb6541a87",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/synthetic_good.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "601ee8c2cf6f0773afcd3cab17419062a5e81622ca4b773bdeb335adb6541a87",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/synthetic_good.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "f49400ef5c8b284e0ef553b022caa760c05c1ebe782ed880821f6685a30d6d65",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/wrong_joint.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "f49400ef5c8b284e0ef553b022caa760c05c1ebe782ed880821f6685a30d6d65",
+      "source": "publication_review/usd_privacy_review.json",
+      "target": "capstone/evaluator/source_clear_v1/selftest/wrong_joint.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/4c2482550116d7df/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/6fef9cc4647a22e1/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/e2f20ad1327a6b1d/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/4c2482550116d7df/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/6fef9cc4647a22e1/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/e2f20ad1327a6b1d/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "source": "publication_review/usd_privacy_review_08.json",
+      "target": "capstone/runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a29e94df826a98e5485188a3407bfda3ba3648572821c2375b8cefc898065a07",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_x_0000.png"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "41c53811eea70c2c3d9fdfb3b032dd8b9415d4d247ffdc399c3807b549f72e14",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_x_0000.png"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "ae2019eb2ce2e7620078840a88c6b9f2330ee6be1a60d659daf6e0cce8cb827f",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_y_0000.png"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "bd96d4d6d9c0560e2dddb633ee8365a5612dd680158c39511f8af519a4ce14bc",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_minus_y_0000.png"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "7565496993db1f9e1419c76ae1a8d0e6244cdd862faeef324aa860ecffce944b",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_z_0000.png"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "ec422ace55954b77c34137c617bbde1e4b22998e131df3fb781cad186fa73078",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/renders/000_source_preserved_bcccd95b/000_source_preserved_bcccd95b_plus_xplus_yplus_z_0000.png"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "f2b4ad83b37c118e48b4c5b89490fc463811000b3631562cc428b4a5ad3155ea",
+      "source": "runs/drawer_geometry_04/render_evidence/geometry_render_evidence_six_view.json",
+      "target": "runs/drawer_geometry_04/render_evidence/geometry_six_view.png"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "f261c9d030e24d8071e025e0db76c6f41477191054bfdfbcf023e2b392fc82c8",
+      "source": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+      "target": "runs/drawer_joint_02/canonical_articulation_graph.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "d9111ca789955a33907e4b2027b5270840f3dd2921556225402436f482f98263",
+      "source": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+      "target": "runs/drawer_joint_02/articulation_decision_ledger.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "87c1010169c5be295231ca56f618b01120092a5e1aebbeacec94baeda9c92cec",
+      "source": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+      "target": "runs/drawer_joint_02/articulation_decision_patch.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "source": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+      "target": "runs/drawer_joint_02/joint_rigger/rigged.usdz"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "5eb78a125e8bddba9ab5ec80d8d8cae58ac5aabd30074723c7bef02de272467e",
+      "source": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_readback.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "296cedaa856a1599f0f0bd2ccf8b5c56aeca184779d86d4f6c368195f79e9180",
+      "source": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json",
+      "target": "runs/drawer_joint_02/validation_evidence.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "source": "runs/drawer_joint_02/standalone_articulation_cleanup_receipt.json",
+      "target": "runs/drawer_joint_02/joint_rigger/rigged.usdz"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "4100aae31b236f2f44f94c1b52d5ebe1649ac81c4fed40677b3c0136e31a3454",
+      "source": "runs/drawer_joint_02/standalone_articulation_identity.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_preparation.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "7d7260af413717009ee923a97683e94cf3b4e7ab9dc19fa8f4a97f5ce0ed6172",
+      "source": "runs/drawer_joint_02/standalone_articulation_identity.json",
+      "target": "runs/drawer_packaging_02/source.usdz"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "7d7260af413717009ee923a97683e94cf3b4e7ab9dc19fa8f4a97f5ce0ed6172",
+      "source": "runs/drawer_joint_02/standalone_articulation_output_evidence.json",
+      "target": "runs/drawer_packaging_02/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "source": "runs/drawer_joint_02/standalone_articulation_readback.json",
+      "target": "runs/drawer_joint_02/joint_rigger/rigged.usdz"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "296cedaa856a1599f0f0bd2ccf8b5c56aeca184779d86d4f6c368195f79e9180",
+      "source": "runs/drawer_joint_02/standalone_articulation_readback.json",
+      "target": "runs/drawer_joint_02/validation_evidence.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "290ca8dd544ba24a7b99398ef82899cffff01ade3d2b91be3e85a593f4ad55be",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_authoring_receipt.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "f261c9d030e24d8071e025e0db76c6f41477191054bfdfbcf023e2b392fc82c8",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/canonical_articulation_graph.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "f233f5b56d5ef9435d8bb320d6fad0ffb20af41911d065c2f8c112dfb509da2c",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_cleanup_receipt.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "d9111ca789955a33907e4b2027b5270840f3dd2921556225402436f482f98263",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/articulation_decision_ledger.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "87c1010169c5be295231ca56f618b01120092a5e1aebbeacec94baeda9c92cec",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/articulation_decision_patch.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "444580b05d462bb732ed661f74c064a995f179dcfacc2498e87c851ea0cea842",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_identity.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/joint_rigger/rigged.usdz"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "0529e95b650299730438759ccac65ec92dbfbb2f939516959618746cd8df4a79",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_output_evidence.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "7aebccfaa38a707e47b3e4d7940bc0a44d9b8121e3732a04f8361fe14d3c4ba1",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_post_review.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "4100aae31b236f2f44f94c1b52d5ebe1649ac81c4fed40677b3c0136e31a3454",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_preparation.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "5eb78a125e8bddba9ab5ec80d8d8cae58ac5aabd30074723c7bef02de272467e",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_joint_02/standalone_articulation_readback.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "7d7260af413717009ee923a97683e94cf3b4e7ab9dc19fa8f4a97f5ce0ed6172",
+      "source": "runs/drawer_joint_02/standalone_articulation_terminal_receipt.json",
+      "target": "runs/drawer_packaging_02/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/328f7aa0f6b30969/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/3e24b2bdb272a8af/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/drop_settle_scene.usda_assets/ff1d9181827f966c/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b08285f1b7c47ce09b8d508470a022526d016feab521e2d9b862b115ff11ab41",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "69426da4a5e7110842d829a98742ab5cb87ab8bdbbc29bea198cb5a0cea756a4",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "075035c9976cac7000ce430632ca395173cca23adfccb58d1fc2a00e5a3b3e69",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/raw/physics_render_frames_1.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "57b850564032c5a4ce6de277d2ee17ce2c630cd5301dad0b1a79195409275ff3",
+      "source": "runs/drawer_physics_07/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_07/runtime/runtime_validation_report.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/4c2482550116d7df/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/6fef9cc4647a22e1/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/e2f20ad1327a6b1d/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "723e5351acb7ab1f36dea42fd0b5ed0e496dad4a2bb3315df4c2f0c493f568bb",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/raw/physics_render_frames_1.json"
+    },
+    {
+      "binding": "RECEIPT_ATTESTED_INTERMEDIATE_DIGEST_BYTES_NOT_PROVIDED",
+      "sha256": "8c6c3310e49e1a3da75c81bc30d6018857f1f0e5db738fd48dfdf39fab3019c5",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_1.json",
+      "target": "runs/drawer_physics_08/runtime/runtime_validation_report.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/inputs/source/source.usdz"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/4c2482550116d7df/image_0000.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/6fef9cc4647a22e1/image_0002.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda_assets/e2f20ad1327a6b1d/image_0001.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "654454c6c4a83fd362fcde975884e471b4a940f73b8048ffc096b377bafca464",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/physics.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "886a50ba15ec764066c90426aec17cc9ffa1f5917b1da18f081b5b332544cb92",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/usd_cli_simulation/recording.usda"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "201c6a785128a7e52e9185dadedb91e0326f5cbfb42b46bc1c4bd640d70f3d3b",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/drop_settle_scene.usda"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "be7a301070d2e7d7b77fdc0b92867b62b4fc48925e60742350f1da25e5e53164",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/raw/physics_render_frames_2.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "167ff0f6a318b0d6d21c9c735c8278387309b68466c9fbca232d74a2f7545b31",
+      "source": "runs/drawer_physics_08/raw/physics_render_frame_receipt_2.json",
+      "target": "runs/drawer_physics_08/runtime/runtime_validation_report.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+      "source": "source/manifest.json",
+      "target": "source/drawer_cabinet_1k.gltf"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+      "source": "source/manifest.json",
+      "target": "source/textures/drawer_cabinet_arm_1k.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+      "source": "source/manifest.json",
+      "target": "source/textures/drawer_cabinet_nor_gl_1k.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+      "source": "source/manifest.json",
+      "target": "source/textures/drawer_cabinet_diff_1k.jpg"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+      "source": "source/manifest.json",
+      "target": "source/drawer_cabinet.bin"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "6f3acfff9af8ee682a9f12848e7bf59bc22dd36c90d343bb94014cffff9bf1fc",
+      "source": "validation_contract_review/integration_commit.json",
+      "target": "independent_review.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "ce7ccd327110e7c9641d3565d9bfaec88affc2221a54373cc8c8afbc6c7b2126",
+      "source": "validation_contract_review/integration_commit.json",
+      "target": "qualification.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "22079a066bb27a4cf50a70a6f4d1e915b157fb9bd3cc63dc70f413e9d42f5fd8",
+      "source": "validation_contract_review/qualification.json",
+      "target": "world_understanding/agentic/validation_scaffold.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "1cb56bedb5e0f61fd0eb3decea4bd73c68d95a2e6e17ae816b804b1c3e3ec36e",
+      "source": "validation_contract_review/qualification.json",
+      "target": "world_understanding/validation/scaffold_runner.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "bb897c9260b64513bfc63d0c7cc28d4814dadc4e03a96bf547361821faaecf3c",
+      "source": "validation_contract_review/qualification.json",
+      "target": "world_understanding/functions/physics/native_behavior_validation.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "f3beb9e6c223bb4d6e7374fccfb644239bc9a129f1d8496d5c0ed013ce1ae6ae",
+      "source": "validation_contract_review/qualification.json",
+      "target": "tests/test_native_physics_behavior_validation.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "1c8545470026369151eb22a7a3ddb0ca8d671449f08377da82d15aee87343c7b",
+      "source": "validation_contract_review/qualification.json",
+      "target": "docs/validation/native-physics-behavior.md"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "8b259df28e5750842766c1184ee442b6f36fab46d333ce78bffce452598b0b21",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_03/physics_behavior_assessment.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "b73e80e9e3c87558ef29f3781becd663ab19a108678f2a58752e6fac5cb098f4",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_03/validation_evidence.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "3bfb3491f3451796b9408f916cf303aab772581ad5531b16c5a7857fde0e228d",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_03/physics.usda"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "d2403dab45524f550cde1b3f75c18d92b31ac965f62a25a57c58dc4d5adce446",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_07/physics_behavior_assessment.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "13014e1f21063533ebe17be0ca0c67fcf03a38283ba6f1d2e29ba1c0b3c34f14",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_07/validation_evidence.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "b91b0a25d075cc50457c4210287b6d15c4b53f64a42efef294dcbe6e6460f486",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_07/physics.usda"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "3a209ed5374811d693296395f5ed487f2dcc8a1a20a586f941ad5dae4dfe4080",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_06/validation_evidence.json"
+    },
+    {
+      "binding": "ORIGINAL_RETAINED_BYTES_TARGET_IS_PROJECTION",
+      "sha256": "e0f022f4b6d6ee7903c79157040fe2b5f31556f622728d81d6bd9b584c65d587",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "runs/drawer_physics_06/runtime/runtime_validation_report.json"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "22079a066bb27a4cf50a70a6f4d1e915b157fb9bd3cc63dc70f413e9d42f5fd8",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "qualification/validation_behavior/repo/world_understanding/agentic/validation_scaffold.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "bb897c9260b64513bfc63d0c7cc28d4814dadc4e03a96bf547361821faaecf3c",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "qualification/validation_behavior/repo/world_understanding/functions/physics/native_behavior_validation.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "293e2b37f0d98227346f3f9bc5bf2cb8778068dc643094f5cfca1ec8e3327240",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "qualification/validation_behavior/repo/agentic/packages/content_workflow_cli/content_workflow_cli/runner.py"
+    },
+    {
+      "binding": "RETAINED_ONLY_NOT_CLAIMED_PUBLISHED",
+      "sha256": "8b5e4d98084ac9b01f184f724a96f34909f98393cba60b4f49a68e7f3fc91495",
+      "source": "validation_contract_review/retained_qualification.json",
+      "target": "qualification/validation_behavior/repo/agentic/packages/content_agent_workflows/content_agent_workflows/physics/workflow.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "dbc93fbfae143411048050525c5c80b9dea98bc2d40842aa1c1ea97e544564a9",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/DRAWER_CONTRACT.md"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "c84e1b69979842f53662ec5cc292a57b19bfdd3af594ad22eba33a0a28214eca",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/DRAWER_EVALUATOR.md"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "90cde935ce539607c6a770f6ff0ee8cc8c5bc37ba2f18c76802e5cdfe70bf1cd",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_acceptance.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_evaluate.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "16251ef980b49430518eea0d1409fedea1e15dd586a16ebf3a69a137649bc565",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_force_units_probe.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "dafbf7f50b4187ce070f736d4c46b3be1a8ff6e21a7da47b692029904cda1ba5",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_mesh_collision_probe.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_solver.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "f5f95a05a70e3d6fba7ba3e168c60ad22b38bc3c21e55a505a3898d8b0036d8d",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_static_binding_test.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "db4e8554390ef9273f696ef3f81639203db929fc8891efe18c4fb808fa5c2704",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_test_fixtures.py"
+    },
+    {
+      "binding": "ORIGINAL_DIGEST_ATTESTED_PROJECTION_PROVIDED",
+      "sha256": "5b7b44588abb32148273087d8df8f0300e78a0422ae83bb2c6a3d23e6caf8dd6",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/original_drawer_freeze.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "75cf05edcc9617da55d20bb1da269749b4f8cade77c9510448fb204363636fcf",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/prepare_source_clear_fixture.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/reference/drawer_cabinet.bin"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/reference/drawer_cabinet_1k.gltf"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "18adb2648647b6a276e9789c530ed8878da66262ede38356d6f9ab7ac57f141f",
+      "source": "evaluator/source_clear_v1/source_clear_freeze.json",
+      "target": "evaluator/source_clear_v1/source_direction_probe.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "dbc93fbfae143411048050525c5c80b9dea98bc2d40842aa1c1ea97e544564a9",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/DRAWER_CONTRACT.md"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "c84e1b69979842f53662ec5cc292a57b19bfdd3af594ad22eba33a0a28214eca",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/DRAWER_EVALUATOR.md"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "cef4474f7bee05ce3be6c1e7bfa294ebfced78b62e99aace7aebc50cb14bb85d",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/original_spec/drawer_acceptance.json"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "dcd7f4e4db1462f2b46cf27294e91814541616372be76c3ebad465552fb48a57",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_evaluate.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "16251ef980b49430518eea0d1409fedea1e15dd586a16ebf3a69a137649bc565",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_force_units_probe.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "dafbf7f50b4187ce070f736d4c46b3be1a8ff6e21a7da47b692029904cda1ba5",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_mesh_collision_probe.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "413c44eb051c369d23cd5fdd4c577b50b918a983845af560334f3a7e3926a8aa",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_solver.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "f5f95a05a70e3d6fba7ba3e168c60ad22b38bc3c21e55a505a3898d8b0036d8d",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_static_binding_test.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "db4e8554390ef9273f696ef3f81639203db929fc8891efe18c4fb808fa5c2704",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/drawer_test_fixtures.py"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "3460b9fe00ffbe779b7f7f2de3b159c214cfec275c06194add0eebd951ee14e9",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/reference/drawer_cabinet.bin"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "899581e6a041644139a138f909c6ba001684cc55b5d1702e08f01094e20d0617",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/reference/drawer_cabinet_1k.gltf"
+    },
+    {
+      "binding": "EXACT_PUBLISHED_BYTES",
+      "sha256": "18adb2648647b6a276e9789c530ed8878da66262ede38356d6f9ab7ac57f141f",
+      "source": "evaluator/source_clear_v1/original_drawer_freeze.json",
+      "target": "evaluator/source_clear_v1/source_direction_probe.py"
+    }
+  ],
+  "schema_version": "capstone-public-bundle-review.v1"
+}

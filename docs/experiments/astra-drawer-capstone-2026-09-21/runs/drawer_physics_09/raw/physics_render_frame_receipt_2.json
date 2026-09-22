@@ -1,0 +1,578 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "5c5d060ccac7665433f1a8bb7fd45b0fb0ac68779cdc578abf85eec76641a1d2"
+  },
+  "frames": [
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 0,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "3633085748871843c1b40b8d825989571f7f1d2ac936f37f067bffb4ab11c020",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "04ff73090cde86e2ada0df57c03f5dc906518227fedaaa77ef0fd426038bb3a1",
+      "frame_size_bytes": 233702,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0000.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0000.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 0,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0000.png",
+      "service_frame_sha256": "04ff73090cde86e2ada0df57c03f5dc906518227fedaaa77ef0fd426038bb3a1",
+      "service_frame_size_bytes": 233702
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 1,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "e47722dc31124b6bc98de9c2dfac28973ca999b55a0768e8a0eab960b6c67035",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "180246454321769b76837eef55ff83c3a5208764b4da77a98c5c0d4f67c66cd6",
+      "frame_size_bytes": 233292,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0001.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0001.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 1,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0013.png",
+      "service_frame_sha256": "180246454321769b76837eef55ff83c3a5208764b4da77a98c5c0d4f67c66cd6",
+      "service_frame_size_bytes": 233292
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 2,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "3eb743d87c39825d92311f8d509d3cb6ee3929bf38d10a479784fd30c51e27d9",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "91df6edc252e32e06bd1e2693ff950211cadd34ea91e00056ac4a4045f20b59f",
+      "frame_size_bytes": 233019,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0002.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0002.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 2,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0026.png",
+      "service_frame_sha256": "91df6edc252e32e06bd1e2693ff950211cadd34ea91e00056ac4a4045f20b59f",
+      "service_frame_size_bytes": 233019
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 3,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "7cc4d2afd2d812c9cd6207f616cec86e2497285deb423366b8934550222c5abe",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "fe5ae3362156c4391a9503bec63fd7999e4efeb257f65759cbbf8c012acbe065",
+      "frame_size_bytes": 233235,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0003.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0003.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 3,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0039.png",
+      "service_frame_sha256": "fe5ae3362156c4391a9503bec63fd7999e4efeb257f65759cbbf8c012acbe065",
+      "service_frame_size_bytes": 233235
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 4,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "62b375a4fc3daba300ae193bde75a728a8d16da5b0882266c8de0d05b64db8fd",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "e6fc8e5c7cf136547a6848229496591d1f6d9a633073e5dac9d5d936bcdc0344",
+      "frame_size_bytes": 233402,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0004.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0004.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 4,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0051.png",
+      "service_frame_sha256": "e6fc8e5c7cf136547a6848229496591d1f6d9a633073e5dac9d5d936bcdc0344",
+      "service_frame_size_bytes": 233402
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 5,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "349ef3e5b21d528aab17558c4e1b91902a5a81828d9b7a68dad3f6ca6a9fef82",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "3612a844c8f463329c238cdd82dc82aa5d0528bbe3c2bf3de3cfa9d2bf7089f2",
+      "frame_size_bytes": 233143,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0005.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0005.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 5,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0064.png",
+      "service_frame_sha256": "3612a844c8f463329c238cdd82dc82aa5d0528bbe3c2bf3de3cfa9d2bf7089f2",
+      "service_frame_size_bytes": 233143
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 6,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "e48393f39073ae2204a075fa487e0c04f3cff03823735b2e459c38f316881ee0",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "908567be2ca2ed6951a4258e902e05c417f4fc5bcf6b718cbaab79cf1e54bb8e",
+      "frame_size_bytes": 233729,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0006.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0006.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 6,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0077.png",
+      "service_frame_sha256": "908567be2ca2ed6951a4258e902e05c417f4fc5bcf6b718cbaab79cf1e54bb8e",
+      "service_frame_size_bytes": 233729
+    },
+    {
+      "camera": {
+        "camera_path": "/usd_cam",
+        "image_height": 480,
+        "image_width": 640,
+        "ovrtx_probe": {
+          "capabilities": [
+            "appearance.clear.v1"
+          ],
+          "engine": "ovrtx",
+          "ready": true,
+          "render": {
+            "backend": "ovrtx",
+            "duration_s": 0.297205,
+            "height": 64,
+            "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+            "size_bytes": 91,
+            "width": 64
+          },
+          "required_engine": "ovrtx",
+          "resolved_renderer": "ovrtx",
+          "schema_version": "usd-cli.render-probe.v1",
+          "transport": "local"
+        },
+        "render_mode": "fast",
+        "renderer": "ovrtx",
+        "resolved_renderer": "ovrtx",
+        "response_index": 7,
+        "scene_backend": "usd-cli",
+        "schema_version": "content-workflow-cli.physics-usd-cli-camera-evidence.v1",
+        "transport": "local",
+        "usd_cli_render_summary": {
+          "backend": "ovrtx",
+          "camera": "/usd_cam",
+          "fps": 30.0,
+          "frames": 8,
+          "res": "640x480",
+          "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+        }
+      },
+      "camera_sha256": "9e31e15679ad16697ec55919869468cbd2bfdf64771f30b3c5a6ba2e7b5c6b29",
+      "camera_size_bytes": 1525,
+      "frame_sha256": "5c83b64b3d745f129acb0700ad553eec126c5330b5738824d1d1bfd7e3269aa9",
+      "frame_size_bytes": 233545,
+      "local_camera_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0007.camera.json",
+      "local_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/review_frame_0007.png",
+      "renderer_identity": {
+        "engine": "ovrtx",
+        "protocol_version": null,
+        "status": "ready"
+      },
+      "response_index": 7,
+      "service_frame_path": "runs/drawer_physics_09/runtime/visual_review_frames_2/usd_cam__640x480__f0090.png",
+      "service_frame_sha256": "5c83b64b3d745f129acb0700ad553eec126c5330b5738824d1d1bfd7e3269aa9",
+      "service_frame_size_bytes": 233545
+    }
+  ],
+  "iteration": 2,
+  "render_input_bundle": {
+    "files": [
+      {
+        "path": "runs/drawer_physics_09/inputs/source/source.usdz",
+        "relative_path": "inputs/source/source.usdz",
+        "sha256": "6cec8cb885b0e34e2a8b16c5c62d5af0a527df2a9bc46ef82ed86dff1f7d2ec9",
+        "size_bytes": 1036785
+      },
+      {
+        "path": "runs/drawer_physics_09/physics.usda",
+        "relative_path": "physics.usda",
+        "sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+        "size_bytes": 2533578
+      },
+      {
+        "path": "runs/drawer_physics_09/runtime/drop_settle_scene.usda",
+        "relative_path": "runtime/drop_settle_scene.usda",
+        "sha256": "7d012121ff4894dd8052d92cc35fcca631b12aacbac7fffcaeb0adcc6b8bc9d1",
+        "size_bytes": 2535529
+      },
+      {
+        "path": "runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/0506be34aac9c579/image_0000.jpg",
+        "relative_path": "runtime/drop_settle_scene.usda_assets/0506be34aac9c579/image_0000.jpg",
+        "sha256": "26d0904ad341353e095ef619d157a5f416be014500475976f1144827cc849faa",
+        "size_bytes": 61593
+      },
+      {
+        "path": "runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/2df8bedf7dabb89b/image_0002.jpg",
+        "relative_path": "runtime/drop_settle_scene.usda_assets/2df8bedf7dabb89b/image_0002.jpg",
+        "sha256": "8f8eefaaadcee247204c5658c2f4d9cac598222336918b01eb48e4190317788c",
+        "size_bytes": 124942
+      },
+      {
+        "path": "runs/drawer_physics_09/runtime/drop_settle_scene.usda_assets/db98cd18d1db3247/image_0001.jpg",
+        "relative_path": "runtime/drop_settle_scene.usda_assets/db98cd18d1db3247/image_0001.jpg",
+        "sha256": "0fe270409b54a5609662dda14afaa94af4bd3267dcd83dd824e05fa880d96efb",
+        "size_bytes": 150011
+      },
+      {
+        "path": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda",
+        "relative_path": "runtime/usd_cli_simulation/recording.usda",
+        "sha256": "01adfe485a813e7693e20f13c3276142238a5fe197bc03ecd575d686d7b437be",
+        "size_bytes": 2550325
+      }
+    ],
+    "sha256": "d465619a6d64436927bbe0e125a91b863258b9047d160eead9e219e3f0eeb78d"
+  },
+  "render_inputs": {
+    "physics_usd": {
+      "path": "runs/drawer_physics_09/physics.usda",
+      "sha256": "f38b48d703dd71904668edcae0ffe539ca6795978b44897ecbad00f7e973972d",
+      "size_bytes": 2533578
+    },
+    "recording_usda": {
+      "path": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda",
+      "sha256": "01adfe485a813e7693e20f13c3276142238a5fe197bc03ecd575d686d7b437be",
+      "size_bytes": 2550325
+    },
+    "scene_usd": {
+      "path": "runs/drawer_physics_09/runtime/drop_settle_scene.usda",
+      "sha256": "7d012121ff4894dd8052d92cc35fcca631b12aacbac7fffcaeb0adcc6b8bc9d1",
+      "size_bytes": 2535529
+    }
+  },
+  "render_request": {
+    "animate": false,
+    "command": "render-frames",
+    "frames": "0,13,26,39,51,64,77,90",
+    "mode": "fast",
+    "resolution": "640x480",
+    "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda",
+    "timeout_seconds": 300.0
+  },
+  "render_response": {
+    "camera_path": "/usd_cam",
+    "image_height": 480,
+    "image_width": 640,
+    "ovrtx_probe": {
+      "capabilities": [
+        "appearance.clear.v1"
+      ],
+      "engine": "ovrtx",
+      "ready": true,
+      "render": {
+        "backend": "ovrtx",
+        "duration_s": 0.297205,
+        "height": 64,
+        "path": "runs/drawer_physics_09/ovrtx_probe/ovrtx_readiness_probe.png",
+        "size_bytes": 91,
+        "width": 64
+      },
+      "required_engine": "ovrtx",
+      "resolved_renderer": "ovrtx",
+      "schema_version": "usd-cli.render-probe.v1",
+      "transport": "local"
+    },
+    "render_mode": "fast",
+    "renderer": "ovrtx",
+    "resolved_renderer": "ovrtx",
+    "scene_backend": "usd-cli",
+    "transport": "local",
+    "usd_cli_render_summary": {
+      "backend": "ovrtx",
+      "camera": "/usd_cam",
+      "fps": 30.0,
+      "frames": 8,
+      "res": "640x480",
+      "scene": "runs/drawer_physics_09/runtime/usd_cli_simulation/recording.usda"
+    }
+  },
+  "response_artifact": {
+    "path": "runs/drawer_physics_09/raw/physics_render_frames_2.json",
+    "sha256": "f8d1b1efcec0b60559175cb7535b7a4b5f55fa33912858aeee1a614c93119918"
+  },
+  "runtime_asset_provenance": null,
+  "schema_version": "content-workflow-cli.physics-render-frame-receipt.v1",
+  "simulation_report": {
+    "path": "runs/drawer_physics_09/runtime/runtime_validation_report.json",
+    "sha256": "6a92db7d2e5d68b74df752674a7bcd74eb2dc6217a6045593016c37b7f7d2295"
+  }
+}

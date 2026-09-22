@@ -1,0 +1,482 @@
+{
+  "additional_evidence": [],
+  "authoritative_owners": {
+    "artifacts": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+        "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+        "size_bytes": 1035177
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+        "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+        "size_bytes": 8316
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+        "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+        "size_bytes": 10805
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+        "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+        "size_bytes": 3543
+      }
+    ],
+    "evidence_id": "joint-authoritative-owner-inspection",
+    "evidence_type": "inspection",
+    "facts": {
+      "authoritative_owner_prims": [
+        "/Asset",
+        "/Asset/drawer_cabinet_0/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_02_2",
+        "/Asset/drawer_cabinet_drawer_03_3",
+        "/Asset/drawer_cabinet_drawer_04_4"
+      ],
+      "membership_policy": "retained-explicit-membership-v1",
+      "membership_rows": [
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks/Material_0000"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks/Material_0000/Color"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks/Material_0000/MetalRough"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks/Material_0000/Normal"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks/Material_0000/Surface"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/Looks/Material_0000/UV"
+        },
+        {
+          "authoritative_owner_prim": "/Asset",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_0"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_0/Primitive_0",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_0/Primitive_0"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_01_1",
+          "disposition": "independent_motion",
+          "member_prim": "/Asset/drawer_cabinet_drawer_01_1"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_01_1",
+          "disposition": "co_rigid",
+          "member_prim": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_02_2",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_drawer_02_2"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_02_2",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_03_3",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_drawer_03_3"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_03_3",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_04_4",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_drawer_04_4"
+        },
+        {
+          "authoritative_owner_prim": "/Asset/drawer_cabinet_drawer_04_4",
+          "disposition": "explicit_fixed",
+          "member_prim": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+        }
+      ]
+    },
+    "required": true,
+    "status": "available",
+    "summary": "Authoritative owners derived from retained configuration authority."
+  },
+  "capabilities": {
+    "artifacts": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+        "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+        "size_bytes": 3543
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+        "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+        "size_bytes": 10805
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+        "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+        "size_bytes": 8316
+      }
+    ],
+    "evidence_id": "joint-authoring-capabilities",
+    "evidence_type": "capability",
+    "facts": {
+      "canonical_output_evidence_required": true,
+      "co_rigid_preservation_supported": true,
+      "fixed_joint_authoring_supported": false,
+      "provider_proposals_authority": false,
+      "raw_predictions_authority": false,
+      "supported_frame_policies": [
+        "body1_world_origin"
+      ],
+      "supported_joint_types": [
+        "revolute",
+        "prismatic"
+      ]
+    },
+    "required": true,
+    "status": "available",
+    "summary": "Exact configured provider-neutral authoring capabilities."
+  },
+  "configuration_sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+  "evidence_provider": {
+    "implementation": "prepare_static_mesh_articulation_readback.py.v1",
+    "implementation_digest": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+    "producer_id": "capstone-static-mesh-source-usdcli-readback",
+    "role": "evidence_provider"
+  },
+  "proposal": null,
+  "proposal_status": "not_requested",
+  "renders": {
+    "artifacts": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/packaged_preview.png",
+        "sha256": "e8d17568f32eb69c86302327253aecd540aec14ae491e5c5ebafe223ec410e9d",
+        "size_bytes": 261187
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/packaged_render.json",
+        "sha256": "9e47137e27a97754afc8bb9a9f12dd6cd9b8be3a1debdfa05b73774168006db2",
+        "size_bytes": 1306
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+        "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+        "size_bytes": 8316
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+        "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+        "size_bytes": 10805
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+        "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+        "size_bytes": 3543
+      }
+    ],
+    "evidence_id": "joint-render-inspection",
+    "evidence_type": "render",
+    "facts": {
+      "artifact_count": 2,
+      "artifact_sha256s": [
+        "e8d17568f32eb69c86302327253aecd540aec14ae491e5c5ebafe223ec410e9d",
+        "9e47137e27a97754afc8bb9a9f12dd6cd9b8be3a1debdfa05b73774168006db2"
+      ]
+    },
+    "required": true,
+    "status": "available",
+    "summary": "Exact retained diagnostic render inspection artifacts."
+  },
+  "scene": {
+    "artifacts": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+        "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+        "size_bytes": 1035177
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspection_snapshot.json",
+        "sha256": "419071461a13a533a47d91a536b48a059abd38d9cfb95f93c4f182bbbccb903b",
+        "size_bytes": 14513
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/save_package.json",
+        "sha256": "cab8305db497323c4e1b2d6b51b3c9769fac3e3c8f521452e25f6202ada4935f",
+        "size_bytes": 569
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/packaging_fidelity.json",
+        "sha256": "077d8a23ce3895d1bbd2c3d6999a7dfdc8fb97658ff229ff6f9844971f84966b",
+        "size_bytes": 675
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/saved_geometry_observation.json",
+        "sha256": "a078ceb2cebb08eb989414878f2e0ab243469e2d4e5f4348f7a4a62700936aa9",
+        "size_bytes": 2552
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+        "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+        "size_bytes": 8316
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+        "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+        "size_bytes": 10805
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+        "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+        "size_bytes": 3543
+      }
+    ],
+    "evidence_id": "joint-scene-inspection",
+    "evidence_type": "inspection",
+    "facts": {
+      "dependency_entry_count": 0,
+      "saved_stage_dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3",
+      "saved_stage_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+      "scene_artifact_sha256s": [
+        "419071461a13a533a47d91a536b48a059abd38d9cfb95f93c4f182bbbccb903b",
+        "cab8305db497323c4e1b2d6b51b3c9769fac3e3c8f521452e25f6202ada4935f",
+        "077d8a23ce3895d1bbd2c3d6999a7dfdc8fb97658ff229ff6f9844971f84966b",
+        "a078ceb2cebb08eb989414878f2e0ab243469e2d4e5f4348f7a4a62700936aa9"
+      ],
+      "source_dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3",
+      "source_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35"
+    },
+    "required": true,
+    "status": "available",
+    "summary": "Exact saved stage, scene records, and dependency closure."
+  },
+  "schema_version": "content-agent-workflows.embedded-articulation-preparation.v1",
+  "source_dependency_bundle_sha256": "f7a9efb033dd016f5dd98a7419543548e77727ec152875c27ab3ac7cb54ef9b3",
+  "source_hierarchy": {
+    "artifacts": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+        "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+        "size_bytes": 1035177
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+        "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+        "size_bytes": 3543
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+        "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+        "size_bytes": 10805
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+        "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+        "size_bytes": 8316
+      }
+    ],
+    "evidence_id": "source-hierarchy-inspection",
+    "evidence_type": "inspection",
+    "facts": {
+      "prim_count": 18,
+      "prims": [
+        {
+          "active": true,
+          "parent_prim_path": null,
+          "prim_path": "/Asset",
+          "type_name": "Xform"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset",
+          "prim_path": "/Asset/Looks",
+          "type_name": "Scope"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/Looks",
+          "prim_path": "/Asset/Looks/Material_0000",
+          "type_name": "Material"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/Looks/Material_0000",
+          "prim_path": "/Asset/Looks/Material_0000/Color",
+          "type_name": "Shader"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/Looks/Material_0000",
+          "prim_path": "/Asset/Looks/Material_0000/MetalRough",
+          "type_name": "Shader"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/Looks/Material_0000",
+          "prim_path": "/Asset/Looks/Material_0000/Normal",
+          "type_name": "Shader"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/Looks/Material_0000",
+          "prim_path": "/Asset/Looks/Material_0000/Surface",
+          "type_name": "Shader"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/Looks/Material_0000",
+          "prim_path": "/Asset/Looks/Material_0000/UV",
+          "type_name": "Shader"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset",
+          "prim_path": "/Asset/drawer_cabinet_0",
+          "type_name": "Xform"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/drawer_cabinet_0",
+          "prim_path": "/Asset/drawer_cabinet_0/Primitive_0",
+          "type_name": "Mesh"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset",
+          "prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+          "type_name": "Xform"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/drawer_cabinet_drawer_01_1",
+          "prim_path": "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+          "type_name": "Mesh"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset",
+          "prim_path": "/Asset/drawer_cabinet_drawer_02_2",
+          "type_name": "Xform"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/drawer_cabinet_drawer_02_2",
+          "prim_path": "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+          "type_name": "Mesh"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset",
+          "prim_path": "/Asset/drawer_cabinet_drawer_03_3",
+          "type_name": "Xform"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/drawer_cabinet_drawer_03_3",
+          "prim_path": "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+          "type_name": "Mesh"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset",
+          "prim_path": "/Asset/drawer_cabinet_drawer_04_4",
+          "type_name": "Xform"
+        },
+        {
+          "active": true,
+          "parent_prim_path": "/Asset/drawer_cabinet_drawer_04_4",
+          "prim_path": "/Asset/drawer_cabinet_drawer_04_4/Primitive_0",
+          "type_name": "Mesh"
+        }
+      ],
+      "readback_sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9"
+    },
+    "required": true,
+    "status": "available",
+    "summary": "Complete deterministic saved-stage hierarchy readback."
+  },
+  "source_members": {
+    "artifacts": [
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/source.usdz",
+        "sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35",
+        "size_bytes": 1035177
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/articulation_preparation_readback.json",
+        "sha256": "ab0dd9496ee5b0b539ca7316207cea84cbfb286b42471fd4475e18720ed00bd9",
+        "size_bytes": 8316
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/prepare_static_mesh_articulation_readback.py",
+        "sha256": "d9803a56576072cd0bdf0857c0804a320b4aa7a76ae7dc1f915ebe6fba65f1c4",
+        "size_bytes": 10805
+      },
+      {
+        "path": "/opt/astra-content-value-20260921/capstone/runs/drawer_packaging_04/inspector_config.json",
+        "sha256": "9dd078ce0c38e33bc0ef3a26b863501cbb212acaf3dbfdeda1817f92c7c34e9f",
+        "size_bytes": 3543
+      }
+    ],
+    "evidence_id": "joint-source-member-inspection",
+    "evidence_type": "inspection",
+    "facts": {
+      "source_member_prims": [
+        "/Asset",
+        "/Asset/Looks",
+        "/Asset/Looks/Material_0000",
+        "/Asset/Looks/Material_0000/Color",
+        "/Asset/Looks/Material_0000/MetalRough",
+        "/Asset/Looks/Material_0000/Normal",
+        "/Asset/Looks/Material_0000/Surface",
+        "/Asset/Looks/Material_0000/UV",
+        "/Asset/drawer_cabinet_0",
+        "/Asset/drawer_cabinet_0/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_01_1",
+        "/Asset/drawer_cabinet_drawer_01_1/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_02_2",
+        "/Asset/drawer_cabinet_drawer_02_2/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_03_3",
+        "/Asset/drawer_cabinet_drawer_03_3/Primitive_0",
+        "/Asset/drawer_cabinet_drawer_04_4",
+        "/Asset/drawer_cabinet_drawer_04_4/Primitive_0"
+      ]
+    },
+    "required": true,
+    "status": "available",
+    "summary": "Source members derived from complete per-prim ownership rows."
+  },
+  "source_sha256": "7da027a5371e3aaf5e8219a49d3cfa6cc8d5dcc63a5ecc978777a15d0574be35"
+}

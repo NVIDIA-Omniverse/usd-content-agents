@@ -1,0 +1,154 @@
+{
+  "files": [
+    {
+      "path": "audit_cooking_log.py",
+      "size": 2254,
+      "sha256": "e51ef615857b97bce6f5435a6ff2e94b0fbdbddaf1485796ce8c5ea2280713e1"
+    },
+    {
+      "path": "audit_native_drawer_contract_v5.py",
+      "size": 8308,
+      "sha256": "1e4304a1e58c8859af8ea11ebba04e58ae3fa44a702259f135762a4942bf703a"
+    },
+    {
+      "path": "capture_native_previsual.py",
+      "size": 2135,
+      "sha256": "a52a5c1dd30a7ff9774b287e78ab2cb4fc5a946bc2885b484a22e4925356c686"
+    },
+    {
+      "path": "evidence/authored_contract_drawer_physics_10.json",
+      "size": 24347,
+      "sha256": "c65025e2fceda8d3a3385764991a8fa75bac3a92ad5df3601747ae036ae4f381"
+    },
+    {
+      "path": "evidence/native10_cooked_clearance_v1.json",
+      "size": 17463,
+      "sha256": "6647b434e0952d0d5fab59f4ba6a354a3e7f4f5f5d893b11c2494180b8b0bb47"
+    },
+    {
+      "path": "evidence/native10_cooked_clearance_v1.log",
+      "size": 8589,
+      "sha256": "8591c37f1fef583d27e2e4170ebcaafdb3cc42d22afaaa933d7e92a9982aa528"
+    },
+    {
+      "path": "evidence/native10_cooking_log_audit.log",
+      "size": 59,
+      "sha256": "4ed97af035461dc5efbe6ca1476aac44ed34855a69eb79714cec1b42628035d4"
+    },
+    {
+      "path": "evidence/native10_cooking_log_review.json",
+      "size": 5201,
+      "sha256": "ce452a583f29690192376a19a9a6da4f5026ee27052f17ce48f35ef7c9f2a239"
+    },
+    {
+      "path": "evidence/native10_critical_cooking_log_audit.json",
+      "size": 4542,
+      "sha256": "130693a39a05156a4e63df1f0e9baebb72d80d8455f78c81d171d068bb5f3ecb"
+    },
+    {
+      "path": "evidence/native10_numeric_audit.log",
+      "size": 123,
+      "sha256": "ff197a2a7f888ff69bf52034912dd8ac14a06e42321a3aa1fc59c465d12d6b8f"
+    },
+    {
+      "path": "evidence/native10_postflight_execution.json",
+      "size": 2455,
+      "sha256": "a2f1516748edc1137584cd7dc16b33e1b2cb64ca91c055b54631537be4a29db5"
+    },
+    {
+      "path": "evidence/native10_pre_visual_runtime/capture.json",
+      "size": 1479,
+      "sha256": "435933f25a04ce0bea453990b625fa064f296c312db0a77a115958c1ba25cce7"
+    },
+    {
+      "path": "evidence/native10_pre_visual_runtime/physics_decision_patch.json",
+      "size": 11836,
+      "sha256": "a4fde80605393eb28b4fd6d9f0c280d128265fbd1beee279bd8ae96db31af740"
+    },
+    {
+      "path": "evidence/native10_pre_visual_runtime/runtime_validation_report.json",
+      "size": 95244,
+      "sha256": "377637b643bafe0d935153b658e126ba6b6384ec76057f06dc4a3d717d280869"
+    },
+    {
+      "path": "evidence/native10_pre_visual_runtime/validation_evidence.json",
+      "size": 8251,
+      "sha256": "e27572313ec94e18fcb89e01d2182e607980b0616971b4b69b19bc1f21261685"
+    },
+    {
+      "path": "evidence/native10_source_audit.log",
+      "size": 2367,
+      "sha256": "05bf4e1bfe92a8993a743230a2cd08ac43a678c25e588b786ef443532d78e7c9"
+    },
+    {
+      "path": "evidence/native10_task_bindings.json",
+      "size": 793,
+      "sha256": "c9d69c67233890a8a9a812e27d43e42c410642d45359e19194f9b390f160cbd2"
+    },
+    {
+      "path": "evidence/native10_task_execution.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/original_source_drawer_physics_10.json",
+      "size": 2367,
+      "sha256": "05bf4e1bfe92a8993a743230a2cd08ac43a678c25e588b786ef443532d78e7c9"
+    },
+    {
+      "path": "evidence/physics_native_10.log",
+      "size": 5608,
+      "sha256": "6fcf7f370c9e0f69f48e8cf619d21acedd41feb85e9cff91d49025245393acad"
+    },
+    {
+      "path": "evidence/physics_native_execution_10.json",
+      "size": 1756,
+      "sha256": "5adfd616d42d863fa507b3ba63bcfe43eaec815d8bdbacdfd501a58de31b665f"
+    },
+    {
+      "path": "evidence/physics_native_launch_10.json",
+      "size": 1682,
+      "sha256": "2a24fd87a37e30ad5a920462302e5c04c73c06662ba4f93438271fadafdb445b"
+    },
+    {
+      "path": "physics_guidance_10.md",
+      "size": 6344,
+      "sha256": "33879fb0a4c1d3abcb1366ddfdb3fa25c67af9c802b63cff81182aede35d0b9e"
+    },
+    {
+      "path": "postflight_native10.py",
+      "size": 1887,
+      "sha256": "2c0801b4fae0fccfef87d66ef1028735f92bb48d964b2d42e79091f95d19bc20"
+    },
+    {
+      "path": "probe_cooked_drawer_clearance.py",
+      "size": 4287,
+      "sha256": "096e1900f294c8d7fbf30f878c30f7989b1e89db5fdbd24ba10cf006a612b8b7"
+    },
+    {
+      "path": "review_native10_cooking_log.py",
+      "size": 2689,
+      "sha256": "0ac9de34c33703a73b5a0f29e93af16b803425884800917be8795f4a6607907b"
+    },
+    {
+      "path": "run_native10_task.py",
+      "size": 3141,
+      "sha256": "4d58b8986cd73735f613e0a32eb6452fb3bfc8d849f98d55a9e6307636f5b6df"
+    },
+    {
+      "path": "run_physics_native_10.py",
+      "size": 3698,
+      "sha256": "e362d72c5291b914482bfb32804753fb33e939285dbab8970e57d596cb916885"
+    },
+    {
+      "path": "runs/drawer_physics_08/raw/physics_behavior_assessment_before_review_2.json",
+      "size": 6572,
+      "sha256": "311e3f4851f4796b94460403a6630e9aabbcfccbfc55110a85773eeb4ad0e3e0"
+    },
+    {
+      "path": "runs/drawer_physics_09/raw/physics_behavior_assessment_before_review_2.json",
+      "size": 7143,
+      "sha256": "4daff14681752a9bad137387b1d35d237093a61795511f1e86c1952beb23dc74"
+    }
+  ]
+}

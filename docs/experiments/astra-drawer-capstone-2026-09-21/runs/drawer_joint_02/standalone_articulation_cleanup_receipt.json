@@ -1,0 +1,15 @@
+{
+  "_publication": {
+    "embedded_sha256_semantics": "References retain ORIGINAL retained-byte digests. Use publication_manifest.json to distinguish exact published targets from projections; this is not an original native receipt.",
+    "mode": "field_projection",
+    "original_retained_sha256": "f233f5b56d5ef9435d8bb320d6fad0ffb20af41911d065c2f8c112dfb509da2c"
+  },
+  "identity_digest": "90e1ddf2b057d12cae1240a4ac2c3eef533b7ef855acad1e44cf42b83cded6f2",
+  "output_asset": {
+    "path": "runs/drawer_joint_02/joint_rigger/rigged.usdz",
+    "sha256": "a7216274dca97d18080833370237f53214e58a45705cfc8f9638b3bdf235e960",
+    "size_bytes": 1037001
+  },
+  "schema_version": "content-agent-workflows.standalone-articulation-cleanup-receipt.v1",
+  "status": "completed"
+}
